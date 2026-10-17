@@ -35,7 +35,6 @@ public sealed partial class BrainComposition
         RoundsAcquisitionPlanner? foodAcquisition = null;
         RoundsBuildingPlanner? roomsLighting = null;
         RoundsMoodReliefPlanner? cfgMoodRelief = null;
-        RoundsRecoveryPlanner? cfgRecovery = null;
         RoundsResourcePlanner? cfgResource = null;
         RoundsAcquisitionPlanner? cfgResourceAcquisition = null;
         Rounder? cfgRounds = null;
@@ -224,7 +223,8 @@ public sealed partial class BrainComposition
         }
         if (recovery)
         {
-            cfgRecovery = RoundsRecoveryPlanner.NewRoundsRecoveryPlanner(reviewer);
+            // The recovery toggle composes the disaster family's sheltering and services Needs (#3304).
+            families.Add(new DisasterRounds(reviewer).Runner());
         }
         if (prisonerInteraction || populationCustody)
         {
@@ -358,7 +358,6 @@ public sealed partial class BrainComposition
             Families = families,
             Defense = cfgDefense,
             MoodRelief = cfgMoodRelief,
-            Recovery = cfgRecovery,
             Rounds = cfgRounds,
             Routes = cfgRoutes,
             Store = cfgStore,
@@ -429,7 +428,6 @@ public sealed partial class BrainComposition
         }
 
         Add(sc.Routes, MaintainRoutes);
-        Add(sc.Recovery, RecoverDisasterServices);
         // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
         // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census, the
         // rooms family's room census, beauty definitions, floors and sculpture rooms, and psylink's royalty read and

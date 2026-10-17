@@ -126,6 +126,61 @@ public sealed class RoundsRecoveryWorkerConverter : ObjectCodec<RoundsRecoveryWo
     }
 }
 
+/// <summary>The review's retained recovery selection (#3304: it had no codec, so a disaster review could not be written).</summary>
+public sealed class RecoverySelectionConverter : ObjectCodec<RecoverySelection>
+{
+    protected override RecoverySelection Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            Tick = e.Get<Tick>("Tick", o),
+            Reason = e.Get<RecoverySelectionReason>("Reason", o),
+            Candidates = e.GetOr("Candidates", default(EquatableArray<RecoveryCandidate>), o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, RecoverySelection v, Codecs o)
+    {
+        w.Put("Tick", v.Tick, o);
+        w.Put("Reason", v.Reason, o);
+        w.Put("Candidates", v.Candidates, o);
+    }
+}
+
+/// <summary>One retained recovery candidate; an unknown prior area persists as null.</summary>
+public sealed class RecoveryCandidateConverter : ObjectCodec<RecoveryCandidate>
+{
+    protected override RecoveryCandidate Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            ID = new MethodId(e.Str("ID")),
+            Kind = e.Get<RecoveryProposalKind>("Kind", o),
+            Pawn = new PawnId(e.Str("Pawn")),
+            Building = e.Str("Building"),
+            Method = e.Get<RecoveryMethod>("Method", o),
+            HitPoints = e.GetNullable<long>("HitPoints", o),
+            Fuel = e.GetNullable<double>("Fuel", o),
+            PriorArea = e.Has("PriorArea") ? e.Str("PriorArea") : null,
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, RecoveryCandidate v, Codecs o)
+    {
+        w.WriteString("ID", v.ID.Value);
+        w.Put("Kind", v.Kind, o);
+        w.WriteString("Pawn", v.Pawn.Value);
+        w.WriteString("Building", v.Building);
+        w.Put("Method", v.Method, o);
+        w.PutNullable("HitPoints", v.HitPoints, o);
+        w.PutNullable("Fuel", v.Fuel, o);
+        if (v.PriorArea is null)
+        {
+            w.WriteNull("PriorArea");
+        }
+        else
+        {
+            w.WriteString("PriorArea", v.PriorArea);
+        }
+    }
+}
+
 public sealed class RoundsRecoveryBuildingConverter : ObjectCodec<RoundsRecoveryBuilding>
 {
     protected override RoundsRecoveryBuilding Read(JsonElement e, Codecs o) =>
@@ -163,7 +218,8 @@ public sealed class RoundsRecoveryConverter : ObjectCodec<RoundsRecovery>
     protected override RoundsRecovery Read(JsonElement e, Codecs o) =>
         new()
         {
-            Incident = e.Get<IncidentId>("Incident", o),
+            Need = new NeedId(e.Str("Need")),
+            World = e.Get<World>("World", o),
             Used = e.GetOr("Used", default(EquatableArray<MethodId>), o),
             Safety = e.GetNullableRef<RoundsRecoverySafety>("Safety", o),
             Workers = e.GetNullable<EquatableArray<RoundsRecoveryWorker>>("Workers", o),
@@ -173,7 +229,8 @@ public sealed class RoundsRecoveryConverter : ObjectCodec<RoundsRecovery>
 
     protected override void WriteFields(Utf8JsonWriter w, RoundsRecovery v, Codecs o)
     {
-        w.Put("Incident", v.Incident, o);
+        w.WriteString("Need", v.Need.Value);
+        w.Put("World", v.World, o);
         w.Put("Used", v.Used, o);
         w.PutNullableRef("Safety", v.Safety, o);
         w.PutNullable("Workers", v.Workers, o);

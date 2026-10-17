@@ -61,18 +61,17 @@ public sealed class VoluntaryMethodAdmissionTests
     [InlineData(RecoveryMethod.Repair)]
     [InlineData(RecoveryMethod.Breakdown)]
     [InlineData(RecoveryMethod.Refuel)]
-    public void SeparatelyOwnedIncidentRecoveryRetainsItsAdmission(RecoveryMethod method)
+    public void DisasterServicesRecoveryRetainsItsAdmission(RecoveryMethod method)
     {
         var ct = TestContext.Current.CancellationToken;
-        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-incident-recovery-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-disaster-recovery-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
-        var incident = journal.OpenIncident(new(RecoverDisasterServices, new("colony"), "observed_disaster",
-            World, new(100)), ct);
         var plan = new PlanSpec(new("emergency-plan"), new(1),
             [DomainAction.NewRecoveryServiceAction(new("emergency-action"), new(new("pawn"), "building", method))]);
-        var committed = journal.CommitIncidentMethod(incident.Incident.Id, new("emergency-method"), "", plan, ct);
-        Assert.Equal(plan.Id, Assert.Single(committed.Methods).Plan);
+        var committed = journal.CommitClaimedMethod(DisasterFamily.Services, World, new("emergency-method"), "", plan, ct);
+        Assert.Equal(RimGovernor.Brain.Store.ClaimOutcome.Admitted, committed.Outcome);
+        Assert.Equal(plan.Id, Assert.Single(journal.LoadNeed(DisasterFamily.Services, World, ct).Methods).Plan);
     }
 
     [Theory]

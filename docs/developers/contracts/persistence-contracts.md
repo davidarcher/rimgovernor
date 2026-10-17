@@ -323,10 +323,11 @@ Historical uncertain actions remain uncertain, never relabeled as restored.
 [Sessions and recovery](../architecture/sessions-and-recovery.md) ·
 [Save and resume](../../players/save-and-resume.md)
 
-Protective area-setting methods on RecoverDisasterServices may coexist with open
-RecoveryService actions on that same Incident. Their normal typed payload,
-Safeguards and action journal remain authoritative; any other open action still
-blocks a second method, and service work is neither canceled nor replayed.
+An area-only work assignment (a `disaster/sheltering` move, a creepjoiner's
+isolation) claims only the pawn's allowed area (`allowed-area/<pawn>`), so it is
+admitted beside open RecoveryService work and other work on the pawn. Its normal
+typed payload, Safeguards and action journal remain authoritative; a second move
+of the same pawn's area is held, and service work is neither canceled nor replayed.
 
 Harvest/delivery activity obligations live in their existing journaled
 `PawnActivityOrder.OutputDelivery` payload, including resource/source area,

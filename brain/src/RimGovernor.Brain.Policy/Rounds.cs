@@ -864,6 +864,8 @@ public static partial class PolicyFunctions
             }
         }
         var r = c.R;
+        // The disaster history the disaster family's Needs read (#3304).
+        r.Disaster = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
         // Thought pressure raises the owning upkeep goal's deficit to at least the ledger-weighted share of
         // pawns under the entry margin: the goal's own census still decides whether it is active and what it
         // builds, so a recovered owner is not re-raised, and the pawn's EnsureMood incident defers to it
@@ -892,9 +894,6 @@ public static partial class PolicyFunctions
             {
                 recognizedIds.Add(assessment.Id);
             }
-            // Disaster recovery is only assessed once a disaster history exists, but its method capability is
-            // declared at composition time, before any facts are read; it must validate against empty facts too.
-            recognizedIds.Add(RecoverDisasterServices);
             foreach (var id in methods)
             {
                 if (!recognizedIds.Contains(id) || available.Contains(id))

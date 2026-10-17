@@ -267,29 +267,24 @@ public sealed partial class Store
             throw new ConflictException();
         }
         var bound = false;
-        var areaOnly = false;
-        // A creepjoiner's isolation (the admin/creep-joiners Need) is an area move: each assignment is area-only.
+        // A creepjoiner's isolation (the admin/creep-joiners Need) and a sheltering move (disaster/sheltering) are
+        // area moves: each assignment is area-only.
         var isolation = false;
         if (owner is NeedOwner { Need: var held })
         {
             bound = held == AdminFamily.WorkAssignments;
-            isolation = held == AdminFamily.CreepJoiners;
+            isolation = held == AdminFamily.CreepJoiners || held == DisasterFamily.Sheltering;
         }
-        else if (owner.OwnerNeed(review, out var served))
-        {
-            areaOnly = served == RecoverDisasterServices;
-        }
-        if (!bound && !areaOnly && !isolation)
+        if (!bound && !isolation)
         {
             throw new ConflictException();
         }
         // The admin/work-assignments plan also carries the pawn settings and per-pawn policies that ride its goal; the
-        // eight-pawn cap and one-assignment-per-pawn rule bind only the work assignments. A disaster area plan
-        // carries assignments alone.
+        // eight-pawn cap and one-assignment-per-pawn rule bind only the work assignments.
         var pawns = new HashSet<PawnId>();
         foreach (var action in plan.Actions)
         {
-            if ((!areaOnly && RoundsSettingsKinds.Contains(action.Kind)) || (isolation && action.Kind != ActionKind.WorkAssignment))
+            if (RoundsSettingsKinds.Contains(action.Kind) || (isolation && action.Kind != ActionKind.WorkAssignment))
             {
                 continue;
             }
@@ -297,7 +292,7 @@ public sealed partial class Store
             {
                 throw new ConflictException();
             }
-            if ((areaOnly || isolation) && (!w.HasArea || w.HasSchedule || w.Settings.Count != 0))
+            if (isolation && (!w.HasArea || w.HasSchedule || w.Settings.Count != 0))
             {
                 throw new ConflictException();
             }

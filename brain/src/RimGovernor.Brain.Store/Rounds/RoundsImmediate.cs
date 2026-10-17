@@ -5,25 +5,11 @@ namespace RimGovernor.Brain.Store;
 
 public sealed partial class Store
 {
-    /// <summary>The previous rows an immediate review does not own, then the fresh rows (Go <c>mergeImmediateRows</c>).</summary>
-    internal static EquatableArray<T> MergeImmediateRows<T>(EquatableArray<T> old, EquatableArray<T> fresh, Func<T, ConcernId> concern)
-    {
-        var merged = new List<T>();
-        foreach (var row in old)
-        {
-            if (!PolicyFunctions.ImmediateConcern(concern(row)))
-            {
-                merged.Add(row);
-            }
-        }
-        merged.AddRange(fresh);
-        return EquatableArray.From(merged);
-    }
-
     /// <summary>
-    /// Overlays the scoped transaction on the prior record. Copying the untouched record retains each derived
-    /// history's observation time; absence from this inspection is never a recovery or a new observation. Returns
-    /// the retained review and the result carrying the rows it binds (Go <c>retainOrdinaryRounds</c>).
+    /// Overlays the scoped transaction on the prior record. The immediate review judges no Concern, so the prior
+    /// record's goal, occurrence and no-op rows stand as they were; copying the untouched record retains each derived
+    /// history's observation time, and absence from this inspection is never a recovery or a new observation.
+    /// Returns the retained review and the result carrying the rows it binds (Go <c>retainOrdinaryRounds</c>).
     /// </summary>
     internal static (Rounds Review, RoundsResult Result) RetainOrdinaryRounds(StoreTransaction tx, Rounds r, Rounds previous, RoundsResult result)
     {
@@ -35,11 +21,8 @@ public sealed partial class Store
             Enabled = r.Enabled,
             Immediate = true,
             Latches = r.Latches,
-            Standards = MergeImmediateRows(previous.Standards, r.Standards, v => v.Concern),
-            Incidents = MergeImmediateRows(previous.Incidents, r.Incidents, v => v.Kind),
             // Combat is judged in every pass: the immediate review's standing replaces the last one.
             Combat = r.Combat,
-            NoOps = MergeImmediateRows(previous.NoOps, r.NoOps, v => v.Concern),
         };
         // The previous record may be a disabled round, which files no mood proposals; an enabled record carries
         // one per mood state.

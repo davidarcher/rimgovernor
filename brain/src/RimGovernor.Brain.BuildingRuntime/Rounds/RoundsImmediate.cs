@@ -124,7 +124,6 @@ public sealed partial class Rounder
             f = f with { SafeAreaOwed = SafeArea.Review(StockpileWorld(state.Snapshot), projection) };
         }
 
-        f = f with { ShelterCombatants = RoundsRecoveryPlanner.ShelterCombatants(p.Journal, Player.PlayerWorld(state.Snapshot), ctx) };
         var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);
         var (hostiles, critical) = PolicyFunctions.EmergencyNeeds(emergency, state.Snapshot, expected.Tick);
         var urgent = PolicyFunctions.UrgentPatients(emergency, state.Snapshot, expected.Tick);
@@ -170,10 +169,10 @@ internal static partial class BuildingRuntimePackage
     internal static bool ImmediatePlanner(PlannerEntry e) => e.Immediate;
 
     /// <summary>
-    /// Whether the ordinary wave runs the entry: every non-immediate planner, recovery, and every family, whose
-    /// immediate run judged only its SeriousHarm Needs on the narrow read (#3250).
+    /// Whether the ordinary wave runs the entry: every non-immediate planner, and every family, whose immediate run
+    /// judged only its SeriousHarm Needs on the narrow read (#3250).
     /// </summary>
-    internal static bool OrdinaryPlanner(PlannerEntry e) => !ImmediatePlanner(e) || e.Name == "recovery" || e.Family is not null;
+    internal static bool OrdinaryPlanner(PlannerEntry e) => !ImmediatePlanner(e) || e.Family is not null;
 
     /// <summary>Whether the running wave is the immediate review (Go <c>immediateReview(ctx)</c>; the flag rides the wave's async scope).</summary>
     internal static bool ImmediateReview() => ReviewScope.Immediate;
@@ -188,8 +187,7 @@ public sealed partial class ClockScheduler
     internal bool ImmediateConfigured()
     {
         var c = Config;
-        return c.Rounds is not null && (c.Defense is not null || c.Recovery is not null
-            || c.Families.Any(f => f.Immediate));
+        return c.Rounds is not null && (c.Defense is not null || c.Families.Any(f => f.Immediate));
     }
 
     /// <summary>
@@ -276,38 +274,10 @@ public sealed partial class ClockScheduler
     {
         var r = Player.Journal.LoadRounds(ct);
         var plans = new HashSet<PlanId>();
-        foreach (var binding in r.Incidents)
-        {
-            if (!PolicyFunctions.ImmediateConcern(binding.Kind))
-            {
-                continue;
-            }
-
-            var state = Player.Journal.LoadIncident(binding.Incident, ct);
-            foreach (var method in state.Methods)
-            {
-                plans.Add(method.Plan);
-            }
-        }
-
         // The fight's plans while the review files a combat standing (#3311), as the combat incident's were.
         if (r.Combat is not null)
         {
             foreach (var method in Player.Journal.LoadNeed(MilitaryFamily.Combat, r.Snapshot, ct).Methods)
-            {
-                plans.Add(method.Plan);
-            }
-        }
-
-        foreach (var binding in r.Standards)
-        {
-            if (!PolicyFunctions.ImmediateConcern(binding.Concern))
-            {
-                continue;
-            }
-
-            var state = Player.Journal.LoadStandard(binding.Standard, ct);
-            foreach (var method in state.Methods)
             {
                 plans.Add(method.Plan);
             }

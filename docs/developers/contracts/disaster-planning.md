@@ -50,8 +50,8 @@ exclusion cannot clear previously tracked damage.
 
 The review records ordered refuel, breakdown and repair needs. It ranks nothing: concerns carry no priority, and a disrupted service is simply
 unmet. Player cancellation, resource reservations and admission checks still
-apply. A known roof-sensitive hazard independently keeps `RecoverDisasterServices`
-unmet, including when buildings are intact or another service is unknown.
+apply. A known roof-sensitive hazard independently keeps `disaster/sheltering`
+unmet while a move is owed, and keeps `disaster/services` unmet, including when buildings are intact or another service is unknown.
 
 The durable `Recovery` review records at most eight native admission candidates.
 Available workers are ordered by exact pawn identity. During a roof-sensitive

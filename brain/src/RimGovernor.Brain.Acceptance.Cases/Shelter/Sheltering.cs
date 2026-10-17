@@ -218,7 +218,7 @@ internal static class ShelterSheltering
 
     /// <summary>
     /// Polls the journal until every pawn's latest completed allowed-area action shelters it (a non-empty area) or, restoring,
-    /// clears it. The plans are the sheltering planner's RecoverDisasterServices methods; restoring, a completed delete of the
+    /// clears it. The plans are the disaster/sheltering Need's methods; restoring, a completed delete of the
     /// Safe area after the pawn's last move (the safe-area Need resets its areas in a new service) also unrestricts it. The native
     /// readback after the service stops is the assertion.
     /// </summary>
@@ -240,13 +240,11 @@ internal static class ShelterSheltering
                         return (Wait.Signature("no-review", e.Message), false);
                     }
 
-                    var world = new RimGovernor.Brain.Store.World(review.Snapshot.Colony, review.Snapshot.Load, review.Snapshot.Map);
-                    var history = await st.IncidentHistoryAsync(world, PolicyFunctions.RecoverDisasterServices, ct).ConfigureAwait(false);
+                    var history = st.OwnerMethodHistory(st.LoadNeed(DisasterFamily.Sheltering, review.Snapshot, ct), ct);
                     var areas = new Dictionary<string, string>(StringComparer.Ordinal);
                     var ticks = new Dictionary<string, long>(StringComparer.Ordinal);
-                    foreach (var incident in history)
                     {
-                        foreach (var m in incident.Methods)
+                        foreach (var m in history)
                         {
                             var plan = await st.LoadPlanAsync(m.Plan, ct).ConfigureAwait(false);
                             for (var i = 0; i < plan.Spec.Actions.Count; i++)

@@ -219,12 +219,7 @@ public sealed partial class Store
             throw new ConflictException($"incident {id} is closed");
         }
         AdmitRoundsSafeguards(tx, state);
-        var open = StandardOpenWork(tx, state);
-        if (open && state.Incident.Kind == PolicyFunctions.RecoverDisasterServices && RecoveryAreaOnly(plan))
-        {
-            open = RecoveryAreaConflictingWork(tx, state);
-        }
-        if (open)
+        if (StandardOpenWork(tx, state))
         {
             throw new OpenMethodException();
         }
@@ -246,37 +241,5 @@ public sealed partial class Store
             throw new DomainException("incident does not admit current work");
         }
         AdmitRoundsSafeguards(tx, state);
-    }
-
-    /// <summary>
-    /// A protective area setting may coexist with ordinary service jobs on the recovery incident. All other open
-    /// methods retain exclusive admission.
-    /// </summary>
-    private static bool RecoveryAreaOnly(PlanSpec plan) =>
-        plan.Actions.Count > 0
-        && plan.Actions.All(action =>
-            (action.WorkAssignment is { } work && work.HasArea && work.Settings.Count == 0 && !work.HasSchedule)
-            || (action.Husbandry is { } animal && animal.Method == HusbandryMethod.AllowedArea)
-        );
-
-    private static bool RecoveryAreaConflictingWork(StoreTransaction tx, IncidentState state)
-    {
-        foreach (var id in ((IMethodOwner)state).OwnerPlans)
-        {
-            var plan = LoadIn(tx, id);
-            if (CombatFightHolds(tx, id))
-            {
-                return true;
-            }
-            if (!PlanOpen(plan))
-            {
-                continue;
-            }
-            if (plan.Progress.Any(progress => Standard.WorkOpen([progress]) && progress.Action.Kind != ActionKind.RecoveryService))
-            {
-                return true;
-            }
-        }
-        return false;
     }
 }

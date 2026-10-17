@@ -229,8 +229,8 @@ action kinds and cadence like a planner entry does today, and wakes on:
 - its cadence.
 
 The **immediate pass** runs the `SeriousHarm` Needs of registered families,
-reading only their declared narrow facts, beside the legacy `ImmediateConcern`
-set. `ImmediateConcern` is deleted when the last immediate Concern migrates.
+reading only their declared narrow facts. The legacy immediate Concern set was
+deleted when its last entry, the disaster recovery incident, migrated (#3304).
 Immediate-protection behavior does not change; only its bookkeeping moves.
 
 ### Preconditions
@@ -279,8 +279,7 @@ A family slice:
 4. Moves any Standard `Record` payload it owns to a `family/*` record.
 5. Re-keys its forecast owners and coupled gates, and its explain, progress and
    telemetry keys.
-6. Declares its `SeriousHarm` Needs and their narrow reads, retiring its entries
-   from `ImmediateConcern`.
+6. Declares its `SeriousHarm` Needs and their narrow reads.
 
 The final slice deletes Rounds, the Concern registry, Standards (with Episodes,
 Settle and Once), `standard_methods`, the open-work gate and its exemptions, and
@@ -618,7 +617,7 @@ existing step bodies under the Need owner, admitted by claims; `ShelterSite` tak
 any work owner. `shelter/safe-area` (the Safe-area edit, SeriousHarm) keeps its
 own Need and runs in the immediate pass reading only the review's planned area
 edits (`SafeAreaMemory.Owed`), committing them as the `safe-area` Method; it left
-`ImmediateConcern`. The starter shelter still holds the Construction labor while
+the immediate Concern set. The starter shelter still holds the Construction labor while
 it is owed (`ConstructionLaborHeld`, a per-review value, no latch). EnsureBasicPower
 is the `power` family (`PowerFamily.cs`, runtime `PowerRounds`): `power/basic` is
 met while the grid covers its draw; a solar flare holds it (`power_outage`) without
@@ -651,9 +650,10 @@ recovery or a peg-leg step stands; its surgeries claim
 `surgery/<patient>/<recipe>/<part>` and the part bill is declared while it is unmet.
 The forecast reads the critical census, surgery and reserves rows as Needs, and the
 pain and sickness thoughts are owned by `medical/care`. `CriticalMedical` left
-`ImmediateConcern`; only RecoverDisasterServices remains (RestoreWorkers and
-the combat incident, now `military/restore-workers` and `military/combat` #3311, and the
-Safe-area edit, now `shelter/safe-area` #3257, left it too). The
+the immediate Concern set, as did RestoreWorkers and the combat incident (now
+`military/restore-workers` and `military/combat`, #3311), the Safe-area edit (now
+`shelter/safe-area`, #3257) and the disaster recovery incident (now
+`disaster/sheltering`, #3304), its last entry. The
 `MedicalReserve` latch stays: the silver gap and the trade routine still read it.
 
 **Per-family migration checklist** (as followed for food-stores/storage):
@@ -712,7 +712,7 @@ anomaly).
 | Economy | `economy`: Needs `research` (#3263; EnsureResearch deleted) and `resource` (#3303; MaintainResource deleted), `trade`, `caravan` and `trade-mission` (#3316; the trade Concern, caravan Incident and trade-mission Standard deleted) |
 | Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial`, `work-ledger`, `stockpiles`, `work-assignments` (#3304) |
 | People | `people`: Need `dialog` (#3304; AnswerDialog and its planner deleted); EnsureMood |
-| Disaster | RecoverDisasterServices |
+| Disaster | `disaster`: Needs `sheltering` (SeriousHarm) and `services` (waits on `sheltering`) (#3304; the disaster recovery incident Concern, its planner and the immediate Concern set deleted) |
 
 **Order.** Fire-safety deletion (#3252) is independent. After the spine:
 food stores (#3251) first, then food (#3254, after food stores) and home upkeep

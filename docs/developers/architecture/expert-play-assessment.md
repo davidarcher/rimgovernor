@@ -51,12 +51,12 @@ numbers or admission guards.
 2. [ReviewDisaster](../../../brain/src/RimGovernor.Brain.Policy/Disaster.cs) derives service
    deficits and a phase from observed conditions and infrastructure. Expiring
    forecast time alone does not prove restoration.
-3. RoundsRecoveryPlanner.step
-   re-reads owned facts, derives `PlanSheltering`, cancels obsolete area actions,
-   and waits on still-open work. Area changes precede repair/refuel selection.
+3. The `disaster` family (`DisasterRounds`) re-reads owned facts in both passes;
+   `disaster/sheltering` derives `PlanSheltering`, cancels obsolete area actions and
+   commits each move. `disaster/services` waits on sheltering and on still-open work.
    [SelectRecoveryMethods](../../../brain/src/RimGovernor.Brain.Policy/RecoveryMethod.cs)
-   checks known worker/safety facts; the planner claims the selected pawn and
-   commits an Incident Method.
+   checks known worker/safety facts; the step claims the selected pawn and
+   commits a Need Method.
 4. `RecoveryServiceAction` uses the [ordinary intent executor](../../../brain/src/RimGovernor.Brain.Executor/Intent.cs).
    Its applied receipt completes the service-order intent. Restoration remains
    a later observed service/infrastructure result in `ReviewDisaster`.

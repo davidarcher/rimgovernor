@@ -14,7 +14,7 @@ internal sealed record PlannerEntry
     /// <summary>Receives this planner's refusal. Multi-concern planners leave it default and file under their own name (<see cref="FilingKey"/>).</summary>
     public ConcernId Concern { get; init; }
 
-    /// <summary>Marks a protection planner: combat, tend, rescue, recovery and shelter run in the immediate review ahead of the ordinary planners.</summary>
+    /// <summary>Marks a protection planner: combat and the families with SeriousHarm Needs run in the immediate review ahead of the ordinary planners.</summary>
     public bool Immediate { get; init; }
 
     /// <summary>Says whether the admission cycle waits on the planner: critical for the preempt and critical priority classes, optional for the development reviews.</summary>
@@ -119,7 +119,6 @@ internal static class ClockPlannerCatalog
     private static readonly FactSection[] SectionsPawns = [FactSection.Pawns];
     private static readonly FactSection[] SectionsMedical = [FactSection.Pawns, FactSection.Colony];
     private static readonly FactSection[] SectionsThreat = [FactSection.Pawns, FactSection.Emergency];
-    private static readonly FactSection[] SectionsRecovery = [FactSection.Pawns, FactSection.Emergency, FactSection.Colony];
     // The sectionless families planners declare beside their sections.
     private static readonly FactFamily[] FamiliesEmergency = [FactFamily.Emergency];
 
@@ -166,8 +165,6 @@ internal static class ClockPlannerCatalog
             c => c.Defense is not null, (s, ct, e, a) => s.Config.Defense!.StepAsync(a, ct, e), (o, m) => o.Defense = m, immediate: true),
         E("moodRelief", O, [ActionKind.Ability], SectionsPawns,
             c => c.MoodRelief is not null, (s, ct, e, a) => s.Config.MoodRelief!.StepAsync(a, ct, e), (o, m) => o.MoodRelief = m),
-        E("recovery", C, [ActionKind.RecoveryService, ActionKind.WorkAssignment, ActionKind.Husbandry], SectionsRecovery,
-            c => c.Recovery is not null, (s, ct, e, a) => s.Config.Recovery!.StepAsync(a, ct, e), (o, m) => o.Recovery = m, immediate: true),
     ];
 
     /// <summary>

@@ -173,7 +173,7 @@ This is coordination within existing concerns, not an executor.
   room against the Heater; a standing Heater does. The power family connects and
   budgets the Heater as any consumer (nominal draw, conservative against the 44-164 W
   average of spike #2769).
-- `RecoverDisasterServices` selects bounded refuel, structural repair and
+- The `disaster/services` Need selects bounded refuel, structural repair and
   breakdown-repair `GiveJobIntent` jobs (Repair, FixBrokenDownBuilding, Refuel) through
   native WorkGivers, preserving work permissions, allowed areas, forbidden supplies,
   reservations and player-forced jobs; Hands previews again at dispatch.
@@ -183,7 +183,7 @@ This is coordination within existing concerns, not an executor.
   stays a deficit until accepted rebuilding work. Power recovery needs actual service
   from enabled consumers, excluding player-switched-off loads and generators. Solar
   flares defer generation changes while the cooking fallback is available.
-- Toxic fallout: `RecoverDisasterServices` can move a colonist restricted outside every
+- Toxic fallout: the `disaster/sheltering` Need can move a colonist restricted outside every
   roof into an existing wholly roofed, reachable allowed area via an allowed-area
   `WorkSettingsIntent`, re-derived each 600-tick window (no native lease). Areas restrict
   work destinations; they do not make paths safe. The brain never assigns an unroofed area or

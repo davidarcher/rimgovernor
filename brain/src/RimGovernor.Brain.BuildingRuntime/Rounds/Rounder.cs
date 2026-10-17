@@ -439,9 +439,6 @@ public sealed partial class Rounder
         {
             reading = reading.WithFacts(rf => rf with { SafeAreaOwed = SafeArea.Review(StockpileWorld(state.Snapshot), reading.Projection) });
         }
-        // The review's PlanSheltering raises RecoverDisasterServices, so it reads the same draft set as the
-        // recovery planner: unknown, a threat shelters no colonist and the planner never runs.
-        reading = reading.WithFacts(rf => rf with { ShelterCombatants = RoundsRecoveryPlanner.ShelterCombatants(p.Journal, new StoreWorld(state.Snapshot.Colony, state.Snapshot.Load, state.Snapshot.Map), ct) });
         if (Needs.Contains(RoomsFamily.Art))
         {
             reading = reading.WithFacts(rf => rf with { SculptureRoomsOwed = SculptureRoomsOwedOf(reading.Projection) });

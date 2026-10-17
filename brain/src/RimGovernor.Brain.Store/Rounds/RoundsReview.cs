@@ -285,7 +285,7 @@ public sealed partial class Store
         foreach (var binding in previous.Standards)
         {
             var g = LoadStandard(tx, binding.Standard);
-            if (changed || (request.Enabled && !assessed.Contains(binding.Concern) && (!request.Immediate || PolicyFunctions.ImmediateConcern(binding.Concern))))
+            if (changed || (request.Enabled && !assessed.Contains(binding.Concern) && !request.Immediate))
             {
                 if (g.Standard.Status != StandardStatus.Voided)
                 {
@@ -434,7 +434,7 @@ public sealed partial class Store
                 n.Reason.Validate();
             }
             r = r with { NoOps = EquatableArray.From(needs.NoOps) };
-            var (bindings, incidentStates) = ReviewIncidents(tx, needs.Incidents, request, previous);
+            var (bindings, incidentStates) = ReviewIncidents(tx, needs.Incidents, request);
             r = r with { Incidents = bindings, Combat = ReviewCombat(tx, request) };
             resultIncidents.AddRange(incidentStates);
             var bound = new List<RoundsStandard>();

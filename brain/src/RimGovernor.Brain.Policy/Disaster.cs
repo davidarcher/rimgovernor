@@ -188,8 +188,6 @@ public sealed record DisasterHistory
 
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId RecoverDisasterServices = new("RecoverDisasterServices");
-
     internal static readonly IReadOnlyList<DisasterService> DisasterServices =
     [
         DisasterService.Food, DisasterService.Production, DisasterService.Sleeping, DisasterService.Shelter,

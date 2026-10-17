@@ -55,13 +55,18 @@ public sealed record RoundsRecoveryBuilding
 
 /// <summary>
 /// Retains the exact inputs for reproducible proposal readback. Nullable values are storage boundaries, not known
-/// zero/false domain observations (Go <c>RoundsRecovery</c>).
+/// zero/false domain observations (Go <c>RoundsRecovery</c>). It is keyed by the Need it serves and that Need's
+/// world (#3304); a record an older journal keyed by its incident is dropped on load.
 /// </summary>
 public sealed record RoundsRecovery
 {
-    /// <summary>The RecoverDisasterServices occurrence the selection serves.</summary>
-    public IncidentId Incident { get; init; }
+    /// <summary>The Need the selection serves: <see cref="DisasterFamily.Services"/>.</summary>
+    public NeedId Need { get; init; }
 
+    /// <summary>The world whose Need the selection serves.</summary>
+    public World World { get; init; }
+
+    /// <summary>The Need's bound Methods whose plans are not retired, once each in id order: the MethodIds the selection skips.</summary>
     public EquatableArray<MethodId> Used { get; init; }
 
     /// <summary>Null when the safety census was unknown.</summary>
@@ -136,7 +141,7 @@ public sealed record RoundsRecovery
 
 public sealed partial class Store
 {
-    /// <summary>The retained planning inputs, with no incident, used methods or selection yet (Go <c>recoveryRecord</c>).</summary>
+    /// <summary>The retained planning inputs, with no Need, used methods or selection yet (Go <c>recoveryRecord</c>).</summary>
     internal static RoundsRecovery RecoveryRecord(RecoveryPlanning p)
     {
         var r = new RoundsRecovery();
@@ -206,10 +211,9 @@ public sealed partial class Store
             throw new DomainException("invalid routine recovery selection");
         }
         v.Selection.Validate();
-        var binding = r.IncidentBinding(v.Incident);
-        if (binding is null || binding.Kind != PolicyFunctions.RecoverDisasterServices)
+        if (v.Need != DisasterFamily.Services || v.World != new World(r.Snapshot.Colony, r.Snapshot.Load, r.Snapshot.Map))
         {
-            throw new DomainException("recovery selection lost incident ownership");
+            throw new DomainException("recovery selection lost need ownership");
         }
         var selection = PolicyFunctions.SelectRecoveryMethods(v.Planning(), r.Disaster, v.Used, v.Selection.Tick);
         if (!string.Equals(StoreJson.Serialize(v.Selection), StoreJson.Serialize(selection), StringComparison.Ordinal))
@@ -219,32 +223,30 @@ public sealed partial class Store
     }
 
     /// <summary>
-    /// The recovery selection of this review: null without a disaster history, an owned RecoverDisasterServices
-    /// occurrence or an admitting Safeguard (Go <c>roundsRecovery</c>).
+    /// The recovery selection of this review for the <see cref="DisasterFamily.Services"/> Need in its world: null
+    /// without a disaster history or while a Safeguard vetoes routine work (Go <c>roundsRecovery</c>).
     /// </summary>
     internal static RoundsRecovery? RoundsRecoveryFor(StoreTransaction tx, RoundsFacts f, DisasterHistory? h, Rounds review, Tick tick)
     {
-        if (h is null)
-        {
-            return null;
-        }
-        var binding = review.Incident(PolicyFunctions.RecoverDisasterServices);
-        if (binding is null)
-        {
-            return null;
-        }
-        var state = LoadIncident(tx, binding.Incident);
-        if (review.VetoIncident(state.Incident).Length != 0)
+        if (h is null || review.VetoNeed(default).Length != 0)
         {
             return null;
         }
         var r = RecoveryRecord(new RecoveryPlanning { Safety = f.RecoverySafety, Workers = f.RecoveryWorkers, Buildings = f.RecoveryBuildings });
-        var used = tx.Query(
-            "SELECT method_id FROM incident_methods WHERE incident_id=$id ORDER BY method_id LIMIT 257",
-            [("$id", binding.Incident)],
-            row => new MethodId(row.GetString(0))
-        );
-        r = r with { Incident = binding.Incident, Used = EquatableArray.From(used) };
+        var owner = LoadNeedIn(tx, DisasterFamily.Services, review.Snapshot);
+        r = r with
+        {
+            Need = owner.Need,
+            World = new World(review.Snapshot.Colony, review.Snapshot.Load, review.Snapshot.Map),
+            Used = RecoveryMethodsUsed(owner),
+        };
         return r with { Selection = PolicyFunctions.SelectRecoveryMethods(r.Planning(), h, r.Used, tick) };
     }
+
+    /// <summary>
+    /// The MethodIds a recovery selection skips: <paramref name="owner"/>'s bound Methods whose plans are not retired,
+    /// once each, in id order. A retired service may be selected again while its building still needs it.
+    /// </summary>
+    public static EquatableArray<MethodId> RecoveryMethodsUsed(NeedOwner owner) =>
+        EquatableArray.From(owner.Methods.Select(m => m.Method).Distinct().Order());
 }

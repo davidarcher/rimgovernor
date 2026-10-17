@@ -223,6 +223,8 @@ internal static class CodecRegistry
         codecs.Register(new RoundsMoodMethodConverter());
         codecs.Register(new RoundsMoodPawnConverter());
         codecs.Register(new RoundsMoodStateConverter());
+        codecs.Register(new RecoveryCandidateConverter());
+        codecs.Register(new RecoverySelectionConverter());
         codecs.Register(new RoundsRecoveryBuildingConverter());
         codecs.Register(new RoundsRecoveryConverter());
         codecs.Register(new RoundsRecoveryRestrictionConverter());

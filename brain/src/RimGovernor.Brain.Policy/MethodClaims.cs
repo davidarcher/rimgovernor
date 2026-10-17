@@ -22,7 +22,9 @@ public static partial class PolicyFunctions
     /// <item>dressing (apparel policy, gear replacement, equip): <c>gear/&lt;pawn&gt;</c> and the item;</item>
     /// <item>policy prunes: the pruned database (<c>policy/&lt;database&gt;</c>); reading, food and drug policy writes: the
     /// written policy (<c>policy/reading/&lt;name&gt;</c>, <c>policy/food/&lt;name&gt;</c>, <c>policy/drug/&lt;name&gt;</c>);</item>
-    /// <item>work assignments and pawn settings: <c>settings/&lt;pawn&gt;</c>;</item>
+    /// <item>work assignments and pawn settings: <c>settings/&lt;pawn&gt;</c>, and an assignment's area its
+    /// <c>allowed-area/&lt;pawn&gt;</c>; an area-only assignment claims only the area, so a sheltering move is
+    /// admitted beside other work on the pawn;</item>
     /// <item>deconstruction and uninstalling: the cell and the thing;</item>
     /// <item>roof removal and roof building: each roof cell (<c>roof/x/z</c>); floor removal: its cell (<c>floor/x/z</c>);
     /// foundation removal: its cell (<c>foundation/x/z</c>); excavation: the dug cell (<c>dig/x/z</c>);</item>
@@ -30,7 +32,9 @@ public static partial class PolicyFunctions
     /// <item>cover clearance and wall removal: the cell and the thing (a backup wall's removal has no thing yet);</item>
     /// <item>assignments (a bed, a throne), bed use and building claims: the thing;</item>
     /// <item>supply allow and forbid: the stack;</item>
-    /// <item>husbandry (train, tame, slaughter, release, master, sterilize): the animal;</item>
+    /// <item>husbandry (train, tame, slaughter, release, master, sterilize): the animal; an animal's allowed-area
+    /// move its <c>allowed-area/&lt;animal&gt;</c>;</item>
+    /// <item>recovery services (repair, breakdown, refuel and the quest services): the serviced thing;</item>
     /// <item>rituals: the ritual precept or bestowing kind (<c>ritual/&lt;kind&gt;</c>);</item>
     /// <item>ideoligion reforms: the ideoligion (<c>ideoligion/&lt;id&gt;</c>);</item>
     /// <item>surgery bills: <c>surgery/&lt;patient&gt;/&lt;recipe&gt;/&lt;part&gt;</c>;</item>
@@ -125,7 +129,12 @@ public static partial class PolicyFunctions
         else if (a.ReadingPolicy is { } reading) yield return "policy/reading/" + reading.Name;
         else if (a.FoodPolicy is { } food) yield return "policy/food/" + food.Name;
         else if (a.DrugPolicy is { } drug) yield return "policy/drug/" + drug.Name;
-        else if (a.WorkAssignment is { } assignment) yield return "settings/" + assignment.Pawn.Value;
+        else if (a.WorkAssignment is { } assignment)
+        {
+            // An area-only assignment (a sheltering move, a creepjoiner's isolation) touches only the pawn's allowed area.
+            if (!assignment.HasArea || assignment.Settings.Count != 0 || assignment.HasSchedule) yield return "settings/" + assignment.Pawn.Value;
+            if (assignment.HasArea) yield return "allowed-area/" + assignment.Pawn.Value;
+        }
         else if (a.PawnSettings is { } settings) yield return "settings/" + settings.Pawn.Value;
         else if (a.Deconstruction is { } cut) { yield return CellClaimTarget(cut.Cell); yield return cut.Target; }
         else if (a.UninstallBuilding is { } uninstall) yield return CellClaimTarget(uninstall.Cell);
@@ -141,7 +150,9 @@ public static partial class PolicyFunctions
         else if (a.BedUse is { } bed) yield return bed.Thing;
         else if (a.ClaimBuilding is { } claimed) yield return claimed.Thing;
         else if (a.SupplyAllow is { } supply) yield return supply.Thing;
+        else if (a.Husbandry is { Method: HusbandryMethod.AllowedArea } fenced) yield return "allowed-area/" + fenced.Animal.Value;
         else if (a.Husbandry is { } husbandry) yield return husbandry.Animal.Value;
+        else if (a.RecoveryService is { } service) yield return service.Thing;
         else if (a.Ritual is { } ritual) yield return "ritual/" + ritual.Kind.Value;
         else if (a.IdeoligionReform is { } reform) yield return "ideoligion/" + reform.IdeoId;
         else if (a.Surgery is { } surgery) yield return "surgery/" + surgery.Pawn.Value + "/" + surgery.Recipe + "/" + surgery.Part;

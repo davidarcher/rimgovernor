@@ -28,9 +28,6 @@ public sealed class ClockSchedulerResult
     public RoundsDefenseResult? Defense { get; set; }
 
 
-    public RoundsRecoveryResult? Recovery { get; set; }
-
-
 
 
 
@@ -68,7 +65,6 @@ public sealed class ClockSchedulerResult
     {
         Routes = other.Routes ?? Routes;
         Defense = other.Defense ?? Defense;
-        Recovery = other.Recovery ?? Recovery;
         MoodRelief = other.MoodRelief ?? MoodRelief;
         foreach (var (family, run) in other.Families)
         {

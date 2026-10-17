@@ -46,8 +46,7 @@ public sealed partial class Store
     internal static (EquatableArray<RoundsIncident> Bindings, List<IncidentState> States) ReviewIncidents(
         StoreTransaction tx,
         IReadOnlyList<RoundsAssessment> assessments,
-        RoundsRequest request,
-        Rounds previous
+        RoundsRequest request
     )
     {
         var current = request.Current;
@@ -60,13 +59,6 @@ public sealed partial class Store
             var open = OpenIncidentId(tx, current, n.Id, subject);
             if (n.Finding != Finding.Unmet && open is null)
             {
-                continue;
-            }
-            if (request.Immediate && open is { } recoveringId && n.Id == PolicyFunctions.RecoverDisasterServices && n.Finding == Finding.Unclear)
-            {
-                var recovering = LoadIncident(tx, recoveringId);
-                bindings.Add(previous.IncidentBinding(recoveringId) ?? throw new DomainException("recovery lost review binding"));
-                states.Add(recovering);
                 continue;
             }
             if (n.Finding == Finding.Met && open is { } metId)
@@ -83,13 +75,14 @@ public sealed partial class Store
             bindings.Add(new RoundsIncident { Kind = n.Id, Subject = subject, Incident = opened.Incident.Id, Situation = n.Finding.Situation() });
             states.Add(opened);
         }
+        // The immediate review assesses no incident kind, so it leaves every occurrence to the full review.
+        if (request.Immediate)
+        {
+            return (EquatableArray.From(bindings), states);
+        }
         foreach (var id in OpenIncidentIds(tx, new World(current.Colony, current.Load, current.Map)))
         {
             if (bindings.Any(b => b.Incident == id))
-            {
-                continue;
-            }
-            if (request.Immediate && !PolicyFunctions.ImmediateConcern(LoadIncident(tx, id).Incident.Kind))
             {
                 continue;
             }

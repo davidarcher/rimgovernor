@@ -163,23 +163,4 @@ public static partial class PolicyFunctions
             c.R.Assessments.Add(new RoundsAssessment { Id = EnsureMood, Subject = state.Pawn.Id, Finding = state.Need(), MethodUnavailable = true });
         }
     }
-
-    /// <summary>Runs last: the disaster review files its own assessment.</summary>
-    internal static void InspectDisaster(RoundsRun c)
-    {
-        var f = c.F;
-        var r = c.R;
-        r.Disaster = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, c.P), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
-        var disaster = r.Disaster;
-        var areaChanges = PlanSheltering(f);
-        if (disaster is not null || f.RecoverySafety.TryGetValue(out _))
-        {
-            var need = RecoveryNeed(disaster);
-            if (areaChanges.Count > 0)
-            {
-                need = Finding.Unmet;
-            }
-            r.Assessments.Add(new RoundsAssessment { Id = RecoverDisasterServices, Finding = need });
-        }
-    }
 }
