@@ -3,7 +3,7 @@ using RimGovernor.Brain.Bridge.Contracts;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go pawn_table.go (FrameTables, FramePawns, framePawnSnapshot, frameHeld), thing_table.go (ThingTable, ValidThing,
-// FrameThings), building_table.go (FrameBuildings) and entities.go (ReadZones, ReadBuildings, ReadBillStacks).
+// FrameThings) and entities.go (ReadBuildings, ReadBillStacks).
 public sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>framePawnsMethod</c>, <c>frameThingsMethod</c>, <c>frameBuildingsMethod</c>: the keyed tables a frame read waits for.</summary>
@@ -51,52 +51,12 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.FrameBuildings</c>: the building table of the newest frame (the bundle's player building list), or
-    /// that list read live when this client reads no frames.
-    /// </summary>
-    internal async Task<Buildings> FrameBuildingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
-    {
-        if (UseFrames)
-        {
-            var held = await FrameHeldAsync(FrameBuildingsMethod, identity, view => view.Snapshot.Buildings is not null, cancellationToken).ConfigureAwait(false);
-            return held.Buildings;
-        }
-        var observed = await ListBuildingsLiveAsync(identity, cancellationToken).ConfigureAwait(false);
-        return Buildings.FromSnapshot(observed);
-    }
-
-    /// <summary>
-    /// Go <c>Client.ReadZones</c>: every zone on the map (bounds and settings, no cells, contents or filter) in one
-    /// complete reply. Go asked the stream first, but the request shape (no contents, no filter) is never the shape the
-    /// frame's zone section is seeded under, so the read always went live; it does here.
-    /// </summary>
-    internal async Task<EntityRows<PbObservations.ZoneState>> ReadZonesAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
-    {
-        var reply = await Facade.ListZonesAsync(ZonesListRequest(identity), cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        var snapshot = outcome.Observed!;
-        var ids = new List<string>(snapshot.Zones.Count);
-        foreach (var row in snapshot.Zones)
-        {
-            ids.Add(row.Id ?? "");
-        }
-        return EntityRowsOf(snapshot.Context, snapshot.Zones, ids);
-    }
-
-    /// <summary>
     /// Go <c>Client.ReadBuildings</c>: every built, pending or blueprint player building (artificial) in one complete
     /// reply. With a stream the frame's held building table is the list, with no encode round trip.
     /// </summary>
     internal async Task<EntityRows<PbObservations.BuildingState>> ReadBuildingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
+        WireValidation.AuthorityIdentity(identity);
         if (UseFrames)
         {
             var held = await FrameHeldAsync(FrameBuildingsMethod, identity, view => view.Snapshot.Buildings is not null, cancellationToken).ConfigureAwait(false);
@@ -112,10 +72,11 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<EntityRows<PbObservations.BillStackRow>> ReadBillStacksAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
+        WireValidation.AuthorityIdentity(identity);
         PbObservations.BillsSnapshot snapshot;
         if (UseFrames)
         {
-            snapshot = await FrameSectionAsync(ReadBillsMethod, identity, anyFrame: false, view => view.Snapshot.Bills, cancellationToken).ConfigureAwait(false);
+            snapshot = await FrameSectionAsync(ReadBillsMethod, identity, view => view.Snapshot.Bills, cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -139,10 +100,6 @@ public sealed partial class FacadeNativeClient
         return EntityRowsOf(snapshot.Context, snapshot.Benches, ids);
     }
 
-    /// <summary>Go <c>zonesListRequest</c>: the zone list request shared with the bundle's step families.</summary>
-    internal static PbObservations.ListZonesRequest ZonesListRequest(PbCommon.Identity identity) =>
-        new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, IncludeFilter = false };
-
     /// <summary>Go <c>buildingsListRequest</c>.</summary>
     internal static PbObservations.ListBuildingsRequest BuildingsListRequest(PbCommon.Identity identity) =>
         new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
@@ -161,7 +118,6 @@ public sealed partial class FacadeNativeClient
             method,
             identity,
             fallback: false,
-            anyFrame: false,
             view => new FrameLookup<FrameHeld>(carries(view), view.Prepared.Held, carries(view)),
             cancellationToken).ConfigureAwait(false);
         var held = served.Value!;

@@ -57,7 +57,6 @@ public sealed partial class FacadeNativeClient
                 ReadStatusMethod,
                 identity,
                 fallback: true,
-                anyFrame: false,
                 view => new FrameLookup<bool>(false, false, view.Snapshot.Emergency is not null),
                 cancellationToken).ConfigureAwait(false);
         }
@@ -78,7 +77,6 @@ public sealed partial class FacadeNativeClient
                 ReadColonyFactsMethod,
                 identity,
                 fallback: true,
-                anyFrame: false,
                 view =>
                 {
                     var facts = view.Snapshot.ColonyFacts;

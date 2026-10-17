@@ -30,7 +30,7 @@ public sealed partial class FacadeNativeClient
             throw new BridgeUnavailableException("the routine census is served only by the snapshot stream");
         }
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
-        var view = await FrameSectionAsync(RoundsFrameMethod, identity, anyFrame: false, frame => frame, cancellationToken).ConfigureAwait(false);
+        var view = await FrameSectionAsync(RoundsFrameMethod, identity, frame => frame, cancellationToken).ConfigureAwait(false);
         var routine = DecodeRoundsFrame(view.Snapshot, catalog, view.Prepared);
         if (routine.Buildings is { } census)
         {
@@ -167,7 +167,7 @@ public sealed partial class FacadeNativeClient
         {
             throw BridgeContractException.Contract("combat read without an identity");
         }
-        var view = await FrameSectionAsync(CombatFrameMethod, identity, anyFrame: false, frame => frame, cancellationToken).ConfigureAwait(false);
+        var view = await FrameSectionAsync(CombatFrameMethod, identity, frame => frame, cancellationToken).ConfigureAwait(false);
         var combat = DecodeCombat(view);
         // The weapons' facts, the mech guard orders and a fight's race flags resolve against the catalog of the load.
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);

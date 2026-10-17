@@ -297,8 +297,6 @@ public sealed partial class FacadeNativeClient : IDisposable
     private bool _frameStale;
     private long _frameNextAttempt;
     private string _frameOpenError = "";
-    private long _frameExpected;
-
 
     /// <summary>
     /// Go's <c>caller.timeout</c> for one frame read: how long a read waits for a frame that answers it before it is
@@ -316,31 +314,6 @@ public sealed partial class FacadeNativeClient : IDisposable
     internal bool UseFrames { get; init; } = true;
 
     private FrameFeed Feed => LazyInitializer.EnsureInitialized(ref _frameFeed, () => new FrameFeed(Facade.Frames))!;
-
-    /// <summary>
-    /// Go's <c>noteFrameWrite</c>: records that an applied write returned, so later frame reads wait for a frame
-    /// captured past it. Go read the live ring's write counter, which the brain cannot see here; the next read must
-    /// instead see a frame whose <see cref="NativeFrame.Writes"/> is at least one past the newest frame known now.
-    /// Call it exactly once per write the mod applied (the mod bumps its counter once per applied write); a write the
-    /// mod refused or skipped bumps nothing, and calling it for one only makes the next read wait out
-    /// <see cref="FrameReadTimeout"/>.
-    /// </summary>
-    internal void NoteFrameWrite()
-    {
-        if (!UseFrames)
-        {
-            return;
-        }
-        var latest = Feed.Latest;
-        lock (_frameGate)
-        {
-            if (!_frameOpened)
-            {
-                return;
-            }
-            _frameExpected = Math.Max(_frameExpected, latest?.Writes ?? 0) + 1;
-        }
-    }
 
     /// <summary>
     /// Go's <c>caller.openFrames</c> with the subscription it grows: subscribes in process to the native snapshot
@@ -435,19 +408,17 @@ public sealed partial class FacadeNativeClient : IDisposable
     internal readonly record struct FrameServed<T>(bool Served, T? Value);
 
     /// <summary>
-    /// Go <c>frameReadView</c>: waits for the newest frame past this client's last write that answers the read
+    /// Go <c>frameReadView</c>: waits for the newest frame that answers the read
     /// (<paramref name="lookup"/>) and returns the answer. A frame carrying a Failure is a
     /// <see cref="Bridge.Contracts.ReadRefusedException"/> naming the section; a frame of another world is <see cref="BridgeRefusedException"/>;
     /// no frame within <see cref="FrameReadTimeout"/> is <see cref="BridgeUnavailableException"/>. With
     /// <paramref name="fallback"/>, a frame of the same world that carries the method only in another shape, while
-    /// no subscription change is pending, is not served and the caller reads live. <paramref name="anyFrame"/> is
-    /// Go's <c>WithAnyFrame</c>: the read skips the read-after-write wait.
+    /// no subscription change is pending, is not served and the caller reads live.
     /// </summary>
     internal async Task<FrameServed<T>> FrameReadAsync<T>(
         string name,
         PbCommon.Identity identity,
         bool fallback,
-        bool anyFrame,
         Func<FrameView, FrameLookup<T>> lookup,
         CancellationToken cancellationToken)
     {
@@ -461,11 +432,9 @@ public sealed partial class FacadeNativeClient : IDisposable
             {
                 token.ThrowIfCancellationRequested();
                 await EnsureFramesAsync(token).ConfigureAwait(false);
-                long expected;
                 bool pending;
                 lock (_frameGate)
                 {
-                    expected = anyFrame ? 0 : _frameExpected;
                     pending = _frameStale;
                 }
                 var frame = await Feed.LatestAsync(token).ConfigureAwait(false);
@@ -473,32 +442,29 @@ public sealed partial class FacadeNativeClient : IDisposable
                 if (frame is not null)
                 {
                     after = frame.Number;
-                    if (frame.Writes >= expected)
+                    var prepared = frame.Prepared;
+                    if (prepared.FailureDetail is not null)
                     {
-                        var prepared = frame.Prepared;
-                        if (prepared.FailureDetail is not null)
+                        throw new Bridge.Contracts.ReadRefusedException("snapshot_frame", prepared.FailureDetail, NoReceipt);
+                    }
+                    if (prepared.DecodeRefusal is { } decoded)
+                    {
+                        throw new Bridge.Contracts.ReadRefusedException(decoded.Tool, decoded.Cause, NoReceipt);
+                    }
+                    if (prepared.Problem is null)
+                    {
+                        var found = lookup(frame);
+                        if (found.Found)
                         {
-                            throw new Bridge.Contracts.ReadRefusedException("snapshot_frame", prepared.FailureDetail, NoReceipt);
+                            return new FrameServed<T>(true, found.Value);
                         }
-                        if (prepared.DecodeRefusal is { } decoded)
+                        if (prepared.World is not null && !WireValidation.SameIdentity(prepared.World, identity))
                         {
-                            throw new Bridge.Contracts.ReadRefusedException(decoded.Tool, decoded.Cause, NoReceipt);
+                            throw new BridgeRefusedException($"{name} asked for another world than the snapshot frames describe");
                         }
-                        if (prepared.Problem is null)
+                        if (prepared.World is not null && fallback && found.Carries && !pending)
                         {
-                            var found = lookup(frame);
-                            if (found.Found)
-                            {
-                                return new FrameServed<T>(true, found.Value);
-                            }
-                            if (prepared.World is not null && !WireValidation.SameIdentity(prepared.World, identity))
-                            {
-                                throw new BridgeRefusedException($"{name} asked for another world than the snapshot frames describe");
-                            }
-                            if (prepared.World is not null && fallback && found.Carries && !pending)
-                            {
-                                return new FrameServed<T>(false, default);
-                            }
+                            return new FrameServed<T>(false, default);
                         }
                     }
                 }
@@ -510,18 +476,10 @@ public sealed partial class FacadeNativeClient : IDisposable
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            // A read that waited the whole timeout gives up its read-after-write wait: the write may never have
-            // produced a counted frame (the counter here is an estimate), and every later read would stall too.
             var latest = Feed.Latest;
-            lock (_frameGate)
-            {
-                _frameExpected = Math.Min(_frameExpected, latest?.Writes ?? 0);
-            }
             string detail;
-            long expectedWrites;
             lock (_frameGate)
             {
-                expectedWrites = _frameExpected;
                 detail = _frameOpened ? "no snapshot frame carried " + name : "snapshot stream not open for " + name + (_frameOpenError.Length == 0 ? "" : ": " + _frameOpenError);
             }
             Telemetry?.Event(
@@ -536,7 +494,6 @@ public sealed partial class FacadeNativeClient : IDisposable
                     new("waited_ms", (long)Stopwatch.GetElapsedTime(waitStarted).TotalMilliseconds),
                     new("latest_frame", latest?.Number ?? 0),
                     new("latest_writes", latest?.Writes ?? 0),
-                    new("expected_writes", expectedWrites),
                 ]);
             throw new BridgeUnavailableException(detail);
         }
@@ -549,7 +506,6 @@ public sealed partial class FacadeNativeClient : IDisposable
     internal async Task<T> FrameSectionAsync<T>(
         string name,
         PbCommon.Identity identity,
-        bool anyFrame,
         Func<FrameView, T?> section,
         CancellationToken cancellationToken)
         where T : class
@@ -558,7 +514,6 @@ public sealed partial class FacadeNativeClient : IDisposable
             name,
             identity,
             fallback: true,
-            anyFrame,
             view =>
             {
                 var value = section(view);

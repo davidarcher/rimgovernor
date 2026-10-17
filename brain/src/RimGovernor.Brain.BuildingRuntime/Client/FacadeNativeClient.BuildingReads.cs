@@ -120,33 +120,6 @@ public sealed partial class FacadeNativeClient
         };
     }
 
-    /// <summary>
-    /// Go's <c>ReadClaimBuildingTarget</c>: observes one exact claimable building's faction and CAS token via the
-    /// building listing, read without the player-only filter: the target is by definition not the player's yet.
-    /// </summary>
-    internal async Task<ClaimBuildingTarget> ReadClaimBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
-    {
-        var request = new PbObservations.ListBuildingsRequest
-        {
-            Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
-            Ids = [thing],
-            Statuses = [PbObservations.BuildingStatus.Built],
-            AnyFaction = true,
-        };
-        var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        var v = BuildingDecode.UnwrapBuildings(reply);
-        if (v.Buildings.Count != 1)
-        {
-            throw BridgeContractException.Contract("claim building target missing or ambiguous");
-        }
-        var settings = v.Buildings[0].Settings;
-        if (settings.Snapshot is null || settings.PlayerOwned is null || settings.Medical is not null)
-        {
-            throw BridgeContractException.Contract("building is not claimable");
-        }
-        return new ClaimBuildingTarget { Context = v.Context, Thing = thing, Token = settings.Snapshot.Token ?? "", PlayerOwned = settings.PlayerOwned.GetValueOrDefault() };
-    }
-
     /// <summary>Go's <c>ReadGrowerCropTarget</c>: observes one exact grower's crop via the existing building lookup; the crop is empty when the grower has none.</summary>
     internal async Task<GrowerCropTarget> ReadGrowerCropTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {

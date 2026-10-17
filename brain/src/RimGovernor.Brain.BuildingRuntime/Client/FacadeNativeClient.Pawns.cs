@@ -26,20 +26,11 @@ public sealed partial class FacadeNativeClient
         ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(Combat: true), cancellationToken);
 
     /// <summary>
-    /// Go <c>ReadRoundsPawns</c>: combat, work, care, schedule and social detail: the shared routine census feeds every
-    /// routine planner from this one read.
-    /// </summary>
-    internal Task<PbObservations.ListPawnsReply> ReadRoundsPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
-        ReadPawnDetailsAsync(identity, ids, RoundsPawnDetails, cancellationToken);
-
-    /// <summary>
     /// Go <c>ReadTendPawns</c>: combat facts, work settings and care policy for exact doctor and patient ids, plus the
     /// tend detail: the doctor-side native gates and reachability between the requested pawns.
     /// </summary>
     internal Task<PbObservations.ListPawnsReply> ReadTendPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(Combat: true, Work: true, Care: true, Tend: true), cancellationToken);
-
-    private static PawnDetailSelection RoundsPawnDetails { get; } = new(Combat: true, Work: true, Care: true, Schedule: true, Social: true);
 
     /// <summary>Go <c>readPawnDetails</c>.</summary>
     internal async Task<PbObservations.ListPawnsReply> ReadPawnDetailsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, PawnDetailSelection want, CancellationToken cancellationToken)
@@ -50,10 +41,6 @@ public sealed partial class FacadeNativeClient
         }
         var copied = ids.ToArray();
 
-        // Each PawnSettings slice has its own wire flag: Settings gates only native's CarePolicy() (medical_care,
-        // self_tend), Work its priorities and Schedule the 24 TimetableSlot rows. Requesting schedule must never also
-        // set Settings -- doing so live-fires CarePolicy and returns MedicalCare/SelfTend the caller never asked for,
-        // which the settings validator correctly refuses as unrequested detail.
         var request = PawnDetailsRequest(identity, copied, want);
         var reply = await Facade.ListPawnsAsync(request, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
@@ -81,16 +68,11 @@ public sealed partial class FacadeNativeClient
             Equipment = want.Combat,
             Biography = want.Combat,
             Settings = want.Care,
-            Social = want.Social,
             Animals = want.Combat,
         };
         if (want.Work)
         {
             details = details with { Work = true, Needs = true };
-        }
-        if (want.Schedule)
-        {
-            details = details with { Schedule = true };
         }
         if (want.Tend)
         {

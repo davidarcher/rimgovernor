@@ -21,18 +21,6 @@ public sealed record BedUseTarget
     public IReadOnlyList<string> Owners { get; init; } = [];
 }
 
-/// <summary>Go's <c>ClaimBuildingTarget</c>: one claimable building, its CAS token and whether the colony already owns it.</summary>
-public sealed record ClaimBuildingTarget
-{
-    public ObservationContext? Context { get; init; }
-
-    public string Thing { get; init; } = "";
-
-    public string Token { get; init; } = "";
-
-    public bool PlayerOwned { get; init; }
-}
-
 /// <summary>Go's <c>ConstructionDeficitRead</c>: what every blueprint and frame still needs, by resource def name, and how many structures were counted.</summary>
 public sealed record ConstructionDeficitRead
 {

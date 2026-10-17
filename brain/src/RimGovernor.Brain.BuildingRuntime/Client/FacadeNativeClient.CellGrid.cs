@@ -118,8 +118,8 @@ public sealed partial class FacadeNativeClient
 
     /// <summary>
     /// Go <c>Client.ReadMapBounds</c>: reads the one-cell grid at a caller-observed anchor for the map's dimensions. A
-    /// failed or unavailable observation never supplies default bounds. Bounds never change, so the read
-    /// asks any frame (Go <c>WithAnyFrame</c>); get_cells is no frame-served read and always goes to the facade.
+    /// failed or unavailable observation never supplies default bounds.
+    /// get_cells is no frame-served read and always goes to the facade.
     /// </summary>
     internal async Task<MapBounds> ReadMapBoundsAsync(PbCommon.Identity identity, Cell anchor, CancellationToken cancellationToken)
     {
@@ -166,7 +166,6 @@ public sealed partial class FacadeNativeClient
             GridFrameMethod,
             identity,
             fallback: false,
-            anyFrame: false,
             view => new FrameLookup<FrameView>(view.Snapshot.Grid is not null, view, view.Snapshot.Grid is not null),
             cancellationToken).ConfigureAwait(false);
         var frame = served.Value!;
