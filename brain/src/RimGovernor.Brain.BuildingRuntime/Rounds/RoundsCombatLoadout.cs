@@ -2,14 +2,6 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native reads of the pre-fight loadout: the map bounds and the weapons lying on the map.</summary>
-internal interface ILoadoutWeaponSource
-{
-    Task<MapBounds> ReadMapBoundsAsync(C.Identity identity, Cell origin, CancellationToken ct);
-
-    Task<EquipRead> ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell to, CancellationToken ct);
-}
-
 public sealed partial class RoundsDefensePlanner
 {
     internal const string ShieldBeltDef = "Apparel_ShieldBelt";
@@ -69,7 +61,7 @@ public sealed partial class RoundsDefensePlanner
         }
         var identity = Boundary.Identity(state.Snapshot);
         IReadOnlyList<EquipCandidateWeapon> weapons = [];
-        if (_native is ILoadoutWeaponSource source && threat != Pol.LoadoutThreat.None)
+        if (_native is FacadeNativeClient source && threat != Pol.LoadoutThreat.None)
         {
             try
             {
@@ -81,7 +73,7 @@ public sealed partial class RoundsDefensePlanner
             }
         }
         IReadOnlyList<LoadoutApparel> belts = [];
-        if (_native is IColonyFactsReader facts2 && beltless)
+        if (_native is FacadeNativeClient facts2 && beltless)
         {
             try
             {
@@ -95,7 +87,7 @@ public sealed partial class RoundsDefensePlanner
         return CombatLoadoutRules.ThreatLoadout(threat, defenders, weapons, belts);
     }
 
-    internal static async Task<List<EquipCandidateWeapon>> LoadoutWeaponsAsync(ILoadoutWeaponSource source, C.Identity identity, ControlState state, DefinitionCatalog catalog, CancellationToken call)
+    internal static async Task<List<EquipCandidateWeapon>> LoadoutWeaponsAsync(FacadeNativeClient source, C.Identity identity, ControlState state, DefinitionCatalog catalog, CancellationToken call)
     {
         var bounds = (await source.ReadMapBoundsAsync(identity, default, call).ConfigureAwait(false));
         try
@@ -127,7 +119,7 @@ public sealed partial class RoundsDefensePlanner
         return output;
     }
 
-    internal async Task<List<LoadoutApparel>> LoadoutBeltsAsync(IColonyFactsReader source, C.Identity identity, ControlState state, CancellationToken call)
+    internal async Task<List<LoadoutApparel>> LoadoutBeltsAsync(FacadeNativeClient source, C.Identity identity, ControlState state, CancellationToken call)
     {
         var reply = await _reviewer.ColonyFactsAsync(source, identity, true, call).ConfigureAwait(false);
         var observed = reply.Outcome?.Observed ?? throw new ControlException("loadoutBelts: observed == nil");

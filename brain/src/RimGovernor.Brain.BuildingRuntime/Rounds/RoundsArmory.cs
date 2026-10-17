@@ -9,7 +9,7 @@ public sealed partial class RoundsArmoryPlanner
 {
     private readonly Rounder _reviewer;
     internal Rounder Reviewer => _reviewer;
-    private readonly IRoundsGearSource _native;
+    private readonly FacadeNativeClient _native;
 
     /// <summary>Places the crafting spot under the equipment Need; null when the native source cannot build.</summary>
     private readonly RoundsBuildingPlanner? _spot;
@@ -17,7 +17,7 @@ public sealed partial class RoundsArmoryPlanner
     private readonly object _mu = new();
     private bool _spotNeeded;
 
-    public RoundsArmoryPlanner(Rounder reviewer, IRoundsGearSource native)
+    public RoundsArmoryPlanner(Rounder reviewer, FacadeNativeClient native)
     {
         if (reviewer is null || native is null)
         {
@@ -46,7 +46,7 @@ public sealed partial class Rounder
         {
             return Known(false);
         }
-        if (Native is not IArtBenchSource source)
+        if (Native is not FacadeNativeClient source)
         {
             return Unknown<bool>();
         }
@@ -89,7 +89,7 @@ public sealed partial class Rounder
 
 internal static partial class BuildingRuntimePackage
 {
-    internal static RoundsBuildingPlanner? NewCraftingSpotPlanner(Rounder reviewer, IRoundsGearSource native)
+    internal static RoundsBuildingPlanner? NewCraftingSpotPlanner(Rounder reviewer, FacadeNativeClient native)
     {
         if (native is not IRoundsBuildingSource building)
         {

@@ -418,7 +418,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         s.Check();
         var previews = new List<BuildingPreview>();
-        if (Native is IShellBatchPreviewer batch)
+        if (Native is FacadeNativeClient batch)
         {
             previews = [.. (await batch.PreviewBuildingsAsync(actions, snapshot, call).ConfigureAwait(false))];
         }

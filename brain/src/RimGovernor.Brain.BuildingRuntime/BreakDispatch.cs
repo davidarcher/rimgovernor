@@ -1,13 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native reads of the mental-break dispatch fence (Go <c>BreakResponseSource</c>).</summary>
-public interface IBreakResponseSource
-{
-    Task<EmergencyObservation> ReadEmergencyAsync(PbCommon.Identity identity, CancellationToken ct);
-
-    Task<PbObservations.ListPawnsReply> ReadCombatPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct);
-}
-
 /// <summary>Port of break_dispatch.go: releasing a breaking pawn's work and fencing new dispatch near an aggressive break.</summary>
 internal static class BreakDispatch
 {

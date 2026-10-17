@@ -2,13 +2,6 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native reads of the deep drill planner: the building census and the research read on top of the building source.</summary>
-internal interface IDeepDrillBuildingSource : IRoundsBuildingSource, Observation.IResearchSource
-{
-    Task<EntityRows<O.BuildingState>> ReadBuildingsAsync(C.Identity identity, CancellationToken ct);
-
-}
-
 /// <summary>One deep drill site the colony could build on: the preview and the plan that would place it.</summary>
 internal sealed class DeepDrillPlacement
 {
@@ -23,7 +16,7 @@ internal sealed class DeepDrillPlacement
 /// <summary>What one deep drill review read: the sites worth drilling, whether a drill stands and the placeable sites.</summary>
 internal sealed class DeepDrillReading
 {
-    public IDeepDrillBuildingSource Native = null!;
+    public FacadeNativeClient Native = null!;
     public ColonyProjection F = null!;
     public List<DeepResourceLump> Sites = [];
     public bool Built;
@@ -92,7 +85,7 @@ public sealed partial class RoundsResourcePlanner
         {
             return null;
         }
-        if (this.native is not IDeepDrillBuildingSource deepNative)
+        if (this.native is not FacadeNativeClient deepNative)
         {
             return null;
         }
@@ -172,7 +165,7 @@ public sealed partial class RoundsResourcePlanner
         return output;
     }
 
-    internal static async Task<(DeepDrillPlacement? Placement, bool Ok)> ReadDeepDrillPlacementAsync(IDeepDrillBuildingSource native, ControlState state, ColonyProjection f, DeepResourceLump site, double distance, CancellationToken call)
+    internal static async Task<(DeepDrillPlacement? Placement, bool Ok)> ReadDeepDrillPlacementAsync(FacadeNativeClient native, ControlState state, ColonyProjection f, DeepResourceLump site, double distance, CancellationToken call)
     {
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };

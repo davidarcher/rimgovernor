@@ -8,7 +8,7 @@ internal static partial class BuildingRuntimePackage
     /// with an unplaceable preview; every other error still fails the step. The native detail names the refusing
     /// condition. Reply is null when the site is refused; Detail then says why.
     /// </summary>
-    internal static async Task<(OperationsPb.ZonePreviewReply? Reply, string Detail)> PreviewZoneAsync(IFieldNative native, C.Identity identity, ZoneCreate target, CancellationToken ct)
+    internal static async Task<(OperationsPb.ZonePreviewReply? Reply, string Detail)> PreviewZoneAsync(FacadeNativeClient native, C.Identity identity, ZoneCreate target, CancellationToken ct)
     {
         OperationsPb.ZonePreviewReply reply;
         try

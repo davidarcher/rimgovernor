@@ -26,7 +26,7 @@ public sealed partial class Rounder
     /// The native surface of the resource planner, set when it is composed: the Round's resource supply plan
     /// reads mine sources and bench bills through it. Null plans only the census kinds (chop, harvest, hunt).
     /// </summary>
-    internal IRoundsResourceSource? ResourceNative;
+    internal FacadeNativeClient? ResourceNative;
 
     internal TimeSpan MaxAge;
 

@@ -210,7 +210,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     /// Registers what drives the session's clock windows, to be stopped before the clock coordinator on a stop
     /// (Go <c>attachClockWorker</c>). Throws when the session has no clock, is closing, or already has one.
     /// </summary>
-    public void AttachClockWorker(IClockWorkerStopper worker)
+    public void AttachClockWorker(ClockRunDriver worker)
     {
         if (_clock is null)
         {
@@ -230,7 +230,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
 }
 
 /// <summary>Relays authority changes between the control and the executor/clock it is wired to.</summary>
-internal sealed partial class SessionSink : IAuthoritySink
+internal sealed partial class SessionSink
 {
     internal readonly object Mu = new();
     internal Executor.Executor? Executor;
@@ -365,7 +365,7 @@ internal sealed partial class SessionSink : IAuthoritySink
 }
 
 /// <summary>Adapts the journal's controller session id read to the control's identity source.</summary>
-internal sealed class StoreSessionIdentity(StoreJournal store) : ISessionIdentity
+internal sealed class StoreSessionIdentity(StoreJournal store)
 {
     public async Task<ControllerSessionId> IdentityAsync(CancellationToken ct) => new((await store.IdentityAsync(ct).ConfigureAwait(false)).Value);
 }

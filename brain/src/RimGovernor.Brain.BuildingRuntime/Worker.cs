@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed class WorkerConfig
 {
-    public IBreakResponseSource? BreakSource { get; set; }
+    public FacadeNativeClient? BreakSource { get; set; }
 
     /// <summary>
     /// Pawns and Moves drive the arrival hold (ArrivalHolds): an action that depends on a completed move waits

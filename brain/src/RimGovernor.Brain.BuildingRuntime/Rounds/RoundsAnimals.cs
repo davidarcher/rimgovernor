@@ -9,10 +9,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed class AnimalsReader
 {
     private readonly Rounder _reviewer;
-    private readonly IRoundsHospitalSource _native;
+    private readonly FacadeNativeClient _native;
     private readonly RoundsBuildingPlanner _building;
 
-    public AnimalsReader(Rounder reviewer, IRoundsHospitalSource native)
+    public AnimalsReader(Rounder reviewer, FacadeNativeClient native)
     {
         _reviewer = reviewer ?? throw new ControlException("AnimalsReader: reviewer is missing");
         _native = native ?? throw new ControlException("AnimalsReader: native is missing");
@@ -20,7 +20,7 @@ public sealed class AnimalsReader
     }
 
     /// <summary>The family's scheduler entry: the husbandry toggle derives the herd and sterilize Needs, the containment toggle the containment and ward Needs.</summary>
-    public static FamilyRunner<AnimalsFacts> Runner(Rounder reviewer, IRoundsHospitalSource native, bool herd, bool containment)
+    public static FamilyRunner<AnimalsFacts> Runner(Rounder reviewer, FacadeNativeClient native, bool herd, bool containment)
     {
         var reader = new AnimalsReader(reviewer, native);
         return new FamilyRunner<AnimalsFacts>(new AnimalsFamily(herd, containment), reader.ReadAsync, Schedule, reader.WorkAsync);

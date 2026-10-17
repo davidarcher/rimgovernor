@@ -11,7 +11,7 @@ public sealed partial class AdminRounds
 {
     private readonly Rounder _reviewer;
     private readonly AdminNeeds _needs;
-    private readonly IRoundsSupplySource? _supplies;
+    private readonly FacadeNativeClient? _supplies;
     private readonly RoundsBuildingPlanner? _building;
     private readonly RoundsStockpilePlanner? _stockpiles;
     private readonly RoundsWorkPlanner? _work;
@@ -24,7 +24,7 @@ public sealed partial class AdminRounds
     /// The family with <paramref name="needs"/> composed; supply safety reads and writes through <paramref name="supplies"/>,
     /// the stockpiles Need its zone edits through <paramref name="stockpiles"/>.
     /// </summary>
-    public AdminRounds(Rounder reviewer, AdminNeeds needs, IRoundsSupplySource? supplies, IRoundsStockpileSource? stockpiles = null)
+    public AdminRounds(Rounder reviewer, AdminNeeds needs, FacadeNativeClient? supplies, FacadeNativeClient? stockpiles = null)
     {
         _reviewer = reviewer ?? throw new ControlException("AdminRounds: reviewer is missing");
         _needs = needs ?? throw new ControlException("AdminRounds: needs are missing");

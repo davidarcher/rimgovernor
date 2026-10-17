@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go combat_pawns.go, pawns.go, work_pawns.go, tend_pawns.go, home_colonists.go and biotech_mechs.go: the pawn-list
 // reads. Each differs only in which PawnDetails families it asks for.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>The main-thread milliseconds the tend pair reachability may spend (Go <c>TendReachBudgetMS</c>).</summary>
     internal const uint PawnsTendReachBudgetMs = 50;

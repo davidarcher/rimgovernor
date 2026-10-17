@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // ReadNewColony). Save and ReadSave are in Writes.cs. Go returned a pending or superseded outcome as a typed error so
 // a nil reply could not pass for success; the player routes map those arms themselves (202 and 409), so the core
 // methods here return the reply for them and throw only for a failure arm or a malformed reply.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Resolves the ideoligion a <c>governor_ideoligion</c> new-colony spec asks the governor to choose (Go

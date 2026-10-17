@@ -17,7 +17,7 @@ public interface IClockDriverNative : IColonyEventNative
 /// native pushes, which say what held it. The host calls <see cref="AfterStepAsync"/> after every scheduler step and
 /// <see cref="StopAsync"/> on shutdown.
 /// </summary>
-public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
+public sealed partial class ClockRunDriver : IDisposable
 {
     private readonly Player _player;
     private readonly Session _session;

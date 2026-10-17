@@ -5,7 +5,7 @@ using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go research_select_read.go: Client.ReadResearch, researchRequest and readResearchSnapshot.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Go <c>Client.ReadResearch</c>: the native research snapshot translated into the economy family's research shapes. It

@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // Identity, Tick, Status and ReadColonyFacts hand back the whole reply and leave a failure or unavailable arm in it:
 // the consumers (the clock coordinator's cleanup, the Decode* helpers) read the arm themselves, as they did from Go's
 // (reply, error) pair where the error only carried the arm.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     private const string ReadColonyFactsMethod = "rimgovernor/observations_read_colony_facts";
 

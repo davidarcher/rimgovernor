@@ -3,23 +3,6 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>
-/// The native census RoundsTradePlanner reads between phases: the trader census for the caravan and negotiator to
-/// open with, the trade-session read for the walk or session native holds, a fresh colony facts read for the
-/// medicine and resource stock the need is re-measured from, and the session-scoped sheet each decision is made
-/// from. A phase is not previewed: native judges it when it applies, and a refusal fails its method.
-/// </summary>
-public interface IRoundsTradeSource : Observation.IColonySource
-{
-    Task<ConstructionDeficitRead> ReadConstructionDeficitsAsync(C.Identity identity, CancellationToken ct);
-
-    Task<TradersRead> ListTradersAsync(C.Identity identity, CancellationToken ct);
-
-    Task<TradeSessionRead> ReadTradeSessionAsync(C.Identity identity, CancellationToken ct);
-
-    Task<TradeSheetRead> ReadTradeSheetAsync(C.Identity identity, CancellationToken ct);
-}
-
 public sealed class RoundsTradeResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
@@ -61,9 +44,9 @@ public sealed partial class RoundsTradePlanner
 {
     internal Rounder Reviewer { get; }
 
-    internal IRoundsTradeSource Native { get; }
+    internal FacadeNativeClient Native { get; }
 
-    public RoundsTradePlanner(Rounder reviewer, IRoundsTradeSource native)
+    public RoundsTradePlanner(Rounder reviewer, FacadeNativeClient native)
     {
         if (reviewer is null || native is null)
         {

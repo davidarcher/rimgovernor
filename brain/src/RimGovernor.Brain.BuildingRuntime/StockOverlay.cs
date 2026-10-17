@@ -10,7 +10,7 @@ public sealed partial class Rounder
     /// </summary>
     internal async Task DrawStockOverlayAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, Sto.RoundsResult result, CancellationToken ct)
     {
-        if (Native is not ILayoutOverlayNative native)
+        if (Native is not FacadeNativeClient native)
         {
             return;
         }

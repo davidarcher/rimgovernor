@@ -1,13 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>What <see cref="Rounder.SettlementAcquisitionOptions"/> needs of the native source beyond the mission pack source.</summary>
-internal interface ISettlementOptionsSource : ITradeMissionPackSource
-{
-    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct);
-
-    Task<WorldRead> ReadWorldAsync(C.Identity identity, int home, double radius, CancellationToken ct);
-}
-
 public sealed partial class Rounder
 {
     internal async Task<IReadOnlyList<Pol.TradeAcquisitionOption>> SettlementAcquisitionOptionsAsync(GenerationSnapshot world, string owner, Observation.ColonyProjection p, IReadOnlyList<Pol.SupplyDemandResult> demands, Bridge.DefinitionCatalog catalog, CancellationToken ct)
@@ -32,7 +24,7 @@ public sealed partial class Rounder
                 };
             }
         }
-        if (Native is not ISettlementOptionsSource source)
+        if (Native is not FacadeNativeClient source)
         {
             return [];
         }

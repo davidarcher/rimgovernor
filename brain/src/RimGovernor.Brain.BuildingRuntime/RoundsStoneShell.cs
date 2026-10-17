@@ -3,18 +3,6 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>
-/// Previews each backup/replacement Wall placement and lists current wall-upgrade candidate sites. General
-/// colony facts (owned construction, the Upkeep stone-structure census, map bounds) come from the shared
-/// Rounder.Native read instead, the same split RoundsFieldPlanner uses between its own FieldNative and the
-/// reviewer's Observation.IRoundsSource.
-/// </summary>
-public interface IRoundsStoneShellSource
-{
-    Task<WallUpgradeSites> ReadWallUpgradeSitesAsync(C.Identity identity, string wall, CancellationToken ct);
-    Task<BuildingPreview> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
-}
-
 /// <summary>The stone-shell step of the layout family (#3256): one wall upgrade bundle per flammable owned wall, under the Need owner.</summary>
 public sealed partial class LayoutRounds
 {

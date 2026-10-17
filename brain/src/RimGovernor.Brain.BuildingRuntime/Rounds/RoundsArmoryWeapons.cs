@@ -8,7 +8,7 @@ public sealed partial class RoundsArmoryPlanner
     /// </summary>
     internal async Task<(IReadOnlyList<Amount> Fighters, IReadOnlyList<Amount> Hunters, int Unarmed)> WeaponDemandAsync(GenerationSnapshot snapshot, IReadOnlyList<string> ids, long minTick, IReadOnlyList<GearBench> benches, ArmoryTier tier, CancellationToken ct)
     {
-        if (_native is not IRoundsEquipSource source)
+        if (_native is not FacadeNativeClient source)
         {
             return ([], [], 0);
         }

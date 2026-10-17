@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go pawn_table.go (FrameTables, FramePawns, framePawnSnapshot, frameHeld), thing_table.go (ThingTable, ValidThing,
 // FrameThings), building_table.go (FrameBuildings) and entities.go (ReadZones, ReadBuildings, ReadBillStacks).
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>framePawnsMethod</c>, <c>frameThingsMethod</c>, <c>frameBuildingsMethod</c>: the keyed tables a frame read waits for.</summary>
     private const string FramePawnsMethod = "rimgovernor/snapshot_frame_pawns";

@@ -3,7 +3,7 @@ using RimGovernor.Brain.Bridge.Contracts;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go packed_install.go and neuroformer_items.go: the supply-census reads of one definition's loose items.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>Go's <c>ReadPackedItems</c>: lists the colony's spawned, unheld packed items of one packed definition.</summary>
     internal async Task<IReadOnlyList<PackedItem>> ReadPackedItemsAsync(PbCommon.Identity identity, string packedDef, CancellationToken cancellationToken)

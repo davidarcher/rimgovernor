@@ -11,12 +11,6 @@ internal sealed record LayoutInputs(Tick PlanTick, string Key, Bounds Bounds, Eq
         PlanTick == other.PlanTick && Key == other.Key && Bounds == other.Bounds && Cells.Equals(other.Cells);
 }
 
-/// <summary>The native overlay layer the layout plan draws on, and the layer that holds its field zones (hidden natively by default).</summary>
-public interface ILayoutOverlayNative
-{
-    Task<PbPresentation.OverlayApplied> DrawOverlayAsync(PbCommon.Identity identity, string layer, LayoutOverlay overlay, bool visible, CancellationToken ct);
-}
-
 /// <summary>A saved layout plan the world holds, with the tick that recorded it.</summary>
 internal readonly record struct HeldLayout(LayoutPlan Plan, Tick Tick);
 
@@ -312,7 +306,7 @@ public sealed partial class Rounder
     /// </summary>
     internal async Task DrawLayoutOverlayAsync(GenerationSnapshot snapshot, ColonyProjection projection, HeldLayout layout, bool haveLayout, CancellationToken ct)
     {
-        if (Native is not ILayoutOverlayNative native)
+        if (Native is not FacadeNativeClient native)
         {
             return;
         }
@@ -496,7 +490,7 @@ public sealed partial class Rounder
     }
 
     /// <summary>Redraws a "heat.&lt;layer&gt;" overlay layer per traffic layer from the census's busiest cells, on its own hourly cadence; with the overlay off it removes them once. Output only, like the layout.</summary>
-    internal async Task DrawHeatOverlayAsync(ILayoutOverlayNative native, GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    internal async Task DrawHeatOverlayAsync(FacadeNativeClient native, GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
     {
         var known = projection.Facts.Upkeep.Flooring.TryGetValue(out var census);
         var on = LayoutOverlay && known;

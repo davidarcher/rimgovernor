@@ -103,7 +103,7 @@ public sealed class PlannerParts
     public required ClockScheduler Scheduler { get; init; }
 
     /// <summary>The Worker's native reads for break responses and the arrival hold (Go <c>natives.breaks</c>).</summary>
-    public IBreakResponseSource? BreakSource { get; init; }
+    public FacadeNativeClient? BreakSource { get; init; }
 
     public IArrivalPawns? Pawns { get; init; }
 

@@ -111,7 +111,7 @@ internal sealed class FrameCellGrid(PbMirror.CellGrid grid)
     private static Fact<string> Present(string? value) => value is null ? Fact.Unknown<string>() : Fact.Known(value);
 }
 
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>gridFrameMethod</c>: keys a frame's grid, frames-only; the reply is the frame's context.</summary>
     private const string GridFrameMethod = "rimgovernor/snapshot_frame_grid";

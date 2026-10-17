@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go world.go (Client.ReadWorld, worldSelected) and world_progression.go (Client.ReadWorldProgression,
 // worldProgressionRequest). The progression census decoder is BridgeFunctions.DecodeWorldProgressionSnapshot.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Go <c>Client.ReadWorld</c>: the settlements within <paramref name="settlementRadius"/> tiles (0: exact tile) of

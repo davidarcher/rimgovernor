@@ -11,12 +11,6 @@ public sealed class CheckpointException : Exception
     public CheckpointException(Exception inner) : base("checkpoint refused", inner) { }
 }
 
-/// <summary>The trusted single-save native capability, held separately from ordinary reads the same way INativeAuthority is.</summary>
-public interface ILifecycleSaver
-{
-    Task<LifecyclePb.SaveReply> SaveAsync(LifecyclePb.SaveRequest request, CancellationToken ct);
-}
-
 /// <summary>
 /// Names the caller's expected live world and the native save name. ExpectedTick is optional; when present it is
 /// asserted against the currently observed tick before native persists anything.
@@ -37,7 +31,7 @@ public sealed partial class Control
     /// released: play continues in Manual after a checkpoint. An uncertain native outcome is always reported as
     /// a refusal (<see cref="CheckpointException"/>), never silently accepted.
     /// </summary>
-    public async Task<CheckpointResult> CheckpointAsync(ILifecycleSaver? save, CheckpointRequest request, CancellationToken ct)
+    public async Task<CheckpointResult> CheckpointAsync(FacadeNativeClient? save, CheckpointRequest request, CancellationToken ct)
     {
         if (save is null || !request.Expected.IsValid || !Boundary.ValidId(request.SaveName))
         {

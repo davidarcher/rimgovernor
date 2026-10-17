@@ -2,17 +2,6 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsSupplySource
-{
-    Task<SupplyRead> ReadAllowSuppliesAsync(C.Identity identity, Cell cell, CancellationToken ct);
-}
-
-/// <summary>The forbid variant of the supply read, offered by a source that can forbid as well as allow.</summary>
-public interface IRoundsSupplyForbidSource
-{
-    Task<SupplyRead> ReadForbidSuppliesAsync(C.Identity identity, Cell cell, CancellationToken ct);
-}
-
 public sealed partial class AdminRounds
 {
     /// <summary>The grave sites previewed per step, nearest first.</summary>
@@ -62,7 +51,7 @@ public sealed partial class AdminRounds
         Func<C.Identity, Cell, CancellationToken, Task<SupplyRead>> readSupply = _supplies!.ReadAllowSuppliesAsync;
         if (forbidBatch)
         {
-            if (_supplies is not IRoundsSupplyForbidSource forbidSource)
+            if (_supplies is not FacadeNativeClient forbidSource)
             {
                 throw new ControlException("supply safety: the source cannot forbid");
             }

@@ -11,12 +11,6 @@ public sealed class RoundsFieldResult : IPlannerMethod
     public PlanId Plan { get; init; }
 }
 
-/// <summary>The native zone preview of the field planner.</summary>
-public interface IFieldNative
-{
-    Task<OP.ZonePreviewReply> PreviewZoneAsync(C.Identity identity, ZoneCreate zone, CancellationToken ct);
-}
-
 /// <summary>
 /// Opens and grows the colony's fields. The food/supply Need's part (fishing zones, grower crops, shrinking surplus
 /// zones and new food fields) runs in the food family's work step under the Need, admitted by claims; the economy
@@ -30,9 +24,9 @@ public sealed partial class RoundsFieldPlanner
 
     private readonly Rounder _reviewer;
     internal Rounder Reviewer => _reviewer;
-    private readonly IFieldNative _native;
+    private readonly FacadeNativeClient _native;
 
-    public RoundsFieldPlanner(Rounder reviewer, IFieldNative native)
+    public RoundsFieldPlanner(Rounder reviewer, FacadeNativeClient native)
     {
         if (reviewer is null || native is null)
         {
@@ -244,7 +238,7 @@ public sealed partial class RoundsFieldPlanner
         var previews = new List<Preview>();
         if (candidate.Buildings.Count > 0)
         {
-            if (_native is not IFieldBuildingPreview native)
+            if (_native is not FacadeNativeClient native)
             {
                 return (new RoundsFieldResult { Verdict = FieldUnavailable("building_preview") }, false);
             }
@@ -455,7 +449,7 @@ public sealed partial class RoundsFieldPlanner
 
     internal async Task<(RoundsFieldResult Result, bool Tried)> RecropAsync(ControlState state, IWorkOwner goal, ColonyProjection projection, RoundsReading read, GrowerCropChoice choice, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
-        if (_native is not IFieldGrowerCrop native)
+        if (_native is not FacadeNativeClient native)
         {
             return (new RoundsFieldResult { Verdict = FieldUnavailable("grower_crop_target") }, false);
         }
@@ -543,18 +537,6 @@ public sealed partial class RoundsFieldPlanner
         attrs["family"] = "field";
         Tel.Decide(new Decision { Kind = TelemetryKinds.LayoutEditKind, Component = "clock-scheduler", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs });
     }
-}
-
-/// <summary>A field native that also previews a building.</summary>
-public interface IFieldBuildingPreview
-{
-    Task<BridgeBuildingPreview> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
-}
-
-/// <summary>A field native that reads a grower's crop target.</summary>
-public interface IFieldGrowerCrop
-{
-    Task<BridgeGrowerCropTarget> ReadGrowerCropTargetAsync(C.Identity identity, string grower, CancellationToken ct);
 }
 
 internal static partial class BuildingRuntimePackage

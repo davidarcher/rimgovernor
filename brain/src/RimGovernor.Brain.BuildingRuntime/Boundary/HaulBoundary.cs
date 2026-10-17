@@ -4,13 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Port of internal/buildingruntime/haul (boundary.go). Dropped: the LeaseSource dependency (no native epoch lease in-process).
 
-/// <summary>Narrows the bridge client to the one read a haul dispatch makes: the hauler's row, for the tick the dispatch is journaled at.</summary>
-public interface IHaulNative
-{
-    Task<PbObservations.ListPawnsReply> ReadPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct);
-}
-
-public sealed record HaulCapabilities(IHaulNative Native, IActionsWriter Writer);
+public sealed record HaulCapabilities(FacadeNativeClient Native, IActionsWriter Writer);
 
 /// <summary>
 /// Sends a haul as an idempotent intent naming the pawn and the item. Native checks both against live state when
@@ -19,11 +13,11 @@ public sealed record HaulCapabilities(IHaulNative Native, IActionsWriter Writer)
 /// </summary>
 public sealed class HaulBoundary : IHaulBoundary
 {
-    private readonly IHaulNative _native;
+    private readonly FacadeNativeClient _native;
     private readonly IActionsWriter _writer;
     private readonly IClock _clock;
 
-    public HaulBoundary(IHaulNative native, IActionsWriter writer, IClock clock)
+    public HaulBoundary(FacadeNativeClient native, IActionsWriter writer, IClock clock)
     {
         _native = native;
         _writer = writer;

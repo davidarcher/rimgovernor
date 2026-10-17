@@ -1,18 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native equipment reads: emergency, combat pawns, map bounds and weapons.</summary>
-public interface IRoundsEquipSource : Observation.IDefinitionSource
-{
-    Task<EmergencyObservation> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
-
-    Task<O.ListPawnsReply> ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
-
-    Task<BridgeMapBounds> ReadMapBoundsAsync(C.Identity identity, Cell origin, CancellationToken ct);
-
-    Task<BridgeEquipRead> ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell toCell, CancellationToken ct);
-
-}
-
 /// <summary>The equip candidate facts the armory and combat loadout read from native weapon and pawn rows.</summary>
 internal static class EquipCandidates
 {

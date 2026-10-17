@@ -1,10 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface ITradeMissionPackSource
-{
-    Task<ObservationsPb.TradeAcquisition> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
-}
-
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>Whether <paramref name="m"/> passes its own validation (Go: <c>m.Validate() == nil</c>).</summary>
@@ -31,7 +26,7 @@ public static partial class TradeMissions
     /// installed. Throws <see cref="DomainException"/> with the Go failure reason when the mission cannot be
     /// prepared.
     /// </summary>
-    public static async Task<(TradeMission Mission, Pol.TradeAcquisitionOption Option)> PrepareTradeMissionAsync(ITradeMissionPackSource source, GenerationSnapshot world, int homeTile, SettlementFact settlement, Pol.RoundsFacts facts, Pol.RoundsPolicy thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<PawnId>? claimed, CancellationToken ct)
+    public static async Task<(TradeMission Mission, Pol.TradeAcquisitionOption Option)> PrepareTradeMissionAsync(FacadeNativeClient source, GenerationSnapshot world, int homeTile, SettlementFact settlement, Pol.RoundsFacts facts, Pol.RoundsPolicy thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<PawnId>? claimed, CancellationToken ct)
     {
         if (!world.IsValid || homeTile < 0 || settlement.Tile == homeTile || settlement.Player || settlement.TraderKind.Length == 0)
         {

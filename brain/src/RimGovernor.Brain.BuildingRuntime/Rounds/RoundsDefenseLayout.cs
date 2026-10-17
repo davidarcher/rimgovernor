@@ -2,18 +2,6 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native reads of the defense layout planner.</summary>
-public interface IRoundsDefenseLayoutSource
-{
-    Task<BridgeDefenseSite> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct);
-
-    Task<BridgeSpatialAccess> ReadSpatialAccessAsync(C.Identity identity, IReadOnlyList<Cell> from, IReadOnlyList<Cell> toCells, IReadOnlyList<string> kinds, CancellationToken ct);
-
-    Task<O.ListPawnsReply> ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
-
-    Task<IReadOnlyList<BridgeBuildingPreview>> PreviewBuildingsAsync(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, CancellationToken ct);
-}
-
 public sealed class RoundsDefenseLayoutResult : IPlannerMethod
 {
     public Verdict Verdict { get; set; }
@@ -51,12 +39,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
     ];
 
     private readonly Rounder _reviewer;
-    private readonly IRoundsDefenseLayoutSource _native;
+    private readonly FacadeNativeClient _native;
     internal Dictionary<string, string> Unbuilt = new(StringComparer.Ordinal);
     internal string TiersLogged = "";
     internal string BlocksLogged = "";
 
-    public RoundsDefenseLayoutPlanner(Rounder reviewer, IRoundsDefenseLayoutSource native)
+    public RoundsDefenseLayoutPlanner(Rounder reviewer, FacadeNativeClient native)
     {
         if (reviewer is null || native is null)
         {

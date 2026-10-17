@@ -2,11 +2,6 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsFirebreakSource
-{
-    Task<BridgeDefenseSite> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect rect, CancellationToken ct);
-}
-
 /// <summary>Remembers the firebreak review of the tick so the step can act on it.</summary>
 internal sealed class FirebreakMemory
 {
@@ -18,12 +13,12 @@ internal sealed class FirebreakMemory
     private Dictionary<Cell, CoverClearance>? _ruins;
     private List<Cell>? _pave;
 
-    internal FirebreakMemory(IRoundsFirebreakSource native)
+    internal FirebreakMemory(FacadeNativeClient native)
     {
         Native = native;
     }
 
-    internal IRoundsFirebreakSource Native { get; }
+    internal FacadeNativeClient Native { get; }
 
     private void Enter(string world)
     {

@@ -5,7 +5,7 @@ using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go combat_geometry.go (CombatGeometry and its request validator) and pawn_cargo.go (ReadPawnCargo).
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Go <c>CombatGeometry</c>: DecideCombat's one geometry read per stop. For candidate cells and hostiles: cover,

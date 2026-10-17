@@ -263,7 +263,7 @@ internal sealed class FrameFeed(ChannelReader<NativeFrame> reader) : IDisposable
     }
 }
 
-internal sealed partial class FacadeNativeClient : IDisposable
+public sealed partial class FacadeNativeClient : IDisposable
 {
     /// <summary>Releases the frame reader's and the stream opener's gates.</summary>
     public void Dispose()

@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // Go presentation_reads.go (ReadCamera, ReadSelection, ReadColonistRoster, ReadRenderState), presentation_media.go
 // (PresentationMedia.DemandRendering) and notifications.go (ReadNotifications). A failure arm throws what Failure
 // builds, as Go returned it as an error alongside the reply.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>Client.ReadCamera</c>: the camera, observation only.</summary>
     internal async Task<PbPresentation.CameraReply> ReadCameraAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)

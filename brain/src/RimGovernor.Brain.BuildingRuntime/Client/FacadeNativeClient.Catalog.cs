@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // the game's Defs. Without a factory the catalog cannot be built and DefinitionCatalogAsync refuses. Catalog caching is
 // by load token, as Go's catalogCache (the fingerprint reuse and catalog_disk.go cache of wire data are not ported: the
 // rows are never on the wire).
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     private readonly object _catalogGate = new();
     private BridgeCatalog? _catalogHeld;

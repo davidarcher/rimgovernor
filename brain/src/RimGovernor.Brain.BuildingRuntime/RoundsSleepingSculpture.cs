@@ -34,7 +34,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>SaleSculptures over a routine projection and the packed items read; null when a room input is unknown.</summary>
-    internal static async Task<HashSet<string>?> SaleSculpturesOfAsync(IPackedSource native, C.Identity identity, Observation.ColonyProjection facts, CancellationToken ct)
+    internal static async Task<HashSet<string>?> SaleSculpturesOfAsync(FacadeNativeClient native, C.Identity identity, Observation.ColonyProjection facts, CancellationToken ct)
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
@@ -55,7 +55,7 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static async Task<Fact<long>> ReviewSaleArtAsync(object source, C.Identity identity, Observation.ColonyProjection facts, CancellationToken ct)
     {
-        var native = source as IPackedSource;
+        var native = source as FacadeNativeClient;
         var hk = facts.Facts.WealthBudget().TryGetValue(out var h);
         if (native is null || !hk || h >= 0)
         {
@@ -140,7 +140,7 @@ public sealed partial class RoundsTradePlanner
     /// </summary>
     internal async Task<HashSet<string>?> SaleArtAsync(C.Identity identity, GenerationSnapshot snapshot, CancellationToken call)
     {
-        if (Native is not IPackedSource native)
+        if (Native is not FacadeNativeClient native)
         {
             return null;
         }

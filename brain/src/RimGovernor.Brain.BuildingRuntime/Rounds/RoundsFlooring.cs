@@ -1,11 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native defense-site read (Go's anonymous interface on the building source).</summary>
-internal interface IDefenseSiteReader
-{
-    Task<DefenseSite> ReadDefenseSiteAsync(C.Identity identity, CellRect region, CancellationToken ct);
-}
-
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>

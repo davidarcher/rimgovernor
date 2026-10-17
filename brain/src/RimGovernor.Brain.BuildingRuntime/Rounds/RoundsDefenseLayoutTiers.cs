@@ -370,7 +370,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal async Task<(RoundsBuildingResult Result, bool Handled)> DigKillboxAsync(NeedOwner goal, RoundsReview review, ControlState state, RoundsReading read, Cell access, IReadOnlyList<RoleCell> planned, CancellationToken call, CancellationToken epoch)
     {
-        if (_native is not IRoundsExcavationSource source)
+        if (_native is not FacadeNativeClient source)
         {
             return (new RoundsBuildingResult(), false);
         }

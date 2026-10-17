@@ -1,11 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The gear-bench census read of the art, surgery and bill planners.</summary>
-public interface IArtBenchSource
-{
-    Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
-}
-
 /// <summary>Plans the food bills of one purpose (cook, preserve, butcher, cook ahead) through the ledger.</summary>
 public sealed class RoundsBillPlanner : IPurposeReporter
 {

@@ -13,21 +13,16 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go emergency.go (ReadEmergency, DecodeEmergencyStatus and the row decoders), mental_state.go (PawnMentalState) and
 // threat_classify.go (ClassifyThreat, which only the emergency decoder uses).
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Go <c>ReadEmergency</c>: observes basic health and the full status threat census, its pawn references joined
     /// against the pawn table. It does not bind a controller direction or plan or authorize treatment, combat or building.
     /// </summary>
     /// <param name="identity">The world the read is for.</param>
-    /// <param name="framePawns">
-    /// Go <c>client.FramePawns</c>: the frame's pawn table for <paramref name="identity"/>, read only once the status read
-    /// observed something. The frame reads belong to another part of the client, so the caller binds them here.
-    /// </param>
     /// <param name="cancellationToken">Cancels the reads.</param>
     internal async Task<Bridge.Contracts.EmergencyObservation> ReadEmergencyAsync(
         PbCommon.Identity identity,
-        Func<PbCommon.Identity, CancellationToken, Task<Pawns>> framePawns,
         CancellationToken cancellationToken)
     {
         var reply = await Facade.ReadStatusAsync(EmergencyRequest(identity), cancellationToken).ConfigureAwait(false);
@@ -40,7 +35,7 @@ internal sealed partial class FacadeNativeClient
             throw Failure(failure);
         }
         var observed = reply.Outcome.Observed!;
-        var pawns = await framePawns(identity, cancellationToken).ConfigureAwait(false);
+        var pawns = await FramePawnsAsync(identity, cancellationToken).ConfigureAwait(false);
         return EmergencyDecode.DecodeEmergencyStatus(observed, pawns);
     }
 

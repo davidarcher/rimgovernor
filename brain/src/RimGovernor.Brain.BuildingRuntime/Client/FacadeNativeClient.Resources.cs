@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go consumption_read.go (Client.ReadConsumption) and resource_sources_read.go (Client.ReadResourceSources,
 // decodeResourceStorage, DefinitionCatalog.ResourceSourceMethodOf).
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Go <c>Client.ReadConsumption</c>: native's saved realized-consumption ring, every completed hour after

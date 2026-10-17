@@ -292,7 +292,7 @@ public sealed partial class RoundsBuildingPlanner
         BuildingPreview preview;
         if (overRock)
         {
-            if (Native is not IOverRockPreviewer source)
+            if (Native is not FacadeNativeClient source)
             {
                 return (null!, stock, FieldUnavailable("over_rock_preview"));
             }

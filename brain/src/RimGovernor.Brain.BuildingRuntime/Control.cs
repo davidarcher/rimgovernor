@@ -41,21 +41,6 @@ public interface INativeAuthority
     Task<PbAuthority.ControlReply> RevokeAsync(PbAuthority.Revoke request, CancellationToken ct);
 }
 
-/// <summary>The controller session id the control namespaces its writes under (Go <c>SessionIdentity</c>).</summary>
-public interface ISessionIdentity
-{
-    Task<ControllerSessionId> IdentityAsync(CancellationToken ct);
-}
-
-/// <summary>
-/// Receives authority changes. It must synchronously invalidate queued and active writes and must not call back
-/// into <see cref="Control"/>; <see cref="ControlConfig.StopWrites"/> subsequently joins those writers.
-/// </summary>
-public interface IAuthoritySink
-{
-    void UpdateAuthority(Authority authority);
-}
-
 public sealed record ControlConfig
 {
     public required TimeSpan CallTimeout { get; init; }
@@ -94,7 +79,7 @@ public sealed partial class Control : IDisposable
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ControlConfig _config;
     private readonly INativeAuthority _native;
-    private readonly IAuthoritySink _sink;
+    private readonly SessionSink _sink;
     private readonly CancellationToken _lifetime;
     private readonly CancellationTokenRegistration _stopLifetime;
     private CancellationTokenSource _epochSource;
@@ -116,7 +101,7 @@ public sealed partial class Control : IDisposable
 
     internal INativeAuthority Native => _native;
 
-    private Control(ControlConfig config, ControllerSessionId ns, INativeAuthority native, IAuthoritySink sink, CancellationToken lifetime)
+    private Control(ControlConfig config, ControllerSessionId ns, INativeAuthority native, SessionSink sink, CancellationToken lifetime)
     {
         _config = config;
         Namespace = ns;
@@ -137,7 +122,7 @@ public sealed partial class Control : IDisposable
         });
     }
 
-    public static async Task<Control> CreateAsync(ControlConfig config, ISessionIdentity identity, INativeAuthority native, IAuthoritySink sink, CancellationToken lifetime)
+    internal static async Task<Control> CreateAsync(ControlConfig config, StoreSessionIdentity identity, INativeAuthority native, SessionSink sink, CancellationToken lifetime)
     {
         if (config.CallTimeout <= TimeSpan.Zero || config.CallTimeout > TimeSpan.FromMinutes(1))
         {

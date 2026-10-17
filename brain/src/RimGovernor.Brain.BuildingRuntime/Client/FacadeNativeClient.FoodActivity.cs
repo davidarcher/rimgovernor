@@ -2,7 +2,7 @@ using RimGovernor.Brain.BuildingRuntime;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal sealed partial class FacadeNativeClient : IActivityTaskSource
+public sealed partial class FacadeNativeClient : IActivityTaskSource
 {
     Task<O.RecipeActivityRead> IActivityTaskSource.ReadRecipeActivityAsync(O.RecipeActivityRequest request, CancellationToken ct) =>
         Facade.ReadRecipeActivityAsync(request, ct);

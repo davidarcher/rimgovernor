@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go building_preview.go, zone.go (PreviewZone), overlay.go and the placement_preview call with its request check
 // (placement.go validatePlacementRequest).
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Go's <c>PreviewBuilding</c>: binds a single native evaluation to the exact immutable action and authority

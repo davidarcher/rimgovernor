@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go authority.go (FocusMap) and lifecycle_save.go (Save,
 // ReadSave): the writes that are methods of the client rather than of a writer class.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
 
     /// <summary>

@@ -1,14 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsResourceSource : IColonySource, IFieldNative
-{
-    Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
-
-    Task<IReadOnlyList<Stock>> ReadSupplyStockAsync(C.Identity identity, IReadOnlyList<string> names, CancellationToken ct);
-
-    Task<(IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage)> ReadResourceSourcesAsync(C.Identity identity, string resource, CancellationToken ct);
-}
-
 /// <summary>What the resource planner decided: a plan, a wait, or the sources it settled on.</summary>
 public readonly record struct RoundsResourceResult : IPlannerMethod
 {
@@ -43,15 +34,15 @@ public sealed partial class RoundsResourcePlanner
     internal const string ResourceSourceSubject = "resource_source";
 
     private readonly Rounder reviewer;
-    private readonly IRoundsResourceSource native;
+    private readonly FacadeNativeClient native;
 
-    private RoundsResourcePlanner(Rounder reviewer, IRoundsResourceSource native)
+    private RoundsResourcePlanner(Rounder reviewer, FacadeNativeClient native)
     {
         this.reviewer = reviewer;
         this.native = native;
     }
 
-    public static RoundsResourcePlanner NewRoundsResourcePlanner(Rounder reviewer, IRoundsResourceSource native)
+    public static RoundsResourcePlanner NewRoundsResourcePlanner(Rounder reviewer, FacadeNativeClient native)
     {
         if (reviewer is null || native is null)
         {

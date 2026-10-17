@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go frames.go: ReadRoundsFrame, DecodeRoundsFrame/decodeRoundsFrame, podsPending, roundsPawnRows,
 // roundsPawnIDs, ReadCombat, combatFrameHeld, censusPawns, primaryWeaponThings, DecodeCombat, combatRoom.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>roundsFrameMethod</c>: keys a frame's routine census sections.</summary>
     private const string RoundsFrameMethod = "rimgovernor/snapshot_frame_routine";

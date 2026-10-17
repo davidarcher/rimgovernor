@@ -309,7 +309,7 @@ public sealed partial class Rounder
     /// </summary>
     private async Task<Fact<Pol.StoreOccupancy>> StorageOccupancyAsync(Pol.StockpileRequest request, Tick tick, CancellationToken ct)
     {
-        if (Native is not IStorageOccupancySource reader)
+        if (Native is not FacadeNativeClient reader)
         {
             return Unknown<Pol.StoreOccupancy>();
         }
@@ -420,13 +420,13 @@ internal sealed partial class RoundsStockpilePlanner
     internal static readonly MethodId EditsMethod = new("stockpile-edits");
 
     private readonly Rounder _reviewer;
-    private readonly IRoundsStockpileSource _native;
+    private readonly FacadeNativeClient _native;
     private readonly StockpileZones _zones;
 
     // Shells the planned storage rooms and yards; null for a source that cannot preview buildings.
     private readonly RoundsBuildingPlanner? _building;
 
-    public RoundsStockpilePlanner(Rounder reviewer, IRoundsStockpileSource native)
+    public RoundsStockpilePlanner(Rounder reviewer, FacadeNativeClient native)
     {
         if (reviewer is null || native is null || reviewer.Native is null)
         {

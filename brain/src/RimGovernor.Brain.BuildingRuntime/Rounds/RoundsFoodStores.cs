@@ -1,11 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native reads of the food stores family beside the rounds census: one resource's storage sites for the meal order.</summary>
-public interface IRoundsFoodStoresSource
-{
-    Task<(IReadOnlyList<ResourceSource> Rows, ResourceStorage Storage)> ReadResourceSourcesAsync(C.Identity identity, string definition, CancellationToken ct);
-}
-
 /// <summary>
 /// The runtime half of the food stores family (#3251, #3280): its full read (the rounds census, or with
 /// refrigeration the room census and its cooling rooms, then the reserve stacks to hold or release while reserve
@@ -15,7 +9,7 @@ public interface IRoundsFoodStoresSource
 public sealed class FoodStoresRounds
 {
     private readonly Rounder _reviewer;
-    private readonly IRoundsFoodStoresSource _native;
+    private readonly FacadeNativeClient _native;
     private readonly bool _storage;
     private readonly RoundsBuildingPlanner? _cooler;
 
@@ -23,7 +17,7 @@ public sealed class FoodStoresRounds
     /// <paramref name="storage"/> derives the food-stores/storage Need; a <paramref name="cooler"/> planner
     /// (NewRoundsRefrigerationPlanner) derives food-stores/refrigeration and does its building work.
     /// </summary>
-    public FoodStoresRounds(Rounder reviewer, IRoundsFoodStoresSource native, bool storage = true, RoundsBuildingPlanner? cooler = null)
+    public FoodStoresRounds(Rounder reviewer, FacadeNativeClient native, bool storage = true, RoundsBuildingPlanner? cooler = null)
     {
         _reviewer = reviewer ?? throw new ControlException("FoodStoresRounds: reviewer is missing");
         _native = native ?? throw new ControlException("FoodStoresRounds: native is missing");
@@ -97,7 +91,7 @@ public sealed class FoodStoresRounds
             MealClosetOwed = closet,
         };
         if (!facts.StockProtection || !facts.Reserve.TryGetValue(out var reserve) || !PolicyFunctions.ReserveAccessPending(facts.Reserve)
-            || _native is not IFoodReserveSupplyReader supplies)
+            || _native is not FacadeNativeClient supplies)
         {
             return facts;
         }

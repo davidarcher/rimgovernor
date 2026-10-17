@@ -1,10 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native read of the open dialog window.</summary>
-public interface IRoundsDialogSource : IColonyFactsReader
-{
-}
-
 /// <summary>
 /// The runtime half of the people family (#3304): its read (the colony census's open choice dialog, and the review's
 /// mood states with the Needs at work) and the steps. The people/dialog step answers the open window with the
@@ -16,11 +11,11 @@ public sealed class PeopleRounds
 {
     private readonly Rounder _reviewer;
     private readonly PeopleNeeds _needs;
-    private readonly IRoundsDialogSource? _native;
+    private readonly FacadeNativeClient? _native;
     private readonly DialogAnswerPolicy? _policy;
 
     /// <summary>The dialog Need reads and answers through <paramref name="native"/> with <paramref name="answer"/>, required when it is composed.</summary>
-    public PeopleRounds(Rounder reviewer, PeopleNeeds needs, IRoundsDialogSource? native, DialogAnswerPolicy? answer)
+    public PeopleRounds(Rounder reviewer, PeopleNeeds needs, FacadeNativeClient? native, DialogAnswerPolicy? answer)
     {
         _reviewer = reviewer ?? throw new ControlException("PeopleRounds: reviewer is missing");
         _needs = needs ?? throw new ControlException("PeopleRounds: needs are missing");

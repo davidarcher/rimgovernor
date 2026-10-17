@@ -40,7 +40,7 @@ public sealed partial class RoundsArmoryPlanner
         SetSpotNeeded(false);
         var tier = PolicyFunctions.AssessArmory(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.Facts.Research).Tier;
         var known = projection.Facts.Gear.TryGetValue(out var census);
-        if (_native is not IRoundsEquipSource)
+        if (_native is not FacadeNativeClient)
         {
             return PolicyFunctions.Abstaining(Cause.UnreadNativeRead);
         }

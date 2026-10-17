@@ -1,11 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Lists stored packed items; a source without it builds new pieces instead (Go <c>packedSource</c>).</summary>
-public interface IPackedSource
-{
-    Task<IReadOnlyList<PackedItem>> ReadPackedItemsAsync(PbCommon.Identity identity, string packedDef, CancellationToken ct);
-}
-
 /// <summary>
 /// One pass's view of the colony's packed stock: each packed definition is read at most once and shared by
 /// every owner of the pass. Stock comes first: an owner needing a piece asks <see cref="InstallAsync"/> and builds
@@ -13,7 +7,7 @@ public interface IPackedSource
 /// </summary>
 internal sealed class PackedStock(object native, PbCommon.Identity identity)
 {
-    private readonly IPackedSource? _source = native as IPackedSource;
+    private readonly FacadeNativeClient? _source = native as FacadeNativeClient;
     private readonly Dictionary<string, IReadOnlyList<PackedItem>> _read = new(StringComparer.Ordinal);
     // Packed things Install handed out this pass.
     private readonly Dictionary<string, bool> _claimed = new(StringComparer.Ordinal);

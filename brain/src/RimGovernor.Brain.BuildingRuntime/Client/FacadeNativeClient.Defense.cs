@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go internal/bridge defense_site.go (ReadDefenseSite, ReadLinesOfFire) and spatial_access.go (ReadSpatialAccess):
 // the typed core methods and the decoders that turn their replies into the Bridge.Contracts read models.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>LinesOfFireBudgetMS</c> (frames.go): the main-thread milliseconds a lines-of-fire read may spend.</summary>
     private const uint DefenseLinesOfFireBudgetMs = 15;

@@ -1,10 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native reads the anomaly family's lance check makes: the emergency census and the combat pawn rows.</summary>
-public interface IRoundsCustodySource : IRoundsRescueSource
-{
-}
-
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The able colonists wearing a lance item, with the item they would use.</summary>
@@ -46,9 +41,9 @@ public sealed class AnomalyRounds
     private const string Component = "routine-anomaly";
 
     private readonly Rounder _reviewer;
-    private readonly IRoundsCustodySource _native;
+    private readonly FacadeNativeClient _native;
 
-    public AnomalyRounds(Rounder reviewer, IRoundsCustodySource native)
+    public AnomalyRounds(Rounder reviewer, FacadeNativeClient native)
     {
         _reviewer = reviewer ?? throw new ControlException("AnomalyRounds: reviewer is missing");
         _native = native ?? throw new ControlException("AnomalyRounds: native is missing");

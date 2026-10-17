@@ -1,19 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsTendSource
-{
-    Task<EmergencyObservation> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
-
-    Task<ObservationsPb.ListPawnsReply> ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
-}
-
-public interface IRoundsRescueSource
-{
-    Task<EmergencyObservation> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
-
-    Task<O.ListPawnsReply> ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
-}
-
 /// <summary>
 /// The runtime half of the medical family (#3258). Its read: the emergency census the critical patients are counted
 /// from and, while there are any, the doctors' and rescuers' pawn rows (the immediate pass reads only these), plus
@@ -30,8 +16,8 @@ public interface IRoundsRescueSource
 public sealed class MedicalRounds
 {
     private readonly Rounder _reviewer;
-    private readonly IRoundsTendSource? _tend;
-    private readonly IRoundsRescueSource? _rescue;
+    private readonly FacadeNativeClient? _tend;
+    private readonly FacadeNativeClient? _rescue;
     private readonly RoundsMedicalPlanner? _medical;
     private readonly RoundsHospitalPlanner? _hospital;
     private readonly RoundsSurgeryPlanner? _surgery;
@@ -51,22 +37,22 @@ public sealed class MedicalRounds
         }
         if (tend)
         {
-            _tend = native as IRoundsTendSource ?? throw new ControlException("MedicalRounds: native cannot read tend pawns");
+            _tend = native as FacadeNativeClient ?? throw new ControlException("MedicalRounds: native cannot read tend pawns");
         }
         if (rescue)
         {
-            _rescue = native as IRoundsRescueSource ?? throw new ControlException("MedicalRounds: native cannot read rescue pawns");
+            _rescue = native as FacadeNativeClient ?? throw new ControlException("MedicalRounds: native cannot read rescue pawns");
         }
         if (medical)
         {
-            _medical = RoundsMedicalPlanner.NewRoundsMedicalPlanner(reviewer, native as IRoundsMedicalSource ?? throw new ControlException("MedicalRounds: native cannot read medicine"));
+            _medical = RoundsMedicalPlanner.NewRoundsMedicalPlanner(reviewer, native as FacadeNativeClient ?? throw new ControlException("MedicalRounds: native cannot read medicine"));
             _surgery = RoundsSurgeryPlanner.Create(reviewer);
         }
         if (hospital)
         {
             _hospital = RoundsHospitalPlanner.NewRoundsHospitalPlanner(reviewer, native as IRoundsBuildingSource ?? throw new ControlException("MedicalRounds: native cannot build"));
         }
-        if (Critical && _tend is null && _rescue is null && native is not IRoundsTendSource && native is not IRoundsRescueSource)
+        if (Critical && _tend is null && _rescue is null && native is not FacadeNativeClient)
         {
             throw new ControlException("MedicalRounds: native cannot read the emergency census");
         }
@@ -75,13 +61,10 @@ public sealed class MedicalRounds
 
     private readonly object _native;
 
-    /// <summary>The emergency census, through whichever care source the native serves.</summary>
-    private async Task<EmergencyObservation> ReadEmergencyAsync(C.Identity identity, CancellationToken ct) => _native switch
-    {
-        IRoundsTendSource tend => (await tend.ReadEmergencyAsync(identity, ct).ConfigureAwait(false)),
-        IRoundsRescueSource rescue => (await rescue.ReadEmergencyAsync(identity, ct).ConfigureAwait(false)),
-        _ => throw new ControlException("medical read: native cannot read the emergency census"),
-    };
+    /// <summary>The emergency census, through the client.</summary>
+    private async Task<EmergencyObservation> ReadEmergencyAsync(C.Identity identity, CancellationToken ct) => _native is FacadeNativeClient client
+        ? await client.ReadEmergencyAsync(identity, ct).ConfigureAwait(false)
+        : throw new ControlException("medical read: native cannot read the emergency census");
 
     private bool Critical => _tend is not null || _rescue is not null || _medical is not null;
 

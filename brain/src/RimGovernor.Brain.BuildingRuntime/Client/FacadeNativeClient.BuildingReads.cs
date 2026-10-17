@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // Go zones.go, zone_delete_target.go, storage_building.go, bed_use_target.go, claim_building_target.go,
 // grower_crop_target.go, construction_buildings.go, construction_deficit.go and wall_upgrade_sites.go: the zone census,
 // the single-target building reads, the construction census and the wall upgrade sites.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>Go's <c>ReadZoneSection</c>: reads the whole zone census. A failure never silently replaces a held census.</summary>
     internal async Task<ZonesRead> ReadZoneSectionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)

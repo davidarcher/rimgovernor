@@ -6,7 +6,7 @@ using PbDefs = RimGovernor.Contracts.Wire.Defs;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go trade_acquisition.go, trade_session.go, trade_sheet.go and traders.go.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Go <c>Client.ReadTradeAcquisition</c>: the comms-console, passing-ship and trade-request census. Optional native

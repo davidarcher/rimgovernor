@@ -1,9 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsResearchSource : Observation.IResearchSource
-{
-}
-
 /// <summary>
 /// The economy/resource Need's composed work steps (#3303): its mines, tunnels and deep drills, its chops, forage and
 /// hunts, its hay, social and supply-plan fields, and its production bench. Each is optional; the composition passes
@@ -32,7 +28,7 @@ public sealed record EconomyResourceSteps
 public sealed class EconomyRounds
 {
     private readonly Rounder _reviewer;
-    private readonly IRoundsResearchSource _native;
+    private readonly FacadeNativeClient _native;
     private readonly RoundsBuildingPlanner? _building;
     private readonly bool _research;
     private readonly EconomyResourceSteps? _resource;
@@ -48,7 +44,7 @@ public sealed class EconomyRounds
     /// <param name="resource">The resource Need's steps; null leaves the Need out.</param>
     /// <param name="trade">Compose the trade Need, whose export batches the work ledger declares.</param>
     /// <param name="caravan">The caravan and trade-mission Needs' planner; null leaves them out.</param>
-    public EconomyRounds(Rounder reviewer, IRoundsResearchSource native, bool research = true, EconomyResourceSteps? resource = null, bool trade = false, RoundsTradePlanner? caravan = null)
+    public EconomyRounds(Rounder reviewer, FacadeNativeClient native, bool research = true, EconomyResourceSteps? resource = null, bool trade = false, RoundsTradePlanner? caravan = null)
     {
         _reviewer = reviewer ?? throw new ControlException("EconomyRounds: reviewer is missing");
         _native = native ?? throw new ControlException("EconomyRounds: native is missing");

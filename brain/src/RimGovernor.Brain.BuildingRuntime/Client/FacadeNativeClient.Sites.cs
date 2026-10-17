@@ -5,7 +5,7 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go excavation_site_read.go, clearance.go and shrines.go: the excavation site, clearance census and ancient shrine reads.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Go's <c>ReadExcavationSite</c>: reads the excavation site for the ordered cell set plus its access cell. Reply

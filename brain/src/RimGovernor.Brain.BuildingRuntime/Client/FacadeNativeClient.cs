@@ -21,12 +21,12 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// builds, a malformed request what <see cref="BridgeFunctions.Contract"/> builds (Go <c>failure</c>, <c>unavailable</c>
 /// and <c>contract</c>). Cancellation is the token's <see cref="OperationCanceledException"/>.</item>
 /// <item>A reply is never mutated; values handed back are immutable by convention.</item>
-/// <item>The Native/Source interfaces the planners are written against are bound to these core methods in
-/// <c>FacadeNativeClient.Interfaces.cs</c> (explicit implementations where the interface shape differs from the
-/// core method's).</item>
+/// <item>The planners call these core methods directly. The few interfaces a test fake or a second implementer also
+/// satisfies are bound to them in <c>FacadeNativeClient.Interfaces.cs</c> (explicit implementations where the
+/// interface shape differs from the core method's).</item>
 /// </list>
 /// </remarks>
-internal sealed partial class FacadeNativeClient(INativeFacade facade)
+public sealed partial class FacadeNativeClient(INativeFacade facade)
 {
     /// <summary>The facade every core method calls.</summary>
     internal INativeFacade Facade { get; } = facade ?? throw new ArgumentNullException(nameof(facade));

@@ -32,7 +32,7 @@ public sealed partial class Rounder
     /// </summary>
     internal async Task DrawSafetyOverlayAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, Pol.EmergencyFacts emergency, CancellationToken ct)
     {
-        if (Native is not ILayoutOverlayNative native)
+        if (Native is not FacadeNativeClient native)
         {
             return;
         }

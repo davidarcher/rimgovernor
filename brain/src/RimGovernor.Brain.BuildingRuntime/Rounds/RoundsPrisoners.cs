@@ -117,7 +117,7 @@ public sealed class PrisonersRounds
     private async Task<Verdict> MarkJailBedAsync(ControlState state, NeedOwner owner, ColonyProjection facts, string bed, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
-        if (_reviewer.Native is not IRoundsHospitalSource native)
+        if (_reviewer.Native is not FacadeNativeClient native)
         {
             return Verdict.FieldUnavailable("hospital_source");
         }

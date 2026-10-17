@@ -1,11 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Reads the colony facts section (Go <c>colonyFactsReader</c>).</summary>
-public interface IColonyFactsReader
-{
-    Task<PbObservations.ColonyFactsReply> ReadColonyFactsAsync(PbCommon.Identity identity, bool planning, CancellationToken ct);
-}
-
 /// <summary>Port of colony_mirror.go: the review's colony facts, mirrored per sub-section in the fact store.</summary>
 internal static class ColonyMirror
 {
@@ -56,7 +50,7 @@ public sealed partial class Rounder
     /// after the review, no clock invalidation since), otherwise native. A read without planning gets the planning
     /// section the native answers it with.
     /// </summary>
-    internal Task<PbObservations.ColonyFactsReply> ColonyFactsAsync(IColonyFactsReader native, PbCommon.Identity identity, bool planning, CancellationToken ct)
+    internal Task<PbObservations.ColonyFactsReply> ColonyFactsAsync(FacadeNativeClient native, PbCommon.Identity identity, bool planning, CancellationToken ct)
     {
         if (!SameNativeSource(native, Native))
         {
@@ -65,7 +59,7 @@ public sealed partial class Rounder
         return ServedColonyFactsAsync(native, identity, planning, ct);
     }
 
-    private async Task<PbObservations.ColonyFactsReply> ServedColonyFactsAsync(IColonyFactsReader native, PbCommon.Identity identity, bool planning, CancellationToken ct)
+    private async Task<PbObservations.ColonyFactsReply> ServedColonyFactsAsync(FacadeNativeClient native, PbCommon.Identity identity, bool planning, CancellationToken ct)
     {
         var mirrored = await MirroredColonyAsync(identity, ct).ConfigureAwait(false);
         if (mirrored is not null)

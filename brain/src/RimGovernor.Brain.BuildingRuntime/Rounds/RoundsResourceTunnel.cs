@@ -57,7 +57,7 @@ public sealed partial class RoundsResourcePlanner
     /// <summary>Digs a corridor to ore the surface sources cannot reach; dispatched when an excavation method was driven.</summary>
     internal async Task<(RoundsResourceResult Result, bool Dispatched)> TunnelToBuriedOreAsync(ControlState state, IWorkOwner goal, Tick reviewTick, C.Identity identity, Resource resource, CancellationToken call, CancellationToken epoch)
     {
-        if (native is not IRoundsExcavationSource source)
+        if (native is not FacadeNativeClient source)
         {
             return (default, false);
         }

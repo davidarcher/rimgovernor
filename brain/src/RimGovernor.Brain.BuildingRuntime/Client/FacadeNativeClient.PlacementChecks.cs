@@ -3,7 +3,7 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// The shared checks and request builders of the placement, zone, building-target, supply and site reads (#3113

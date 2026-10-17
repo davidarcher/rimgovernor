@@ -84,7 +84,7 @@ public sealed partial class BrainComposition(BrainCompositionOptions options) : 
         TradeSessionRead session;
         try
         {
-            session = await ((ITradeNative)client).ReadTradeSessionAsync(identity, ct).ConfigureAwait(false);
+            session = await ((FacadeNativeClient)client).ReadTradeSessionAsync(identity, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

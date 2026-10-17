@@ -37,10 +37,11 @@ reported in `BrainHost.Status()`.
 
 ## Native client and composition (#3113)
 
-`FacadeNativeClient` (`RimGovernor.Brain.BuildingRuntime/Client/`) is the planners' native client, with no transport: one class over `INativeFacade` that implements the ~70 Native/Source interfaces the
-planners are written against. Each `Client.ReadX` is one `ReadXAsync` core method (request, facade call, outcome
-unwrap, the reply validators); the interfaces are bound to them in `FacadeNativeClient.Interfaces*.cs`, with
-explicit implementations where the interface shape differs from the core method's. The PlayerApi seams (presentation, notifications, lifecycle) sit above BuildingRuntime, so Host binds them through the thin `FacadePlayerAdapter`. A failure or unavailable arm throws
+`FacadeNativeClient` (`RimGovernor.Brain.BuildingRuntime/Client/`) is the planners' native client, with no transport: one class over `INativeFacade` that the planners take directly. Each `Client.ReadX` is one `ReadXAsync` core method
+(request, facade call, outcome unwrap, the reply validators). A BuildingRuntime interface survives only where a test
+fake or a second implementer satisfies it (the clock, boundary, colony-status and building-preview natives, the
+defense source, the writers, the session and player seams); those are bound to the core methods in
+`FacadeNativeClient.Interfaces*.cs`, with explicit implementations where the interface shape differs from the core method's. The PlayerApi seams (presentation, notifications, lifecycle) sit above BuildingRuntime, so Host binds them through the thin `FacadePlayerAdapter`. A failure or unavailable arm throws
 `NativeFailureException` / `NativeUnavailableException`; a malformed reply throws the contract exception. Writes go
 through `FacadeActionsWriter` (`IActionsWriter`) and `FacadeClockWriter` (`IClockWriter`). `CountingNativeFacade` wraps
 the facade so every native round trip is counted into the attached `ReadTally` (`BridgeFunctions.CountNativeRead`, under

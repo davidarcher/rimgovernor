@@ -1,16 +1,11 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsHospitalSource : IRoundsBuildingSource
-{
-    Task<BedUseTarget> ReadBedUseTargetAsync(C.Identity identity, string bed, CancellationToken ct);
-}
-
 /// <summary>The medical/care Need's work (#3258): a hospital bed built, converted or already standing, under the Need and admitted by claims.</summary>
 public sealed partial class RoundsHospitalPlanner
 {
     internal Rounder Reviewer { get; init; } = null!;
 
-    internal IRoundsHospitalSource Native { get; init; } = null!;
+    internal FacadeNativeClient Native { get; init; } = null!;
 
     internal RoundsBuildingPlanner Building { get; init; } = null!;
 
@@ -21,7 +16,7 @@ public sealed partial class RoundsHospitalPlanner
             throw new ControlException("NewRoundsHospitalPlanner: reviewer or native is missing");
         }
 
-        if (native is not IRoundsHospitalSource source)
+        if (native is not FacadeNativeClient source)
         {
             throw new ControlException("NewRoundsHospitalPlanner: native cannot read bed use");
         }

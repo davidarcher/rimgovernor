@@ -2,12 +2,6 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go: rounds_bill_demand.go, rounds_bill_mech.go and rounds_bill_surgery.go.
 
-/// <summary>The native mech read of the mech gestation review.</summary>
-public interface IMechSource
-{
-    Task<IReadOnlyList<MechInput>> ReadMechsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct);
-}
-
 public sealed partial class Rounder
 {
     /// <summary>The bills the ledger's declared batches open, with the recipe ingredient slots the catalog reads.</summary>
@@ -72,7 +66,7 @@ internal static partial class BuildingRuntimePackage
         }
         if (ids.Count > 0)
         {
-            if (native is not IMechSource source)
+            if (native is not FacadeNativeClient source)
             {
                 throw new ControlException("mechGestation: native cannot read mechs");
             }
@@ -130,7 +124,7 @@ internal static partial class BuildingRuntimePackage
         {
             return (parts, []);
         }
-        if (native is not IArtBenchSource source)
+        if (native is not FacadeNativeClient source)
         {
             return (parts, []);
         }

@@ -2,12 +2,6 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native read of an excavation site.</summary>
-public interface IRoundsExcavationSource
-{
-    Task<BridgeExcavationSite> ReadExcavationSiteAsync(C.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken ct);
-}
-
 /// <summary>The state one excavation step works from.</summary>
 internal sealed class ExcavationStep
 {

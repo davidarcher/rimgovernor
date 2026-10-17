@@ -10,12 +10,6 @@ internal sealed class TradeAcquisitionMemory
     public Dictionary<string, TradeMission> Missions = [];
 }
 
-/// <summary>The native read the acquisition options need beyond the definition catalog.</summary>
-public interface ITradeAcquisitionSource : Observation.IDefinitionSource
-{
-    Task<ObservationsPb.TradeAcquisition> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
-}
-
 public sealed partial class Rounder
 {
     internal TradeAcquisitionMemory TradeAcquisition { get; } = new();
@@ -112,7 +106,7 @@ public sealed partial class Rounder
         }
         var options = new List<Pol.TradeAcquisitionOption>(trips ?? []);
         var unmet = demands.Any(d => d.Gap > 0);
-        if (Native is ITradeAcquisitionSource source && unmet)
+        if (Native is FacadeNativeClient source && unmet)
         {
             var identity = Boundary.Identity(world);
             ObservationsPb.TradeAcquisition? facts = null;

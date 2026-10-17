@@ -1,10 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsMonumentPreviewSource
-{
-    Task<BuildingPreview> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
-}
-
 public sealed partial class JoinersRounds
 {
     /// <summary>Installs, hauls or builds a quest monument; not handled when no monument work is owed.</summary>
@@ -65,7 +60,7 @@ public sealed partial class JoinersRounds
                 var build = choice.Build ?? throw new ControlException("admitMonument: build choice without a building");
                 action = DomainAction.NewBuildingAction(aid, build, ConstructionTier.Expand);
                 target = build.ToString();
-                if (reviewer.Native is not IRoundsMonumentPreviewSource native)
+                if (reviewer.Native is not FacadeNativeClient native)
                 {
                     return (default, false);
                 }

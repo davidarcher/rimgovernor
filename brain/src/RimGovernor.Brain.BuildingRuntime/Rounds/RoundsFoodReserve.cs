@@ -1,11 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native read of the food-reserve supplies (Go's anonymous interface on the planner source).</summary>
-internal interface IFoodReserveSupplyReader
-{
-    Task<SupplyRead> ReadFoodReserveSuppliesAsync(C.Identity identity, bool forbid, CancellationToken ct);
-}
-
 public sealed partial class Rounder
 {
     internal void ReviewReserve(ref ColonyProjection p)

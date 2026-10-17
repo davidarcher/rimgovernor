@@ -58,7 +58,7 @@ public sealed class MilitaryRounds
         {
             _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source };
         }
-        if (workshop && reviewer.Native is IRoundsWorkshopSource and Observation.IRoundsSource)
+        if (workshop && reviewer.Native is FacadeNativeClient and Observation.IRoundsSource)
         {
             _workshop = RoundsBuildingPlanner.NewRoundsGearWorkshopPlanner(reviewer, (IRoundsBuildingSource)reviewer.Native);
         }

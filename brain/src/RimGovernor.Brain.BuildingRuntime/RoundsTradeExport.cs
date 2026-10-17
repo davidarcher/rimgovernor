@@ -113,16 +113,6 @@ internal sealed class ExportMemory
     }
 }
 
-/// <summary>The native surface the export declaration reads beyond the review's projection.</summary>
-public interface IExportSource : Observation.IDefinitionSource
-{
-    Task<ObservationsPb.TradeAcquisition> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
-
-    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct);
-
-    Task<WorldRead> ReadWorldAsync(C.Identity identity, int tile, double radius, CancellationToken ct);
-}
-
 public sealed partial class Rounder
 {
     internal ExportMemory Exports { get; } = new();
@@ -234,8 +224,8 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             return ranked.Declared;
         }
-        var native = rd.Native as IExportSource;
-        var resource = rd.ResourceNative ?? rd.Native as IRoundsResourceSource;
+        var native = rd.Native as FacadeNativeClient;
+        var resource = rd.ResourceNative ?? rd.Native as FacadeNativeClient;
         if (native is null || resource is null)
         {
             return Pol.PolicyFunctions.Abstaining(Pol.Cause.UnreadNativeRead);
@@ -329,7 +319,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     /// <summary>Counts the packed sculptures no owed room reserves.</summary>
     private async Task<Fact<long>> PackedArtAsync(GenerationSnapshot snapshot, C.Identity identity, Observation.ColonyProjection projection, CancellationToken ct)
     {
-        if (_reviewer.Native is not IPackedSource native)
+        if (_reviewer.Native is not FacadeNativeClient native)
         {
             return Unknown<long>();
         }
@@ -342,7 +332,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     }
 
     /// <summary>The trader kinds the colony can reach: the orbital and caravan requests the comms consoles offer and the known settlements'.</summary>
-    private static async Task<(List<string> Kinds, bool Known)> TraderKindsAsync(IExportSource native, GenerationSnapshot snapshot, C.Identity identity, CancellationToken ct)
+    private static async Task<(List<string> Kinds, bool Known)> TraderKindsAsync(FacadeNativeClient native, GenerationSnapshot snapshot, C.Identity identity, CancellationToken ct)
     {
         ObservationsPb.TradeAcquisition? facts;
         try

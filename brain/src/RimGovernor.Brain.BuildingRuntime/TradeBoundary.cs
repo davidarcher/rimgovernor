@@ -2,30 +2,13 @@ using Receipt = RimGovernor.Brain.Executor.Receipt;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>
-/// Narrows the bridge client to what <see cref="TradeBoundary"/> reads. Every trade action is an idempotent
-/// intent naming its trader and negotiator, sent through Actions/Apply; native validates it against the one live
-/// session and refuses with a reason when it is stale.
-/// </summary>
-public interface ITradeNative
-{
-    Task<TradeSessionRead> ReadTradeSessionAsync(C.Identity identity, CancellationToken ct);
-}
-
-public interface ICommsTradeRequestNative
-{
-    Task<ObservationsPb.TradeAcquisition> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
-
-    Task<TradersRead> ListTradersAsync(C.Identity identity, CancellationToken ct);
-}
-
 public sealed class TradeCapabilities
 {
-    public ITradeNative? Native { get; init; }
+    public FacadeNativeClient? Native { get; init; }
 
     public IActionsWriter? Writer { get; init; }
 
-    public ICommsTradeRequestNative? Requests { get; init; }
+    public FacadeNativeClient? Requests { get; init; }
 }
 
 /// <summary>

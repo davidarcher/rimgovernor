@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go internal/bridge equip_things.go (ReadEquipWeapons) and supply_allow.go (ReadAllowSupplies, ReadForbidSupplies,
 // ReadFoodReserveSupplies): the supply census reads that locate loose weapons and loose supply items.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Go <c>Client.ReadEquipWeapons</c>: observes loose weapons within one rectangle, forbidden or not: equipping a

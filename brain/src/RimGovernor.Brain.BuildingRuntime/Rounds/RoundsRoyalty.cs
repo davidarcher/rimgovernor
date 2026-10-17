@@ -1,10 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsPsylinkSource
-{
-    Task<IReadOnlyList<string>> ReadNeuroformerItemsAsync(C.Identity identity, string neuroformer, CancellationToken ct);
-}
-
 /// <summary>
 /// The runtime half of the royalty family (#3261): one owned read gives the royalty facts the permit ranking runs on
 /// and, for the psylink Need, the candidates and level-ups with the held neuroformer items (a native read made only
@@ -14,11 +9,11 @@ public interface IRoundsPsylinkSource
 public sealed class RoyaltyRounds
 {
     private readonly Rounder _reviewer;
-    private readonly IRoundsPsylinkSource? _psylink;
+    private readonly FacadeNativeClient? _psylink;
     private readonly bool _permits;
 
     /// <summary>The family with the permits Need when <paramref name="permits"/>, and the psylink Need read through <paramref name="psylink"/> when given.</summary>
-    public RoyaltyRounds(Rounder reviewer, bool permits, IRoundsPsylinkSource? psylink)
+    public RoyaltyRounds(Rounder reviewer, bool permits, FacadeNativeClient? psylink)
     {
         _reviewer = reviewer ?? throw new ControlException("RoyaltyRounds: reviewer is missing");
         if (!permits && psylink is null)
@@ -74,7 +69,7 @@ public sealed class RoyaltyRounds
     /// a candidate or level-up colonist waits and the census does not count none held; an unreadable item list leaves
     /// them unknown.
     /// </summary>
-    internal static async Task<Fact<bool>> PsylinkOwedAsync(IRoundsPsylinkSource native, C.Identity identity, ColonyProjection projection, CancellationToken ct)
+    internal static async Task<Fact<bool>> PsylinkOwedAsync(FacadeNativeClient native, C.Identity identity, ColonyProjection projection, CancellationToken ct)
     {
         var candidates = PolicyFunctions.PsylinkCandidates(projection.Royalty, projection.WorkPawns);
         var levelUps = PolicyFunctions.PsylinkLevelUps(projection.Royalty, projection.WorkPawns);

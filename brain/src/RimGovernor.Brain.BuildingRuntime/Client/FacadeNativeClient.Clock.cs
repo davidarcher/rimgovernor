@@ -4,7 +4,7 @@ using RimGovernor.Brain.Bridge.Contracts;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go clock.go (ReadClockStatus): the clock status read, and the colony events native pushes.
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>Client.ReadClockStatus</c>: the clock status of the identity's world; a failure or unavailable status throws.</summary>
     internal async Task<PbClock.StatusReply> ReadClockStatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)

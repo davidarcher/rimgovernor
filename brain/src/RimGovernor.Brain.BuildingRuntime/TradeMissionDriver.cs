@@ -1,12 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface ITradeMissionNative
-{
-    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct);
-
-    Task<IReadOnlyDictionary<string, long>> ReadPawnCargoAsync(C.Identity identity, IReadOnlyList<string> pawns, CancellationToken ct);
-}
-
 public static partial class TradeMissions
 {
     /// <summary>
@@ -129,7 +122,7 @@ public sealed partial class RoundsTradePlanner
         {
             return new RoundsTradeResult { Verdict = verdict };
         }
-        if (Native is not ITradeMissionNative source)
+        if (Native is not FacadeNativeClient source)
         {
             return new RoundsTradeResult { Verdict = FieldUnavailable("world_progression") };
         }

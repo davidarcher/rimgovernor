@@ -8,32 +8,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // zones, EditTargetPresent and StockpileEditAction retarget or delete standing ones, and OpenEditPlan gates a
 // Need on its own zone-edit Method still in flight.
 
-/// <summary>Refreshes one zone's presence and CAS token for each edit.</summary>
-public interface IRoundsStockpileSource
-{
-    Task<ZoneDeleteTarget> ReadZoneDeleteTargetAsync(C.Identity identity, string zone, CancellationToken ct);
-}
-
-/// <summary>Reads the saved occupancy ring: each named storage group's hourly stack samples after sinceHour.</summary>
-public interface IStorageOccupancySource
-{
-    Task<StoreOccupancy> ReadStorageOccupancyAsync(IReadOnlyCollection<string> groups, int sinceHour, CancellationToken ct);
-}
-
-/// <summary>Reads a shelf's storage settings CAS token.</summary>
-public interface IShelfTargetSource
-{
-    Task<StorageBuildingTarget> ReadStorageBuildingTargetAsync(C.Identity identity, string building, CancellationToken ct);
-}
-
-/// <summary>Previews a zone creation natively.</summary>
-public interface IZonePreviewSource
-{
-    Task<OperationsPb.ZonePreviewReply> PreviewZoneAsync(C.Identity identity, ZoneCreate zone, CancellationToken ct);
-}
-
 /// <summary>Applies zone edits for the stockpile owner.</summary>
-internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource native)
+internal sealed class StockpileZones(Rounder reviewer, FacadeNativeClient native)
 {
     /// <summary>
     /// Whether the edit's target (the stockpile zone, or the shelf for a shelf patch) is still there; false when
@@ -43,7 +19,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
     {
         if (e.Kind == Pol.StockpileEditKind.ShelfPatch)
         {
-            if (native is not IShelfTargetSource source)
+            if (native is not FacadeNativeClient source)
             {
                 return false;
             }
@@ -65,7 +41,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
     public async Task<Verdict> CreateAsync(ControlState state, Sto.IWorkOwner owner, Observation.ColonyProjection projection, DateTimeOffset started, IReadOnlyList<Pol.StockpileEdit> edits, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
-        if (native is not IZonePreviewSource preview)
+        if (native is not FacadeNativeClient preview)
         {
             return FieldUnavailable("zone_preview");
         }

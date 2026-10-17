@@ -1,15 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IResourceRunwaySource
-{
-    Task<(IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage)> ReadResourceSourcesAsync(C.Identity identity, string resource, CancellationToken ct);
-}
-
-public interface IConsumptionSource
-{
-    Task<ConsumptionPage> ReadConsumptionAsync(int sinceHour, CancellationToken ct);
-}
-
 /// <summary>Accumulates the consumption ledger per colony and load.</summary>
 internal sealed class ConsumptionMemory : IDisposable
 {
@@ -18,7 +8,7 @@ internal sealed class ConsumptionMemory : IDisposable
     private LoadId load;
     private ConsumptionLedger ledger = new();
 
-    public async Task<Fact<ResourceConsumption>> WindowAsync(IConsumptionSource reader, GenerationSnapshot snapshot, CancellationToken ct)
+    public async Task<Fact<ResourceConsumption>> WindowAsync(FacadeNativeClient reader, GenerationSnapshot snapshot, CancellationToken ct)
     {
         await mu.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -58,12 +48,12 @@ public sealed partial class Rounder : IDisposable
     public void Dispose() => consumption.Dispose();
 
     internal async Task<Fact<ResourceConsumption>> ResourceConsumptionAsync(GenerationSnapshot snapshot, CancellationToken ct) =>
-        Native is IConsumptionSource reader ? await consumption.WindowAsync(reader, snapshot, ct).ConfigureAwait(false) : Unknown<ResourceConsumption>();
+        Native is FacadeNativeClient reader ? await consumption.WindowAsync(reader, snapshot, ct).ConfigureAwait(false) : Unknown<ResourceConsumption>();
 
     internal async Task<IReadOnlyDictionary<Resource, Fact<long>>> ResourceSurfaceOreAsync(GenerationSnapshot snapshot, ItemFacts items, Fact<ResourceConsumption> consumptionFact, CancellationToken ct)
     {
         var output = new Dictionary<Resource, Fact<long>>();
-        if (Native is not IResourceRunwaySource reader)
+        if (Native is not FacadeNativeClient reader)
         {
             return output;
         }

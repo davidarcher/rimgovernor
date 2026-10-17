@@ -7,85 +7,26 @@ using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Binding of the typed core methods (FacadeNativeClient.*.cs) to the Native/Source interfaces the planners are
-// written against. Go's one bridge.Client satisfied all of these implicitly; here every core method is internal and
-// returns the (Value, Receipt) tuple, so each interface member is an explicit implementation that adapts the shape:
-// a tuple-returning interface passes the core task through (tuple element names are not part of the type), a
-// bare-value interface unwraps the tuple's value. The members live in Interfaces.Observation.cs (observation, clock
-// and colony), Interfaces.Rounds.cs (the building runtime's rounds sources) and Interfaces.Trade.cs (trade, world,
-// supplies and lifecycle).
-internal sealed partial class FacadeNativeClient :
-    // Observation (Go observation.RoundsSource and the pieces it is made of).
+// Explicit bindings of the typed core methods (FacadeNativeClient.*.cs) to the interfaces that stay: the Observation
+// sources, and the building runtime's interfaces that a test fake or a second implementer also satisfies. Every other
+// consumer calls the core methods directly.
+public sealed partial class FacadeNativeClient :
     IRoundsSource,
+    IResearchSource,
     IGroundClearanceSource,
     IRefrigerationSource,
     IZonesNative,
-    // Building runtime: clock and colony natives.
     IClockNative,
     IEntityNative,
     IClockStepNative,
     IClockDriverNative,
-    IColonyFactsReader,
     IColonyStatusNative,
-    ILayoutOverlayNative,
-    IMapFocusNative,
-    IPackedSource,
     IArrivalPawns,
     IBoundaryNative,
-    IHaulNative,
-    IBreakResponseSource,
-    // Building runtime: rounds sources.
+    IMapFocusNative,
     IRoundsBuildingSource,
-    IRoundsRescueSource,
-    IRoundsTendSource,
     IRoundsWorkBenchSource,
-    IArtBenchSource,
-    IMechSource,
-    IRoundsClearanceSource,
-    ILoadoutWeaponSource,
-    IDeepDrillBuildingSource,
-    IRoundsDefenseSource,
-    IRoundsDefenseLayoutSource,
-    IRoundsDialogSource,
-    IRoundsEquipSource,
-    IRoundsExcavationSource,
-    IFieldBuildingPreview,
-    IFieldGrowerCrop,
-    IRoundsFirebreakSource,
-    IDefenseSiteReader,
-    IFoodReserveSupplyReader,
-    IRoundsFoodStoresSource,
-    IRoundsGearSource,
-    IRoundsMedicalSource,
-    IFrameThingsSource,
-    IRoundsHospitalSource,
-    IOverRockPreviewer,
-    IRoundsCustodySource,
-    IRoundsPsylinkSource,
-    IRoundsMonumentPreviewSource,
-    IRoundsResearchSource,
-    IRoundsResourceSource,
-    IResourceRunwaySource,
-    IConsumptionSource,
-    IStorageOccupancySource,
-    IShellBatchPreviewer,
-    IRoundsStoneShellSource,
-    IRoundsSupplySource,
-    IRoundsSupplyForbidSource,
-    IRoundsStockpileSource,
-    IShelfTargetSource,
-    IZonePreviewSource,
-    // Building runtime: trade, world and lifecycle.
-    IRoundsTradeSource,
-    IExportSource,
-    IRoundsWorkshopSource,
-    ILifecycleSaver,
-    ITradeAcquisitionSource,
-    ITradeMissionPackSource,
-    ITradeNative,
-    ICommsTradeRequestNative,
-    ITradeMissionNative,
-    ISettlementOptionsSource
+    IRoundsDefenseSource
 {
     /// <summary>
     /// The client over <paramref name="facade"/>: the facade is wrapped in <see cref="CountingNativeFacade"/> so every
@@ -175,12 +116,9 @@ internal sealed partial class FacadeNativeClient :
         ReadPlanningWindowAsync(identity, region, ct);
 
     Task<EmergencyObservation> IClockDriverNative.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
-        ReadEmergencyAsync(identity, FramePawnsAsync, ct);
+        ReadEmergencyAsync(identity, ct);
 
     // ---- Colony and presentation ----------------------------------------------------------------------------
-
-    Task<O.ColonyFactsReply> IColonyFactsReader.ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken ct) =>
-        ReadColonyFactsAsync(identity, planning, ct);
 
     Task<LifecyclePb.IdentityReply> IColonyStatusNative.IdentityAsync(CancellationToken ct) =>
         IdentityAsync(ct);
@@ -191,31 +129,16 @@ internal sealed partial class FacadeNativeClient :
     Task<O.ListPawnsReply> IColonyStatusNative.ReadHomeColonistsAsync(C.Identity identity, CancellationToken ct) =>
         ReadHomeColonistsAsync(identity, ct);
 
-    Task<PbPresentation.OverlayApplied> ILayoutOverlayNative.DrawOverlayAsync(C.Identity identity, string layer, Policy.LayoutOverlay overlay, bool visible, CancellationToken ct) =>
-        DrawOverlayAsync(identity, layer, overlay, visible, ct);
-
-    Task<PbAuthority.ControlReply> IMapFocusNative.FocusMapAsync(PbAuthority.FocusMap request, CancellationToken ct) =>
-        FocusMapAsync(request, ct);
-
-    Task<IReadOnlyList<PackedItem>> IPackedSource.ReadPackedItemsAsync(C.Identity identity, string packedDef, CancellationToken ct) =>
-        ReadPackedItemsAsync(identity, packedDef, ct);
-
     // ---- Pawn reads of the boundary, haul and break paths ---------------------------------------------------
 
     Task<O.ListPawnsReply> IArrivalPawns.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct) =>
         ReadCombatPawnsAsync(identity, pawnIds, ct);
 
-    Task<O.ListPawnsReply> IHaulNative.ReadPawnsAsync(C.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct) =>
-        ReadPawnsAsync(identity, pawnIds, ct);
-
-    Task<EmergencyObservation> IBreakResponseSource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
-        ReadEmergencyAsync(identity, FramePawnsAsync, ct);
-
-    Task<O.ListPawnsReply> IBreakResponseSource.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct) =>
-        ReadCombatPawnsAsync(identity, pawnIds, ct);
+    Task<PbAuthority.ControlReply> IMapFocusNative.FocusMapAsync(PbAuthority.FocusMap request, CancellationToken ct) =>
+        FocusMapAsync(request, ct);
 
     Task<EmergencyObservation> IBoundaryNative.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
-        ReadEmergencyAsync(identity, FramePawnsAsync, ct);
+        ReadEmergencyAsync(identity, ct);
 
     Task<BuildingPreview> IBoundaryNative.PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct) =>
         PreviewBuildingAsync(action, snapshot, ct);
@@ -223,6 +146,4 @@ internal sealed partial class FacadeNativeClient :
     Task<MapBounds> IBoundaryNative.ReadMapBoundsAsync(C.Identity identity, Cell anchor, CancellationToken ct) =>
         ReadMapBoundsAsync(identity, anchor, ct);
 
-    Task<Things> IFrameThingsSource.FrameThingsAsync(C.Identity identity, CancellationToken ct) =>
-        FrameThingsAsync(identity, ct);
 }

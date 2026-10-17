@@ -1,11 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Adds the fresh bench and recipe-catalog reads the workshop planner needs on top of the building source.</summary>
-public interface IRoundsWorkshopSource : IRoundsBuildingSource
-{
-    Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
-}
-
 /// <summary>One product the workshop ladder considers, with the bench kinds that host a recipe for it.</summary>
 internal sealed record WorkshopProduct(Pol.Resource Resource, IReadOnlyList<Pol.RecipeHost> Hosts);
 
@@ -65,7 +59,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsWorkshopPlanner: !ok");
         }
-        if (native is not IRoundsWorkshopSource)
+        if (native is not FacadeNativeClient)
         {
             throw new ControlException("NewRoundsWorkshopPlanner: !ok");
         }
@@ -87,7 +81,7 @@ public sealed partial class RoundsBuildingPlanner
                 return (null, BuildingReasonDisabled);
             }
         }
-        if (Native is not IRoundsWorkshopSource source)
+        if (Native is not FacadeNativeClient source)
         {
             throw new ControlException("prepareWorkshop: !ok");
         }

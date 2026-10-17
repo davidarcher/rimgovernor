@@ -2,10 +2,6 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsClearanceSource : IColonySource, IClearanceSource, IFieldNative
-{
-}
-
 /// <summary>
 /// The runtime half of the home-upkeep family (#3253): one colony read gives the damaged-structure census, and when
 /// clearance runs, the clearance census on the planned ground, its planned-ground work and the next clearance step
@@ -14,11 +10,11 @@ public interface IRoundsClearanceSource : IColonySource, IClearanceSource, IFiel
 public sealed partial class HomeUpkeepReader
 {
     private readonly Rounder _reviewer;
-    private readonly IRoundsClearanceSource _native;
+    private readonly FacadeNativeClient _native;
     private readonly bool _repairs;
     private readonly bool _clearance;
 
-    public HomeUpkeepReader(Rounder reviewer, IRoundsClearanceSource native, bool repairs, bool clearance)
+    public HomeUpkeepReader(Rounder reviewer, FacadeNativeClient native, bool repairs, bool clearance)
     {
         if (reviewer is null || native is null)
         {
@@ -31,7 +27,7 @@ public sealed partial class HomeUpkeepReader
     }
 
     /// <summary>The family's scheduler entry: it wakes on its reads and on deconstruction, uninstall, roof and floor removal outcomes.</summary>
-    public static FamilyRunner<HomeUpkeepFacts> Runner(Rounder reviewer, IRoundsClearanceSource native, bool repairs, bool clearance)
+    public static FamilyRunner<HomeUpkeepFacts> Runner(Rounder reviewer, FacadeNativeClient native, bool repairs, bool clearance)
     {
         var reader = new HomeUpkeepReader(reviewer, native, repairs, clearance);
         return new FamilyRunner<HomeUpkeepFacts>(new HomeUpkeepFamily(repairs, clearance), reader.ReadAsync, Schedule);

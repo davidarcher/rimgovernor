@@ -1,10 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IOverRockPreviewer
-{
-    Task<BuildingPreview> PreviewBuildingOverRockAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
-}
-
 public sealed partial class RoundsBuildingPlanner
 {
     internal const int DigWaves = 64;
@@ -51,7 +46,7 @@ public sealed partial class RoundsBuildingPlanner
         var dig = Copy();
         if (dig.Excavation is null && rock.Count > 0)
         {
-            if (Native is not IRoundsExcavationSource source)
+            if (Native is not FacadeNativeClient source)
             {
                 return (new RoundsBuildingResult(), false);
             }
@@ -139,7 +134,7 @@ public sealed partial class RoundsBuildingPlanner
         var previews = new List<Preview>();
         var actions = new List<DomainAction>();
         var digging = rock.ToHashSet();
-        var overRock = Native is IOverRockPreviewer;
+        var overRock = Native is FacadeNativeClient;
         for (var i = 0; i < buildings.Count; i++)
         {
             var building = buildings[i];
@@ -241,7 +236,7 @@ public sealed partial class RoundsBuildingPlanner
             var place = new List<Building>();
             if (rock.Contains(site.Cell))
             {
-                if (Native is not IOverRockPreviewer)
+                if (Native is not FacadeNativeClient)
                 {
                     return (new RoundsBuildingResult(), false);
                 }

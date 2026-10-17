@@ -3,11 +3,6 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public interface IRoundsMedicalSource : Observation.IColonySource, IColonyFactsReader
-{
-    Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
-}
-
 /// <summary>
 /// The medical family's reserves work and its critical Needs' amputations (#3258): the medicine Need's stalled-source
 /// withdrawals and herb harvest, and a patient's life-saving amputation, each under its Need and admitted by claims.
@@ -16,15 +11,15 @@ public interface IRoundsMedicalSource : Observation.IColonySource, IColonyFactsR
 public sealed class RoundsMedicalPlanner : IOrderDeclarer
 {
     private readonly Rounder reviewer;
-    private readonly IRoundsMedicalSource native;
+    private readonly FacadeNativeClient native;
 
-    private RoundsMedicalPlanner(Rounder reviewer, IRoundsMedicalSource native)
+    private RoundsMedicalPlanner(Rounder reviewer, FacadeNativeClient native)
     {
         this.reviewer = reviewer;
         this.native = native;
     }
 
-    public static RoundsMedicalPlanner NewRoundsMedicalPlanner(Rounder reviewer, IRoundsMedicalSource native)
+    public static RoundsMedicalPlanner NewRoundsMedicalPlanner(Rounder reviewer, FacadeNativeClient native)
     {
         if (reviewer is null || native is null)
         {

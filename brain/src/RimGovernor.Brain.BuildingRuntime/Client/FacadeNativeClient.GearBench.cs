@@ -4,40 +4,8 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>
-/// The recipe facts <see cref="FacadeNativeClient.ReadGearBenchesAsync"/> asks the definition catalog for (the
-/// <c>DefinitionCatalog.Recipe*</c> methods of Go's <c>bridge.DefinitionCatalog</c>). Each throws for a recipe the
-/// catalog has no def for, as the Go methods returned an error.
-/// </summary>
-internal interface IGearRecipeCatalog
-{
-    /// <summary>What the recipe does by its def.</summary>
-    RecipeRole RecipeRoleOf(string name);
-
-    /// <summary>The resources the recipe makes.</summary>
-    IReadOnlyList<P.Resource> RecipeProducts(string name);
-
-    /// <summary>The ingredient alternatives the recipe consumes.</summary>
-    Fact<EquatableArray<EquatableArray<P.Amount>>> RecipeIngredients(string name);
-
-    /// <summary>The skill gates of the recipe at the bench definition.</summary>
-    Fact<EquatableArray<P.WorkRequirement>> RecipeWork(string name, string bench);
-
-    /// <summary>The work one unit takes.</summary>
-    Fact<double> RecipeWorkAmount(string name);
-
-    /// <summary>The PawnKindDef of the mech a gestation recipe makes, empty for every other recipe.</summary>
-    string RecipeMechKind(string name);
-
-    /// <summary>The declare-only class of the recipe by what it makes.</summary>
-    P.LedgerBillKind RecipeLedgerKind(string name, string mechKind);
-
-    /// <summary>The armory ladder rung of the recipe at the bench definition.</summary>
-    P.ArmoryTier RecipeArmoryTier(string name, string bench);
-}
-
 // Go internal/bridge gear_bench_census.go (ReadGearBenches, ReadSupplyStock).
-internal sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>maxStockFilterDefNames</c>: native ListSupplies' StockFilter.DefNames cap.</summary>
     private const int GearMaxStockFilterDefNames = 256;
@@ -49,7 +17,7 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(
         PbCommon.Identity identity,
-        Func<CancellationToken, Task<IGearRecipeCatalog>> catalog,
+        Func<CancellationToken, Task<GearRecipeCatalogAdapter>> catalog,
         CancellationToken cancellationToken
     )
     {
@@ -154,7 +122,7 @@ internal sealed partial class FacadeNativeClient
     }
 
     /// <summary>Go <c>Client.readGearRecipes</c>: the bench's recipes with what the catalog says each is, and the bench definition.</summary>
-    private async Task<(List<P.GearRecipe> Recipes, string Def)> GearReadRecipesAsync(PbCommon.Identity identity, string bench, IGearRecipeCatalog catalog, CancellationToken cancellationToken)
+    private async Task<(List<P.GearRecipe> Recipes, string Def)> GearReadRecipesAsync(PbCommon.Identity identity, string bench, GearRecipeCatalogAdapter catalog, CancellationToken cancellationToken)
     {
         var request = new PbObservations.RecipesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, BenchId = bench };
         var reply = await Facade.ReadRecipesAsync(request, cancellationToken).ConfigureAwait(false);
@@ -208,7 +176,7 @@ internal sealed partial class FacadeNativeClient
         stack.WorkSpeed is { } speed && speed >= 0 ? Fact.Known(speed) : Fact.Unknown<double>();
 
     /// <summary>Go <c>gearBillsFromStack</c>.</summary>
-    private static List<P.GearBill> GearBillsFromStack(PbObservations.BillStackRow stack, string benchDef, List<P.GearRecipe> recipes, IGearRecipeCatalog catalog)
+    private static List<P.GearBill> GearBillsFromStack(PbObservations.BillStackRow stack, string benchDef, List<P.GearRecipe> recipes, GearRecipeCatalogAdapter catalog)
     {
         var products = new Dictionary<string, EquatableArray<P.Resource>>(StringComparer.Ordinal);
         var kinds = new Dictionary<string, P.LedgerBillKind>(StringComparer.Ordinal);

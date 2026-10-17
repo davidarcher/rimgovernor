@@ -15,7 +15,7 @@ public sealed partial class LayoutRounds
     private readonly Rounder _reviewer;
     private readonly LayoutNeeds _needs;
     private readonly FirebreakMemory? _firebreak;
-    private readonly IRoundsStoneShellSource? _stone;
+    private readonly FacadeNativeClient? _stone;
     private readonly RoundsBuildingPlanner? _building;
     private readonly RoundsBuildingPlanner? _routes;
     private readonly RoundsDefenseLayoutPlanner? _defense;
@@ -26,7 +26,7 @@ public sealed partial class LayoutRounds
     /// stone shell previews and lists wall sites through <paramref name="stone"/>; the defensive layout reads its site,
     /// access and pawns and previews its tiers through <paramref name="defense"/>.
     /// </summary>
-    public LayoutRounds(Rounder reviewer, LayoutNeeds needs, IRoundsFirebreakSource? firebreak, IRoundsStoneShellSource? stone, IRoundsDefenseLayoutSource? defense = null)
+    public LayoutRounds(Rounder reviewer, LayoutNeeds needs, FacadeNativeClient? firebreak, FacadeNativeClient? stone, FacadeNativeClient? defense = null)
     {
         if (reviewer is null || reviewer.Native is null)
         {

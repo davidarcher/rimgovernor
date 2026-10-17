@@ -6,10 +6,10 @@ using P = RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// The recipe facts of the gear bench census (<see cref="IGearRecipeCatalog"/>) read from the definition catalog; the
+/// The recipe facts of the gear bench census (<see cref="FacadeNativeClient.ReadGearBenchesAsync(PbCommon.Identity, Func{CancellationToken, Task{GearRecipeCatalogAdapter}}, CancellationToken)"/>) read from the definition catalog; the
 /// catalog's <c>Recipe*</c> methods carry the same names and answer the same questions.
 /// </summary>
-internal sealed class GearRecipeCatalogAdapter(BridgeCatalog catalog) : IGearRecipeCatalog
+internal sealed class GearRecipeCatalogAdapter(BridgeCatalog catalog)
 {
     /// <inheritdoc />
     public RecipeRole RecipeRoleOf(string name) => catalog.RecipeRoleOf(name);

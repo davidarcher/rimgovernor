@@ -53,7 +53,7 @@ public sealed partial class RoundsBuildingPlanner
 
     internal bool Shelter { get; set; }
 
-    internal IRoundsExcavationSource? Excavation { get; set; }
+    internal FacadeNativeClient? Excavation { get; set; }
 
     internal Pol.PowerProposal? Power { get; set; }
 
