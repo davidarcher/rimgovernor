@@ -8,7 +8,7 @@ Implement groomed epic #$ARGUMENTS. You are the orchestrator; worktree agents do
 1. `git fetch origin main && git merge --ff-only origin/main`. Read the epic and every open child (`RimGovernor.cmd issue <n>`). If the children lack What/Acceptance/Decisions, stop and give `/groom #$ARGUMENTS` as the next prompt in its own fenced code block instead.
 2. Order the children by their "Depends on" links. Show me the plan (waves of parallel issues) in a few lines and start without waiting unless something is ambiguous.
 3. For each wave, spawn one fresh worktree Agent per child issue, off current main. Tell each agent to:
-   - follow AGENTS.md end to end: branch named for the issue, run `RimGovernor.cmd test` once, then `RimGovernor.cmd land` and push `origin main`, without waiting on acceptance (say what is unverified in the commit body), Complexity line;
+   - follow AGENTS.md end to end: branch named for the issue, run `RimGovernor.cmd test` once, then `RimGovernor.cmd land` (it pushes), without waiting on acceptance (say what is unverified in the commit body), Complexity line;
    - treat the issue's Decisions as settled;
    - **stop and report a question instead of guessing** if it hits an unclear requirement, a design decision the issue doesn't settle, or a one-way door (save or wire formats, the native tool contract, new action kinds, shared data models, deleting a subsystem, anything expensive to change later).
 4. When an agent reports a question, ask me with AskUserQuestion (options and a recommendation), record the answer on the child issue, then start a **fresh** agent off current main (don't SendMessage the old one). Keep the other agents moving meanwhile.

@@ -16,11 +16,10 @@ preservation is best effort and bugs are fixed forward.
 ## Solution layout
 
 ```text
+RimGovernor.slnx               every C# project; what the gate builds and tests
 brain/
-  RimGovernor.Brain.sln
   Directory.Build.props        net10.0, nullable, warnings as errors, locked restore
   Directory.Packages.props     central package versions (test packages only so far)
-  Taskfile.yml                 build and test; wired into the root Taskfile
   src/RimGovernor.Brain.<Pkg>/ one project per ported Go package or cluster
   tests/RimGovernor.Brain.<Pkg>.Tests/
 ```
@@ -42,8 +41,8 @@ brain/
 
 `brain/Directory.Build.props` sets `Nullable=enable`, `TreatWarningsAsErrors=true`,
 `WarningLevel=9999`, `AnalysisLevel=latest-recommended`, `ImplicitUsings` and
-`RestorePackagesWithLockFile` (commit each `packages.lock.json`; the Taskfile restores
-with `--locked-mode`). Code-style (IDE) analyzers do not run in the build: with no
+`RestorePackagesWithLockFile` (commit each `packages.lock.json`; the gate restores
+in locked mode). Code-style (IDE) analyzers do not run in the build: with no
 `.editorconfig` raising them they report nothing, yet IDE0005 alone took 18 s of
 Policy's analyzer time. A port does not add `#pragma` or
 `SuppressMessage` to get green; fix the code. A rule that is wrong for the whole
@@ -161,8 +160,8 @@ A port child works through this in order. `internal/domain` is the worked exampl
    `init` registrations. *Domain:* no goroutines; one `init` registry
    (`RegisterIntentKind`); one generic type (`Fact[T]`); package vars `ErrDependency`,
    `ErrWriteUnsent`; closed variant `Action` with 76 kinds.
-2. **Create the project.** `src/RimGovernor.Brain.<Pkg>`, add it to the solution and
-   the Taskfile, reference only already-ported packages. *Domain:* no references.
+2. **Create the project.** `src/RimGovernor.Brain.<Pkg>`, add it to `RimGovernor.slnx`,
+   reference only already-ported packages. *Domain:* no references.
 3. **Write the foundation first.** Ids, `Fact<T>`, exceptions, enum conventions
    (`Wire`), `EquatableArray<T>`, the shared enums used everywhere (`ActionKind`).
    *Domain:* `Foundation/`.
@@ -174,8 +173,8 @@ A port child works through this in order. `internal/domain` is the worked exampl
 6. **Handle ordering and equality explicitly.** Replace every map iteration, sort and
    string compare using the rules above. *Domain:* dependency sorting, cycle detection
    and the plan's dependency checks.
-7. **Build warnings-clean.** `dotnet build brain/RimGovernor.Brain.sln` with no
-   suppressions, then `task build`.
+7. **Build warnings-clean.** `RimGovernor.cmd test` with no
+   suppressions.
 8. **Leave Go untouched** and do not port its tests; list in the commit body anything
    knowingly dropped or changed (for example re-validation removed, or a bug fixed).
 9. **Record what is unverified.** The commit states that behavior parity is checked
@@ -183,8 +182,8 @@ A port child works through this in order. `internal/domain` is the worked exampl
 
 ## Verification
 
-`task build` runs `brain:build` (restore in locked mode, `dotnet build` with warnings
-as errors). `task test` runs `brain:test`; it is empty until a bug needs a test.
+`RimGovernor.cmd test` builds `RimGovernor.slnx` (restore in locked mode, warnings as
+errors), then runs its tests.
 
 `RimGovernor.Brain.Policy` (Domain + Contracts) hosts the policy ports.
 
@@ -259,5 +258,5 @@ types; it never mirrors a Def. Conventions that differ from the Go code:
 `Waylith.dll` from `RimWorldDir`. Where that directory has no `Assembly-CSharp.dll` the project builds
 as an empty assembly (only `Properties/Unavailable.cs`) and prints
 `RimGovernor.Brain.Bridge: unavailable (missing ...)` from the `ReportBridgeUnavailable` target, so
-`task build` still succeeds on a machine without the game. Nothing may reference the Bridge types
+the gate still passes on a machine without the game. Nothing may reference the Bridge types
 without the same guard.

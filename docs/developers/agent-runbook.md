@@ -11,8 +11,7 @@ own worktree, game copy and bridge root.
 Everything a checkout needs is regenerated; nothing lives only on the
 maintainer's machine except unpushed branches and uncommitted worktree edits.
 
-Prerequisites: the .NET SDK 10, `task` (needed for `task build` and `task test`),
-and Steam with RimWorld 1.7 and the Harmony workshop item (2009463077) installed.
+Prerequisites: the .NET SDK 10, PowerShell 7 (`pwsh`, for the native build), and Steam with RimWorld 1.7 and the Harmony workshop item (2009463077) installed.
 Without the game, only the game-free checks run ([remote agents](#remote-agents)).
 
 ```powershell
@@ -32,19 +31,24 @@ and opens when run without arguments.
 
 ### Repo tools (`RimGovernor.cmd <tool>`)
 
-`RimGovernor.cmd land`, `test`, `issue`, `affected` and `acceptance` run one C# tool host
-(`tools/rg`, .NET SDK 10 only). The shim publishes it ReadyToRun into the
-gitignored `.rimgovernor/tools/<version>/` on first use (a few seconds), names
-the live version in `.rimgovernor/tools/current`, and afterwards starts it in
-well under 150 ms. A source change under `tools/rg` or the `brain/` projects it references (`acceptance` pulls in `Brain.Acceptance`, `Brain.Acceptance.Cases` and what they build on; a `.cs`, `.csproj` or
-`.props` newer than the last publish) makes the next run rebuild first; the
-rebuild takes a lock, so parallel invocations wait for one build and never
+`RimGovernor.cmd` runs the front door (`tools/repo` with `tools/common`, .NET SDK 10
+and git only): `land`, `test`, `issue` and `affected` live there and reference no
+brain project, so a broken brain build never blocks landing a fix to it. The shim
+publishes it ReadyToRun into the gitignored `.rimgovernor/tools/<version>/` on first
+use (a few seconds), names the live version in `.rimgovernor/tools/current`, and
+afterwards starts it in well under 150 ms. The brain tools (`acceptance`,
+`remoteaccept`, `remotebundle`, `thoughtaudit`, `colonyreview`, `pawnactivity`,
+`launch-phases`) live in `tools/rg`, which references the `brain/` projects; the
+front door publishes it the same way into `.rimgovernor/rg/` when first needed and
+forwards to it. A `.cs`, `.csproj` or `.props` newer than the last publish, in a
+tool's projects or the build files above them, makes the next run rebuild first;
+each rebuild takes a lock, so parallel invocations wait for one build and never
 share a half-written output. A failed build prints the compiler output and
 leaves the previous version in place. `RimGovernor.cmd -help` lists the
 tools and `RimGovernor.cmd <tool> -help` their flags; flags are single-dash
 (`-m msg`, `-last 3`, `-flag=value`) and come before positional arguments.
 `cmd.exe` mangles `%` and `^` in arguments: pass such commit messages with
-`land -F file`. `task build` compiles the tool with warnings as errors. C# projects and probes build on
+`land -F file`. `RimGovernor.cmd test` compiles both tools with warnings as errors. C# projects and probes build on
 their own: the wire is plain records in `brain/src/RimGovernor.Brain.Contracts`, so nothing
 is generated before a build.
 

@@ -4,7 +4,7 @@ Six rules are mechanical gates, one more gate (the world-state ban) bans game AP
 brain, and three are review questions. The C# brain enforces them as Roslyn
 analyzers in `brain/analyzers/RimGovernor.Brain.Analyzers`, loaded into every
 `brain/src` project by `brain/Directory.Build.props`, so they run inside every
-`dotnet build` and `task build` (the tests projects are not gated). Each gate
+`dotnet build`, the gate's among them (the tests projects are not gated). Each gate
 compares its findings with a checked-in baseline in
 `brain/analyzers/baseline/rule<n>.txt` (an `AdditionalFiles` input; `worldstate.txt` for the ban). A baseline
 may only shrink: a new violation is a build error, and so is a baseline entry

@@ -27,7 +27,7 @@
 
   <ItemGroup>
     <!-- The wire records (#3100) come from the built brain assemblies: a ProjectReference would restore them into this
-         build's BaseIntermediateOutputPath and overwrite its project.assets.json. The Taskfile builds them first. -->
+         build's BaseIntermediateOutputPath and overwrite its project.assets.json. The gate (tools/repo/Commands/Gate.cs) builds them first. -->
     <Reference Include="RimGovernor.Brain.Contracts"><HintPath>$(BrainBinDir)/RimGovernor.Brain.Contracts.dll</HintPath></Reference>
     <Reference Include="RimGovernor.Brain.Domain"><HintPath>$(BrainBinDir)/RimGovernor.Brain.Domain.dll</HintPath></Reference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />

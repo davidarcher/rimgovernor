@@ -22,7 +22,9 @@
 | [brain/src/RimGovernor.Brain.RemoteAccept](../../brain/src/RimGovernor.Brain.RemoteAccept), [RemoteBundle](../../brain/src/RimGovernor.Brain.RemoteBundle) | Remote acceptance evidence and encrypted bundles |
 | [brain/analyzers](../../brain/analyzers) | Architecture gates: Roslyn analyzers `RGARCH001`-`009`; baselined gates are shrink-only, construction tiers and live Method stages have no baseline |
 | [brain/tests](../../brain/tests) | Bug-driven xUnit tests |
-| [tools/rg](../../tools/rg) | Repository tool host behind `RimGovernor.cmd` (land, test, issue, affected, acceptance, remote tools, reports) |
+| [tools/repo](../../tools/repo) | Front door behind `RimGovernor.cmd`: land, test (the gate), issue, affected; no brain references ([tools/common](../../tools/common) holds what both tools share) |
+| [tools/repo.Tests](../../tools/repo.Tests) | The landing lane against throwaway git repositories |
+| [tools/rg](../../tools/rg) | Brain tool host the front door forwards to: acceptance, remote tools, reports |
 | [tools/launcher](../../tools/launcher) | Windows launcher (C#, WinForms and WebView2): setup, game start/stop, new colony, acceptance tab |
 | [integrations/rimgovernor-native/src/Bridge](../../integrations/rimgovernor-native/src/Bridge) | Colony observations, operations, supervision and rendering |
 | [integrations/rimgovernor-host/src](../../integrations/rimgovernor-host/src) | Vendored RimBridgeServer fork: tool registration, lifecycle tools and main-thread dispatch (may fold into the mod, #3141) |

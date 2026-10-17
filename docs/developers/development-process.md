@@ -24,9 +24,8 @@ From the worktree root:
 .\RimGovernor.cmd test > test.out 2>&1
 ```
 
-Wait for the final `test: PASS` or `test: FAIL`. The command builds the native contract
-probes when their inputs changed and runs `task build` and `task test` when any C#
-project changed. Do not follow it with another full build or test. [choose-tests](testing/choose-tests.md) covers skipped tests, wire
+Wait for the final `test: PASS` or `test: FAIL`. When anything the gate builds changed, the command
+runs it ([project-wide build](#project-wide-build)). Do not follow it with another full build or test. [choose-tests](testing/choose-tests.md) covers skipped tests, wire
 changes, concurrency and native evidence.
 
 Keep checks and their limitations in the milestone commit. A passing result
@@ -40,22 +39,21 @@ From the branch worktree's root:
 
 ```powershell
 .\RimGovernor.cmd land
-git fetch origin main
-git push origin main
 ```
 
 The lane locks the repository, fast-forwards local main to origin/main, merges
-main into the branch, squash-lands in the main checkout and resets the branch.
-It does not push. It closes the issue named by an `issue-<n>-...` branch or
+main into the branch, squashes, pushes the squash to origin's main, then moves local
+main and the main checkout to it and resets the branch. When origin's main moved
+since the fetch, the push is rejected and the lane lands again on top (three tries,
+no retest); a push origin refuses for any other reason lands nothing. It closes the issue named by an `issue-<n>-...` branch or
 `-issue <n>`; `-no-close` suppresses that close.
 
 - Run the lane once per ready milestone. `land -test` is an alternative to
   `test`, not an additional check.
-- On a rejected push, fetch, re-land and push without retesting.
 - Resolve a reported merge conflict in the task branch, then build the touched
-  projects (`task build`).
+  projects (`dotnet build` on them).
 - Do not edit the main checkout, manually squash there, open a PR, force-push,
-  push a task branch, or push a branch SHA directly to main.
+  push a task branch, or push to main yourself.
 - The launcher builds from main. Restart it after landing when testing the
   player installation.
 
@@ -64,13 +62,16 @@ Do not turn unverified coverage into a new issue; state it in the commit.
 
 ## Project-wide build
 
-C# changes require `task build` and `task test` at the
-repository root (`RimGovernor.cmd test` runs them). The [Taskfile](../../Taskfile.yml) pins the toolchain and
-composes each project's build and test gates. Outputs live under
-`.rimgovernor/task/`; unchanged native inputs are checksum-skipped.
+`RimGovernor.cmd test` runs the gate (`tools/repo/Commands/Gate.cs`). It builds, in
+order, [RimGovernor.slnx](../../RimGovernor.slnx) (every C# project; locked restore,
+warnings as errors), the native contract probes, the real-Harmony hook set probe and
+the native mod, then runs `dotnet test` on the solution, the pure probes, the
+proto-boundary probe and the hook set probe at once, printing each when it finishes.
+Outputs live under `.rimgovernor/gate/`; the native mod is rebuilt only when a file
+it reads changed.
 
 Missing machine-local inputs report `unavailable`. The native build accepts
-`RIMWORLD_MANAGED_DIR` and `HARMONY_ASSEMBLY`; game-free remote compilation is
+`RIMWORLD_DIR` (the directory holding `Assembly-CSharp.dll`) and `HARMONY_ASSEMBLY`; game-free remote compilation is
 described in the [runbook](agent-runbook.md#remote-agents).
 
 ## Documentation ownership

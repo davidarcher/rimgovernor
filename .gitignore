@@ -31,7 +31,6 @@ dist/
 build/
 .env
 node_modules/
-.task/
 
 # Compiled binaries (agents keep committing stray builds)
 *.exe

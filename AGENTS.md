@@ -12,31 +12,31 @@
    and merge `origin/main` once; local `main` may be behind.
 2. Make one coherent milestone. From the worktree root, run
    `RimGovernor.cmd test > test.out 2>&1` and wait for its final PASS/FAIL.
-   Do not pipe it, rerun it to filter output, or follow it with `task build` or `task test`; it runs them when C# changed.
+   Do not pipe it, rerun it to filter output, or follow it with your own `dotnet build`/`dotnet test`; it runs the gate when C# changed.
    Use `-full` only at an epic's end or for changed code covered by skipped tests.
    No native acceptance run is required before landing; the nightly supplies
-   that evidence. C# changes are gated by `task build` and `task test`, which `test` runs for you.
+   that evidence. C# changes are gated by `RimGovernor.slnx`, the contract probes and the native build, which `test` runs for you.
 3. Commit the milestone with checks and anything left unverified in the body.
    Make its subject the branch tip: the lane uses it for the squash title.
-4. From the worktree root, run `RimGovernor.cmd land` once, then fetch `origin main` and
-   `git push origin main`. The lane locks, updates main, merges, squash-lands
-   and resets the branch; it does not push. Do not combine `test` with
-   `land -test`. A rejected push requires fetch, re-land and push, without
-   retesting. Resolve lane-reported conflicts, then build.
+4. From the worktree root, run `RimGovernor.cmd land` once. The lane locks,
+   updates main from origin, merges, squashes, pushes the squash to origin's
+   main (landing again on top when origin moved, without retesting), then moves
+   local main and the main checkout and resets the branch. Do not combine
+   `test` with `land -test`. Resolve lane-reported conflicts, then build.
    Main moving is not a reason to rerun tests.
 5. Continue authorized milestones. Close an issue when its stated acceptance
    is met; a registered, compiling acceptance case satisfies a case-writing
    task. Later nightly failures are separate issues.
 
-Never open a PR, force-push, push a task branch, push a branch SHA to main, or
-edit the main checkout. Details: [landing](docs/developers/development-process.md#landing).
+Never open a PR, force-push, push a task branch, push to main yourself (the lane
+pushes), or edit the main checkout. Details: [landing](docs/developers/development-process.md#landing).
 
 ## Architecture constraints
 
 - One C# toolchain (.NET SDK 10). The brain is a library (`brain/`) hosted inside the
   game process by the mod (`-rimgovernor-inproc`, the default launch): no controller
   process, no transport. The launcher (`tools/launcher`), the tool host
-  (`RimGovernor.cmd <tool>`, `tools/rg`) and the acceptance harness
+  (`RimGovernor.cmd <tool>`: the front door `tools/repo`, which hands brain tools to `tools/rg`) and the acceptance harness
   (`RimGovernor.cmd acceptance`, `brain/src/RimGovernor.Brain.Acceptance*`) are C# too.
   See [brain host](docs/developers/architecture/brain-host.md).
 
@@ -96,7 +96,7 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
   replace DLLs in Steam or the shared isolated copy, or rebuild binaries a
   running harness uses.
 - Keep builds, logs, saves, databases and temporary scripts out of commits.
-  Repository tooling is C# (`tools/rg`); no Python additions. For one-off
+  Repository tooling is C# (`tools/repo`, `tools/rg`); no Python additions. For one-off
   scripting, use PowerShell or the repo's existing tools.
 - Use absolute harness paths. Detached Windows processes use
   `Start-Process -WindowStyle Hidden`; do not use sleep/poll shell loops.

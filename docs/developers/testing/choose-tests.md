@@ -6,9 +6,9 @@
 ## Testing budget and evidence reuse
 
 Run `RimGovernor.cmd test > test.out 2>&1` from the worktree root once per milestone.
-It builds the native contract probes when their inputs changed and runs `task build`
-and `task test` when any C# project changed (`RimGovernor.cmd affected` lists what a
-change owes). Wait for the final PASS/FAIL; do not pipe it or follow it with `task build`/`task test`.
+It runs the [gate](../development-process.md#project-wide-build) when anything it builds
+changed (`RimGovernor.cmd affected` says whether a change owes it). Wait for the final
+PASS/FAIL; do not pipe it or follow it with your own build or test.
 
 Use `-full` at an epic's end or when changed code is covered by a skipped test; it runs
 the gate even when the tree matches the base.
@@ -27,7 +27,7 @@ Before a slow check, name that claim and why a cheaper check cannot prove it.
 | Supply behavior across days, shocks and colony sizes | `RimGovernor.Brain.Simulation` (seeded offline stock-flow scenarios). |
 | Boundary decoding, journal or uncertain-write handling | Real decoder/storage tests and fault injection through typed fakes. |
 | Concurrency | A focused test that reproduces the race; repeat only to reproduce the relevant flake. Whole-module race/stress belongs to the nightly. |
-| C# or wire records | Root `task build` and `task test` (`RimGovernor.cmd test` runs them); the wire records are the only schema, so nothing is regenerated. |
+| C# or wire records | `RimGovernor.cmd test` (the gate); the wire records are the only schema, so nothing is regenerated. |
 | Native operation, read contract or vanilla simulation | Registered `acceptance run <area>/<case>` with an observed native postcondition. |
 | Colony autonomy over time | Nightly campaign with native end-state and Concern progress, and no post-setup harness interventions. |
 | Documentation | Check commands, links and source claims; `RimGovernor.cmd test` selects checks by affected paths. |
