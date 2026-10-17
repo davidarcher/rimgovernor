@@ -22,6 +22,8 @@ public static class FixtureJson
 [JsonSerializable(typeof(StageSpec))]
 [JsonSerializable(typeof(StageReply))]
 [JsonSerializable(typeof(GearPolicyReply))]
+[JsonSerializable(typeof(GearPruneReply))]
+[JsonSerializable(typeof(ApplyRefusalPrepared))]
 [JsonSerializable(typeof(RuntimeFaultReply))]
 [JsonSerializable(typeof(RecoveryAreaReply))]
 [JsonSerializable(typeof(MapScopeReply))]

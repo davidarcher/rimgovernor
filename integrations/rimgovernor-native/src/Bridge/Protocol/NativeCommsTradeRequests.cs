@@ -116,7 +116,7 @@ namespace HomeBridge.BridgeTools
             Contacts.Add(contact);
             if (!pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc)) { Contacts.Remove(contact); throw new InvalidOperationException("comms_job_refused"); }
             return new Receipts.EffectEvidence { Effect = new Receipts.CommsTradeRequestEffect {
-                FactionId = intent.FactionId, Kind = intent.Kind, TraderKind = intent.TraderKind, NegotiatorId = intent.NegotiatorId,
+                FactionId = intent.FactionId, Kind = intent.Kind, TraderKind = intent.TraderKind,
                 WorkQueued = true } };
         }
     }

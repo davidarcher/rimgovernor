@@ -810,10 +810,6 @@ public abstract record BillStoreDestination
 
     public sealed record ModeCase(StoreMode Value) : BillStoreDestination;
 
-    /// <summary>The <c>ZoneId</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public string? ZoneId => (this as ZoneIdCase)?.Value;
-
     public sealed record ZoneIdCase(string Value) : BillStoreDestination;
 }
 
@@ -2524,10 +2520,6 @@ public abstract record TradeIntentStep
     public sealed record AcceptCase(AcceptTrade Value) : TradeIntentStep;
 
     public static implicit operator TradeIntentStep(AcceptTrade value) => new AcceptCase(value);
-
-    /// <summary>The <c>End</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public EndTrade? End => (this as EndCase)?.Value;
 
     public sealed record EndCase(EndTrade Value) : TradeIntentStep;
 

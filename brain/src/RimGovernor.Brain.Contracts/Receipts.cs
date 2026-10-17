@@ -602,8 +602,6 @@ public sealed record ConstructionEffect
 
     public ConstructionStage? Stage { get; init; }
 
-    public bool? Present { get; init; }
-
     public bool? Started { get; init; }
 
     public bool? Failed { get; init; }
@@ -651,10 +649,6 @@ public abstract record FieldResultEntry
 {
     private protected FieldResultEntry() { }
 
-    /// <summary>The <c>WorkTypeDef</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public string? WorkTypeDef => (this as WorkTypeDefCase)?.Value;
-
     public sealed record WorkTypeDefCase(string Value) : FieldResultEntry;
 }
 
@@ -672,8 +666,6 @@ public sealed record BillEffect
     public SnapshotEvidence? Stack { get; init; }
 
     public Common.Ref? Bill { get; init; }
-
-    public string? RecipeDef { get; init; }
 }
 
 public sealed record ResearchEffect
@@ -752,8 +744,6 @@ public sealed record CombatOrdersEffect
 public sealed record SurgeryEffect
 {
     public string? PawnId { get; init; }
-
-    public string? RecipeDef { get; init; }
 
     public int? PartIndex { get; init; }
 
@@ -934,8 +924,6 @@ public sealed record JobEffect
 
     public JobTarget? TargetA { get; init; }
 
-    public string? WorkTypeDef { get; init; }
-
     public int? Count { get; init; }
 
     public bool? Issued { get; init; }
@@ -1021,8 +1009,6 @@ public sealed record CommsTradeRequestEffect
     public Common.TradeRequestKind Kind { get; init; }
 
     public string? TraderKind { get; init; }
-
-    public string? NegotiatorId { get; init; }
 
     public bool? WorkQueued { get; init; }
 }

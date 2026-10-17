@@ -177,7 +177,7 @@ namespace HomeBridge.BridgeTools
             var row=new Obs.PawnSurgery();
             var parts=pawn.RaceProps.body.AllParts;
             foreach(var bill in pawn.BillStack.Bills) {
-                var b=new Obs.SurgeryBill {Id=Id(bill.GetUniqueLoadID()),Recipe=Id(bill.recipe.defName),Suspended=bill.suspended};
+                var b=new Obs.SurgeryBill {Id=Id(bill.GetUniqueLoadID()),Recipe=Id(bill.recipe.defName)};
                 if(bill is Bill_Medical medical && medical.Part!=null) {
                     var index=parts.IndexOf(medical.Part);
                     if(index<0) throw new InvalidOperationException("Surgery body part is not in this pawn's body.");

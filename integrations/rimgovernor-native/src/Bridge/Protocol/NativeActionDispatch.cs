@@ -233,7 +233,7 @@ namespace HomeBridge.BridgeTools
             if (intent.MinimumFinishingSkill is { } placedSkill) ConstructionSkillGuard.Set(placed, placedSkill);
             // An instant building is placed finished: there is no site to gate, so the tier has nothing to bind (#2733).
             if (intent.Tier is { } tier && (placed is Blueprint_Build || placed is Frame)) ConstructionSkillGuard.SetTier(placed, tier);
-            observed = observed with { Stage = Stage(placed), Present = true, Started = true, Failed = false };
+            observed = observed with { Stage = Stage(placed), Started = true, Failed = false };
             return new Receipts.EffectEvidence { Effect = observed };
         }
 
@@ -270,7 +270,7 @@ namespace HomeBridge.BridgeTools
         {
             DefName = candidate.DefName, Stuff = candidate.Stuff ?? "", Cell = new Common.Cell { X = candidate.X.GetValueOrDefault(), Z = candidate.Z.GetValueOrDefault() },
             Rotation = candidate.Rotation,
-            Stage = Stage(thing), Present = true, Started = true, Failed = false,
+            Stage = Stage(thing), Started = true, Failed = false,
         };
     }
 

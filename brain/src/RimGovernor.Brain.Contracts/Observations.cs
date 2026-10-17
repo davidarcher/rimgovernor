@@ -766,8 +766,6 @@ public sealed record SurgeryBill
     public string? Recipe { get; init; }
 
     public int? PartIndex { get; init; }
-
-    public bool? Suspended { get; init; }
 }
 
 /// <summary>
@@ -6400,8 +6398,6 @@ public sealed record GrowRoom
     public int? GridRoom { get; init; }
 
     public double? TemperatureC { get; init; }
-
-    public uint? CellCount { get; init; }
 }
 
 public sealed record PowerHeadroom
