@@ -12,52 +12,14 @@ using Verse.AI.Group;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable defense acceptance fixture. It stages terrain, supplies, equipment,
-    // threats and damage, and reads independent native evidence. Breach and depower disable
-    // automatic rebuilding; empty disables automatic refueling, so recovery proves governor-
-    // issued work. Intrusion waits for drafted colonists before moving a raider behind the held
-    // line. Construction, movement and combat remain native.
+    // Private disposable defense acceptance fixture. It stages supplies, equipment, raids and
+    // trap breaches, and reads independent native evidence. Breach disables automatic
+    // rebuilding, so recovery proves governor-issued work. Construction, movement and combat
+    // remain native.
     public sealed class DefenseFixture
     {
-        private const int Half = 22;
-        private const int BandInner = 13;
-        private const int GapHalfWidth = 1;
-
-        private static Pawn fixturePredator;
-        // The world the predator was staged in. A kept process reloads the
-        // checkpoint between runs, and a pawn from the unloaded world still
-        // answers Spawned/Map through its old map index, so the predator is
-        // only the fixture's while its world is the current one.
-        private static World fixturePredatorWorld;
-        private static Pawn CurrentPredator()
-        {
-            if (fixturePredator == null || fixturePredatorWorld != Find.World) { fixturePredator = null; fixturePredatorWorld = null; }
-            return fixturePredator;
-        }
-        // The hostile building the fixture spawned, guarded by its
-        // world the same way; a destroyed thing keeps answering Destroyed,
-        // so it is remembered, not cleared, once it is gone.
-        private static Thing fixtureHostile;
-        private static World fixtureHostileWorld;
-        private static Thing CurrentHostile()
-        {
-            if (fixtureHostile == null || fixtureHostileWorld != Find.World) { fixtureHostile = null; fixtureHostileWorld = null; }
-            return fixtureHostile;
-        }
-        // The cover things the fixture staged ahead of the line,
-        // guarded by their world the same way; a removed thing keeps
-        // answering Destroyed, so the list is remembered until the world
-        // changes.
-        private static List<Thing> fixtureCover;
-        private static World fixtureCoverWorld;
-        private static List<Thing> CurrentCover()
-        {
-            if (fixtureCover == null || fixtureCoverWorld != Find.World) { fixtureCover = null; fixtureCoverWorld = null; }
-            return fixtureCover;
-        }
-
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|scaling|ranged|raid|predator|damage|breach|heal|inspect|quiet|instant-shells|power|depower|muster|empty|hostile|wealth|intrude|cover|ieds|armory.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "", int grace = 600, int dx = 0, int dz = 1, string side = "")
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=stock|ranged|raid|breach|heal|inspect|instant-shells|power|muster|ieds|armory.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, int rifles = 3, int x = -1, int z = -1, string cells = "", string side = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -68,78 +30,20 @@ namespace HomeBridge.BridgeTools
                 if (colonists.Count > 0) center = new IntVec3((int)colonists.Average(p => p.Position.x), 0, (int)colonists.Average(p => p.Position.z));
                 switch (op)
                 {
-                    case "terrain": return Terrain(map, center);
                     case "stock": return Stock(map, center);
-                    case "scaling": return ScalingStock(map, center, points);
                     case "ranged": return Ranged(map, colonists, rifles);
                     case "raid": return Raid(map, strategy, arrival, points, x < 0 ? IntVec3.Invalid : new IntVec3(x, 0, z), side);
-                    case "predator": return Predator(map, colonists, kind);
-                    case "damage": return Damage(map, wall);
                     case "breach": return Breach(map);
                     case "heal": return Heal(map);
                     case "inspect": return Inspect(map, player);
-                    case "quiet": return Quiet();
                     case "instant-shells": LayoutGridFixture.ArmInstantShells(); return new { success = true, armed = true };
                     case "power": return Power(map, new IntVec3(x, 0, z));
-                    case "depower": return Depower(map, new IntVec3(x, 0, z));
                     case "muster": return Muster(map, colonists, cells);
-                    case "empty": return Empty(map, new IntVec3(x, 0, z));
-                    case "hostile": return Hostile(map, colonists, kind);
-                    case "wealth": map.wealthWatcher.ForceRecount(); return new { success = true, threat = Threat(map), tick = Find.TickManager.TicksGame };
-                    case "intrude": return Intrude(map, new IntVec3(x, 0, z), grace);
-                    case "cover": return Cover(map, new IntVec3(x, 0, z), new IntVec3(dx, 0, dz));
                     case "ieds": return IedGates(map, new IntVec3(x, 0, z));
                     case "armory": return Armory(map, new IntVec3(x, 0, z), points);
-                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power, depower, muster, empty, hostile, wealth, intrude, cover, ieds or armory.");
+                    default: return Refuse("Use stock, ranged, raid, breach, heal, inspect, instant-shells, power, muster, ieds or armory.");
                 }
             }, cancellationToken).ConfigureAwait(false);
-        }
-
-        // Terrain surrounds the colony's 45x45 census square with a granite
-        // band (radius 13..22 from the colonists' centre) leaving one 3-wide
-        // straight gap on the north side, so the only edge approach is a
-        // corridor the layout policy can choke. Impassable edifices already
-        // close their cell; player buildings and pawns are left alone and
-        // reported as open; everything else on a band cell is removed.
-        private static object Terrain(Map map, IntVec3 center)
-        {
-            var granite = DefDatabase<ThingDef>.GetNamed("Granite");
-            if (center.x - Half < 1 || center.z - Half < 1 || center.x + Half >= map.Size.x - 1 || center.z + Half >= map.Size.z - 1)
-                return Refuse("Colony centre is too close to the map edge for the rock band.");
-            var placed = new List<object>(); var open = new List<object>(); var skipped = 0;
-            for (var dx = -Half; dx <= Half; dx++)
-                for (var dz = -Half; dz <= Half; dz++)
-                {
-                    var ring = Math.Max(Math.Abs(dx), Math.Abs(dz));
-                    if (ring < BandInner) continue;
-                    if (dz > 0 && Math.Abs(dx) <= GapHalfWidth) continue; // north gap
-                    var cell = new IntVec3(center.x + dx, 0, center.z + dz);
-                    if (!cell.InBounds(map)) { skipped++; continue; }
-                    var edifice = cell.GetEdifice(map);
-                    if (edifice != null)
-                    {
-                        // Any impassable non-door edifice already closes the cell
-                        // (natural rock, ancient ruin walls); passable ones the
-                        // player owns are left alone and reported, unowned ones
-                        // (ruin doors, furniture) are replaced by rock.
-                        if (edifice.def.passability == Traversability.Impassable && !edifice.def.IsDoor) { skipped++; continue; }
-                        if (edifice.Faction == Faction.OfPlayer) { open.Add(new { x = cell.x, z = cell.z, edifice = edifice.def.defName }); continue; }
-                    }
-                    // Player pawns keep their cell open; wild or ruin pawns (dormant
-                    // mechanoids, insects) are removed with the rest of the cell.
-                    if (cell.GetThingList(map).Any(t => t is Pawn p && p.Faction == Faction.OfPlayer)) { open.Add(new { x = cell.x, z = cell.z, edifice = "pawn" }); continue; }
-                    // A non-destroyable feature (a steam geyser) cannot be
-                    // cleared; destroying it only logs an error RimBridge
-                    // raises as a blocking attention. Its cell stays.
-                    if (cell.GetThingList(map).Any(t => !t.def.destroyable)) { skipped++; continue; }
-                    foreach (var thing in cell.GetThingList(map).Where(t => t.def.category != ThingCategory.Filth).ToList()) thing.Destroy();
-                    GenSpawn.Spawn(ThingMaker.MakeThing(granite), cell, map);
-                    placed.Add(new { x = cell.x, z = cell.z });
-                }
-            map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
-            var gap = Enumerable.Range(BandInner, Half - BandInner + 1).Select(d => new { x = center.x, z = center.z + d }).ToList();
-            return new { success = open.Count == 0, center = new { x = center.x, z = center.z }, placed = placed.Count, skipped, open, gap,
-                gapDirection = "north", corridorWidth = 2 * GapHalfWidth + 1, corridorLength = Half - BandInner + 1 };
         }
 
         // Stock also provisions the colonists for the multi-hour build: fed and
@@ -169,51 +73,6 @@ namespace HomeBridge.BridgeTools
             return new { success = true, spawned, resource = wood.defName, food, provisioned };
         }
 
-        // Paused threat-scaling comparison: the selected loose-stock bundle
-        // (steel, industrial components and silver) is normalized to 2000,
-        // 100 and 20000, then tripled exactly. No pawns/buildings are added
-        // between readings. Incidents stay disabled and the clock never runs.
-        // Calibrate difficulty ONCE to 290 native points, just below the
-        // 300-point budget band; the tripled stage keeps that difficulty.
-        private static object ScalingStock(Map map, IntVec3 center, int multiplier)
-        {
-            if (multiplier != 1 && multiplier != 3) return Refuse("scaling points must be 1 or 3 (stock multiplier).");
-            var counts = new[] { new { def = ThingDefOf.Steel, count = 2000 },
-                new { def = ThingDefOf.ComponentIndustrial, count = 100 },
-                new { def = ThingDefOf.Silver, count = 20000 } };
-            foreach (var stock in counts)
-            {
-                foreach (var old in map.listerThings.ThingsOfDef(stock.def).Where(t => t.def.category == ThingCategory.Item).ToList())
-                    old.Destroy(DestroyMode.Vanish);
-                for (var left = stock.count * multiplier; left > 0;)
-                {
-                    var thing = ThingMaker.MakeThing(stock.def);
-                    thing.stackCount = Math.Min(stock.def.stackLimit, left);
-                    left -= thing.stackCount;
-                    if (!GenPlace.TryPlaceThing(thing, center, map, ThingPlaceMode.Near)) return Refuse("Scaling stock placement failed.");
-                    thing.SetForbidden(false, false);
-                }
-            }
-            if (multiplier == 1)
-            {
-                Quiet();
-                // CompTick computes native generator output without advancing
-                // pawns, construction or the storyteller.
-                foreach (var building in map.listerBuildings.allBuildingsColonist)
-                    building.TryGetComp<CompPowerPlant>()?.CompTick();
-                map.powerNetManager.UpdatePowerNetsAndConnections_First();
-                map.wealthWatcher.ForceRecount();
-                Find.Storyteller.difficulty.threatScale = 1f;
-                var raw = StorytellerUtility.DefaultThreatPointsNow(map);
-                if (raw <= 35f) return Refuse("Baseline threat is clamped; cannot calibrate the stock comparison.");
-                Find.Storyteller.difficulty.threatScale = 290f / raw;
-            }
-            map.wealthWatcher.ForceRecount();
-            return new { success = true, multiplier, threat = Threat(map),
-                stock = counts.Select(s => new { definition = s.def.defName,
-                    count = map.listerThings.ThingsOfDef(s.def).Sum(t => t.stackCount) }).ToArray(),
-                tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
-        }
         private static object Ranged(Map map, List<Pawn> colonists, int rifles)
         {
             var def = DefDatabase<ThingDef>.GetNamed("Gun_BoltActionRifle"); var armed = new List<object>();
@@ -342,231 +201,6 @@ namespace HomeBridge.BridgeTools
                 added, tick = Find.TickManager.TicksGame };
         }
 
-        // Intrude arms the breach observer: once any colonist has
-        // stood drafted for grace ticks -- the hold plan is dispatched and
-        // the line is held -- one live raider is teleported to a standable
-        // cell near x,z, behind the firing line. The observer is a map
-        // component so it acts while the service, not the fixture, holds
-        // the bridge; inspect reports what it did.
-        private static object Intrude(Map map, IntVec3 near, int grace)
-        {
-            if (!near.InBounds(map)) return Refuse("intrude needs x,z on the map.");
-            var cell = GenRadial.RadialCellsAround(near, 4.9f, true).FirstOrDefault(c => c.InBounds(map) && c.Standable(map) && !c.Fogged(map));
-            if (!cell.IsValid) return Refuse("No standable cell within 5 of " + near + ".");
-            var fixture = map.GetComponent<DefenseBreachFixture>();
-            if (fixture == null) { fixture = new DefenseBreachFixture(map); map.components.Add(fixture); }
-            fixture.Arm(cell, Math.Max(0, grace));
-            return new { success = true, x = cell.x, z = cell.z, grace = fixture.Grace, tick = Find.TickManager.TicksGame };
-        }
-
-        // Predator stages the predator precondition directly: a wild predator of
-        // the given kind spawned inside the band, a few cells from the first
-        // colonist, already running the game's own PredatorHunt job on that
-        // colonist (the job a hungry cougar starts by itself; RimWorld's
-        // JobDriver_PredatorHunt does the rest). The native census then lists
-        // it under huntingPredators, the clock stops with predator_hunt and
-        // the emergency holds it as an unsafe threat: exactly the state
-        // productionaccept parked in. The predator is starving so the driver
-        // has no reason to abandon the hunt on its own.
-        private static object Predator(Map map, List<Pawn> colonists, string kind)
-        {
-            var staged = CurrentPredator();
-            if (staged != null && staged.Spawned && !staged.Dead && staged.Map == map)
-                return Refuse("Fixture predator already on the map; inspect it before staging another.");
-            var kindDef = DefDatabase<PawnKindDef>.GetNamedSilentFail(kind);
-            if (kindDef == null || !kindDef.RaceProps.predator) return Refuse("kind must name a predator PawnKindDef.");
-            var prey = colonists.FirstOrDefault(p => !p.Dead && !p.Downed);
-            if (prey == null) return Refuse("No standing colonist to hunt.");
-            var cell = GenRadial.RadialCellsAround(prey.Position, 12, true).FirstOrDefault(c => c.InBounds(map)
-                && c.Standable(map) && !c.Fogged(map) && c.DistanceTo(prey.Position) >= 8
-                && map.reachability.CanReach(c, prey.Position, Verse.AI.PathEndMode.Touch, TraverseMode.NoPassClosedDoors, Danger.Deadly));
-            if (!cell.IsValid) return Refuse("No standable cell 8-12 cells from the prey that reaches it.");
-            var predator = PawnGenerator.GeneratePawn(kindDef, null);
-            GenSpawn.Spawn(predator, cell, map);
-            if (predator.needs?.food != null) predator.needs.food.CurLevelPercentage = 0.02f;
-            var job = JobMaker.MakeJob(JobDefOf.PredatorHunt, prey);
-            job.killIncappedTarget = true;
-            predator.jobs.StartJob(job, Verse.AI.JobCondition.InterruptForced);
-            var hunting = predator.CurJobDef == JobDefOf.PredatorHunt && predator.CurJob?.GetTarget(Verse.AI.TargetIndex.A).Thing == prey;
-            if (!hunting) { predator.Destroy(DestroyMode.Vanish); return Refuse("The predator did not take the PredatorHunt job."); }
-            fixturePredator = predator; fixturePredatorWorld = Find.World;
-            return new { success = true, predator = predator.GetUniqueLoadID(), kind = kindDef.defName, bodySize = predator.BodySize,
-                prey = prey.GetUniqueLoadID(), x = cell.x, z = cell.z, distance = cell.DistanceTo(prey.Position),
-                job = predator.CurJobDef.defName, faction = predator.Faction?.def.defName, tick = Find.TickManager.TicksGame };
-        }
-
-        // Hostile stages the building threat: one hostile building (an insect
-        // hive, or a crashed ship part) in open ground 8-14 cells from a
-        // standing colonist, with two cells of clearance on every side so
-        // it never sits in the corridor gap or against the hut. The hive's
-        // own pawn and child-hive spawners are switched off before it is
-        // spawned, so no insect ever appears and the building is the only
-        // threat the census lists; a ship part comes without its incident's
-        // mechanoid guards. Destroying it is left to the service.
-        private static object Hostile(Map map, List<Pawn> colonists, string kind)
-        {
-            var staged = CurrentHostile();
-            if (staged != null && staged.Spawned && !staged.Destroyed && staged.Map == map)
-                return Refuse("Fixture hostile building already on the map; inspect it before staging another.");
-            var def = DefDatabase<ThingDef>.GetNamedSilentFail(kind);
-            if (def == null || !def.useHitPoints || !(typeof(Hive).IsAssignableFrom(def.thingClass) || def.building != null && def.building.combatPower > 0))
-                return Refuse("kind must name Hive or a building ThingDef with combatPower.");
-            var isHive = typeof(Hive).IsAssignableFrom(def.thingClass);
-            var faction = Find.FactionManager.FirstFactionOfDef(isHive ? FactionDefOf.Insect : FactionDefOf.Mechanoid);
-            if (faction == null) return Refuse("The world has no " + (isHive ? "insect" : "mechanoid") + " faction.");
-            // The building goes 8-14 cells from a standing colonist, a
-            // ranged-armed one first, in that colonist's line of sight: a
-            // shooter with a line of fire from where it stands is what the
-            // ranged assignment on a building needs.
-            var near = colonists.FirstOrDefault(p => !p.Dead && !p.Downed && p.equipment?.Primary?.def.IsRangedWeapon == true)
-                ?? colonists.FirstOrDefault(p => !p.Dead && !p.Downed);
-            if (near == null) return Refuse("No standing colonist to threaten.");
-            var rot = Rot4.North;
-            var cell = GenRadial.RadialCellsAround(near.Position, 14, true).FirstOrDefault(c => c.DistanceTo(near.Position) >= 8
-                && GenAdj.OccupiedRect(c, rot, def.size).ExpandedBy(2).Cells.All(o => o.InBounds(map) && o.Standable(map) && !o.Fogged(map))
-                && GenSight.LineOfSight(near.Position, c, map, true)
-                && map.reachability.CanReach(near.Position, c, Verse.AI.PathEndMode.Touch, TraverseMode.NoPassClosedDoors, Danger.Deadly));
-            if (!cell.IsValid) return Refuse("No clear cell 8-14 cells from a colonist, in its line of sight, for a " + def.defName + ".");
-            var thing = ThingMaker.MakeThing(def);
-            thing.SetFactionDirect(faction);
-            var spawner = thing.TryGetComp<CompSpawnerPawn>();
-            if (spawner != null) spawner.canSpawnPawns = false;
-            var hives = thing.TryGetComp<CompSpawnerHives>();
-            if (hives != null) hives.canSpawnHives = false;
-            // A hive its insects never maintain deteriorates and destroys
-            // itself in about 10000 ticks; park its maintenance clock far in
-            // the past so only the colonists' damage can bring it down.
-            var maintainable = thing.TryGetComp<CompMaintainable>();
-            if (maintainable != null) maintainable.ticksSinceMaintain = int.MinValue / 2;
-            var insectsBefore = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == faction).Select(p => p.thingIDNumber).ToHashSet();
-            GenSpawn.Spawn(thing, cell, map, rot);
-            if (!thing.Spawned) return Refuse("The " + def.defName + " did not spawn.");
-            // Belt and braces: any pawn the spawn nevertheless produced is
-            // vanished so the building stays the only threat.
-            var stray = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == faction && !insectsBefore.Contains(p.thingIDNumber)).ToList();
-            foreach (var pawn in stray) pawn.Destroy(DestroyMode.Vanish);
-            if (spawner != null) spawner.spawnedPawns.Clear();
-            var hostile = thing.HostileTo(Faction.OfPlayer);
-            if (!hostile) { thing.Destroy(DestroyMode.Vanish); return Refuse("The spawned " + def.defName + " is not hostile to the player."); }
-            fixtureHostile = thing; fixtureHostileWorld = Find.World;
-            return new { success = true, building = thing.GetUniqueLoadID(), def = def.defName, faction = faction.def.defName, hostile,
-                hp = thing.HitPoints, max = thing.MaxHitPoints, x = cell.x, z = cell.z, sizeX = def.size.x, sizeZ = def.size.z,
-                distance = cell.DistanceTo(near.Position), near = near.GetUniqueLoadID(), nearRanged = near.equipment?.Primary?.def.IsRangedWeapon == true,
-                strayVanished = stray.Count, tick = Find.TickManager.TicksGame };
-        }
-
-        // Cover stages raider cover inside the firing line's engagement zone
-        //: a line of trees and a pair of stone chunks on the
-        // approach ahead of Entry (away from Home, along direction d), two to
-        // nine cells out, on open standable cells, then one lone granite
-        // rock and one unowned wall segment (a ruin) farther out, each on a
-        // cell with no edifice beside it and placed only if Entry still
-        // reaches the map edge afterwards. The things are ordinary map
-        // objects the game's own designators remove (cut, haul, mine,
-        // deconstruct); the run asserts the service designates and clears
-        // them.
-        private static object Cover(Map map, IntVec3 entry, IntVec3 d)
-        {
-            if (!entry.InBounds(map) || d == IntVec3.Zero) return Refuse("cover needs the entry cell and a unit direction away from Home.");
-            var tree = DefDatabase<ThingDef>.GetNamedSilentFail("Plant_TreeOak");
-            var chunk = DefDatabase<ThingDef>.GetNamedSilentFail("ChunkGranite");
-            var rock = DefDatabase<ThingDef>.GetNamedSilentFail("Granite");
-            var blocks = DefDatabase<ThingDef>.GetNamedSilentFail("BlocksGranite");
-            if (tree == null || chunk == null || rock == null || blocks == null) return Refuse("Plant_TreeOak, ChunkGranite, Granite or BlocksGranite is not defined.");
-            var side = new IntVec3(d.z, 0, -d.x);
-            var staged = new List<Thing>();
-            var placed = new List<object>();
-            var cells = new List<IntVec3>();
-            for (var step = 2; step <= 9; step++)
-            {
-                var row = entry + d * step;
-                foreach (var offset in new[] { 0, -1, 1, -2, 2 })
-                {
-                    var cell = row + side * offset;
-                    if (!cell.InBounds(map) || cell.Fogged(map) || !cell.Standable(map) || cell.GetEdifice(map) != null || cell.GetPlant(map) != null || cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)) continue;
-                    if (!map.reachability.CanReachColony(cell)) continue;
-                    cells.Add(cell);
-                }
-            }
-            if (cells.Count < 5) return Refuse("Fewer than five open cells ahead of the entry for cover: " + cells.Count + ".");
-            var raider = TraverseParms.For(TraverseMode.NoPassClosedDoors, Danger.Deadly);
-            if (!map.reachability.CanReachMapEdge(entry, raider)) return Refuse("Entry does not reach the map edge before any cover is staged.");
-            Thing Stage(ThingDef def, ThingDef stuff, IntVec3 cell, string designation)
-            {
-                var thing = ThingMaker.MakeThing(def, stuff);
-                if (thing is Plant plant) plant.Growth = 1f;
-                GenSpawn.Spawn(thing, cell, map);
-                if (!thing.Spawned) return null;
-                thing.SetForbidden(false, false);
-                staged.Add(thing);
-                placed.Add(new { id = thing.GetUniqueLoadID(), def = def.defName, designation, x = cell.x, z = cell.z, fill = def.fillPercent, distance = cell.DistanceTo(entry) });
-                return thing;
-            }
-            for (var i = 0; i < 5; i++)
-            {
-                var def = i < 3 ? tree : chunk;
-                if (Stage(def, null, cells[i], i < 3 ? "CutPlant" : "Haul") == null) return Refuse("Staged " + def.defName + " did not spawn at " + cells[i] + ".");
-            }
-            // The impassable pair: a lone rock (no natural rock beside it, so
-            // the policy does not hold it as a rock face) and an unowned wall,
-            // each on an open cell with a passable neighbour, never beside
-            // each other, and only where the corridor stays open.
-            var solids = new[] { new { def = rock, stuff = (ThingDef)null, designation = "Mine" }, new { def = ThingDefOf.Wall, stuff = blocks, designation = "Deconstruct" } };
-            var solidCells = new List<IntVec3>();
-            foreach (var solid in solids)
-            {
-                Thing spawned = null;
-                var tried = 0;
-                foreach (var cell in cells.Skip(5))
-                {
-                    if (cell.GetEdifice(map) != null || !cell.Standable(map)) continue;
-                    var neighbours = GenAdj.CardinalDirections.Select(a => cell + a).ToList();
-                    if (neighbours.Any(n => !n.InBounds(map) || solidCells.Contains(n))) continue;
-                    if (solid.def == rock && neighbours.Any(n => n.GetEdifice(map)?.def.building?.isNaturalRock == true)) continue;
-                    if (!neighbours.Any(n => n.Standable(map))) continue;
-                    tried++;
-                    spawned = Stage(solid.def, solid.stuff, cell, solid.designation);
-                    if (spawned == null) continue;
-                    if (map.reachability.CanReachMapEdge(entry, raider)) { solidCells.Add(cell); break; }
-                    staged.Remove(spawned); placed.RemoveAt(placed.Count - 1); spawned.Destroy(); spawned = null;
-                }
-                if (spawned == null)
-                {
-                    foreach (var thing in staged) thing.Destroy();
-                    return Refuse("No open cell ahead of the entry takes a " + solid.def.defName + " without sealing the corridor (" + cells.Count + " candidates, " + tried + " tried).");
-                }
-            }
-            fixtureCover = staged; fixtureCoverWorld = Find.World;
-            // A hauled chunk needs somewhere to go: a small dumping
-            // stockpile inside the line (nine to fourteen cells back from
-            // Entry toward Home) unless the colony already has a store that
-            // takes chunks.
-            var dump = new List<object>();
-            if (!StoreUtility.TryFindBestBetterStoreCellFor(staged[3], null, map, StoragePriority.Unstored, Faction.OfPlayer, out _, false))
-            {
-                var zone = new Zone_Stockpile(StorageSettingsPreset.DumpingStockpile, map.zoneManager);
-                map.zoneManager.RegisterZone(zone);
-                for (var step = 9; step <= 14 && zone.Cells.Count < 6; step++)
-                    foreach (var offset in new[] { 0, -1, 1, -2, 2 })
-                    {
-                        var cell = entry - d * step + side * offset;
-                        if (zone.Cells.Count >= 6 || !cell.InBounds(map) || cell.Fogged(map) || !cell.Standable(map) || cell.GetEdifice(map) != null || cell.GetZone(map) != null || cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)) continue;
-                        zone.AddCell(cell); dump.Add(new { x = cell.x, z = cell.z });
-                    }
-                if (zone.Cells.Count == 0) return Refuse("No open cell inside the line for a dumping stockpile.");
-            }
-            return new { success = true, cover = placed, dump, tick = Find.TickManager.TicksGame };
-        }
-
-        private static object Damage(Map map, string wall)
-        {
-            var target = map.listerBuildings.allBuildingsColonist.FirstOrDefault(b => b.GetUniqueLoadID() == wall);
-            if (target == null) return Refuse("Wall id not found among player buildings.");
-            var before = target.HitPoints;
-            target.TakeDamage(new DamageInfo(DamageDefOf.Blunt, Math.Max(1, target.MaxHitPoints / 2)));
-            return new { success = !target.Destroyed && target.HitPoints < before, before, after = target.HitPoints, max = target.MaxHitPoints };
-        }
-
         // Breach stages the repair precondition so the layout planner's own
         // rebuild is what restores the trap corridor: the game's
         // auto-rebuild is switched off (the play setting and every trap's
@@ -621,16 +255,10 @@ namespace HomeBridge.BridgeTools
 
         // The scenario stages its own raid; a storyteller incident or quest
         // letter meanwhile pauses the game and cancels the layout plans. The
-        // comps are rebuilt from the storyteller def on every load, so a run
-        // resumed from a checkpoint save calls this op again.
-        // The quiet marker (QuietStoryteller) is re-applied rather than the
-        // comps merely cleared: it is what keeps the storyteller tick and the
-        // pawns' inspiration rolls off in this process after a reload.
-        private static object Quiet()
-        {
-            QuietStoryteller.ApplyDifficulty(Find.Storyteller);
-            return new { success = true, quiet = QuietStoryteller.IsQuiet(Find.Storyteller) };
-        }
+        // quiet marker (QuietStoryteller) is re-applied rather than the comps
+        // merely cleared: it is what keeps the storyteller tick and the pawns'
+        // inspiration rolls off in this process after a reload.
+        private static void Quiet() => QuietStoryteller.ApplyDifficulty(Find.Storyteller);
 
         // Power stages the turret tier's observed gates without placing
         // any turret: the research the turret and conduit definitions require
@@ -776,7 +404,7 @@ namespace HomeBridge.BridgeTools
             if (builder == null) return Refuse("No colonist can construct.");
             var construction = builder.skills.GetSkill(SkillDefOf.Construction);
             if (construction.Level < autocannon.constructionSkillPrerequisite) construction.Level = autocannon.constructionSkillPrerequisite;
-            return new { success = true, finished, raidPointsBefore = before, threatScale = difficulty.threatScale, threat = Threat(map),
+            return new { success = true, finished, raidPointsBefore = before, threatScale = difficulty.threatScale,
                 smithy = new { id = smithy.GetUniqueLoadID(), x = anchor.x, z = anchor.z, fuel = fuel?.Fuel ?? -1f },
                 builder = new { id = builder.GetUniqueLoadID(), construction = construction.Level }, tick = Find.TickManager.TicksGame };
         }
@@ -820,39 +448,6 @@ namespace HomeBridge.BridgeTools
             foreach (var p in project.prerequisites ?? new List<ResearchProjectDef>())
                 foreach (var q in Prerequisites(p)) yield return q;
             yield return project;
-        }
-
-        // Depower stages the upkeep precondition for the turret scenario: the
-        // game's auto-rebuild is off and the conduit on x,z vanishes, so any
-        // conduit standing there later was placed by the controller's own
-        // routine (the layout's missing conduit or a power-family route).
-        private static object Depower(Map map, IntVec3 cell)
-        {
-            Find.PlaySettings.autoRebuild = false;
-            var conduit = cell.InBounds(map) ? cell.GetThingList(map).OfType<Building>().FirstOrDefault(b => (b.def.defName == "PowerConduit" || b.def.defName == "HiddenConduit") && b.Faction == Faction.OfPlayer) : null;
-            if (conduit == null) return Refuse("No player conduit on the requested cell.");
-            conduit.Destroy(DestroyMode.Vanish);
-            if (!conduit.Destroyed) return Refuse("Conduit was not destroyed.");
-            map.powerNetManager.UpdatePowerNetsAndConnections_First();
-            return new { success = true, x = cell.x, z = cell.z, turrets = Turrets(map), autoRebuild = Find.PlaySettings.autoRebuild, tick = Find.TickManager.TicksGame };
-        }
-
-        // Empty stages the rearm precondition: the turret's barrel is
-        // consumed to nothing and the game's own auto-refuel is switched off
-        // for it, so the only way fuel returns is a forced refuel order, the
-        // controller's rearm.
-        private static object Empty(Map map, IntVec3 cell)
-        {
-            var turret = cell.InBounds(map) ? cell.GetThingList(map).OfType<Building_TurretGun>().FirstOrDefault(t => t.Faction == Faction.OfPlayer) : null;
-            if (turret == null) return Refuse("No player turret on the requested cell.");
-            var fuel = turret.TryGetComp<CompRefuelable>();
-            if (fuel == null) return Refuse("Turret has no refuelable barrel.");
-            var before = fuel.Fuel;
-            fuel.ConsumeFuel(fuel.Fuel);
-            fuel.allowAutoRefuel = false;
-            if (fuel.HasFuel) return Refuse("Barrel still has fuel after consumption.");
-            return new { success = true, id = turret.GetUniqueLoadID(), x = cell.x, z = cell.z, fuelBefore = before, fuel = fuel.Fuel, targetFuel = fuel.TargetFuelLevel,
-                autoRefuel = fuel.allowAutoRefuel, fuelDefs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).ToList(), tick = Find.TickManager.TicksGame };
         }
 
         // Turrets reads every player turret gun with the evidence the
@@ -933,32 +528,6 @@ namespace HomeBridge.BridgeTools
                 .Select(b => new { id = b.GetUniqueLoadID(), x = b.Position.x, z = b.Position.z, hp = b.HitPoints, max = b.MaxHitPoints }).ToList();
             var colonists = map.mapPawns.FreeColonistsSpawned
                 .Select(p => new { id = p.GetUniqueLoadID(), x = p.Position.x, z = p.Position.z, drafted = p.Drafted, dead = p.Dead, downed = p.Downed, primary = p.equipment?.Primary?.def.defName }).ToList();
-            // The fixture predator's fate: gone (despawned or destroyed),
-            // dead, downed, or still on the map with its current job and
-            // whether that job is a PredatorHunt on a colonist -- the
-            // census's huntingPredators predicate, the threat the service
-            // answers; a predator that broke off to eat wildlife is not one.
-            object predator = null;
-            if (CurrentPredator() != null)
-            {
-                var p = fixturePredator;
-                var prey = p.CurJobDef == JobDefOf.PredatorHunt ? p.CurJob?.GetTarget(Verse.AI.TargetIndex.A).Thing as Pawn : null;
-                var huntingColonist = prey != null && prey.Faction == Faction.OfPlayer && prey.RaceProps.Humanlike;
-                predator = new { id = p.GetUniqueLoadID(), spawned = p.Spawned && p.Map == map, dead = p.Dead, downed = p.Downed,
-                    job = p.CurJobDef?.defName, huntingColonist, x = p.Position.x, z = p.Position.z };
-            }
-            // The fixture hostile building's fate: destroyed, or still
-            // spawned with its hit points; plus every hostile-faction pawn on
-            // the map so a run can tell an insect that slipped past the
-            // spawner switch from the building itself.
-            object hostileBuilding = null;
-            if (CurrentHostile() != null)
-            {
-                var b = fixtureHostile;
-                hostileBuilding = new { id = b.GetUniqueLoadID(), def = b.def.defName, destroyed = b.Destroyed, spawned = b.Spawned && b.Map == map,
-                    hp = b.Destroyed ? 0 : b.HitPoints, max = b.MaxHitPoints, x = b.Position.x, z = b.Position.z,
-                    factionPawns = map.mapPawns.AllPawnsSpawned.Count(p => p.Faction != null && p.Faction == b.Faction) };
-            }
             // Trap ids let a later inspect tell a destroyed trap (its id is
             // gone) from its replacement (a new id on the same cell).
             var trapIds = traps.Select(t => t.GetUniqueLoadID()).OrderBy(id => id).ToList();
@@ -968,29 +537,8 @@ namespace HomeBridge.BridgeTools
             var generators = map.listerBuildings.allBuildingsColonist.Where(b => b.TryGetComp<CompPowerPlant>() != null).OrderBy(b => b.thingIDNumber)
                 .Select(b => new { id = b.GetUniqueLoadID(), def = b.def.defName, x = b.Position.x, z = b.Position.z, output = b.TryGetComp<CompPowerPlant>().PowerOutput,
                     fuel = b.TryGetComp<CompRefuelable>()?.Fuel ?? -1f }).ToList();
-            var breach = map.GetComponent<DefenseBreachFixture>()?.Report();
-            // The staged cover's fate: gone (destroyed, harvested,
-            // hauled away from its cell), or still there and whether the
-            // game holds a designation on it.
-            object cover = null;
-            if (CurrentCover() != null)
-                cover = fixtureCover.Select(t => new { id = t.GetUniqueLoadID(), def = t.def.defName, destroyed = t.Destroyed, spawned = t.Spawned && t.Map == map,
-                    x = t.Position.x, z = t.Position.z, designated = t.Spawned && t.Map == map && map.designationManager.AllDesignationsOn(t).Any(),
-                    designation = t.Spawned && t.Map == map ? map.designationManager.AllDesignationsOn(t).Select(g => g.def.defName).FirstOrDefault() : null }).ToList();
-            return new { success = true, traps = traps.Count, trapIds, trapCells = cells, sprung, colonistsOnTraps, colonists, hostiles, predator, hostileBuilding, walls,
-                ieds = Ieds(map), turrets = Turrets(map), conduits, generators, threat = Threat(map), breach, cover, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
-        }
-
-        // The wealth split and raid points the game itself computes,
-        // read the same way the typed colony facts read them, so a case can
-        // hold the projected threat section to the native figure on a paused
-        // map at one tick.
-        private static object Threat(Map map)
-        {
-            var wealth = map.wealthWatcher;
-            return new { wealthItems = wealth.WealthItems, wealthBuildings = wealth.WealthBuildings, wealthPawns = wealth.WealthPawns, wealthTotal = wealth.WealthTotal,
-                storytellerWealth = map.PlayerWealthForStoryteller, raidPoints = StorytellerUtility.DefaultThreatPointsNow(map),
-                adaptationFactor = Find.StoryWatcher.watcherAdaptation.TotalThreatPointsFactor, difficultyThreatScale = Find.Storyteller.difficulty.threatScale };
+            return new { success = true, traps = traps.Count, trapIds, trapCells = cells, sprung, colonistsOnTraps, colonists, hostiles, walls,
+                ieds = Ieds(map), turrets = Turrets(map), conduits, generators, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
         }
 
         // Building_TrapRearmable keeps its armed state private; a trap whose
@@ -1002,46 +550,5 @@ namespace HomeBridge.BridgeTools
         }
 
         private static object Refuse(string reason) => new { success = false, reason };
-    }
-
-    // Test-only breach stimulus: armed by the intrude op, it waits
-    // for a colonist to have stood drafted for Grace ticks and then moves
-    // one live hostile humanlike pawn (the highest id, so the hold plan's
-    // first target keeps walking the corridor) onto Target. The raider
-    // keeps its lord and its assault toil; nothing else is ordered.
-    public sealed class DefenseBreachFixture : MapComponent
-    {
-        public bool Armed { get; private set; }
-        public IntVec3 Target { get; private set; }
-        public int Grace { get; private set; }
-        public int FirstDraftTick { get; private set; }
-        public int MovedTick { get; private set; }
-        public string Moved { get; private set; }
-        public DefenseBreachFixture(Map map) : base(map) { }
-        public void Arm(IntVec3 target, int grace)
-        {
-            Armed = true; Target = target; Grace = grace; FirstDraftTick = 0; MovedTick = 0; Moved = null;
-        }
-        public object Report() => new { armed = Armed, targetX = Target.x, targetZ = Target.z, grace = Grace, firstDraftTick = FirstDraftTick, moved = Moved, movedTick = MovedTick };
-        public override void MapComponentTick()
-        {
-            if (!Armed) return;
-            var now = Find.TickManager.TicksGame;
-            if (FirstDraftTick == 0)
-            {
-                if (map.mapPawns.FreeColonistsSpawned.Any(p => p.Drafted)) FirstDraftTick = now;
-                return;
-            }
-            if (now - FirstDraftTick < Grace) return;
-            var raider = map.mapPawns.AllPawnsSpawned.Where(p => p.HostileTo(Faction.OfPlayer) && p.RaceProps.Humanlike && !p.Dead && !p.Downed)
-                .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).LastOrDefault();
-            if (raider == null) { Armed = false; return; }
-            var cell = Target.Standable(map) ? Target : GenRadial.RadialCellsAround(Target, 4.9f, true).FirstOrDefault(c => c.InBounds(map) && c.Standable(map));
-            if (!cell.IsValid) { Armed = false; return; }
-            raider.jobs?.StopAll();
-            raider.Position = cell;
-            raider.Notify_Teleported(true, true);
-            Moved = raider.GetUniqueLoadID(); MovedTick = now; Armed = false;
-        }
     }
 }

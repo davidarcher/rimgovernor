@@ -1,130 +1,105 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>defense/threat</c> (Go <c>threat.go</c>): holds the typed colony facts' threat section to the game's own figures: on
-/// the paused baseline the projected raid points and wealth split equal what the defense fixture reads from WealthWatcher
-/// and StorytellerUtility.DefaultThreatPointsNow at the same tick, and after the fixture stocks wood and food and
-/// recounts, the section reports the larger wealth and again the native raid points. The quiet storyteller sets difficulty
-/// threatScale to 0, so raid points sit on the game's 35-point floor throughout: the case proves the projection, not the
-/// wealth curve. Read-only: no orders, no clock.
+/// <c>defense/threat</c> (#395): the typed colony facts' threat section follows the game's own wealth count. On the paused
+/// lab the section reports every figure and raid points on the game's 35-point floor (the quiet storyteller's
+/// threatScale is 0); then wood and pemmican worth well over 1000 silver are staged, the clock runs past WealthWatcher's
+/// recount interval, and the section reports the larger item and total wealth and raid points that did not fall.
 /// </summary>
 internal static class DefenseThreat
 {
-    /// <summary>Pairs the fixture's camelCase keys with the section's.</summary>
-    private static readonly string[] s_threatFields =
-    [
-        "raidPoints", "wealthItems", "wealthBuildings", "wealthPawns", "wealthTotal", "storytellerWealth", "adaptationFactor", "difficultyThreatScale",
-    ];
+    /// <summary>RimWorld's WealthWatcher recounts lazily once this many ticks have passed since its last count.</summary>
+    private const int RecountTicks = 5000;
 
-    internal static AcceptanceCase Case() => new()
+    /// <summary>The game's raid-point floor.</summary>
+    private const double RaidPointFloor = 35;
+
+    /// <summary>What the staged supplies add to the item wealth at least: 1200 wood and 300 pemmican are worth well over it.</summary>
+    private const double StockedWealth = 1000;
+
+    private static readonly Fx.StageSpec Stock = new()
+    {
+        Paused = true,
+        Site = new Fx.StageSite
+        {
+            Width = 6,
+            Height = 6,
+            OffsetX = -15,
+            OffsetZ = 10,
+            Radius = 10,
+            Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unfogged],
+        },
+        Things =
+        [
+            new Fx.StageThing { Name = "wood", Def = "WoodLog", Count = 1200, Cell = new(0, 0), Near = true, Forbidden = true },
+            new Fx.StageThing { Name = "pemmican", Def = "Pemmican", Count = 300, Cell = new(5, 5), Near = true, Forbidden = true },
+        ],
+    };
+
+    internal static TypedCase Case() => new()
     {
         Name = "defense/threat",
-        Scope = "The typed colony read's threat section (raid points, the wealth split and the storyteller wealth) equals the native "
-            + "WealthWatcher and DefaultThreatPointsNow figures on the paused " + Baselines.BaselineName + " save, and again after the "
-            + "fixture stocks the colony and recounts; read-only (#395).",
-        Start = new LabStart(),
-        RequiredOps = ["test/defense_setup"],
-        Quiet = QuietMode.Required,
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Scope = "The typed colony read's threat section (#395) reads the native WealthWatcher and DefaultThreatPointsNow figures: on the "
+            + "paused lab every figure is present and raid points sit on the 35-point floor, and after wood and pemmican worth over 1000 "
+            + "silver are staged and the clock passes WealthWatcher's recount interval, item and total wealth grow by at least that "
+            + "while raid points do not fall.",
+        Ticks = RecountTicks + 500,
+        Tier = CaseTier.OnDemand,
+        Ops = [FixtureStage.Tool],
+        QuietWorld = true,
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var report = s.Report;
-        var h = s.Harness;
-        var identity = s.Identity;
-        if (!Dyn.Contains(s.Names, "test/defense_setup"))
+        async Task<Observations.ThreatFacts> ReadAsync(string label)
         {
-            throw new AcceptanceException("missing test/defense_setup in discovery; rebuild the native mod with -Fixture DefenseFixture");
-        }
-
-        async Task<JsonObject> FixtureAsync(string label, string op)
-        {
-            var output = await h.CallAsync(label, "test/defense_setup", new JsonObject { ["op"] = op }, cancellationToken).ConfigureAwait(false);
-            if (output["success"].AsBool() != true)
+            var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+            var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+            var threat = facts.Threat?.Outcome?.Observed ?? throw new AcceptanceException($"{label}: threat section unavailable: {facts.Threat?.Outcome}");
+            if (threat.WealthItems is null || threat.WealthBuildings is null || threat.WealthPawns is null || threat.WealthTotal is null
+                || threat.StorytellerWealth is null || threat.RaidPoints is null || threat.AdaptationFactor is null || threat.DifficultyThreatScale is null)
             {
-                throw new AcceptanceException($"defense_setup {op} refused: {output.ToJson()}");
+                throw new AcceptanceException($"{label}: threat section lacks a figure: {threat}");
             }
 
-            return output["threat"].AsMap() ?? throw new AcceptanceException($"defense_setup {op} carries no threat block: {output.ToJson()}");
+            s.RecordWire(label, threat);
+            return threat;
         }
 
-        async Task<JsonObject> ProjectedAsync(string label)
+        var baseline = await ReadAsync("threat-baseline").ConfigureAwait(false);
+        if (baseline.RaidPoints < RaidPointFloor)
         {
-            var reply = await h.WireAsync(label, "observations_read_colony_facts", new JsonObject
-            {
-                ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-            }, cancellationToken).ConfigureAwait(false);
-            var observed = Harness.Outcome(reply, "observed").Value;
-            var section = observed["threat"].AsMap() ?? throw new AcceptanceException("colony facts carry no threat section");
-            JsonObject facts;
-            try
-            {
-                facts = Harness.Outcome(section, "observed").Value;
-            }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"threat section: {e.Message}", e);
-            }
-
-            foreach (var field in s_threatFields)
-            {
-                if (!facts.ContainsKey(field))
-                {
-                    throw new AcceptanceException($"threat section lacks {field}: {facts.ToJson()}");
-                }
-            }
-
-            return facts;
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"baseline raid points {baseline.RaidPoints} below the game's {RaidPointFloor}-point floor"));
         }
 
-        // Native floats reach the case through two different encoders (the fixture's JSON and ProtoJSON), so
-        // equality is to float32 precision.
-        static void Equal(string stage, JsonObject native, JsonObject facts)
+        _ = await s.StageAsync("stock", Stock, cancellationToken).ConfigureAwait(false);
+        await s.RunTicksAsync("recount", RecountTicks + 1, cancellationToken).ConfigureAwait(false);
+        var stocked = await ReadAsync("threat-stocked").ConfigureAwait(false);
+        var problems = new List<string>();
+        if (stocked.WealthItems < baseline.WealthItems + StockedWealth)
         {
-            foreach (var field in s_threatFields)
-            {
-                double want = native[field].AsNumber();
-                double got = facts[field].AsNumber();
-                if (Math.Abs(want - got) > 1e-3 * Math.Max(1, Math.Abs(want)))
-                {
-                    throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{stage}: {field} projected {got}, native {want}"));
-                }
-            }
+            problems.Add(string.Create(CultureInfo.InvariantCulture, $"item wealth {baseline.WealthItems} before, {stocked.WealthItems} after the stock"));
         }
 
-        var baselineNative = await FixtureAsync("inspect-baseline", "inspect").ConfigureAwait(false);
-        var baseline = await ProjectedAsync("colony-facts-baseline").ConfigureAwait(false);
-        report["baseline"] = new JsonObject { ["native"] = baselineNative.DeepClone(), ["projected"] = baseline.DeepClone() };
-        Equal("baseline", baselineNative, baseline);
-        if (baseline["raidPoints"].AsNumber() < 35)
+        if (stocked.WealthTotal < baseline.WealthTotal + StockedWealth)
         {
-            throw new AcceptanceException($"baseline raid points {baseline["raidPoints"].ToJson()} below the game's 35-point floor");
+            problems.Add(string.Create(CultureInfo.InvariantCulture, $"total wealth {baseline.WealthTotal} before, {stocked.WealthTotal} after the stock"));
         }
 
-        _ = await h.CallAsync("stock", "test/defense_setup", new JsonObject { ["op"] = "stock" }, cancellationToken).ConfigureAwait(false);
-        var stockedNative = await FixtureAsync("wealth-stocked", "wealth").ConfigureAwait(false);
-        var stocked = await ProjectedAsync("colony-facts-stocked").ConfigureAwait(false);
-        report["stocked"] = new JsonObject { ["native"] = stockedNative.DeepClone(), ["projected"] = stocked.DeepClone() };
-        Equal("stocked", stockedNative, stocked);
-        // 1200 wood and 300 pemmican are worth well over 1000 silver; the recount must show them under items and
-        // total alike.
-        foreach (var field in new[] { "wealthItems", "wealthTotal" })
+        if (stocked.RaidPoints < baseline.RaidPoints)
         {
-            if (stocked[field].AsNumber() < baseline[field].AsNumber() + 1000)
-            {
-                throw new AcceptanceException($"{field} did not grow with the stocked supplies: {baseline[field].ToJson()} before, {stocked[field].ToJson()} after");
-            }
+            problems.Add(string.Create(CultureInfo.InvariantCulture, $"raid points fell as wealth grew: {baseline.RaidPoints} before, {stocked.RaidPoints} after"));
         }
 
-        if (stocked["raidPoints"].AsNumber() < baseline["raidPoints"].AsNumber())
+        if (problems.Count > 0)
         {
-            throw new AcceptanceException($"raid points fell as wealth grew: {baseline["raidPoints"].ToJson()} before, {stocked["raidPoints"].ToJson()} after");
+            throw new AcceptanceException(string.Join("; ", problems));
         }
     }
 }

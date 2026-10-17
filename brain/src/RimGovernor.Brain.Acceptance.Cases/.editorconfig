@@ -195,15 +195,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Defense/Perimeter.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Defense/SiegeMortar.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Defense/SiteStuff.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Defense/Threat.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Defense/Upgrade.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 

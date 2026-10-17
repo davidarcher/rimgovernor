@@ -11,6 +11,5 @@ public static class DefenseCases
         registry.Register(DefenseSiteStuff.Case());
         registry.Register(DefenseThreat.Case());
         registry.Register(DefenseUpgrade.Case());
-        registry.Register(DefenseSiegeMortar.Case());
     }
 }
