@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
@@ -40,6 +41,44 @@ internal static class MoodProbe
 
             var raw = social["situational"].AsSlice().Select(r => r.AsMap()).FirstOrDefault(r => r?["defName"].AsString() == thought);
             return (thoughts.FirstOrDefault(t => t.Def == thought)?.Offset ?? 0, raw, advanced, state);
+        }
+    }
+
+    /// <summary>
+    /// The typed form: runs <see cref="Settle"/> ticks at a time until the pawn's situational cache is clean, then returns
+    /// the thought's total offset (0 when absent), the raw situational row, the ticks run and the pawn read.
+    /// </summary>
+    internal static async Task<(double Offset, Thought? Row, int Ticks, PawnState Pawn)> ReadAsync(ITypedSession s, string label, string pawn, string thought, CancellationToken cancellationToken)
+    {
+        var details = new PawnDetails
+        {
+            Needs = true, Health = true, Equipment = true, Biography = true, Settings = true, Social = true, Animals = true, Work = true, Schedule = true,
+        };
+        for (var advanced = 0; ; )
+        {
+            await s.RunTicksAsync($"settle-{label}", Settle, cancellationToken).ConfigureAwait(false);
+            advanced += Settle;
+            var read = $"read-{label}-{CaseSupport.Tag(advanced)}";
+            var reply = await s.CallAsync(read, NativeOps.ListPawns, new ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [pawn] }, Details = details }, cancellationToken).ConfigureAwait(false);
+            var observed = TypedReads.Observed(read, NativeOps.ListPawns, reply, reply.Outcome?.Observed);
+            var state = observed.Pawns.SingleOrDefault(p => p.Pawn.Id == pawn) ?? throw new AcceptanceException($"{read}: pawn {pawn} missing from the pawn read");
+            var social = state.Social ?? throw new AcceptanceException($"{read}: the pawn read carried no social detail");
+            if (social.SituationalCacheStale)
+            {
+                if (advanced >= SettleMax)
+                {
+                    throw new AcceptanceException($"{label}: the situational thought cache is still stale after {advanced} ticks");
+                }
+
+                continue;
+            }
+
+            if (!ObservationPackage.MoodThoughts(state).TryGetValue(out var thoughts))
+            {
+                throw new AcceptanceException($"{label}: the pawn's mood thoughts are unknown");
+            }
+
+            return (thoughts.FirstOrDefault(t => t.Def == thought)?.Offset ?? 0, social.Situational.FirstOrDefault(r => r.DefName == thought), advanced, state);
         }
     }
 

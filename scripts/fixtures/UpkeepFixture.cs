@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -55,7 +56,7 @@ namespace HomeBridge.BridgeTools
                 var map = Find.CurrentMap;
                 var p = (cell ?? "").Split(',');
                 if (map == null || p.Length != 2 || !int.TryParse(p[0], out var x) || !int.TryParse(p[1], out var z) || !new IntVec3(x + 8, 0, z).InBounds(map) || !new IntVec3(x, 0, z).InBounds(map))
-                    return new { success = false, error = "Expected one in-bounds x,z cell with eight cells free to its east on the current map" };
+                    throw new ArgumentException("Expected one in-bounds x,z cell with eight cells free to its east on the current map");
                 IntVec3 At(int i) => new IntVec3(x + i, 0, z);
                 var steel = ThingMaker.MakeThing(ThingDefOf.Steel); steel.stackCount = 25;
                 GenSpawn.Spawn(steel, At(0), map);
@@ -86,8 +87,8 @@ namespace HomeBridge.BridgeTools
                 var watch = System.Diagnostics.Stopwatch.StartNew();
                 CellGridReader.Read(map);
                 var readMs = watch.Elapsed.TotalMilliseconds;
-                return new { success = true, grid = Convert.ToBase64String(RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(row)),
-                    frameId = frame.thingIDNumber, wallId = wall.thingIDNumber, steelId = steel.thingIDNumber, readMs };
+                return FixtureKit.Reply(new Fx.GridThingsRead { Grid = Convert.ToBase64String(RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(row)),
+                    FrameId = frame.thingIDNumber, ReadMs = readMs });
             }, cancellationToken);
 
         [Tool("test/deconstruct_target", Description = "Inspect or mutate one staged deconstruction target. Test builds only.")]
@@ -119,7 +120,7 @@ namespace HomeBridge.BridgeTools
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 var pawn = map?.mapPawns.FreeColonistsSpawned.FirstOrDefault();
-                if (pawn == null) return new { success = false, error = "No spawned colonist" };
+                if (pawn == null) throw new InvalidOperationException("No spawned colonist");
                 var free = GenRadial.RadialCellsAround(pawn.Position, 20, true).Where(c => c.InBounds(map) && c.Standable(map)
                     && c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)).ToList();
                 IntVec3 Cell(int minDistance) => free.First(c => (c - pawn.Position).LengthManhattan >= minDistance);
@@ -153,15 +154,13 @@ namespace HomeBridge.BridgeTools
                 var previous = SpoilagePreference.Active;
                 try {
                     SpoilagePreference.Active = () => false;
-                    var off = new { bill = Bill(), meal = Meal() };
+                    var off = new Fx.SpoilagePicks { Bill = Bill(), Meal = Meal() };
                     SpoilagePreference.Active = () => true;
-                    var on = new { bill = Bill(), meal = Meal() };
+                    var on = new Fx.SpoilagePicks { Bill = Bill(), Meal = Meal() };
                     oldMeat.SetForbidden(true, false); oldMeal.SetForbidden(true, false);
-                    var forbidden = new { bill = Bill(), meal = Meal() };
-                    return new { success = true, freshMeat = freshMeat.GetUniqueLoadID(), oldMeat = oldMeat.GetUniqueLoadID(),
-                        freshMeal = freshMeal.GetUniqueLoadID(), oldMeal = oldMeal.GetUniqueLoadID(), off, on, forbidden,
-                        oldMeatTicks = SpoilagePreference.TicksUntilRot(oldMeat), freshMeatTicks = SpoilagePreference.TicksUntilRot(freshMeat),
-                        oldMealTicks = SpoilagePreference.TicksUntilRot(oldMeal), freshMealTicks = SpoilagePreference.TicksUntilRot(freshMeal) };
+                    var forbidden = new Fx.SpoilagePicks { Bill = Bill(), Meal = Meal() };
+                    return FixtureKit.Reply(new Fx.SpoilagePickRead { FreshMeat = freshMeat.GetUniqueLoadID(), OldMeat = oldMeat.GetUniqueLoadID(),
+                        FreshMeal = freshMeal.GetUniqueLoadID(), OldMeal = oldMeal.GetUniqueLoadID(), Off = off, On = on, Forbidden = forbidden });
                 } finally { SpoilagePreference.Active = previous; }
             }, cancellationToken);
     }

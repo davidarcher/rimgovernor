@@ -99,7 +99,7 @@ Kept, each with its reason:
 - `AcquisitionFacts.food` on plant rows (every eater `WillEat` the harvest), `yield` (`YieldNow`), `growth`, `plantation`, `meat_amount` (the live animal's `MeatAmount` stat, scaled by wounds and malnutrition), `herd_size`, `fogged`, `in_mental_state`, `sleeping`, `downed`, `designated`, `designated_tick`, `taken`: per-instance live state or a game worker's computed output.
 - `HunterFacts` priorities, `has_hunting_weapon`, `ranged_blocking_shield` and `HuntRoute` safety: pawn state and the pathing verdicts of `WorkGiver_HunterHunt` and `HuntingSafety.RouteSafe`.
 - `NativeResourceSourcesTool` census rows (reachable, buried, distance, designated, safety, taken, `Storage` capacity, candidate cells): a live map census built from pathing and reservations. The only def copies it carried (method, stack limit) are gone.
-- `LampState.lit`, `GrowLight.lit_now`/`powered`/`growth_cells`, `PlantGrower.can_sow`/`crop_def_name`, `WorkLightCell.glow`/`roofed`/`plant_defs`: live room and power state.
+- `LampState.lit`, `GrowLight.lit_now`/`growth_cells`, `PlantGrower.can_sow`/`crop_def_name`, `WorkLightCell.glow`/`roofed`/`plant_defs`: live room and power state.
 - `NativeReadingPolicy.IsBook`: the apply-boundary check that an intent names real book defs, run against the game def database at apply time.
 
 

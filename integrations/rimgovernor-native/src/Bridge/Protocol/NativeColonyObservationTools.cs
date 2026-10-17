@@ -410,7 +410,7 @@ namespace HomeBridge.BridgeTools
                 var room = building.GetRoom();
                 if (IsSunLamp(building)) { var lamp = building;
                     var row = new Obs.GrowLight { Building = NativeBuildingObservationTools.Ref(lamp) };
-                    if (power != null) { row = row with { Powered = power.PowerOn }; var id = NetId(power); if (id != null) row = row with { PowerNetId = id }; }
+                    if (power != null) { var id = NetId(power); if (id != null) row = row with { PowerNetId = id }; }
                     else row = row with { Issues = [.. row.Issues, Issue("powered", Common.UnavailableReason.NotApplicable, "Lamp has no power trader.")] };
                     var schedule = lamp.TryGetComp<CompSchedule>();
                     row = row with { LitNow = (power == null || power.PowerOn) && (schedule == null || schedule.Allowed) };
@@ -422,7 +422,6 @@ namespace HomeBridge.BridgeTools
                         CanSow = grower.CanAcceptSowNow() };
                     var crop = grower.GetPlantDefToGrow();
                     if (crop != null) row = row with { CropDefName = crop.defName };
-                    if (power != null) row = row with { Powered = power.PowerOn };
                     if (room != null) { row = row with { Room = NativeRef.Room(room) }; Note(room); }
                     result = result with { Growers = [.. result.Growers, row] };
                 }
@@ -466,7 +465,6 @@ namespace HomeBridge.BridgeTools
                 };
             foreach (var patient in source.patients) {
                 var row = new Obs.PatientForecast { PawnId = patient.id };
-                if (patient.mood.HasValue) row = row with { Mood = Finite(patient.mood.Value) };
                 if (patient.moodTarget.HasValue) row = row with { MoodTarget = Finite(patient.moodTarget.Value) };
                 result = result with { Patients = [.. result.Patients, row] };
             }

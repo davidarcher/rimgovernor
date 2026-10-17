@@ -24,10 +24,7 @@ public static class LabCases
             registry.Register(c);
         }
 
-        foreach (var c in LabCaptureProfile.Cases())
-        {
-            registry.Register(c);
-        }
+        registry.Register(LabCaptureProfile.Case());
 
         registry.Register(LabFoodStorageRoutes.Case());
         registry.Register(LabSparring.Case());

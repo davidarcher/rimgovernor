@@ -17,4 +17,4 @@ bounded section list.
 
 It does not prove that `SnapshotStream` opens a scope around the real
 capture or that the slow-capture line reaches the log: that is native
-acceptance (`lab/capture-profile` reads the same spans).
+acceptance (`lab/capture-profile-250` reads the same spans).

@@ -1,285 +1,135 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Policy;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>light/dark</c> (Go <c>light/light.go</c>): the rooms/lighting Need vertical on the lab contract. An enclosed roofed
-/// room on the blank lab holds a fuelled stove whose interaction cell native measures dark, with no lamp in reach. The
-/// service must latch the bench from the measured glow, admit exactly one affordable lamp (a TorchLamp: the colony has no
-/// power source) on a free cell of the room within the placement radius, the colonists build it, and the next measured
-/// census must release the latch. An independent native read then confirms the cell reads lit and the lamp stands where
-/// it was admitted.
+/// <c>light/dark</c> (Go <c>light/light.go</c>): the rooms/lighting Need vertical on the lab. An enclosed roofed room
+/// staged on the blank lab holds a fuelled stove whose interaction cell native measures dark, with no lamp in reach and
+/// wood outside. Under the served brain the colonists build one lamp, and the measured glow at the cell reads lit; an
+/// independent native read after the service lets go confirms exactly one lit TorchLamp (the colony has no power source)
+/// on a free interior cell within the placement radius.
 /// </summary>
-/// <remarks>
-/// Parity notes against the Go case: the latch is observed as the concern's row in <c>/api/routines</c> and its release
-/// as the measured glow itself (the player API exposes no latch sets), and the count of methods the goal ever committed
-/// (<c>lighting_methods</c>) is not reported (the API has no goal method history). Uses the private disposable
-/// <c>test/lighting_prepare</c> fixture (LightingFixture.cs).
-/// </remarks>
 internal static class LightDark
 {
-    private const string Prefix = "light-accept";
+    // The 10x9 clearing: the room at (0..7, 2..6) with its door at (0, 3) and interior (1..6, 3..5); the FueledStove
+    // (3x1, north-facing) centred on (4, 5) against the north wall with its interaction cell at (4, 4); wood on row 0.
+    private static readonly Fx.StageCell WorkCell = new(4, 4);
+    private static readonly Fx.StageRect Interior = new(1, 3, 6, 3);
 
-    internal static AcceptanceCase Case() => new()
+    private static readonly Fx.StageSpec Spec = new()
+    {
+        Paused = true,
+        Site = new Fx.StageSite
+        {
+            Width = 10,
+            Height = 9,
+            Radius = 30,
+            Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unzoned, Fx.StageGround.Unroofed, Fx.StageGround.Unfogged],
+        },
+        Cells = [new Fx.StageCells { Rect = new(0, 0, 10, 9), Terrain = "Concrete", Home = true }],
+        Rooms = [new Fx.StageRoom { Name = "work", Rect = new(0, 2, 8, 5), Stuff = "WoodLog", Doors = [new(0, 3)], Roof = true }],
+        Buildings = [new Fx.StageBuilding { Name = "stove", Def = "FueledStove", Cells = [new(4, 5)], Fuel = 50 }],
+        Things = [new Fx.StageThing { Name = "wood", Def = "WoodLog", Count = 75, Cell = new(2, 0) }],
+        Pawns =
+        [
+            new Fx.StagePawn { Name = "a", Colonist = 0, Work = new Dictionary<string, int> { ["Construction"] = 1 } },
+            new Fx.StagePawn { Name = "b", Colonist = 1, Work = new Dictionary<string, int> { ["Construction"] = 1 } },
+            new Fx.StagePawn { Name = "c", Colonist = 2, Work = new Dictionary<string, int> { ["Construction"] = 1 } },
+        ],
+    };
+
+    internal static TypedCase Case() => new()
     {
         Name = "light/dark",
-        Tier = CaseTier.Smoke,
-        Scope = "Native rooms/lighting Need vertical on the lab: a measured-dark stove interaction cell in an enclosed room "
-            + "drives the live Go rounder/planner to admit one affordable lamp beside it; "
-            + "the measured glow, not the receipt, releases the latch, confirmed by an independent native read.",
-        Start = new FixtureStart { Op = "test/lighting_prepare", Args = new JsonObject { ["scenario"] = "dark" }, On = new LabStart() },
-        Service = true,
+        Scope = "Native rooms/lighting Need vertical on the lab: under the served brain a measured-dark stove interaction cell "
+            + "in an enclosed roofed room gets one affordable lamp built beside it until the measured glow reads lit, and an "
+            + "independent native read finds exactly one lit TorchLamp on a free interior cell within the placement radius. "
+            + "A unit test cannot measure the native glow grid or see the build.",
 
-        // ~2x the measured healthy run: the lamp is admitted in under a minute.
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        // The lamp is admitted and built within a few thousand ticks on a healthy run.
+        Ticks = 20000,
+        Tier = CaseTier.Smoke,
+        Stage = Spec,
+
+        // "work" rides along because every building method's builder check requires the colony's work priorities to match
+        // the controller's own assignment, which only the work family applies.
+        Serve = new ServeSpec { Prefix = "light-accept", Families = ["lighting", "work"] },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        RoutineService? run = null;
-        try
-        {
-            run = await BodyAsync(s, value => run = value, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            // Failure evidence: the same independent lighting read a pass ends with, taken once the service has let go
-            // of the game.
-            if (!s.Report.Has("lighting_after"))
-            {
-                await RoutineService.PostmortemAsync(
-                    s,
-                    run,
-                    async (ph, ct) =>
-                    {
-                        try
-                        {
-                            s.Report["lighting_postmortem"] = (await ReadAsync(ph, s.Identity, "lighting-postmortem", ct).ConfigureAwait(false)).Evidence();
-                        }
-                        catch (AcceptanceException e)
-                        {
-                            s.Report["lighting_postmortem_error"] = e.Message;
-                        }
-                    }).ConfigureAwait(false);
-            }
-        }
-    }
-
-    private static async Task<RoutineService?> BodyAsync(ISession s, Action<RoutineService> started, CancellationToken cancellationToken)
-    {
-        var report = s.Report;
-        var h = s.Harness;
-        var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        var stoveId = prepared["stove"].AsString();
-        var interior = prepared["interior"].AsMap() ?? [];
-        var workCellMap = prepared["workCell"].AsMap() ?? [];
-        var workCell = ((int)workCellMap["x"].AsNumber(), (int)workCellMap["z"].AsNumber());
-        bool Inside((int X, int Z) c) =>
-            c.X >= interior["minX"].AsNumber() && c.X <= interior["maxX"].AsNumber()
-            && c.Z >= interior["minZ"].AsNumber() && c.Z <= interior["maxZ"].AsNumber();
-
-        // Before: the typed lighting census must list the stove's interaction cell roofed and dark -- the exact facts the
-        // review latches on -- and no lamp.
+        var staged = s.Staged!;
+        var site = staged.Site ?? throw new AcceptanceException("light/dark: the stage found no site");
+        var stoveId = staged.Buildings["stove"].Ids.Single();
+        var cell = (X: site.X + WorkCell.X, Z: site.Z + WorkCell.Z);
         var lighting = LightingPolicy.Default();
-        var before = await ReadAsync(h, identity, "lighting-before", cancellationToken).ConfigureAwait(false);
-        report["lighting_before"] = before.Evidence();
-        if (!before.Cells.TryGetValue(stoveId, out var stove) || !stove.Roofed || stove.Glow >= lighting.LitGlow || stove.Cell != workCell)
+
+        // Before: the stove's work cell roofed and dark (the facts the review latches on), no cave plant, and no lamp.
+        var before = await ReadAsync(s, "lighting-before", cancellationToken).ConfigureAwait(false);
+        s.RecordWire("lighting_before", before);
+        var bench = Bench(before, stoveId);
+        if (bench.Roofed != true || !(bench.Glow < lighting.LitGlow) || bench.Cell is not { } at || at.X != cell.X || at.Z != cell.Z || bench.PlantDefs.Count != 0)
         {
-            throw new AcceptanceException($"lighting-before: fixture stove is not a roofed dark work cell: {stove}");
+            throw new AcceptanceException($"lighting-before: the staged stove is not a roofed dark work cell at {cell}: {bench}");
         }
 
         if (before.Lamps.Count != 0)
         {
-            throw new AcceptanceException($"lighting-before: {before.Lamps.Count} lamps present before the controller acts");
+            throw new AcceptanceException($"lighting-before: {before.Lamps.Count} lamps present before the brain acts");
         }
 
-        if (stove.LightSensitive)
+        _ = await s.ServeUntilAsync("light-dark", s.TicksLeft, async ct =>
         {
-            throw new AcceptanceException($"lighting-before: work cell marked light-sensitive without a cave plant: {stove}");
+            var now = await ReadAsync(s, "lighting-release", ct).ConfigureAwait(false);
+            var glow = Bench(now, stoveId).Glow ?? 0;
+            return (Wait.Signature(glow, now.Lamps.Count), glow >= lighting.LitGlow);
+        }, cancellationToken).ConfigureAwait(false);
+
+        // The independent read once the service has let go: exactly the one lamp, lit, standing where a lamp may go.
+        var after = await ReadAsync(s, "lighting-after", cancellationToken).ConfigureAwait(false);
+        s.RecordWire("lighting_after", after);
+        var glow = Bench(after, stoveId).Glow ?? 0;
+        if (glow < lighting.LitGlow)
+        {
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"lighting-after: stove cell glow {glow:F2} is under {lighting.LitGlow:F2}"));
         }
 
-        // "work" rides along because every building method's builder check requires the colony's work priorities to
-        // match the controller's own assignment, which only the work family applies.
-        var run = await RoutineService.StartAsync(s, Prefix, ["lighting", "work"], cancellationToken).ConfigureAwait(false);
-        started(run);
-        var concern = RoomsFamily.Lighting.Value;
-
-        // The review must bind the rooms/lighting Need.
-        _ = await run.WaitBoundAsync(concern, TimeSpan.FromMinutes(3), cancellationToken).ConfigureAwait(false);
-
-        // One lighting method from commitment through the build to the measured census releasing the latch: one lamp
-        // build on a free interior cell within the placement radius of the interaction cell, never on it, renewed across
-        // incidental cancellations.
-        var method = await RoutineService.BoundedAsync(ct => run.Service.WaitMethodAsync(concern, null, ct), TimeSpan.FromMinutes(8), "lighting method", cancellationToken).ConfigureAwait(false);
-
-        report["concern_id"] = method.Concern;
-        (int X, int Z) builtCell;
-        string builtDefinition;
-        for (var renewals = 0; ; renewals++)
+        if (after.Lamps.ToList() is not [{ Lit: true, Building.Id: { } lampId }])
         {
-            var plan = await run.LoadPlanAsync(method.Plan, cancellationToken).ConfigureAwait(false);
-            var actions = plan["actions"].AsSlice();
-            if (actions.Count != 1)
-            {
-                throw new AcceptanceException($"lighting plan {method.Plan} has {actions.Count} actions, expected 1");
-            }
-
-            var b = RoutineService.Building(actions[0])
-                ?? throw new AcceptanceException($"lighting plan action is not a building: {actions[0].ToJson()}");
-            builtCell = ((int)b["x"].AsNumber(), (int)b["z"].AsNumber());
-            builtDefinition = b["defName"].AsString();
-            if (builtDefinition != "TorchLamp")
-            {
-                throw new AcceptanceException($"lighting admitted {builtDefinition}; a colony without a power source must choose the TorchLamp");
-            }
-
-            if (builtCell == workCell || !Inside(builtCell) || Math.Max(Math.Abs(builtCell.X - workCell.Item1), Math.Abs(builtCell.Z - workCell.Item2)) > lighting.PlacementRadius)
-            {
-                throw new AcceptanceException($"lamp placed at {builtCell}: not a free interior cell within {lighting.PlacementRadius} of the work cell {workCell}");
-            }
-
-            report["lamp_cell"] = new JsonObject { ["x"] = builtCell.X, ["z"] = builtCell.Z, ["definition"] = builtDefinition };
-            var planId = method.Plan;
-            var (state, incidental) = await RoutineService.BoundedAsync(ct => run.Service.WaitPlanTerminalAsync(planId, ct), TimeSpan.FromMinutes(10), "lighting plan", cancellationToken).ConfigureAwait(false);
-
-            if (!incidental)
-            {
-                report["lighting_plan"] = method.Plan;
-                report["lighting_completed_tick"] = RoutineService.CompletedTick(state);
-                report["incidental_renewals"] = renewals;
-                break;
-            }
-
-            method = await RoutineService.BoundedAsync(
-                ct => run.Service.WaitMethodAsync(concern, planId, ct),
-                TimeSpan.FromMinutes(5),
-                string.Create(CultureInfo.InvariantCulture, $"renewed lighting method after incidental cancellation #{renewals + 1}"),
-                cancellationToken).ConfigureAwait(false);
+            throw new AcceptanceException($"lighting-after: want exactly one lit lamp, got {string.Join("; ", after.Lamps)}");
         }
 
-        // The measured census releases the latch once the cell reads lit.
-        await run.WaitCensusAsync(
-            $"the lighting census never released the latch on {stoveId}",
-            TimeSpan.FromMinutes(5),
-            async ct =>
-            {
-                var now = await ReadAsync(h, identity, "lighting-release", ct).ConfigureAwait(false);
-                var glow = now.Cells.TryGetValue(stoveId, out var row) ? row.Glow : 0;
-                return (Wait.Signature(glow, now.Lamps.Count), glow >= lighting.LitGlow);
-            },
-            cancellationToken).ConfigureAwait(false);
-        await run.WaitRunningAsync("lighting", cancellationToken).ConfigureAwait(false);
-
-        // Independent native read after the service releases the game slot.
-        h = await run.ReleaseAsync(s, cancellationToken).ConfigureAwait(false);
-        var after = await ReadAsync(h, identity, "lighting-after", cancellationToken).ConfigureAwait(false);
-        report["lighting_after"] = after.Evidence();
-        try
+        var rows = await s.BuildingsAsync("lamp", new Observations.ListBuildingsRequest { Ids = [lampId] }, cancellationToken).ConfigureAwait(false);
+        if (rows is not [{ Building: { DefName: var def, Position: { X: { } x, Z: { } z } } }])
         {
-            CheckLit(after, stoveId, builtCell, builtDefinition, lighting.LitGlow);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException("lighting-after: " + e.Message, e);
+            throw new AcceptanceException($"lamp {lampId}: want one placed building, got {string.Join("; ", rows)}");
         }
 
-        return run;
-    }
-
-    // The independent read the case ends on: the stove cell lit and exactly the admitted lamp standing lit where it was placed.
-    private static void CheckLit(Summary after, string stoveId, (int X, int Z) cell, string definition, double litGlow)
-    {
-        var glow = after.Cells.TryGetValue(stoveId, out var stove) ? stove.Glow : 0;
-        if (stove is null || glow < litGlow)
+        s.Record("lamp", ServedOps.Args(("def", def), ("x", x), ("z", z)));
+        if (def != "TorchLamp")
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"stove cell glow {glow:F2} is still under {litGlow:F2}"));
+            throw new AcceptanceException($"lamp {lampId} is a {def}; a colony without a power source must build the TorchLamp");
         }
 
-        if (after.Lamps.Count != 1)
+        var inside = x >= site.X + Interior.X && x < site.X + Interior.X + Interior.Width && z >= site.Z + Interior.Z && z < site.Z + Interior.Z + Interior.Height;
+        if ((x, z) == cell || !inside || Math.Max(Math.Abs(x - cell.X), Math.Abs(z - cell.Z)) > lighting.PlacementRadius)
         {
-            throw new AcceptanceException($"expected exactly 1 lamp, observed {after.Lamps.Count}: {after.Evidence()["lamps"].ToJson()}");
-        }
-
-        foreach (var lamp in after.Lamps.Values)
-        {
-            if (lamp.Cell != cell || lamp.Definition != definition || !lamp.Lit)
-            {
-                throw new AcceptanceException($"the surviving lamp {lamp} is not the lit {definition} admitted at {cell}");
-            }
+            throw new AcceptanceException($"lamp at ({x}, {z}): not a free interior cell within {lighting.PlacementRadius} of the work cell {cell}");
         }
     }
 
-    private sealed record WorkCellRow((int X, int Z) Cell, double Glow, bool Roofed, bool LightSensitive);
+    private static Observations.WorkLightCell Bench(Observations.LightingFacts facts, string stoveId) =>
+        facts.WorkCells.FirstOrDefault(c => c.Bench?.Id == stoveId) ?? throw new AcceptanceException($"the lighting census lists no work cell for the stove {stoveId}");
 
-    private sealed record LampRow(string Definition, (int X, int Z) Cell, double Radius, bool Lit, bool Powered);
-
-    private sealed class Summary
+    private static async Task<Observations.LightingFacts> ReadAsync(ITypedSession s, string label, CancellationToken cancellationToken)
     {
-        public Dictionary<string, WorkCellRow> Cells { get; } = [];
-
-        public Dictionary<string, LampRow> Lamps { get; } = [];
-
-        public JsonObject Evidence()
-        {
-            var cells = new JsonObject();
-            foreach (var (id, c) in Cells)
-            {
-                cells[id] = new JsonObject { ["x"] = c.Cell.X, ["z"] = c.Cell.Z, ["glow"] = c.Glow, ["roofed"] = c.Roofed, ["light_sensitive"] = c.LightSensitive };
-            }
-
-            var lamps = new JsonObject();
-            foreach (var (id, l) in Lamps)
-            {
-                lamps[id] = new JsonObject { ["definition"] = l.Definition, ["x"] = l.Cell.X, ["z"] = l.Cell.Z, ["glow_radius"] = l.Radius, ["lit"] = l.Lit, ["powered"] = l.Powered };
-            }
-
-            return new JsonObject { ["work_cells"] = cells, ["lamps"] = lamps };
-        }
-    }
-
-    /// <summary>Decodes the typed upkeep lighting section: work cells keyed by bench id, lamps keyed by building id.</summary>
-    private static async Task<Summary> ReadAsync(Harness h, JsonObject identity, string label, CancellationToken cancellationToken)
-    {
-        var facts = await RoutineService.ReadUpkeepAsync(h, identity, label, "lighting", cancellationToken).ConfigureAwait(false);
-        var summary = new Summary();
-        foreach (var raw in facts["workCells"].AsSlice())
-        {
-            var row = raw.AsMap() ?? [];
-            var bench = row["bench"].AsMap() ?? [];
-            var cell = row["cell"].AsMap() ?? [];
-            summary.Cells[bench["id"].AsString()] = new WorkCellRow(
-                ((int)cell["x"].AsNumber(), (int)cell["z"].AsNumber()),
-                row["glow"].AsNumber(),
-                row["roofed"].AsBool() == true,
-                row["lightSensitive"].AsBool() == true);
-        }
-
-        var rows = await h.BuildingRowsAsync(label + "-buildings", identity, cancellationToken).ConfigureAwait(false);
-        foreach (var raw in facts["lamps"].AsSlice())
-        {
-            var row = raw.AsMap() ?? [];
-            var id = row["building"].AsMap()?["id"].AsString() ?? "";
-            if (!rows.TryGetValue(id, out var building))
-            {
-                throw new AcceptanceException($"{label}: lamp {id} is not in the building table");
-            }
-
-            var head = building["building"].AsMap() ?? [];
-            var position = head["position"].AsMap() ?? [];
-            var service = building["service"].AsMap() ?? [];
-            summary.Lamps[id] = new LampRow(
-                head["defName"].AsString(),
-                ((int)position["x"].AsNumber(), (int)position["z"].AsNumber()),
-                row["glowRadius"].AsNumber(),
-                row["lit"].AsBool() == true,
-                service["powerOn"].AsBool() == true);
-        }
-
-        return summary;
+        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+        return facts.Upkeep?.Outcome?.Observed?.Lighting?.Outcome?.Observed ?? throw new AcceptanceException($"{label}: the lighting facts are unavailable");
     }
 }

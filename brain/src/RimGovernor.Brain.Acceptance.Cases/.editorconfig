@@ -141,9 +141,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Dialog/DialogPause.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Environment/TemperatureProbe.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Explain/ExplainAudit.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -207,19 +204,7 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Ideology/IdeologyRitual.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Lab/CaptureProfile.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lab/FoodStorageRoutes.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lab/GridThings.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Lab/LabCases.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lab/SkillLearning.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Lab/Sparring.cs]
@@ -229,15 +214,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Lab/SparringWatch.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lab/SpoilagePick.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lab/Training.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lab/TrainingRange.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Layout/Fixture.cs]
@@ -289,9 +265,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Lifecycle/ScenarioStartParts.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Light/LightDark.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Medical/MedicalKit.cs]
@@ -424,9 +397,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Sustained/Stockpiles.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Temperature/BuildingTemperature.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Tools/ToolsBaselineGen.cs]

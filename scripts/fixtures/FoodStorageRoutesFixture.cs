@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +9,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools;
 
@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools;
 // runs for ten and for forty plants with a fresh leg cache. Nothing is ordered.
 public sealed partial class PawnControlFixture
 {
-    [Tool("test/food_storage_routes", Description = "UNSAFE FOR MODEL EXECUTION. Sow forty ripe rice plants beside a default stockpile grown through 25, 100 and 225 cells, and time the forecast's food read at each size.")]
+    [Tool("test/food_storage_routes", Description = "UNSAFE FOR MODEL EXECUTION. Sow forty ripe rice plants beside a default stockpile grown through 25, 100 and 225 cells, and run the forecast's food read at each size.")]
     public async Task<object> FoodStorageRoutes(IRimBridgeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
@@ -56,7 +56,7 @@ public sealed partial class PawnControlFixture
             map.zoneManager.RegisterZone(zone);
             if (!zone.settings.filter.Allows(riceDef.plant.harvestedThingDef)) throw new InvalidOperationException("The default stockpile refuses " + riceDef.plant.harvestedThingDef.defName + ".");
             var identity = Context().Identity!;
-            var rows = new List<object>();
+            var rows = new List<Fx.FoodRouteRow>();
             foreach (var side in new[] { 5, 10, 15 })
             {
                 foreach (var cell in new CellRect(origin.x, origin.z, side, side).Cells.Where(c => zone.ContainsCell(c) == false)) zone.AddCell(cell);
@@ -64,21 +64,12 @@ public sealed partial class PawnControlFixture
                 {
                     var ids = EquatableArray.From(rice.Take(plants).Select(p => p.GetUniqueLoadID()));
                     var legs = new NativePathLegs(map);
-                    var bytes = GC.GetAllocatedBytesForCurrentThread();
-                    var watch = Stopwatch.StartNew();
                     var read = NativeFoodActivity.Read(new(identity, ids), legs);
-                    var ms = Math.Round(watch.Elapsed.TotalMilliseconds, 2);
-                    rows.Add(new { cells = zone.Cells.Count, plants, ms, bytes = GC.GetAllocatedBytesForCurrentThread() - bytes,
-                        searches = legs.Searches, options = read.Options.Count, known = read.Known });
+                    rows.Add(new Fx.FoodRouteRow { Cells = zone.Cells.Count, Plants = plants, Searches = legs.Searches, Options = read.Options.Count, Known = read.Known });
                 }
             }
-            return new
-            {
-                success = true,
-                colonists = map.mapPawns.FreeColonistsSpawned.Count,
-                origin = new { x = origin.x, z = origin.z },
-                rows,
-                limitations = "One lab map; the stockpile is a square at the patch corner and the rice twenty cells east, so route lengths are short and alike. Each row's leg cache is fresh, as one capture's is.",
-            };
+            // One lab map; the stockpile is a square at the patch corner and the rice twenty cells east, so route lengths
+            // are short and alike. Each row's leg cache is fresh, as one capture's is.
+            return FixtureKit.Reply(new Fx.FoodStorageRoutesRead { Colonists = map.mapPawns.FreeColonistsSpawned.Count, Rows = rows });
         }, ct).ConfigureAwait(false);
 }

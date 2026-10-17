@@ -5982,8 +5982,6 @@ public sealed record PatientForecast
 {
     public string? PawnId { get; init; }
 
-    public double? Mood { get; init; }
-
     public double? MoodTarget { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
@@ -6480,8 +6478,6 @@ public sealed record GrowLight
 
     public Common.Ref? Room { get; init; }
 
-    public bool? Powered { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
     public EquatableArray<Common.Cell> GrowthCells { get; init; }
 
@@ -6498,8 +6494,6 @@ public sealed record PlantGrower
     public Common.Ref? Building { get; init; }
 
     public Common.Ref? Room { get; init; }
-
-    public bool? Powered { get; init; }
 
     public string? CropDefName { get; init; }
 

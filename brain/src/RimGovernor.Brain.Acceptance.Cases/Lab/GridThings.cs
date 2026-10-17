@@ -1,46 +1,60 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
 using RimGovernor.Contracts.Wire;
 using RimGovernor.Brain.Policy;
+using Fx = RimGovernor.Fixtures.Contracts;
 using Mirror = RimGovernor.Contracts.Wire.Mirror;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>lab/grid-things</c> (Go <c>grid_things.go</c>).</summary>
+/// <summary>
+/// <c>lab/grid-things</c>: a 9x1 site is staged clear, and test/grid_things (a recorder: filth and an animal corpse are
+/// beyond the stage primitives) spawns one thing of each category along it and replies the native encoding of that row.
+/// </summary>
 internal static class LabGridThings
 {
-    internal static AcceptanceCase Case() => new()
+    private const string Tool = "test/grid_things";
+
+    private static readonly FixtureOp<string, Fx.GridThingsRead> Grid = new(Tool, cell => ServedOps.Args(("cell", cell)), ServedOps.Reply<Fx.GridThingsRead>(Tool));
+
+    private static readonly Fx.StageSpec Spec = new()
+    {
+        Paused = true,
+        Site = new Fx.StageSite
+        {
+            Width = 9,
+            Height = 1,
+            OffsetX = 2,
+            OffsetZ = 9,
+            Radius = 20,
+            Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unfogged],
+        },
+    };
+
+    internal static TypedCase Case() => new()
     {
         Name = "lab/grid-things",
-        Scope = "Native thing read (#2261): test/grid_things spawns an item, wall, wall blueprint, wall frame, plant, "
-            + "filth and animal corpse on seven cells and a shelf holding two stacks on the next two, and replies that "
-            + "row as a serialized grid; the harness must read each category, flag, faction and state as the "
-            + "native side meant it, the tile columns must be known, and the shelf must hold 2 of 3 stacks (#3233). Reports the whole-map read cost. A Go snapshot test cannot see "
-            + "which flags and states the native encoder writes for real game things.",
+        Scope = "Native thing read (#2261): an item, wall, wall blueprint, wall frame, plant, filth and animal corpse on seven "
+            + "cells and a shelf holding two stacks on the next two, read as the native cell grid; each category, flag, faction "
+            + "and state decodes as the native side meant it, the tile columns are known, and the shelf holds 2 of 3 stacks "
+            + "(#3233). A unit test cannot see which flags and states the native encoder writes for real game things.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 1 },
-        RequiredOps = ["test/grid_things"],
+        Stage = Spec,
+        Ops = [Tool],
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var (cx, cz) = CaseSupport.Center(s);
-        var cell = string.Create(CultureInfo.InvariantCulture, $"{cx + 2},{cz + 9}");
-        var reply = await s.Harness.CallAsync("grid-things", "test/grid_things", new JsonObject { ["cell"] = cell }, cancellationToken).ConfigureAwait(false);
-        if (reply["success"].AsBool() != true)
-        {
-            throw new AcceptanceException($"grid_things: {reply.ToJson()}");
-        }
-
-
-        s.Report["grid_things"] = new JsonObject { ["readMs"] = reply["readMs"]?.DeepClone() };
+        var site = s.Staged?.Site ?? throw new AcceptanceException("test/stage replied no site");
+        var reply = await s.FixtureAsync("grid-things", Grid, string.Create(CultureInfo.InvariantCulture, $"{site.X},{site.Z}"), cancellationToken).ConfigureAwait(false);
+        s.Record("read_ms", reply.ReadMs);
         MapCellGrid grid;
         try
         {
-            grid = MapCellGrid.Of(WireJson.Deserialize<Mirror.CellGrid>(Convert.FromBase64String(reply["grid"].AsString())));
+            grid = MapCellGrid.Of(WireJson.Deserialize<Mirror.CellGrid>(Convert.FromBase64String(reply.Grid)));
         }
         catch (Exception e) when (e is FormatException or System.Text.Json.JsonException)
         {
@@ -110,7 +124,7 @@ internal static class LabGridThings
         var frame = Find(3, ThingCategory.Building);
         if (frame.Def != "Wall" || !frame.Has(ThingMarks.Frame) || frame.Has(ThingMarks.Blueprint)
             || frame.Building is not { } frameState || frameState.Needed.Count == 0
-            || frame.Id != (ulong)reply["frameId"].AsNumber())
+            || frame.Id != (ulong)reply.FrameId)
         {
             throw Fail("frame", frame);
         }

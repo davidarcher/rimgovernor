@@ -18,7 +18,6 @@ namespace HomeBridge.BridgeTools
             var food = things.Where(FoodSupplyFacts.SharedFood).ToList();
             var patients = people.Select(p => new Patient {
                 id = p.GetUniqueLoadID(),
-                mood = ReadNumber(() => p.needs.mood?.CurLevelPercentage),
                 moodTarget = ReadNumber(() => p.needs.mood?.CurInstantLevel)
             }).ToList();
             return new Snapshot { readable = true, tick = Find.TickManager.TicksGame,
@@ -34,7 +33,6 @@ namespace HomeBridge.BridgeTools
         }
         internal sealed class Patient {
             public string? id { get; set; }
-            public float? mood { get; set; }
             public float? moodTarget { get; set; }
         }
         private static float? ReadNumber(Func<float?> read)

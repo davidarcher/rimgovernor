@@ -1,51 +1,51 @@
-using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>lab/spoilage-pick</c> (Go <c>spoilage_pick.go</c>).</summary>
+/// <summary>
+/// <c>lab/spoilage-pick</c>: test/spoilage_pick is an equality check the stage primitives cannot express (it spawns aged
+/// stacks and toggles the preference around vanilla's own pick calls); the case reads which stack each pick chose.
+/// </summary>
 internal static class LabSpoilagePick
 {
-    internal static AcceptanceCase Case() => new()
+    private const string Tool = "test/spoilage_pick";
+
+    private static readonly FixtureOp<NoArgs, Fx.SpoilagePickRead> Pick = ServedOps.Read<Fx.SpoilagePickRead>(Tool);
+
+    internal static TypedCase Case() => new()
     {
         Name = "lab/spoilage-pick",
-        Scope = "Spoilage preference (#2520): test/spoilage_pick spawns an old and a fresh stack of raw meat and of simple meals "
-            + "near a hungry colonist, the fresh one closer and the old one outside vanilla's freshness bonus, and runs the real "
-            + "bill-ingredient pick and meal pick. With the preference off both choose the closer fresh stack; with it on both "
-            + "choose the old stack; with the old stack forbidden both still choose the fresh one. A Go snapshot test cannot see "
-            + "the native Harmony patches reorder vanilla's candidates.",
+        Scope = "Spoilage preference (#2520): an old and a fresh stack of raw meat and of simple meals near a hungry colonist, "
+            + "the fresh one closer and the old one outside vanilla's freshness bonus. With the preference off the real "
+            + "bill-ingredient pick and meal pick both choose the closer fresh stack; with it on both choose the old stack; with "
+            + "the old stack forbidden both still choose the fresh one. A unit test cannot see the native Harmony patches "
+            + "reorder vanilla's candidates.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 1 },
-        RequiredOps = ["test/spoilage_pick"],
+        Ops = [Tool],
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var reply = await s.Harness.CallAsync("spoilage-pick", "test/spoilage_pick", null, cancellationToken).ConfigureAwait(false);
-        if (reply["success"].AsBool() != true)
+        var reply = await s.FixtureAsync("spoilage-pick", Pick, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        s.Record("spoilage_pick", ServedOps.Json(reply));
+        foreach (var (kind, fresh, old, pick) in new (string, string, string, Func<Fx.SpoilagePicks, string>)[]
         {
-            throw new AcceptanceException($"spoilage_pick: {reply.ToJson()}");
-        }
-
-        s.Report["spoilage_pick"] = reply;
-        foreach (var kind in new[] { "bill", "meal" })
+            ("bill", reply.FreshMeat, reply.OldMeat, p => p.Bill),
+            ("meal", reply.FreshMeal, reply.OldMeal, p => p.Meal),
+        })
         {
-            var fresh = reply["fresh" + Capital(kind)].AsString();
-            var old = reply["old" + Capital(kind)].AsString();
-            foreach (var (name, want) in new[] { ("off", fresh), ("on", old), ("forbidden", fresh) })
+            foreach (var (name, picks, want) in new[] { ("off", reply.Off, fresh), ("on", reply.On, old), ("forbidden", reply.Forbidden, fresh) })
             {
-                var picks = reply[name].AsMap();
-                var got = picks?[kind].AsString() ?? "";
-                if (got != want)
+                var got = pick(picks);
+                if (got.Length == 0 || got != want)
                 {
-                    throw new AcceptanceException($"spoilage_pick: {kind} pick with preference {name} chose \"{got}\", want \"{want}\": {reply.ToJson()}");
+                    throw new AcceptanceException($"spoilage_pick: {kind} pick with preference {name} chose \"{got}\", want \"{want}\"");
                 }
             }
         }
     }
-
-    // Maps the pick kind to the reply's stack-id suffix: bill picks meat, meal picks meals.
-    private static string Capital(string kind) => kind == "bill" ? "Meat" : "Meal";
 }

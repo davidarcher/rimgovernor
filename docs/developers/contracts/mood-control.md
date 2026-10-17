@@ -221,8 +221,8 @@ offset 0 (`ThoughtUtility.ThoughtNullified` zeroes `MoodOffset`), so the lifted 
 declares `VanillaColonists`: it predates the scenario clock's standby stand-in (`test/standby_colonists`, #3322), which
 should make the opt-out unnecessary once a run confirms it.
 
-The probes for `EnvironmentCold` and `EnvironmentHot` are `environment/cold` and `environment/hot` (#3328), on a
-one-colonist lab. The fixture op `test/environment_temperature` seals the colonist in a doorless roofed 3x3 room and
+The probes for `EnvironmentCold` and `EnvironmentHot` are `environment/cold` and `environment/hot` (#3328), typed
+cases on a one-colonist lab. The fixture op `test/environment_temperature` seals the colonist in a doorless roofed 3x3 room and
 moves the lab's outdoor pin and the room to a temperature `deficit` degrees past the pawn's own comfy bound (mid-band
 for 0), so wall equalization cannot drift it; under Ideology it adds or strips `Temperature_Tough` on the colony
 ideoligion. Each step reads the thought as the `DeadMansApparel` probe does and takes the deficit from the same read's

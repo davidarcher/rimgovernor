@@ -9,6 +9,7 @@ using RimGovernor.Runtime;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -51,7 +52,7 @@ namespace HomeBridge.BridgeTools
                     thing.SetFaction(Faction.OfPlayer);
                     return GenSpawn.Spawn(thing, new IntVec3(cx, 0, cz), map);
                 }
-                var stand = Put("RimGovernor_TrainingBowStand", x, z);
+                Put("RimGovernor_TrainingBowStand", x, z);
                 var dummy = Put("RimGovernor_TrainingDummy", x, z + RangeDistance);
                 Thing secondDummy = null;
                 if (neighbour)
@@ -96,14 +97,14 @@ namespace HomeBridge.BridgeTools
                     foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading) idle.workSettings.SetPriority(work, 0);
                     idle.drafter.Drafted = true;
                 }
-                return new
+                return FixtureKit.Reply(new Fx.TrainingPrepared
                 {
-                    success = true, pawn = pawn.GetUniqueLoadID(), stand = stand.GetUniqueLoadID(), dummy = dummy.GetUniqueLoadID(),
-                    weapon = "Gun_Autopistol", dummyMax = dummy.MaxHitPoints,
-                    neighbour = second?.GetUniqueLoadID() ?? "", neighbourDummy = secondDummy?.GetUniqueLoadID() ?? "",
-                    bystander = idle?.GetUniqueLoadID() ?? "",
-                    sentinels = string.Join(",", sentinels.Select(t => t.GetUniqueLoadID())),
-                };
+                    Pawn = pawn.GetUniqueLoadID(), Dummy = dummy.GetUniqueLoadID(),
+                    Weapon = "Gun_Autopistol", DummyMax = dummy.MaxHitPoints,
+                    Neighbour = second?.GetUniqueLoadID() ?? "", NeighbourDummy = secondDummy?.GetUniqueLoadID() ?? "",
+                    Bystander = idle?.GetUniqueLoadID() ?? "",
+                    Sentinels = string.Join(",", sentinels.Select(t => t.GetUniqueLoadID())),
+                });
             }, cancellationToken);
         }
 
@@ -121,14 +122,14 @@ namespace HomeBridge.BridgeTools
                         record.Level = level;
                         record.xpSinceLastLevel = 0f;
                         record.xpSinceMidnight = 0f;
-                        return new { success = true };
+                        return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
                     case "fire":
                         var thing = map.listerThings.AllThings.Single(t => t.GetUniqueLoadID() == thingId);
                         GenSpawn.Spawn(ThingDefOf.Fire, thing.Position, map);
-                        return new { success = true };
+                        return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
                     case "draft":
                         Pawn(pawnId).drafter.Drafted = true;
-                        return new { success = true };
+                        return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
                     case "chat":
                         var a = Pawn(pawnId);
                         var b = Pawn(otherId);
@@ -136,7 +137,7 @@ namespace HomeBridge.BridgeTools
                         var good = SocialInteractionUtility.IsGoodPositionForInteraction(a.Position, b.Position, map);
                         var can = SocialInteractionUtility.CanInitiateRandomInteraction(a) && SocialInteractionUtility.CanReceiveRandomInteraction(b);
                         var chatted = good && can && a.interactions.TryInteractWith(b, InteractionDefOf.Chitchat);
-                        return new { success = true, good, can, chatted, distance = a.Position.DistanceTo(b.Position), jobA = a.CurJob?.def.defName, jobB = b.CurJob?.def.defName };
+                        return FixtureKit.Reply(new Fx.TrainingChat { Good = good, Chatted = chatted });
                     default:
                         throw new InvalidOperationException("Unknown training action " + action);
                 }
@@ -150,8 +151,8 @@ namespace HomeBridge.BridgeTools
                 if (action == "start") SkillLearningVerifier.Start();
                 else if (action == "stop") SkillLearningVerifier.Stop();
                 else throw new ArgumentException("Expected start or stop.");
-                return new { recipe = SkillLearningVerifier.Recipes, sparring = SkillLearningVerifier.Sparring,
-                    failures = SkillLearningVerifier.Failures.ToArray() };
+                return FixtureKit.Reply(new Fx.SkillLearningVerifyRead { Recipe = SkillLearningVerifier.Recipes, Sparring = SkillLearningVerifier.Sparring,
+                    Failures = SkillLearningVerifier.Failures.ToArray() });
             }, cancellationToken);
         }
         [Tool("test/skill_learning_probe", Description = "UNSAFE FOR MODEL EXECUTION. Compare bounded learning projections against native SkillRecord methods on detached records. Test builds only.")]
@@ -187,7 +188,7 @@ namespace HomeBridge.BridgeTools
                         failures.Add(def.defName + "/" + passion + "/" + saturated);
                     if (original != (before.levelInt, before.xpSinceLastLevel, before.xpSinceMidnight)) failures.Add("read_mutated_pawn");
                 }
-                return new { success = failures.Count == 0, samples, failures };
+                return FixtureKit.Reply(new Fx.SkillLearningProbeRead { Samples = samples, Failures = failures });
             }, cancellationToken);
         }
         [Tool("test/training_inspect", Description = "Read-only postcondition of the training fixture: the colonist's skills, hands, job and the range's hit points.")]
@@ -226,24 +227,21 @@ namespace HomeBridge.BridgeTools
                 var events = Enumerable.Range(0, shots).Select(i => new RimGovernor.Brain.Policy.SkillXpEvent(
                     i.ToString(), 1, learning.RangeRawXpPerShot, RimGovernor.Brain.Policy.SkillXpPath.Range)).ToArray();
                 var projected = RimGovernor.Brain.Policy.PolicyFunctions.ForecastSkill(baseline, events, 1);
-                return new
+                return FixtureKit.Reply(new Fx.TrainingRead
                 {
-                    learningReadOnly = readOnly, projectedLevel = projected.StoredLevel.ValueOrDefault,
-                    projectedXp = projected.Xp.ValueOrDefault, projectionKnown = projected.Xp.IsKnown,
-                    success = true, tick = Find.TickManager.TicksGame,
-                    shootingLevel = shooting.Level, shootingXp = shooting.xpSinceLastLevel, shootingMidnightXp = shooting.xpSinceMidnight,
-                    primary = pawn.equipment.Primary?.def.defName, held, practiceOnMap = map.listerThings.AllThings.Count(t => practice.Contains(t.def.defName)),
-                    job = pawn.CurJob?.def.defName, shotsFired = pawn.records.GetAsInt(RecordDefOf.ShotsFired),
-                    drafted = pawn.Drafted,
-                    dummyHp = dummy.Length == 0 ? 0 : dummy[0].HitPoints,
-                    sentinelHp = Hp(Things(sentinels)), sentinelMax = Things(sentinels).Sum(t => t.MaxHitPoints),
-                    x = pawn.Position.x, z = pawn.Position.z,
-                    trainedWith = HasTrainedWith(pawn), otherTrainedWith = other != null && HasTrainedWith(other),
-                    otherJob = other?.CurJob?.def.defName, otherShots = other?.records.GetAsInt(RecordDefOf.ShotsFired) ?? 0,
-                    bystanderHurt = idle == null ? 0 : idle.health.hediffSet.hediffs.Count(h => h is Hediff_Injury),
-                    bystanderHealth = idle?.health.summaryHealth.SummaryHealthPercent ?? 1f,
-                    bystanderX = idle?.Position.x ?? 0, bystanderZ = idle?.Position.z ?? 0,
-                };
+                    LearningReadOnly = readOnly, ProjectedLevel = projected.StoredLevel.ValueOrDefault,
+                    ProjectedXp = projected.Xp.ValueOrDefault, ProjectionKnown = projected.Xp.IsKnown,
+                    Tick = Find.TickManager.TicksGame,
+                    ShootingLevel = shooting.Level, ShootingXp = shooting.xpSinceLastLevel, ShootingMidnightXp = shooting.xpSinceMidnight,
+                    Primary = pawn.equipment.Primary?.def.defName ?? "", Held = held, PracticeOnMap = map.listerThings.AllThings.Count(t => practice.Contains(t.def.defName)),
+                    Job = pawn.CurJob?.def.defName ?? "", ShotsFired = shots,
+                    DummyHp = dummy.Length == 0 ? 0 : dummy[0].HitPoints,
+                    SentinelHp = Hp(Things(sentinels)), SentinelMax = Things(sentinels).Sum(t => t.MaxHitPoints),
+                    TrainedWith = HasTrainedWith(pawn),
+                    OtherJob = other?.CurJob?.def.defName ?? "",
+                    BystanderHurt = idle == null ? 0 : idle.health.hediffSet.hediffs.Count(h => h is Hediff_Injury),
+                    BystanderHealth = idle?.health.summaryHealth.SummaryHealthPercent ?? 1f,
+                });
             }, cancellationToken);
         }
     }

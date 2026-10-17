@@ -1,160 +1,121 @@
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Contracts.Wire;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>temperature/building</c> (Go <c>temperature/building.go</c>): the SetBuildingTemperature vertical through
-/// BuildingPatchIntent's target_temperature arm on Actions/Apply, against a private disposable fixture
-/// (<c>test/building_temperature_prepare</c>) since a fresh baseline colony does not reliably start with a
-/// temperature-controlled building.
+/// BuildingPatchIntent's target_temperature arm on Actions/Apply, against one unpowered heater staged on the lab.
 /// </summary>
 internal static class BuildingTemperature
 {
-    internal static AcceptanceCase Case() => new()
+    private static readonly Fx.StageSpec Spec = new()
+    {
+        Paused = true,
+        Site = new Fx.StageSite
+        {
+            Width = 1,
+            Height = 1,
+            OffsetX = 3,
+            Radius = 12,
+            Require = [Fx.StageGround.Standable, Fx.StageGround.Empty],
+        },
+        Buildings = [new Fx.StageBuilding { Name = "heater", Def = "Heater", Cells = [new(0, 0)] }],
+    };
+
+    internal static TypedCase Case() => new()
     {
         Name = "temperature/building",
-        Scope = "BuildingPatchIntent target temperature against an exact CompTempControl building: "
-            + "out-of-range refusal, the real write read back, and key replay idempotency.",
-        Start = new FixtureStart { Op = "test/building_temperature_prepare", On = new LabStart() },
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Scope = "BuildingPatchIntent target temperature against an exact CompTempControl building (#3403 stage): an "
+            + "out-of-range target is refused, a real write is read back through observations_list_buildings with a new "
+            + "settings token, and resending the key replays the same result. A unit test cannot see the native comp.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Stage = Spec,
+        QuietWorld = true,
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        if (!Dyn.Contains(s.Names, "rimgovernor/observations_list_buildings"))
-        {
-            throw new AcceptanceException("missing rimgovernor/observations_list_buildings in discovery");
-        }
+        var thingId = s.Staged!.Buildings["heater"].Ids.Single();
 
-        var thingId = prepared["thingId"].AsString();
-        if (thingId.Length == 0)
+        async Task<(double Temperature, string Token)> ReadAsync(string label)
         {
-            throw new AcceptanceException($"building_temperature_prepare: unexpected fixture identifier: {prepared.ToJson()}");
-        }
-
-        async Task<JsonObject> Target(string label)
-        {
-            var reply = await h.WireAsync(
-                label,
-                "observations_list_buildings",
-                new JsonObject
-                {
-                    ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                    ["ids"] = new JsonArray(thingId),
-                },
-                cancellationToken).ConfigureAwait(false);
-            var (_, observed) = Harness.Outcome(reply, "observed");
-            var buildings = observed["buildings"].AsSlice();
-            if (buildings.Count != 1)
+            var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [thingId] }, cancellationToken).ConfigureAwait(false);
+            if (rows is not [{ } row] || row.Building?.Id != thingId)
             {
-                throw new AcceptanceException($"{label}: expected exactly one building, got {observed.ToJson()}");
+                throw new AcceptanceException($"{label}: want the staged heater {thingId}, got {rows.Count} rows: {string.Join("; ", rows)}");
             }
 
-            var row = buildings[0].AsMap() ?? [];
-            if (row["building"].AsMap()?["id"].AsString() != thingId)
+            s.RecordWire(label, row.Settings);
+            var settings = row.Settings;
+            if (settings?.Snapshot is not { EntityId: var entity, Token: { Length: > 0 } token } || entity != thingId)
             {
-                throw new AcceptanceException($"{label}: fixture building identity mismatch: {row.ToJson()}");
+                throw new AcceptanceException($"{label}: missing or mismatched settings snapshot: {settings}");
             }
 
-            return row;
+            return settings.TargetTemperatureC is { } target
+                ? (target, token)
+                : throw new AcceptanceException($"{label}: no target temperature: {settings}");
         }
 
-        (double Temperature, string Token) SettingsOf(JsonObject row)
+        async Task<Operations.ActionResult> ApplyAsync(string key, float temperature)
         {
-            var settings = row["settings"].AsMap() ?? throw new AcceptanceException($"missing settings: {row.ToJson()}");
-            var snapshot = settings["snapshot"].AsMap();
-            if (snapshot is null || snapshot["entityId"].AsString() != thingId)
+            var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
             {
-                throw new AcceptanceException($"missing or mismatched settings snapshot: {settings.ToJson()}");
-            }
-
-            if (!settings.ContainsKey("targetTemperatureC"))
-            {
-                throw new AcceptanceException($"missing targetTemperatureC: {settings.ToJson()}");
-            }
-
-            return (settings["targetTemperatureC"].AsNumber(), snapshot["token"].AsString());
-        }
-
-        async Task<JsonObject> Apply(string key, double temperature)
-        {
-            var reply = await h.WireAsync(
-                key,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject
+                Identity = s.Identity,
+                Actions =
+                [
+                    new Operations.Action
                     {
-                        ["key"] = key,
-                        ["buildingPatch"] = new JsonObject { ["thingId"] = thingId, ["targetTemperature"] = temperature },
-                    }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            var results = reply["results"].AsSlice();
-            return results.Count != 1
-                ? throw new AcceptanceException($"{key}: expected one result: {reply.ToJson()}")
-                : results[0].AsMap() ?? [];
+                        Key = key,
+                        Intent = new Operations.BuildingPatchIntent { ThingId = thingId, Change = new Operations.BuildingPatchIntentChange.TargetTemperatureCase(temperature) },
+                    },
+                ],
+            }, cancellationToken).ConfigureAwait(false);
+            return reply.Results.ToList() is [{ } result]
+                ? result
+                : throw new AcceptanceException($"{key}: want one result, got {reply.BatchFailure} {string.Join("; ", reply.Results)}");
         }
 
-        var beforeRow = await Target("target-before").ConfigureAwait(false);
-        var (beforeTemperature, beforeToken) = SettingsOf(beforeRow);
-        if (beforeToken.Length == 0)
+        var (before, beforeToken) = await ReadAsync("target-before").ConfigureAwait(false);
+        var target = (float)(before + 5 > 1000 ? before - 5 : before + 5);
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+
+        // A target outside the game's interface range.
+        var outOfRange = await ApplyAsync("temperature-out-of-range", 5000).ConfigureAwait(false);
+        if (outOfRange.Outcome?.Refused is null)
         {
-            throw new AcceptanceException($"target-before: missing settings snapshot token: {beforeRow.ToJson()}");
+            throw new AcceptanceException($"temperature-out-of-range: want a refusal, got {outOfRange}");
         }
 
-        var newTemperature = beforeTemperature + 5;
-        if (newTemperature > 1000)
+        var set = await ApplyAsync("temperature-set", target).ConfigureAwait(false);
+        var fields = set is { Outcome.Applied.Outcome.Applied.Observed.Effect.Settings: { } settings } ? settings.Fields.ToList() : null;
+        if (fields is not [{ Field: Receipts.SettingsField.Temperature, Outcome: Receipts.FieldOutcome.Applied }])
         {
-            newTemperature = beforeTemperature - 5;
+            throw new AcceptanceException($"temperature-set: want one applied temperature field, got {set}");
         }
 
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
-
-        // Refusal: a target outside the game's interface range.
-        var outOfRange = await Apply("temperature-out-of-range", 5000).ConfigureAwait(false);
-        if (outOfRange["refused"] is null)
-        {
-            throw new AcceptanceException($"temperature-out-of-range: expected a refusal, got {outOfRange.ToJson()}");
-        }
-
-        var set = await Apply("temperature-set", newTemperature).ConfigureAwait(false);
-        var applied = set["applied"].AsMap() ?? throw new AcceptanceException($"temperature-set: expected an applied result, got {set.ToJson()}");
-        var appliedSettings = applied["observed"].AsMap()?["settings"].AsMap();
-        var fields = appliedSettings?["fields"].AsSlice() ?? [];
-        if (fields.Count != 1)
-        {
-            throw new AcceptanceException($"temperature-set: expected exactly one field result, got {appliedSettings.ToJson()}");
-        }
-
-        var field = fields[0].AsMap();
-        if (field?["field"].AsString() != "SETTINGS_FIELD_TEMPERATURE" || field["outcome"].AsString() != "FIELD_OUTCOME_APPLIED")
-        {
-            throw new AcceptanceException($"temperature-set: unexpected field result: {field.ToJson()}");
-        }
-
-        var afterRow = await Target("target-after").ConfigureAwait(false);
-        var (afterTemperature, afterToken) = SettingsOf(afterRow);
+        var (after, afterToken) = await ReadAsync("target-after").ConfigureAwait(false);
         if (afterToken == beforeToken)
         {
-            throw new AcceptanceException("target-after: expected the settings token to change");
+            throw new AcceptanceException("target-after: the settings token did not change");
         }
 
-        if (Math.Abs(afterTemperature - newTemperature) > 0.01)
+        if (Math.Abs(after - target) > 0.01)
         {
-            throw new AcceptanceException($"target-after: expected the native target temperature to change to {newTemperature}, got {afterTemperature}");
+            throw new AcceptanceException($"target-after: native target {after}, want {target}");
         }
 
-        var replay = await Apply("temperature-set", newTemperature).ConfigureAwait(false);
-        if (!Dyn.DeepEqual(replay, set))
+        var replay = await ApplyAsync("temperature-set", target).ConfigureAwait(false);
+        if (WireJson.Serialize(replay) != WireJson.Serialize(set))
         {
-            throw new AcceptanceException($"temperature-set: resent key changed its result: {set.ToJson()} then {replay.ToJson()}");
+            throw new AcceptanceException($"temperature-set: the resent key changed its result: {WireJson.Serialize(set)} then {WireJson.Serialize(replay)}");
         }
     }
 }

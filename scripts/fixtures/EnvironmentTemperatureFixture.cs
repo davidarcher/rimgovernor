@@ -4,47 +4,10 @@ using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools
 {
-    // Private disposable acceptance only. Spawns one unpowered Heater near an
-    // existing colonist so temperatureaccept can exercise the BuildingPatchIntent
-    // target-temperature CAS path (NativeBuildingTemperature.cs) without
-    // depending on native random building generation or an actual power
-    // network -- CompTempControl.targetTemperature is settable and readable
-    // regardless of power state.
-    public sealed class BuildingTemperatureFixture
-    {
-        [Tool("test/building_temperature_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: spawn one unpowered Heater with CompTempControl near an existing colonist on the current paused map.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
-                if (map == null || Current.Game == null || player == null || !Find.TickManager.Paused)
-                    return Refuse("A paused disposable colony map is required.");
-                var colonist = map.mapPawns.FreeColonistsSpawned.FirstOrDefault();
-                if (colonist == null) return Refuse("At least one existing colonist is required.");
-                var heaterDef = DefDatabase<ThingDef>.GetNamed("Heater");
-                var cell = GenAdjFast.AdjacentCells8Way(colonist.Position)
-                    .FirstOrDefault(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null);
-                if (cell == default) return Refuse("No open adjacent cell for the fixture heater.");
-                var heater = ThingMaker.MakeThing(heaterDef, GenStuff.DefaultStuffFor(heaterDef));
-                heater.SetFaction(player);
-                GenSpawn.Spawn(heater, cell, map);
-                var comp = heater.TryGetComp<CompTempControl>();
-                if (comp == null) return Refuse("Fixture heater unexpectedly has no CompTempControl.");
-                var identity = Current.Game.GetComponent<ColonyIdentity>();
-                return new {
-                    success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
-                    tick = Find.TickManager.TicksGame,
-                    thingId = heater.GetUniqueLoadID(), initialTargetTemperature = comp.targetTemperature,
-                };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        private static object Refuse(string reason) => new { success = false, reason };
-    }
-
     // The EnvironmentCold/EnvironmentHot probe (#3328): the first colonist
     // (lowest thing id) sits sealed in a doorless, roofed 3x3 room, and every
     // call puts its ambient temperature `deficit` degrees past the pawn's own
@@ -69,11 +32,9 @@ namespace HomeBridge.BridgeTools
                 if (float.IsNaN(AcceptanceWorld.Lab)) throw new System.InvalidOperationException("A lab start (pinned outdoor temperature) is required.");
                 var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).First();
                 var room = pawn.GetRoom();
-                var built = false;
                 if (room == null || room.UsesOutdoorTemperature || room.OpenRoofCount != 0 || room.TouchesMapEdge || room.CellCount != (Box - 2) * (Box - 2))
                 {
                     room = Seal(map, pawn);
-                    built = true;
                 }
 
                 var ideology = ModsConfig.IdeologyActive && pawn.Ideo != null;
@@ -97,14 +58,10 @@ namespace HomeBridge.BridgeTools
                     throw new System.InvalidOperationException($"The lab outdoor pin did not take: outdoor {map.mapTemperature.OutdoorTemp:F2}, wanted {target:F2}.");
                 room.Temperature = target;
                 pawn.needs?.mood?.thoughts?.situational?.Notify_SituationalThoughtsDirty();
-                var ambient = pawn.AmbientTemperature;
-                return new { success = true, tick = Find.TickManager.TicksGame, pawn = pawn.GetUniqueLoadID(), side, deficit, built,
-                    room = room.ID, cells = room.CellCount, comfyMin, comfyMax, target, ambient,
-                    observedDeficit = side == "cold" ? comfyMin - ambient : ambient - comfyMax,
-                    ideology, tough = ideology && pawn.Ideo.HasPrecept(PreceptDefOf.Temperature_Tough),
-                    precepts = ideology ? pawn.Ideo.PreceptsListForReading.Select(p => p.def.defName).ToList() : new System.Collections.Generic.List<string>(),
-                    traits = pawn.story.traits.allTraits.Select(t => t.def.defName).ToList(),
-                    cleared = cleared.Select(h => h.def.defName).ToList() };
+                return FixtureKit.Reply(new Fx.EnvironmentTemperatureHeld { Pawn = pawn.GetUniqueLoadID(), Ideology = ideology,
+                    Tough = ideology && pawn.Ideo.HasPrecept(PreceptDefOf.Temperature_Tough),
+                    Precepts = ideology ? pawn.Ideo.PreceptsListForReading.Select(p => p.def.defName).ToList() : new System.Collections.Generic.List<string>(),
+                    Traits = pawn.story.traits.allTraits.Select(t => t.def.defName).ToList() });
             }, cancellationToken);
 
         // A doorless Box x Box ring of wood walls round the pawn, roofed, the

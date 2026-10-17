@@ -183,9 +183,10 @@ A native-only case runs no brain, so before each Run the scenario clock calls th
 test-only `test/standby_colonists` fixture op, its stand-in for the brain's
 standby: each controlled colonist with no assignment and an idle job gets the
 same `Standby` order. Under `VanillaColonists` no colonist is controlled and the
-op installs nothing. The probes that declared the opt-out only for the hold
-(`apparel/dead_mans`, `environment/cold`, `environment/hot`) keep it until a run
-shows they pass on the stand-in.
+op installs nothing. `apparel/dead_mans` declared the opt-out only for the hold
+and keeps it until a run shows it passes on the stand-in; `environment/cold` and
+`environment/hot` are typed cases, whose waits run the game through RunAt rather
+than the scenario clock, so they declare none.
 
 Native disorientation and the native imposed-sleep/force-job ability effects retain
 their direct job authority through exact source-method scopes. The scope applies only
