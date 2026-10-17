@@ -428,11 +428,6 @@ public sealed record ClearanceTarget
 
     public ClearanceClass Class { get; init; }
 
-    /// <summary>
-    /// Every occupied cell, not just the origin.
-    /// </summary>
-    public bool? InHome { get; init; }
-
     public string? RoofBlocker { get; init; }
 
     public bool? AncientDanger { get; init; }
@@ -501,26 +496,6 @@ public sealed record SalvageEvidence
 }
 
 /// <summary>
-/// A rock or slag chunk stack standing on a Home cell: a haul, never a
-/// deconstruction. stored is vanilla's IsInValidStorage; destination is
-/// whether ordinary hauling already has a better store cell for it.
-/// </summary>
-public sealed record ClearanceChunk
-{
-    public string? EntityId { get; init; }
-
-    public string? DefName { get; init; }
-
-    public Common.Cell? Cell { get; init; }
-
-    public bool? Forbidden { get; init; }
-
-    public bool? Stored { get; init; }
-
-    public bool? Destination { get; init; }
-}
-
-/// <summary>
 /// include_salvage asks for salvage evidence on the rows outside Home; a
 /// caller that never reads salvage leaves it false and the native read skips
 /// the salvage route and storage searches.
@@ -559,9 +534,6 @@ public sealed record ClearanceTargetsSnapshot
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ClearanceTarget>))]
     public EquatableArray<ClearanceTarget> Targets { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ClearanceChunk>))]
-    public EquatableArray<ClearanceChunk> Chunks { get; init; }
 
     /// <summary>
     /// Only cells inside the request's planned_ground.
@@ -6584,12 +6556,11 @@ public sealed record PawnRoyalty
 /// <summary>
 /// Pending bestowing ceremonies: one per colonist holding an ongoing or
 /// offered bestowing-ceremony quest (RoyalTitleUtility.GetCurrentBestowingCeremonyQuest).
-/// quest is the quest load id the quest census lists. pawn is the colonist to be bestowed, bestower the Empire pawn, title the def
+/// quest is the quest load id the quest census lists. pawn is the colonist to be bestowed, title the def
 /// the ceremony awards (GetTitleAwardedWhenUpdating), accepted whether the
 /// quest is Ongoing (else NotYetAccepted), bestower_waiting whether the bestower
 /// stands on the map in the lord's Wait toil (the ceremony starts only on the
-/// player's command), started whether the ritual runs, spot the ceremony cell
-/// (the throne spot) and attendees the lord's colonist participants. Each
+/// player's command) and started whether the ritual runs. Each
 /// scalar is absent when native could not read it.
 /// </summary>
 public sealed record BestowingCeremony
@@ -6597,8 +6568,6 @@ public sealed record BestowingCeremony
     public string? Quest { get; init; }
 
     public Common.Ref? Pawn { get; init; }
-
-    public Common.Ref? Bestower { get; init; }
 
     public string? FactionDef { get; init; }
 
@@ -6609,11 +6578,6 @@ public sealed record BestowingCeremony
     public bool? BestowerWaiting { get; init; }
 
     public bool? Started { get; init; }
-
-    public Common.Cell? Spot { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Attendees { get; init; }
 }
 
 /// <summary>
@@ -7069,10 +7033,9 @@ public sealed record AcquisitionFacts
 /// Raw hunt census: what Go needs to decide whether a hunt row is offered. Native states
 /// facts and keeps only physical validity; weapon rules, hunter eligibility and
 /// the pending-hunt cap are Go policy (policy.HuntGate).
-/// One free colonist. hunting_priority is the raw work priority (0 is off); hunting_active is
-/// WorkIsActive; hunting_disabled is WorkTypeIsDisabled. weapon_def is the primary weapon def (absent for an unarmed pawn); Go reads its verbs and projectile off the ThingDef rows.
-/// has_hunting_weapon and ranged_blocking_shield mirror WorkGiver_HunterHunt.HasHuntingWeapon and
-/// HasShieldAndRangedWeapon. routes carries one HuntRoute per (hunt row, colonist) pair native
+/// One free colonist. hunting_active is
+/// WorkIsActive. weapon_def is the primary weapon def (absent for an unarmed pawn); Go reads its verbs and projectile off the ThingDef rows.
+/// ranged_blocking_shield mirrors WorkGiver_HunterHunt.HasShieldAndRangedWeapon. routes carries one HuntRoute per (hunt row, colonist) pair native
 /// evaluated: every unfogged hunt row, pests first then nearest first, for a colonist with
 /// Hunting active who is neither downed nor in a mental state, until the request's
 /// hunt_route_budget_ms runs out. A pair with no row was not evaluated (the colonist is
@@ -7088,19 +7051,11 @@ public sealed record HunterFacts
 
     public bool? InMentalState { get; init; }
 
-    public bool? Drafted { get; init; }
-
-    public int? HuntingPriority { get; init; }
-
     public bool? HuntingActive { get; init; }
-
-    public bool? HuntingDisabled { get; init; }
 
     public bool? CookingActive { get; init; }
 
     public string? WeaponDef { get; init; }
-
-    public bool? HasHuntingWeapon { get; init; }
 
     public bool? RangedBlockingShield { get; init; }
 

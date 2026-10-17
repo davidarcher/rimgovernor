@@ -891,13 +891,7 @@ public static partial class PolicyFunctions
             var terms = new[] { new FarmSiteTerm("yield", reward), new FarmSiteTerm("travel", -SiteTravelWeight * unit * walk) };
             double n = patch.Width * patch.Height;
             patches.Add(patch);
-            selected.Add(new FarmSiteCandidate
-            {
-                Patch = patch,
-                Score = terms[0].Value + terms[1].Value,
-                Density = (terms[0].Value + terms[1].Value) / n,
-                Terms = EquatableArray.From(terms),
-            });
+            selected.Add(new FarmSiteCandidate { Terms = EquatableArray.From(terms) });
             planned += (int)n;
         }
         return new FarmSitePlan
@@ -905,7 +899,6 @@ public static partial class PolicyFunctions
             Patches = EquatableArray.From(patches),
             Selected = EquatableArray.From(selected),
             Cells = planned,
-            Unplanted = planned < v.Needed ? v.Needed - planned : 0,
         };
     }
 

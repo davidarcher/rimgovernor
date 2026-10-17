@@ -23,7 +23,6 @@ public sealed record HuntVerb
     public bool AIWeapon { get; init; }
     public double Range { get; init; }
     public double ExplosionRadius { get; init; }
-    public double Warmup { get; init; }
     public HuntProjectile Projectile { get; init; }
     public string DamageDef { get; init; } = "";
     public string DamageWorker { get; init; } = "";
@@ -32,7 +31,6 @@ public sealed record HuntVerb
 /// <summary>A hunter's primary weapon, raw; a hunter without one is unarmed.</summary>
 public sealed record HuntWeapon
 {
-    public string DefName { get; init; } = "";
     public bool Ranged { get; init; }
     public bool Melee { get; init; }
     public IReadOnlyList<HuntVerb> Verbs { get; init; } = [];
@@ -65,9 +63,8 @@ public sealed record HuntWeapon
 }
 
 /// <summary>
-/// One free colonist's raw hunting facts. HuntingPriority is the work priority (0 is off), HuntingActive the
-/// game's WorkIsActive. HasHuntingWeapon and RangedBlockingShield mirror the game's own hunting-weapon and shield
-/// checks. The Route*Prey sets carry native's per-row route verdict.
+/// One free colonist's raw hunting facts. HuntingActive is the game's WorkIsActive; RangedBlockingShield mirrors
+/// the game's own shield check. The Route*Prey sets carry native's per-row route verdict.
 /// </summary>
 public sealed record HuntHunter
 {
@@ -75,15 +72,9 @@ public sealed record HuntHunter
     public Cell Cell { get; init; }
     public bool Downed { get; init; }
     public bool MentalState { get; init; }
-    public bool Drafted { get; init; }
-    public int HuntingPriority { get; init; }
     public bool HuntingActive { get; init; }
-    public bool HuntingDisabled { get; init; }
-    public bool CookingActive { get; init; }
     public HuntWeapon? Weapon { get; init; }
-    public bool HasHuntingWeapon { get; init; }
     public bool RangedBlockingShield { get; init; }
-    public IReadOnlySet<string> ReachableBenches { get; init; } = new HashSet<string>();
 
     /// <summary>Evaluated route answer: the row is safe.</summary>
     public IReadOnlySet<string> RouteSafePrey { get; init; } = new HashSet<string>();

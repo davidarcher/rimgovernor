@@ -11,20 +11,15 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// One pending bestowing-ceremony quest, decoded from the royalty read. <see cref="Quest"/> is the quest
-/// census id. <see cref="Pawn"/> is the colonist to be bestowed with <see cref="Title"/>, <see cref="Bestower"/>
-/// the Empire pawn. <see cref="Accepted"/> is the quest Ongoing (else offered); <see cref="BestowerWaiting"/>
+/// census id. <see cref="Pawn"/> is the colonist to be bestowed with <see cref="Title"/>.
+/// <see cref="Accepted"/> is the quest Ongoing (else offered); <see cref="BestowerWaiting"/>
 /// the bestower standing on the map waiting for the command; <see cref="Started"/> the ritual running.
-/// <see cref="Attendees"/> are the colonists the ritual lord holds.
 /// </summary>
 public sealed record BestowingCeremony
 {
     public QuestId Quest { get; init; }
 
     public PawnId Pawn { get; init; }
-
-    public PawnId Bestower { get; init; }
-
-    public string Faction { get; init; } = "";
 
     public string Title { get; init; } = "";
 
@@ -33,10 +28,6 @@ public sealed record BestowingCeremony
     public Fact<bool> BestowerWaiting { get; init; }
 
     public Fact<bool> Started { get; init; }
-
-    public Fact<Cell> Spot { get; init; }
-
-    public EquatableArray<PawnId> Attendees { get; init; }
 }
 
 public static partial class PolicyFunctions

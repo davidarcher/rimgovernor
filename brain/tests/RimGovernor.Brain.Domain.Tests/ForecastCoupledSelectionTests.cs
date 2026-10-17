@@ -551,7 +551,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Contains(result.Selected.Plan.Allocations, a => work.ActivityCompletions.Contains(a.Activity));
         var choices = GearChoices(facts.CoupledAlternatives, result);
         var census = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(new RoundsFacts { Gear = Known(EffectSourceCandidatesTests.Census(pawn)) }, choices).Gear;
-        return (choices, PlanColonyGear(census.Value.Pawns).Loadouts[0].Target);
+        return (choices, PlanColonyGear(census.Value.Pawns)[0].Target);
     }
 
     [Fact]

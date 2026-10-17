@@ -7,7 +7,6 @@ internal static partial class BuildingRuntimePackage
         Observation = projection.Facts.Gear,
         Benches = Known(EquatableArray.From(benches)),
         StuffCategories = projection.Facts.Items.StuffCategories,
-        MaterialPrices = projection.Facts.Items.Market,
     };
 
     /// <summary>A failed read abstains from declaring, but a cancelled one is the caller's cancellation and propagates.</summary>

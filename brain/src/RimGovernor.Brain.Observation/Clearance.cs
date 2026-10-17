@@ -99,7 +99,6 @@ public static partial class ObservationPackage
                 Minimum = CellOf(row.Occupied?.Minimum),
                 Maximum = CellOf(row.Occupied?.Maximum),
                 Deconstructible = row.Deconstructible.GetValueOrDefault(),
-                InHome = row.InHome.GetValueOrDefault(),
                 AncientDanger = row.AncientDanger.GetValueOrDefault(),
                 RoofBlocker = row.RoofBlocker ?? "",
                 Designated = row.Designated.GetValueOrDefault(),
@@ -119,26 +118,13 @@ public static partial class ObservationPackage
             }
             rows.Add(target);
         }
-        var chunks = new List<ClearanceChunk>(v.Chunks.Count);
-        foreach (var row in v.Chunks)
-        {
-            chunks.Add(new ClearanceChunk
-            {
-                EntityId = row.EntityId ?? "",
-                DefName = row.DefName ?? "",
-                Cell = CellOf(row.Cell),
-                Forbidden = row.Forbidden.GetValueOrDefault(),
-                Stored = row.Stored.GetValueOrDefault(),
-                Destination = row.Destination.GetValueOrDefault(),
-            });
-        }
         var floors = new List<ClearanceFloor>(v.Floors.Count);
         foreach (var row in v.Floors)
         {
             floors.Add(new ClearanceFloor { Cell = CellOf(row.Cell), DefName = row.DefName ?? "", Designated = row.Designated.GetValueOrDefault() });
         }
         cancellationToken.ThrowIfCancellationRequested();
-        return Known(new ClearanceCensus { Targets = EquatableArray.From(rows), Chunks = EquatableArray.From(chunks), Floors = EquatableArray.From(floors) });
+        return Known(new ClearanceCensus { Targets = EquatableArray.From(rows), Floors = EquatableArray.From(floors) });
     }
 
     private static string ClearanceClassName(O.ClearanceClass c) => c switch

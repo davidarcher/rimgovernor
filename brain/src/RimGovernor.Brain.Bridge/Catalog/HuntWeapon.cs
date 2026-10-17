@@ -23,7 +23,7 @@ public sealed partial class DefinitionCatalog
         }
 
         var row = ThingRow(name);
-        var weapon = new P.HuntWeapon { DefName = name };
+        var weapon = new P.HuntWeapon();
 
         // ThingDef.IsWeapon: an item with verbs or tools that is no apparel.
         if (row.category != ThingCategory.Item || row.Verbs.Seq().Count() + row.tools.Seq().Count() == 0 || row.apparel is not null)
@@ -42,7 +42,6 @@ public sealed partial class DefinitionCatalog
                 Melee = melee,
                 AIWeapon = props.ai_IsWeapon,
                 Range = props.range,
-                Warmup = props.warmupTime,
             };
             if (props.defaultProjectile is { } projectile)
             {

@@ -254,7 +254,7 @@ public static partial class ObservationPackage
                 sites.Add(site);
                 if (site.TurretDps.IsKnown)
                 {
-                    turrets.Add(new DefenseTurretFacts { Id = site.Id, Definition = site.Definition, Cell = site.Cell, Powered = Known(site.Powered), Dps = site.TurretDps });
+                    turrets.Add(new DefenseTurretFacts { Id = site.Id, Cell = site.Cell, Powered = Known(site.Powered), Dps = site.TurretDps });
                 }
             }
             topology = topology with { Buildings = sites };

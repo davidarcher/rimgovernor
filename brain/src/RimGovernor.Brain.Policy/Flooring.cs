@@ -176,9 +176,6 @@ public sealed record FloorRoom
     /// from the def mirror.
     /// </summary>
     public IReadOnlyList<string> RequiredTags { get; init; } = [];
-
-    /// <summary>The requirement's labelKey.</summary>
-    public string RequiredLabel { get; init; } = "";
 }
 
 /// <summary>A room's native quality stats as Room.GetStat reports them. (Go <c>RoomQuality</c>.)</summary>
@@ -219,8 +216,6 @@ public sealed record FloorDeficit
 {
     public string Key { get; init; } = "";
 
-    public string Room { get; init; } = "";
-
     public FloorTier Tier { get; init; }
 
     /// <summary>The room's role as the flooring census reports it, <see cref="RoomRole.None"/> for the traffic deficit's aisles; the tier style reads it.</summary>
@@ -228,9 +223,6 @@ public sealed record FloorDeficit
 
     /// <summary>The deficient cells not yet ordered, in cell order.</summary>
     public IReadOnlyList<Cell> Cells { get; init; } = [];
-
-    /// <summary>Counts the deficient cells with a floor already ordered.</summary>
-    public int Pending { get; init; }
 
     /// <summary>The terrain tags a throne deficit's floor must carry one of.</summary>
     public IReadOnlyList<string> Tags { get; init; } = [];
@@ -281,11 +273,6 @@ public sealed record FlooringProposal
     public FlooringMethod Method { get; init; }
 
     public MethodId Key { get; init; }
-
-    /// <summary>Names the deficient room served.</summary>
-    public string Room { get; init; } = "";
-
-    public FloorTier Tier { get; init; }
 
     /// <summary>The chosen floor.</summary>
     public string Definition { get; init; } = "";
@@ -483,7 +470,6 @@ public static partial class PolicyFunctions
             }
             cells.Add(t);
         }
-        d = d with { Pending = pending };
         if (cells.Count == 0)
         {
             return (d, pending > 0);
@@ -622,12 +608,10 @@ public static partial class PolicyFunctions
                 new FloorDeficit
                 {
                     Key = key,
-                    Room = room.Id,
                     Tier = tier.Value,
                     Role = role,
                     Tags = tier == FloorTier.Throne ? room.RequiredTags : [],
                     Cells = SortedCells(cells),
-                    Pending = pending,
                 }
             );
         }
@@ -759,8 +743,6 @@ public static partial class PolicyFunctions
             {
                 Method = FlooringMethod.Build,
                 Key = new MethodId("flooring-" + Convert.ToHexStringLower(digest.AsSpan(0, 12))),
-                Room = d.Room,
-                Tier = d.Tier,
                 Definition = name,
                 Cells = cells,
             };

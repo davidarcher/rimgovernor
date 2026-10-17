@@ -331,8 +331,8 @@ Royalty and `Unavailable` when the read failed, read on every colony frame.
 `neuroformers` lists the psylink neuroformer and each psycast neurotrainer with
 held, craftable and tradeable; `ceremonies` lists each offered or ongoing
 bestowing-ceremony quest (`RoyalTitleUtility.GetCurrentBestowingCeremonyQuest`):
-quest id, colonist, bestower, awarded title, accepted, bestower waiting in the
-lord's Wait toil, started, spot and the lord's colonist attendees;
+quest id, colonist, awarded title, accepted, bestower waiting in the
+lord's Wait toil and started;
 `thrones` lists every spawned player throne (`Building_Throne`) with its
 assigned owner, absent when unassigned. `policy.RoyaltyFacts.WithColony`
 joins the section to the read; a colony frame without the section leaves the

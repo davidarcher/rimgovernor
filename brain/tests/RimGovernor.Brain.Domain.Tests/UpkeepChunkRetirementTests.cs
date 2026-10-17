@@ -27,13 +27,13 @@ public sealed class UpkeepChunkRetirementTests
     {
         var need = Clearance(new HomeUpkeepFacts
         {
-            Clearance = Fact.Known(EquatableArray.From(new[] { new ClearanceTarget { EntityId = "wall", Deconstructible = true, InHome = true } })),
+            Clearance = Fact.Known(EquatableArray.From(new[] { new ClearanceTarget { EntityId = "wall", Deconstructible = true } })),
             Ground = Fact.Known<EquatableArray<string>>(["floor"]),
         });
         Assert.Equal(Satisfaction.Unmet, need.Satisfaction);
         Assert.Equal(2.0, need.Deficit.Value);
         Assert.Equal<string>(["wall", "floor"], HomeUpkeepFamily.ClearanceTargets(
-            [new ClearanceTarget { EntityId = "wall", Deconstructible = true, InHome = true }], Fact.Known<EquatableArray<string>>(["floor"])));
+            [new ClearanceTarget { EntityId = "wall", Deconstructible = true }], Fact.Known<EquatableArray<string>>(["floor"])));
     }
 
     [Fact]

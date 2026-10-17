@@ -68,18 +68,10 @@ namespace HomeBridge.BridgeTools
                     var awarded = pawn.royalty.GetTitleAwardedWhenUpdating(faction, pawn.royalty.GetFavor(faction));
                     if (awarded != null && ProtoBoundary.IsIdentifier(awarded.defName)) row = row with { Title = awarded.defName };
                     var bestower = part?.bestower;
-                    if (bestower != null) row = row with { Bestower = new Common.Ref { Id = bestower.GetUniqueLoadID() } };
                     var lord = bestower?.GetLord();
                     var job = lord?.LordJob as LordJob_BestowingCeremony;
                     row = row with { BestowerWaiting = bestower != null && bestower.Spawned && lord?.CurLordToil is LordToil_BestowingCeremony_Wait };
-                    if (job != null)
-                    {
-                        row = row with { Started = job.ceremonyStarted };
-                        var spot = job.Spot;
-                        if (spot.IsValid) row = row with { Spot = new Common.Cell { X = spot.x, Z = spot.z } };
-                        foreach (var attendee in (job.colonistParticipants ?? new List<Pawn>()).Where(p => p != null).OrderBy(p => p.thingIDNumber))
-                            row = row with { Attendees = [.. row.Attendees, new Common.Ref { Id = attendee.GetUniqueLoadID() }] };
-                    }
+                    if (job != null) row = row with { Started = job.ceremonyStarted };
                     facts = facts with { Ceremonies = [.. facts.Ceremonies, row] };
                 }
             }

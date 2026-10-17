@@ -50,13 +50,13 @@ public sealed class HomeUpkeepFamilyTests
     [Fact]
     public void ClearanceIsMetUnmetOrUnknownByTheCensusAndPlannedGround()
     {
-        var held = new ClearanceTarget { EntityId = "ruin", Deconstructible = false, InHome = true };
+        var held = new ClearanceTarget { EntityId = "ruin", Deconstructible = false };
         var met = Derive(new HomeUpkeepFacts { Clearance = Known<EquatableArray<ClearanceTarget>>([held]) }, HomeUpkeepFamily.Clearance);
         Assert.Equal((Satisfaction.Met, NeedTier.Development), (met.Satisfaction, met.Tier));
 
         var unmet = Derive(new HomeUpkeepFacts
         {
-            Clearance = Known<EquatableArray<ClearanceTarget>>([held, new ClearanceTarget { EntityId = "wall", Deconstructible = true, InHome = true }]),
+            Clearance = Known<EquatableArray<ClearanceTarget>>([held, new ClearanceTarget { EntityId = "wall", Deconstructible = true }]),
             Ground = Known<EquatableArray<string>>(["floor"]),
         }, HomeUpkeepFamily.Clearance);
         Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit.Value));
@@ -132,7 +132,7 @@ public sealed class HomeUpkeepFamilyTests
     private static HomeUpkeepFacts Unmet(ClearanceCandidate? step) => new()
     {
         Structures = Known<EquatableArray<UpkeepStructure>>([Structure("wall", 40)]),
-        Clearance = Known<EquatableArray<ClearanceTarget>>([new ClearanceTarget { EntityId = "a", Deconstructible = true, InHome = true }]),
+        Clearance = Known<EquatableArray<ClearanceTarget>>([new ClearanceTarget { EntityId = "a", Deconstructible = true }]),
         Candidate = step,
     };
 

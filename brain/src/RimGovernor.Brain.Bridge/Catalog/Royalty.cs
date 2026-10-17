@@ -312,7 +312,7 @@ public sealed partial class DefinitionCatalog
                     }
 
                     haveFloor = true;
-                    result = result with { FloorTags = EquatableArray.From(floor.tags), FloorLabel = floor.labelKey };
+                    result = result with { FloorTags = EquatableArray.From(floor.tags) };
                     break;
                 case RoomRequirement_AllThingsAnyOfAreGlowing glowAny:
                     glowing.Add(EquatableArray.From(Names("AllThingsAnyOfAreGlowing", glowAny.things)));

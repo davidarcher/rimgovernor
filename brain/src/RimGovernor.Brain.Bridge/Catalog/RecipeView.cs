@@ -342,16 +342,6 @@ public sealed partial class DefinitionCatalog
             }
 
             research.Sort(StringComparer.Ordinal);
-            var requiredWork = Unknown<EquatableArray<P.WorkRequirement>>();
-            foreach (var bench in benches)
-            {
-                requiredWork = RecipeWork(row.defName, bench);
-                if (requiredWork.IsKnown)
-                {
-                    break;
-                }
-            }
-
             result.Add(new P.RecipeHost
             {
                 Definition = row.defName,
@@ -359,7 +349,6 @@ public sealed partial class DefinitionCatalog
                 Benches = Domain.EquatableArray.From(benches),
                 Available = available,
                 Ingredients = RecipeIngredients(row.defName),
-                RequiredWork = requiredWork,
                 Research = Domain.EquatableArray.From(research),
             });
         }

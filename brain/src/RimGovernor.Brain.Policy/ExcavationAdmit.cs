@@ -8,31 +8,6 @@ public enum ExcavationSupport : byte
     Unsupported,
 }
 
-public sealed record ExcavationFacts
-{
-    public GenerationSnapshot Snapshot { get; init; }
-
-    public Tick ObservationTick { get; init; }
-
-    /// <summary>Known false only when native saw the cell unfogged.</summary>
-    public Fact<bool> Fogged { get; init; }
-
-    /// <summary>The visible rock definition at the cell, known empty when the cell holds no rock.</summary>
-    public Fact<string> Definition { get; init; }
-
-    public Fact<bool> Eligible { get; init; }
-
-    public ExcavationSupport Support { get; init; }
-
-    /// <summary>A mining-capable colonist that can currently reach the excavation's access cell.</summary>
-    public Fact<bool> WorkerAvailable { get; init; }
-
-    /// <summary>The excavation's access cell itself.</summary>
-    public Fact<bool> AccessReachable { get; init; }
-}
-
-public sealed record ExcavationRequest(DomainAction Action, Progress Progress, GenerationSnapshot Current, ExcavationFacts Facts);
-
 public static partial class PolicyFunctions
 {
     /// <summary>
@@ -46,76 +21,4 @@ public static partial class PolicyFunctions
     /// protected structure, or native mining refuses it.
     /// </summary>
     public static readonly Reason ExcavationGeometryChanged = new("excavation_geometry_changed");
-
-    /// <summary>
-    /// Go <c>EvaluateExcavation</c>: re-validates one already-selected excavation cell immediately before
-    /// dispatch, the same shape <c>EvaluateWallRemoval</c> uses. Admission proves the exact visible rock, native
-    /// eligibility, roof support and worker access still hold; it does not prove pawns will finish mining.
-    /// </summary>
-    public static AdmissionDecision EvaluateExcavation(ExcavationRequest r)
-    {
-        AdmissionDecision Refuse(Reason reason) => new() { Refused = [new Refusal { Action = r.Action.Id, Reason = reason }] };
-        var excavation = r.Action.Excavation;
-        // A DomainAction is canonical by construction, so Go's re-canonicalisation check reduces to the kind test.
-        if (excavation is null)
-        {
-            return Refuse(Reason.NotReady);
-        }
-        var v = r.Progress.View;
-        var f = r.Facts;
-        if (!r.Current.IsValid || r.Current.Native.Value == 0 || !f.Snapshot.Matches(r.Current))
-        {
-            return Refuse(Reason.StaleFacts);
-        }
-        if (r.Progress.Action != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != Stage.Pending && v.Stage != Stage.Prepared))
-        {
-            return Refuse(Reason.NotReady);
-        }
-        if (f.ObservationTick < v.Tick
-            || (v.Stage == Stage.Prepared && !v.Snapshot.SameWorld(r.Current))
-            || (v.Attempt.Value > 0 && (v.Snapshot.Colony != r.Current.Colony || v.Snapshot.Map != r.Current.Map || v.Snapshot.Load != r.Current.Load)))
-        {
-            return Refuse(Reason.StaleFacts);
-        }
-        if (!f.Fogged.TryGetValue(out var fogged) || fogged)
-        {
-            return Refuse(Reason.UnknownFacts);
-        }
-        var known = f.Definition.TryGetValue(out var definition);
-        var eligibleKnown = f.Eligible.TryGetValue(out var eligible);
-        if (!known || !eligibleKnown)
-        {
-            return Refuse(Reason.UnknownFacts);
-        }
-        // A cell the pawns already cleared (a designation the controller no longer tracks, finished between
-        // planning and dispatch) is adopted as done: dispatch records the cleared evidence instead of designating.
-        if (definition!.Length == 0)
-        {
-            return new AdmissionDecision { Admitted = true };
-        }
-        if (definition != excavation.Definition || !eligible)
-        {
-            return Refuse(ExcavationGeometryChanged);
-        }
-        switch (f.Support)
-        {
-            case ExcavationSupport.Supported:
-                break;
-            case ExcavationSupport.Unsupported:
-                return Refuse(ExcavationUnsupported);
-            default:
-                return Refuse(Reason.UnknownFacts);
-        }
-        var accessKnown = f.AccessReachable.TryGetValue(out var access);
-        var workerKnown = f.WorkerAvailable.TryGetValue(out var worker);
-        if (!accessKnown || !workerKnown)
-        {
-            return Refuse(Reason.UnknownFacts);
-        }
-        if (!access || !worker)
-        {
-            return Refuse(Reason.NotReady);
-        }
-        return new AdmissionDecision { Admitted = true };
-    }
 }

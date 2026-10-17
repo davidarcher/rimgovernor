@@ -211,27 +211,6 @@ internal sealed partial class FacadeNativeClient
             {
                 throw BridgeFunctions.Contract("invalid clearance context");
             }
-            var chunks = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var row in value.Chunks)
-            {
-                if (row is null
-                    || !BridgeFunctions.IsValidId(row.EntityId ?? "")
-                    || !BridgeFunctions.IsValidId(row.DefName ?? "")
-                    || chunks.Contains(row.EntityId ?? "")
-                    || row.Cell is null
-                    || row.Cell.X is null
-                    || row.Cell.Z is null
-                    || row.Cell.X.GetValueOrDefault() < 0
-                    || row.Cell.Z.GetValueOrDefault() < 0
-                    || row.Forbidden is null
-                    || row.Stored is null
-                    || row.Destination is null
-                    || (row.Stored.GetValueOrDefault() && row.Destination.GetValueOrDefault()))
-                {
-                    throw BridgeFunctions.Contract("invalid clearance chunk");
-                }
-                chunks.Add(row.EntityId ?? "");
-            }
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var row in value.Targets)
             {
@@ -241,7 +220,6 @@ internal sealed partial class FacadeNativeClient
                     || seen.Contains(row.EntityId ?? "")
                     || row.Deconstructible is null
                     || !row.Deconstructible.GetValueOrDefault()
-                    || row.InHome is null
                     || row.AncientDanger is null
                     || row.Designated is null)
                 {

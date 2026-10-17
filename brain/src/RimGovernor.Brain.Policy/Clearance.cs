@@ -20,8 +20,6 @@ public sealed record ClearanceTarget
 
     public bool Deconstructible { get; init; }
 
-    public bool InHome { get; init; }
-
     public bool AncientDanger { get; init; }
 
     public string RoofBlocker { get; init; } = "";
@@ -57,32 +55,10 @@ public sealed record ClearanceTarget
     public long Count { get; init; }
 }
 
-/// <summary>
-/// Diagnostic rock or slag stack observation. Material-demand acquisition is selected by the support portfolio. Stored is vanilla's
-/// own valid-storage test and Destination whether ordinary hauling already has a better store cell, so a
-/// chunk lacking both is one no stockpile will take.
-/// </summary>
-public sealed record ClearanceChunk
-{
-    public string EntityId { get; init; } = "";
-
-    public string DefName { get; init; } = "";
-
-    public Cell Cell { get; init; }
-
-    public bool Forbidden { get; init; }
-
-    public bool Stored { get; init; }
-
-    public bool Destination { get; init; }
-}
-
-/// <summary>One native clearance read: the buildings, the chunks in Home.</summary>
+/// <summary>One native clearance read: the buildings in Home and the planned ground's constructed floors.</summary>
 public sealed record ClearanceCensus
 {
     public EquatableArray<ClearanceTarget> Targets { get; init; }
-
-    public EquatableArray<ClearanceChunk> Chunks { get; init; }
 
     /// <summary>The constructed floor cells on the planned ground the read asked for (#1365); none without it.</summary>
     public EquatableArray<ClearanceFloor> Floors { get; init; }

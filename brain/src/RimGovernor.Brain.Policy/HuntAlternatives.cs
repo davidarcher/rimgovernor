@@ -14,11 +14,11 @@ public sealed record HuntRoster(EquatableArray<string> Gunners, EquatableArray<s
 /// the runtime supplies; policy never calls the service. Counts are per sample: a sample is harmful when any
 /// gunner suffers serious harm, deadly when any gunner dies, downed when every prey ends dead or downed.
 /// </summary>
-public sealed record HuntEstimate(string RosterKey, string Fingerprint, int Samples, int HarmSamples, int DeathSamples,
+public sealed record HuntEstimate(int Samples, int HarmSamples, int DeathSamples,
     int DownedSamples, double ExpectedNutrition, double EncounterTicks);
 
 /// <summary>One alternative the comparison saw. A refused alternative names why and is never ranked as zero risk.</summary>
-public sealed record HuntAssessment(HuntRoster? Roster, string Refusal, HuntEstimate? Estimate, double TravelTicks, double LaborTicks)
+public sealed record HuntAssessment(HuntRoster? Roster, string Refusal, HuntEstimate? Estimate, double LaborTicks)
 {
     public bool Usable => Refusal.Length == 0;
 }
@@ -97,7 +97,7 @@ public static class HuntAlternatives
         }
         var ticks = prediction.Samples.Select(s => (double)s.DurationTicks).Order().ToArray();
         var n = prediction.Samples.Count;
-        return (new(roster.Key, prediction.RequestFingerprint, n, harm, death, downed, nutrition / n, ticks[ticks.Length / 2]), "");
+        return (new(n, harm, death, downed, nutrition / n, ticks[ticks.Length / 2]), "");
     }
 
     /// <summary>Any new injury needing treatment, missing part, permanent injury, downing or death; an existing injury counts only if worsened.</summary>
@@ -124,7 +124,7 @@ public static class HuntAlternatives
         var rows = new List<HuntAssessment>();
         foreach (var roster in rosters)
         {
-            if (!estimates.TryGetValue(roster.Key, out var estimate)) { rows.Add(new(roster, "estimate_missing", null, 0, 0)); continue; }
+            if (!estimates.TryGetValue(roster.Key, out var estimate)) { rows.Add(new(roster, "estimate_missing", null, 0)); continue; }
             var travel = new List<double>();
             var routed = true;
             foreach (var gunner in roster.Gunners)
@@ -135,11 +135,11 @@ public static class HuntAlternatives
                 if (double.IsNaN(nearest)) { routed = false; break; }
                 travel.Add(nearest);
             }
-            if (!routed) { rows.Add(new(roster, "route_unknown", estimate, 0, 0)); continue; }
-            rows.Add(new(roster, "", estimate, travel.Max(), travel.Sum() + estimate.EncounterTicks * roster.Gunners.Count));
+            if (!routed) { rows.Add(new(roster, "route_unknown", estimate, 0)); continue; }
+            rows.Add(new(roster, "", estimate, travel.Sum() + estimate.EncounterTicks * roster.Gunners.Count));
         }
         var usable = rows.Where(r => r.Usable).OrderBy(r => r, Comparer<HuntAssessment>.Create((a, b) => Compare(a, b, nutritionNeeded))).ThenBy(r => r.Roster!.Key, StringComparer.Ordinal).ToArray();
-        var none = new HuntAssessment(null, "", null, 0, 0);
+        var none = new HuntAssessment(null, "", null, 0);
         if (nutritionNeeded <= 0) findings.Add("no_nutrition_needed");
         else if (usable.Length == 0) findings.Add("no_usable_hunt_roster");
         var selected = nutritionNeeded > 0 && usable.Length > 0 ? usable[0] : none;

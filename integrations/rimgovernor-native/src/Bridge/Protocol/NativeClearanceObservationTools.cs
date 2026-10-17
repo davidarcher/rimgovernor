@@ -30,14 +30,9 @@ namespace HomeBridge.BridgeTools
                 var home = map.areaManager.Home;
                 var began = Now();
                 var buildings = new Dictionary<int, Building>();
-                var chunks = new Dictionary<int, Thing>();
                 foreach (var cell in home.ActiveCells)
                     foreach (var thing in cell.GetThingList(map)) {
                         if (thing is Building b && b.Spawned && b.Faction != player) buildings[b.thingIDNumber] = b;
-                        // Chunks are hauls, not deconstructions: a
-                        // dumping stockpile clears them, so the census
-                        // reports them beside the buildings.
-                        else if (thing.Spawned && thing.def.category == ThingCategory.Item && thing.def.IsWithinCategory(ThingCategoryDefOf.Chunks)) chunks[thing.thingIDNumber] = thing;
                     }
                 foreach (var b in map.listerThings.AllThings.OfType<Building>())
                     if (b.Spawned && b.Faction != player && !b.def.IsNonResourceNaturalRock && !b.def.mineable && b.DeconstructibleBy(player)) buildings[b.thingIDNumber] = b;
@@ -54,19 +49,10 @@ namespace HomeBridge.BridgeTools
                     if (top == null || top.natural || !map.terrainGrid.CanRemoveTopLayerAt(cell)) continue;
                     floors.Add(new Obs.ClearanceFloor { Cell = Cell(cell.x, cell.z), DefName = Id(top.defName), Designated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFloor) != null });
                 }
-                ObservationWork.Captured("clearanceScan", Now() - began, buildings.Count + chunks.Count);
-                began = Now();
+                ObservationWork.Captured("clearanceScan", Now() - began, buildings.Count);
                 var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
                 snapshot = snapshot with { Floors = [.. snapshot.Floors, .. floors] };
                 var salvage = request.IncludeSalvage ? SalvageRead.Begin(map, request) : null;
-                foreach (var chunk in chunks.Values.OrderBy(t => t.thingIDNumber)) {
-                    if (!chunk.Position.InBounds(map) || chunk.Position.Fogged(map)) continue;
-                    var forbidden = chunk.IsForbidden(player);
-                    var stored = chunk.IsInValidStorage();
-                    var destination = !stored && StoreUtility.TryFindBestBetterStoreCellFor(chunk, null, map, StoreUtility.CurrentStoragePriorityOf(chunk), player, out _, false);
-                    snapshot = snapshot with { Chunks = [.. snapshot.Chunks, new Obs.ClearanceChunk { EntityId = Id(chunk.GetUniqueLoadID()), DefName = Id(chunk.def.defName), Cell = Cell(chunk.Position.x, chunk.Position.z), Forbidden = forbidden, Stored = stored, Destination = destination }] };
-                }
-                ObservationWork.Captured("clearanceChunks", Now() - began, snapshot.Chunks.Count);
                 long dangerTicks = 0, roofTicks = 0, salvageTicks = 0, salvageRows = 0;
                 began = Now();
                 var triggers = TempleTriggers(map);
@@ -81,7 +67,7 @@ namespace HomeBridge.BridgeTools
                     var row = new Obs.ClearanceTarget {
                         EntityId = Id(building.GetUniqueLoadID()), DefName = Id(building.def.defName),
                         Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) },
-                        Deconstructible = true, Class = Classify(building), InHome = rect.All(c => home[c]),
+                        Deconstructible = true, Class = Classify(building),
                         Designated = designated
                     };
                     var phase = Now();

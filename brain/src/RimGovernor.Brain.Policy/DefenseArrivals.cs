@@ -15,30 +15,20 @@ public sealed record DefenseSector
 {
     public EquatableArray<Cell> Edge { get; init; }
 
-    public int PathLength { get; init; }
-
     public int RecentRaids { get; init; }
-
-    public Tick LastArrivalTick { get; init; }
 
     /// <summary>Runs from the nearest opening in the sector to Entry, with the proposed funnel walls treated as impassable.</summary>
     public EquatableArray<Cell> Route { get; init; }
-
-    /// <summary>Reports a route/layout problem, never permission to demolish.</summary>
-    public string Finding { get; init; } = "";
 }
 
 /// <summary>Stewardship demand. Sector indexes the ranked Sectors; a Hold keeps the cell visible but forbids treating it as clearance work.</summary>
-public sealed record DefenseCover(Cell Cell, double Fill, int Sector, string Hold);
+public sealed record DefenseCover(Cell Cell, int Sector, string Hold);
 
 public sealed record DefenseApproaches
 {
     public EquatableArray<DefenseSector> Sectors { get; init; }
 
     public EquatableArray<DefenseCover> Cover { get; init; }
-
-    /// <summary>Arrivals that cannot be mapped through the observed boundary.</summary>
-    public EquatableArray<string> UnmatchedArrivals { get; init; }
 
     public string Hold { get; init; } = "";
 }
@@ -167,7 +157,7 @@ internal sealed partial class DefenseSite
     }
 
     /// <summary>Floods from origin: Home while it is passable, else the layout's Entry.</summary>
-    internal (List<DefenseSector> Sectors, List<string> Unmatched) ComputeSectors(Cell origin)
+    internal List<DefenseSector> ComputeSectors(Cell origin)
     {
         var (_, distance) = Paths(origin, null);
         var edge = new HashSet<Cell>();
@@ -181,7 +171,7 @@ internal sealed partial class DefenseSite
             }
         }
         ordered = ordered.OrderBy(c => c.Z).ThenBy(c => c.X).ToList();
-        var sectors = new List<(List<Cell> Edge, int PathLength, int RecentRaids, long LastArrival)>();
+        var sectors = new List<(List<Cell> Edge, int PathLength, int RecentRaids)>();
         var seen = new HashSet<Cell>();
         foreach (var first in ordered)
         {
@@ -209,7 +199,7 @@ internal sealed partial class DefenseSite
                 }
             }
             sectorEdge = sectorEdge.OrderBy(c => c.Z).ThenBy(c => c.X).ToList();
-            sectors.Add((sectorEdge, pathLength, 0, 0));
+            sectors.Add((sectorEdge, pathLength, 0));
         }
         var byCell = new Dictionary<Cell, int>();
         for (var i = 0; i < sectors.Count; i++)
@@ -220,7 +210,6 @@ internal sealed partial class DefenseSite
             }
         }
         var counted = new HashSet<string>(StringComparer.Ordinal);
-        var unmatched = new List<string>();
         foreach (var a in R.Arrivals)
         {
             if (counted.Contains(a.Id) || R.Tick.Value - a.Tick.Value > DefenseArrivalWindow)
@@ -247,19 +236,14 @@ internal sealed partial class DefenseSite
             }
             if (!ok)
             {
-                unmatched.Add(a.Id);
+                // A crossing that maps to no sector counts for none.
                 continue;
             }
             var sector = sectors[i];
             sector.RecentRaids++;
-            if (a.Tick.Value > sector.LastArrival)
-            {
-                sector.LastArrival = a.Tick.Value;
-            }
             sectors[i] = sector;
         }
-        unmatched.Sort(StringComparer.Ordinal);
-        var ranked = sectors
+        return sectors
             .OrderByDescending(x => x.RecentRaids)
             .ThenBy(x => x.PathLength)
             .ThenBy(x => x.Edge[0].Z)
@@ -267,12 +251,9 @@ internal sealed partial class DefenseSite
             .Select(x => new DefenseSector
             {
                 Edge = EquatableArray.From(x.Edge),
-                PathLength = x.PathLength,
                 RecentRaids = x.RecentRaids,
-                LastArrivalTick = new Tick(x.LastArrival),
             })
             .ToList();
-        return (ranked, unmatched);
     }
 
     internal DefenseApproaches ComputeApproaches(DefenseLayout l)
@@ -282,7 +263,7 @@ internal sealed partial class DefenseSite
         {
             origin = l.Entry;
         }
-        var (sectorList, unmatched) = ComputeSectors(origin);
+        var sectorList = ComputeSectors(origin);
         var closed = new HashSet<Cell>();
         var protectedCells = new HashSet<Cell>(Protect);
         foreach (var t in l.Tiers)
@@ -329,21 +310,6 @@ internal sealed partial class DefenseSite
             }
         }
         var (prev, distance) = Paths(l.Entry, closed);
-        var withoutEntry = new HashSet<Cell> { l.Entry };
-        foreach (var c in closed)
-        {
-            withoutEntry.Add(c);
-        }
-        // A route to a firing cell with Entry closed is a separate geometry finding. Clearing vegetation cannot repair that bypass.
-        var bypass = new HashSet<Cell>();
-        foreach (var f in l.Firing)
-        {
-            var (paths, _) = Paths(f.Cell, withoutEntry);
-            foreach (var c in paths.Keys)
-            {
-                bypass.Add(c);
-            }
-        }
         for (var i = 0; i < sectorList.Count; i++)
         {
             var sector = sectorList[i];
@@ -351,10 +317,6 @@ internal sealed partial class DefenseSite
             var best = default(Cell);
             foreach (var c in sector.Edge)
             {
-                if (bypass.Contains(c))
-                {
-                    sector = sector with { Finding = "route_bypasses_entry" };
-                }
                 if (distance.TryGetValue(c, out var d) && (!found || d < distance[best]))
                 {
                     best = c;
@@ -365,13 +327,9 @@ internal sealed partial class DefenseSite
             {
                 sector = sector with { Route = EquatableArray.From(DefensePath(prev, best)) };
             }
-            else
-            {
-                sector = sector with { Finding = "entry_unreachable" };
-            }
             sectorList[i] = sector;
         }
-        var output = new DefenseApproaches { Sectors = EquatableArray.From(sectorList), UnmatchedArrivals = EquatableArray.From(unmatched) };
+        var output = new DefenseApproaches { Sectors = EquatableArray.From(sectorList) };
         if (!R.CoverThreshold.TryGetValue(out var threshold))
         {
             return output with { Hold = "cover_threshold_unknown" };
@@ -453,7 +411,7 @@ internal sealed partial class DefenseSite
                     }
                 }
             }
-            cover.Add(new DefenseCover(c, fill, sectorIndex, hold));
+            cover.Add(new DefenseCover(c, sectorIndex, hold));
         }
         // Nearest the entry first: the cover a raider would take at the line is cleared before the cover farther up the approach.
         var sortedCover = cover

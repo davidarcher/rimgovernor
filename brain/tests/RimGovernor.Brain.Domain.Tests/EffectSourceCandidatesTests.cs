@@ -191,11 +191,11 @@ public sealed class EffectSourceCandidatesTests
         var pawn = new GearPawn { Pawn = new("pawn"), Policy = Known(state), LoadoutModel = Known(model) };
 
         Assert.False(DesiredApparelPolicy(pawn, out _));
-        Assert.DoesNotContain(PlanColonyGear([pawn]).Loadouts[0].Target, o => o.ID == "parka");
+        Assert.DoesNotContain(PlanColonyGear([pawn])[0].Target, o => o.ID == "parka");
 
         Assert.True(DesiredApparelPolicy(pawn with { AllowTainted = true }, out var allowed));
         Assert.True(allowed!.Spec.AllowTainted);
-        Assert.Contains(PlanColonyGear([pawn with { AllowTainted = true }]).Loadouts[0].Target, o => o.ID == "parka");
+        Assert.Contains(PlanColonyGear([pawn with { AllowTainted = true }])[0].Target, o => o.ID == "parka");
     }
 
     // #3325: the one stamp on the rounds census reaches every gear reader. A pawn the comparator left allowed, in a tainted
@@ -246,7 +246,7 @@ public sealed class EffectSourceCandidatesTests
         Assert.NotEmpty(Generate(Facts(pawns: warm), temperature: MechanicCardStatus.Verified).Roots);
         Assert.Empty(Generate(Facts(pawns: warm), temperature: MechanicCardStatus.Extracted).Roots);
         Assert.Equal("gear/pawn/disallow-tainted/cold30-heat0", Assert.Single(Generate(Facts(), temperature: MechanicCardStatus.Extracted).Roots).Id);
-        Assert.DoesNotContain(PlanColonyGear(Census(warm).Pawns).Loadouts[0].Target, o => o.ID == "parka");
+        Assert.DoesNotContain(PlanColonyGear(Census(warm).Pawns)[0].Target, o => o.ID == "parka");
     }
 
     // #3329 acceptance: with no candidate the floor is the worn insulation and tainted stays disallowed. The pawn in the dead
@@ -259,14 +259,14 @@ public sealed class EffectSourceCandidatesTests
         var model = Pawn().Gear with { Options = [Garment("clean-parka", GearSlot.Outer, "Shell", "Torso", 30, source: GearSource.Stored), thin] };
         var pawn = new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model) };
 
-        var floored = PlanColonyGear([pawn]).Loadouts[0];
+        var floored = PlanColonyGear([pawn])[0];
         Assert.Contains(floored.Target, o => o.ID == "clean-parka");
         Assert.DoesNotContain(floored.Target, o => o.ID == "parka");
         Assert.False(floored.FloorUnmet);
         Assert.True(Assert.Single(floored.Gaps).Floor);
         Assert.Contains(PlanGearLoadout(model, o => o.Tainted).Target, o => o.ID == "thin-parka");
 
-        var closest = PlanColonyGear([pawn with { LoadoutModel = Known(model with { Options = [thin] }) }]).Loadouts[0];
+        var closest = PlanColonyGear([pawn with { LoadoutModel = Known(model with { Options = [thin] }) }])[0];
         Assert.Contains(closest.Target, o => o.ID == "thin-parka");
         Assert.True(closest.FloorUnmet);
     }

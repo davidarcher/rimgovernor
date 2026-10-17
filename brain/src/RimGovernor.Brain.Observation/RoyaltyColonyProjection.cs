@@ -37,34 +37,20 @@ public static partial class ObservationPackage
         foreach (var row in v.Ceremonies)
         {
             var pawn = row.Pawn?.Id ?? "";
-            var bestower = row.Bestower?.Id ?? "";
             var faction = row.FactionDef is not null ? (row.FactionDef ?? "") : "";
-            if (!BridgeFunctions.IsValidId(pawn) || (bestower != "" && !BridgeFunctions.IsValidId(bestower)) || !BridgeFunctions.IsValidId((row.Quest ?? ""))
+            if (!BridgeFunctions.IsValidId(pawn) || !BridgeFunctions.IsValidId((row.Quest ?? ""))
                 || (row.FactionDef is not null && !BridgeFunctions.IsValidId((row.FactionDef ?? ""))) || (row.Title is not null && !BridgeFunctions.IsValidId((row.Title ?? ""))) || !seen.Add(pawn + "/" + faction))
             {
                 throw new BridgeContractException("invalid royalty ceremony");
-            }
-            var attendees = new List<PawnId>(row.Attendees.Count);
-            foreach (var attendee in row.Attendees)
-            {
-                if (!BridgeFunctions.IsValidId((attendee.Id ?? "")))
-                {
-                    throw new BridgeContractException("invalid royalty ceremony attendee");
-                }
-                attendees.Add(new PawnId((attendee.Id ?? "")));
             }
             ceremonies.Add(new BestowingCeremony
             {
                 Quest = new QuestId((row.Quest ?? "")),
                 Pawn = new PawnId(pawn),
-                Bestower = new PawnId(bestower),
-                Faction = faction,
                 Title = row.Title is not null ? (row.Title ?? "") : "",
                 Accepted = Optional(row.Accepted is not null, row.Accepted.GetValueOrDefault()),
                 BestowerWaiting = Optional(row.BestowerWaiting is not null, row.BestowerWaiting.GetValueOrDefault()),
                 Started = Optional(row.Started is not null, row.Started.GetValueOrDefault()),
-                Spot = row.Spot is null ? default : Known(CellOf(row.Spot)),
-                Attendees = EquatableArray.From(attendees),
             });
         }
         var thrones = new List<RoyalThrone>();

@@ -49,9 +49,6 @@ public record ThroneRequirements
     /// <summary>The terrain tags whose floors satisfy the flooring requirement (TerrainWithTags: every cell's terrain carries one), empty when the title does not ask for floors.</summary>
     public EquatableArray<string> FloorTags { get; init; }
 
-    /// <summary>The flooring requirement's labelKey ("RoomRequirementAllFloored", "RoomRequirementAllFineFloored").</summary>
-    public string FloorLabel { get; init; } = "";
-
     /// <summary>ThingAnyOfCount requirements (two braziers).</summary>
     public EquatableArray<ThingAnyOfCount> AnyOfCounts { get; init; }
 

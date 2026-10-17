@@ -75,33 +75,6 @@ public sealed record GearPawn
     public Fact<EquatableArray<GearReplacement>> Replacements { get; init; }
     public Fact<EquatableArray<GearApparel>> Apparel { get; init; }
 
-    /// <summary>Reports a pawn wearing any garment at or under the threshold.</summary>
-    internal bool Tattered()
-    {
-        foreach (var a in Apparel.ValueOrDefault)
-        {
-            if (a.Condition <= PolicyFunctions.GearTatteredCondition)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>Reports a pawn with a core body-part group no garment covers.</summary>
-    internal bool Uncovered()
-    {
-        var apparel = Apparel.ValueOrDefault;
-        foreach (var group in PolicyFunctions.GearCoreGroups)
-        {
-            var covered = apparel.Any(a => a.Groups.Contains(group));
-            if (!covered)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
 }
 
 public sealed record GearObservation
@@ -192,18 +165,13 @@ public sealed record GearObservation
 
 /// <summary>
 /// The census the military/equipment Need is judged on. Recovered and Deficit follow the loadout model's gaps and the
-/// outfit policy; WornOut and Uncovered are the apparel-condition census (the fraction of pawns wearing any
-/// garment at or under the tattered threshold, and the fraction with a core body-part group uncovered), known
-/// only when every pawn's worn apparel was observed.
+/// outfit policy.
 /// </summary>
 public sealed record GearReview
 {
     public IReadOnlyList<GearLoadout> Loadouts { get; init; } = [];
-    public Fact<EquatableArray<GearDemand>> Demand { get; init; }
     public Fact<bool> Recovered { get; init; }
     public Fact<double> Deficit { get; init; }
-    public Fact<double> WornOut { get; init; }
-    public Fact<double> Uncovered { get; init; }
 }
 
 /// <summary>Observed or proposed production supply for a loadout requirement; not a pawn labor winner.</summary>
@@ -223,12 +191,11 @@ public sealed record GearMethod
 {
     public int Count { get; init; }
     public GearMethodKind Kind { get; init; }
-    public GearReplacement Need { get; init; } = new();
     public string Bench { get; init; } = "";
     public string Recipe { get; init; } = "";
     public EquatableArray<Resource> Filter { get; init; }
 
-    /// <summary>The standing bill a WaitForExistingWork found already making Need.</summary>
+    /// <summary>The standing bill a WaitForExistingWork found already making the need.</summary>
     public GearBill? Bill { get; init; }
 }
 
@@ -312,7 +279,6 @@ public sealed record RecipeHost
     public bool Available { get; init; }
     public EquatableArray<string> Benches { get; init; }
     public Fact<EquatableArray<EquatableArray<Amount>>> Ingredients { get; init; }
-    public Fact<EquatableArray<WorkRequirement>> RequiredWork { get; init; }
 
     /// <summary>The ResearchProjectDefs the recipe itself requires (sorted); empty when only its bench gates it.</summary>
     public EquatableArray<string> Research { get; init; }
@@ -320,7 +286,6 @@ public sealed record RecipeHost
 
 public sealed record GearPlanningRequest
 {
-    public IReadOnlyDictionary<Resource, double> MaterialPrices { get; init; } = new Dictionary<Resource, double>();
     public Fact<GearObservation> Observation { get; init; }
     public Fact<EquatableArray<GearBench>> Benches { get; init; }
 
@@ -354,11 +319,8 @@ public static partial class PolicyFunctions
         {
             return new GearReview();
         }
-        int missing = 0,
-            tattered = 0,
-            uncovered = 0;
-        var dressed = true;
-        var (loadouts, demand) = PlanColonyGear(v.Pawns);
+        var missing = 0;
+        var loadouts = PlanColonyGear(v.Pawns);
         var modeled = new Dictionary<PawnId, GearLoadout>();
         foreach (var l in loadouts)
         {
@@ -379,19 +341,6 @@ public static partial class PolicyFunctions
             {
                 missing++;
             }
-            if (!p.Apparel.IsKnown)
-            {
-                dressed = false;
-                continue;
-            }
-            if (p.Tattered())
-            {
-                tattered++;
-            }
-            if (p.Uncovered())
-            {
-                uncovered++;
-            }
         }
         // Outfits owed a prune keep the goal open for the prune.
         if (missing == 0 && v.OutfitsToPrune().Count > 0)
@@ -399,18 +348,12 @@ public static partial class PolicyFunctions
             missing++;
         }
         double n = v.Pawns.Count;
-        var review = new GearReview
+        return new GearReview
         {
             Loadouts = loadouts,
-            Demand = demand,
             Recovered = Known(missing == 0),
             Deficit = Known(missing / n),
         };
-        if (dressed)
-        {
-            review = review with { WornOut = Known(tattered / n), Uncovered = Known(uncovered / n) };
-        }
-        return review;
     }
 
     /// <summary>
@@ -560,7 +503,7 @@ public static partial class PolicyFunctions
                 }
                 if (active)
                 {
-                    return (new GearMethod { Kind = GearMethodKind.WaitForExistingWork, Need = n.Need, Bill = bill }, true);
+                    return (new GearMethod { Kind = GearMethodKind.WaitForExistingWork, Bill = bill }, true);
                 }
             }
         }

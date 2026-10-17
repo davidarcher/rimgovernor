@@ -8,8 +8,6 @@ public sealed record DefenseTurretFacts
 {
     public string Id { get; init; } = "";
 
-    public string Definition { get; init; } = "";
-
     public Cell Cell { get; init; }
 
     /// <summary>The turret's observed damage per second.</summary>
@@ -23,12 +21,9 @@ public sealed record DefenseTurretFacts
     public EquatableArray<Resource> FuelDefinitions { get; init; }
 }
 
-/// <summary>One refuel order for an empty barrel: the pawn that carries it and the fuel in stock it will load.</summary>
-public sealed record DefenseRearm(string Turret, Cell Cell, PawnId Pawn, Resource Fuel);
-
 /// <summary>
 /// The turret tier's observed service deficits once every tier stands. Unpowered and Empty are the deficit
-/// cells; Rearm is the one order proposed for the first empty barrel whose fuel is in stock.
+/// cells; Rearm is whether an empty barrel has fuel in stock and an available hauler to carry it.
 /// </summary>
 public sealed record DefenseTurretUpkeep
 {
@@ -36,7 +31,7 @@ public sealed record DefenseTurretUpkeep
 
     public EquatableArray<Cell> Empty { get; init; }
 
-    public EquatableArray<DefenseRearm> Rearm { get; init; }
+    public bool Rearm { get; init; }
 }
 
 public static partial class PolicyFunctions
@@ -50,9 +45,9 @@ public static partial class PolicyFunctions
     {
         var unpowered = new List<Cell>();
         var empty = new List<Cell>();
-        var rearm = new List<DefenseRearm>();
+        var rearm = false;
         var stockKnown = stock.TryGetValue(out var stocked);
-        var pawnOk = DefenseRearmPawn(workers, out var pawn);
+        var pawnOk = DefenseRearmPawn(workers, out _);
         foreach (var t in turrets)
         {
             if (t.Powered.TryGetValue(out var on) && !on && !blackout)
@@ -68,29 +63,25 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var fuel = new Resource("");
+            var fueled = false;
             foreach (var d in t.FuelDefinitions)
             {
                 if (stocked!.TryGetValue(d, out var n) && n > 0)
                 {
-                    fuel = d;
+                    fueled = true;
                     break;
                 }
             }
-            if (fuel.Value == "")
+            if (fueled && pawnOk && t.Id != "")
             {
-                continue;
-            }
-            if (pawnOk && rearm.Count == 0 && t.Id != "")
-            {
-                rearm.Add(new DefenseRearm(t.Id, t.Cell, pawn, fuel));
+                rearm = true;
             }
         }
         return new DefenseTurretUpkeep
         {
             Unpowered = EquatableArray.From(unpowered),
             Empty = EquatableArray.From(empty),
-            Rearm = EquatableArray.From(rearm),
+            Rearm = rearm,
         };
     }
 

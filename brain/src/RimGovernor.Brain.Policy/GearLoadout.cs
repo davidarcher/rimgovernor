@@ -260,8 +260,6 @@ public sealed record GearLoadout
     public bool FloorUnmet { get; init; }
 }
 
-public sealed record GearDemand(Resource Definition, Resource Stuff, int Count);
-
 public static partial class PolicyFunctions
 {
     /// <summary>The gear slots in search order.</summary>
@@ -988,34 +986,12 @@ public static partial class PolicyFunctions
         return v with { Pawns = pawns };
     }
 
-    /// <summary>Counts purchases, not unique definitions per pawn; quality does not split a native def x stuff production bill.</summary>
-    public static IReadOnlyList<GearDemand> GearProductionDemand(IReadOnlyList<GearLoadout> loadouts)
-    {
-        var counts = new Dictionary<(Resource Def, Resource Stuff), int>();
-        foreach (var l in loadouts)
-        {
-            foreach (var g in l.Gaps)
-            {
-                if (g.Source == GearSource.Bill && GearGapWanted(l.Role, g))
-                {
-                    var key = (g.Wanted.Definition, g.Wanted.Stuff);
-                    counts[key] = counts.GetValueOrDefault(key) + 1;
-                }
-            }
-        }
-        return counts
-            .Select(kv => new GearDemand(kv.Key.Def, kv.Key.Stuff, kv.Value))
-            .OrderBy(d => d.Definition.Value, StringComparer.Ordinal)
-            .ThenBy(d => d.Stuff.Value, StringComparer.Ordinal)
-            .ToList();
-    }
-
     /// <summary>
     /// Allocates physical supplies once in stable pawn order. Bill options remain reusable; their resulting quantities are
     /// aggregated separately. Each pawn plans inside its outfit filter (GearPawn.AllowTainted) and above its insulation floor
     /// (GearPawn.ColdFloor/HeatFloor; by default its worn insulation, so warmth never drops without the comparator).
     /// </summary>
-    public static (IReadOnlyList<GearLoadout> Loadouts, Fact<EquatableArray<GearDemand>> Demand) PlanColonyGear(IReadOnlyList<GearPawn> pawns)
+    public static IReadOnlyList<GearLoadout> PlanColonyGear(IReadOnlyList<GearPawn> pawns)
     {
         var seen = new HashSet<PawnId>();
         foreach (var p in pawns)
@@ -1049,6 +1025,6 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        return (@out, Known(EquatableArray.From(GearProductionDemand(@out))));
+        return @out;
     }
 }

@@ -781,14 +781,13 @@ Home, or at the layout's Entry when Home itself is not a passable cell.
 `EdgeReachable` proves a connection to some map edge; it does not identify which edge
 a distant raid used. Arrival inputs therefore carry a distinct raid ID, its observed
 local boundary crossing and its arrival tick. Duplicate observations count once,
-arrivals older than three game days expire, and unmatched crossings remain explicit.
+arrivals older than three game days expire, and a crossing that maps to no sector counts for none.
 Sectors rank by recent raid count, then shortest observed distance to Home, with
 deterministic coordinate ties. A turret's `LastAttackTargetTick` is firing evidence,
 not a raid identity or arrival location, and cannot by itself increment a count.
 
 Each sector has an observed passable route to Entry with proposed funnel walls
-closed. Reachability to firing positions with both entry lanes closed reports
-`route_bypasses_entry`; this is a layout finding, not clearance demand.
+closed.
 
 Cover demand uses the observed native cover fill threshold, strictly exceeded, within
 the shortest defender range ahead of Entry or beside the last six route cells. The

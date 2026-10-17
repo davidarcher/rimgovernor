@@ -368,9 +368,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         read.Projection.WorkPawns.TryGetValue(out var workers);
         var upkeep = PolicyApi.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, read.Projection.Resources, PolicyApi.PowerOutageHold(read.Projection.Facts.DisasterConditions));
         p.Journal.SaveDefenseLayout(record, call);
-        if (upkeep.Rearm.Count > 0)
+        if (upkeep.Rearm)
         {
-            return Rearm(goal, review, state, read, upkeep.Rearm[0], arbiter, call, epoch);
+            return Rearm();
         }
         if (upkeep.Unpowered.Count > 0 || upkeep.Empty.Count > 0)
         {
@@ -385,8 +385,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit };
     }
 
-    internal static RoundsDefenseLayoutResult Rearm(NeedOwner goal, RoundsReview review, ControlState state,
-        RoundsReading read, DefenseRearm order, StepArbiter? arbiter, CancellationToken call, CancellationToken epoch) =>
+    internal static RoundsDefenseLayoutResult Rearm() =>
         new() { Verdict = Verdict.AwaitingPlan("unsupported_forecast_turret_refuel",
             "Routine turret refuel requires exact fuel, worker and outcome alternatives."), Tier = PolicyApi.TierTurrets.Value };
     internal static List<DefenseTurretFacts> DefenseTurretFactsOf(DefenseLayoutRecord record, DefenseCensus? census)
@@ -411,7 +410,6 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 var facts = new DefenseTurretFacts { Cell = b.Cell };
                 if (census.Consumers.TryGetValue(b.Cell, out var site))
                 {
-                    facts = facts with { Definition = site.Definition };
                     facts = facts with { Dps = site.TurretDps };
                     facts = facts with { Id = site.Id };
                     facts = facts with { Powered = Known(site.Powered) };

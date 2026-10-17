@@ -63,7 +63,7 @@ public sealed partial class Rounder
 
                 var claims = Player.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
                 var protectedCells = FieldProtected(state, review, projection, claims, call);
-                var site = new FarmSiteRequest { Bounds = projection.Bounds, Anchor = anchor, Cells = projection.Cells, Protected = protectedCells };
+                var site = new FarmSiteRequest { Anchor = anchor, Cells = projection.Cells, Protected = protectedCells };
                 var fields = LayoutFieldPlanning.LayoutFieldCells(projection);
                 if (fields is not null)
                 {

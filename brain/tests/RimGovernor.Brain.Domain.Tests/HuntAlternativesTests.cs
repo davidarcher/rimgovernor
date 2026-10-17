@@ -20,7 +20,7 @@ public sealed class HuntAlternativesTests
         new() { Known = true, Hunters = EquatableArray.From(hunters), Prey = EquatableArray.From(prey) };
     static HuntRoster Roster(string[] gunners, params string[] prey) => new(EquatableArray.From(gunners), EquatableArray.From(prey));
     static HuntEstimate Estimate(HuntRoster r, int harm, int death, double nutrition, double ticks = 1000, int samples = 16) =>
-        new(r.Key, "fp", samples, harm, death, samples, nutrition, ticks);
+        new(samples, harm, death, samples, nutrition, ticks);
     static CoupledRoute Walk(string pawn, int x, double ticks) => new(pawn, new(0, 0), new(x, 10), Fact.Known(ticks)) { FromStart = true };
 
     [Fact]

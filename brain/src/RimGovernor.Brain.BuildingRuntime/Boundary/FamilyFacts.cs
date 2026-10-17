@@ -1,31 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Ports of the pawn-order family boundaries that only decode pawn rows into policy facts:
-// internal/buildingruntime/capture, rescue and tend (boundary.go each).
-
-/// <summary>Go package <c>capture</c>.</summary>
-public static class CaptureFacts
-{
-    /// <summary>Reuses Rescue's rescuer facts shape: capturer eligibility (undrafted, not mid-mental-break, no queued player work) is identical.</summary>
-    public static RescuerFacts NewCapturerFacts(PawnId pawn, PbObservations.PawnState row, string token) => RescueFacts.NewRescuerFacts(pawn, row, token);
-
-    public static CapturePatientFacts NewCapturePatientFacts(PawnId pawn, PbObservations.PawnState row, string token)
-    {
-        var facts = new CapturePatientFacts
-        {
-            Pawn = pawn,
-            SnapshotToken = token,
-            Dead = Fact.Known(row.Dead),
-            Downed = Fact.Known(row.Downed),
-            Prisoner = Fact.Known(row.Prisoner),
-        };
-        if (row.Job?.DefName is { } jobDef)
-        {
-            facts = facts with { ExistingJobDef = Known(jobDef) };
-        }
-        return facts;
-    }
-}
+// internal/buildingruntime/rescue and tend (boundary.go each).
 
 /// <summary>Go package <c>rescue</c>.</summary>
 public static class RescueFacts

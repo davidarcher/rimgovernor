@@ -617,7 +617,7 @@ internal static partial class BuildingRuntimePackage
     {
         var (field, choices) = FieldRequestOf(projection, reserveDays);
         var anchor = LayoutProtected.FieldAnchor(projection) ?? default;
-        var site = new FarmSiteRequest { Bounds = projection.Bounds, Anchor = anchor, Cells = projection.Cells, Protected = protectedCells };
+        var site = new FarmSiteRequest { Anchor = anchor, Cells = projection.Cells, Protected = protectedCells };
         if (LayoutFieldPlanning.LayoutFieldCells(projection) is { } fields)
         {
             site = site with { Fields = fields };

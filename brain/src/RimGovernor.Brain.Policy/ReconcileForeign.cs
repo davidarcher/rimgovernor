@@ -84,7 +84,6 @@ public static partial class PolicyFunctions
                     Minimum = sc.Cell,
                     Maximum = sc.Cell,
                     Class = "foreign",
-                    InHome = true,
                     Designated = t.Has(ThingMarks.Designated),
                 });
             }
@@ -134,7 +133,6 @@ public static partial class PolicyFunctions
                     Class = "foreign",
                     Deconstructible = t.Has(ThingMarks.Deconstructible),
                     Count = t.Count,
-                    InHome = true,
                     Designated = t.Has(ThingMarks.Designated),
                     Packable = packable,
                     AncientDanger = t.Has(ThingMarks.AncientDanger),

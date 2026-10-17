@@ -18,7 +18,7 @@ public sealed class HuntPlanningTests
         new() { Id = id, Food = true, Hunt = true, Designated = designated, Downed = downed };
     static HuntActivityRead Read() => new() { Known = true, Hunters = [Hunter("a"), Hunter("b")], Prey = [Prey("boar", 10), Prey("far", 60)] };
     static CoupledRoute Walk(string pawn, int x, double ticks) => new(pawn, new(0, 0), new(x, 10), Fact.Known(ticks)) { FromStart = true };
-    static HuntEstimate Estimate(HuntRoster r, int harm = 0, int death = 0) => new(r.Key, "fp", 16, harm, death, 16, 6.0, 500);
+    static HuntEstimate Estimate(HuntRoster r, int harm = 0, int death = 0) => new(16, harm, death, 16, 6.0, 500);
     static readonly CoupledRoute[] Routes = [Walk("a", 10, 100), Walk("b", 10, 100), Walk("a", 60, 100), Walk("b", 60, 100)];
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class HuntPlanningTests
     {
         var sources = new[] { Source("boar"), Source("deer") };
         var roster = new HuntRoster(EquatableArray.From(["a"]), EquatableArray.From(["boar"]));
-        var formation = PolicyFunctions.HuntRosterChannel(new(roster, "", Estimate(roster), 100, 700), roster, sources);
+        var formation = PolicyFunctions.HuntRosterChannel(new(roster, "", Estimate(roster), 700), roster, sources);
         var candidates = PolicyFunctions.HuntCandidates(sources, 2, formation);
         Assert.Contains(candidates, c => c.Mode() == HuntMode.Formation && c.Hunters.SequenceEqual(["a"]));
         Assert.Contains(candidates, c => c.Id == "deer" && c.Mode() == HuntMode.Lone);

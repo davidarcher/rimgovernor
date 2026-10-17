@@ -211,7 +211,7 @@ internal static partial class BuildingRuntimePackage
         {
             if (copy[i].Id == standing.Id)
             {
-                copy[i] = copy[i] with { RequiredTags = need.FloorTags, RequiredLabel = need.FloorLabel };
+                copy[i] = copy[i] with { RequiredTags = need.FloorTags };
             }
         }
         return v with { Rooms = [.. copy] };

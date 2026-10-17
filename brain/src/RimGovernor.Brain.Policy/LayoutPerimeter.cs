@@ -449,7 +449,7 @@ public static partial class PolicyFunctions
         var meets = new List<(Crossing At, int Dist)>();
         if (found)
         {
-            var (sectors, _) = site.ComputeSectors(origin);
+            var sectors = site.ComputeSectors(origin);
             var flood = new FloodGrid(site);
             var dist = flood.From(origin);
             foreach (var sec in sectors)

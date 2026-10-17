@@ -105,10 +105,9 @@ namespace HomeBridge.BridgeTools
             {
                 var settings = pawn.workSettings;
                 var hunter = new Obs.HunterFacts { PawnId = pawn.GetUniqueLoadID(), Position = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z },
-                    Downed = pawn.Downed, InMentalState = pawn.InMentalState, Drafted = pawn.Drafted,
-                    HuntingPriority = settings?.GetPriority(WorkTypeDefOf.Hunting) ?? 0, HuntingActive = settings?.WorkIsActive(WorkTypeDefOf.Hunting) == true,
-                    HuntingDisabled = pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hunting),
-                    HasHuntingWeapon = WorkGiver_HunterHunt.HasHuntingWeapon(pawn), RangedBlockingShield = WorkGiver_HunterHunt.HasShieldAndRangedWeapon(pawn) };
+                    Downed = pawn.Downed, InMentalState = pawn.InMentalState,
+                    HuntingActive = settings?.WorkIsActive(WorkTypeDefOf.Hunting) == true,
+                    RangedBlockingShield = WorkGiver_HunterHunt.HasShieldAndRangedWeapon(pawn) };
                 if (pawn.equipment?.Primary != null) hunter = hunter with { WeaponDef = pawn.equipment.Primary.def.defName };
                 if (hunter.HuntingActive.GetValueOrDefault() && !pawn.Downed && !pawn.InMentalState)
                     foreach (var animal in prey.Where(a => !a.Position.Fogged(map)))

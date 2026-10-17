@@ -51,7 +51,7 @@ public sealed partial class RoundsBuildingPlanner
             return (this, BuildingReasonNoLayoutPlan);
         }
 
-        var (site, ok) = PolicyFunctions.PlanSiteType(new SiteTypeRequest { Paste = request, Field = new FieldRequest { Site = new FarmSiteRequest { Cells = p.Cells, Bounds = p.Bounds, Anchor = anchor } } });
+        var (site, ok) = PolicyFunctions.PlanSiteType(new SiteTypeRequest { Paste = request, Field = new FieldRequest { Site = new FarmSiteRequest { Cells = p.Cells, Anchor = anchor } } });
         if (!ok)
         {
             return (this, NoSpace("paste_dispenser_site"));
