@@ -259,7 +259,7 @@ namespace HomeBridge.BridgeTools
                     pawnId = pawn.GetUniqueLoadID(),
                     plantId = plant.GetUniqueLoadID(), plantToken = NativePlantAcquisition.Snapshot(plant, context).Token,
                     plantResource = plant.def.plant.harvestedThingDef.defName, plantCell = new { x = plant.Position.x, z = plant.Position.z },
-                    rockId = rock.GetUniqueLoadID(), rockToken = NativeMineAcquisition.Snapshot(rock, context).Token,
+                    rockId = rock.GetUniqueLoadID(),
                     rockResource = rock.def.building.mineableThing.defName, rockCell = new { x = rock.Position.x, z = rock.Position.z },
                     rockDef = rock.def.defName,
                     benchId = bench.GetUniqueLoadID(), benchToken,
