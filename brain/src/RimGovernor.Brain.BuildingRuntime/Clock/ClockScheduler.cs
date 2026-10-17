@@ -27,6 +27,9 @@ internal static partial class BuildingRuntimePackage
 public interface IClockStepNative : IZonesNative, IPlanningWindowNative, IEntityNative
 {
     Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeApi.StepRequest request, CancellationToken ct);
+
+    /// <summary>The world progression census, read on demand by the incoming expedition handoff.</summary>
+    Task<WorldProgressionRead> ReadWorldProgressionAsync(PbCommon.Identity identity, bool full, CancellationToken ct);
 }
 
 /// <summary>
@@ -205,7 +208,7 @@ public sealed partial class ClockScheduler
             var loaded = await _native.ReadStepAsync(new BridgeApi.StepRequest { ClockStatus = true }, call).ConfigureAwait(false)
                 ?? throw new HeldException("step read returned nothing");
             var loadedContext = loaded.Context ?? throw new BridgeContractException("step read carried no context");
-            if (await _player.ExpeditionIncomingHandoffAsync(loaded, call, epoch).ConfigureAwait(false))
+            if (await _player.ExpeditionIncomingHandoffAsync(loaded, _native, call, epoch).ConfigureAwait(false))
             {
                 result.Deferred = true;
                 return result;

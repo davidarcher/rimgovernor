@@ -14,10 +14,10 @@ internal interface IPlayerMapFocusConfirmation
 
 public sealed partial class Player
 {
-    internal async Task<bool> ExpeditionIncomingHandoffAsync(PbObservations.BundleSnapshot? loaded, CancellationToken call, CancellationToken epoch)
+    internal async Task<bool> ExpeditionIncomingHandoffAsync(PbObservations.BundleSnapshot? loaded, IClockStepNative native, CancellationToken call, CancellationToken epoch)
     {
         var state = _session.State();
-        if (!state.ObservationKnown || loaded?.Context?.Identity is null || loaded.WorldProgression is null)
+        if (!state.ObservationKnown || loaded?.Context?.Identity is null)
         {
             return false;
         }
@@ -31,7 +31,8 @@ public sealed partial class Player
         {
             return false;
         }
-        var world = BridgeApi.DecodeWorldProgressionSnapshot(loaded.WorldProgression, identity);
+        // The census is read only once the cheap identity, control and map checks pass: a step on the same map never pays for it.
+        var world = await native.ReadWorldProgressionAsync(identity, false, call).ConfigureAwait(false);
         var plans = await Task.Run(() => _journal.PlanHistoryWithMethods(256, ["quest-expedition-*", "quest-site-*-return-*"], call), call).ConfigureAwait(false);
         if (!ExpeditionHandoffTarget(state.Snapshot, world, plans).TryGetValue(out var target) || target.Map != new MapId(identity.MapId))
         {

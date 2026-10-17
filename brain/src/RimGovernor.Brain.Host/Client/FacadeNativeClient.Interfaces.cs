@@ -167,6 +167,9 @@ internal sealed partial class FacadeNativeClient :
     Task<O.BundleSnapshot?> IClockStepNative.ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct) =>
         ReadStepAsync(request, ct);
 
+    Task<WorldProgressionRead> IClockStepNative.ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct) =>
+        ReadWorldProgressionAsync(identity, full, ct);
+
     Task<PbClock.EventsReply> IClockEventNative.ReadClockEventsAsync(PbClock.EventsRequest request, CancellationToken ct) =>
         ReadClockEventsAsync(request, ct);
 
