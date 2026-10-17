@@ -16,29 +16,24 @@ public sealed record RepeatAttempt(int Attempt, bool Passed, long WallMs, string
     public static RepeatAttempt From(int attempt, string output, Report report, int code, TimeSpan wall)
     {
         ArgumentNullException.ThrowIfNull(report);
-        return new RepeatAttempt(attempt, code == 0, (long)wall.TotalMilliseconds, output, report["error"].AsString(), WorldRecords.WorldOf(report));
+        return new RepeatAttempt(attempt, code == 0, (long)wall.TotalMilliseconds, output, CaseResult.Of(report).Error ?? "", WorldRecords.WorldOf(report));
     }
 
     internal JsonObject ToJson()
     {
         var row = new JsonObject
         {
-            ["attempt"] = Attempt,
-            ["passed"] = Passed,
-            ["wall_ms"] = WallMs,
-            ["output"] = Output,
+            { "attempt", Attempt },
+            { "passed", Passed },
+            { "wall_ms", WallMs },
+            { "output", Output },
         };
         if (Error.Length > 0)
         {
-            row["error"] = Error;
+            row.Add("error", Error);
         }
 
-        if (World is not null)
-        {
-            row["world"] = World.ToJson();
-        }
-
-        return row;
+        return row.AddIfPresent("world", World?.ToJson());
     }
 }
 
@@ -116,26 +111,14 @@ public sealed class RepeatSummary
 
     public void Write(string path)
     {
-        var attempts = new JsonArray();
-        foreach (RepeatAttempt a in Attempts)
-        {
-            attempts.Add(a.ToJson());
-        }
-
-        var seeds = new JsonArray();
-        foreach (string seed in Seeds)
-        {
-            seeds.Add(seed);
-        }
-
         var doc = new JsonObject
         {
-            ["case"] = Case,
-            ["attempts"] = attempts,
-            ["passed"] = Passed,
-            ["failed"] = Failed,
-            ["pass_rate"] = PassRate,
-            ["seeds"] = seeds,
+            { "case", Case },
+            { "attempts", OutputJson.Array(Attempts, a => a.ToJson()) },
+            { "passed", Passed },
+            { "failed", Failed },
+            { "pass_rate", PassRate },
+            { "seeds", OutputJson.Array(Seeds) },
         };
         File.WriteAllText(path, doc.ToJsonString(Indented));
     }

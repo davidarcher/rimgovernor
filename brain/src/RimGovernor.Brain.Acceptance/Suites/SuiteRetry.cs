@@ -1,6 +1,4 @@
-using System.Globalization;
 using System.Security.Cryptography;
-using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -23,17 +21,17 @@ internal static class SuiteRetry
     internal const string RetryPolicy = "native-read-v1-empty";
 
     /// <summary>Runs one attempt of a row on a worker.</summary>
-    internal delegate Task<JsonObject> AttemptRunner(SuiteEntry entry, SuiteOptions opts, string root, int worker, TextWriter stderr, CancellationToken cancellationToken);
+    internal delegate Task<SuiteRow> AttemptRunner(SuiteEntry entry, SuiteOptions opts, string root, int worker, TextWriter stderr, CancellationToken cancellationToken);
 
-    internal delegate RetryDecision RetryClassifier(JsonObject row);
+    internal delegate RetryDecision RetryClassifier(SuiteRow row);
 
     internal delegate Task RetryCleanup(string root, string gameId, CancellationToken cancellationToken);
 
-    internal static Task<JsonObject> RunEntryAsync(SuiteEntry e, SuiteOptions opts, string root, int worker, TextWriter stderr, CancellationToken cancellationToken) =>
+    internal static Task<SuiteRow> RunEntryAsync(SuiteEntry e, SuiteOptions opts, string root, int worker, TextWriter stderr, CancellationToken cancellationToken) =>
         RunEntryAttemptsAsync(e, opts, root, worker, stderr, SuiteRunner.RunEntryOnceAsync, ClassifyAttempt, StopRetryGameAsync, cancellationToken);
 
-    internal static RetryDecision ClassifyAttempt(JsonObject row) =>
-        row["passed"].AsBool() == true ? new RetryDecision("none", false) : new RetryDecision("unknown", false);
+    internal static RetryDecision ClassifyAttempt(SuiteRow row) =>
+        row.Passed ? new RetryDecision("none", false) : new RetryDecision("unknown", false);
 
     /// <summary>
     /// Stops the root's game and requires a positive confirmation that it is gone, not merely a successful stop request:
@@ -53,7 +51,7 @@ internal static class SuiteRetry
         }
     }
 
-    internal static async Task<JsonObject> RunEntryAttemptsAsync(
+    internal static async Task<SuiteRow> RunEntryAttemptsAsync(
         SuiteEntry e,
         SuiteOptions opts,
         string root,
@@ -64,16 +62,16 @@ internal static class SuiteRetry
         RetryCleanup cleanup,
         CancellationToken ctx)
     {
-        var attempts = new JsonArray();
-        var row = new JsonObject { ["name"] = e.Name, ["passed"] = false };
+        var attempts = new List<SuiteAttempt>();
+        var row = new SuiteRow { Name = e.Name };
         long total = 0;
         long boot = 0;
         for (var number = 1; number <= 2; number++)
         {
             if (ctx.IsCancellationRequested)
             {
-                row["passed"] = false;
-                row["error"] = CancelledText(ctx);
+                row.Passed = false;
+                row.Error = CancelledText(ctx);
                 break;
             }
 
@@ -85,51 +83,45 @@ internal static class SuiteRetry
 
             var started = DateTimeOffset.UtcNow;
             row = await run(e, current, root, worker, stderr, ctx).ConfigureAwait(false);
-            var hasExit = row["exit"] is JsonValue exitValue && exitValue.TryGetValue<int>(out _);
-            var exit = hasExit ? (int)row["exit"].AsNumber() : 0;
-            var passed = row["passed"].AsBool() == true && hasExit && exit == 0 && !ctx.IsCancellationRequested;
-            row["passed"] = passed;
+            var exit = row.Exit;
+            var passed = row.Passed && exit == 0 && !ctx.IsCancellationRequested;
+            row.Passed = passed;
             var decision = classify(row);
-            var attempt = new JsonObject
-            {
-                ["case"] = e.Name,
-                ["number"] = number,
-                ["status"] = "failed",
-                ["classification"] = decision.Classification,
-                ["retry_of"] = number > 1 ? number - 1 : null,
-                ["started_at"] = started.ToString("O", CultureInfo.InvariantCulture),
-                ["finished_at"] = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture),
-                ["exit"] = hasExit ? exit : null,
-                ["error"] = null,
-            };
+            var status = "failed";
+            var classification = decision.Classification;
             if (passed)
             {
-                attempt["status"] = "passed";
-                attempt["classification"] = "none";
+                status = "passed";
+                classification = "none";
             }
 
             if (ctx.IsCancellationRequested)
             {
-                attempt["status"] = "cancelled";
-                attempt["classification"] = "cancelled";
-                row["error"] = CancelledText(ctx);
+                status = "cancelled";
+                classification = "cancelled";
+                row.Error = CancelledText(ctx);
             }
 
-            if (row["error"] is JsonValue errorValue && errorValue.TryGetValue<string>(out var message))
+            var evidence = EvidenceReferenceOf(opts.Output, Path.Combine(row.Output ?? "", "result.json"));
+            var log = EvidenceReferenceOf(opts.Output, row.Log ?? "");
+            attempts.Add(new SuiteAttempt
             {
-                attempt["error"] = message;
-            }
-
-            var output = row["output"].AsString();
-            var log = row["log"].AsString();
-            attempt["evidence"] = EvidenceReference(opts.Output, Path.Combine(output, "result.json"));
-            attempt["log"] = EvidenceReference(opts.Output, log);
-            var haveEvidence = attempt["evidence"] is not null && attempt["log"] is not null;
-            attempts.Add(attempt);
-            total += (long)row["wall_ms"].AsNumber();
-            boot += (long)row["boot_ms"].AsNumber();
+                Case = e.Name,
+                Number = number,
+                Status = status,
+                Classification = classification,
+                RetryOf = number > 1 ? number - 1 : null,
+                StartedAt = started,
+                FinishedAt = DateTimeOffset.UtcNow,
+                Exit = exit,
+                Error = row.Error,
+                Evidence = evidence,
+                Log = log,
+            });
+            total += row.WallMs ?? 0;
+            boot += row.BootMs ?? 0;
             if (passed || number == 2 || !decision.Eligible || decision.Classification != "infrastructure"
-                || ctx.IsCancellationRequested || !haveEvidence)
+                || ctx.IsCancellationRequested || evidence is null || log is null)
             {
                 break;
             }
@@ -142,25 +134,23 @@ internal static class SuiteRetry
             }
             catch (AcceptanceException ex)
             {
-                row["retry_cleanup_error"] = ex.Message;
+                row.RetryCleanupError = ex.Message;
                 break;
             }
             catch (OperationCanceledException ex)
             {
-                row["retry_cleanup_error"] = ex.Message;
+                row.RetryCleanupError = ex.Message;
                 break;
             }
 
             await stderr.WriteLineAsync($"[worker {worker}] {e.Name} retrying fresh after classified infrastructure failure (attempt 2 of 2)").ConfigureAwait(false);
         }
 
-        row["retry_policy"] = RetryPolicy;
-        row["attempts"] = attempts;
-        row["attempt_count"] = attempts.Count;
-        row["final_attempt"] = attempts.Count > 0 ? attempts.Count : null;
-        row["wall_ms"] = total;
-        row["boot_ms"] = boot;
-        var disposition = row["passed"].AsBool() == true ? "passed" : "failed";
+        row.RetryPolicy = RetryPolicy;
+        row.Attempts = attempts;
+        row.WallMs = total;
+        row.BootMs = boot;
+        var disposition = row.Passed ? "passed" : "failed";
         if (attempts.Count > 1)
         {
             disposition = "retried_" + disposition;
@@ -171,7 +161,7 @@ internal static class SuiteRetry
             disposition = "cancelled";
         }
 
-        row["disposition"] = disposition;
+        row.Disposition = disposition;
         return row;
     }
 
@@ -179,7 +169,7 @@ internal static class SuiteRetry
         ctx.IsCancellationRequested ? "context canceled" : "";
 
     /// <summary>An immutable reference to a file under the suite output: its slash path relative to <paramref name="root"/> and its SHA-256; null when it is not there.</summary>
-    internal static JsonObject? EvidenceReference(string root, string path)
+    internal static EvidenceReference? EvidenceReferenceOf(string root, string path)
     {
         if (path.Length == 0)
         {
@@ -196,11 +186,7 @@ internal static class SuiteRetry
         {
             using var stream = File.OpenRead(path);
             var digest = SHA256.HashData(stream);
-            return new JsonObject
-            {
-                ["path"] = rel.Replace('\\', '/'),
-                ["sha256"] = Convert.ToHexStringLower(digest),
-            };
+            return new EvidenceReference(rel.Replace('\\', '/'), Convert.ToHexStringLower(digest));
         }
         catch (IOException)
         {

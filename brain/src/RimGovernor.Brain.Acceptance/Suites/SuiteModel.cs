@@ -115,35 +115,29 @@ public sealed class SuiteBaseline
             throw new AcceptanceException($"-baseline: {e.Message}", e);
         }
 
-        JsonNode? root;
+        SuiteResultFile? suite;
         try
         {
-            root = JsonNode.Parse(text);
+            suite = JsonSerializer.Deserialize(text, SuiteJsonContext.Default.SuiteResultFile);
         }
         catch (JsonException e)
         {
             throw new AcceptanceException($"-baseline: {path} is not a suite result.json: {e.Message}", e);
         }
 
-        if (root is not JsonObject top)
+        if (suite is null)
         {
             throw new AcceptanceException($"-baseline: {path} is not a suite result.json: not an object");
         }
 
         var b = new SuiteBaseline(path);
-        foreach (var row in top["cases"].AsSlice())
+        foreach (var row in suite.Cases ?? [])
         {
-            if (row.AsMap() is not { } r)
+            b._wall[row.Name] = row.WallMs ?? 0;
+            b._boot[row.Name] = row.BootMs ?? 0;
+            if (row.Flake is { } flake)
             {
-                continue;
-            }
-
-            var name = r["name"].AsString();
-            b._wall[name] = r["wall_ms"].AsNumber();
-            b._boot[name] = r["boot_ms"].AsNumber();
-            if (r["flake"] is JsonObject flake)
-            {
-                b._flake[name] = new Flake(flake["rate"].AsNumber(), (int)flake["failures"].AsNumber(), (int)flake["samples"].AsNumber());
+                b._flake[row.Name] = flake;
             }
         }
 
@@ -182,18 +176,13 @@ public sealed record SuiteRegression(string Name, long WallMs, long BaselineMs, 
     {
         var o = new JsonObject
         {
-            ["name"] = Name,
-            ["wall_ms"] = WallMs,
-            ["baseline_ms"] = BaselineMs,
-            ["run_ms"] = RunMs,
-            ["baseline_run_ms"] = BaselineRunMs,
-            ["ratio"] = Ratio,
+            { "name", Name },
+            { "wall_ms", WallMs },
+            { "baseline_ms", BaselineMs },
+            { "run_ms", RunMs },
+            { "baseline_run_ms", BaselineRunMs },
+            { "ratio", Ratio },
         };
-        if (BaselineFlake is { } flake)
-        {
-            o["baseline_flake"] = flake.ToJson();
-        }
-
-        return o;
+        return o.AddIfPresent("baseline_flake", BaselineFlake?.ToJson());
     }
 }

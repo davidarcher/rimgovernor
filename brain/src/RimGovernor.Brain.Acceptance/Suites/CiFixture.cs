@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -80,29 +79,21 @@ public static class CiFixture
             throw new AcceptanceException($"gh run list {FactoryWorkflow}: {e.Message}", e);
         }
 
-        JsonNode? parsed;
+        IReadOnlyList<GhRunRow>? runs;
         try
         {
-            parsed = JsonNode.Parse(text);
+            runs = JsonSerializer.Deserialize(text, SuiteJsonContext.Default.IReadOnlyListGhRunRow);
         }
         catch (JsonException e)
         {
             throw new AcceptanceException($"gh run list {FactoryWorkflow}: {e.Message}", e);
         }
 
-        foreach (var node in parsed.AsSlice())
+        foreach (var run in runs ?? [])
         {
-            var row = node.AsMap();
-            if (row is null)
+            if (run is { DatabaseId: not 0, Conclusion: "success" or "failure" })
             {
-                continue;
-            }
-
-            var id = (long)row["databaseId"].AsNumber();
-            var conclusion = row["conclusion"].AsString();
-            if (id != 0 && conclusion is "success" or "failure")
-            {
-                return new FactoryRun(id, row["headSha"].AsString(), conclusion);
+                return new FactoryRun(run.DatabaseId, run.HeadSha, run.Conclusion);
             }
         }
 

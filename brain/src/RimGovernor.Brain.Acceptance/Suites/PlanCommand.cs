@@ -413,8 +413,8 @@ public static partial class PlanCommand
         {
             plannedShards.Add(new JsonObject
             {
-                ["id"] = shards[i].Id,
-                ["cases"] = new JsonArray([.. shards[i].Cases.Select(n => (JsonNode?)JsonValue.Create(n))]),
+                { "id", shards[i].Id },
+                { "cases", OutputJson.Array(shards[i].Cases) },
             });
             foreach (var name in shards[i].Cases)
             {
@@ -455,14 +455,15 @@ public static partial class PlanCommand
                 throw new AcceptanceException($"{c.Name} lacks selection reason or budget");
             }
 
-            var row = new JsonObject();
-            row["budget_ns"] = c.Budget.Ticks * 100;
-            row["name"] = c.Name;
-            row["reasons"] = new JsonArray([.. reasons.Select(s => (JsonNode?)JsonValue.Create(s))]);
-            row["fixture_ops"] = new JsonArray([.. ops.Select(s => (JsonNode?)JsonValue.Create(s))]);
-            row["roles"] = roles;
-            row["mod_role"] = "fixture";
-            rows.Add(row);
+            rows.Add(new JsonObject
+            {
+                { "budget_ns", c.Budget.Ticks * 100 },
+                { "name", c.Name },
+                { "reasons", OutputJson.Array(reasons) },
+                { "fixture_ops", OutputJson.Array(ops) },
+                { "roles", roles },
+                { "mod_role", "fixture" },
+            });
             budgets[assignment[c.Name]] += c.Budget * r.Limits.Attempts;
         }
 
@@ -475,16 +476,15 @@ public static partial class PlanCommand
             }
         }
 
-        var plan = new JsonObject
+        return new JsonObject
         {
-            ["schema_version"] = 1,
-            ["run"] = new JsonObject { ["path"] = reference.Path, ["sha256"] = reference.Sha256 },
-            ["planner_commit"] = r.Head,
-            ["cases"] = rows,
-            ["algorithm"] = algorithm,
-            ["shards"] = plannedShards,
+            { "schema_version", 1 },
+            { "run", new JsonObject { { "path", reference.Path }, { "sha256", reference.Sha256 } } },
+            { "planner_commit", r.Head },
+            { "cases", rows },
+            { "algorithm", algorithm },
+            { "shards", plannedShards },
         };
-        return plan;
     }
 
     /// <summary>

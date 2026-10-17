@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -31,46 +32,67 @@ public sealed record SeriesRow
     /// <summary>The row as one JSON object, with the Go field names (empty source_revision and seed omitted).</summary>
     public JsonObject ToJson()
     {
-        var row = new JsonObject
-        {
-            ["case"] = Case,
-            ["run_id"] = RunId,
-        };
+        var row = new JsonObject { { "case", Case }, { "run_id", RunId } };
         if (SourceRevision.Length > 0)
         {
-            row["source_revision"] = SourceRevision;
+            row.Add("source_revision", SourceRevision);
         }
 
         if (Seed.Length > 0)
         {
-            row["seed"] = Seed;
+            row.Add("seed", Seed);
         }
 
-        row["timestamp"] = Timestamp.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
-        row["passed"] = Passed;
-        row["metrics"] = Metrics.ToJson();
+        row.Add("timestamp", Timestamp.UtcDateTime.ToString("O", CultureInfo.InvariantCulture));
+        row.Add("passed", Passed);
+        row.Add(Metrics.MetricsKey, Metrics.ToJson());
         return row;
     }
 
-    /// <summary>Reads a row from its JSON object; null when it names no case.</summary>
-    public static SeriesRow? FromJson(JsonObject? row)
+    /// <summary>Reads a row from one series line; null when it names no case. A line of another shape throws <see cref="JsonException"/>.</summary>
+    public static SeriesRow? FromJson(string line)
     {
-        if (row is null || row["case"].AsString() is not { Length: > 0 } name)
+        if (JsonSerializer.Deserialize(line, SuiteJsonContext.Default.SeriesLine) is not { Case.Length: > 0 } read)
         {
             return null;
         }
 
         return new SeriesRow
         {
-            Case = name,
-            RunId = row["run_id"].AsString(),
-            SourceRevision = row["source_revision"].AsString(),
-            Seed = row["seed"].AsString(),
-            Timestamp = DateTimeOffset.TryParse(row["timestamp"].AsString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var at) ? at : default,
-            Passed = row["passed"].AsBool() == true,
-            Metrics = Metrics.Of(row["metrics"] as JsonObject) ?? new Metrics(),
+            Case = read.Case,
+            RunId = read.RunId,
+            SourceRevision = read.SourceRevision,
+            Seed = read.Seed,
+            Timestamp = DateTimeOffset.TryParse(read.Timestamp, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var at) ? at : default,
+            Passed = read.Passed == true,
+            Metrics = Metrics.Of(read.Metrics) ?? new Metrics(),
         };
     }
+}
+
+/// <summary>One metrics.jsonl line as <see cref="SeriesRow.ToJson"/> writes it.</summary>
+internal sealed record SeriesLine
+{
+    [JsonPropertyName("case")]
+    public string Case { get; init; } = "";
+
+    [JsonPropertyName("run_id")]
+    public string RunId { get; init; } = "";
+
+    [JsonPropertyName("source_revision")]
+    public string SourceRevision { get; init; } = "";
+
+    [JsonPropertyName("seed")]
+    public string Seed { get; init; } = "";
+
+    [JsonPropertyName("timestamp")]
+    public string Timestamp { get; init; } = "";
+
+    [JsonPropertyName("passed")]
+    public bool? Passed { get; init; }
+
+    [JsonPropertyName("metrics")]
+    public JsonObject? Metrics { get; init; }
 }
 
 /// <summary>
@@ -78,12 +100,15 @@ public sealed record SeriesRow
 /// that failed, whatever the reason. A rate strictly between 0 and 1 is a case that passes and fails on the same
 /// code; the suite prints it beside a failed or flagged row so a known flake is not read as a regression.
 /// </summary>
-public sealed record Flake(double Rate, int Failures, int Samples)
+public sealed record Flake(
+    [property: JsonPropertyName("rate")] double Rate,
+    [property: JsonPropertyName("failures")] int Failures,
+    [property: JsonPropertyName("samples")] int Samples)
 {
     public override string ToString() =>
         string.Create(CultureInfo.InvariantCulture, $"{Failures} of {Samples} recent runs failed ({Rate * 100:0}%)");
 
-    public JsonObject ToJson() => new() { ["rate"] = Rate, ["failures"] = Failures, ["samples"] = Samples };
+    public JsonNode ToJson() => OutputJson.Node(this, SuiteJsonContext.Default.Flake);
 }
 
 /// <summary>Says when a metric's value has drifted from its trailing median: past Ratio times the median and Floor over it (Lower: below Ratio times the median and Floor under it, for a metric where less is worse). The floor keeps a tiny median from flagging noise.</summary>
@@ -91,20 +116,18 @@ public sealed record DriftRule(double Ratio, double Floor, bool Lower = false);
 
 /// <summary>One metric of one case past its rule.</summary>
 /// <param name="Samples">How many prior rows the median spans.</param>
-public sealed record DriftFlag(string Case, string Metric, double Value, double Median, double Ratio, int Samples)
+public sealed record DriftFlag(
+    [property: JsonPropertyName("case")] string Case,
+    [property: JsonPropertyName("metric")] string Metric,
+    [property: JsonPropertyName("value")] double Value,
+    [property: JsonPropertyName("median")] double Median,
+    [property: JsonPropertyName("ratio")] double Ratio,
+    [property: JsonPropertyName("samples")] int Samples)
 {
     public override string ToString() =>
         string.Create(CultureInfo.InvariantCulture, $"{Case} {Metric} {Value:G6} vs median {Median:G6} ({Ratio:0.00}x over {Samples})");
 
-    public JsonObject ToJson() => new()
-    {
-        ["case"] = Case,
-        ["metric"] = Metric,
-        ["value"] = Value,
-        ["median"] = Median,
-        ["ratio"] = Ratio,
-        ["samples"] = Samples,
-    };
+    public JsonNode ToJson() => OutputJson.Node(this, SuiteJsonContext.Default.DriftFlag);
 }
 
 /// <summary>The per-run metrics series, drift and flake bookkeeping (Go <c>metrics.go</c>, second half).</summary>
@@ -145,18 +168,6 @@ public static class MetricSeries
         return new Flake(prior.Count > 0 ? (double)failures / prior.Count : 0, failures, prior.Count);
     }
 
-    /// <summary>Reads a report's "flake" block; null when it has none.</summary>
-    public static Flake? FlakeOfReport(Report report)
-    {
-        ArgumentNullException.ThrowIfNull(report);
-        if (report.Data["flake"] is not JsonObject block)
-        {
-            return null;
-        }
-
-        return new Flake(block["rate"].AsNumber(), (int)block["failures"].AsNumber(), (int)block["samples"].AsNumber());
-    }
-
     /// <summary>Where a run rooted at <paramref name="output"/> keeps its series: metrics.jsonl in the output directory's parent, so successive runs (each a fresh output directory beside the last) share one.</summary>
     public static string SeriesPath(string output) =>
         Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output)) ?? "", "metrics.jsonl");
@@ -186,7 +197,7 @@ public static class MetricSeries
         {
             try
             {
-                if (SeriesRow.FromJson(JsonNode.Parse(line) as JsonObject) is { } row)
+                if (SeriesRow.FromJson(line) is { } row)
                 {
                     rows.Add(row);
                 }
@@ -268,7 +279,7 @@ public static class MetricSeries
         var flags = Drift(name, runId, m, prior);
         if (flags.Count > 0)
         {
-            report["drift"] = new JsonArray([.. flags.Select(flag => (JsonNode)flag.ToJson())]);
+            report["drift"] = OutputJson.Array(flags, flag => flag.ToJson());
         }
 
         if (FlakeOf(name, runId, prior) is { Samples: > 0 } flake)

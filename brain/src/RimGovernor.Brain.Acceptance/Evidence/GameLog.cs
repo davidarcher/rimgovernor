@@ -70,7 +70,7 @@ public sealed class GameLogCapture
 
         if (report is not null)
         {
-            report[GameLogKey] = new JsonObject { ["path"] = path, ["bytes"] = written, ["exceptions"] = exceptions };
+            report[GameLogKey] = new JsonObject { { "path", path }, { "bytes", written }, { "exceptions", exceptions } };
         }
     }
 

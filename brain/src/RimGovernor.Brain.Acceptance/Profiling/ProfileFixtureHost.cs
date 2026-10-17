@@ -46,15 +46,15 @@ public sealed class ProfileFixtureHost : IProfileFixtureHost
             Timeout = request.Timeout,
             IgnoreMods = request.IgnoreMods,
         };
-        var row = new JsonObject { ["op"] = request.Op, ["args"] = request.Args.DeepClone(), ["output"] = result.Output };
+        var run = new FixtureRun(request.Op, request.Args, result.Output);
         try
         {
-            await FixtureCommand.ExecuteAsync(options, row, cancellationToken).ConfigureAwait(false);
+            await FixtureCommand.ExecuteAsync(options, run, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            result.Success = row["success"].AsBool() == true;
-            result.Response = row["response"] as JsonObject;
+            result.Success = run.Success == true;
+            result.Response = run.Response;
         }
     }
 
@@ -63,18 +63,12 @@ public sealed class ProfileFixtureHost : IProfileFixtureHost
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(result);
-        var row = new JsonObject
+        var run = new FixtureRun(result.Op, result.Args, result.Output)
         {
-            ["op"] = result.Op,
-            ["output"] = result.Output,
-            ["success"] = result.Success,
-            ["response"] = result.Response?.DeepClone(),
+            Success = result.Success,
+            Response = result.Response,
+            Error = result.Error.Length > 0 ? result.Error : null,
         };
-        if (result.Error.Length > 0)
-        {
-            row["error"] = result.Error;
-        }
-
-        return FixtureCommand.PrintAsync(writer, false, row);
+        return FixtureCommand.PrintAsync(writer, false, run);
     }
 }

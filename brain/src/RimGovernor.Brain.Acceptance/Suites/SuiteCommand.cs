@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -181,17 +180,17 @@ public static class SuiteCommand
     public static IReadOnlyList<SuiteEntry> ParseSuiteText(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        JsonNode? root;
+        IReadOnlyList<SuiteFileRow>? rows;
         try
         {
-            root = JsonNode.Parse(text);
+            rows = JsonSerializer.Deserialize(text, SuiteJsonContext.Default.IReadOnlyListSuiteFileRow);
         }
         catch (JsonException e)
         {
             throw new UsageException($"-suite must be a JSON array of {{name, acceptance}}: {e.Message}", e);
         }
 
-        if (root is not JsonArray rows)
+        if (rows is null)
         {
             throw new UsageException("-suite must be a JSON array of {name, acceptance}: not an array");
         }
@@ -199,12 +198,12 @@ public static class SuiteCommand
         var list = new List<SuiteEntry>();
         foreach (var row in rows)
         {
-            if (row is not JsonObject o)
+            if (row is null)
             {
                 throw new UsageException("-suite must be a JSON array of {name, acceptance}: a row is not an object");
             }
 
-            list.Add(new SuiteEntry(o["name"].AsString(), o["acceptance"].AsString()));
+            list.Add(new SuiteEntry(row.Name ?? "", row.Acceptance ?? ""));
         }
 
         return list;

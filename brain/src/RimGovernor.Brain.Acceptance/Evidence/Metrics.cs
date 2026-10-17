@@ -42,15 +42,16 @@ public sealed class Metrics
             m.Values[name] = 0;
         }
 
-        m.Values["wall_ms"] = MetricValue(report.Data[Report.WallMsKey]);
-        m.Values["boot_ms"] = MetricValue(report.Data[Report.BootMsKey]);
-        m.Values["ticks_advanced"] = MetricValue(report.Data[Report.TicksAdvancedKey]);
-        m.Values["wall_tps"] = MetricValue(report.Data[Report.WallTpsKey]);
-        if (report.Data["wait_stats"] is JsonObject stats)
+        var result = ReportTiming.Of(report);
+        m.Values["wall_ms"] = result.WallMs ?? 0;
+        m.Values["boot_ms"] = result.BootMs ?? 0;
+        m.Values["ticks_advanced"] = result.TicksAdvanced ?? 0;
+        m.Values["wall_tps"] = result.WallTps ?? 0;
+        if (result.WaitStats is { } stats)
         {
-            m.Values["waits"] = MetricValue(stats["waits"]);
-            m.Values["waits_stalled"] = MetricValue(stats["stalled"]);
-            m.Values["max_quiet_ms"] = MetricValue(stats["max_quiet_ms"]);
+            m.Values["waits"] = stats.Waits;
+            m.Values["waits_stalled"] = stats.Stalled;
+            m.Values["max_quiet_ms"] = stats.MaxQuietMs;
         }
 
         var launches = 0;
@@ -68,8 +69,28 @@ public sealed class Metrics
         return m;
     }
 
-    /// <summary>A report number as decoded JSON holds it (a number or a numeric string); an absent or non-numeric field is 0.</summary>
-    public static double MetricValue(JsonNode? value)
+    /// <summary>Reads a report's block as Metrics; null when the report has none.</summary>
+    internal static Metrics? Of(Report report) => Of(CaseResult.Of(report).Metrics);
+
+    /// <summary>Reads a block object (a report decoded from JSON holds it so) as Metrics; null for none.</summary>
+    internal static Metrics? Of(JsonObject? block)
+    {
+        if (block is null)
+        {
+            return null;
+        }
+
+        var m = new Metrics();
+        foreach (var (name, value) in block)
+        {
+            m.Values[name] = MetricValue(value);
+        }
+
+        return m;
+    }
+
+    /// <summary>A block number as decoded JSON holds it (a number or a numeric string); an absent or non-numeric value is 0.</summary>
+    private static double MetricValue(JsonNode? value)
     {
         if (value is not JsonValue json)
         {
@@ -89,30 +110,6 @@ public sealed class Metrics
         return json.TryGetValue<string>(out var s) && double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0;
     }
 
-    /// <summary>Reads a report's block as Metrics; null when the report has none.</summary>
-    public static Metrics? Of(Report report)
-    {
-        ArgumentNullException.ThrowIfNull(report);
-        return Of(report.Data[MetricsKey] as JsonObject);
-    }
-
-    /// <summary>Reads a block object (a report decoded from JSON holds it so) as Metrics; null for none.</summary>
-    public static Metrics? Of(JsonObject? block)
-    {
-        if (block is null)
-        {
-            return null;
-        }
-
-        var m = new Metrics();
-        foreach (var (name, value) in block)
-        {
-            m.Values[name] = MetricValue(value);
-        }
-
-        return m;
-    }
-
     /// <summary>The block as a JSON object, member order as in <see cref="MetricNames"/> then any others by name.</summary>
     public JsonNode ToJson()
     {
@@ -121,13 +118,13 @@ public sealed class Metrics
         {
             if (Values.TryGetValue(name, out var value))
             {
-                block[name] = value;
+                block.Add(name, value);
             }
         }
 
-        foreach (var name in Values.Keys.Where(k => !MetricNames.Contains(k, StringComparer.Ordinal)).Order(StringComparer.Ordinal))
+        foreach (var (name, value) in Values.Where(p => !MetricNames.Contains(p.Key, StringComparer.Ordinal)).OrderBy(p => p.Key, StringComparer.Ordinal))
         {
-            block[name] = Values[name];
+            block.Add(name, value);
         }
 
         return block;

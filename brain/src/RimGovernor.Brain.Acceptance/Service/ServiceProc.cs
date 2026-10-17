@@ -124,21 +124,6 @@ public sealed partial class ServiceProcess
     }
 
     /// <summary>
-    /// <see cref="ApiAsync"/>'s <see cref="HttpGet"/>-shaped adapter for <see cref="Rounds.AssertRoundsRunningAsync"/>:
-    /// the body of a 200 reply; any other status throws.
-    /// </summary>
-    public async Task<JsonObject> GetAsync(string method, string path, CancellationToken cancellationToken)
-    {
-        var reply = await ApiAsync(method, path, null, "", cancellationToken).ConfigureAwait(false);
-        if (reply.Status != 200)
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{method} {path}: status {reply.Status}"));
-        }
-
-        return reply.Body ?? [];
-    }
-
-    /// <summary>
     /// Checks /api/health and the explicit-player session against this process and returns the session token. The
     /// health must name the rimgovernor service on the C# backend in the process the endpoint file named; the
     /// session token of the Go service no longer exists (the channel's request guard is the only access check), so

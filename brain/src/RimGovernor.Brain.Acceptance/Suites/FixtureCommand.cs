@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -66,29 +67,18 @@ public static class FixtureCommand
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(o.Timeout);
-        var result = new JsonObject
-        {
-            ["op"] = o.Op,
-            ["args"] = o.Args.DeepClone(),
-            ["output"] = Path.Combine(o.Output, o.Op.Replace('/', '_') + "-" + DateTime.Now.ToString("HHmmss", CultureInfo.InvariantCulture)),
-        };
-        string? error = null;
+        var result = new FixtureRun(o.Op, o.Args, Path.Combine(o.Output, o.Op.Replace('/', '_') + "-" + DateTime.Now.ToString("HHmmss", CultureInfo.InvariantCulture)));
         try
         {
             await ExecuteAsync(o, result, timeout.Token).ConfigureAwait(false);
         }
         catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException or OperationCanceledException)
         {
-            error = e.Message;
-        }
-
-        if (error is not null)
-        {
-            result["error"] = error;
+            result.Error = e.Message;
         }
 
         await PrintAsync(stdout, o.Json, result).ConfigureAwait(false);
-        return error is not null || result["success"].AsBool() != true ? 1 : 0;
+        return result.Error is not null || result.Success != true ? 1 : 0;
     }
 
     /// <summary>
@@ -128,7 +118,10 @@ public static class FixtureCommand
                 throw new UsageException($"argument \"{kv}\" is not key=value");
             }
 
-            opArgs[kv[..eq]] = FixtureValue(kv[(eq + 1)..]);
+            // A repeated key keeps its last value, as a map assignment would.
+            var key = kv[..eq];
+            _ = opArgs.Remove(key);
+            opArgs.Add(key, FixtureValue(kv[(eq + 1)..]));
         }
 
         if (root.Value.Length == 0)
@@ -175,9 +168,9 @@ public static class FixtureCommand
         }
     }
 
-    internal static async Task ExecuteAsync(FixtureOptions o, JsonObject result, CancellationToken cancellationToken)
+    internal static async Task ExecuteAsync(FixtureOptions o, FixtureRun result, CancellationToken cancellationToken)
     {
-        var output = result["output"].AsString();
+        var output = result.Output;
         Directory.CreateDirectory(output);
         Start start = o.Loaded ? new LoadedStart() : new SaveStart { Name = o.Save, IgnoreModCompatibility = o.IgnoreMods };
 
@@ -196,15 +189,15 @@ public static class FixtureCommand
         var session = await Session.OpenAsync(config, new KeepHost(SessionHost.Default), report, start, QuietMode.IfAvailable, null, cancellationToken).ConfigureAwait(false);
         try
         {
-            result["start"] = report["start"]?.DeepClone();
+            result.RecordStart(CaseResult.Of(report).Start);
             if (!session.Names.Contains(o.Op, StringComparer.Ordinal))
             {
                 throw new AcceptanceException($"missing {o.Op} in discovery; rebuild the native mod with its fixture{session.Host.FixtureBuildHint(o.Op)}");
             }
 
             var reply = await session.Harness.CallAsync("fixture", o.Op, o.Args, cancellationToken).ConfigureAwait(false);
-            result["response"] = reply.DeepClone();
-            result["success"] = reply["success"].AsBool() == true;
+            result.Response = reply.DeepClone().AsObject();
+            result.Success = FixtureSucceeded(o.Op, reply);
             report["prepared"] = reply;
 
             // The op may have moved the clock; the census reads the paused world.
@@ -219,10 +212,9 @@ public static class FixtureCommand
                 throw new AcceptanceException($"census: {e.Message}", e);
             }
 
-            var census = Census(state);
-            result["census"] = census;
-            report["census"] = census.DeepClone();
-            report["passed"] = result["success"]?.DeepClone();
+            result.Census = FixtureCensus.Of(state);
+            report["census"] = result.Census.ToJson();
+            report["passed"] = result.Success;
         }
         finally
         {
@@ -231,79 +223,71 @@ public static class FixtureCommand
         }
     }
 
-    private static JsonObject Census(ResetState state)
+    // Whether native accepted the op: every fixture reply carries its success flag (Fixtures.Contracts FixtureDone).
+    private static bool FixtureSucceeded(string op, JsonObject reply)
     {
-        var stock = new JsonObject();
-        foreach (var (name, counts) in state.Stock.OrderBy(p => p.Key, StringComparer.Ordinal))
+        try
         {
-            stock[name] = new JsonObject { ["Units"] = counts.Units, ["Forbidden"] = counts.Forbidden };
+            return Fx.FixtureJson.Deserialize<Fx.FixtureDone>(reply.ToJsonString()).Success;
         }
-
-        return new JsonObject
+        catch (JsonException e)
         {
-            ["colonyId"] = state.ColonyId,
-            ["loadToken"] = state.LoadToken,
-            ["tick"] = state.Tick,
-            ["paused"] = state.Paused,
-            ["authorityActive"] = state.AuthorityActive,
-            ["drafted"] = state.Drafted,
-            ["stock"] = stock,
-        };
+            throw new AcceptanceException($"{op}: reply without a boolean success: {e.Message}", e);
+        }
     }
 
     // Writes the result: one JSON object, or the response block followed by a short census (tick, pause, authority, drafts
     // and the non-zero stocks in name order).
-    internal static async Task PrintAsync(TextWriter w, bool asJson, JsonObject r)
+    internal static async Task PrintAsync(TextWriter w, bool asJson, FixtureRun r)
     {
+        ArgumentNullException.ThrowIfNull(w);
+        ArgumentNullException.ThrowIfNull(r);
         if (asJson)
         {
-            await w.WriteLineAsync(r.ToJsonString(Indented)).ConfigureAwait(false);
+            await w.WriteLineAsync(r.ToJson().ToJsonString(Indented)).ConfigureAwait(false);
             return;
         }
 
-        var error = r["error"].AsString();
-        var status = r["success"].AsBool() == true ? "OK" : "REFUSED";
+        var error = r.Error ?? "";
+        var status = r.Success == true ? "OK" : "REFUSED";
         if (error.Length > 0)
         {
             status = "ERROR";
         }
 
-        await w.WriteLineAsync($"{status}\t{r["op"].AsString()}\t{r["output"].AsString()}").ConfigureAwait(false);
+        await w.WriteLineAsync($"{status}\t{r.Op}\t{r.Output}").ConfigureAwait(false);
         if (error.Length > 0)
         {
             await w.WriteLineAsync($"\t{error}").ConfigureAwait(false);
         }
 
-        if (r["response"] is JsonObject response)
+        if (r.Response is { } response)
         {
             await w.WriteLineAsync($"response:\n{response.ToJsonString(Indented)}").ConfigureAwait(false);
         }
 
-        if (r["census"] is not JsonObject c)
+        if (r.Census is not { } c)
         {
             return;
         }
 
         await w.WriteLineAsync(string.Create(
             CultureInfo.InvariantCulture,
-            $"census: tick={c["tick"].AsNumber():0} paused={Bool(c["paused"])} authority={Bool(c["authorityActive"])} drafted={c["drafted"].AsNumber():0} loadToken={c["loadToken"].AsString()}")).ConfigureAwait(false);
-        foreach (var (name, node) in c["stock"].AsMap() ?? [])
+            $"census: tick={c.Tick:0} paused={Bool(c.Paused)} authority={Bool(c.AuthorityActive)} drafted={c.Drafted:0} loadToken={c.LoadToken}")).ConfigureAwait(false);
+        foreach (var (name, counts) in c.Stock)
         {
-            var counts = node.AsMap() ?? [];
-            var units = (long)counts["Units"].AsNumber();
-            if (units == 0)
+            if (counts.Units == 0)
             {
                 continue;
             }
 
-            var forbidden = (long)counts["Forbidden"].AsNumber();
-            await w.WriteLineAsync(forbidden >= 0
-                ? string.Create(CultureInfo.InvariantCulture, $"  {name}\t{units}\t(forbidden {forbidden})")
-                : string.Create(CultureInfo.InvariantCulture, $"  {name}\t{units}")).ConfigureAwait(false);
+            await w.WriteLineAsync(counts.Forbidden >= 0
+                ? string.Create(CultureInfo.InvariantCulture, $"  {name}\t{counts.Units}\t(forbidden {counts.Forbidden})")
+                : string.Create(CultureInfo.InvariantCulture, $"  {name}\t{counts.Units}")).ConfigureAwait(false);
         }
     }
 
-    private static string Bool(JsonNode? node) => node.AsBool() == true ? "true" : "false";
+    private static string Bool(bool value) => value ? "true" : "false";
 
     // The world stays loaded for the next call whatever the environment says about keeping the process.
     private sealed class KeepHost(ISessionHost inner) : ISessionHost

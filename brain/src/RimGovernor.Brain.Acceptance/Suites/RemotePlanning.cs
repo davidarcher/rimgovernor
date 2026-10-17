@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Reflection;
-using System.Text.Json.Nodes;
+using System.Text.Json;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -150,15 +150,7 @@ public static class RemotePlanning
 
     private static Dictionary<string, long> LoadMeasured()
     {
-        var table = new Dictionary<string, long>(StringComparer.Ordinal);
-        if (JsonNode.Parse(SuiteFiles.ReadText("casetimes.json")) is JsonObject o)
-        {
-            foreach (var (name, value) in o)
-            {
-                table[name] = (long)value.AsNumber();
-            }
-        }
-
-        return table;
+        var read = JsonSerializer.Deserialize(SuiteFiles.ReadText("casetimes.json"), SuiteJsonContext.Default.DictionaryStringInt64);
+        return new Dictionary<string, long>(read ?? [], StringComparer.Ordinal);
     }
 }

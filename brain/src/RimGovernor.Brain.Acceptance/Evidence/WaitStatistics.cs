@@ -53,11 +53,11 @@ public static class WaitStatistics
         {
             return new JsonObject
             {
-                ["waits"] = s_waits,
-                ["stalled"] = s_stalled,
-                ["max_quiet_ms"] = (long)s_maxQuiet.TotalMilliseconds,
-                ["max_quiet_signature"] = s_maxLabel,
-                ["stall_budget_ms"] = (long)Wait.StallBudget().TotalMilliseconds,
+                { "waits", s_waits },
+                { "stalled", s_stalled },
+                { "max_quiet_ms", (long)s_maxQuiet.TotalMilliseconds },
+                { "max_quiet_signature", s_maxLabel },
+                { "stall_budget_ms", (long)Wait.StallBudget().TotalMilliseconds },
             };
         }
     }

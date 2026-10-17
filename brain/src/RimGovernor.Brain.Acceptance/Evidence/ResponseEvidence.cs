@@ -125,17 +125,17 @@ public sealed class ResponseEvidence
     /// <summary>The evidence as the Go JSON encoding held it (camelCase tick names; null for an unestablished phase).</summary>
     public JsonObject ToJson() => new()
     {
-        ["fixture"] = Fixture,
-        ["runner"] = Runner,
-        ["speed"] = Speed,
-        ["onsetTick"] = OnsetTick,
-        ["detectionTick"] = DetectionTick,
-        ["detectionSource"] = DetectionSource,
-        ["decisionTick"] = DecisionTick,
-        ["dispatchTick"] = DispatchTick,
-        ["firstEffectTick"] = FirstEffectTick,
-        ["effect"] = Effect,
-        ["reviewInclusiveMs"] = new JsonArray([.. _reviewInclusiveMs.Select(v => JsonValue.Create(v))]),
+        { "fixture", Fixture },
+        { "runner", Runner },
+        { "speed", Speed },
+        { "onsetTick", OnsetTick },
+        { "detectionTick", DetectionTick },
+        { "detectionSource", DetectionSource },
+        { "decisionTick", DecisionTick },
+        { "dispatchTick", DispatchTick },
+        { "firstEffectTick", FirstEffectTick },
+        { "effect", Effect },
+        { "reviewInclusiveMs", OutputJson.Array(_reviewInclusiveMs, v => JsonValue.Create(v)) },
     };
 
     private bool AfterOnset(object? value) => OnsetTick is not { } onset || (long)RowValue.Number(value) >= onset;

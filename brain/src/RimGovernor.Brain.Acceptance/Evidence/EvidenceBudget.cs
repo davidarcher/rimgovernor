@@ -109,19 +109,33 @@ public static class EvidenceBudget
                 capped = [];
                 foreach (var (k, v) in row)
                 {
-                    capped[k] = v?.DeepClone();
+                    capped.Add(k, v?.DeepClone());
                 }
 
-                capped["truncated"] = true;
+                Replace(capped, "truncated", true);
             }
 
             capped.Remove(key);
-            capped[key + "_preview"] = Encoding.UTF8.GetString(payload, 0, EvidencePayloadCap);
-            capped[key + "_bytes"] = payload.Length;
-            capped[key + "_sha256"] = Convert.ToHexStringLower(SHA256.HashData(payload));
+            Replace(capped, key + "_preview", Encoding.UTF8.GetString(payload, 0, EvidencePayloadCap));
+            Replace(capped, key + "_bytes", payload.Length);
+            Replace(capped, key + "_sha256", Convert.ToHexStringLower(SHA256.HashData(payload)));
         }
 
         return capped is null ? (row, false) : (capped, true);
+    }
+
+    // Sets key to value in place when the row has it (a row field the cap overwrites keeps its position), else appends it.
+    private static void Replace(JsonObject row, string key, JsonNode? value)
+    {
+        var at = row.IndexOf(key);
+        if (at < 0)
+        {
+            row.Add(key, value);
+        }
+        else
+        {
+            row.SetAt(at, value);
+        }
     }
 
     /// <summary>Writes one evidence row to <paramref name="path"/>, capped; under <see cref="EvidenceMode.Full"/> a cut row is also written untouched to <c>&lt;dir&gt;/full/&lt;name&gt;</c>. Write failures are dropped, as in Go.</summary>

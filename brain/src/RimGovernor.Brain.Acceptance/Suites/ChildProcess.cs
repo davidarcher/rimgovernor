@@ -119,8 +119,21 @@ internal static class ChildProcess
             // The child's exit is the case's end. A game the child kept running (Game.KeepGameEnv) is created with handle
             // inheritance on (GameProcess.CreateDetached), so it holds a copy of the child's stdout/stderr pipes and the pumps
             // see no EOF until the game dies: a case that failed in 22s held its worker ~10 minutes (#3123). Drain what the
-            // child wrote, then stop waiting for EOF.
-            _ = await Task.WhenAny(Task.WhenAll(pumps), Task.Delay(PumpDrainGrace, CancellationToken.None)).ConfigureAwait(false);
+            // child wrote, then stop waiting for EOF and say in the log why it may end early.
+            try
+            {
+                await Task.WhenAll(pumps).WaitAsync(PumpDrainGrace, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                lock (gate)
+                {
+                    log.WriteLine(string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"[suite] the child exited but its output pipes stayed open {PumpDrainGrace.TotalSeconds:0}s later (a kept game holds them); the log stops here"));
+                }
+            }
+
             return new Exit(process.ExitCode);
         }
     }

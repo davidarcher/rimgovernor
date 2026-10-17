@@ -58,7 +58,7 @@ public static class SuiteRunner
     }
 
     /// <summary>Lists the rows over their baseline, in queue order, and the baseline's total wall time over the rows it timed.</summary>
-    public static (IReadOnlyList<SuiteRegression> Regressions, long BaselineTotal) Regressions(IReadOnlyList<JsonObject> rows, SuiteBaseline b)
+    internal static (IReadOnlyList<SuiteRegression> Regressions, long BaselineTotal) Regressions(IReadOnlyList<SuiteRow> rows, SuiteBaseline b)
     {
         ArgumentNullException.ThrowIfNull(rows);
         ArgumentNullException.ThrowIfNull(b);
@@ -66,7 +66,7 @@ public static class SuiteRunner
         long baselineTotal = 0;
         foreach (var row in rows)
         {
-            var name = row["name"].AsString();
+            var name = row.Name ?? "";
             if (!b.TryWall(name, out var baseWall) || baseWall <= 0)
             {
                 continue;
@@ -74,8 +74,8 @@ public static class SuiteRunner
 
             baselineTotal += (long)baseWall;
             var baseRun = baseWall - b.BootOf(name);
-            var wall = (long)row["wall_ms"].AsNumber();
-            var boot = (long)row["boot_ms"].AsNumber();
+            var wall = row.WallMs ?? 0;
+            var boot = row.BootMs ?? 0;
             double run = wall - boot;
             if (baseRun > 0 && run > baseRun * RegressionRatio && run - baseRun > RegressionFloorMs)
             {
@@ -87,30 +87,10 @@ public static class SuiteRunner
     }
 
     /// <summary>Collects the rows' drift flags (each row's result.json "drift", as the run computed them) in queue order.</summary>
-    public static IReadOnlyList<DriftFlag> DriftFlags(IReadOnlyList<JsonObject> rows)
+    internal static IReadOnlyList<DriftFlag> DriftFlags(IReadOnlyList<SuiteRow> rows)
     {
         ArgumentNullException.ThrowIfNull(rows);
-        var flags = new List<DriftFlag>();
-        foreach (var row in rows)
-        {
-            foreach (var item in row["drift"].AsSlice())
-            {
-                if (item.AsMap() is not { } m)
-                {
-                    continue;
-                }
-
-                flags.Add(new DriftFlag(
-                    m["case"].AsString(),
-                    m["metric"].AsString(),
-                    m["value"].AsNumber(),
-                    m["median"].AsNumber(),
-                    m["ratio"].AsNumber(),
-                    (int)m["samples"].AsNumber()));
-            }
-        }
-
-        return flags;
+        return [.. rows.SelectMany(row => row.Drift ?? [])];
     }
 
     /// <summary>
@@ -209,9 +189,9 @@ public static class SuiteRunner
             roots[i] = dest;
         }
 
-        report["worker_roots"] = new JsonArray([.. roots.Select(r => (JsonNode?)JsonValue.Create(r))]);
+        report["worker_roots"] = OutputJson.Array(roots);
 
-        var rows = new JsonObject?[list.Count];
+        var rows = new SuiteRow?[list.Count];
         var gate = new Lock();
         var next = -1;
         var clock = Stopwatch.StartNew();
@@ -223,14 +203,14 @@ public static class SuiteRunner
             {
                 for (var i = Interlocked.Increment(ref next); i < list.Count; i = Interlocked.Increment(ref next))
                 {
-                    JsonObject row;
+                    SuiteRow row;
                     try
                     {
                         row = await SuiteRetry.RunEntryAsync(list[i], opts, roots[worker - 1], worker, stderr, ctx).ConfigureAwait(false);
                     }
                     catch (AcceptanceException e)
                     {
-                        row = new JsonObject { { "name", list[i].Name }, { "worker", worker }, { "passed", false }, { "error", e.Message } };
+                        row = new SuiteRow { Name = list[i].Name, Worker = worker, Error = e.Message };
                     }
 
                     rows[i] = row;
@@ -261,23 +241,23 @@ public static class SuiteRunner
 
         await Task.WhenAll(Enumerable.Range(1, workers).Select(w => Task.Run(() => WorkerAsync(w), CancellationToken.None))).ConfigureAwait(false);
         report["wall_ms"] = clock.ElapsedMilliseconds;
-        var caseRows = rows.Select(r => r ?? new JsonObject { ["passed"] = false }).ToList();
+        var caseRows = rows.Select(r => r ?? new SuiteRow()).ToList();
         var passed = 0;
         var failed = new List<string>();
         long total = 0;
         foreach (var row in caseRows)
         {
-            total += (long)row["wall_ms"].AsNumber();
-            if (row["passed"].AsBool() == true)
+            total += row.WallMs ?? 0;
+            if (row.Passed)
             {
                 passed++;
             }
             else
             {
-                failed.Add(row["name"].AsString());
-                if (MetricSeries.FlakeOfReport(new Report(row)) is { Failures: > 0 } flake)
+                failed.Add(row.Name ?? "");
+                if (row.Flake is { Failures: > 0 } flake)
                 {
-                    await stderr.WriteLineAsync($"{row["name"].AsString()} failed and is a known flake: {flake} before this run").ConfigureAwait(false);
+                    await stderr.WriteLineAsync($"{row.Name} failed and is a known flake: {flake} before this run").ConfigureAwait(false);
                 }
             }
         }
@@ -287,7 +267,7 @@ public static class SuiteRunner
         if (baseline is not null)
         {
             var (regressions, baselineTotal) = Regressions(caseRows, baseline);
-            report["regressions"] = new JsonArray([.. regressions.Select(r => (JsonNode?)r.ToJson())]);
+            report["regressions"] = OutputJson.Array(regressions, r => r.ToJson());
             report["baseline_total_ms"] = baselineTotal;
             if (regressions.Count > 0)
             {
@@ -302,7 +282,7 @@ public static class SuiteRunner
         {
             report["series"] = opts.Series;
             var flags = DriftFlags(caseRows);
-            report["drift"] = new JsonArray([.. flags.Select(f => (JsonNode?)f.ToJson())]);
+            report["drift"] = OutputJson.Array(flags, f => f.ToJson());
             if (flags.Count > 0)
             {
                 await stderr.WriteLineAsync($"drift (past the metric's rule against the trailing median of {opts.Series}):").ConfigureAwait(false);
@@ -313,10 +293,10 @@ public static class SuiteRunner
             }
         }
 
-        report["cases"] = new JsonArray([.. caseRows]);
+        report["cases"] = OutputJson.Array(caseRows, row => row.ToJson());
         if (failed.Count > 0)
         {
-            report["failed"] = new JsonArray([.. failed.Select(n => (JsonNode?)JsonValue.Create(n))]);
+            report["failed"] = OutputJson.Array(failed);
             report["error"] = string.Create(CultureInfo.InvariantCulture, $"{failed.Count} of {caseRows.Count} cases failed: {string.Join(", ", failed)}");
         }
         else
@@ -368,7 +348,7 @@ public static class SuiteRunner
     /// Executes one row on a worker's root with the game kept between rows, and returns its report row: exit code, wall
     /// and boot time, output directory and the row's own result.json verdict.
     /// </summary>
-    internal static async Task<JsonObject> RunEntryOnceAsync(
+    internal static async Task<SuiteRow> RunEntryOnceAsync(
         SuiteEntry e,
         SuiteOptions opts,
         string workerRoot,
@@ -378,19 +358,15 @@ public static class SuiteRunner
     {
         var (argv, output) = EntryCommand(e, opts, workerRoot);
         var (self, _) = SelfInvocation.Resolve();
-        var row = new JsonObject
+        var row = new SuiteRow
         {
-            ["name"] = e.Name,
-            ["worker"] = worker,
-            ["output"] = output,
-            ["argv"] = new JsonArray([.. new[] { self }.Concat(argv).Select(a => (JsonNode?)JsonValue.Create(a))]),
-            ["serve"] = e.ServeDriven,
-            ["passed"] = false,
+            Name = e.Name,
+            Worker = worker,
+            Output = output,
+            Argv = [self, .. argv],
+            Serve = e.ServeDriven,
+            Acceptance = e.Acceptance.Length > 0 ? e.Acceptance : null,
         };
-        if (e.Acceptance.Length > 0)
-        {
-            row["acceptance"] = e.Acceptance;
-        }
 
         var logPath = output + ".log";
         try
@@ -399,7 +375,7 @@ public static class SuiteRunner
         }
         catch (IOException ex)
         {
-            row["error"] = ex.Message;
+            row.Error = ex.Message;
             return row;
         }
 
@@ -416,29 +392,29 @@ public static class SuiteRunner
         {
             var result = await ChildProcess.RunAsync(self, argv, env, logPath, ctx).ConfigureAwait(false);
             exit = result.Code;
-            row["exit"] = exit;
+            row.RecordExit(exit);
         }
         catch (OperationCanceledException)
         {
             // The kill ended the child, as exec.CommandContext's did: no clean exit status.
-            row["exit"] = exit;
+            row.RecordExit(exit);
         }
         catch (AcceptanceException ex)
         {
             failedToStart = true;
-            row["exit"] = null; // no child process exit status (failed to start)
-            row["error"] = ex.Message;
+            row.RecordExit(null); // no child process exit status (failed to start)
+            row.Error = ex.Message;
         }
 
-        row["wall_ms"] = clock.ElapsedMilliseconds;
-        row["log"] = logPath;
+        row.WallMs = clock.ElapsedMilliseconds;
+        row.Log = logPath;
         var runFailed = failedToStart || exit != 0;
         var resultPath = Path.Combine(output, "result.json");
-        JsonObject? parsed = null;
+        CaseResult? parsed = null;
         string? readError = null;
         try
         {
-            parsed = JsonNode.Parse(File.ReadAllText(resultPath)) as JsonObject;
+            parsed = JsonSerializer.Deserialize(File.ReadAllText(resultPath), SuiteJsonContext.Default.CaseResult);
         }
         catch (IOException ex)
         {
@@ -455,58 +431,21 @@ public static class SuiteRunner
 
         if (parsed is not null)
         {
-            ApplyResult(row, parsed, runFailed);
+            row.ApplyResult(parsed, runFailed);
         }
-        else if (readError is not null && row["error"] is null)
+        else if (readError is not null && row.Error is null)
         {
-            row["error"] = "no result.json: " + readError;
+            row.Error = "no result.json: " + readError;
         }
 
-        var exitText = row["exit"] is null ? "<nil>" : row["exit"].AsNumber().ToString(CultureInfo.InvariantCulture);
-        var passedText = row["passed"].AsBool() == true ? "true" : "false";
+        var exitText = row.Exit is { } code ? code.ToString(CultureInfo.InvariantCulture) : "<nil>";
+        var passedText = row.Passed ? "true" : "false";
         await stderr.WriteLineAsync($"[worker {worker}] {label} exit={exitText} passed={passedText} {GoDuration.Format(TimeSpan.FromSeconds(Math.Round(clock.Elapsed.TotalSeconds)))}").ConfigureAwait(false);
-        if (row["passed"].AsBool() != true && row["error"] is not null)
+        if (!row.Passed && row.Error is not null)
         {
-            await stderr.WriteLineAsync($"[worker {worker}] {label} error: {row["error"].AsString()}").ConfigureAwait(false);
+            await stderr.WriteLineAsync($"[worker {worker}] {label} error: {row.Error}").ConfigureAwait(false);
         }
 
         return row;
-    }
-
-    /// <summary>Folds the run's own result.json into the row: the verdict, and the blocks a suite report carries per case.</summary>
-    private static void ApplyResult(JsonObject row, JsonObject result, bool runFailed)
-    {
-        row["passed"] = result["passed"].AsBool() == true && !runFailed;
-        if (result["error"].AsString() is { Length: > 0 } error)
-        {
-            row["error"] = error;
-        }
-
-        row["game_reuse"] = result["game_reuse"]?.DeepClone();
-        if (result["boot_ms"] is JsonValue boot && boot.TryGetValue<double>(out var ms))
-        {
-            row["boot_ms"] = (long)ms;
-        }
-
-        var asReport = new Report(result);
-        if (Metrics.Of(asReport) is { } metrics)
-        {
-            row["metrics"] = metrics.ToJson();
-        }
-
-        if (result["world"] is JsonObject world)
-        {
-            row["world"] = world.DeepClone();
-        }
-
-        if (MetricSeries.FlakeOfReport(asReport) is { } flake)
-        {
-            row["flake"] = flake.ToJson();
-        }
-
-        if (result["drift"] is JsonArray { Count: > 0 } flags)
-        {
-            row["drift"] = flags.DeepClone();
-        }
     }
 }
