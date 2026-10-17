@@ -47,9 +47,21 @@ public static class RingPlanning
     public static Fingerprint Fingerprint(AcceptanceCase c, string configDir)
     {
         ArgumentNullException.ThrowIfNull(c);
+        Start start = c.Start ?? throw new AcceptanceException($"case {c.Name} has no Start");
+        return Fingerprint(start, c.Expansions, configDir);
+    }
+
+    /// <summary>
+    /// What the current tree would stamp on a bundle opened on <paramref name="start"/>: the installed native package,
+    /// the Start and <paramref name="expansions"/> (the environment's when empty).
+    /// </summary>
+    public static Fingerprint Fingerprint(Start start, IReadOnlyList<string> expansions, string configDir)
+    {
+        ArgumentNullException.ThrowIfNull(start);
+        ArgumentNullException.ThrowIfNull(expansions);
         string game = InstalledGameDir(configDir);
-        IReadOnlyList<string> expansions = c.Expansions.Count > 0
-            ? [.. c.Expansions]
+        IReadOnlyList<string> active = expansions.Count > 0
+            ? [.. expansions]
             : Acceptance.Expansions.FromEnvironment() ?? [];
         IReadOnlyDictionary<string, string>? files = null;
         try
@@ -61,8 +73,7 @@ public static class RingPlanning
             // An unreadable package leaves the hash "" and the fingerprint unusable for a resume.
         }
 
-        Start start = c.Start ?? throw new AcceptanceException($"case {c.Name} has no Start");
-        return new Fingerprint(Checkpoints.PackageHash(files), Checkpoints.StartHash(start.Describe()), expansions);
+        return new Fingerprint(Checkpoints.PackageHash(files), Checkpoints.StartHash(start.Describe()), active);
     }
 
     /// <summary>

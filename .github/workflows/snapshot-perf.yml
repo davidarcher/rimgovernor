@@ -1,7 +1,7 @@
 name: Snapshot perf
 
 # Nightly SnapshotFrames.Capture timings: profile-capture on the
-# fixture factory's newest sustained/colony bundle , recorded as
+# fixture factory's newest colony-generator bundle, recorded as
 # snapshot-perf-<commit> and compared with the median p90 of the last
 # seven successful runs; a regressed family opens or updates one issue.
 
@@ -29,8 +29,8 @@ env:
   REMOTE_INVENTORY_ASSET: ${{ vars.REMOTE_INVENTORY_ASSET }}
   REMOTE_BUNDLE_SHA256: ${{ vars.REMOTE_BUNDLE_SHA256 }}
   REMOTE_ARTIFACT_MAX_BYTES: ${{ vars.REMOTE_ARTIFACT_MAX_BYTES || '0' }}
-  # The gate's source resolution takes a pinned case list; profile runs none.
-  FACTORY_CASES: sustained/colony
+  # Profile runs no case: the gate resolves its source as a generator.
+  REMOTE_GENERATOR: profile-capture
   GOTOOLCHAIN: local
   GOWORK: 'off'
   CGO_ENABLED: '0'

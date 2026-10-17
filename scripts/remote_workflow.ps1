@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][ValidateSet('authorize','gate','plan','execute','collect','profile')][string]$Phase,
+    [Parameter(Mandatory)][ValidateSet('authorize','gate','plan','execute','collect','profile','factory')][string]$Phase,
     [string]$Evidence = 'C:\rg\evidence',
     [string]$Repo = "$env:GITHUB_WORKSPACE\tested",
     [string]$Shard = '',
@@ -86,9 +86,10 @@ function Resolve-Source($Event) {
             $head = (Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$encoded").sha
         }
     }
-    # The fixture factory (fixture-factory.yml) pins its own case list.
+    # colony-review.yml pins its own case list; fixture-factory.yml and snapshot-perf.yml run no case (REMOTE_GENERATOR).
     if ($env:FACTORY_CASES) { $tier = 'cases'; $shards = 1; $cases = @($env:FACTORY_CASES -split ',') }
-    if ($head -cnotmatch '^[0-9a-f]{40}$' -or $head -eq ('0'*40) -or $tier -notin @('smoke','nightly','cases') -or
+    if ($env:REMOTE_GENERATOR) { $tier = 'generator'; $shards = 1; $cases = @() }
+    if ($head -cnotmatch '^[0-9a-f]{40}$' -or $head -eq ('0'*40) -or $tier -notin @('smoke','nightly','cases','generator') -or
         $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, tier or shard limit' }
     return @{head=$head; tier=$tier; shards=$shards; cases=$cases}
 }
@@ -127,6 +128,36 @@ function Download-Asset($ID,$Path) {
     if ($asset.id -ne [long]$ID -or $asset.size -gt 16MB -or $asset.size -le 0) { throw 'Manifest/inventory asset exceeds its bounded allocation' }
     Invoke-WebRequest -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/assets/$ID" `
         -Headers @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/octet-stream'} -OutFile $Path
+}
+
+# Bootstraps the fixture role under C:\rg\fixture for this run, drops the
+# identity and every credential, and runs $Body with the bootstrap record from
+# the tested checkout; the role's processes are stopped afterwards.
+function Invoke-FixtureRole([scriptblock]$Body) {
+    $run = Read-JSON (Join-Path $Evidence 'run.json')
+    if ($run.workflow_commit -cne $env:GITHUB_WORKFLOW_SHA -or $run.bundle.sha256 -cne $env:REMOTE_BUNDLE_SHA256) { throw 'Wrong run input' }
+    $trust = 'C:\rg\trust.json'
+    Write-JSON $trust @{repository=$run.repository;tested_commit=$run.tested_commit;workflow_commit=$run.workflow_commit;event=$run.trigger.event}
+    $identity = 'C:\rg\identity.txt'
+    [IO.File]::WriteAllText($identity,$env:REMOTE_BUNDLE_IDENTITY)
+    Remove-Item Env:REMOTE_BUNDLE_IDENTITY
+    $work = 'C:\rg\fixture'
+    try {
+        & "$PSScriptRoot/bootstrap_remote.ps1" -Repo $Repo -Work $work -Cache C:\rg\ciphertext `
+            -Manifest (Join-Path $Evidence 'bundle.json') -ManifestSHA256 $run.bundle.sha256 `
+            -Trust $trust -ToolLock "$PSScriptRoot/remote-tools.windows.json" -Identity $identity -RgTool $Rg -Role fixture
+        Remove-Item -LiteralPath $identity
+        Get-ChildItem Env: | Where-Object Name -Match 'TOKEN|SECRET|PASSWORD|PRIVATE_KEY' | ForEach-Object {
+            [Environment]::SetEnvironmentVariable($_.Name, $null, 'Process')
+            Remove-Item -LiteralPath ("Env:" + $_.Name) -ErrorAction SilentlyContinue
+        }
+        $boot = Read-JSON "$work\job\bootstrap.json"
+        Push-Location $Repo
+        try { & $Body $boot } finally { Pop-Location }
+    } finally {
+        if (Test-Path -LiteralPath $identity) { Remove-Item -LiteralPath $identity }
+        & "$PSScriptRoot/cleanup_remote.ps1" -Work $work
+    }
 }
 
 switch ($Phase) {
@@ -222,10 +253,7 @@ switch ($Phase) {
                 $names = @($rows | Where-Object mod_role -CEQ $job.role | ForEach-Object name) -join ','
                 Push-Location $Repo
                 try {
-                    # The fixture factory keeps its checkpoint ring: without -resume the suite runs each case with checkpointing off.
-                    $ring = @()
-                    if ($env:FACTORY_CASES) { $ring = @('-resume') }
-                    & $boot.tool acceptance suite -cases $names -workers 1 -timeout "$($seconds)s" -root $boot.root -output $job.output -no-series @ring
+                    & $boot.tool acceptance suite -cases $names -workers 1 -timeout "$($seconds)s" -root $boot.root -output $job.output -no-series
                     if ($LASTEXITCODE) { $bad = $true }
                 } finally { Pop-Location }
             }
@@ -240,34 +268,24 @@ switch ($Phase) {
     'profile' {
         # snapshot-perf.yml: time SnapshotFrames.Capture on a fetched
         # fixture-factory bundle on a fixture-role layout.
-        $run = Read-JSON (Join-Path $Evidence 'run.json')
-        if ($run.workflow_commit -cne $env:GITHUB_WORKFLOW_SHA -or $run.bundle.sha256 -cne $env:REMOTE_BUNDLE_SHA256 -or
-            -not (Test-Path -LiteralPath $Bundle -PathType Container)) { throw 'Wrong run or bundle input' }
-        $trust = 'C:\rg\trust.json'
-        Write-JSON $trust @{repository=$run.repository;tested_commit=$run.tested_commit;workflow_commit=$run.workflow_commit;event=$run.trigger.event}
-        $identity = 'C:\rg\identity.txt'
-        [IO.File]::WriteAllText($identity,$env:REMOTE_BUNDLE_IDENTITY)
-        Remove-Item Env:REMOTE_BUNDLE_IDENTITY
-        $work = 'C:\rg\fixture'
-        try {
-            & "$PSScriptRoot/bootstrap_remote.ps1" -Repo $Repo -Work $work -Cache C:\rg\ciphertext `
-                -Manifest (Join-Path $Evidence 'bundle.json') -ManifestSHA256 $run.bundle.sha256 `
-                -Trust $trust -ToolLock "$PSScriptRoot/remote-tools.windows.json" -Identity $identity -RgTool $Rg -Role fixture
-            Remove-Item -LiteralPath $identity
-            Get-ChildItem Env: | Where-Object Name -Match 'TOKEN|SECRET|PASSWORD|PRIVATE_KEY' | ForEach-Object {
-                [Environment]::SetEnvironmentVariable($_.Name, $null, 'Process')
-                Remove-Item -LiteralPath ("Env:" + $_.Name) -ErrorAction SilentlyContinue
-            }
-            $boot = Read-JSON "$work\job\bootstrap.json"
-            Push-Location $Repo
-            try {
-                $out = & $boot.tool acceptance profile-capture -root $boot.root -from $Bundle -n $Count -json -timeout 20m
-                if ($LASTEXITCODE) { throw "profile-capture failed: $out" }
-            } finally { Pop-Location }
+        if (-not (Test-Path -LiteralPath $Bundle -PathType Container)) { throw 'Wrong bundle input' }
+        Invoke-FixtureRole {
+            param($boot)
+            $out = & $boot.tool acceptance profile-capture -root $boot.root -from $Bundle -n $Count -json -timeout 20m
+            if ($LASTEXITCODE) { throw "profile-capture failed: $out" }
             [IO.File]::WriteAllText((Join-Path $Evidence 'profile.json'), ($out -join "`n") + "`n")
-        } finally {
-            if (Test-Path -LiteralPath $identity) { Remove-Item -LiteralPath $identity }
-            & "$PSScriptRoot/cleanup_remote.ps1" -Work $work
+        }
+    }
+    'factory' {
+        # fixture-factory.yml: the colony generator on a fixture-role layout. Its
+        # checkpoint ring stays under the root (checkpoints\sustained\colony) and
+        # its result.json under C:\rg\fixture\job\out, passed or failed, for the
+        # collect step.
+        Invoke-FixtureRole {
+            param($boot)
+            $run = Read-JSON (Join-Path $Evidence 'run.json')
+            & $boot.tool acceptance colony -root $boot.root -output C:\rg\fixture\job\out -timeout "$($run.limits.suite_timeout_minutes)m"
+            if ($LASTEXITCODE) { throw 'acceptance colony failed; its ring and result.json are still collected' }
         }
     }
     'collect' {

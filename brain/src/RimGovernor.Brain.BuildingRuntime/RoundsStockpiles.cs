@@ -97,7 +97,7 @@ internal static partial class BuildingRuntimePackage
     internal static Decision StockpileEditDecision(string verdict, string reason, string target, Dictionary<string, object?> attrs)
     {
         attrs["family"] = "stockpile";
-        return new Decision { Kind = "layout_edit", Component = "layout", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs };
+        return new Decision { Kind = TelemetryKinds.LayoutEditKind, Component = "layout", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs };
     }
 
     /// <summary>

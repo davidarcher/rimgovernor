@@ -91,7 +91,6 @@ public static class CaseCatalog
         StatsCases.Register(registry);
         StorageCases.Register(registry);
         SuppliesCases.Register(registry);
-        SustainedCases.Register(registry);
         TemperatureCases.Register(registry);
         ToolsCases.Register(registry);
         TradeCases.Register(registry);

@@ -14,7 +14,7 @@ public static class AcceptanceCommand
           acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier nightly|smoke] [<case>|<area>/...]...
           acceptance stop -root <dir> [-game <id>]
           acceptance run [flags] <case>|<area>/...   (acceptance run -help)
-          acceptance resume | why | suite | plan | dev | warm | fixture | fetch-fixture | profile-capture | profile-compare | sweep   (<subcommand> -help)
+          acceptance resume | why | suite | plan | dev | warm | fixture | fetch-fixture | profile-capture | profile-compare | sweep | colony   (<subcommand> -help)
           acceptance setup ... (acceptance setup -help)
           acceptance doctor -root <dir> [-output <dir> -game <id> -worktree <dir> -heal]
           acceptance prune -output <dir> [-keep n -dry-run]
@@ -79,6 +79,8 @@ public static class AcceptanceCommand
                 return await ProfileCaptureCommand.RunAsync(rest, ProfileFixtureHost.Instance, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "sweep":
                 return await SweepCommand.RunAsync(rest, huntingPredictor, stdout, stderr, cancellationToken).ConfigureAwait(false);
+            case "colony":
+                return await ColonyCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "profile-compare":
                 return await ProfileCompareCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "prune":

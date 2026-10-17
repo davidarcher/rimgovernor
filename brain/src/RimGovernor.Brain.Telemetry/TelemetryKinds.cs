@@ -26,6 +26,12 @@ public static class TelemetryKinds
     /// <summary>One observed production-site output (<see cref="PawnActivityTelemetry.OutputKind"/>).</summary>
     public static readonly TelemetryKind PawnActivityOutput = new(PawnActivityTelemetry.OutputKind);
 
+    /// <summary>The kind the stockpile, field and building layout decisions are emitted under.</summary>
+    public const string LayoutEditKind = "layout_edit";
+
+    /// <summary>One stockpile, field or building layout decision (<see cref="LayoutEditKind"/>).</summary>
+    public static readonly TelemetryKind LayoutEdit = new(LayoutEditKind);
+
     /// <summary>The clock entered a hold (<see cref="ClockEventTelemetry.HoldKind"/>): a hazard, a game pause, a combat event or a brain hold.</summary>
     public static readonly TelemetryKind ClockHold = new(ClockEventTelemetry.HoldKind);
 

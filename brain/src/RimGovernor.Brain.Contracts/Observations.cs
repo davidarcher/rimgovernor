@@ -8093,8 +8093,6 @@ public sealed record ColonyFactsSnapshot
     [JsonConverter(typeof(EquatableArrayJsonConverter<ButcheringFacts>))]
     public EquatableArray<ButcheringFacts> Butchering { get; init; }
 
-    public bool? FoodStorage { get; init; }
-
     public FoodSupplySection? FoodSupply { get; init; }
 
     public ForecastSection? Forecast { get; init; }

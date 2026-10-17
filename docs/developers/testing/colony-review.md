@@ -17,7 +17,7 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   every in-game hour it renders the colony from above to
   `<case output>/review/colony-<tick>.jpg`, and once a day the whole map to
   `map-<tick>.jpg`. It records no colony facts: the run's timeline already
-  samples the colony census and every `sustained.ColonyConcerns` concern each
+  samples the colony census and every `ColonyAudits.ColonyConcerns` concern each
   in-game hour. It needs a graphics device: the case sets `Graphics`, which
   drops `-Headless` from the headless profile (the camera renders on
   demand; on 1.7 the device brings a window, and whether hosted runners

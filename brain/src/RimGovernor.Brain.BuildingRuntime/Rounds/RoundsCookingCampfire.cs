@@ -54,7 +54,7 @@ public sealed partial class RoundsBuildingPlanner
         var spec = new PlanSpec(snapshot.Plan, new PlanRevision(1), [action]);
         Tel.Decide(new Decision
         {
-            Kind = "layout_edit",
+            Kind = TelemetryKinds.LayoutEditKind,
             Component = "building",
             Verdict = "admitted",
             Reason = "building_retire",

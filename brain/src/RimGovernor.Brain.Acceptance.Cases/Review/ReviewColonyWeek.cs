@@ -120,7 +120,7 @@ internal static class ReviewColonyWeek
                     Poll = TimeSpan.FromSeconds(30),
                     PollTicks = 2500,
                     Concern = PolicyFunctions.FoodSupplyNeed.Value,
-                    Extra = SustainedColonyCase.ColonyConcerns,
+                    Extra = ColonyAudits.ColonyConcerns,
 
                     // A review records whatever happens; nothing ends it early but a stalled clock.
                     FailFast = new FailFast { Disabled = true },

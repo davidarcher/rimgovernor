@@ -193,8 +193,8 @@ per role and flags starting supplies still forbidden after a day. A report, not
 a gate.
 
 An admitted zone create or delete is a `layout_edit` row (family `stockpile`, attrs `kind`,
-`role`, and `cells` on a create), stamped with its tick. The sustained colony acceptance's
-`AuditStockpiles` reports the standing zones per store kind, the admitted creates in order
+`role`, and `cells` on a create), stamped with its tick. The colony generator's (`acceptance colony`)
+stockpile audit reports the standing zones per store kind, the admitted creates in order
 (role, tick, cells: the first create is the earliest a store can open) and the deletes by
 role, and fails a role created again after a delete (churn). Early-room spoilage is read
 against the create ticks; no check gates it.

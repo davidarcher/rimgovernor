@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Acceptance;
 // acceptance profile-capture: the loop for native snapshot performance work. It runs the test/profile_capture op
 // (WasteFixture.cs), which calls SnapshotFrames.Capture back to back on the game thread, paused, and prints p50/p90/max
 // per family and ObservationWork.Detail span whether or not a capture was slow. The game is the root's kept process
-// (healed like a run's when the installed mod is stale), and the save is the newest sustained/colony checkpoint so the
+// (healed like a run's when the installed mod is stale), and the save is the newest bundle of the colony generator's ring so the
 // colony has real rows; the next call reloads it, so an edit, a rebuild and a profile take one command.
 
 /// <summary>The <c>acceptance profile-capture</c> subcommand (Go <c>profileCapture</c>).</summary>
@@ -18,7 +18,7 @@ public static class ProfileCaptureCommand
     public const string Usage = """
 
           acceptance profile-capture -root <dir> [-n <count> -equality -save <name> | -from <label|dir|latest-ci> -case <area/case> -output <dir> -game <id> -headless=false -timeout <d> -no-heal -json]
-            loads the save (default: the -case ring's newest bundle, sustained/colony) on the kept game, runs SnapshotFrames.Capture
+            loads the save (default: the -case ring's newest bundle, the colony generator's sustained/colony) on the kept game, runs SnapshotFrames.Capture
             -n times paused and prints p50/p90/max ms and rows per family and detail span; -equality adds the ColonyFacts equality probe
         """;
 
@@ -200,7 +200,7 @@ public static class ProfileCaptureCommand
             return peer;
         }
 
-        throw new AcceptanceException($"no {caseName} checkpoint in {dir} or any peer checkout: run `acceptance run {caseName}` once, or pass -save");
+        throw new AcceptanceException($"no {caseName} checkpoint in {dir} or any peer checkout: run `acceptance colony -root {root}` (or a failing `acceptance run {caseName}`) once, or pass -save");
     }
 
     private static string RingDirectory(string root, string caseName) =>
@@ -318,7 +318,7 @@ public static class ProfileCaptureCommand
             var count = fs.Int("n", 20);
             var equality = fs.Bool("equality", false);
             var save = fs.String("save", "");
-            var caseName = fs.String("case", "sustained/colony");
+            var caseName = fs.String("case", ColonyCommand.RingName);
             var from = fs.String("from", "");
             var output = fs.String("output", "");
             var game = fs.String("game", "rimgovernor-trial");

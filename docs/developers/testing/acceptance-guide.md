@@ -280,6 +280,20 @@ The stage key covers the area's brain files and stage names, not shared helpers.
 `-fresh` retains stages; `-restage` discards them. A pending resume takes
 precedence. `RIMGOVERNOR_ACCEPT_STAGES=0` disables caching.
 
+## Colony generator
+
+`acceptance colony -root <dir> [-output <dir>] [-ticks 300000] [-watch <d>]
+[-every 1m] [-timeout <d>] [-game <id>]` plays the tribal8 baseline under the
+governor for `-ticks` game ticks (five days by default) with a staffed crew and
+writes a checkpoint ring to `<root>/checkpoints/sustained/colony`, passed or
+failed. It has its own driver (`brain/src/RimGovernor.Brain.Acceptance/Colony`)
+outside the case runner and the case catalog. At the window's end it audits the
+keep-alive resumes, every colonist's malnutrition and the stockpile zones, and
+writes `result.json` to `-output` (default `<root>/acceptance/colony`). Exit 0
+is a pass, 1 a failed window and 2 a usage error. The fixture factory runs it
+weekly ([remote workflow](remote-workflow.md#fixture-factory)); `acceptance
+profile-capture` and `acceptance fetch-fixture` read its ring by default.
+
 ## Combat lab sweeps
 
 `acceptance sweep <fixture>... -root <dir> -output <fresh dir>

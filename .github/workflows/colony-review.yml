@@ -6,7 +6,7 @@ name: Colony review
 # the colonyreview tool and publishes the newest reports to GitHub Pages. A
 # review, not a gate: the report is built from whatever was recorded even
 # when the run fails. Gate, planning and bootstrap are remote_workflow.ps1's,
-# as in fixture-factory.yml.
+# as in remote-acceptance.yml.
 
 on:
   workflow_dispatch:

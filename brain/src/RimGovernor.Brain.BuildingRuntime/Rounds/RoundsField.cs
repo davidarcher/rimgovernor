@@ -541,7 +541,7 @@ public sealed partial class RoundsFieldPlanner
     internal static void FieldEdit(string verdict, string reason, string target, Dictionary<string, object?> attrs, CancellationToken ct)
     {
         attrs["family"] = "field";
-        Tel.Decide(new Decision { Kind = "layout_edit", Component = "clock-scheduler", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs });
+        Tel.Decide(new Decision { Kind = TelemetryKinds.LayoutEditKind, Component = "clock-scheduler", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs });
     }
 }
 

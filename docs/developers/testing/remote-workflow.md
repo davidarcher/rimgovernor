@@ -117,11 +117,13 @@ failure outside the native suite cannot yield a passing aggregate.
 
 ## Fixture factory
 
-`.github/workflows/fixture-factory.yml` (weekly, or dispatched) runs `sustained/colony` through the same gate, plan and
-bootstrap phases (`FACTORY_CASES` pins the case list) and uploads its
-checkpoint ring, saves and stores included, plus `factory.json` naming the
-tested commit, as the artifact `colony-checkpoints-<commit>`; a failed case still
-publishes it (the run stays red) so a failing colony can be troubleshot and profiled. Unlike shard
+`.github/workflows/fixture-factory.yml` (weekly, or dispatched) runs the colony generator,
+`acceptance colony` ([acceptance guide](acceptance-guide.md#colony-generator)), through the same gate
+and bootstrap (`REMOTE_GENERATOR` resolves the source without a case; `remote_workflow.ps1 -Phase factory`
+runs it on a fixture-role layout, no plan) and uploads its
+checkpoint ring (`checkpoints/sustained/colony`), saves and stores included, plus its `result.json` and
+`factory.json` naming the tested commit, as the artifact `colony-checkpoints-<commit>`. The ring is
+published passed or failed (a failed window keeps the run red) so a colony can be troubleshot and profiled. Unlike shard
 diagnostics this deliberately publishes generated saves; they carry def
 references, never licensed file contents. Retention is 90 days, so the newest
 bundle outlives the weekly cadence. A fresh clone consumes it with

@@ -43,8 +43,15 @@ public sealed class ObservedSession : IObservedSession
     public static IWatchedService Watched(ISession session, ServiceProcess process)
     {
         ArgumentNullException.ThrowIfNull(session);
+        return Watched(process, session.Config);
+    }
+
+    /// <summary>The watch view of a service a driver outside the case runner launched on the run <paramref name="config"/> describes.</summary>
+    public static IWatchedService Watched(ServiceProcess process, Config config)
+    {
         ArgumentNullException.ThrowIfNull(process);
-        return new WatchedService(process, session.Config);
+        ArgumentNullException.ThrowIfNull(config);
+        return new WatchedService(process, config);
     }
 
     /// <summary>Opens the journal reader of the run <paramref name="config"/> describes.</summary>

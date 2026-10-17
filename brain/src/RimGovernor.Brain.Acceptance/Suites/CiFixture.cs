@@ -13,7 +13,7 @@ public sealed record FactoryRun(long Id, string HeadSha, string Conclusion);
 
 /// <summary>
 /// The save-fixture factory (Go <c>cmd/acceptance/cifixture.go</c>): .github/workflows/fixture-factory.yml runs
-/// sustained/colony weekly on a Windows runner and uploads its checkpoint ring as the run artifact
+/// the colony generator (<c>acceptance colony</c>) weekly on a Windows runner and uploads its checkpoint ring as the run artifact
 /// <c>colony-checkpoints-&lt;commit&gt;</c>. <c>-from latest-ci</c> (profile-capture) and <c>acceptance fetch-fixture</c>
 /// download the newest completed run's ring with <c>gh run download</c> into <c>&lt;root&gt;/ci-fixtures/&lt;run id&gt;</c>,
 /// so a fresh clone with no local run has a real colony to load.
@@ -234,7 +234,7 @@ public static class CiFixture
         ArgumentNullException.ThrowIfNull(stderr);
         var fs = new FlagSet("fetch-fixture");
         var root = fs.String("root", "");
-        var caseName = fs.String("case", "sustained/colony");
+        var caseName = fs.String("case", ColonyCommand.RingName);
         try
         {
             fs.Parse(args);
