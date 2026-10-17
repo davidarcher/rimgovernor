@@ -6,9 +6,6 @@ dotnet_diagnostic.RS0030.severity = error
 # records each use in banned-api.sarif. It only shrinks: the gate's banned-API job fails a section whose file no
 # longer uses a banned API (delete the section). Never add one; port the case to TypedCase instead.
 
-[/Authority/AuthorityWarm.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Clearance/ClearanceKit.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 

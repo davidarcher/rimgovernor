@@ -1,226 +1,138 @@
-using System.Diagnostics;
 using System.Globalization;
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Clock = RimGovernor.Contracts.Wire.Clock;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Control = RimGovernor.Contracts.Wire.Authority;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>authority/warm</c> (Go <c>warm.go</c>) verifies authority continuity when a controller dies with Auto granted and
-/// a typed run going. It releases the first session, unloads its game, prepares the profile again and loads another
-/// save into the same process. The next controller must retain Auto throughout the hold. This catches native run
-/// state retaining a disposed game. Nothing durable from the first run survives a kept process, by design.
+/// <c>authority/warm</c> (#119): authority continuity when a controller dies with Auto granted and a clock run going.
+/// One process is launched; the first controller loads the lab, grants Auto, starts a clock run and drops its session
+/// with the run going. The reusable-game lifecycle then loads the lab again into the same process (a fresh load token):
+/// the next controller must keep its own Auto grant through an hour of running game time. This catches native run state
+/// retaining a disposed game. Nothing durable from the first run survives a kept process, by design.
 /// </summary>
 internal static class AuthorityWarm
 {
-    private const string WarmController = "authority-warm";
+    /// <summary>How long the second grant must stay active, in game time: an in-game hour the game actually runs.</summary>
+    private const int HoldTicks = Wait.TicksPerHour;
 
-    /// <summary>How long phase 2's grant must stay active, in game time: an in-game hour the game actually runs.</summary>
-    private const int WarmHoldTicks = Wait.TicksPerHour;
-
-    private static readonly TimeSpan CloseBudget = TimeSpan.FromSeconds(90);
-
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "authority/warm",
-        Scope = "A process that hosted a controller killed mid-run (authority Auto, typed clock run going, session "
-            + "dropped) keeps the next controller's Auto grant after unload and reload of another save into the same process (#119).",
+        Scope = "A process that hosted a controller dropped mid-run (authority Auto, a clock run going, session released) "
+            + "reloads the lab under a fresh load token; the next controller's Auto grant reads active at the granted "
+            + "generation on every read through an in-game hour of running time (#119).",
+        Ticks = 2 * HoldTicks,
+        Tier = CaseTier.OnDemand,
         Start = new OwnedStart(),
-        NoKeep = true,
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        ClaimsStart = new StartClaim { Launches = 1 },
         Run = RunAsync,
     };
 
-    // The case owns the process: phase 1 keeps it whatever the environment says, phase 2 must attach to it, and the case
-    // retires it at the end.
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var cfg = s.Config;
-        var report = s.Report;
-        var killed = await Game.OpenGameAsync(cfg, cancellationToken).ConfigureAwait(false);
-        killed.Keep = true;
-        var phase1 = new JsonObject { ["reused"] = killed.Reused };
-        report["phase1_killed_controller"] = phase1;
-        var h = killed.Harness;
-        string previousLoadToken;
-        var failed = true;
+        var reuse = await s.LaunchAsync("launch", cancellationToken).ConfigureAwait(false);
         try
         {
-            var identity = await WarmStageAsync(cfg, h, "p1", cancellationToken).ConfigureAwait(false);
-            var granted = await Authority.GrantAutoAsync(h.WireFunc(), "p1-grant", identity, cancellationToken).ConfigureAwait(false);
-            var generation = Authority.GrantGeneration(granted);
-            phase1["identity"] = identity.DeepClone();
-            phase1["generation"] = generation;
-            var beforeReply = await h.WireAsync("p1-clock-status", "clock_read_status", new JsonObject { ["identity"] = identity.DeepClone() }, cancellationToken).ConfigureAwait(false);
-            var (_, preRun) = Harness.Outcome(beforeReply, "status");
-            var startReply = await h.WireAsync(
-                "p1-clock-run",
-                "clock_run",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["expectedGeneration"] = generation,
-                    ["speed"] = "SPEED_SUPERFAST",
-                    ["policy"] = new JsonObject
-                    {
-                        ["mode"] = "WATCH_MODE_COLONY",
-                        ["healthDropFraction"] = 0.5,
-                        ["minHealthFraction"] = 0.2,
-                        ["hostileWithin"] = 40,
-                        ["injuryStopCooldownMs"] = 0,
-                    },
-                    ["plannedHoldSerial"] = preRun["holdSerial"]?.DeepClone(),
-                },
-                cancellationToken).ConfigureAwait(false);
-            JsonObject status;
+            // The first controller: the lab, Auto, a running clock; then its session drops with all three in place.
+            var h = await reuse.SessionAsync(cancellationToken).ConfigureAwait(false);
+            var labSave = await LabStarts.StartLabAsync(reuse.Config, SessionHost.Default, h, cancellationToken).ConfigureAwait(false);
+            var (first, _, _) = await TypedLifecycle.IdentityAsync(s, "p1-identity", cancellationToken).ConfigureAwait(false);
+            var expected = await TypedAuthority.ExpectedGenerationAsync(s, "p1-status", first, cancellationToken).ConfigureAwait(false);
+            var generation = await TypedAuthority.GrantAsync(s, "p1-grant", first, expected, cancellationToken).ConfigureAwait(false);
+            var before = await ClockStatusAsync(s, "p1-clock-status", first, cancellationToken).ConfigureAwait(false);
+            var run = await s.CallAsync("p1-clock-run", NativeOps.RunClock, new Clock.RunRequest
+            {
+                Identity = first,
+                ExpectedGeneration = generation,
+                Speed = Clock.Speed.Superfast,
+                Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = 0.5f, MinHealthFraction = 0.2f, HostileWithin = 40, InjuryStopCooldownMs = 0 },
+                PlannedHoldSerial = before.HoldSerial,
+            }, cancellationToken).ConfigureAwait(false);
+            if (run.Outcome?.Status is not { State: Clock.ClockState.Running } running)
+            {
+                throw new AcceptanceException($"p1-clock-run: want a running clock, got {run.Outcome}");
+            }
+
+            s.RecordWire("p1_clock", running);
+            await reuse.ReleaseSessionAsync().ConfigureAwait(false);
+
+            // The next controller: the same process, the lab loaded again.
+            var c = await reuse.BeginCaseAsync("next-controller", labSave, Path.Combine(reuse.Config.Output, "next-controller"), cancellationToken).ConfigureAwait(false);
+            var failed = true;
             try
             {
-                status = Harness.Outcome(startReply, "status").Value;
-            }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"p1-clock-run: expected a status: {e.Message}", e);
-            }
-
-            if (status["state"].AsString() != "CLOCK_STATE_RUNNING")
-            {
-                throw new AcceptanceException($"p1-clock-run: expected a running clock, got {status.ToJson()}");
-            }
-
-            previousLoadToken = identity["loadToken"].AsString();
-            failed = false;
-        }
-        finally
-        {
-            if (failed)
-            {
-                await CloseAsync(killed, report).ConfigureAwait(false);
-            }
-        }
-
-        // The controller vanishes: the session drops with the run going and the grant active. Close returns the game to
-        // the main menu and keeps the process.
-        killed.Keep = true;
-        await CloseAsync(killed, report).ConfigureAwait(false);
-        if (report["stop"].AsString().StartsWith("kept running", StringComparison.Ordinal) != true)
-        {
-            throw new AcceptanceException($"phase 1 did not keep the process: {report["game_reuse"].ToJson()}");
-        }
-
-        phase1["stop"] = report["stop"]?.DeepClone();
-        await WarmPhase2Async(cfg, previousLoadToken, report, cancellationToken).ConfigureAwait(false);
-    }
-
-    // The next controller attaching to the kept process. It is a separate harness in practice, so it prepares the
-    // profile again.
-    private static async Task WarmPhase2Async(Config cfg, string previousLoadToken, Report report, CancellationToken cancellationToken)
-    {
-        try
-        {
-            cfg.PrepareConfig();
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"phase 2 prepare profile: {e.Message}", e);
-        }
-
-        var next = await Game.OpenGameAsync(cfg, cancellationToken).ConfigureAwait(false);
-
-        // An Owned case leaves the root's process stopped.
-        next.Keep = false;
-        try
-        {
-            var phase2 = new JsonObject { ["reused"] = next.Reused };
-            report["phase2_next_controller"] = phase2;
-            if (!next.Reused)
-            {
-                throw new AcceptanceException("phase 2 launched a fresh process instead of attaching to the kept one");
-            }
-
-            var h = next.Harness;
-            var identity = await WarmStageAsync(cfg, h, "p2", cancellationToken).ConfigureAwait(false);
-            if (identity["loadToken"].AsString() == previousLoadToken)
-            {
-                throw new AcceptanceException($"phase 2 reloaded under the same load token {identity.ToJson()}");
-            }
-
-            var clockBefore = await h.WireAsync("p2-clock-before", "clock_read_status", new JsonObject { ["identity"] = identity.DeepClone() }, cancellationToken).ConfigureAwait(false);
-            phase2["clock_before_grant"] = clockBefore.DeepClone();
-
-            var (statusBefore, before) = await Authority.AuthorityStatusAsync(h.WireFunc(), "p2-status", identity, cancellationToken).ConfigureAwait(false);
-            phase2["authority_before_grant"] = statusBefore.DeepClone();
-            var granted = await Authority.GrantAutoAtAsync(h.WireFunc(), "p2-grant", identity, before, cancellationToken).ConfigureAwait(false);
-            var generation = Authority.GrantGeneration(granted);
-            phase2["identity"] = identity.DeepClone();
-            phase2["generation"] = generation;
-
-            // The grant must hold for the whole window, with the game running: every read Active(Auto) at the granted
-            // generation. The first loss is the finding.
-            var reads = 0;
-            var held = Stopwatch.StartNew();
-            var startTick = await h.TickAsync(cancellationToken).ConfigureAwait(false);
-
-            // The probe ends the run once the hold window has passed; RunUntil's own budget (twice the window) is the
-            // failure bound, not the hold.
-            var elapsed = await RunAt.RunUntilAsync(
-                h,
-                "p2-hold",
-                2UL * WarmHoldTicks,
-                new Wait { Stall = Wait.StallBudget() },
-                async ct =>
+                var next = TypedReads.Identity(c.Identity);
+                if (next.LoadToken == first.LoadToken)
                 {
-                    var tick = await h.TickAsync(ct).ConfigureAwait(false);
-                    var (status, observed) = await Authority.AuthorityStatusAsync(
-                        h.WireFunc(),
-                        string.Create(CultureInfo.InvariantCulture, $"p2-hold-{reads:D3}"),
-                        identity,
-                        ct).ConfigureAwait(false);
-                    reads++;
-                    var active = status["active"].AsMap();
-                    if (active is null || active["mode"].AsString() != "MODE_AUTO" || observed != generation)
-                    {
-                        var clock = await h.WireAsync("p2-clock-at-loss", "clock_read_status", new JsonObject { ["identity"] = identity.DeepClone() }, ct).ConfigureAwait(false);
-                        phase2["loss"] = new JsonObject
-                        {
-                            ["after_reads"] = reads,
-                            ["elapsed_ms"] = held.ElapsedMilliseconds,
-                            ["authority"] = status.DeepClone(),
-                            ["generation"] = observed,
-                            ["clock"] = clock.DeepClone(),
-                        };
-                        throw new AcceptanceException(string.Create(
-                            CultureInfo.InvariantCulture,
-                            $"phase 2 lost the Auto grant at generation {generation} after {reads} reads: {status.ToJson()}"));
-                    }
+                    throw new AcceptanceException($"the reload kept load token {first.LoadToken}");
+                }
 
-                    return ("", tick - startTick >= WarmHoldTicks);
-                },
-                cancellationToken).ConfigureAwait(false);
-            phase2["held_reads"] = reads;
-            phase2["held_ticks"] = elapsed;
-            _ = await Authority.RevokeManualAsync(h.WireFunc(), "p2-release", identity, granted, cancellationToken).ConfigureAwait(false);
+                await HoldAsync(s, next, cancellationToken).ConfigureAwait(false);
+                failed = false;
+            }
+            finally
+            {
+                await reuse.EndCaseAsync(c, failed, cancellationToken).ConfigureAwait(false);
+            }
         }
         finally
         {
-            await CloseAsync(next, report).ConfigureAwait(false);
+            using var retire = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            try
+            {
+                await reuse.RetireAsync("run complete", retire.Token).ConfigureAwait(false);
+            }
+            catch (AcceptanceException tolerated)
+            {
+                Tolerated.Note("retire", tolerated);
+            }
+            catch (OperationCanceledException tolerated)
+            {
+                Tolerated.Note("retire", tolerated);
+            }
         }
     }
 
-    // Loads the lab, pauses it and returns its identity.
-    private static async Task<JsonObject> WarmStageAsync(Config cfg, Harness h, string prefix, CancellationToken cancellationToken)
+    /// <summary>Grants Auto and requires every status read through <see cref="HoldTicks"/> of running time to stay Active(Auto) at that generation; then revokes.</summary>
+    private static async Task HoldAsync(ITypedSession s, Common.Identity identity, CancellationToken cancellationToken)
     {
-        _ = await LabStarts.StartLabAsync(cfg, SessionHost.Default, h, cancellationToken).ConfigureAwait(false);
-        _ = await h.CallAsync(prefix + "-pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
-        var identityReply = await h.WireAsync(prefix + "-identity", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var loaded = Harness.Outcome(identityReply, "loaded").Value;
-        return loaded["context"].AsMap()?["identity"].AsMap()
-            ?? throw new AcceptanceException($"{prefix}: no identity in {identityReply.ToJson()}");
+        var expected = await TypedAuthority.ExpectedGenerationAsync(s, "p2-status", identity, cancellationToken).ConfigureAwait(false);
+        var generation = await TypedAuthority.GrantAsync(s, "p2-grant", identity, expected, cancellationToken).ConfigureAwait(false);
+        long? start = null;
+        var reads = 0;
+        var held = await s.RunUntilAsync("p2-hold", s.TicksLeft, async ct =>
+        {
+            var status = await TypedAuthority.StatusAsync(s, string.Create(CultureInfo.InvariantCulture, $"p2-hold-{reads:D3}"), identity, ct).ConfigureAwait(false);
+            reads++;
+            if (status.State?.Active?.Mode != Control.Mode.Auto || status.Context?.NativeGeneration != generation)
+            {
+                s.RecordWire("p2_loss", status);
+                s.RecordWire("p2_clock_at_loss", await ClockStatusAsync(s, "p2-clock-at-loss", identity, ct).ConfigureAwait(false));
+                throw new AcceptanceException($"lost the Auto grant at generation {generation} after {reads} reads: {status}");
+            }
+
+            var tick = status.Context.Tick;
+            start ??= tick;
+            return (string.Empty, tick - start >= HoldTicks);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("p2_held", ServedOps.Args(("reads", reads), ("ticks", held)));
+        var release = await TypedAuthority.StatusAsync(s, "p2-release-status", identity, cancellationToken).ConfigureAwait(false);
+        var revoke = await s.CallAsync("p2-release", NativeOps.ControlAuthority, new Control.ControlRequest
+        {
+            Operation = new Control.Revoke { Identity = identity, ExpectedGeneration = release.Context?.NativeGeneration, Reason = Control.RevocationReason.Manual },
+        }, cancellationToken).ConfigureAwait(false);
+        if (revoke.Outcome?.Revoked is null)
+        {
+            throw new AcceptanceException($"p2-release: want revoked, got {revoke.Outcome}");
+        }
     }
 
-    // Close runs under its own bound: the case's token may already be cancelled when the hold is retired.
-    private static async Task CloseAsync(Game game, Report report)
+    private static async Task<Clock.Status> ClockStatusAsync(ITypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
     {
-        using var bound = new CancellationTokenSource(CloseBudget);
-        await game.CloseAsync(report, bound.Token).ConfigureAwait(false);
+        var reply = await s.CallAsync(label, NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
+        return reply.Outcome?.Status ?? throw new AcceptanceException($"{label}: expected a clock status, got {reply.Outcome}");
     }
 }
