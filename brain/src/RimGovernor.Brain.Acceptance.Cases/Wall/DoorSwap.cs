@@ -73,7 +73,7 @@ internal static class WallDoorSwap
 
             var built = await h.BuildingsAsync(
                 "cell-" + CaseSupport.Tag(advanced),
-                new Observations.ListBuildingsRequest { Scope = TypedReads.Scope(s.Identity), DefNames = ["Wall", "Door"], Statuses = ["built"] },
+                new Observations.ListBuildingsRequest { Scope = TypedReads.Scope(s.Identity), DefNames = ["Wall", "Door"], Statuses = [Observations.BuildingStatus.Built] },
                 cancellationToken).ConfigureAwait(false);
             var here = built.Where(b => b.Building?.Position is { } p && p.X == door.X && p.Z == door.Z).ToList();
             var wall = here.Any(b => b.Building?.DefName == "Wall" && b.Stuff == "WoodLog");

@@ -223,7 +223,7 @@ public sealed class ForecastConstructionTests
     }
 
     [Fact]
-    public void NativeConstructionProjectionRetainsRemainingWorkAndMissingMaterialUnknowns()
+    public void NativeConstructionProjectionRetainsRemainingWorkAndOwedMaterials()
     {
         var row = new O.BuildingState
         {
@@ -239,7 +239,6 @@ public sealed class ForecastConstructionTests
         var missing = row with { Construction = new O.ConstructionState() };
         var unknown = ObservationPackage.ConstructionFromCensus(new(null, Buildings.Of(missing))).Construction.Value;
         Assert.False(unknown.Sites[0].WorkLeft.IsKnown);
-        Assert.False(unknown.Sites[0].MaterialsOwed.IsKnown);
-        Assert.Throws<ObservationContractException>(() => ObservationPackage.ConstructionFromCensus(new(null, Buildings.Of(row with { Construction = row.Construction with { WorkLeft = -1 } }))));
+        Assert.Empty(unknown.Sites[0].MaterialsOwed.Value);
     }
 }

@@ -28,16 +28,16 @@ public static partial class ObservationPackage
         }
         foreach (var row in census.Rows.Table.Values())
         {
-            var def = row.Building?.DefName ?? "";
-            if (row.Status.GetValueOrDefault() != O.BuildingStatus.Built || !wanted.Contains(def))
+            var def = row.Building.DefName;
+            if (row.Status != O.BuildingStatus.Built || !wanted.Contains(def))
             {
                 continue;
             }
-            if (!RowCell(row.Building?.Position).TryGetValue(out var cell))
+            if (!RowCell(row.Building.Position).TryGetValue(out var cell))
             {
                 return Unknown<EquatableArray<RitualSite>>();
             }
-            output.Add(new RitualSite { Id = row.Building?.Id ?? "", Def = def, Cell = cell });
+            output.Add(new RitualSite { Id = row.Building.Id, Def = def, Cell = cell });
         }
         return Known(EquatableArray.From(output));
     }

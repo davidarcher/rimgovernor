@@ -109,16 +109,7 @@ internal sealed partial class FacadeNativeClient
             return new EntityRows<PbObservations.BuildingState> { Context = held.BuildMeta?.Context, Rows = held.Buildings.Table };
         }
         var snapshot = await ListBuildingsLiveAsync(identity, cancellationToken).ConfigureAwait(false);
-        var ids = new List<string>(snapshot.Buildings.Count);
-        foreach (var row in snapshot.Buildings)
-        {
-            if (row is null || row.Building is null)
-            {
-                throw BridgeFunctions.Contract("invalid building row");
-            }
-            ids.Add(row.Building.Id ?? "");
-        }
-        return EntityRowsOf(identity, snapshot.Context, snapshot.Buildings, ids);
+        return EntityRowsOf(identity, snapshot.Context, snapshot.Buildings, [.. snapshot.Buildings.Select(row => row.Building.Id)]);
     }
 
     /// <summary>
@@ -165,7 +156,7 @@ internal sealed partial class FacadeNativeClient
 
     /// <summary>Go <c>buildingsListRequest</c>.</summary>
     internal static PbObservations.ListBuildingsRequest BuildingsListRequest(PbCommon.Identity identity) =>
-        new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, PlayerOnly = true, Category = "artificial" };
+        new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
 
     /// <summary>Go <c>billsListRequest</c>.</summary>
     internal static PbObservations.BillsRequest BillsListRequest(PbCommon.Identity identity) =>

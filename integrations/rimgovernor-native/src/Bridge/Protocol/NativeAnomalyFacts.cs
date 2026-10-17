@@ -17,7 +17,6 @@ namespace HomeBridge.BridgeTools
     // The static defs are rows of the definition catalog's def mirror.
     internal static class NativeAnomalyFacts
     {
-        private static string? Id(string? value) => value != null && ProtoBoundary.IsIdentifier(value) ? value : null;
         private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
         private static Obs.ReadIssue Failed(string field, Exception ex) => new Obs.ReadIssue { Field = field,
@@ -30,11 +29,6 @@ namespace HomeBridge.BridgeTools
             if (!ModsConfig.AnomalyActive || (thing as ThingWithComps)?.GetComp<CompStudiable>() is not CompStudiable study) return null;
             var state = new Obs.StudyState { Completed = study.Completed, StudyInteractions = study.studyInteractions,
                 CurrentlyStudiable = study.CurrentlyStudiable() };
-            if (Finite(study.ProgressPercent)) state = state with { ProgressPercent = study.ProgressPercent };
-            if (Finite(study.studyPoints)) state = state with { StudyPoints = study.studyPoints };
-            if (Finite(study.anomalyKnowledgeGained)) state = state with { AnomalyKnowledgeGained = study.anomalyKnowledgeGained };
-            if (Id(study.KnowledgeCategory?.defName) is string category) state = state with { KnowledgeCategory = category };
-            if (Finite(study.AnomalyKnowledge)) state = state with { AnomalyKnowledge = study.AnomalyKnowledge };
             return state;
         }
 
@@ -130,7 +124,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The building row block; null without Anomaly or when the building
-        // is neither an entity holder nor studiable.
+        // is no entity holder.
         internal static Obs.AnomalyBuilding? Building(Thing thing)
         {
             if (!ModsConfig.AnomalyActive) return null;
@@ -149,9 +143,7 @@ namespace HomeBridge.BridgeTools
                 }
             }
             catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("holder", ex)] }; }
-            try { row = row with { Study = Study(thing) }; }
-            catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("study", ex)] }; }
-            return row.Holder == null && row.Study == null && row.Issues.Count == 0 ? null : row;
+            return row.Holder == null && row.Issues.Count == 0 ? null : row;
         }
     }
 }

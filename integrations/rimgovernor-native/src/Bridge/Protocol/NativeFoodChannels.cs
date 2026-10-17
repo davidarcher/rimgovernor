@@ -174,9 +174,10 @@ namespace HomeBridge.BridgeTools
                             if (speed > 0) row = row with { WorkTicksPerBatch = Finite(FishingUtility.BaseFishingDurationTicks / speed) };
                         }
                         // Vanilla's fishing-zone cell rule; policy chooses the footprint.
-                        foreach (var c in cells.Where(c => NativeZoneCreation.FishableCell(c, map, body)).OrderBy(c => c.x).ThenBy(c => c.z))
-                            row = row with { Cells = [.. row.Cells, new Obs.FishableCell { Cell = new Common.Cell { X = c.x, Z = c.z }, DistanceSquared = c.DistanceToSquared(center),
-                                Reachable = fishers.Any(p => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None)) }] };
+                        // Built once: appending per cell copies the array each time, quadratic on a lake.
+                        row = row with { Cells = [.. cells.Where(c => NativeZoneCreation.FishableCell(c, map, body)).OrderBy(c => c.x).ThenBy(c => c.z)
+                            .Select(c => new Obs.FishableCell { Cell = new Common.Cell { X = c.x, Z = c.z }, DistanceSquared = c.DistanceToSquared(center),
+                                Reachable = fishers.Any(p => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None)) })] };
                         water = water with { Regions = [.. water.Regions, row] };
                     }
                     result = result with { FishableWater = water };

@@ -495,8 +495,6 @@ internal static class ShelterShell
         // still a blueprint or frame.
         var b = sh.Footprint.Bounds;
         var listing = Scope();
-        listing["statuses"] = new JsonArray("all");
-        listing["playerOnly"] = true;
         var walls = await h.WireAsync("walls-after", "observations_list_buildings", listing, cancellationToken).ConfigureAwait(false);
         JsonObject listed;
         try
@@ -607,8 +605,7 @@ internal static class ShelterShell
                         {
                             ["scope"] = new JsonObject { ["expectedIdentity"] = expected.DeepClone() },
                             ["defNames"] = new JsonArray("Wall", "Door", "Bed"),
-                            ["statuses"] = new JsonArray("built"),
-                            ["playerOnly"] = true,
+                            ["statuses"] = new JsonArray("BUILDING_STATUS_BUILT"),
                         },
                         ct).ConfigureAwait(false);
                     var (_, observed) = Harness.Outcome(reply, "observed");

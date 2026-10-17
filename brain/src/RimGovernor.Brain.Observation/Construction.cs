@@ -13,9 +13,8 @@ internal sealed class ConstructionState
     private readonly Dictionary<string, BuiltEntry> _built = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SiteEntry> _sites = new(StringComparer.Ordinal);
 
-    // The standing sites' needs summed; BadNeeds are the sites whose need is malformed (the deficit is then unknown).
+    // The standing sites' needs summed.
     private readonly Dictionary<Resource, long> _deficit = [];
-    private readonly HashSet<string> _badNeeds = new(StringComparer.Ordinal);
 
     // Dirty marks a changed built or site projection since the outputs.
     private bool _dirty = true;
@@ -76,7 +75,7 @@ internal sealed class ConstructionState
     // Projects row into the state, marking the lists dirty only when the row's projection differs from the one held.
     private void Set(string id, O.BuildingState row)
     {
-        switch (row.Status.GetValueOrDefault())
+        switch (row.Status)
         {
             case O.BuildingStatus.Built:
             {
@@ -110,12 +109,7 @@ internal sealed class ConstructionState
                 {
                     UnsetSite(id);
                 }
-                var (needs, valid) = ObservationPackage.SiteNeeds(row);
-                if (!valid)
-                {
-                    _badNeeds.Add(id);
-                }
-                foreach (var n in needs)
+                foreach (var n in ObservationPackage.SiteNeeds(row))
                 {
                     _deficit[n.Resource] = _deficit.GetValueOrDefault(n.Resource) + n.Count;
                 }
@@ -131,12 +125,11 @@ internal sealed class ConstructionState
     {
         try
         {
-            var (b, known) = ObservationPackage.CurrentBuildingOf(row);
-            return new BuiltEntry(b, known, null);
+            return new BuiltEntry(ObservationPackage.CurrentBuildingOf(row), null);
         }
         catch (DomainException e)
         {
-            return new BuiltEntry(new CurrentBuilding(), false, e);
+            return new BuiltEntry(new CurrentBuilding(), e);
         }
     }
 
@@ -161,9 +154,7 @@ internal sealed class ConstructionState
     // Removes a replaced or removed row's share of the deficit.
     private void DropNeeds(string id, O.BuildingState row)
     {
-        _badNeeds.Remove(id);
-        var (needs, _) = ObservationPackage.SiteNeeds(row);
-        foreach (var n in needs)
+        foreach (var n in ObservationPackage.SiteNeeds(row))
         {
             var left = _deficit.GetValueOrDefault(n.Resource) - n.Count;
             if (left == 0)
@@ -184,7 +175,6 @@ internal sealed class ConstructionState
         Error = null;
         Census = Unknown<CurrentConstruction>();
         var buildings = new List<CurrentBuilding>();
-        var unknown = false;
         foreach (var id in _built.Keys.Order(StringComparer.Ordinal))
         {
             var e = _built[id];
@@ -193,18 +183,7 @@ internal sealed class ConstructionState
                 Error = e.Error;
                 return;
             }
-            if (!e.Known)
-            {
-                unknown = true;
-            }
-            else
-            {
-                buildings.Add(e.Building);
-            }
-        }
-        if (unknown)
-        {
-            return;
+            buildings.Add(e.Building);
         }
         var sites = new List<ConstructionSite>();
         foreach (var id in _sites.Keys.Order(StringComparer.Ordinal))
@@ -227,12 +206,9 @@ internal sealed class ConstructionState
         });
     }
 
-    private void RebuildDeficit() =>
-        DeficitFact = _badNeeds.Count == 0
-            ? Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>(_deficit))
-            : Unknown<IReadOnlyDictionary<Resource, long>>();
+    private void RebuildDeficit() => DeficitFact = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>(_deficit));
 
-    private sealed record BuiltEntry(CurrentBuilding Building, bool Known, DomainException? Error);
+    private sealed record BuiltEntry(CurrentBuilding Building, DomainException? Error);
 
     private sealed record SiteEntry(ConstructionSite Site, DomainException? Error);
 }
@@ -258,29 +234,11 @@ public static partial class ObservationPackage
         _ => null,
     };
 
-    /// <summary>Projects one built row for the construction census; known is false for a row whose stuff the native could not say.</summary>
-    internal static (CurrentBuilding Building, bool Known) CurrentBuildingOf(O.BuildingState row)
+    /// <summary>Projects one built row for the construction census.</summary>
+    internal static CurrentBuilding CurrentBuildingOf(O.BuildingState row)
     {
-        var stuff = (row.Stuff ?? "");
-        if (row.Stuff is null)
-        {
-            var notApplicable = false;
-            foreach (var issue in row.Issues)
-            {
-                notApplicable = notApplicable || ((issue.Field ?? "") == "stuff" && (issue.Unavailable?.Reason).GetValueOrDefault() == C.UnavailableReason.NotApplicable);
-            }
-            if (!notApplicable)
-            {
-                return (new CurrentBuilding(), false);
-            }
-        }
-        var building = new Building(row.Building?.DefName ?? "", CellOf(row.Building?.Position), RotationOf(row.Rotation.GetValueOrDefault()), stuff);
-        var cells = RectCells(row.Occupied);
-        if (row.Occupied is not null && cells is null)
-        {
-            throw new ObservationContractException("invalid occupied rectangle");
-        }
-        return (new CurrentBuilding { Id = row.Building?.Id ?? "", Building = building, Cells = EquatableArray.From(cells ?? []) }, true);
+        var building = new Building(row.Building.DefName, CellOf(row.Building.Position), RotationOf(row.Rotation), row.Stuff ?? "");
+        return new CurrentBuilding { Id = row.Building.Id, Building = building, Cells = EquatableArray.From(RectCells(row.Occupied)) };
     }
 
     /// <summary>Projects one blueprint or frame row; ok is false for any other row.</summary>
@@ -289,36 +247,25 @@ public static partial class ObservationPackage
         var site = new ConstructionSite();
         try
         {
-            var stage = SiteStage(row.Status.GetValueOrDefault());
-            if (stage is null || (row.BuildDefName ?? "") == "")
+            var stage = SiteStage(row.Status);
+            if (stage is null || row.BuildDefName is not { } buildDefName)
             {
                 return (site, false, null);
             }
-            var b = new Building((row.BuildDefName ?? ""), CellOf(row.Building?.Position), RotationOf(row.Rotation.GetValueOrDefault()), (row.Stuff ?? ""));
+            var b = new Building(buildDefName, CellOf(row.Building.Position), RotationOf(row.Rotation), row.Stuff ?? "");
             var state = row.Construction;
-            site = new ConstructionSite { Building = b, Stage = stage, Id = row.Building?.Id ?? "" };
+            site = new ConstructionSite { Building = b, Stage = stage, Id = row.Building.Id };
             if (state is not null)
             {
-                if (state.MinimumFinishingSkill.GetValueOrDefault() < 0 || state.MinimumFinishingSkill.GetValueOrDefault() > 1000 || state.NativeFinishingSkill.GetValueOrDefault() < 0 || state.EligibleFinishers.GetValueOrDefault() < 0)
-                {
-                    throw new ObservationContractException("construction state out of range");
-                }
                 site = site with
                 {
-                    ResourcesComplete = Optional(state.ResourcesComplete is not null, state.ResourcesComplete.GetValueOrDefault()),
+                    ResourcesComplete = Known(state.ResourcesComplete),
                     QualitySensitive = Optional(state.QualitySensitive is not null, state.QualitySensitive.GetValueOrDefault()),
+                    MaterialsOwed = Known(EquatableArray.From(SiteNeeds(row).Select(n => new Amount(n.Resource, n.Count)))),
                 };
                 if (state.WorkLeft is { } work)
                 {
-                    if (!double.IsFinite(work) || work < 0) throw new ObservationContractException("invalid construction work remaining");
                     site = site with { WorkLeft = Known(work) };
-                }
-                var (needs, valid) = SiteNeeds(row);
-                // ResourcesComplete certifies that native finished the material read, including known empty.
-                if (valid && state.ResourcesComplete is { } resourcesComplete && resourcesComplete == (needs.Count == 0)
-                    && needs.Select(n => n.Resource).Distinct().Count() == needs.Count)
-                {
-                    site = site with { MaterialsOwed = Known(EquatableArray.From(needs.Select(n => new Amount(n.Resource, n.Count)))) };
                 }
                 if (state.MinimumFinishingSkill is not null)
                 {
@@ -351,26 +298,22 @@ public static partial class ObservationPackage
         }
     }
 
-    /// <summary>What one blueprint or frame row is still owed, nothing for any other row; valid is false when a need is malformed.</summary>
-    internal static (List<SiteNeed> Needs, bool Valid) SiteNeeds(O.BuildingState row)
+    /// <summary>What one blueprint or frame row is still owed, nothing for any other row.</summary>
+    internal static List<SiteNeed> SiteNeeds(O.BuildingState row)
     {
         var needs = new List<SiteNeed>();
         if (row.Status is not (O.BuildingStatus.Blueprint or O.BuildingStatus.Frame))
         {
-            return (needs, true);
+            return needs;
         }
         foreach (var need in row.Construction?.Resources ?? [])
         {
-            if (need is null || (need.DefName ?? "") == "" || need.StillNeeded is null || need.StillNeeded.GetValueOrDefault() < 0)
+            if (need.StillNeeded > 0)
             {
-                return ([], false);
-            }
-            if (need.StillNeeded.GetValueOrDefault() > 0)
-            {
-                needs.Add(new SiteNeed(new Resource((need.DefName ?? "")), need.StillNeeded.GetValueOrDefault()));
+                needs.Add(new SiteNeed(new Resource(need.DefName), need.StillNeeded));
             }
         }
-        return (needs, true);
+        return needs;
     }
 
     /// <summary>

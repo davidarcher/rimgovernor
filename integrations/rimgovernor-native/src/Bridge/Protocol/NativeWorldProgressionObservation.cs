@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
             {
                 var row = new Obs.CaravanState
                 {
-                    Caravan = new Obs.EntityRef { Id = c.GetUniqueLoadID(), Label = c.Label ?? "" },
+                    Caravan = new Obs.EntityRef { Id = c.GetUniqueLoadID(), DefName = c.def.defName, Label = c.Label ?? "" },
                     Tile = c.Tile.tileId, Moving = c.pather.Moving, MovingNow = c.pather.MovingNow, Resting = c.NightResting,
                     MassUsage = c.MassUsage, MassCapacity = c.MassCapacity,
                     FoodDays = c.DaysWorthOfFood.days, FoodRotDays = c.DaysWorthOfFood.tillRot,

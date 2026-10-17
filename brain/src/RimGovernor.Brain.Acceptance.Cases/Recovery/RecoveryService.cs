@@ -59,8 +59,8 @@ internal static class RecoveryService
 
         _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
 
-        // wallState reads HitPoints/maxHitPoints through observations_list_buildings with statuses=["built"],
-        // category="artificial", playerOnly=true, purely to independently assert the wall's real HitPoints
+        // wallState reads HitPoints/maxHitPoints through observations_list_buildings with statuses=[built],
+        // purely to independently assert the wall's real HitPoints
         // before/after dispatch.
         async Task<(double HitPoints, double MaxHitPoints)> WallState(string label)
         {
@@ -71,9 +71,7 @@ internal static class RecoveryService
                 {
                     ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
                     ["ids"] = new JsonArray(wallId),
-                    ["statuses"] = new JsonArray("built"),
-                    ["category"] = "artificial",
-                    ["playerOnly"] = true,
+                    ["statuses"] = new JsonArray("BUILDING_STATUS_BUILT"),
                 },
                 cancellationToken).ConfigureAwait(false);
             var (_, observed) = Harness.Outcome(reply, "observed");
@@ -132,7 +130,7 @@ internal static class RecoveryService
         }
 
         var repair = await Apply("recovery-repair", pawnId).ConfigureAwait(false);
-        if (repair["applied"].AsMap() is not { } applied)
+        if (repair["applied"].AsMap()?["applied"].AsMap() is not { } applied)
         {
             throw new AcceptanceException($"recovery-repair: expected an applied result, got {repair.ToJson()}");
         }

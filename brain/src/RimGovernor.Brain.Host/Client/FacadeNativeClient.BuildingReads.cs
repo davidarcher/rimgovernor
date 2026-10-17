@@ -94,7 +94,7 @@ internal sealed partial class FacadeNativeClient
         var request = PlacementReads.ConstructionBuildingsRequest(identity, ids);
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
         BridgeFunctions.BuildingUnknown(reply);
-        PlacementReads.UnwrapBuildings(reply, identity, request.Ids, "building read outcome missing");
+        PlacementReads.UnwrapBuildings(reply, identity, "building read outcome missing");
         return reply;
     }
 
@@ -112,22 +112,12 @@ internal sealed partial class FacadeNativeClient
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
             Ids = [thing],
-            Statuses = ["built"],
+            Statuses = [PbObservations.BuildingStatus.Built],
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
         BridgeFunctions.BuildingUnknown(reply);
-        var v = PlacementReads.UnwrapBuildings(reply, identity, request.Ids, "building read outcome missing");
-        var output = new StorageBuildingTarget { Context = v.Context, Thing = thing };
-        if (v.Buildings.Count == 0)
-        {
-            return output;
-        }
-        var row = v.Buildings[0];
-        if (v.Buildings.Count != 1 || (row.Building?.Id ?? "") != thing || row.Settings is null)
-        {
-            throw BridgeFunctions.Contract("storage building target missing settings");
-        }
-        return output with { Present = true };
+        var v = PlacementReads.UnwrapBuildings(reply, identity, "building read outcome missing");
+        return new StorageBuildingTarget { Context = v.Context, Thing = thing, Present = v.Buildings.Count != 0 };
     }
 
     /// <summary>Go's <c>ReadBedUseTarget</c>: observes one exact bed's medical flag, owners and CAS token via the existing building lookup.</summary>
@@ -143,13 +133,8 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("bed medical target missing or ambiguous");
         }
-        var row = v.Buildings[0];
-        if (row.Building is null || (row.Building.Id ?? "") != thing)
-        {
-            throw BridgeFunctions.Contract("bed medical target identity mismatch");
-        }
-        var settings = row.Settings;
-        if (settings is null || settings.Snapshot is null || (settings.Snapshot.EntityId ?? "") != thing || settings.Medical is null || settings.TargetTemperatureC is not null)
+        var settings = v.Buildings[0].Settings;
+        if (settings.Medical is null)
         {
             throw BridgeFunctions.Contract("building is not a bed");
         }
@@ -177,30 +162,18 @@ internal sealed partial class FacadeNativeClient
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
             Ids = [thing],
-            Statuses = ["built"],
-            PlayerOnly = false,
-            Category = "artificial",
+            Statuses = [PbObservations.BuildingStatus.Built],
+            AnyFaction = true,
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
         BridgeFunctions.BuildingUnknown(reply);
-        var v = PlacementReads.UnwrapBuildings(reply, identity, request.Ids, "building read outcome missing");
+        var v = PlacementReads.UnwrapBuildings(reply, identity, "building read outcome missing");
         if (v.Buildings.Count != 1)
         {
             throw BridgeFunctions.Contract("claim building target missing or ambiguous");
         }
-        var row = v.Buildings[0];
-        if (row.Building is null || (row.Building.Id ?? "") != thing)
-        {
-            throw BridgeFunctions.Contract("claim building target identity mismatch");
-        }
-        var settings = row.Settings;
-        if (settings is null
-            || settings.Snapshot is null
-            || (settings.Snapshot.EntityId ?? "") != thing
-            || settings.PlayerOwned is null
-            || settings.Medical is not null
-            || settings.TargetTemperatureC is not null
-            || settings.CropDefName is not null)
+        var settings = v.Buildings[0].Settings;
+        if (settings.Snapshot is null || settings.PlayerOwned is null || settings.Medical is not null)
         {
             throw BridgeFunctions.Contract("building is not claimable");
         }
@@ -220,18 +193,8 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("grower crop target missing or ambiguous");
         }
-        var row = v.Buildings[0];
-        if (row.Building is null || (row.Building.Id ?? "") != thing)
-        {
-            throw BridgeFunctions.Contract("grower crop target identity mismatch");
-        }
-        var settings = row.Settings;
-        if (settings is null
-            || settings.Snapshot is null
-            || (settings.Snapshot.EntityId ?? "") != thing
-            || settings.Medical is not null
-            || settings.TargetTemperatureC is not null
-            || (settings.CropDefName is not null && !BridgeFunctions.IsValidId(settings.CropDefName)))
+        var settings = v.Buildings[0].Settings;
+        if (settings.Snapshot is null || settings.Medical is not null || settings.TargetTemperatureC is not null || settings.PlayerOwned is not null)
         {
             throw BridgeFunctions.Contract("building is not a plant grower");
         }
@@ -248,8 +211,7 @@ internal sealed partial class FacadeNativeClient
         var request = new PbObservations.ListBuildingsRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
-            Statuses = ["blueprint", "frame"],
-            PlayerOnly = true,
+            Statuses = [PbObservations.BuildingStatus.Blueprint, PbObservations.BuildingStatus.Frame],
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
         BridgeFunctions.BuildingUnknown(reply);
@@ -270,30 +232,10 @@ internal sealed partial class FacadeNativeClient
         var structures = 0;
         foreach (var row in observed.Buildings)
         {
-            if (row is null || row.Building is null || !BridgeFunctions.IsValidId(row.Building.Id ?? ""))
-            {
-                throw BridgeFunctions.Contract("invalid construction deficit row");
-            }
-            if (row.Status != PbObservations.BuildingStatus.Blueprint && row.Status != PbObservations.BuildingStatus.Frame)
-            {
-                throw BridgeFunctions.Contract("unexpected construction deficit status");
-            }
             structures++;
             foreach (var need in row.Construction?.Resources ?? [])
             {
-                if (need is null || !BridgeFunctions.IsValidId(need.DefName ?? ""))
-                {
-                    throw BridgeFunctions.Contract("invalid construction material deficit");
-                }
-
-                // An absent still_needed is not zero: it is unknown, and silently treating it as satisfied would
-                // under-protect the material.
-                if (need.StillNeeded is null || need.StillNeeded.GetValueOrDefault() < 0)
-                {
-                    throw BridgeFunctions.Contract("construction material deficit unknown");
-                }
-                var name = need.DefName ?? "";
-                stillNeed[name] = stillNeed.GetValueOrDefault(name) + need.StillNeeded.GetValueOrDefault();
+                stillNeed[need.DefName] = stillNeed.GetValueOrDefault(need.DefName) + need.StillNeeded;
             }
         }
         cancellationToken.ThrowIfCancellationRequested();
@@ -338,8 +280,6 @@ internal sealed partial class FacadeNativeClient
         var request = new PbObservations.ListBuildingsRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
-            PlayerOnly = true,
-            Category = "artificial",
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome?.Failure is { } failure)
@@ -380,10 +320,10 @@ internal sealed partial class FacadeNativeClient
 
         /// <summary>
         /// The building list reply's outcome switch shared by the single-target reads: a failure or unavailable arm throws
-        /// its typed refusal, a missing outcome is a contract error, an observed snapshot is checked against the built
-        /// census rules (Go <c>ValidateConstructionBuildings</c>) and returned.
+        /// its typed refusal, a missing outcome is a contract error, an observed snapshot is checked for the expected
+        /// identity (Go <c>ValidateConstructionBuildings</c>) and returned.
         /// </summary>
-        internal static PbObservations.BuildingsSnapshot UnwrapBuildings(PbObservations.ListBuildingsReply reply, PbCommon.Identity identity, IReadOnlyList<string> ids, string missing)
+        internal static PbObservations.BuildingsSnapshot UnwrapBuildings(PbObservations.ListBuildingsReply reply, PbCommon.Identity identity, string missing)
         {
             if (reply.Outcome?.Failure is { } failure)
             {
@@ -397,7 +337,7 @@ internal sealed partial class FacadeNativeClient
             {
                 throw BridgeFunctions.Contract(missing);
             }
-            ValidateConstructionBuildings(observed, identity, ids);
+            ValidateConstructionBuildings(observed, identity);
             return observed;
         }
 
@@ -419,7 +359,7 @@ internal sealed partial class FacadeNativeClient
                 var z = 0;
 
                 // The original wall's cell is its building row's.
-                if (row.Original is { } reference && buildings.TryRow(reference, out var original) && original.Building?.Position is { } position)
+                if (row.Original is { } reference && buildings.TryRow(reference, out var original) && original.Building.Position is { } position)
                 {
                     (x, z) = (position.X.GetValueOrDefault(), position.Z.GetValueOrDefault());
                 }

@@ -447,7 +447,7 @@ internal static class RefrigerationBuild
             {
                 ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
                 ["defNames"] = new JsonArray("Cooler"),
-                ["statuses"] = new JsonArray("built"),
+                ["statuses"] = new JsonArray("BUILDING_STATUS_BUILT"),
             },
             cancellationToken).ConfigureAwait(false);
         var (_, observed) = Harness.Outcome(reply, "observed");

@@ -21,7 +21,7 @@ public readonly record struct Pawns(Table<PawnState> Table)
         var table = default(Table<PawnState>);
         foreach (var row in rows)
         {
-            table = table.Set(row.Pawn.Id ?? "", row);
+            table = table.Set(row.Pawn.Id, row);
         }
         return new Pawns(table);
     }
@@ -70,17 +70,13 @@ public readonly record struct Buildings(Table<BuildingState> Table)
     /// <summary>The number of rows.</summary>
     public int Count => Table.Count;
 
-    /// <summary>Go's <c>NewBuildings</c>: the table of rows by their building id; a row with no id is not addressable and is left out.</summary>
+    /// <summary>Go's <c>NewBuildings</c>: the table of rows by their building id.</summary>
     public static Buildings Of(params IEnumerable<BuildingState> rows)
     {
         var table = default(Table<BuildingState>);
         foreach (var row in rows)
         {
-            var id = row.Building?.Id ?? "";
-            if (id.Length != 0)
-            {
-                table = table.Set(id, row);
-            }
+            table = table.Set(row.Building.Id, row);
         }
         return new Buildings(table);
     }
@@ -99,61 +95,10 @@ public readonly record struct Buildings(Table<BuildingState> Table)
 
     /// <summary>The head of <paramref name="reference"/>'s row, null when the table does not hold it.</summary>
     public EntityRef? Entity(Ref? reference) =>
-        reference is null ? null : Table.TryGetValue((reference.Id ?? ""), out var row) ? row?.Building : null;
+        reference is null ? null : Table.TryGetValue(reference.Id ?? "", out var row) ? row.Building : null;
 
-    /// <summary>
-    /// <paramref name="reference"/>'s canonical row, false when the table does not hold it or the row's service or
-    /// settings are malformed.
-    /// </summary>
-    public bool TryRow(Ref reference, out BuildingState row)
-    {
-        if (!Table.TryGetValue((reference.Id ?? ""), out row!) || !ValidBuildingService(row.Service) || row.Settings is null)
-        {
-            row = null!;
-            return false;
-        }
-        return true;
-    }
-
-    // Go's validBuildingService: a canonical row's service state: finite quantities, valid fuel definitions and
-    // network id, and a "fuel" issue only where no fuel is reported.
-    private static bool ValidBuildingService(BuildingServiceState? s)
-    {
-        if (s is null)
-        {
-            return false;
-        }
-        foreach (var value in new double?[] { s.Fuel is not null ? s.Fuel.GetValueOrDefault() : null, s.TargetFuel is not null ? s.TargetFuel.GetValueOrDefault() : null })
-        {
-            if (value is { } v && (double.IsNaN(v) || double.IsInfinity(v) || v < 0 || v > 1e12))
-            {
-                return false;
-            }
-        }
-        if (s.PowerOutputW is not null && (double.IsNaN(s.PowerOutputW.GetValueOrDefault()) || double.IsInfinity(s.PowerOutputW.GetValueOrDefault()) || Math.Abs(s.PowerOutputW.GetValueOrDefault()) > 1e12))
-        {
-            return false;
-        }
-        if (s.PowerNetId is not null && (!BridgeFunctions.IsValidId((s.PowerNetId ?? "")) || (s.Connected is not null && !s.Connected.GetValueOrDefault())))
-        {
-            return false;
-        }
-        if (!BridgeFunctions.PawnsIssuesValid(s.Issues, s))
-        {
-            return false;
-        }
-        foreach (var issue in s.Issues)
-        {
-            if ((issue.Field ?? "") != "fuel"
-                || (issue.Unavailable?.Reason).GetValueOrDefault() != UnavailableReason.NotApplicable
-                || s.Fuel is not null
-                || s.TargetFuel is not null)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
+    /// <summary><paramref name="reference"/>'s canonical row, false when the table does not hold it.</summary>
+    public bool TryRow(Ref reference, out BuildingState row) => Table.TryGetValue(reference.Id ?? "", out row!);
 }
 
 /// <summary>Go's <c>Things</c>: a frame's things table by id, the canonical rows every food stock reference resolves against.</summary>
@@ -171,7 +116,7 @@ public readonly record struct Things(Table<Thing> Table)
         var table = default(Table<Thing>);
         foreach (var row in rows)
         {
-            table = table.Set(row.Entity?.Id ?? "", row);
+            table = table.Set(row.Entity.Id, row);
         }
         return new Things(table);
     }

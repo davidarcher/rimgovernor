@@ -303,23 +303,23 @@ public static partial class ObservationPackage
                 return default;
             }
             var reference = b.Building;
-            var radius = RequireCatalog(catalog).GlowRadius(reference?.DefName ?? "")
-                ?? throw new DomainException($"lamp {reference?.Id}: def {reference?.DefName} has no glower comp");
-            var s = b.Service ?? new O.BuildingServiceState();
+            var radius = RequireCatalog(catalog).GlowRadius(reference.DefName)
+                ?? throw new DomainException($"lamp {reference.Id}: def {reference.DefName} has no glower comp");
+            var s = b.Service;
             lamps.Add(new Lamp
             {
-                Id = reference?.Id ?? "",
-                Definition = reference?.DefName ?? "",
-                Cell = CellOf(reference?.Position),
+                Id = reference.Id,
+                Definition = reference.DefName,
+                Cell = CellOf(reference.Position),
                 Radius = radius,
                 Lit = row.Lit.GetValueOrDefault(),
                 Room = OptionalRef(row.Room),
                 Powered = Optional(s.PowerOn is not null, s.PowerOn.GetValueOrDefault()),
                 Connected = Optional(s.Connected is not null, s.Connected.GetValueOrDefault()),
-                SwitchedOn = Optional(s.SwitchedOn is not null, s.SwitchedOn.GetValueOrDefault()),
+                SwitchedOn = Known(s.SwitchedOn),
                 OutOfFuel = Optional(s.OutOfFuel is not null, s.OutOfFuel.GetValueOrDefault()),
-                BrokenDown = Optional(s.BrokenDown is not null, s.BrokenDown.GetValueOrDefault()),
-                FuelDefinitions = RequireCatalog(catalog).RefuelFuels(reference?.DefName ?? ""),
+                BrokenDown = Known(s.BrokenDown),
+                FuelDefinitions = RequireCatalog(catalog).RefuelFuels(reference.DefName),
             });
         }
         return Known(new LightingObservation { WorkCells = cells, Lamps = lamps });

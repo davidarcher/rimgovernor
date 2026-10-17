@@ -22,13 +22,11 @@ internal static class LayoutFixture
         {
             Scope = TypedReads.Scope(identity),
             DefNames = ["Wall", "Door", "Autodoor", "Embrasure"],
-            Statuses = ["all"],
-            PlayerOnly = true,
         }, cancellationToken).ConfigureAwait(false);
         return [.. rows.Select(row => new Shell(
-            row.BuildDefName ?? row.Building?.DefName ?? "",
+            row.BuildDefName ?? row.Building.DefName,
             row.Stuff ?? "",
-            TypedReads.CellOf(row.Building?.Position, label),
+            TypedReads.CellOf(row.Building.Position, label),
             row.Status == Observations.BuildingStatus.Built))];
     }
 

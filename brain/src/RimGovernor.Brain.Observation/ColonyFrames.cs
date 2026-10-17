@@ -79,17 +79,18 @@ public static partial class ObservationPackage
             {
                 throw new DomainException($"recovery building {reference.Id}: no definition catalog was loaded");
             }
-            var usesHitPoints = catalog.UsesHitPoints(row.Building?.DefName ?? "");
-            var s = row.Service ?? new O.BuildingServiceState();
+            var usesHitPoints = catalog.UsesHitPoints(row.Building.DefName);
+            var s = row.Service;
             var b = new RecoveryBuilding
             {
                 Id = reference.Id ?? "",
                 UsesHitPoints = Known(usesHitPoints),
-                Broken = Optional(s.BrokenDown is not null, s.BrokenDown.GetValueOrDefault()),
-                Forbidden = Optional(row.Settings?.Forbidden is not null, row.Settings?.Forbidden.GetValueOrDefault() ?? false),
-                Burning = Optional(row.Burning is not null, row.Burning.GetValueOrDefault()),
+                Broken = Known(s.BrokenDown),
+                Forbidden = Known(row.Settings.Forbidden),
+                Burning = Known(row.Burning),
                 Fuel = Optional(s.Fuel is not null, s.Fuel.GetValueOrDefault()),
                 FuelTarget = Optional(s.TargetFuel is not null, s.TargetFuel.GetValueOrDefault()),
+                Refuelable = Known(s.Fuel is not null),
             };
             if (row.HitPoints is not null)
             {
@@ -99,17 +100,7 @@ public static partial class ObservationPackage
             {
                 b = b with { MaxHitPoints = Known((long)row.MaxHitPoints) };
             }
-            if (s.Fuel is not null || s.TargetFuel is not null)
-            {
-                b = b with { Refuelable = Known(true) };
-            }
-            foreach (var issue in s.Issues)
-            {
-                if (issue.Field == "fuel" && issue.Unavailable?.Reason == C.UnavailableReason.NotApplicable)
-                {
-                    b = b with { Refuelable = Known(false) };
-                }
-            }
+
             rows.Add(b);
         }
         return facts with { RecoveryBuildings = Known(EquatableArray.From(rows)) };
@@ -358,16 +349,12 @@ public static partial class ObservationPackage
             {
                 continue;
             }
-            if (item.Count is null || item.Forbidden is null)
-            {
-                return r;
-            }
             stacks.Add(new MedicineStackRow
             {
-                Id = item.Item?.Id ?? "",
+                Id = item.Item.Id ?? "",
                 Definition = new Resource(tables.Entity(item.Item)?.DefName ?? ""),
-                Count = item.Count.GetValueOrDefault(),
-                Forbidden = item.Forbidden.GetValueOrDefault(),
+                Count = item.Count,
+                Forbidden = item.Forbidden,
                 Perishable = Known(item.RotTicks is not null),
                 RotTicks = Optional(item.RotTicks is not null, item.RotTicks.GetValueOrDefault()),
             });

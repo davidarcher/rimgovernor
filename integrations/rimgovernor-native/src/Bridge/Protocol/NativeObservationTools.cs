@@ -113,14 +113,13 @@ namespace HomeBridge.BridgeTools
             NativeThreatClassifier.Collect(spawned.Where(p => !p.Dead && !p.IsColonist).ToList(), pawn => ThreatFactsOf(pawn, player),
                 colonistCells, radius, NativePawnObservationTools.Ref, pawn => NativeRef.Thing(HuntedPawn(pawn)!), ref threats);
             foreach (var building in HostileBuildings(map, player)) {
-                var row = new Obs.ThreatBuilding { Building = Entity(building), HostileReason = "faction:"+building.Faction!.GetUniqueLoadID(),
-                    HitPoints = building.HitPoints };
+                var row = new Obs.ThreatBuilding { Building = Entity(building), HitPoints = building.HitPoints };
                 row = row with { BuildingSnapshot = new Obs.SnapshotRef { Context = context, EntityId = row.Building.Id, Token = Token(context.Identity, building) } };
                 if (colonists.Count > 0) row = row with { NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z))) };
                 var rect = building.OccupiedRect();
                 row = row with { Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) } };
                 if (building is Hive) row = row with { Passive = !HiveEngaging(building, colonists, spawned, player) };
-                else if (Dormant(building) is bool dormant) row = row with { Passive = dormant };
+                else row = row with { Passive = Dormant(building) ?? false };
                 threats = threats with { HostileBuildings = [.. threats.HostileBuildings, row] };
             }
             result = result with { Threats = threats }; return result;
@@ -275,19 +274,10 @@ namespace HomeBridge.BridgeTools
             });
         }
         // ThingRow is the one thing row builder: the cells read's
-        // things and the bundle's things table. Each row carries the thing's
-        // own CAS token via Token, the one a combat order checks.
+        // things and the bundle's things table.
         internal static Obs.Thing ThingRow(Thing thing, Common.ObservationContext context)
         {
-            var entity = Entity(thing);
-            var row = new Obs.Thing {
-                Entity = entity, Snapshot = new Obs.SnapshotRef { Context = context, EntityId = entity.Id, Token = Token(context.Identity, thing) }, StackCount = thing.stackCount,
-                Forbidden = thing.IsForbidden(Faction.OfPlayer),
-            };
-            // The stuff a thing is made of keys its catalog stat row (def, stuff).
-            if (thing.Stuff != null) row = row with { Stuff = Identifier(thing.Stuff.defName) };
-            // A plant's growth marks the cell sown.
-            if (thing is Plant plant) { row = row with { Growth = Finite(plant.Growth) }; row = row with { HarvestableNow = plant.HarvestableNow }; }
+            var row = new Obs.Thing { Entity = Entity(thing), StackCount = thing.stackCount, Forbidden = thing.IsForbidden(Faction.OfPlayer), Corpse = thing is Corpse };
             if (thing.def.category == ThingCategory.Item && (thing is Corpse || thing.def.IsIngestible)) row = FoodFacts(thing, row);
             return row;
         }
@@ -304,7 +294,6 @@ namespace HomeBridge.BridgeTools
                 if (room != null) row = row with { Room = NativeRef.Room(room) };
             }
             row = row with { IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing) };
-            row = row with { Corpse = thing is Corpse };
             if (thing is Corpse corpse) {
                 row = row with { MeatAmount = Finite(Math.Max(0, corpse.InnerPawn.GetStatValue(StatDefOf.MeatAmount))) };
                 row = row with { BodySize = Finite(corpse.InnerPawn.BodySize) };

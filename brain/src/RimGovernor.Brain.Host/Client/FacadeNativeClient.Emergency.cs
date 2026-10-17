@@ -270,7 +270,7 @@ internal sealed partial class FacadeNativeClient
             seen = [];
             foreach (var row in v.Threats.HostileBuildings)
             {
-                var threat = EmergencyBuilding(row, context);
+                var threat = EmergencyBuilding(row);
                 if (seen.Contains(threat.Id) || (statuses.TryGetValue(threat.Id, out var existing) && existing.Id.Value.Length != 0))
                 {
                     throw Contract("duplicate emergency hostile building");
@@ -283,41 +283,22 @@ internal sealed partial class FacadeNativeClient
 
         /// <summary>
         /// Go <c>emergencyBuilding</c>: reads one hostile-building row. A spawned building the census lists is standing
-        /// (not dead) and never downed; its CAS token must be the row's own, scoped to this context, since the attack
-        /// order sends it back as the target precondition.
+        /// (not dead) and never downed; the attack order sends its CAS token back as the target precondition and its
+        /// occupied rect is the ranged target.
         /// </summary>
-        private static PolicyEmergencyThreat EmergencyBuilding(PbObservations.ThreatBuilding? row, PbCommon.ObservationContext context)
+        private static PolicyEmergencyThreat EmergencyBuilding(PbObservations.ThreatBuilding row)
         {
-            if (row is null || row.Building is null)
-            {
-                throw Contract("missing threat building");
-            }
-            if (row.BuildingSnapshot is null || row.Building.DefName is null)
-            {
-                throw Contract("threat building snapshot or definition missing");
-            }
-            if ((row.HitPoints is not null && row.HitPoints.GetValueOrDefault() < 0) || (row.NearestColonistDistance is not null && row.NearestColonistDistance.GetValueOrDefault() < 0))
-            {
-                throw Contract("invalid threat building facts");
-            }
-
-            // The occupied rect is the ranged target: every cell in bounds, none twice, at least one (a spawned building occupies its position).
-            var cells = RectCells(row.Occupied);
-            if (cells.Count == 0 || cells[0].X < 0 || cells[0].Z < 0)
-            {
-                throw Contract("invalid threat building occupied rect");
-            }
             var result = new PolicyEmergencyThreat
             {
-                Id = new PawnId(row.Building.Id ?? ""),
+                Id = new PawnId(row.Building.Id),
                 Kind = PolicyThreatKind.HostileBuilding,
                 Dead = Known(false),
                 Downed = Known(false),
                 Animal = Known(false),
                 SnapshotToken = row.BuildingSnapshot.Token ?? "",
                 Definition = row.Building.DefName,
-                Cells = cells,
-                Passive = EmergencyBool(row.Passive),
+                Cells = RectCells(row.Occupied),
+                Passive = Known(row.Passive),
             };
             if (row.NearestColonistDistance is not null)
             {

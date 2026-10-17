@@ -101,15 +101,11 @@ public static partial class BridgeFunctions
         foreach (var stock in supply.Stocks)
         {
             var row = rows[stock.Item?.Id ?? ""];
-            if (!IsValidId(row.Entity?.DefName ?? ""))
-            {
-                throw Contract("food stock row without a definition");
-            }
-            if (stock.Eaters.Count == 0 && !row.Corpse.GetValueOrDefault() && !row.IsHumanMeat.GetValueOrDefault())
+            if (stock.Eaters.Count == 0 && !row.Corpse && !row.IsHumanMeat.GetValueOrDefault())
             {
                 throw Contract("missing food eligibility");
             }
-            if (row.Corpse.GetValueOrDefault() && row.MeatAmount.GetValueOrDefault() <= 0)
+            if (row.Corpse && row.MeatAmount.GetValueOrDefault() <= 0)
             {
                 throw Contract("corpse stock without meat");
             }
@@ -118,7 +114,7 @@ public static partial class BridgeFunctions
         {
             foreach (var corpse in larder.Corpses)
             {
-                if (!rows.TryGetValue(corpse.StockId, out var row) || !row.Corpse.GetValueOrDefault())
+                if (!rows.TryGetValue(corpse.StockId, out var row) || !row.Corpse)
                 {
                     throw Contract("larder corpse is no corpse stock");
                 }

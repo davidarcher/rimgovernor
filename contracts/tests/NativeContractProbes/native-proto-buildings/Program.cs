@@ -34,27 +34,18 @@ internal static class NativeProtoBuildingsProbe
         tools = bridge.GetType("HomeBridge.BridgeTools.NativeBuildingObservationTools", true)!;
         const string scope = "\"scope\":{\"expectedIdentity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}";
         Func<string, string> request = fields => "{" + scope + (fields.Length == 0 ? "" : "," + fields) + "}";
-        foreach (var fields in new[] { "", "\"playerOnly\":false,\"inspect\":false,\"billIngredients\":false",
-            "\"category\":\"all\",\"statuses\":[\"pending\",\"built\"],\"defNames\":[\"Wall\"],\"ids\":[\"Wall17\"]",
-            "\"damagedBelowFraction\":0", "\"damagedBelowFraction\":1", "\"page\":{\"limit\":256}",
-            // N01.03: frozen paging is no longer refused outright -- a cursor within the
-            // byte bound is accepted (its actual freshness is checked at read time by the
-            // shared NativeObservationSnapshot.Cursor helper, not by Validate).
-            "\"page\":{\"cursor\":\"expired\"}" })
+        foreach (var fields in new[] { "", "\"anyFaction\":true",
+            "\"statuses\":[\"BUILDING_STATUS_BLUEPRINT\",\"BUILDING_STATUS_BUILT\"],\"defNames\":[\"Wall\"],\"ids\":[\"Wall17\"]" })
             Check(Valid(request(fields)), "Valid request preserves explicit values: " + fields);
         Check(!Valid("{}"), "Missing identity scope refused");
-        foreach (var fields in new[] { "\"page\":{\"limit\":0}", "\"page\":{\"limit\":257}", "\"page\":{\"cursor\":\"" + new string('x', 4097) + "\"}",
-            "\"inspect\":true", "\"billIngredients\":true", "\"category\":\"ALL\"", "\"statuses\":[\"unknown\"]",
-            "\"statuses\":[\"built\",\"built\"]", "\"ids\":[\"same\",\"same\"]", "\"defNames\":[\"\"]",
-            "\"ids\":[\"bad\\u0000id\"]", "\"damagedBelowFraction\":-0.1", "\"damagedBelowFraction\":1.1",
-            "\"damagedBelowFraction\":\"NaN\"", "\"damagedBelowFraction\":\"Infinity\"" })
-            Check(!Valid(request(fields)), "Invalid or unsupported request refused: " + fields);
+        foreach (var fields in new[] { "\"ids\":[\"same\",\"same\"]", "\"defNames\":[\"\"]", "\"ids\":[\"bad\\u0000id\"]" })
+            Check(!Valid(request(fields)), "Invalid request refused: " + fields);
         var ids = string.Join(",", Enumerable.Range(0, 257).Select(i => "\"thing" + i + "\""));
         Check(!Valid(request("\"ids\":[" + ids + "]")), "ID filter bound enforced");
-        var snapshot = Get(Get(Wire("ListBuildingsReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"burning\":false,\"usesHitPoints\":true,\"construction\":{\"resourcesComplete\":false}}],\"completeness\":{}}}}"), "Outcome"), "Observed");
+        var snapshot = Get(Get(Wire("ListBuildingsReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"construction\":{}}]}}}"), "Outcome"), "Observed");
         var row = ((IList)Get(snapshot, "Buildings"))[0]!;
-        Check(Get(row, "Burning") is false, "Known false burning retained");
-        Check(Get(Get(row, "Building"), "Snapshot") == null, "No fabricated CAS snapshot");
+        Check(Get(row, "Burning") is false, "Omitted burning reads false");
+        Check(Get(Get(row, "Construction"), "ResourcesComplete") is false, "Omitted resources_complete reads false");
         Console.WriteLine(checks + " compiled building boundary assertions passed; no gameplay assertions.");
         return 0;
     }

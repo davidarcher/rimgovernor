@@ -226,7 +226,7 @@ internal static class SleepingSelectedBedroom
             }
 
             var site = candidates.FirstOrDefault(selected.Contains);
-            rows.Add(new JsonObject { ["def"] = def, ["stuff"] = stuff, ["status"] = b.Status?.ToString() ?? "", ["x"] = x, ["z"] = z, ["site"] = site ?? candidates[0] });
+            rows.Add(new JsonObject { ["def"] = def, ["stuff"] = stuff, ["status"] = b.Status.ToString(), ["x"] = x, ["z"] = z, ["site"] = site ?? candidates[0] });
             if (site is null)
             {
                 stray.Add(candidates[0]);
@@ -283,8 +283,6 @@ internal static class SleepingSelectedBedroom
         var reply = await h.WireAsync(label, "observations_list_buildings", new JsonObject
         {
             ["scope"] = scope.DeepClone(),
-            ["statuses"] = new JsonArray("all"),
-            ["playerOnly"] = true,
         }, cancellationToken).ConfigureAwait(false);
         try
         {

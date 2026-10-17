@@ -19,8 +19,6 @@ public static class BuildingTable
             new JsonObject
             {
                 ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                ["statuses"] = new JsonArray("all"),
-                ["playerOnly"] = true,
             },
             cancellationToken).ConfigureAwait(false);
         JsonObject listed;

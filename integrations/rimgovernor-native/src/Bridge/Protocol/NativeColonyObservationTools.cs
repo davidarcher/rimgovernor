@@ -286,15 +286,9 @@ namespace HomeBridge.BridgeTools
                 var generation = net.powerComps.Where(p => p.PowerOn && p.PowerOutput > 0).Sum(p => (double)p.PowerOutput);
                 var consumption = net.powerComps.Where(p => p.PowerOn && p.PowerOutput < 0).Sum(p => (double)-p.PowerOutput);
                 result = result with { Networks = [.. result.Networks, new Obs.PowerNetwork { Id = NetId(net),
-                    Producers = (uint)net.powerComps.Count(p => p.Props.PowerConsumption < 0),
-                    Consumers = (uint)net.powerComps.Count(p => p.Props.PowerConsumption > 0),
-                    Batteries = (uint)net.batteryComps.Count, Transmitters = (uint)net.transmitters.Count, Connectors = (uint)net.connectors.Count,
-                    GenerationW = Finite(generation), ConsumptionW = Finite(consumption), NetW = Finite(generation - consumption),
+                    GenerationW = Finite(generation), ConsumptionW = Finite(consumption),
                     StoredWattDays = Finite(net.CurrentStoredEnergy()),
-                    CapacityWattDays = Finite(net.batteryComps.Sum(b => (double)b.Props.storedEnergyMax)),
-                    HasSource = net.powerComps.Any(p => p.Props.PowerConsumption < 0),
-                    HasActiveSource = net.powerComps.Any(p => p.PowerOn && p.PowerOutput > 0),
-                    }] };
+                    CapacityWattDays = Finite(net.batteryComps.Sum(b => (double)b.Props.storedEnergyMax)) }] };
             }
             foreach (var geyser in geysers) {
                 // A geyser is free for a geothermal generator only while no

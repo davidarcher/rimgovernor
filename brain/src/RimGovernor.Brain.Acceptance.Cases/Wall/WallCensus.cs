@@ -31,8 +31,7 @@ internal static class WallCensus
         {
             ["scope"] = scope.DeepClone(),
             ["defNames"] = new JsonArray("Wall"),
-            ["statuses"] = new JsonArray("built"),
-            ["playerOnly"] = true,
+            ["statuses"] = new JsonArray("BUILDING_STATUS_BUILT"),
         };
         var reply = await h.WireAsync(label, "observations_list_buildings", request, cancellationToken).ConfigureAwait(false);
         var observed = Observed(label, reply);

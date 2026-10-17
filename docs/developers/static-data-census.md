@@ -435,7 +435,6 @@ Kept, reason recorded:
 | BuildingSettings | message | 669 | 18 | mixed | Building forbid switch power temperature assignment settings |  |  |
 | MaterialDeficit | message | 680 | 4 | state | Construction material need have still needed |  |  |
 | ConstructionState | message | 681 | 13 | mixed | Construction frame or blueprint progress and finishing gates | total_work; minimum_finishing_skill | total_work: ThingDef.statBases WorkToBuild with stuff factors (Go rule over rows); minimum_finishing_skill: ThingDef.constructionSkillPrerequisite |
-| ThermalSide | message | 689 | 8 | state | Thermal reading beside a building side |  |  |
 | BuildingServiceState | message | 690 | 11 | mixed | Building power fuel and breakdown state |  |  |
 | BuildingStatus | enum | 696 | 4 | state | Construction stage tag |  |  |
 | BuildingState | message | 702 | 22 | mixed | Canonical building row | uses_hit_points | ThingDef.useHitPoints |
@@ -572,8 +571,6 @@ Kept, reason recorded:
 | RecipesSnapshot | message | 1214 | 4 | state | Recipes available at a bench |  |  |
 | RecipesRequest | message | 1215 | 2 | state | Read request parameters |  |  |
 | RecipesReply | message | 1216 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
-| BuildingSettingsRequest | message | 1217 | 2 | state | Read request parameters |  |  |
-| BuildingSettingsReply | message | 1218 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | PawnSettingsRequest | message | 1219 | 2 | state | Read request parameters |  |  |
 | PawnSettingsReply | message | 1220 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | ResolveTargetSnapshot | message | 1221 | 3 | state | Target resolution candidates |  |  |
@@ -810,9 +807,7 @@ Kept, reason recorded:
 | CurvePointRow | message | 2526 | 2 | excluded | Biotech curve point |  | excluded owner #2630 owner Biotech |
 | GeneTuningFacts | message | 2537 | 8 | excluded | Biotech gene tuning constants |  | excluded owner #2630 owner Biotech |
 | BiotechCatalog | message | 2543 | 7 | excluded | Biotech catalog container |  | excluded owner #2630 owner Biotech |
-| OdysseyBuilding | message | 2573 | 3 | excluded | Odyssey building facts |  | excluded owner #2632 owner Odyssey |
 | HackableState | message | 2575 | 5 | excluded | Odyssey hackable state |  | excluded owner #2632 owner Odyssey |
-| PortalState | message | 2579 | 4 | excluded | Odyssey portal state |  | excluded owner #2632 owner Odyssey |
 | AnomalyCatalog | message | 2586 | 8 | excluded | Anomaly catalog container |  | excluded owner #2631 owner Anomaly |
 | CreepJoinerFormRow | message | 2595 | 7 | excluded | Anomaly creepjoiner form copy |  | excluded owner #2631 owner Anomaly |
 | CreepJoinerBenefitRow | message | 2601 | 11 | excluded | Anomaly creepjoiner benefit copy |  | excluded owner #2631 owner Anomaly |

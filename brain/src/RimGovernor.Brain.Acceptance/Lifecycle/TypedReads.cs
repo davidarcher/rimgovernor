@@ -44,7 +44,7 @@ public static class TypedReads
         return observed ?? throw new AcceptanceException($"{label}: {op.Name} did not observe: {WireJson.Serialize(reply)}");
     }
 
-    /// <summary>The <c>observations_list_buildings</c> rows <paramref name="request"/> selects (its scope, ids, defNames, statuses, playerOnly).</summary>
+    /// <summary>The <c>observations_list_buildings</c> rows <paramref name="request"/> selects (its scope, ids, defNames, statuses, anyFaction).</summary>
     public static async Task<IReadOnlyList<Observations.BuildingState>> BuildingsAsync(this Harness harness, string label, Observations.ListBuildingsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);

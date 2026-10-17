@@ -217,47 +217,43 @@ public static partial class ObservationPackage
             foreach (var row in development.Power)
             {
                 buildings.TryGetRow(row.Building, out var b);
-                var s = b!.Service ?? new O.BuildingServiceState();
-                var def = b.Building?.DefName;
+                var s = b!.Service;
+                var def = b.Building.DefName;
                 // Whether rain shorts the building is its def's, not the frame's.
                 var rainVulnerable = Unknown<bool>();
-                if (def is not null && catalog is not null)
+                if (catalog is not null)
                 {
                     rainVulnerable = Known(catalog.RainVulnerable(def));
                 }
-                IReadOnlyList<string> fuels = [];
-                if (def is not null)
-                {
-                    fuels = RequireCatalog(catalog).RefuelFuels(def);
-                }
+                IReadOnlyList<string> fuels = RequireCatalog(catalog).RefuelFuels(def);
                 var baseW = Unknown<double>();
-                if (def is not null && catalog is not null)
+                if (catalog is not null)
                 {
                     baseW = catalog.PowerBaseW(def, tables.FinishedResearch);
                 }
                 var capacity = Unknown<double>();
-                if (def is not null && catalog is not null)
+                if (catalog is not null)
                 {
                     capacity = catalog.BatteryCapacityWd(def);
                 }
                 var reference = b.Building;
                 var site = new PowerSite
                 {
-                    Id = reference?.Id ?? "",
-                    Definition = reference?.DefName ?? "",
-                    Cell = CellOf(reference?.Position),
+                    Id = reference.Id,
+                    Definition = reference.DefName,
+                    Cell = CellOf(reference.Position),
                     Occupied = RectCells(b.Occupied),
                     BaseW = baseW,
                     OutputW = Optional(s.PowerOutputW is not null, s.PowerOutputW.GetValueOrDefault()),
                     Powered = Optional(s.PowerOn is not null, s.PowerOn.GetValueOrDefault()),
                     Connected = Optional(s.Connected is not null, s.Connected.GetValueOrDefault()),
                     Network = Optional(s.PowerNetId is not null, s.PowerNetId ?? ""),
-                    Forbidden = Optional(b.Settings?.Forbidden is not null, b.Settings?.Forbidden.GetValueOrDefault() ?? false),
-                    SwitchedOn = Optional(s.SwitchedOn is not null, s.SwitchedOn.GetValueOrDefault()),
+                    Forbidden = Known(b.Settings.Forbidden),
+                    SwitchedOn = Known(s.SwitchedOn),
                     Fuel = Optional(s.Fuel is not null, s.Fuel.GetValueOrDefault()),
                     TargetFuel = Optional(s.TargetFuel is not null, s.TargetFuel.GetValueOrDefault()),
                     OutOfFuel = Optional(s.OutOfFuel is not null, s.OutOfFuel.GetValueOrDefault()),
-                    BrokenDown = Optional(s.BrokenDown is not null, s.BrokenDown.GetValueOrDefault()),
+                    BrokenDown = Known(s.BrokenDown),
                     FuelDefinitions = fuels,
                     Stored = Optional(row.StoredWattDays is not null, row.StoredWattDays.GetValueOrDefault()),
                     Capacity = capacity,
@@ -271,7 +267,7 @@ public static partial class ObservationPackage
                 {
                     fuel.Add(consumer);
                 }
-                geometryKnown = geometryKnown && reference is { DefName: not null, Position: not null } && site.Occupied.Count > 0;
+                geometryKnown = geometryKnown && reference.Position is not null && site.Occupied.Count > 0;
                 sites.Add(site);
                 if (site.TurretDps.IsKnown)
                 {
@@ -285,11 +281,11 @@ public static partial class ObservationPackage
             var unsafeConduits = new List<Cell>();
             foreach (var row in buildings.Table.Sorted())
             {
-                if (row.Status.GetValueOrDefault() != O.BuildingStatus.Built || row.Building is not { DefName: not null } || catalog is null)
+                if (row.Status != O.BuildingStatus.Built || catalog is null)
                 {
                     continue;
                 }
-                if (!catalog.PlainConduit((row.Building.DefName ?? "")))
+                if (!catalog.PlainConduit(row.Building.DefName))
                 {
                     continue;
                 }
@@ -300,7 +296,7 @@ public static partial class ObservationPackage
                 }
                 var cell = CellOf(row.Building.Position);
                 conduits.Add(cell);
-                if ((row.Building.DefName ?? "") == "PowerConduit")
+                if (row.Building.DefName == "PowerConduit")
                 {
                     unsafeConduits.Add(cell);
                 }
@@ -310,11 +306,11 @@ public static partial class ObservationPackage
             {
                 networks.Add(new PowerNetworkFact
                 {
-                    Id = row.Id ?? "",
-                    GenerationW = Optional(row.GenerationW is not null, row.GenerationW.GetValueOrDefault()),
-                    ConsumptionW = Optional(row.ConsumptionW is not null, row.ConsumptionW.GetValueOrDefault()),
-                    StoredWD = Optional(row.StoredWattDays is not null, row.StoredWattDays.GetValueOrDefault()),
-                    CapacityWD = Optional(row.CapacityWattDays is not null, row.CapacityWattDays.GetValueOrDefault()),
+                    Id = row.Id,
+                    GenerationW = Known(row.GenerationW),
+                    ConsumptionW = Known(row.ConsumptionW),
+                    StoredWD = Known(row.StoredWattDays),
+                    CapacityWD = Known(row.CapacityWattDays),
                 });
             }
             var geysers = new List<PowerGeyser>();

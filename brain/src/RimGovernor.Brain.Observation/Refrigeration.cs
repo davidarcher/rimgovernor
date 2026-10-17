@@ -54,15 +54,12 @@ public static partial class ObservationPackage
         var coolers = new List<RefrigerationCooler>(ids.Count);
         foreach (var row in observed.Buildings)
         {
-            if (!rows.TryGetValue(row.Building?.Id ?? "", out var cooler))
+            if (!rows.TryGetValue(row.Building.Id, out var cooler))
             {
                 return unknown;
             }
-            cooler = cooler with { Rotation = RotationOf(row.Rotation.GetValueOrDefault()) };
-            if (row.Settings is { } settings)
-            {
-                cooler = cooler with { Target = Optional(settings.TargetTemperatureC is not null, settings.TargetTemperatureC.GetValueOrDefault()) };
-            }
+            cooler = cooler with { Rotation = RotationOf(row.Rotation) };
+            cooler = cooler with { Target = Optional(row.Settings.TargetTemperatureC is not null, row.Settings.TargetTemperatureC.GetValueOrDefault()) };
             coolers.Add(cooler);
         }
         coolers.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));

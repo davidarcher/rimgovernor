@@ -648,13 +648,17 @@ public sealed record DefinitionRef
     public string? DefName { get; init; }
 }
 
+/// <summary>
+/// A row's head: the thing's load id, ThingDef and label, always set; the map and cell are absent
+/// for a thing on no map (a caravan, a world pawn's gear). A held thing reads at its holder's cell.
+/// </summary>
 public sealed record EntityRef
 {
-    public string? Id { get; init; }
+    public string Id { get; init; } = "";
 
-    public string? DefName { get; init; }
+    public string DefName { get; init; } = "";
 
-    public string? Label { get; init; }
+    public string Label { get; init; } = "";
 
     public int? MapId { get; init; }
 
@@ -2323,17 +2327,7 @@ public sealed record BuildingSettings
 {
     public SnapshotRef? Snapshot { get; init; }
 
-    public bool? Forbidden { get; init; }
-
-    public bool? DesiredSwitchOn { get; init; }
-
-    public bool? SwitchOn { get; init; }
-
-    public bool? FlickDesignated { get; init; }
-
-    public bool? Connected { get; init; }
-
-    public bool? Powered { get; init; }
+    public bool Forbidden { get; init; }
 
     public double? TargetTemperatureC { get; init; }
 
@@ -2343,14 +2337,6 @@ public sealed record BuildingSettings
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> AssignedPawns { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> AssigningCandidates { get; init; }
-
-    public bool? RoomCanBePrisonCell { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 
     /// <summary>
     /// crop_def_name is a plant grower's current crop beside its own CAS snapshot (BuildingPatchIntent.plant_def).
@@ -2365,30 +2351,24 @@ public sealed record BuildingSettings
 
 public sealed record MaterialDeficit
 {
-    public string? DefName { get; init; }
+    public string DefName { get; init; } = "";
 
-    public long? Need { get; init; }
-
-    public long? Have { get; init; }
-
-    public long? StillNeeded { get; init; }
+    public long StillNeeded { get; init; }
 }
 
+/// <summary>
+/// A blueprint's or frame's construction state: work left (absent on an installation blueprint,
+/// which carries no work), the material each definition still needs, and the
+/// native finishing-skill guard's facts for a quality-sensitive build.
+/// </summary>
 public sealed record ConstructionState
 {
     public double? WorkLeft { get; init; }
 
-    public double? PercentComplete { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<MaterialDeficit>))]
     public EquatableArray<MaterialDeficit> Resources { get; init; }
 
-    public bool? ResourcesComplete { get; init; }
-
-    public bool? CompletableEver { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
+    public bool ResourcesComplete { get; init; }
 
     public int? MinimumFinishingSkill { get; init; }
 
@@ -2406,26 +2386,12 @@ public sealed record ConstructionState
     public int? Tier { get; init; }
 }
 
-public sealed record ThermalSide
-{
-    public string? Side { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public Common.Ref? Room { get; init; }
-
-    public bool? Outdoors { get; init; }
-
-    public double? TemperatureC { get; init; }
-
-    public bool? Fogged { get; init; }
-
-    public bool? Impassable { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-}
-
+/// <summary>
+/// A building's power, switch, breakdown and fuel state. The power facts are absent without a power
+/// trader or battery (a battery is on while connected and outputs nothing), power_net_id without a
+/// network, producer without a power trader, the fuel facts without a refuelable comp. A building
+/// without a flick switch is switched on.
+/// </summary>
 public sealed record BuildingServiceState
 {
     public bool? Connected { get; init; }
@@ -2434,7 +2400,7 @@ public sealed record BuildingServiceState
 
     public double? PowerOutputW { get; init; }
 
-    public bool? SwitchedOn { get; init; }
+    public bool SwitchedOn { get; init; }
 
     public double? Fuel { get; init; }
 
@@ -2442,7 +2408,7 @@ public sealed record BuildingServiceState
 
     public bool? OutOfFuel { get; init; }
 
-    public bool? BrokenDown { get; init; }
+    public bool BrokenDown { get; init; }
 
     public string? PowerNetId { get; init; }
 
@@ -2457,33 +2423,33 @@ public sealed record BuildingServiceState
     /// CompPowerPlantWind.RecalculateBlockages counts); absent on any other building.
     /// </summary>
     public uint? WindPathBlockedCells { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 }
 
 /// <summary>
 /// BuildingState is the canonical building row, built by one native
 /// builder: only the bundle's building table and the list read carry it;
 /// every other message points at a building by Ref, which the
-/// reader resolves against the table. service and settings.forbidden are set on
-/// every row.
+/// reader resolves against the table. Head, rotation, status, footprint,
+/// burning, service and settings.forbidden are set on every row; stuff is
+/// absent for a stuffless def, faction for an unowned thing, hit points for
+/// a def without them, build_def_name and construction on a built row.
 /// </summary>
 public sealed record BuildingState
 {
-    public EntityRef? Building { get; init; }
+    public EntityRef Building { get; init; } = new();
 
-    public Placement.Rotation? Rotation { get; init; }
+    public Placement.Rotation Rotation { get; init; }
 
     public string? Stuff { get; init; }
 
     public Common.Ref? Faction { get; init; }
 
-    public BuildingStatus? Status { get; init; }
+    public BuildingStatus Status { get; init; }
 
+    /// <summary>
+    /// What a construction blueprint or frame builds; absent on a built row and an installation blueprint.
+    /// </summary>
     public string? BuildDefName { get; init; }
-
-    public string? InstallOfDefName { get; init; }
 
     public int? HitPoints { get; init; }
 
@@ -2491,74 +2457,45 @@ public sealed record BuildingState
 
     public ConstructionState? Construction { get; init; }
 
-    public BuildingServiceState? Service { get; init; }
+    public BuildingServiceState Service { get; init; } = new();
 
-    public BuildingSettings? Settings { get; init; }
+    public BuildingSettings Settings { get; init; } = new();
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ThermalSide>))]
-    public EquatableArray<ThermalSide> ThermalSides { get; init; }
+    public bool Burning { get; init; }
 
-    public BillStackRow? Bills { get; init; }
-
-    public string? InspectText { get; init; }
-
-    public bool? Burning { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-
+    /// <summary>
+    /// The list read's CAS token for the row; absent on the bundle's building table.
+    /// </summary>
     public SnapshotRef? Snapshot { get; init; }
 
     /// <summary>
     /// The building's occupied rect, inclusive.
     /// </summary>
-    public Rectangle? Occupied { get; init; }
+    public Rectangle Occupied { get; init; } = new();
+
 
     /// <summary>
-    /// Odyssey hack and portal facts; absent on a building with neither.
-    /// </summary>
-    public OdysseyBuilding? Odyssey { get; init; }
-
-    /// <summary>
-    /// Anomaly containment and study facts; absent without Anomaly or on
-    /// a building with neither.
+    /// Anomaly containment facts; absent without Anomaly or on a building
+    /// that is no entity holder.
     /// </summary>
     public AnomalyBuilding? Anomaly { get; init; }
 }
 
+/// <summary>
+/// One power network: its frame-local id, the output of its running producers and the draw of its
+/// running consumers, and its batteries' stored energy and capacity.
+/// </summary>
 public sealed record PowerNetwork
 {
-    public string? Id { get; init; }
+    public string Id { get; init; } = "";
 
-    public uint? Producers { get; init; }
+    public double GenerationW { get; init; }
 
-    public uint? Consumers { get; init; }
+    public double ConsumptionW { get; init; }
 
-    public uint? Batteries { get; init; }
+    public double StoredWattDays { get; init; }
 
-    public uint? Transmitters { get; init; }
-
-    public uint? Connectors { get; init; }
-
-    public double? GenerationW { get; init; }
-
-    public double? ConsumptionW { get; init; }
-
-    public double? NetW { get; init; }
-
-    public double? StoredWattDays { get; init; }
-
-    public double? CapacityWattDays { get; init; }
-
-    public bool? HasSource { get; init; }
-
-    public bool? HasActiveSource { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Flags { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> MemberIds { get; init; }
+    public double CapacityWattDays { get; init; }
 }
 
 public sealed record BuildingsSnapshot
@@ -2567,11 +2504,6 @@ public sealed record BuildingsSnapshot
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<BuildingState>))]
     public EquatableArray<BuildingState> Buildings { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PowerNetwork>))]
-    public EquatableArray<PowerNetwork> PowerNetworks { get; init; }
-
-    public Completeness? Completeness { get; init; }
 
     /// <summary>
     /// Row ids removed since the base table, in a delta section (SectionWatermark.delta).
@@ -2590,18 +2522,16 @@ public sealed record ListBuildingsRequest
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> DefNames { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Statuses { get; init; }
+    /// <summary>
+    /// The construction stages to list; empty lists every stage.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<BuildingStatus>))]
+    public EquatableArray<BuildingStatus> Statuses { get; init; }
 
-    public string? Category { get; init; }
-
-    public bool? PlayerOnly { get; init; }
-
-    public double? DamagedBelowFraction { get; init; }
-
-    public bool? Inspect { get; init; }
-
-    public bool? BillIngredients { get; init; }
+    /// <summary>
+    /// Every faction's buildings; false lists only the player's.
+    /// </summary>
+    public bool AnyFaction { get; init; }
 }
 
 public sealed record ListBuildingsReply
@@ -2945,44 +2875,27 @@ public abstract record ListZonesReplyOutcome
 }
 
 /// <summary>
-/// A thing's canonical row, from one native builder: the cells
-/// read's things and the bundle's things table. thing.snapshot is the
-/// thing's own CAS token. The food facts (15-23) are set for an ingestible
-/// item or a corpse: rot_ticks at the current ambient temperature (present
-/// exactly while the thing rots), temperature_c that ambient temperature,
-/// roofed and room_id where a spawned thing stands, is_human_meat when the
-/// thing or any ingredient it was made from (CompIngredients) is humanlike meat;
-/// a corpse adds forbidden, its meat yield (meat_amount), body size and a
-/// one-cell footprint. What the def alone says (class, vegetable, raw meat and
-/// raw ingredient class, a corpse's humanlike race) is the definition catalog's.
+/// A thing's canonical row, from one native builder: the bundle's things
+/// table. Head, stack count, forbidden and corpse are set on every row. The
+/// food facts are set for an ingestible item or a corpse: rot_ticks at the
+/// current ambient temperature (present exactly while the thing rots),
+/// temperature_c that ambient temperature, roofed and room where a spawned
+/// thing stands, is_human_meat when the thing or any ingredient it was made
+/// from (CompIngredients) is humanlike meat; a corpse adds its meat yield
+/// (meat_amount), body size and a one-cell footprint. What the def alone says
+/// (class, vegetable, raw meat and raw ingredient class, a corpse's humanlike
+/// race) is the definition catalog's.
 /// </summary>
 public sealed record Thing
 {
     [JsonPropertyName("thing")]
-    public EntityRef? Entity { get; init; }
+    public EntityRef Entity { get; init; } = new();
 
-    public long? StackCount { get; init; }
+    public long StackCount { get; init; }
 
-    public string? Stuff { get; init; }
+    public bool Forbidden { get; init; }
 
-    public int? HitPoints { get; init; }
-
-    public bool? Forbidden { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Owners { get; init; }
-
-    public bool? Medical { get; init; }
-
-    public double? Growth { get; init; }
-
-    public bool? HarvestableNow { get; init; }
-
-    public string? BuildDefName { get; init; }
-
-    public bool? Blueprint { get; init; }
-
-    public bool? Frame { get; init; }
+    public bool Corpse { get; init; }
 
     public long? RotTicks { get; init; }
 
@@ -2992,8 +2905,6 @@ public sealed record Thing
 
     public Common.Ref? Room { get; init; }
 
-    public bool? Corpse { get; init; }
-
     public double? MeatAmount { get; init; }
 
     public double? BodySize { get; init; }
@@ -3001,11 +2912,6 @@ public sealed record Thing
     public long? TileFootprint { get; init; }
 
     public bool? IsHumanMeat { get; init; }
-
-    /// <summary>
-    /// The thing's own CAS token.
-    /// </summary>
-    public SnapshotRef? Snapshot { get; init; }
 }
 
 public sealed record ThingsSnapshot
@@ -5471,52 +5377,6 @@ public abstract record RecipesReplyOutcome
     public static implicit operator RecipesReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
-public sealed record BuildingSettingsRequest
-{
-    public ReadScope? Scope { get; init; }
-
-    public string? ThingId { get; init; }
-}
-
-public sealed record BuildingSettingsReply
-{
-    public BuildingSettingsReplyOutcome? Outcome { get; init; }
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="BuildingSettingsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(BuildingSettingsReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(BuildingSettingsReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(BuildingSettingsReplyOutcome.FailureCase), "failure")]
-public abstract record BuildingSettingsReplyOutcome
-{
-    private protected BuildingSettingsReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public BuildingSettings? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(BuildingSettings Value) : BuildingSettingsReplyOutcome;
-
-    public static implicit operator BuildingSettingsReplyOutcome(BuildingSettings value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : BuildingSettingsReplyOutcome;
-
-    public static implicit operator BuildingSettingsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : BuildingSettingsReplyOutcome;
-
-    public static implicit operator BuildingSettingsReplyOutcome(Common.Failure value) => new FailureCase(value);
-}
-
 public sealed record PawnSettingsRequest
 {
     public ReadScope? Scope { get; init; }
@@ -6632,23 +6492,23 @@ public sealed record ComfortFacts
     public RecreationCensus? Joy { get; init; }
 }
 
+/// <summary>
+/// One loose player or unowned item an upkeep concern may haul: its stack
+/// count, roof, storage and forbidden state, and rot_ticks while it rots.
+/// </summary>
 public sealed record UpkeepItem
 {
-    public Common.Ref? Item { get; init; }
+    public Common.Ref Item { get; init; } = new();
 
-    public long? Count { get; init; }
+    public long Count { get; init; }
 
-    public bool? Roofed { get; init; }
+    public bool Roofed { get; init; }
 
-    public bool? InStorage { get; init; }
+    public bool InStorage { get; init; }
 
     public long? RotTicks { get; init; }
 
-    public double? TemperatureC { get; init; }
-
-    public bool? Forbidden { get; init; }
-
-    public bool? Burning { get; init; }
+    public bool Forbidden { get; init; }
 }
 
 public sealed record UpkeepBed
@@ -8983,7 +8843,7 @@ public sealed record LavaEmergenceState
 
 /// <summary>
 /// One AncientHatch with an existing pocket map: pocket_map_id, the hatch's
-/// stockpile type and layout (PortalState), the colonists now on the pocket
+/// stockpile type and layout, the colonists now on the pocket
 /// map and every CompHackable thing on it.
 /// </summary>
 public sealed record UndergroundSite
@@ -9891,23 +9751,22 @@ public sealed record ThreatPawn
 /// occupied is the building's occupied rect (inclusive), the cells a
 /// ranged defender needs a line of fire to.
 /// A hostile building's row: building is its head (no table holds hostile
-/// buildings) and building_snapshot its CAS token.
+/// buildings) and building_snapshot its CAS token; nearest_colonist_distance
+/// is absent without a free colonist on the map.
 /// </summary>
 public sealed record ThreatBuilding
 {
-    public EntityRef? Building { get; init; }
+    public EntityRef Building { get; init; } = new();
 
-    public SnapshotRef? BuildingSnapshot { get; init; }
+    public SnapshotRef BuildingSnapshot { get; init; } = new();
 
-    public string? HostileReason { get; init; }
-
-    public int? HitPoints { get; init; }
+    public int HitPoints { get; init; }
 
     public int? NearestColonistDistance { get; init; }
 
-    public bool? Passive { get; init; }
+    public bool Passive { get; init; }
 
-    public Rectangle? Occupied { get; init; }
+    public Rectangle Occupied { get; init; } = new();
 }
 
 public sealed record ThreatsSnapshot
@@ -10632,21 +10491,6 @@ public sealed record BiotechCatalog
     public MechWorkModeRoles? MechWorkModes { get; init; }
 }
 
-/// <summary>
-/// Odyssey facts of one building row. hackable: a building with
-/// CompHackable; portal: a MapPortal (hatch, pit gate, cave exit). An absent
-/// scalar is unknown; a failed sub-read leaves its block absent and adds a
-/// ReadIssue named hackable or portal.
-/// </summary>
-public sealed record OdysseyBuilding
-{
-    public HackableState? Hackable { get; init; }
-
-    public PortalState? Portal { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-}
 
 /// <summary>
 /// CompHackable: progress_percent is 0..1, defence the hack work required.
@@ -10664,21 +10508,6 @@ public sealed record HackableState
     public bool? Autohack { get; init; }
 }
 
-/// <summary>
-/// MapPortal: pocket_map_exists and the pocket map's id once it exists;
-/// an ancient hatch adds its stockpile type (TileMutatorWorker_Stockpile.StockpileType name) and
-/// layout (LayoutDef name).
-/// </summary>
-public sealed record PortalState
-{
-    public bool? PocketMapExists { get; init; }
-
-    public int? PocketMapId { get; init; }
-
-    public string? StockpileType { get; init; }
-
-    public string? Layout { get; init; }
-}
 
 /// <summary>
 /// Anomaly facts of one pawn row. entity is Pawn.IsEntity, mutant
@@ -10764,39 +10593,26 @@ public sealed record HeldState
 }
 
 /// <summary>
-/// CompStudiable: progress_percent is 0..1; knowledge_category and
-/// anomaly_knowledge are the values the game resolves for this thing;
-/// anomaly_knowledge_gained is what its study has already yielded.
+/// CompStudiable: completed, the study interactions so far and whether the
+/// thing can be studied now.
 /// </summary>
 public sealed record StudyState
 {
     public bool? Completed { get; init; }
 
-    public double? ProgressPercent { get; init; }
-
-    public double? StudyPoints { get; init; }
-
-    public double? AnomalyKnowledgeGained { get; init; }
-
     public int? StudyInteractions { get; init; }
 
     public bool? CurrentlyStudiable { get; init; }
-
-    public string? KnowledgeCategory { get; init; }
-
-    public double? AnomalyKnowledge { get; init; }
 }
 
 /// <summary>
 /// Anomaly facts of one building row: holder is a CompEntityHolder
-/// (a holding platform), study a CompStudiable. A failed sub-read leaves its
-/// block absent and adds a ReadIssue named holder or study.
+/// (a holding platform). A failed sub-read leaves its block absent and adds
+/// a ReadIssue named holder or doors.
 /// </summary>
 public sealed record AnomalyBuilding
 {
     public EntityHolderState? Holder { get; init; }
-
-    public StudyState? Study { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }

@@ -68,8 +68,8 @@ public static partial class ObservationPackage
         {
             rows.TryGetValue(s.Item?.Id ?? "", out var row);
             row ??= new O.Thing();
-            var def = row.Entity?.DefName ?? "";
-            var defFacts = FoodDefFactsOf(catalog, def, row.Corpse.GetValueOrDefault());
+            var def = row.Entity.DefName;
+            var defFacts = FoodDefFactsOf(catalog, def, row.Corpse);
             // A thing rots exactly while it has a rot deadline.
             var stock = new FoodStock
             {
@@ -88,10 +88,7 @@ public static partial class ObservationPackage
                 TemperatureC = Optional(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault()),
                 Room = OptionalRef(row.Room),
             };
-            if (row.StackCount is not null)
-            {
-                stock = stock with { Count = Known((long)row.StackCount.GetValueOrDefault()) };
-            }
+            stock = stock with { Count = Known(row.StackCount) };
             try
             {
                 stock = stock with { UnitMass = FiniteFact((float)catalog.StatValue(def, "", CatalogStats.Mass)) };
@@ -100,11 +97,11 @@ public static partial class ObservationPackage
             {
                 // A def with no readable mass leaves the unit mass unknown.
             }
-            stock = stock with { Corpse = row.Corpse.GetValueOrDefault() };
+            stock = stock with { Corpse = row.Corpse };
             // A forbidden stack is the travel reserve when its def is one; any other forbidden stack has no
             // eaters and counts only as human meat.
             var barred = false;
-            if (row.Forbidden.GetValueOrDefault() && !stock.Corpse)
+            if (row.Forbidden && !stock.Corpse)
             {
                 var reserve = PolicyFunctions.ReserveFoodDefinition(stock.DefName);
                 stock = stock with { Reserve = reserve };
@@ -112,7 +109,7 @@ public static partial class ObservationPackage
             }
             stock = stock with
             {
-                Forbidden = Optional(row.Forbidden is not null, row.Forbidden.GetValueOrDefault()),
+                Forbidden = Known(row.Forbidden),
                 MeatAmount = Optional(row.MeatAmount is not null, row.MeatAmount.GetValueOrDefault()),
                 BodySize = Optional(row.BodySize is not null, row.BodySize.GetValueOrDefault()),
                 TileFootprint = Optional(row.TileFootprint is not null, (long)row.TileFootprint.GetValueOrDefault()),

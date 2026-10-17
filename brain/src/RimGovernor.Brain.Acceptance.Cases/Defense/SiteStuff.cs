@@ -48,7 +48,7 @@ internal static class DefenseSiteStuff
     {
         var staged = s.Staged!;
         var site = staged.Site ?? throw new AcceptanceException("test/stage replied no site");
-        var walls = await s.BuildingsAsync("walls", new Observations.ListBuildingsRequest { DefNames = ["Wall"], Statuses = ["built"], PlayerOnly = true }, cancellationToken).ConfigureAwait(false);
+        var walls = await s.BuildingsAsync("walls", new Observations.ListBuildingsRequest { DefNames = ["Wall"], Statuses = [Observations.BuildingStatus.Built] }, cancellationToken).ConfigureAwait(false);
         var reply = await s.CallAsync("defense-site", NativeOps.ReadDefenseSite, new Observations.DefenseSiteRequest
         {
             Scope = s.Scope,
