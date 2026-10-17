@@ -17,6 +17,7 @@ public sealed partial class LayoutRounds
     private readonly FirebreakMemory? _firebreak;
     private readonly IRoundsStoneShellSource? _stone;
     private readonly RoundsBuildingPlanner? _building;
+    private readonly RoundsBuildingPlanner? _routes;
     private readonly RoundsDefenseLayoutPlanner? _defense;
 
     /// <summary>
@@ -56,17 +57,22 @@ public sealed partial class LayoutRounds
                 Need = LayoutFamily.ClimateEnvelope,
             };
         }
+        if (needs.Routes)
+        {
+            _routes = RoundsBuildingPlanner.NewRoundsRoutesPlanner(reviewer, reviewer.Native as IRoundsBuildingSource);
+        }
     }
 
     /// <summary>
     /// An optional entry woken by the outcomes of its area edits, ring cuts and clearances, buildings, roofs, wall and
-    /// foundation removals and the killbox dig.
+    /// foundation removals, the killbox dig and the routes' door settings.
     /// </summary>
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Optional,
         Kinds = [ActionKind.Area, ActionKind.AreaPlantCut, ActionKind.CoverClearance, ActionKind.Building, ActionKind.BuildRoof, ActionKind.WallRemoval,
-            ActionKind.FoundationRemoval, ActionKind.Excavation],
+            ActionKind.FoundationRemoval, ActionKind.Excavation, ActionKind.DoorControl,
+            ActionKind.OwnedDraft, ActionKind.Movement],
     };
 
     /// <summary>The family's scheduler entry.</summary>
@@ -77,8 +83,9 @@ public sealed partial class LayoutRounds
 
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world: the home-area diff and the flammable owned walls
-    /// from the owned census, the rooms owed a vent or a roof from the rooms census, and the ring work this tick's
-    /// review left, unknown when the review did not plan the ring this tick, and the defensive layout's journal facts.
+    /// from the owned census, the rooms owed a vent or a roof and the routes standing from the rooms census, the ring
+    /// work this tick's review left, unknown when the review did not plan the ring this tick, and the defensive layout's
+    /// journal facts.
     /// Throws when the read is from another world or older than the review.
     /// </summary>
     internal async Task<LayoutFacts> ReadAsync(FamilyReadScope scope, CancellationToken ct)
@@ -110,11 +117,19 @@ public sealed partial class LayoutRounds
                 facts = facts with { StoneShell = ReviewStoneShell(OwnedConstructions(claims, f.CurrentConstruction), f.StoneStructures) };
             }
         }
-        if (_needs.ClimateEnvelope)
+        if (_needs.ClimateEnvelope || _needs.Routes)
         {
             var rooms = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), [PolicyApi.ClimateDefs().VentDef], ct).ConfigureAwait(false);
-            var (owed, known) = EnvelopeWork(rooms.Projection);
-            facts = facts with { ClimateEnvelope = known ? Known(owed.Count) : Unknown<int>() };
+            if (_needs.ClimateEnvelope)
+            {
+                var (owed, known) = EnvelopeWork(rooms.Projection);
+                facts = facts with { ClimateEnvelope = known ? Known(owed.Count) : Unknown<int>() };
+            }
+            if (_needs.Routes)
+            {
+                var projection = rooms.Projection;
+                facts = facts with { Routes = Known(LayoutFamily.RoutesStandingOf(projection.Facts.Upkeep.Routes, projection.Rooms, _reviewer.Policy)) };
+            }
         }
         if (_firebreak is not null)
         {
@@ -131,8 +146,8 @@ public sealed partial class LayoutRounds
     }
 
     /// <summary>
-    /// The asynchronous step of a ready Need: the envelope's room waves, the stone shell's wall bundles or the
-    /// defensive layout's tiers; the proposed Needs have none.
+    /// The asynchronous step of a ready Need: the envelope's room waves, the stone shell's wall bundles, the
+    /// defensive layout's tiers or the routes' door; the proposed Needs have none.
     /// </summary>
     internal async Task<Verdict> WorkAsync(NeedWork work, LayoutFacts facts, CancellationToken ct)
     {
@@ -147,6 +162,10 @@ public sealed partial class LayoutRounds
         if (work.Need.Id == LayoutFamily.Defense && _defense is not null)
         {
             return await _defense.StepAsync(work, ct).ConfigureAwait(false);
+        }
+        if (work.Need.Id == LayoutFamily.Routes && _routes is not null)
+        {
+            return ShelterRounds.Building(await _routes.Copy().StepAsync(work.Arbiter!, ct, work.Epoch).ConfigureAwait(false));
         }
         return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
     }

@@ -18,7 +18,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 continue;
             }
-            if (Concern == PolicyApi.MaintainRoutes && change.Heat)
+            if (Concern == LayoutFamily.Routes.FilingKey && change.Heat)
             {
                 continue;
             }

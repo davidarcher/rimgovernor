@@ -5,8 +5,8 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>mood/headroom</c> (Go <c>headroom.go</c>): a pawn's people/mood Need enters and recovers on the headroom margins
-/// (#2535, #2549, #3304).
+/// <c>mood/headroom</c> (Go <c>headroom.go</c>): a pawn's people/mood Need is unmet and met on the one headroom margin
+/// (#2535, #2549, #3304, #3265).
 /// Native because the threshold and the held level are RimWorld's.
 /// </summary>
 internal static class Headroom
@@ -16,11 +16,11 @@ internal static class Headroom
     internal static AcceptanceCase Case() => new()
     {
         Name = "mood/headroom",
-        Scope = "A pawn's people/mood Need enters and recovers on the headroom margins (#2535, #2549, #3304): with one colonist's mood held natively 0.07 above "
-            + "its native minor-break threshold (inside the 0.10 entry margin, above the old entry at the threshold), the review files its "
-            + "people/mood/<pawn> progress row (unmet); lifted natively to 0.22 (past the 0.15 recovery margin) and the service restarted, the same row goes (met). "
-            + "Nightly tier. Needs are frozen so the margin alone decides. The stay-open band between 0.10 and 0.15 needs mood history that "
-            + "a restart drops, so policy/mood_margin_test.go pins it. Native because the threshold and the held level are RimWorld's.",
+        Scope = "A pawn's people/mood Need is unmet and met on the one headroom margin (#2535, #2549, #3304, #3265): with one colonist's mood held natively 0.07 above "
+            + "its native minor-break threshold (inside the 0.15 margin, above the old entry at the threshold), the review files its "
+            + "people/mood/<pawn> progress row (unmet); lifted natively to 0.22 (past the 0.15 margin) and the service restarted, the same row goes (met). "
+            + "Nightly tier. Needs are frozen so the margin alone decides; there is no stay-open band (decision 26). "
+            + "Native because the threshold and the held level are RimWorld's.",
         Start = new LabStart { Colonists = 3 },
         Serve = new ServeSpec { Families = [.. MoodDrive.EpicFamilies("mood")], Prefix = "mood-headroom" },
         RequiredOps = [HeadroomOp],
@@ -62,7 +62,7 @@ internal static class Headroom
 
         try
         {
-            // Inside the entry margin: the pawn's mood Need is unmet.
+            // Inside the margin: the pawn's mood Need is unmet.
             await d.StartAsync(cancellationToken).ConfigureAwait(false);
             await Prefixed(
                 "entry: ",
@@ -77,7 +77,7 @@ internal static class Headroom
             var need = Needs(await RowsAsync(cancellationToken).ConfigureAwait(false))[0];
             report["need_unmet"] = new JsonObject { ["need"] = need, ["pawn"] = pawn };
 
-            // Above the recovery margin: the same Need is met and its row goes.
+            // Above the margin: the same Need is met and its row goes.
             var h = await d.NativeAsync("recover", cancellationToken).ConfigureAwait(false);
             _ = await PinAsync(report, h, "pin-above-recovery", pawn, .22, cancellationToken).ConfigureAwait(false);
             await d.StartAsync(cancellationToken).ConfigureAwait(false);

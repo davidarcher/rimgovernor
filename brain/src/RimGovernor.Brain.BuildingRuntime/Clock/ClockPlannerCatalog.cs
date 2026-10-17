@@ -158,8 +158,6 @@ internal static class ClockPlannerCatalog
     /// <summary>Lists every routine planner in queue order. Planners start in this order.</summary>
     public static readonly IReadOnlyList<PlannerEntry> Entries =
     [
-        E("routes", O, [ActionKind.Building, ActionKind.DoorControl, ActionKind.OwnedDraft, ActionKind.Movement], SectionsBuilding,
-            c => c.Routes is not null, (s, ct, e, a) => s.Config.Routes!.StepAsync(a, ct, e), (o, m) => o.Routes = m, MaintainRoutes),
         E(DefensePlanner, C, [ActionKind.OwnedDraft, ActionKind.Subdue, ActionKind.Ability], SectionsThreat,
             c => c.Defense is not null, (s, ct, e, a) => s.Config.Defense!.StepAsync(a, ct, e), (o, m) => o.Defense = m, immediate: true),
     ];

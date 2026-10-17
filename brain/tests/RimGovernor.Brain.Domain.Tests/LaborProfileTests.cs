@@ -52,10 +52,10 @@ public sealed class LaborProfileTests
     }
 
     [Fact]
-    public void ASubjectNeedSharesItsKindsProfileAndConcernsKeepTheirOwn()
+    public void ASubjectNeedSharesItsKindsProfile()
     {
         Assert.Equal([WorkType.Handling], NeedLabor(NeedId.Of(AnimalsFamily.FamilyId, "herd", "pawn-1")));
         Assert.Empty(NeedLabor(AdminFamily.CreepJoiners));
-        Assert.Equal([WorkType.Construction], ConcernLabor(MaintainRoutes));
+        Assert.Equal([WorkType.Construction], NeedLabor(LayoutFamily.Routes));
     }
 }

@@ -19,8 +19,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 15 adds the <c>admin_creep_joiners</c> family record (#3264).
     /// Version 16 adds the ideology family's pending reform (#3260): the <c>ideology_reform</c> singleton table.
     /// Version 17 adds the economy family's trade missions (#3316): the <c>economy_trade_missions</c> singleton table.
+    /// Version 18 drops the routes latch from the stored review (#3265): routes is the layout/routes Need.
     /// </summary>
-    public const int SchemaVersion = 17;
+    public const int SchemaVersion = 18;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

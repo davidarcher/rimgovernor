@@ -240,7 +240,7 @@ public sealed class NeedFamilyTests
         Assert.False(new NeedId("fam/kind/a/b").IsValid);
         Assert.Contains('/', Bleeding.FilingKey.Value);
         Assert.Equal(Bleeding, ServiceTarget.ForNeed(Bleeding).OwnerNeed);
-        Assert.Equal(default, new ServiceTarget(MaintainRoutes, "", "", default).OwnerNeed);
+        Assert.Equal(default, new ServiceTarget(default, "", "", default).OwnerNeed);
         Assert.Equal(ServiceCoverage.Unknown, NeedCoverage(new Need { Id = Rest, Tier = NeedTier.Wellbeing }));
     }
 

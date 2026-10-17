@@ -8,8 +8,7 @@ public enum DevelopmentReviewState { Active, Satisfied, Obsolete, Unknown }
 
 /// <summary>
 /// A reference to an existing owner predicate, not an independent stock target or skill floor. The owner is a
-/// Concern id, or for a migrated family a NeedId under its <see cref="NeedId.FilingKey"/> (#3250); the two key
-/// spaces never collide, since only a NeedId holds a '/'.
+/// NeedId under its <see cref="NeedId.FilingKey"/> (#3250).
 /// </summary>
 public sealed record ServiceTarget(ConcernId Owner, string Subject, string Predicate, Fact<double> HorizonDays)
 {
@@ -84,7 +83,7 @@ public static partial class PolicyFunctions
     /// <summary>Full-review assessment only. Unknown stress evidence never erases baseline evidence.
     /// Proposals reference owner satisfaction predicates; they grant neither practice nor spending.</summary>
     public static EssentialServiceReview ReviewEssentialServices(RoundsFacts facts, RoundsPolicy policy,
-        DerivedDemand demand, IReadOnlyList<RoundsAssessment> owners, int scenarioBudget = 128, bool medicineActive = false)
+        DerivedDemand demand, int scenarioBudget = 128, bool medicineActive = false)
     {
         if (scenarioBudget < 0) throw new DomainException("negative service scenario budget");
         if (demand.Work.Tick != facts.Tick) throw new DomainException("service demand and facts must share a tick");
@@ -95,16 +94,6 @@ public static partial class PolicyFunctions
         var beneficiaries = facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)
             ? EquatableArray.From(pawns.Select(p => p.Id.Value).Order(StringComparer.Ordinal)) : default;
         var inactive = facts.Colonists.TryGetValue(out var count) && count == 0;
-        ServiceTarget Target(ConcernId owner, string subject = "", string predicate = "owner_observed_recovery", Fact<double> horizon = default) =>
-            new(owner, subject, predicate, horizon);
-        void Owner(EssentialService service, ConcernId owner)
-        {
-            var assessment = owners.SingleOrDefault(a => a.Id == owner);
-            var coverage = inactive ? ServiceCoverage.NotApplicable : assessment?.Finding switch
-            { Finding.Met => ServiceCoverage.Adequate, Finding.Unmet => ServiceCoverage.Shortfall, _ => ServiceCoverage.Unknown };
-            rows.Add(new(service, Target(owner), coverage, beneficiaries,
-                coverage == ServiceCoverage.Unknown ? ["owner_evidence:" + owner.Value] : []));
-        }
         void NeedOwner(EssentialService service, Need need)
         {
             var target = ServiceTarget.ForNeed(need.Id);
@@ -137,7 +126,7 @@ public static partial class PolicyFunctions
         NeedOwner(EssentialService.Food, FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         NeedOwner(EssentialService.Food, RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         NeedOwner(EssentialService.Power, PowerNeedOf(PowerFacts.From(facts)));
-        Owner(EssentialService.Logistics, MaintainRoutes);
+        NeedOwner(EssentialService.Logistics, LayoutFamily.RoutesNeed(Known(LayoutFamily.RoutesStandingOf(facts.Upkeep.Routes, facts.Upkeep.Rooms, policy))));
         NeedOwner(EssentialService.Materials, ResourceNeedOf(ResourceFacts.From(facts, demand)));
 
         // The owner already merged overlapping costs. Never add a fuel or service copy to demand.
@@ -306,7 +295,7 @@ public static partial class PolicyFunctions
         if (!facts.Upkeep.Routes.TryGetValue(out var routes)) return;
         foreach (var facility in routes.Facilities.OrderBy(f => f.Id, StringComparer.Ordinal))
         {
-            var target = new ServiceTarget(MaintainRoutes, facility.Id, "observed_facility_reachable", default);
+            var target = ServiceTarget.ForNeed(LayoutFamily.Routes, facility.Id, "observed_facility_reachable");
             (ServiceCoverage, EquatableArray<string>) Assess(string excluded)
             {
                 var remaining = routes.Pawns.Where(p => p != excluded).ToArray();

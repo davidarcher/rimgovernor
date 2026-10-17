@@ -538,7 +538,7 @@ service state).
 
 ### Routes
 
-`MaintainRoutes` reasons only from observed reachability and travel, never flood-fill or
+The `layout/routes` Need (#3265) reasons only from observed reachability and travel, never flood-fill or
 straight-line distance. Native (`UpkeepFacts.routes`) reports every facility a colonist
 must reach (player beds, work benches at their interaction cell, storage buildings, dining
 surfaces, turrets, stockpile zones as `zone-<id>`) with one travel row per mobile colonist
@@ -556,12 +556,10 @@ and window start; the window restarts on load).
 - The decoder requires every travel row's reachability and every traffic cell's samples,
   terrain and home flag, else the census is unknown; the bridge refuses unlisted pawns,
   path numbers on unreachable rows, duplicate breach or traffic cells and out-of-map cells.
-- A facility is deficient when at least one mobile colonist is listed and none reaches it.
-  It latches by ID and releases only on a measured census reading it reachable with no door
-  still ordered on its border. A held facility with a skipped reachable pair keeps its latch
-  (without a deficit) until a census paths every reachable pair: a skipped pair cannot show
-  which ordered doors its path crosses. A skipped row on an unreachable pair, or with path
-  numbers, is refused. No hysteresis.
+- A facility is deficient when at least one mobile colonist is listed and none reaches it,
+  read fresh each run: no latch and no hysteresis (decision 16). An ordered door does not
+  hold the Need open; its open Method continues by itself until it settles. A skipped row
+  on an unreachable pair, or with path numbers, is refused.
 - Ranks as development. Serves storage and stockpiles first, then benches, dining, beds,
   defence, opening the room with a `Door` of `WoodLog` on one breach cell (nearest breaches
   previewed north then east; first legal one-cell footprint admitted). The planner treats

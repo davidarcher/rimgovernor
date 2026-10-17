@@ -11,11 +11,11 @@ replace the per-pawn mood Needs and independent relief behavior described below.
 Each tracked pawn's mood is the `people/mood/<pawn>` Need of the people family (#3304;
 the `EnsureMood` Response and its mood relief planner are deleted), a Wellbeing Need
 whose predicate is the review's mood state; an unread review is one Unknown
-`people/mood` Need. It is unmet from 0.10 above the pawn's observed
+`people/mood` Need. It is unmet within 0.15 above the pawn's observed
 minor-break threshold, or when the native current thought target is below that
-threshold and falling relative to current mood. Recovery requires 0.15 above the
-threshold and recovery of retained need deficits. Missing pawns, thresholds or need
-reads never certify recovery. Native thresholds incorporate individual traits and
+threshold and falling relative to current mood, and met above it: one bar with no
+separate entry and recovery margins (#3265, decision 26). Missing pawns, thresholds
+or need reads never certify recovery. Native thresholds incorporate individual traits and
 ideology; current thought pressure predicts neither a break probability nor its
 timing. The [pawn profile](work-assignment.md#pawn-profile) exports the trait flags
 (Pyromaniac, chemical interest, NightOwl) for relief and containment ordering.
@@ -26,16 +26,16 @@ replacement and tick rewind reset that history. Departed pawns with unresolved r
 remain unknown; departed recovered occurrences close.
 
 The brain ranks measured food, rest and recreation deficits by distance from a
-0.5 recovery target. Entry is below 0.3. Each correction uses one pawn and existing
+0.5 recovery target. A need below 0.3 is a cause; an unread level keeps its earlier cause. Each correction uses one pawn and existing
 native resources; future mood benefit and labor duration remain unknown. Food,
 shelter and temperature provisioning use the shared colony concerns.
 
 **Psychic drone.** A pawn whose observed thought rows carry the drone's own
 `PsychicDrone` thought (kept only while it pulls the mood down; the same def's
-soothe stage is dropped) enters early: the entry margin above the minor-break
-threshold is the drone's offset as a mood fraction, at most 0.15, and every need
-short of the 0.5 target is a cause while the thought lasts. Pawns without the thought
-keep the ordinary entry, whatever the condition census says.
+soothe stage is dropped) widens its causes: every need short of the 0.5 target is a
+cause while the thought lasts (its margin, the drone's offset as a mood fraction, is
+capped at the ordinary 0.15). Pawns without the thought keep the ordinary cause bar,
+whatever the condition census says.
 
 A mood Need commits nothing. Its step names what it waits on: the owner Need of a
 provisioned pawn (below) while that Need is at work, the unsupported preventative cast

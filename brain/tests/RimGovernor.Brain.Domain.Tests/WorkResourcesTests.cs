@@ -10,23 +10,32 @@ using Journal = RimGovernor.Brain.Store.Store;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// Facts that hold an ordinary Standard unmet for store-level owner tests: MaintainRoutes (a store one colonist cannot
-/// reach). A second owner beside it is a Need (EnsureDefensiveLayout, the other generic Standard, became the
-/// layout/defense Need in #3314).
+/// The generic owner of store-level owner tests (#3265): the admin/work-assignments Need, admitted by claims in the
+/// review's world. Its Method is needed while a progress row files it unmet (<see cref="File"/>).
 /// </summary>
-internal static class StandardTestFacts
+internal static class TestNeed
 {
-    internal static UpkeepObservation RouteOwed => new() { Routes = Known(new RoutesObservation { Pawns = ["a"],
-        Facilities = [new() { Id = "test-store", Kind = "storage", Travel = [new() { Pawn = "a", Reachable = false }] }] }) };
+    internal static NeedId Id => AdminFamily.WorkAssignments;
 
-    internal static UpkeepObservation RouteMet => new() { Routes = Known(new RoutesObservation()) };
+    /// <summary>Commits <paramref name="plan"/> as <paramref name="method"/> under the Need and requires admission.</summary>
+    internal static NeedOwner Commit(Journal journal, GenerationSnapshot world, MethodId method, PlanSpec plan, CancellationToken ct)
+    {
+        var commit = journal.CommitClaimedMethod(Id, world, method, "", plan, ct);
+        Assert.Equal(ClaimOutcome.Admitted, commit.Outcome);
+        return commit.Owner;
+    }
+
+    /// <summary>Files the Need's progress: unmet working <paramref name="method"/>, or met (no row).</summary>
+    internal static void File(Journal journal, bool met, MethodId method, CancellationToken ct) =>
+        journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(),
+            [new FamilyProgress(AdminFamily.FamilyId, true, met ? [] : [new NeedProgress(Id, false, default, method)])], ct);
 }
 
 internal static class WorkResourceTestFacts
 {
     internal static RoundsFacts Create(params string[] pawns) => new()
     {
-        Tick = new(100), Upkeep = StandardTestFacts.RouteOwed,
+        Tick = new(100),
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },
             Skills = new Dictionary<string, ProfileSkill> { ["Art"] = new() { Name = "Art", Level = 8 } } }]),
@@ -242,9 +251,8 @@ public sealed class WorkResourcesTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-shared-work-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
-        var foodOwner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
-        journal.CommitMethod(foodOwner.Standard.Id, foodOwner.Revision, new("method"), Plan("food", Delivery("food")), ct);
-        // The craft bill is the admin/work-ledger Need's: production bills bind to no Standard.
+        TestNeed.Commit(journal, World, new("method"), Plan("food", Delivery("food")), ct);
+        // The craft bill is the admin/work-ledger Need's.
         Assert.Throws<ProductionMaterialException>(() => journal.CommitClaimedMethod(AdminFamily.WorkLedger, World,
             new("craft"), "", Plan("craft", Craft("bill")), ct));
         Assert.Empty(journal.LoadNeed(AdminFamily.WorkLedger, World, ct).Methods);
@@ -259,16 +267,13 @@ public sealed class WorkResourcesTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-contested-proposal-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
-        var proposer = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
-        // The held work is a Need's, so the Standard's own open-work gate does not answer first.
         Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(FoodSupplyNeed, World, new("method"), "", Plan("held", Delivery("held")), ct).Outcome);
         var proposed = Delivery("proposed", "helper").PawnActivities!;
         proposed = proposed with { Orders = proposed.Orders.Select(o => o with { Method = "proposal" }).ToArray() };
-        var refusal = Assert.Throws<NotAdmittedException>(() => journal.CommitMethod(proposer.Standard.Id,
-            proposer.Revision, new("proposal"), Plan("proposed", DomainAction.NewPawnActivitiesAction(new("proposed"), proposed)), ct));
+        var refusal = Assert.Throws<NotAdmittedException>(() => journal.CommitClaimedMethod(TestNeed.Id, World,
+            new("proposal"), "", Plan("proposed", DomainAction.NewPawnActivitiesAction(new("proposed"), proposed)), ct));
         Assert.Contains("work_resource_conflict_or_unknown", refusal.Message);
-        Assert.Empty(journal.LoadOwnerMethods(proposer, ct));
-        Assert.Equal(proposer.Revision, journal.LoadStandard(proposer.Standard.Id, ct).Revision);
+        Assert.Empty(journal.LoadNeed(TestNeed.Id, World, ct).Methods);
         Assert.False(journal.LoadPlan(new("held"), ct).Retired);
         Assert.Equal(4, journal.WorkResources(World, ct).Materials.Value[new("Rice")].Value);
     }

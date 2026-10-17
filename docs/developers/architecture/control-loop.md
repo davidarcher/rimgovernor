@@ -353,6 +353,17 @@ only when the other Need is composed. The HomeCoverage and StoneShell latches an
 their codec fields, the inspections, facility detectors, labor rows,
 `UpkeepIssuedConcerns` rows, clock slots and the four planners are deleted.
 
+**Layout family, routes (#3265).** `layout/routes` (Development) replaced
+the last registry Concern, composed by the `routes` toggle. It
+reads the rooms census each run: unmet while a facility some mobile colonist is
+listed for is reachable by none, or while a traffic door is owed a hold-open
+change; met otherwise, and unknown while the routes census is unread. There is no
+latch (decision 16): a framed door makes the facility read reachable, and the
+open Method continues by itself until it settles. The work step is the old
+door-cut building step run under the Need owner and admitted by claims; the
+routes clock slot, its latch and codec field, the inspection and its labor row
+are deleted.
+
 **Layout family, defense (#3314).** `layout/defense` (Development) replaced
 EnsureDefensiveLayout, composed by the `defensive-layout` toggle. It is met while
 the stored layout (`family/defense_layout`) was verified complete in this load,

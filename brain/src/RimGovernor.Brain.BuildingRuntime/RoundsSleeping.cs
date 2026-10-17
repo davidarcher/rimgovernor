@@ -327,7 +327,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             definitions = r.FlooringDefinitions();
         }
-        if (r.Concern == MaintainRoutes)
+        if (r.Concern == LayoutFamily.Routes.FilingKey)
         {
             definitions = r.RoutesDefinitions();
         }
@@ -355,7 +355,7 @@ public sealed partial class RoundsBuildingPlanner
         Observation.ColonyReading reading;
         var roundsSource = r.Native is Observation.IRoundsSource;
         var separation = (r.ButcherFacility() || r.Concern == CookingNeed.FilingKey) && roundsSource;
-        if (r.Phase == Pol.Phase.ComfortSpot || r.Concern == ShelterFamily.Temperature.FilingKey || r.FacilityLadder() || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes || separation)
+        if (r.Phase == Pol.Phase.ComfortSpot || r.Concern == ShelterFamily.Temperature.FilingKey || r.FacilityLadder() || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey || separation)
         {
             // Cooking and butcher placements read rooms too when the source can serve them, so kitchen/butcher
             // separation protects each other's rooms; without a census nothing is protected.
@@ -384,7 +384,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             r = placing;
         }
-        if (r.Concern == MaintainRoutes || r.Concern == ShelterFamily.Temperature.FilingKey)
+        if (r.Concern == LayoutFamily.Routes.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey)
         {
             var (doorResult, handled) = r.ControlRoomDoor(state, goal, facts, call, epoch);
             if (handled)
@@ -415,7 +415,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             r = resolvedPaste;
         }
-        if (r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes)
+        if (r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
         {
             RoundsBuildingPlanner? resolved;
             Verdict reason;
@@ -435,9 +435,9 @@ public sealed partial class RoundsBuildingPlanner
             {
                 (resolved, reason) = await r.SelectFlooringAsync(state.Snapshot, facts, call).ConfigureAwait(false);
             }
-            else if (r.Concern == MaintainRoutes)
+            else if (r.Concern == LayoutFamily.Routes.FilingKey)
             {
-                (resolved, reason) = r.SelectRoutes(facts, review.Latches);
+                (resolved, reason) = r.SelectRoutes(facts);
             }
             else if (r.WorkshopLadder())
             {
@@ -666,7 +666,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
             }
         }
-        if (r.Definition == "TableButcher" || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes)
+        if (r.Definition == "TableButcher" || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
         {
             gate = ComfortBuilderGate(facts, r.Definition);
             if (r.Power is { Method: Pol.PowerMethod.Generate } generator)
@@ -731,7 +731,7 @@ public sealed partial class RoundsBuildingPlanner
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var heldReservations = p.Journal.BuildingReservations(snapshot, call);
-        if (r.ButcherFacility() || r.Concern == CookingNeed.FilingKey || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.HousingExpansion || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes)
+        if (r.ButcherFacility() || r.Concern == CookingNeed.FilingKey || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.HousingExpansion || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
         {
             var pendingPlanner = r;
             bool Pending(Progress progress)

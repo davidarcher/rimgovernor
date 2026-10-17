@@ -9,8 +9,8 @@ using Journal = RimGovernor.Brain.Store.Store;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// Claim-overlap Method admission (#3249): an owner committing through <see cref="Journal.CommitClaimedMethod"/>
-/// skips the open-work gate and is refused only when its claims overlap an open Method's, any owner.
+/// Claim-overlap Method admission (#3249): every Need owner commits through <see cref="Journal.CommitClaimedMethod"/>
+/// and is refused only when its claims overlap an open Method's, any owner (#3265: there is no open-work gate).
 /// </summary>
 public sealed class ClaimAdmissionTests
 {
@@ -21,8 +21,6 @@ public sealed class ClaimAdmissionTests
         public required Journal Journal { get; init; }
         public required RoundsResult Review { get; init; }
         public void Dispose() => Journal.Dispose();
-        public StandardState Owner(ConcernId kind) =>
-            Journal.LoadStandard(Assert.Single(Review.Standards, s => s.Standard.Kind == kind).Standard.Id, TestContext.Current.CancellationToken);
         /// <summary>Commits under the food/supply Need, admitted by claims in the review's world.</summary>
         public NeedCommit Food(string method, params DomainAction[] actions) =>
             Journal.CommitClaimedMethod(FoodSupplyNeed, World, new(method), "",
@@ -31,12 +29,10 @@ public sealed class ClaimAdmissionTests
         public NeedCommit Shelter(string method, params DomainAction[] actions) =>
             Journal.CommitClaimedMethod(ShelterFamily.Starter, World, new(method), "",
                 new PlanSpec(new(method + "-plan-" + Guid.NewGuid().ToString("N")[..8]), new(1), EquatableArray.From(actions)), TestContext.Current.CancellationToken);
-        public ClaimCommit Commit(ConcernId kind, string method, params DomainAction[] actions)
-        {
-            var owner = Owner(kind);
-            return Journal.CommitClaimedMethod(owner.Standard.Id, owner.Revision, new(method), "",
+        /// <summary>Commits under the generic test Need (admin/work-assignments).</summary>
+        public NeedCommit Work(string method, params DomainAction[] actions) =>
+            Journal.CommitClaimedMethod(TestNeed.Id, World, new(method), "",
                 new PlanSpec(new(method + "-plan-" + Guid.NewGuid().ToString("N")[..8]), new(1), EquatableArray.From(actions)), TestContext.Current.CancellationToken);
-        }
     }
 
     private static Colony Open()
@@ -105,9 +101,9 @@ public sealed class ClaimAdmissionTests
     public void GearDressedTwiceForOnePawnIsRefused()
     {
         using var colony = Open();
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainRoutes, "dress-a", Dress("d1", "a")).Outcome);
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainRoutes, "dress-b", Dress("d2", "b")).Outcome);
-        var refused = colony.Commit(MaintainRoutes, "dress-a-again", Dress("d3", "a"));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Work("dress-a", Dress("d1", "a")).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Work("dress-b", Dress("d2", "b")).Outcome);
+        var refused = colony.Work("dress-a-again", Dress("d3", "a"));
         Assert.Equal(ClaimOutcome.Conflict, refused.Outcome);
         Assert.Equal("gear/a", refused.Conflict!.Claim);
     }
@@ -170,57 +166,32 @@ public sealed class ClaimAdmissionTests
     }
 
     [Fact]
-    public void ReleasedMethodIdIsAdmittedAgainWhenTheOwnerReopens()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        using var colony = Open();
-        var first = colony.Commit(MaintainRoutes, "deliver", Delivery("d1", "a", "deliver"));
-        Assert.Equal(ClaimOutcome.Admitted, first.Outcome);
-        colony.Journal.Cancel(Assert.Single(first.State.Methods).Plan, new("d1"), ct);
-        // The deficit clears, then returns: the Standard opens a new episode.
-        var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        var met = colony.Journal.ReviewRounds(new() { Revision = colony.Review.Review.Revision, Current = World, Tick = new(110), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = facts with { Tick = new(110), Upkeep = StandardTestFacts.RouteMet } }, ct);
-        colony.Journal.ReviewRounds(new() { Revision = met.Review.Revision, Current = World, Tick = new(120), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = facts with { Tick = new(120) } }, ct);
-        var owner = colony.Owner(MaintainRoutes);
-        Assert.Equal(first.State.Standard.Episode + 1, owner.Standard.Episode);
-        var reopened = colony.Commit(MaintainRoutes, "deliver", Delivery("d2", "a", "deliver"));
-        Assert.Equal(ClaimOutcome.Admitted, reopened.Outcome);
-        Assert.Equal(owner.Standard.Episode, Assert.Single(reopened.State.Methods).Episode);
-    }
-
-    [Fact]
     public void SameMethodIdContinuesTheOpenMethodWithoutANewRow()
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        var first = colony.Commit(MaintainRoutes, "deliver", Delivery("d1", "a", "deliver"));
+        var first = colony.Work("deliver", Delivery("d1", "a", "deliver"));
         Assert.Equal(ClaimOutcome.Admitted, first.Outcome);
-        var again = colony.Commit(MaintainRoutes, "deliver", Delivery("d2", "b", "deliver"));
+        var again = colony.Work("deliver", Delivery("d2", "b", "deliver"));
         Assert.Equal(ClaimOutcome.Continued, again.Outcome);
         Assert.Null(again.Conflict);
-        Assert.Equal(first.State.Revision, again.State.Revision);
-        Assert.Single(colony.Journal.LoadOwnerMethods(colony.Owner(MaintainRoutes), ct));
+        Assert.Single(colony.Journal.LoadNeed(TestNeed.Id, World, ct).Methods);
     }
 
     [Fact]
-    public void OverlapIsCheckedAcrossOwnersAndTheGateStillHoldsNonOptedOwners()
+    public void OverlapIsCheckedAcrossOwnersAndAnOwnerHoldsDisjointMethodsTogether()
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainRoutes, "ledger", Delivery("l1", "a", "ledger")).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Work("ledger", Delivery("l1", "a", "ledger")).Outcome);
         var other = colony.Food("art", Delivery("a1", "a", "art"));
         Assert.Equal(ClaimOutcome.Conflict, other.Outcome);
         Assert.Equal("pawn/a", other.Conflict!.Claim);
         Assert.Equal("ledger", other.Conflict.Method.Value);
         Assert.Empty(colony.Journal.LoadNeed(FoodSupplyNeed, World, ct).Methods);
-        // Opted in, a disjoint second Method beside the owner's own open one is admitted ...
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainRoutes, "ledger-2", Delivery("l2", "b", "ledger-2")).Outcome);
-        // ... while the ordinary commit keeps the one-open-Method gate.
-        var owner = colony.Owner(MaintainRoutes);
-        Assert.Throws<OpenMethodException>(() => colony.Journal.CommitMethod(owner.Standard.Id, owner.Revision, new("ledger-3"),
-            new PlanSpec(new("ledger-3-plan"), new(1), [Delivery("l3", "c", "ledger-3")]), ct));
+        // A disjoint second Method beside the owner's own open one is admitted.
+        Assert.Equal(ClaimOutcome.Admitted, colony.Work("ledger-2", Delivery("l2", "b", "ledger-2")).Outcome);
+        Assert.Equal(2, colony.Journal.LoadNeed(TestNeed.Id, World, ct).Methods.Count);
     }
 
     [Fact]

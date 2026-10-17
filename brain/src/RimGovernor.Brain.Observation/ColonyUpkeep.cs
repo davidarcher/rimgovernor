@@ -177,7 +177,7 @@ public static partial class ObservationPackage
 
     /// <summary>
     /// Decodes the routes section; a travel row missing its reachability leaves the whole census unknown so
-    /// MaintainRoutes keeps its previous latch instead of declaring a facility reachable by omission.
+    /// the layout/routes Need reads unknown instead of declaring a facility reachable by omission.
     /// </summary>
     private static Fact<RoutesObservation> ColonyRoutes(O.RoutesSection? section)
     {

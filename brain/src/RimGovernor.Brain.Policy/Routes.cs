@@ -3,11 +3,11 @@ using System.Text;
 
 namespace RimGovernor.Brain.Policy;
 
-// MaintainRoutes keeps every colony facility reachable by the colonists who use it. It reasons only from
+// The layout/routes Need keeps every colony facility reachable by the colonists who use it. It reasons only from
 // observed travel: the native census answers, for each bed, work bench, storage, dining surface and defence
 // emplacement, whether each mobile colonist can reach it from where that colonist stands right now (the
 // game's own pathing with the doors that colonist may open) and what the game's chosen path costs. A facility
-// no colonist reaches is a deficit, latched by facility until a measured census reads it reachable. The
+// no colonist reaches is a deficit while the census reads it unreachable. The
 // method opens the enclosing wall with a door on one of the breach cells native lists for it: a player wall
 // on the facility room's border whose outer neighbour some colonist can stand on. Nothing here flood-fills or
 // measures straight lines.
@@ -214,10 +214,9 @@ public sealed record RouteDeficit
 }
 
 /// <summary>
-/// The per-facility latch: Deficits lists every unreachable facility by kind precedence (storage and
-/// stockpiles first, then benches, dining, beds, defence) and then id; Latched is the id set persisted
-/// between reviews. Known is false when the census was unknown, in which case Latched repeats the previous
-/// latch and Deficits is empty.
+/// One review of the routes census: Deficits lists every unreachable facility by kind precedence (storage and
+/// stockpiles first, then benches, dining, beds, defence) and then id. Known is false when the census was
+/// unknown, in which case Deficits is empty.
 /// </summary>
 public sealed record RoutesReview
 {
@@ -226,8 +225,6 @@ public sealed record RoutesReview
     public bool Known { get; init; }
 
     public EquatableArray<RouteDeficit> Deficits { get; init; }
-
-    public EquatableArray<string> Latched { get; init; }
 }
 
 public enum RoutesMethod
@@ -280,8 +277,6 @@ public sealed record RoutesFacts
 
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId MaintainRoutes = new("MaintainRoutes");
-
     public static RoutesPolicy DefaultRoutesPolicy() => new() { Door = "Door", Stuff = "WoodLog", MaxBreaches = 4 };
 
     private static int RouteKindOrder(string kind) => kind switch
@@ -297,12 +292,11 @@ public static partial class PolicyFunctions
     /// <summary>
     /// Measures every facility against the colonists' observed reachability. A facility is deficient when the
     /// census lists at least one mobile colonist and none of them reaches it; a colony with no mobile colonist
-    /// cannot declare anything unreachable. There is no hysteresis: reachability is the game's own answer and
-    /// does not flap. A latched facility whose border still carries an ordered door stays deficient until the
-    /// door lands: a door frame is walkable, so the census reads the room reachable before the door stands,
-    /// and releasing then would strand the open plan on a half-built wall (as flooring holds on an ordered cell).
+    /// cannot declare anything unreachable. There is no hysteresis (#3231 decision 16): reachability is the
+    /// game's own answer, read fresh every review. A door frame is walkable, so a facility reads reachable once its
+    /// ordered door is framed; the open door Method then continues on its own and nothing holds the facility.
     /// </summary>
-    public static RoutesReview ReviewRoutes(Fact<RoutesObservation> fact, IReadOnlyList<string> previous, RoutesPolicy p)
+    public static RoutesReview ReviewRoutes(Fact<RoutesObservation> fact, RoutesPolicy p)
     {
         if (!p.Valid())
         {
@@ -310,43 +304,20 @@ public static partial class PolicyFunctions
         }
         if (!fact.TryGetValue(out var v))
         {
-            var held0 = previous.Order(StringComparer.Ordinal).ToList();
-            return new RoutesReview { Active = held0.Count > 0, Latched = EquatableArray.From(held0) };
+            return new RoutesReview();
         }
         v.Validate();
         if (v.Pawns.Count == 0)
         {
             return new RoutesReview { Known = true };
         }
-        var held = new HashSet<string>(previous, StringComparer.Ordinal);
         var deficits = new List<RouteDeficit>();
-        var latched = new List<string>();
         foreach (var f in v.Facilities)
         {
-            bool reached = false, ordered = false, unpathed = false;
-            foreach (var t in f.Travel)
+            if (f.Travel.Any(t => t.Reachable))
             {
-                if (t.Reachable)
-                {
-                    reached = true;
-                    unpathed = unpathed || t.Skipped;
-                }
-            }
-            foreach (var b in f.Breaches)
-            {
-                ordered = ordered || b.Pending != "";
-            }
-            if (reached && !(held.Contains(f.Id) && ordered))
-            {
-                // A skipped pair never showed which ordered doors its path crosses, so it cannot release a
-                // latch: the facility stays held, without a deficit, until a census paths every reachable pair.
-                if (held.Contains(f.Id) && unpathed)
-                {
-                    latched.Add(f.Id);
-                }
                 continue;
             }
-            // A facility already reachable waits for its ordered door only; no second breach is proposed.
             var pending = 0;
             var breaches = new List<RouteBreach>();
             foreach (var b in f.Breaches)
@@ -356,10 +327,7 @@ public static partial class PolicyFunctions
                     pending++;
                     continue;
                 }
-                if (!reached)
-                {
-                    breaches.Add(b);
-                }
+                breaches.Add(b);
             }
             deficits.Add(new RouteDeficit
             {
@@ -367,7 +335,6 @@ public static partial class PolicyFunctions
                 Pending = pending,
                 Breaches = EquatableArray.From(breaches.OrderBy(b => b.Distance)),
             });
-            latched.Add(f.Id);
         }
         var sorted = deficits
             .OrderBy(d => RouteKindOrder(d.Facility.Kind))
@@ -377,7 +344,6 @@ public static partial class PolicyFunctions
         {
             Known = true,
             Deficits = EquatableArray.From(sorted),
-            Latched = EquatableArray.From(latched.Order(StringComparer.Ordinal)),
             Active = sorted.Count > 0,
         };
     }

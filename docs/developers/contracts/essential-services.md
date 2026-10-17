@@ -19,7 +19,7 @@ operation is created by assessment.
 | Usable shelter and temperature | the `shelter/starter`, `shelter/sleeping`, `shelter/expansion`, `shelter/safe-area` and `shelter/temperature` Needs and their predicates |
 | Power | the `power/basic` Need and the power owner's same-network coverage calculation |
 | Material and fuel dependencies | economy/resource's single merged demand; FuelRunway's native consumption gates, stocks and maintenance horizon |
-| Logistics | MaintainRoutes and native per-facility reachability |
+| Logistics | the `layout/routes` Need and native per-facility reachability |
 
 Baseline coverage and stress coverage are separate. Known baseline adequacy or
 shortfall survives missing counterfactual evidence. A family with absent evidence

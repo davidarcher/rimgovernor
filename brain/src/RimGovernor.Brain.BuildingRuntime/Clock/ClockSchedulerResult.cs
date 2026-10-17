@@ -17,20 +17,7 @@ public sealed class ClockSchedulerResult
 
     public RoundsResult? Rounds { get; set; }
 
-
-
-
-
-
-
-    public RoundsBuildingResult? Routes { get; set; }
-
     public RoundsDefenseResult? Defense { get; set; }
-
-
-
-
-
 
     /// <summary>Whether the step deferred its run to the Worker's turn.</summary>
     public bool Deferred { get; set; }
@@ -62,7 +49,6 @@ public sealed class ClockSchedulerResult
     /// <summary>Copies every planner result <paramref name="other"/> holds into this one, leaving the ones it does not.</summary>
     internal void MergeFrom(ClockSchedulerResult other)
     {
-        Routes = other.Routes ?? Routes;
         Defense = other.Defense ?? Defense;
         foreach (var (family, run) in other.Families)
         {

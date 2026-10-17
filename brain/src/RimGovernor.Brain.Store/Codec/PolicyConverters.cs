@@ -2249,7 +2249,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
         new()
         {
             MedicalReserve = e.Bool("MedicalReserve"),
-            Routes = e.Get<EquatableArray<string>>("Routes", o),
             Dash = e.Get<DashWindow>("Dash", o),
             Housing = e.Get<Phase>("Housing", o),
         };
@@ -2257,7 +2256,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
     protected override void WriteFields(Utf8JsonWriter w, RoundsLatches v, Codecs o)
     {
         w.WriteBoolean("MedicalReserve", v.MedicalReserve);
-        w.Put("Routes", v.Routes, o);
         w.Put("Dash", v.Dash, o);
         w.Put("Housing", v.Housing, o);
     }

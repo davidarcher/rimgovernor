@@ -72,11 +72,10 @@ public sealed class CoupledActivityIntegrationTests
             ForecastObserved = facts.ForecastObserved with { WorkPawns = roster.ForecastObserved.WorkPawns } };
         BridgeFunctions.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-independent-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var review = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
+        journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
         var firstPlan = new PlanSpec(new("first"), new(1), [DomainAction.NewPawnActivitiesAction(new("first-action"), first)]);
-        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("coupled-observed"), firstPlan, ct);
+        TestNeed.Commit(journal, Root, new("coupled-observed"), firstPlan, ct);
         Send(journal, firstPlan, 100, ct);
         var observed = facts.ForecastObserved.Coupled!;
         var other = observed.Food.Options[0] with { Pawn = "helper", Target = "independent-crop", Origin = new(3, 1), Destination = new(4, 1) };
@@ -97,9 +96,8 @@ public sealed class CoupledActivityIntegrationTests
         Assert.NotNull(next);
         Assert.All(next.Orders, order => Assert.Equal("helper", order.Pawn));
         Assert.DoesNotContain(next.Tasks, task => task.Step.Target == "plant-a" || task.Step.Destination == new Cell(2, 1));
-        var current = journal.LoadStandard(owner.Standard.Id, ct);
         var secondPlan = new PlanSpec(new("second"), new(1), [DomainAction.NewPawnActivitiesAction(new("second-action"), next)]);
-        journal.CommitMethod(current.Standard.Id, current.Revision, new("coupled-independent"), secondPlan, ct);
+        TestNeed.Commit(journal, Root, new("coupled-independent"), secondPlan, ct);
         Send(journal, secondPlan, 100, ct);
         Assert.False(journal.LoadPlan(firstPlan.Id, ct).Retired);
         Assert.Equal(2, journal.ActivityMethods(Root, ct).Count);
@@ -145,9 +143,9 @@ public sealed class CoupledActivityIntegrationTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-coupled-integration-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var reviewed = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
-        var owner = Assert.Single(reviewed.Standards, s => s.Standard.Kind == MaintainRoutes);
         var plan = new PlanSpec(new("selected"), new(1), [DomainAction.NewPawnActivitiesAction(new("selected-action"), batch)]);
-        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("coupled-observed"), plan, ct);
+        TestNeed.Commit(journal, Root, new("coupled-observed"), plan, ct);
+        TestNeed.File(journal, met: false, new("coupled-observed"), ct);
         Assert.Equal(batch.Tasks.ToArray(), Send(journal, plan, 100, ct).Tasks.ToArray());
         // Acceptance is not completion. Without observed progress the selected graph is unchanged.
         Assert.Null(ContinueCoordinatedActivity(batch, Known(true), Observe(batch, "started", 101)));

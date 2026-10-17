@@ -24,7 +24,6 @@ public sealed class ActivityGenerationClaimsTests
             Colonists = Known(1L), IndoorCapacity = Known(0L), BedCapacity = Known(0L) };
         var review = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,
             [new("pawn", "assignment", "method", 0, 1, false,
                 [new(PawnActivityKind.Deliver, "rice-stack", "", "", 6, 500) { Destination = new(2, 2) }])
@@ -32,7 +31,7 @@ public sealed class ActivityGenerationClaimsTests
         var building = DomainAction.NewBuildingAction(new("wall"),
             new("TestWall", new(3, 3), Rotation.North, "Rice"), ConstructionTier.Survive);
         var plan = new PlanSpec(new("plan"), new(1), [activity]);
-        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("method"), plan, ct);
+        TestNeed.Commit(journal, world, new("method"), plan, ct);
         var construction = new PlanSpec(new("construction"), new(1), [building]);
         Assert.Equal(RimGovernor.Brain.Store.ClaimOutcome.Admitted, journal.CommitClaimedMethod(ShelterFamily.Starter, world, new("shelter-method"), "", construction, ct).Outcome);
         if (accepted)
@@ -92,24 +91,23 @@ public sealed class ActivityGenerationClaimsTests
         var facts = WorkResourceTestFacts.Create("pawn") with
         { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 20)]),
             Colonists = Known(1L), IndoorCapacity = Known(0L), BedCapacity = Known(0L) };
-        var review = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
+        journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,
             [new("pawn", "assignment", "method", 0, 1, false,
                 [new(PawnActivityKind.Deliver, "rice-stack", "", "", 6, 500) { Destination = new(2, 2) }])
                 { OutputDelivery = new("Rice", new(1, 1), new(2, 2), 6, 500, 3) }]));
         var building = DomainAction.NewBuildingAction(new("wall"),
             new("TestWall", new(3, 3), Rotation.North, "Rice"), ConstructionTier.Survive);
-        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("method"), new PlanSpec(new("plan"), new(1), [activity]), ct);
+        TestNeed.Commit(journal, world, new("method"), new PlanSpec(new("plan"), new(1), [activity]), ct);
         Assert.Equal(RimGovernor.Brain.Store.ClaimOutcome.Admitted, journal.CommitClaimedMethod(ShelterFamily.Starter, world, new("shelter-method"), "",
             new PlanSpec(new("construction"), new(1), [building]), ct).Outcome);
         return (journal, world, path);
     }
 
     /// <summary>
-    /// Clones the live plan holding an action of <paramref name="kind"/> as retired history under the same owner, a
-    /// Standard's or a Need's (the construction is the shelter starter Need's, #3257).
+    /// Clones the live plan holding an action of <paramref name="kind"/> as retired history under the same Need owner
+    /// (the activity is the test Need's, the construction the shelter starter Need's, #3257).
     /// </summary>
     private static void SeedRetiredClones(string path, int count, string kind)
     {
@@ -121,10 +119,6 @@ public sealed class ActivityGenerationClaimsTests
             INSERT INTO plans(id,revision,method_id,superseded_by,retired) SELECT 'old-'||i,'1','old-'||i,NULL,1 FROM n;
             INSERT INTO plan_owner(plan_id,kind) SELECT id,(SELECT o.kind FROM actions a JOIN plan_owner o ON o.plan_id=a.plan_id
                 WHERE a.kind=$kind AND a.plan_id NOT LIKE 'old-%' LIMIT 1) FROM plans WHERE id LIKE 'old-%';
-            INSERT INTO standard_methods(standard_id,episode,method_id,plan_id,kind,reason)
-                SELECT s.standard_id,s.episode,p.id,p.id,'standard',NULL FROM plans p,
-                (SELECT m.standard_id,m.episode FROM actions a JOIN standard_methods m ON m.plan_id=a.plan_id WHERE a.kind=$kind LIMIT 1) s
-                WHERE p.id LIKE 'old-%';
             INSERT INTO need_methods(colony,load_token,map_id,need_id,method_id,attempt,plan_id,kind,reason)
                 SELECT s.colony,s.load_token,s.map_id,s.need_id,p.id,1,p.id,'need',NULL FROM plans p,
                 (SELECT m.colony,m.load_token,m.map_id,m.need_id FROM actions a JOIN need_methods m ON m.plan_id=a.plan_id WHERE a.kind=$kind LIMIT 1) s

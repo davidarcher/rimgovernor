@@ -26,7 +26,7 @@ public sealed record UpkeepObservation
     /// <summary>The measured room terrain census the rooms/flooring Need reviews; unknown when native could not read it.</summary>
     public Fact<FlooringObservation> Flooring { get; init; }
 
-    /// <summary>The measured facility reachability and traffic census MaintainRoutes reviews.</summary>
+    /// <summary>The measured facility reachability and traffic census the layout/routes Need reviews.</summary>
     public Fact<RoutesObservation> Routes { get; init; }
 }
 

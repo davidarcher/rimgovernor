@@ -35,7 +35,13 @@ public sealed record LayoutFacts
 
     /// <summary>The stored defensive layout and the map's fights (<c>family/defense_layout</c>, the military/combat Need's journal).</summary>
     public Fact<DefenseLayoutFacts>? Defense { get; init; }
+
+    /// <summary>The routes census reviewed this read (ReviewRoutes) and whether a traffic door is owed a hold-open change.</summary>
+    public Fact<RoutesStanding>? Routes { get; init; }
 }
+
+/// <summary>What the routes Need reads: the reviewed routes census and whether a traffic door (not a heat door) is owed a change.</summary>
+public sealed record RoutesStanding(RoutesReview Review, bool DoorOwed);
 
 /// <summary>
 /// What the defensive layout Need reads (#3314): the colony's stored layout for this map and load, and the combat
@@ -70,7 +76,9 @@ public sealed record LayoutNeeds
     /// <summary>The operator's defensive layout opt-in.</summary>
     public bool Defense { get; init; }
 
-    public bool Any => HomeCoverage || Firebreak || StoneShell || ClimateEnvelope || Defense;
+    public bool Routes { get; init; }
+
+    public bool Any => HomeCoverage || Firebreak || StoneShell || ClimateEnvelope || Defense || Routes;
 }
 
 /// <summary>
@@ -95,6 +103,9 @@ public sealed record LayoutNeeds
 /// and no open fight waits in rooms to harden. The runtime step proposes, builds and re-verifies the stored layout tier by
 /// tier, and hardens the waiting rooms during a fight; its attempts are counted per tier in the
 /// <c>family/defense_layout</c> record.</item>
+/// <item><c>layout/routes</c> (Development, #3265; it replaced the last registry Concern): every facility the native routes census
+/// lists is reachable by some mobile colonist, and no traffic door is owed a hold-open change. The runtime step cuts a
+/// door into the wall enclosing an unreachable facility, or sets the owed door, under the Need owner.</item>
 /// </list>
 /// A latch no longer holds a Need after its census recovers: each is a plain predicate over this review, and an
 /// unread census leaves it unknown.
@@ -113,6 +124,8 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
 
     public static readonly NeedId Defense = NeedId.Of(FamilyId, "defense");
 
+    public static readonly NeedId Routes = NeedId.Of(FamilyId, "routes");
+
     public string Id => FamilyId;
 
     public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Colony, FactFamily.World, FactFamily.Rooms, FactFamily.Research];
@@ -121,7 +134,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
 
     public IReadOnlyList<Need> Derive(LayoutFacts facts)
     {
-        var needs = new List<Need>(5);
+        var needs = new List<Need>(6);
         if (composed.HomeCoverage)
         {
             needs.Add(HomeCoverageNeed(facts.HomeCoverage ?? Fact.Unknown<HomeAreaPlan>()));
@@ -147,6 +160,10 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
         if (composed.Defense)
         {
             needs.Add(DefenseNeed(facts.Defense ?? Fact.Unknown<DefenseLayoutFacts>()));
+        }
+        if (composed.Routes)
+        {
+            needs.Add(RoutesNeed(facts.Routes ?? Fact.Unknown<RoutesStanding>()));
         }
         return needs;
     }
@@ -281,6 +298,31 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Evidence = [new("standing", Flag(f.Standing)), new("verified", Flag(f.Verified)), new("waiting_fight", Flag(f.WaitingFight))],
         };
     }
+
+    /// <summary>
+    /// Unmet while the routes census reads a facility no mobile colonist reaches or a traffic door is owed a change;
+    /// unknown while the census is unread. A plain threshold: a facility whose ordered door is framed reads reachable.
+    /// </summary>
+    public static Need RoutesNeed(Fact<RoutesStanding> standing)
+    {
+        if (!standing.TryGetValue(out var s) || !s.Review.Known)
+        {
+            return new Need { Id = Routes, Tier = NeedTier.Development, Evidence = [new("routes_census", default)] };
+        }
+        var unreachable = s.Review.Deficits.Count;
+        return new Need
+        {
+            Id = Routes,
+            Tier = NeedTier.Development,
+            Satisfaction = s.Review.Active || s.DoorOwed ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Fact.Known((double)unreachable + (s.DoorOwed ? 1 : 0)),
+            Evidence = [new("unreachable_facilities", Count(unreachable)), new("door_owed", Flag(s.DoorOwed))],
+        };
+    }
+
+    /// <summary>The routes standing of one read: the census reviewed fresh, and the traffic door changes (not heat) owed.</summary>
+    public static RoutesStanding RoutesStandingOf(Fact<RoutesObservation> routes, Fact<RoomObservation> rooms, RoundsPolicy p) =>
+        new(PolicyFunctions.ReviewRoutes(routes, p.Routes), PolicyFunctions.DoorChanges(rooms, routes, p).Any(d => !d.Heat));
 
     private static Fact<string> Flag(bool b) => Fact.Known(b ? "true" : "false");
 

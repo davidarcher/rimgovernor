@@ -1214,11 +1214,11 @@ stored component count above the pre-service baseline.
 
 ### Door ownership and passage
 
-`MaintainRoutes` holds observed internal workshop, warehouse and circulation
+The `layout/routes` Need holds observed internal workshop, warehouse and circulation
 links open when colonist traffic uses them. Known room roles, temperatures,
 ownership, fire and perishable-content facts are required. Custody, containment,
 thermal-control boundaries and exposed perimeter links are excluded. Changed
-conditions clear the latch. The `shelter/temperature` Need may open a safe internal
+conditions clear the hold. The `shelter/temperature` Need may open a safe internal
 link from an occupied hot room toward a cooler room, using the existing hot
 entry/recovery band. An available occupant receives a plan-owned draft and
 ordinary move across the door; without one, existing cooling methods remain.

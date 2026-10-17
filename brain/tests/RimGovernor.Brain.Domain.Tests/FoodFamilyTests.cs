@@ -61,7 +61,7 @@ public sealed class FoodFamilyTests
         };
         foreach (var f in new[] { facts, met, met with { FoodDays = Known(0.0) }, met with { ButcherBenches = Known<EquatableArray<ButcherBench>>([]) } })
         {
-            var row = Assert.Single(ReviewEssentialServices(f, policy, new() { Work = new() { Tick = f.Tick } }, []).Coverage,
+            var row = Assert.Single(ReviewEssentialServices(f, policy, new() { Work = new() { Tick = f.Tick } }).Coverage,
                 c => c.Service == EssentialService.Food && c.Target == ServiceTarget.ForNeed(FoodSupplyNeed));
             var expected = FoodSupplyNeedOf(FoodFacts.From(f, policy)).Satisfaction switch
             {
@@ -110,7 +110,7 @@ public sealed class FoodFamilyTests
     {
         var facts = new RoundsFacts { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]) };
         ServiceCoverage Coverage(RoundsFacts f) => Assert.Single(
-            ReviewEssentialServices(f, DefaultRoundsPolicy(), new() { Work = new() { Tick = f.Tick } }, []).Coverage,
+            ReviewEssentialServices(f, DefaultRoundsPolicy(), new() { Work = new() { Tick = f.Tick } }).Coverage,
             c => c.Service == EssentialService.Cooking && c.Target == ServiceTarget.ForNeed(CookingNeed)).Coverage;
         Assert.Equal(ServiceCoverage.Adequate, Coverage(facts with { Cooking = Known(true), CampfireRetireOwed = Known(false) }));
         Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts with { Cooking = Known(false) }));

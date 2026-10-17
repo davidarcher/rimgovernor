@@ -222,12 +222,12 @@ public sealed class MedicalFamilyTests
     public void TheForecastMedicalRowsAreTheFamilysNeeds()
     {
         var facts = new RoundsFacts { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]), CriticalPatients = Known(1L) };
-        var review = ReviewEssentialServices(facts, DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } }, []);
+        var review = ReviewEssentialServices(facts, DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
         var medical = review.Coverage.Where(c => c.Service == EssentialService.Medical).ToArray();
         Assert.Contains(medical, c => c.Target.Owner == CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Shortfall);
         Assert.Contains(medical, c => c.Target.Owner == SurgeryNeed.FilingKey);
         Assert.Contains(medical, c => c.Target.Owner == MedicalReservesNeed.FilingKey);
-        var calm = ReviewEssentialServices(facts with { CriticalPatients = Known(0L) }, DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } }, []);
+        var calm = ReviewEssentialServices(facts with { CriticalPatients = Known(0L) }, DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
         Assert.Contains(calm.Coverage, c => c.Target.Owner == CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Adequate);
     }
 

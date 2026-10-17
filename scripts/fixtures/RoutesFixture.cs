@@ -8,7 +8,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Builds the sealed stockpile
-    // routeaccept needs to exercise MaintainRoutes : a
+    // routeaccept needs to exercise the layout/routes Need: a
     // roofed 3x3 room walled on every side with no door, holding a stockpile
     // zone, with wood outside for a door. The native reachability census must
     // read the stockpile unreachable by every colonist (the game's own

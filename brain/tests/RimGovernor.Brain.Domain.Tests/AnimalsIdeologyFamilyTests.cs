@@ -261,14 +261,12 @@ public sealed class AnimalsIdeologyFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-legacy-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var review = source.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
-        var ledger = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
+        source.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
-        var key = Journal.GovernorStandardKeyPrefix + ledger.Standard.Id.Value;
+        var key = Journal.GovernorStandardKeyPrefix + "std-reform";
 
-        // Rewrite one standard blob as the ImproveIdeoligion row an older save holds, its Record the Go-named intent.
-        var blob = JsonNode.Parse(saved[key])!;
-        blob["standard"]!["Kind"] = "ImproveIdeoligion";
+        // The ImproveIdeoligion row an older save holds, its Record the Go-named intent.
+        var blob = LegacyStandardBlob.Of("std-reform", "ImproveIdeoligion", World);
         blob["standard"]!["Record"] = new JsonObject
         {
             ["Ideo"] = "ideo-1",

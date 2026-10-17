@@ -18,13 +18,14 @@ public sealed class ActivityContinuationTests
     private static GenerationSnapshot Root => new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
     private static PlanSpec Plan(string id, PawnActivities batch) => new(new(id), new(1),
         [DomainAction.NewPawnActivitiesAction(new(id + "-action"), batch)]);
-    private static StandardState Admit(Journal journal, PlanSpec plan, CancellationToken ct, Receipt receipt = Receipt.Accepted)
+    /// <summary>Admits <paramref name="plan"/> under the test Need, filed unmet so a productive step continues (#3265).</summary>
+    private static NeedOwner Admit(Journal journal, PlanSpec plan, CancellationToken ct, Receipt receipt = Receipt.Accepted)
     {
         BridgeFunctions.RegisterIntentKinds();
-        var review = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
+        _ = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
-        owner = journal.CommitMethod(owner.Standard.Id, owner.Revision, new("method"), plan, ct);
+        var owner = TestNeed.Commit(journal, Root, new("method"), plan, ct);
+        TestNeed.File(journal, met: false, new("method"), ct);
         var scope = Root with { Plan = plan.Id };
         journal.Prepare(plan.Id, plan.Actions[0].Id, scope, new(100), ct);
         var dispatched = journal.Dispatch(plan.Id, plan.Actions[0].Id, scope, new(100), ct);
@@ -52,24 +53,22 @@ public sealed class ActivityContinuationTests
         var batch = new PawnActivities(1, [waiting, idle])
         { Tasks = [delivery, new("idle", "pawn", [], idleStep, new(3, 3), 100)] };
         var initial = Plan("cleanup-original", batch);
-        var owner = Admit(journal, initial, ct);
+        Admit(journal, initial, ct);
         var meal = new PawnActivities(1, [new("producer", "meal-assignment", "meal", 0, 1, false,
             [new(PawnActivityKind.Eat, "rice-stack", "", "", 1, 500)])
             { Task = "meal" }])
         { Tasks = [new("meal", "producer", [], new(PawnActivityKind.Eat, "rice-stack", "", "", 1, 500), new(1, 1), 100)
             { Inputs = [new("Rice", "rice-stack", 1, new(1, 1), "observed rice") { Observed = true }] }] };
-        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("meal"), Plan("residual-meal", meal), ct);
+        TestNeed.Commit(journal, Root, new("meal"), Plan("residual-meal", meal), ct);
         var observed = new[] { Row("completed"), new ActivityOwnership("helper", waiting.Assignment, "method", 1, "holding") };
         var bound = waiting with { ExpectedRevision = 1, Revision = 2, Preparing = false,
             Steps = [delivery.Step with { Target = "rice-stack" }] };
         var released = idle with { ExpectedRevision = 1, Revision = 2, Release = true, Task = "", Steps = [] };
         var mixed = Plan("mixed", batch with { Orders = [bound, released], Tasks = [delivery] });
-        var before = journal.LoadStandard(owner.Standard.Id, ct);
         Assert.Equal(ActivityContinuationAdmission.ResourcesUnavailable,
             journal.ContinueActivityMethod(initial.Id, Root, new(110), observed, mixed, ct));
         Assert.False(journal.LoadPlan(initial.Id, ct).Retired);
-        Assert.Equal(before.Revision, journal.LoadStandard(owner.Standard.Id, ct).Revision);
-        Assert.DoesNotContain(journal.LoadOwnerMethods(before, ct), m => m.Plan == mixed.Id);
+        Assert.DoesNotContain(journal.LoadNeed(TestNeed.Id, Root, ct).Methods, m => m.Plan == mixed.Id);
         var cleanup = Plan("cleanup", batch with { Orders = [waiting, released], Tasks = [delivery] });
         Assert.Equal(ActivityContinuationAdmission.Admitted,
             journal.ContinueActivityMethod(initial.Id, Root, new(110), observed, cleanup, ct));
@@ -122,35 +121,6 @@ public sealed class ActivityContinuationTests
         var result = ReviewActivityOwnership(batch, Known(false), 110, rows);
         Assert.Equal("pawn", Assert.Single(result.Release!.Orders).Pawn);
         Assert.True(ReviewActivityOwnership(Batch, Known(false), 110, [Row() with { Revision = 2 }]).OwnershipEnded);
-    }
-
-    [Fact]
-    public void RecoveredConcernCanDispatchReleaseThroughItsOriginalMethod()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        using var journal = Open(ct);
-        var initial = Plan("initial", Batch);
-        var owner = Admit(journal, initial, ct);
-        owner = journal.ReviewStandard(owner.Standard.Id, owner.Revision, Root, Finding.Met, ct);
-        var method = Assert.Single(journal.ActivityMethods(Root, ct));
-        Assert.False(method.Needed.Value);
-        var release = Plan("release", ReviewActivityOwnership(Batch, method.Needed, 110, [Row()]).Release!);
-        journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row()], release, ct);
-        Assert.Contains("pawn", journal.WorkResources(Root, ct).Claims.Pawns);
-        var old = journal.LoadPlan(initial.Id, ct);
-        Assert.True(old.Retired);
-        Assert.Equal(release.Id, old.SupersededBy);
-        Assert.Equal(release.Id, Assert.Single(journal.LoadOwnerMethods(owner, ct)).Plan);
-        var scope = Root with { Plan = release.Id };
-        owner = journal.LoadStandard(owner.Standard.Id, ct);
-        journal.ReviewStandard(owner.Standard.Id, owner.Revision, Root, Finding.Met, ct);
-        journal.AuthorizeRoundsPlan(Root, scope, ct);
-        journal.Prepare(release.Id, release.Actions[0].Id, scope, new(110), ct);
-        var sent = journal.Dispatch(release.Id, release.Actions[0].Id, scope, new(110), ct);
-        journal.RecordReceipt(release.Id, release.Actions[0].Id, sent.View.Attempt, Receipt.Accepted, ct);
-        Assert.Empty(journal.ActivityMethods(Root, ct));
-        Assert.DoesNotContain("pawn", journal.WorkResources(Root, ct).Claims.Pawns);
-        Assert.Throws<ConflictException>(() => journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row()], release, ct));
     }
 
     [Fact]

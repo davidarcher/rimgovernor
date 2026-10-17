@@ -37,7 +37,6 @@ public sealed partial class BrainComposition
         RoundsResourcePlanner? cfgResource = null;
         RoundsAcquisitionPlanner? cfgResourceAcquisition = null;
         Rounder? cfgRounds = null;
-        RoundsBuildingPlanner? cfgRoutes = null;
         FactStore? cfgStore = null;
         RoundsTradePlanner? cfgTrade = null;
         RoundsBuildingPlanner? cfgWorkshop = null;
@@ -271,12 +270,12 @@ public sealed partial class BrainComposition
             // The power toggle composes the power family's basic Need (#3257).
             families.Add(new PowerRounds(reviewer, client).Runner());
         }
-        var layout = new LayoutNeeds { HomeCoverage = homeCoverage, Firebreak = sc.Firebreak, StoneShell = stoneShell, ClimateEnvelope = envelope, Defense = defensiveLayout };
+        var layout = new LayoutNeeds { HomeCoverage = homeCoverage, Firebreak = sc.Firebreak, StoneShell = stoneShell, ClimateEnvelope = envelope, Defense = defensiveLayout, Routes = routes };
         LayoutRounds? layoutRounds = null;
         if (layout.Any)
         {
-            // The home-coverage, firebreak, stone-shell, envelope and defensive-layout toggles compose the layout
-            // family's Needs (#3256, #3314).
+            // The home-coverage, firebreak, stone-shell, envelope, defensive-layout and routes toggles compose the
+            // layout family's Needs (#3256, #3314, #3265).
             layoutRounds = new LayoutRounds(reviewer, layout, sc.Firebreak ? client : null, stoneShell ? client : null, defensiveLayout ? client : null);
             families.Add(layoutRounds.Runner());
         }
@@ -305,10 +304,6 @@ public sealed partial class BrainComposition
             if (flooring)
             {
                 roomsFlooring = RoundsBuildingPlanner.NewRoundsFlooringPlanner(reviewer, client);
-            }
-            if (routes)
-            {
-                cfgRoutes = RoundsBuildingPlanner.NewRoundsRoutesPlanner(reviewer, client);
             }
             if (comfort)
             {
@@ -354,7 +349,6 @@ public sealed partial class BrainComposition
             Families = families,
             Defense = cfgDefense,
             Rounds = cfgRounds,
-            Routes = cfgRoutes,
             Store = cfgStore,
         };
         var scheduler = new ClockScheduler(context.Player, client, config, SystemClock.Instance);
@@ -413,16 +407,6 @@ public sealed partial class BrainComposition
     internal static (RoundsPolicy Thresholds, RoundsCapabilities Capabilities) RoundsCapabilitiesFor(BrainFamilies sc, bool layoutOverlay)
     {
         var thresholds = DefaultRoundsPolicy();
-        var methods = new List<ConcernId>();
-        void Add(bool enabled, params ConcernId[] ids)
-        {
-            if (enabled)
-            {
-                methods.AddRange(ids);
-            }
-        }
-
-        Add(sc.Routes, MaintainRoutes);
         // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
         // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census, the
         // rooms family's room census, beauty definitions, floors and sculpture rooms, and psylink's royalty read and
@@ -530,6 +514,11 @@ public sealed partial class BrainComposition
         {
             needs.Add(LayoutFamily.ClimateEnvelope);
         }
-        return (thresholds, new RoundsCapabilities { Methods = methods, Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction });
+        if (sc.Routes)
+        {
+            // The routes Need's room census and door definition (#3265).
+            needs.Add(LayoutFamily.Routes);
+        }
+        return (thresholds, new RoundsCapabilities { Methods = [], Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction });
     }
 }

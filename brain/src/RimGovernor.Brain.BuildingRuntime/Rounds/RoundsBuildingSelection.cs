@@ -87,7 +87,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (Flooring.Cells.Count, Flooring.Key, default);
         }
-        if (c == PolicyApi.MaintainRoutes)
+        if (c == LayoutFamily.Routes.FilingKey)
         {
             if (Routes is null || Routes.Method != RoutesMethod.Build)
             {

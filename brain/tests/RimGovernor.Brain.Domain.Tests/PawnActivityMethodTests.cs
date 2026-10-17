@@ -19,7 +19,7 @@ public sealed class PawnActivityMethodTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-support-method-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var owner = Owner(journal, ct);
+        var world = Owner(journal, ct);
         var step = kind == "delivery"
             ? new PawnActivityStep(PawnActivityKind.Deliver, "input", "", "", 1, 500)
                 { SupportDemand = "bill:bill:material", Container = "bench", Destination = new(1, 1) }
@@ -31,7 +31,7 @@ public sealed class PawnActivityMethodTests
             { SupportDemand = step.SupportDemand, Inputs = [new("Rice", "input", 1, new(1, 1), "observed") { Observed = true }] }] };
         var action = DomainAction.NewPawnActivitiesAction(new("support-action"), batch);
         var plan = new PlanSpec(new("support-plan"), new(1), [action]);
-        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("support-method"), plan, ct);
+        TestNeed.Commit(journal, world, new("support-method"), plan, ct);
         BridgeFunctions.RegisterIntentKinds();
         var stored = Assert.Single(journal.LoadPlan(plan.Id, ct).Spec.Actions);
         var intent = BridgeFunctions.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!;
@@ -39,13 +39,14 @@ public sealed class PawnActivityMethodTests
         Assert.Equal(batch.Tasks, intent.Tasks);
     }
 
-    private static StandardState Owner(Journal journal, CancellationToken ct)
+    /// <summary>Reviews the world the test Need commits in (#3265: a Need owner, admitted by claims).</summary>
+    private static GenerationSnapshot Owner(Journal journal, CancellationToken ct)
     {
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"),
             new PlanId("review"), new PlanRevision(1), default);
-        var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = new Tick(100),
+        _ = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = new Tick(100),
             Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
-        return Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
+        return world;
     }
 
     private static PawnActivityOrder Order(string pawn = "pawn", string method = "food-method", bool release = false) =>
@@ -60,10 +61,10 @@ public sealed class PawnActivityMethodTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-activity-method-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var owner = Owner(journal, ct);
+        var world = Owner(journal, ct);
         var action = Action("dispatch", Order("producer"), Order("helper"));
         var plan = new PlanSpec(new PlanId("food-plan"), new PlanRevision(1), [action]);
-        var committed = journal.CommitMethod(owner.Standard.Id, owner.Revision, new MethodId("food-method"), plan, ct);
+        var committed = TestNeed.Commit(journal, world, new MethodId("food-method"), plan, ct);
         Assert.Equal(plan.Id, Assert.Single(committed.Methods).Plan);
         var stored = journal.LoadPlan(plan.Id, ct);
         Assert.Equal(Stage.Pending, Assert.Single(stored.Progress).View.Stage);
@@ -73,9 +74,6 @@ public sealed class PawnActivityMethodTests
         Assert.Equal(2, intent.Orders.Length);
         Assert.All(intent.Orders, order => Assert.Equal("food-method", order.Method));
         Assert.Equal(action.PawnActivities!.Orders[1].Steps, intent.Orders[1].Steps);
-        Assert.Throws<OpenMethodException>(() => journal.CommitMethod(committed.Standard.Id, committed.Revision,
-            new MethodId("another-method"), new PlanSpec(new PlanId("another-plan"), new PlanRevision(1),
-                [Action("another-action", Order(method: "another-method"))]), ct));
     }
 
     [Theory]
@@ -85,16 +83,15 @@ public sealed class PawnActivityMethodTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-activity-owner-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var owner = Owner(journal, ct);
+        var world = Owner(journal, ct);
         var plan = new PlanSpec(new PlanId("food-plan"), new PlanRevision(1), [Action("dispatch", Order(method: "unrelated", release: release))]);
-        var error = Assert.Throws<ConflictException>(() => journal.CommitMethod(owner.Standard.Id, owner.Revision,
-            new MethodId("food-method"), plan, ct));
+        var error = Assert.Throws<ConflictException>(() => journal.CommitClaimedMethod(TestNeed.Id, world,
+            new MethodId("food-method"), "", plan, ct));
         Assert.Contains("does not match", error.Message);
-        Assert.Empty(journal.LoadOwnerMethods(owner, ct));
-        Assert.Equal(owner.Revision, journal.LoadStandard(owner.Standard.Id, ct).Revision);
+        Assert.Empty(journal.LoadNeed(TestNeed.Id, world, ct).Methods);
         // Reusing the same plan/action/Method identities succeeds: rejection left no partial plan or binding.
         var fixedPlan = new PlanSpec(plan.Id, plan.Revision, [Action("dispatch", Order(release: release))]);
-        journal.CommitMethod(owner.Standard.Id, owner.Revision, new MethodId("food-method"), fixedPlan, ct);
+        TestNeed.Commit(journal, world, new MethodId("food-method"), fixedPlan, ct);
     }
 
     [Theory]
@@ -104,15 +101,15 @@ public sealed class PawnActivityMethodTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-activity-revisions-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var owner = Owner(journal, ct);
+        var world = Owner(journal, ct);
         var next = Order() with { ExpectedRevision = 1, Revision = 2 };
         var plan = new PlanSpec(new PlanId("food-plan"), new PlanRevision(1), [Action("first", Order()), Action("second", next)],
             dependency ? [new ActionDependency(new ActionId("second"), new ActionId("first"), true)] : []);
-        var error = Assert.Throws<ConflictException>(() => journal.CommitMethod(owner.Standard.Id, owner.Revision,
-            new MethodId("food-method"), plan, ct));
+        var error = Assert.Throws<ConflictException>(() => journal.CommitClaimedMethod(TestNeed.Id, world,
+            new MethodId("food-method"), "", plan, ct));
         Assert.Contains("repeats a pawn", error.Message);
-        Assert.Empty(journal.LoadOwnerMethods(owner, ct));
+        Assert.Empty(journal.LoadNeed(TestNeed.Id, world, ct).Methods);
         var distinct = new PlanSpec(plan.Id, plan.Revision, [Action("first", Order()), Action("second", Order("helper"))]);
-        journal.CommitMethod(owner.Standard.Id, owner.Revision, new MethodId("food-method"), distinct, ct);
+        TestNeed.Commit(journal, world, new MethodId("food-method"), distinct, ct);
     }
 }

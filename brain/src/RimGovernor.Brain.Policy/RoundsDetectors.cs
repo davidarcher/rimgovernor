@@ -24,8 +24,6 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
 
     public MedicalReserveReview Medicine { get; set; } = default!;
 
-    public RoutesReview Routes { get; set; } = default!;
-
     /// <summary>Appends a Concern, its deficit unknown, and returns it for the detector to adjust.</summary>
     public RoundsConcern Raise(ConcernId id)
     {
@@ -126,28 +124,5 @@ public static partial class PolicyFunctions
         var shortage = RoundsSilverShort(f, p, c.Medicine.Active).TryGetValue(out var silverShort) && silverShort;
         tradeNeed = FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(shortage));
         return TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity())));
-    }
-
-    /// <summary>A ranked development project: the deficit is the measured fraction of facilities no colonist reaches.</summary>
-    internal static void InspectRoutes(RoundsRun c)
-    {
-        var recovered = Unknown<bool>();
-        if (c.Routes.Known)
-        {
-            recovered = Known(!c.Routes.Active);
-        }
-        if (DoorChanges(c.F.Upkeep.Rooms, c.F.Upkeep.Routes, c.P).Count > 0)
-        {
-            recovered = Known(false);
-        }
-        c.Assess(MaintainRoutes, recovered);
-        if (!Positive(recovered))
-        {
-            var g = c.Raise(MaintainRoutes);
-            if (c.Routes.Known)
-            {
-                g.Deficit = Known(1.0);
-            }
-        }
     }
 }

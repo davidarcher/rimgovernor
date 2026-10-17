@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store;
+using RimGovernor.Brain.Store.Codec;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 using static RimGovernor.Brain.Policy.PolicyFunctions;
@@ -9,10 +10,29 @@ using Journal = RimGovernor.Brain.Store.Store;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// Saved <c>standard/&lt;id&gt;</c> rows across a save and reload (#3249): the review after a load mints new
-/// load-token-hashed ids, so a routine row is never re-bound and is no longer re-inserted. Record-carrying rows
-/// still load; an older save's trade-mission Standard is dropped, its mission now the
-/// <c>family/economy/trade_missions</c> record (#3316, decision 12).
+/// An older save's <c>standard/&lt;id&gt;</c> blob (governor state schema 6) as the retired Standards wrote it: the
+/// review raises no Standard since #3265, so tests that load an older save write the blob themselves.
+/// </summary>
+internal static class LegacyStandardBlob
+{
+    internal static JsonObject Of(string id, string kind, GenerationSnapshot world, string? record = null)
+    {
+        var standard = new JsonObject
+        {
+            ["ID"] = id, ["Kind"] = kind, ["Snapshot"] = JsonNode.Parse(StoreJson.Serialize(world)), ["Episode"] = 1,
+            ["Status"] = "open", ["Finding"] = "unmet", ["RecoveryObserved"] = false, ["Once"] = false,
+        };
+        if (record is not null)
+        {
+            standard["Record"] = record;
+        }
+        return new JsonObject { ["schemaVersion"] = 6, ["standard"] = standard, ["revision"] = 1 };
+    }
+}
+
+/// <summary>
+/// Saved trade missions across a save and reload: an older save's trade-mission Standard is dropped, its mission now
+/// the <c>family/economy/trade_missions</c> record (#3316, decision 12).
 /// </summary>
 public sealed class OrphanStandardTests
 {
@@ -24,54 +44,6 @@ public sealed class OrphanStandardTests
         Crew = [new("a")], Negotiator = new("a"), SilverBudget = 10, Demand = [new("Rice", 5)], Pack = [new("Silver", 10)],
         Phase = TradeMissionPhase.Outbound, ReturnHome = true,
     };
-
-    [Fact]
-    public void ReloadNeverRebindsSavedRoutineRowsAndKeepsOnlyRecords()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var world = World;
-        var facts = WorkResourceTestFacts.Create("a", "b");
-        using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-orphan-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var review = source.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
-        Assert.NotEmpty(review.Standards);
-        var ledger = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
-        var delivery = DomainAction.NewPawnActivitiesAction(new("deliver"), new(1, [new("a", "assignment", "record-method", 0, 1, false,
-            [new(PawnActivityKind.Deliver, "stack", "", "", 1, 500) { Destination = new(2, 2) }])]));
-        source.CommitMethodRecord(ledger.Standard.Id, ledger.Revision, new("record-method"), "",
-            new PlanSpec(new("record-plan"), new(1), [delivery]), "{\"kept\":true}", ct);
-
-        var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
-        // MaintainRoutes is the last routine Standard the review raises, so the routine row without a Record is an
-        // older save's (the retired EnsureWorkAssignments Standard, #3304; EnsureDefensiveLayout went in #3314).
-        var routine = JsonNode.Parse(saved[Journal.GovernorStandardKeyPrefix + ledger.Standard.Id.Value])!;
-        routine["standard"]!["ID"] = "std-routine";
-        routine["standard"]!["Kind"] = "EnsureWorkAssignments";
-        _ = routine["standard"]!.AsObject().Remove("Record");
-        saved[Journal.GovernorStandardKeyPrefix + "std-routine"] = routine.ToJsonString();
-        var savedIds = saved.Keys.Where(k => k.StartsWith(Journal.GovernorStandardKeyPrefix, StringComparison.Ordinal))
-            .Select(k => k[Journal.GovernorStandardKeyPrefix.Length..]).ToHashSet(StringComparer.Ordinal);
-        Assert.Contains(ledger.Standard.Id.Value, savedIds);
-        Assert.True(savedIds.Count > 1);
-
-        // The load sequence (GovernorState.WorldRebuild): standards, families, then rounds reset, then a review.
-        using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-orphan-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        loaded.RebuildStandards(saved, null, ct);
-        loaded.RebuildFamilies(saved, ct);
-        loaded.ResetRounds(ct);
-        var reloaded = world with { Load = new("load-2") };
-        var after = loaded.ReviewRounds(new() { Current = reloaded, Tick = new(200), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts with { Tick = new(200) } }, ct);
-
-        // No saved row is ever bound again: every concern got a freshly minted id.
-        Assert.NotEmpty(after.Standards);
-        Assert.DoesNotContain(after.Standards, s => savedIds.Contains(s.Standard.Id.Value));
-        Assert.All(after.Standards, s => Assert.Equal(reloaded.Load, s.Standard.Snapshot.Load));
-
-        // Only the Record row was re-inserted.
-        var kept = loaded.GovernorStateBlobs(ct).Keys.Where(k => k.StartsWith(Journal.GovernorStandardKeyPrefix, StringComparison.Ordinal))
-            .Select(k => k[Journal.GovernorStandardKeyPrefix.Length..]).Where(savedIds.Contains).ToArray();
-        Assert.Equal(new[] { ledger.Standard.Id.Value }, kept);
-        Assert.Equal("{\"kept\":true}", loaded.LoadStandard(ledger.Standard.Id, ct).Standard.Record);
-    }
 
     [Fact]
     public void TradeMissionsRecordSurvivesSaveAndReload()
@@ -108,13 +80,10 @@ public sealed class OrphanStandardTests
         using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-old-mission-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         source.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a") }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct), StringComparer.Ordinal);
-        var routine = saved.First(kv => kv.Key.StartsWith(Journal.GovernorStandardKeyPrefix, StringComparison.Ordinal));
 
         // An older save's trade-mission Standard: Kind trade-mission, its intent in a Mission field the codec no longer reads.
-        var blob = JsonNode.Parse(routine.Value)!;
+        var blob = LegacyStandardBlob.Of("trade-mission-1", "trade-mission", World);
         var standard = blob["standard"]!;
-        standard["ID"] = "trade-mission-1";
-        standard["Kind"] = "trade-mission";
         standard["Mission"] = new JsonObject { ["HomeColony"] = "colony", ["Settlement"] = "settlement", ["Phase"] = "outbound" };
         saved[Journal.GovernorStandardKeyPrefix + "trade-mission-1"] = blob.ToJsonString();
 

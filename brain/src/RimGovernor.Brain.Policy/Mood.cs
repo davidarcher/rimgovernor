@@ -220,7 +220,7 @@ public static partial class PolicyFunctions
     /// <summary>Bounds the early entry a drone thought opens: the drone's own offset (12 to 30 mood points across its levels) as a mood fraction, at most this far above the break threshold.</summary>
     private const double PsychicDroneEntryMargin = .15;
 
-    /// <summary>The entry margin a pawn under a psychic drone gets: relief starts while the drone's offset would still leave the pawn above the minor-break threshold. Zero without the thought.</summary>
+    /// <summary>The margin a pawn under a psychic drone gets: relief starts while the drone's offset would still leave the pawn above the minor-break threshold. Zero without the thought.</summary>
     private static double PsychicDroneMargin(Fact<EquatableArray<MoodThought>> thoughts)
     {
         if (!thoughts.TryGetValue(out var rows))
@@ -237,15 +237,17 @@ public static partial class PolicyFunctions
         return 0;
     }
 
-    /// <summary>How far above the minor-break threshold a pawn enters mood relief.</summary>
-    internal const double MoodEntryMargin = .10;
-
-    /// <summary>How far above it an active pawn must climb before relief ends.</summary>
-    private const double MoodRecoveryMargin = .15;
+    /// <summary>
+    /// How far above the minor-break threshold a pawn's mood is owed relief: one bar, the old recovery bar, with no
+    /// separate entry bar (#3231 decision 26, #3265: a Need is a plain threshold).
+    /// </summary>
+    internal const double MoodReliefMargin = .15;
 
     /// <summary>
-    /// Ports native-threshold and need hysteresis. Thought pressure is a present observation, never a prediction of
-    /// a break or future mood benefit; a psychic drone thought widens the entry margin for its bearer alone.
+    /// Reviews each pawn against the native threshold plus <see cref="MoodReliefMargin"/> and its needs against one
+    /// cause bar, with no hysteresis band (decision 16): the prior state is read only where a fact is unknown. Thought
+    /// pressure is a present observation, never a prediction of a break or future mood benefit; a psychic drone thought
+    /// widens the margin and the cause bar for its bearer alone.
     /// </summary>
     public static MoodHistory ReviewMood(Fact<EquatableArray<MoodPawn>> observed, MoodHistory previous)
     {
@@ -277,8 +279,7 @@ public static partial class PolicyFunctions
                 var drone = PsychicDroneMargin(p.Thoughts);
                 if (mk && tk)
                 {
-                    var margin = prior.Active ? MoodRecoveryMargin : MoodEntryMargin;
-                    margin = Math.Max(margin, drone);
+                    var margin = Math.Max(MoodReliefMargin, drone);
                     if (mentalKnown)
                     {
                         active = mental || m <= threshold + margin;
@@ -306,11 +307,7 @@ public static partial class PolicyFunctions
                         retained = retained || c.Need == name;
                     }
                     // Under a drone every need short of the relief target is a cause, so the early entry has a method to act on.
-                    var limit = .3;
-                    if (retained || drone > 0)
-                    {
-                        limit = .5;
-                    }
+                    var limit = drone > 0 ? .5 : .3;
                     var k = levelFact.TryGetValue(out var level);
                     if ((k && level < limit) || (!k && retained))
                     {
@@ -322,7 +319,6 @@ public static partial class PolicyFunctions
                     .ThenBy(c => c.Level.IsKnown ? c.Level.Value : 0)
                     .ThenBy(c => c.Need)
                     .ToList();
-                active = active || (prior.Active && sortedCauses.Count > 0);
                 IReadOnlyList<MoodProvision> provision = MealMoodProvision(p, MoodProvisioning(p.Thoughts));
                 IReadOnlyList<MoodThought> unowned = [];
                 if (provision.Count == 0)

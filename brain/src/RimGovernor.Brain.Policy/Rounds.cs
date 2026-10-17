@@ -573,9 +573,6 @@ public sealed record RoundsLatches
 {
     public bool MedicalReserve { get; set; }
 
-    /// <summary>Holds the facility IDs MaintainRoutes last measured unreachable.</summary>
-    public EquatableArray<string> Routes { get; set; }
-
     /// <summary>The planned outdoor dash window (#2765), held until its bound; zero when none is open.</summary>
     public DashWindow Dash { get; set; } = new();
 
@@ -824,7 +821,6 @@ public static partial class PolicyFunctions
         var c = new RoundsRun(f, previous, p);
         var medicineFacts = f.MedicalReserve with { Colonists = f.Colonists };
         c.Medicine = ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve);
-        c.Routes = ReviewRoutes(f.Upkeep.Routes, previous.Routes, p.Routes);
         p.Validate();
         foreach (var fact in new[] { f.Colonists, f.HousingTarget, f.BedCapacity, f.IndoorCapacity, f.GrowingCells, f.Armed, f.Unarmed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients })
         {
@@ -850,7 +846,6 @@ public static partial class PolicyFunctions
         c.L = new RoundsLatches
         {
             MedicalReserve = c.Medicine.Active,
-            Routes = c.Routes.Latched,
             Dash = DashLatch(f.Dash),
             Housing = StarterShelterOwed(f) ? Phase.HousingShelter : Phase.None,
         };
@@ -911,7 +906,7 @@ public static partial class PolicyFunctions
         }
         r.Trade = TradeReviewOf(c);
         r.WorkAssignments = WorkAssignmentsOwed(f, r.CoupledSelection);
-        r.EssentialServices = ReviewEssentialServices(f, p, c.Demand, r.All(), medicineActive: c.L.MedicalReserve);
+        r.EssentialServices = ReviewEssentialServices(f, p, c.Demand, medicineActive: c.L.MedicalReserve);
         return r;
     }
 

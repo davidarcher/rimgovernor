@@ -8,15 +8,13 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class EssentialServicesTests
 {
-    private static readonly ConcernId[] Owners = [MaintainRoutes];
     private static RoundsFacts Facts() => new() { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]) };
 
     /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
     private static RoundsFacts Warm() => Facts() with { SleepingMin = Known(20.0), SleepingMax = Known(22.0) };
-    private static EssentialServiceReview Review(RoundsFacts facts, int budget = 128, params ConcernId[] shortfalls) =>
+    private static EssentialServiceReview Review(RoundsFacts facts, int budget = 128) =>
         ReviewEssentialServices(facts, DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick },
-            MaterialAvailability = Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [new("grain")] = Known(20.0) }) },
-            Owners.Select(o => new RoundsAssessment { Id = o, Finding = shortfalls.Contains(o) ? Finding.Unmet : Finding.Met }).ToArray(), budget);
+            MaterialAvailability = Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [new("grain")] = Known(20.0) }) }, budget);
 
     [Fact]
     public void NormalInspectionExposesEveryServiceWithoutTreatingUnknownStressAsBaselineFailure()
@@ -54,7 +52,7 @@ public sealed class EssentialServicesTests
         Assert.True(limited.Truncated);
         Assert.Single(limited.Stress);
         Assert.Equal(limited, Review(Facts(), 1));
-        Assert.Throws<DomainException>(() => ReviewEssentialServices(Facts(), DefaultRoundsPolicy(), new(), [], 1));
+        Assert.Throws<DomainException>(() => ReviewEssentialServices(Facts(), DefaultRoundsPolicy(), new(), 1));
     }
 
     private static CarePawn Patient(params (string Id, double Chance)[] doctors) => new()
@@ -159,6 +157,9 @@ public sealed class EssentialServicesTests
         var review = Review(facts);
         Assert.Contains(review.Stress, s => s.Unavailable == "pawn/a" && s.Coverage == ServiceCoverage.Shortfall);
         Assert.Contains(review.Proposals, p => p.Target.Subject == "medicine-store");
+        // The logistics owner row is the layout/routes Need (#3265): reachable by some pawn, so met.
+        Assert.Contains(review.Coverage, c => c.Service == EssentialService.Logistics && c.Target == ServiceTarget.ForNeed(LayoutFamily.Routes)
+            && c.Coverage == ServiceCoverage.Adequate);
     }
 
     [Fact]
@@ -173,7 +174,7 @@ public sealed class EssentialServicesTests
             Work = new() { Tick = facts.Tick },
             MaterialAvailability = Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [new("grain")] = Known(20.0) }),
             Needs = new Dictionary<Resource, long> { [new("fuel")] = 10 },
-        }, Owners.Select(o => new RoundsAssessment { Id = o, Finding = Finding.Met }).ToArray());
+        });
         var proposal = Assert.Single(review.Proposals, p => p.Target.Owner == EconomyFamily.Resource.FilingKey);
         Assert.Contains(EssentialService.Fuel, proposal.Services);
         Assert.Contains(EssentialService.Materials, proposal.Services);

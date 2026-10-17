@@ -99,6 +99,30 @@ public sealed class PeopleFamilyTests
         Assert.Equal(MoodMethodReason.Provisioned, MoodNeedProposal(hungry, [ShelterFamily.Sleeping]).Reason);
     }
 
+    /// <summary>
+    /// One mood bar (#3265, decision 26): a pawn within 0.15 of its threshold is owed relief whatever its prior state,
+    /// and a pawn above it is not, active before or not; an unread need keeps its earlier cause.
+    /// </summary>
+    [Fact]
+    public void MoodReliefIsOneThresholdWithNoEntryOrRecoveryBand()
+    {
+        MoodPawn Pawn(double mood) => AtRisk("a").Pawn with { Mood = Known(.15 + mood), Target = Known(.15 + mood) };
+        bool Review(double mood, bool prior) =>
+            ReviewMood(Known<EquatableArray<MoodPawn>>([Pawn(mood)]),
+                new MoodHistory { States = prior ? [AtRisk("a")] : [] }).States.Any(s => s.Active);
+
+        Assert.True(Review(.12, prior: false));
+        Assert.True(Review(.12, prior: true));
+        Assert.False(Review(.17, prior: true));
+        Assert.False(Review(.17, prior: false));
+        // A need between the cause bar and the old retained bar is no cause, even for a pawn active before.
+        var rested = Pawn(.12) with { Rest = Known(.4) };
+        var tired = new MoodHistory { States = [AtRisk("a") with { Causes = [new MoodCause { Need = MoodNeed.Rest, Level = Known(.2) }] }] };
+        Assert.Empty(Assert.Single(ReviewMood(Known<EquatableArray<MoodPawn>>([rested]), tired).States).Causes);
+        var unread = Pawn(.12) with { Rest = Unknown<double>() };
+        Assert.Equal(MoodNeed.Rest, Assert.Single(Assert.Single(ReviewMood(Known<EquatableArray<MoodPawn>>([unread]), tired).States).Causes).Need);
+    }
+
     private static MoodState AtRisk(string pawn) => new()
     {
         Pawn = new MoodPawn

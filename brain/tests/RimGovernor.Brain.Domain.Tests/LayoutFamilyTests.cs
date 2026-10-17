@@ -13,7 +13,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// this review's censuses; the firebreak waits on home coverage and the stone shell on the envelope when those are
 /// composed; the pure Methods are admitted under the Need owner, side by side, held only by their claims. The
 /// defensive layout (#3314) is met while its stored layout is verified and no fight waits; its record survives a
-/// reload, and an older save's Standard fields are ignored.
+/// reload, and an older save's Standard fields are ignored. The routes Need (#3265) reads the census fresh, with no
+/// latch.
 /// </summary>
 public sealed class LayoutFamilyTests
 {
@@ -183,6 +184,31 @@ public sealed class LayoutFamilyTests
         Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
         Assert.Equal(Satisfaction.Unknown, Single(composed, new()).Satisfaction);
         Assert.DoesNotContain(new LayoutFamily(All).Derive(new()), n => n.Id == LayoutFamily.Defense);
+    }
+
+    /// <summary>
+    /// layout/routes: unmet while a listed facility is reachable by no colonist, met once any colonist reaches it (no
+    /// latch holds it open, decision 16), unknown while the census is unread; a pending breach does not hold it.
+    /// </summary>
+    [Fact]
+    public void TheRoutesNeedReadsTheCensusFreshWithNoLatch()
+    {
+        var composed = new LayoutNeeds { Routes = true };
+        RoutesObservation Census(bool reachable, string pending = "") => new()
+        {
+            Pawns = ["a"],
+            Facilities = [new() { Id = "store", Kind = "storage", Travel = [new() { Pawn = "a", Reachable = reachable }] }],
+        };
+        LayoutFacts Facts(RoutesObservation census) =>
+            new() { Routes = Known(LayoutFamily.RoutesStandingOf(Known(census), default, DefaultRoundsPolicy())) };
+
+        var unmet = Single(composed, Facts(Census(reachable: false)));
+        Assert.Equal((LayoutFamily.Routes, NeedTier.Development, Satisfaction.Unmet, Known(1.0)), (unmet.Id, unmet.Tier, unmet.Satisfaction, unmet.Deficit));
+        var met = Single(composed, Facts(Census(reachable: true)));
+        Assert.Equal((Satisfaction.Met, Known(0.0)), (met.Satisfaction, met.Deficit));
+        Assert.Equal(Satisfaction.Unknown, Single(composed, new()).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, Single(composed, new() { Routes = Known(LayoutFamily.RoutesStandingOf(default, default, DefaultRoundsPolicy())) }).Satisfaction);
+        Assert.Equal([WorkType.Construction], NeedLabor(LayoutFamily.Routes));
     }
 
     [Fact]

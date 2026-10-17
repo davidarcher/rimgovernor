@@ -31,12 +31,12 @@ public sealed class FoodActivityContinuationTests
         var path = Path.Combine(Path.GetTempPath(), "rg-food-continuation-" + Guid.NewGuid().ToString("N") + ".db");
         BridgeFunctions.RegisterIntentKinds();
         using var journal = Journal.Open(path, ct);
-        var review = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
+        journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
         var harvest = Harvest();
         var plan = new PlanSpec(new("harvest"), new(1), [DomainAction.NewPawnActivitiesAction(new("harvest-action"), harvest)]);
-        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("method"), plan, ct);
+        TestNeed.Commit(journal, Root, new("method"), plan, ct);
+        TestNeed.File(journal, met: false, new("method"), ct);
         var stored = journal.LoadPlan(plan.Id, ct).Spec.Actions[0];
         Assert.Equal(harvest.Tasks, stored.PawnActivities!.Tasks);
         Assert.Equal(PawnActivityKind.Work, BridgeFunctions.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!.Orders[0].Steps[0].Kind);
@@ -127,12 +127,12 @@ public sealed class FoodActivityContinuationTests
         var ct = lifetime.Token;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-food-worker-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         BridgeFunctions.RegisterIntentKinds();
-        var review = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
+        journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
         var batch = Harvest();
         var plan = new PlanSpec(new("harvest"), new(1), [DomainAction.NewPawnActivitiesAction(new("harvest-action"), batch)]);
-        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("method"), plan, ct);
+        TestNeed.Commit(journal, Root, new("method"), plan, ct);
+        TestNeed.File(journal, met: false, new("method"), ct);
         var scope = Root with { Plan = plan.Id };
         journal.Prepare(plan.Id, plan.Actions[0].Id, scope, new(100), ct);
         var dispatched = journal.Dispatch(plan.Id, plan.Actions[0].Id, scope, new(100), ct);

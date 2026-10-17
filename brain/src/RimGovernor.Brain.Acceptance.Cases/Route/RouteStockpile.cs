@@ -8,11 +8,12 @@ using ReviewRecord = RimGovernor.Brain.Store.Rounds;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>route/stockpile</c> (Go <c>route/route.go</c>): the MaintainRoutes vertical. A stockpile zone sits in a roofed
-/// room walled on every side with no door. The native reachability census (the game's own pathing per colonist, never
-/// a flood fill) must read it unreachable and list breach walls; the service must latch the facility, admit exactly
-/// one door on a listed breach wall, the colonists build it, and the next measured census must read the stockpile
-/// reachable with a measured path and release the latch. An independent native read then confirms the reachability
+/// <c>route/stockpile</c> (Go <c>route/route.go</c>): the layout/routes Need vertical (#3265). A stockpile zone sits
+/// in a roofed room walled on every side with no door. The native reachability census (the game's own pathing per
+/// colonist, never a flood fill) must read it unreachable and list breach walls; the layout family must file the
+/// routes Need unmet, admit exactly one door Method on a listed breach wall, the colonists build it, and the next
+/// measured census must read the stockpile reachable with a measured path and the Need met (no progress row). An
+/// independent native read then confirms the reachability
 /// and that observed traffic samples exist (actual travel evidence), reporting the door cell's own. Uses the private
 /// disposable <c>test/routes_prepare</c> fixture.
 /// </summary>
@@ -23,9 +24,9 @@ internal static class RouteStockpile
     internal static AcceptanceCase Case() => new()
     {
         Name = "route/stockpile",
-        Scope = "Native MaintainRoutes vertical: a walled-in stockpile the native reachability census reads unreachable "
-            + "drives the live Go rounder/planner to admit exactly one door on a listed breach wall; the colonists "
-            + "build it and the measured census, not the receipt, releases the latch, confirmed by an independent native read "
+        Scope = "Native layout/routes Need vertical: a walled-in stockpile the native reachability census reads unreachable "
+            + "files the routes Need unmet and admits exactly one door Method on a listed breach wall; the colonists "
+            + "build it and the measured census, not the receipt, meets the Need, confirmed by an independent native read "
             + "with observed traffic samples.",
         Start = new FixtureStart { Op = "test/routes_prepare", On = new LabStart() },
 
@@ -62,7 +63,7 @@ internal static class RouteStockpile
             var routes = PolicyFunctions.DefaultRoutesPolicy();
 
             // Before: the typed routes census must list the stockpile with every mobile colonist's reachability false
-            // and at least one breach wall on the room's border -- the exact facts the review latches on.
+            // and at least one breach wall on the room's border -- the exact facts the routes Need reads unmet.
             var before = await ReadRoutesAsync(h, identity, "routes-before", facility, cancellationToken).ConfigureAwait(false);
             report["routes_before"] = before.Evidence();
             if (before.Kind != "ROUTE_FACILITY_KIND_STOCKPILE" || before.Travel.Count != colonists || before.Reachable() != 0)
@@ -100,7 +101,7 @@ internal static class RouteStockpile
                 report["diagnostic_post_acquire"] = new JsonArray([.. diagnostics.Select(d => (JsonNode?)d.DeepClone())]);
                 report["rounds_review_first"] = review.Revision;
 
-                // The review must latch the facility and bind MaintainRoutes.
+                // The layout family must file the routes Need unmet.
                 ReviewRecord latched;
                 try
                 {
@@ -111,13 +112,13 @@ internal static class RouteStockpile
                 }
                 catch (AcceptanceException e)
                 {
-                    throw new AcceptanceException($"routes latch: {e.Message}", e);
+                    throw new AcceptanceException($"routes need: {e.Message}", e);
                 }
 
-                report["latched_review_revision"] = latched.Revision;
+                report["unmet_review_revision"] = latched.Revision;
 
-                // The routes method: one door of the policy's material on a breach wall of the room, never inside it.
-                // Incidental cancellations renew the method; the measured census releases the facility once reachable.
+                // The routes Need's Method: one door of the policy's material on a breach wall of the room, never inside
+                // it. Incidental cancellations renew the Method; the measured census meets the Need once reachable.
                 string? previous = null;
                 var plans = new List<string>();
                 var released = false;
@@ -128,7 +129,7 @@ internal static class RouteStockpile
                     {
                         method = await ServiceJournal.BoundedAsync(
                         TimeSpan.FromMinutes(8),
-                        ct => service.WaitMethodAsync(PolicyFunctions.MaintainRoutes.Value, previous, ct),
+                        ct => service.WaitMethodAsync(LayoutFamily.Routes.Value, previous, ct),
                         cancellationToken).ConfigureAwait(false);
                     }
                     catch (AcceptanceException e)
@@ -136,7 +137,11 @@ internal static class RouteStockpile
                         throw new AcceptanceException($"routes method: {e.Message}", e);
                     }
 
-                    report["concern_id"] = method.Concern;
+                    report["need_id"] = method.Concern;
+                    if (!(await ServiceJournal.NeedMethodsAsync(journal, LayoutFamily.Routes, cancellationToken).ConfigureAwait(false)).Contains(method.Method))
+                    {
+                        throw new AcceptanceException($"routes method {method.Method} is not bound to the {LayoutFamily.Routes} Need's Methods");
+                    }
                     previous = method.Plan;
                     var plan = await journal.LoadPlanAsync(new PlanId(method.Plan), cancellationToken).ConfigureAwait(false);
                     var actions = plan.Spec.Actions;
@@ -187,7 +192,7 @@ internal static class RouteStockpile
                     {
                         releasedReview = await ServiceJournal.BoundedAsync(
                         TimeSpan.FromMinutes(4),
-                        ct => WaitReleaseAsync(journal, service, facility, ct),
+                        ct => WaitMetAsync(journal, service, ct),
                         cancellationToken).ConfigureAwait(false);
                     }
                     catch (AcceptanceException e)
@@ -196,12 +201,12 @@ internal static class RouteStockpile
                     }
 
                     released = true;
-                    report["released_review_revision"] = releasedReview.Revision;
+                    report["met_review_revision"] = releasedReview.Revision;
                 }
 
                 if (!released)
                 {
-                    throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"facility {facility} still latched after {plans.Count} plans"));
+                    throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"facility {facility} still unreachable after {plans.Count} plans"));
                 }
 
                 await Rounds.AssertRoundsRunningAsync(service.GetAsync, cancellationToken).ConfigureAwait(false);
@@ -277,7 +282,8 @@ internal static class RouteStockpile
         }
     }
 
-    private static bool LatchedOn(ReviewRecord review, string key) => review.Latches.Routes.Contains(key);
+    /// <summary>Whether the review files the routes Need: the layout family's last run found it unmet or working a Method.</summary>
+    private static bool Filed(ReviewRecord review) => review.Progress.Any(p => p.Concern == LayoutFamily.Routes.FilingKey);
 
     private static Wait StoreWait(ServiceProcess service) => new() { Stall = Wait.StallBudget(), Terminal = service.Exited };
 
@@ -288,24 +294,24 @@ internal static class RouteStockpile
             return await ServiceJournal.WaitReviewAsync(
                 journal,
                 StoreWait(service),
-                r => LatchedOn(r, key) && r.Standards.Any(binding => binding.Concern == PolicyFunctions.MaintainRoutes),
+                Filed,
                 cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {
-            throw new AcceptanceException($"review never latched facility {key} with a bound MaintainRoutes standard: {e.Message}", e);
+            throw new AcceptanceException($"review never filed the {LayoutFamily.Routes} Need for facility {key}: {e.Message}", e);
         }
     }
 
-    private static async Task<ReviewRecord> WaitReleaseAsync(Journal journal, ServiceProcess service, string key, CancellationToken cancellationToken)
+    private static async Task<ReviewRecord> WaitMetAsync(Journal journal, ServiceProcess service, CancellationToken cancellationToken)
     {
         try
         {
-            return await ServiceJournal.WaitReviewAsync(journal, StoreWait(service), r => !LatchedOn(r, key), cancellationToken).ConfigureAwait(false);
+            return await ServiceJournal.WaitReviewAsync(journal, StoreWait(service), r => r.Revision != 0 && !Filed(r), cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {
-            throw new AcceptanceException($"review never released the routes latch on facility {key}: {e.Message}", e);
+            throw new AcceptanceException($"review never met the {LayoutFamily.Routes} Need: {e.Message}", e);
         }
     }
 

@@ -70,7 +70,6 @@ public sealed partial class ClockScheduler
         {
             throw new ControlException("NewClockScheduler: Rounds belongs to another player");
         }
-        ValidateReviewers(config);
         _player = player;
         _native = native;
         Config = config;
@@ -109,27 +108,6 @@ public sealed partial class ClockScheduler
             lock (_mu)
             {
                 return _validity;
-            }
-        }
-    }
-
-    // Every planner must review through the scheduler's rounder, and the building planners must be built for the
-    // concern (and phase) the catalog files them under.
-    private static void ValidateReviewers(ClockSchedulerConfig c)
-    {
-        (object? Planner, Rounder? Reviewer, ConcernId? Concern, ConcernId? Expected)[] planners =
-        [
-            (c.Routes, c.Routes?.Reviewer, c.Routes?.Concern, MaintainRoutes),
-        ];
-        foreach (var (planner, reviewer, concern, expected) in planners)
-        {
-            if (planner is null)
-            {
-                continue;
-            }
-            if (c.Rounds is null || !ReferenceEquals(reviewer, c.Rounds) || expected is { } want && concern != want)
-            {
-                throw new ControlException($"NewClockScheduler: {planner.GetType().Name} does not review through the scheduler's rounder or its concern");
             }
         }
     }

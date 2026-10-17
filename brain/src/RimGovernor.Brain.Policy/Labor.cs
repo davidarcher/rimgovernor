@@ -6,18 +6,11 @@ namespace RimGovernor.Brain.Policy;
 // Smithing) belong to the WorkType enum.
 public static partial class PolicyFunctions
 {
-    // Keyed by filing key (#3231 decision 22): an unmigrated Concern's id, or a Need's NeedId.FilingKey at its
-    // family/kind level, so a Need keeps the profile its Concern had.
+    // Keyed by filing key (#3231 decision 22): a Need's NeedId.FilingKey at its family/kind level, so a Need keeps
+    // the profile its Concern had.
     private static readonly Lazy<IReadOnlyDictionary<ConcernId, IReadOnlyList<WorkType>>> LaborTable = new(() =>
     {
         var table = new Dictionary<ConcernId, IReadOnlyList<WorkType>>();
-        void Set(IReadOnlyList<WorkType> profile, params ConcernId[] keys)
-        {
-            foreach (var key in keys)
-            {
-                table[key] = profile;
-            }
-        }
         void SetNeeds(IReadOnlyList<WorkType> profile, params NeedId[] needs)
         {
             foreach (var need in needs)
@@ -25,15 +18,12 @@ public static partial class PolicyFunctions
                 table[need.FilingKey] = profile;
             }
         }
-        Set(
-            [WorkType.Construction],
-            MaintainRoutes);
         SetNeeds(
             [WorkType.Construction],
             HomeUpkeepFamily.Clearance, MilitaryFamily.Defense, RoomsFamily.Comfort, HomeUpkeepFamily.Repairs,
             LayoutFamily.StoneShell, FoodStorageNeed, LayoutFamily.HomeCoverage, AnimalsFamily.Containment,
             RoomsFamily.Lighting, RoomsFamily.Flooring, BiotechFamily.MechCharger, BiotechFamily.GeneBank,
-            ShelterFamily.Starter, ShelterFamily.Sleeping, ShelterFamily.Expansion);
+            ShelterFamily.Starter, ShelterFamily.Sleeping, ShelterFamily.Expansion, LayoutFamily.Routes);
         SetNeeds([WorkType.PlantCutting], BlightNeed);
         SetNeeds([WorkType.Art], RoomsFamily.Art);
 

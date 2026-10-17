@@ -3,31 +3,31 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>
-    /// Composes MaintainRoutes' building method: cut a door into the wall enclosing a facility no colonist can
-    /// reach. The deficit and its release are the native reachability census, never a flood fill: the latch
-    /// opens only once a measured census reads the facility reachable by some colonist.
+    /// Composes the layout/routes Need's building method (#3265): cut a door into the wall enclosing a facility no
+    /// colonist can reach, or set a traffic door the policy wants held. The deficit is the native reachability census
+    /// read fresh, never a flood fill, and the Methods commit under the Need owner.
     /// </summary>
     public static RoundsBuildingPlanner NewRoundsRoutesPlanner(Rounder? reviewer, IRoundsBuildingSource? native)
     {
-        if (reviewer is null || native is null || !reviewer.MethodEnabled(MaintainRoutes))
+        if (reviewer is null || native is null || !reviewer.Needs.Contains(LayoutFamily.Routes))
         {
-            throw new ControlException("NewRoundsRoutesPlanner: reviewer == nil || native == nil || !reviewer.methodEnabled(Pol.MaintainRoutes)");
+            throw new ControlException("NewRoundsRoutesPlanner: the reviewer, its native source or the layout/routes Need is missing");
         }
         if (native is not Observation.IRoundsSource)
         {
             throw new ControlException("NewRoundsRoutesPlanner: !ok");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MaintainRoutes, Definition = reviewer.Policy.Routes.Door };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = LayoutFamily.Routes.FilingKey, Need = LayoutFamily.Routes, Definition = reviewer.Policy.Routes.Door };
     }
 
     /// <summary>Lists the door the policy opens breaches with so the census read carries its availability.</summary>
     internal IReadOnlyList<string> RoutesDefinitions() => [Reviewer.Policy.Routes.Door];
 
-    /// <summary>Re-reviews the fresh census under the review's latch and maps the policy outcome onto the planner.</summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectRoutes(Observation.ColonyProjection facts, Pol.RoundsLatches latches)
+    /// <summary>Reviews the fresh census and maps the policy outcome onto the planner.</summary>
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectRoutes(Observation.ColonyProjection facts)
     {
         var p = Reviewer.Policy.Routes;
-        var review = ReviewRoutes(facts.Facts.Upkeep.Routes, latches.Routes, p);
+        var review = ReviewRoutes(facts.Facts.Upkeep.Routes, p);
         if (!review.Active)
         {
             return (null, BuildingReasonNoDeficit);

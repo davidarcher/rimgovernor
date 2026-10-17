@@ -24,13 +24,7 @@ public sealed class ClockSchedulerConfig
 
     public Rounder? Rounds { get; init; }
 
-
-
-
-    public RoundsBuildingPlanner? Routes { get; init; }
-
     public RoundsDefensePlanner? Defense { get; init; }
-
 
     /// <summary>The families (#3250), each one due-queue entry after the catalog planners; none is wired yet.</summary>
     public IReadOnlyList<FamilyRunner> Families { get; init; } = [];
