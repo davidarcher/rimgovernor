@@ -1,4 +1,4 @@
-using System.Text.Json.Nodes;
+using System.Text.Json;
 using System.Xml.Linq;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -33,24 +33,21 @@ public sealed class FileDoctorSetup : IDoctorSetup
         string path = Path.Combine(root, "config", "config.json");
         try
         {
-            if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject config)
-            {
-                throw new AcceptanceException("configuration is not a JSON object");
-            }
-
-            if (config["games"] is not JsonObject games)
+            var config = JsonSerializer.Deserialize(File.ReadAllText(path), RootConfigJsonContext.Default.RootConfigFile)
+                ?? throw new AcceptanceException("configuration is not a JSON object");
+            if (config.Games is not { } games)
             {
                 throw new AcceptanceException("configuration is missing games");
             }
 
-            if (games[gameId] is not JsonObject game)
+            if (games.GetValueOrDefault(gameId) is not { } game)
             {
                 throw new AcceptanceException("configuration is missing games." + gameId);
             }
 
-            return new DoctorGameSection((string?)game["workingDir"] ?? "", (string?)game["target"] ?? "");
+            return new DoctorGameSection(game.WorkingDir ?? "", game.Target ?? "");
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException or FormatException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
         {
             throw new AcceptanceException("read " + path + ": " + e.Message, e);
         }
@@ -73,15 +70,15 @@ public sealed class FileDoctorSetup : IDoctorSetup
     {
         try
         {
-            if (JsonNode.Parse(File.ReadAllText(Path.Combine(package, PackageManifestName))) is not JsonObject m)
+            if (JsonSerializer.Deserialize(File.ReadAllText(Path.Combine(package, PackageManifestName)), RootConfigJsonContext.Default.NativeManifestFile) is not { } m)
             {
                 return null;
             }
 
-            IReadOnlyList<string> fixtures = m["fixtures"] is JsonArray a ? [.. a.Select(n => (string?)n ?? "").Where(s => s.Length > 0)] : [];
-            return new DoctorPackageManifest((string?)m["role"] ?? "", fixtures, (string?)m["sourceRevision"] ?? "", m["sourceDirty"] is JsonValue v && v.TryGetValue<bool>(out bool dirty) && dirty);
+            IReadOnlyList<string> fixtures = [.. (m.Fixtures ?? []).Select(f => f ?? "").Where(f => f.Length > 0)];
+            return new DoctorPackageManifest(m.Role ?? "", fixtures, m.SourceRevision ?? "", m.SourceDirty);
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException or FormatException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
         {
             return null;
         }

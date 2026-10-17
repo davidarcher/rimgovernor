@@ -592,8 +592,6 @@ public sealed record DialogEffect
 
 public sealed record ConstructionEffect
 {
-    public string? DefName { get; init; }
-
     public string? Stuff { get; init; }
 
     public Common.Cell? Cell { get; init; }
@@ -609,8 +607,6 @@ public sealed record ConstructionEffect
 
 public sealed record InstallationEffect
 {
-    public string? DefName { get; init; }
-
     public string? Stuff { get; init; }
 
     public Common.Cell? Cell { get; init; }

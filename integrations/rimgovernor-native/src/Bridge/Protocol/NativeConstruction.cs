@@ -102,7 +102,7 @@ namespace HomeBridge.BridgeTools
 
         internal Receipts.ConstructionEffect Proposed() => new Receipts.ConstructionEffect
         {
-            DefName = Definition.defName, Stuff = Stuff?.defName ?? "", Cell = new Common.Cell { X = Cell.x, Z = Cell.z },
+            Stuff = Stuff?.defName ?? "", Cell = new Common.Cell { X = Cell.x, Z = Cell.z },
             Rotation = (Placement.Rotation)(Rotation.AsInt + 1)
         };
     }

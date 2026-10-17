@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
             {
                 var mapParent = world as MapParent;
                 var site = world as Site;
-                var row = new Obs.WorldSite { Id = world.GetUniqueLoadID(), DefName = world.def.defName,
+                var row = new Obs.WorldSite { Id = world.GetUniqueLoadID(),
                     Label = site != null && site.parts.Count == 0 ? world.def.label ?? "" : world.Label ?? "",
                     State = world.Destroyed ? Obs.WorldSiteState.Destroyed : mapParent?.HasMap == true ? Obs.WorldSiteState.MapLoaded
                         : world.Spawned ? Obs.WorldSiteState.Spawned : Obs.WorldSiteState.Pending };

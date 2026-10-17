@@ -2,9 +2,11 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
+using RimGovernor.Contracts.Host;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Telemetry.Otlp;
+using Fx = RimGovernor.Fixtures.Contracts;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -64,9 +66,10 @@ internal sealed partial class SpeedmatrixRun
     private readonly Config _config;
     private readonly Report _report;
     private readonly IReadOnlyList<SpeedCase> _cases;
-    private readonly List<JsonObject> _sites = [];
+    private readonly List<Fx.ThroughputSite> _sites = [];
     private readonly List<SpeedOutcome> _outcomes = [];
     private readonly List<JsonObject> _rows = [];
+    private readonly List<SpeedRowFacts> _rowFacts = [];
 
     // The fixture's cell lists, in the "x:z" form test/throughput_control reads back.
     private string _storage = "";
@@ -105,7 +108,7 @@ internal sealed partial class SpeedmatrixRun
         var speedCases = SpeedMatrix.ParseSpeedCases(spec);
         var m = new SpeedmatrixRun(p, session, config, report, speedCases);
         m._report["speeds_spec"] = spec;
-        m._report["speeds"] = new JsonArray([.. speedCases.Select(c => (JsonNode?)c.ToJson())]);
+        m._report["speeds"] = OutputJson.Array(speedCases, c => c.ToJson());
         m._report["tick_target"] = p.Ticks;
 
         // What the baseline was measured on: the revision, the world and mod set, the host, the launch's resolution and
@@ -154,7 +157,7 @@ internal sealed partial class SpeedmatrixRun
             }
 
             m._outcomes.Add(outcome);
-            m._report["outcomes"] = new JsonArray([.. m._outcomes.Select(o => (JsonNode?)o.ToJson())]);
+            m._report["outcomes"] = OutputJson.Array(m._outcomes, o => o.ToJson());
             Console.WriteLine(string.Create(
                 CultureInfo.InvariantCulture,
                 $"DONE {c.Name}: stored={outcome.StoredUnits}/{outcome.StoredUnits + outcome.LooseUnits} walls={outcome.WallsBuilt} colonists={outcome.HealthyColonists} unsuccessful={outcome.UnsuccessfulStages}"));
@@ -171,7 +174,7 @@ internal sealed partial class SpeedmatrixRun
 
         if (p.Observations)
         {
-            var observationProblems = ObservationRowProblems(m._rows);
+            var observationProblems = ObservationRowProblems(m._rowFacts);
             if (observationProblems.Count > 0)
             {
                 m._report["row_problems"] = Problems(observationProblems);
@@ -182,7 +185,7 @@ internal sealed partial class SpeedmatrixRun
         var ratios = SpeedMatrix.CeilingRatios(metrics);
         if (ratios.Count > 0)
         {
-            m._report["ceiling_ratios"] = new JsonArray([.. ratios.Select(r => (JsonNode?)r.ToJson())]);
+            m._report["ceiling_ratios"] = OutputJson.Array(ratios, r => r.ToJson());
         }
 
         var outcomeProblems = SpeedMatrix.CompareOutcomes(m._outcomes, Tolerance);
@@ -211,7 +214,7 @@ internal sealed partial class SpeedmatrixRun
         // Go checkStartupLog: the run's last assertion (no native error in the game's startup log) is a no-op there.
     }
 
-    private static JsonArray Problems(IEnumerable<string> problems) => new([.. problems.Select(p => (JsonNode?)p)]);
+    private static JsonArray Problems(IEnumerable<string> problems) => OutputJson.Array(problems);
 
     // A harness over the session's game whose evidence goes under another directory (Go set Harness.Output).
     private Harness HarnessFor(string output)
@@ -223,16 +226,14 @@ internal sealed partial class SpeedmatrixRun
     /// <summary>Takes the fixture's layout from the prepared colony and saves it as the stage save for every case to reload.</summary>
     private async Task StageAsync(CancellationToken cancellationToken)
     {
-        var prepared = _session.Prepared ?? [];
+        var prepared = Harness.FixtureReply<Fx.ThroughputPrepared>(
+            PrepareTool, _session.Prepared ?? throw new AcceptanceException($"prepared: {PrepareTool} replied nothing"));
         var stageOutput = Path.Combine(_config.Output, "stage");
         _ = Directory.CreateDirectory(stageOutput);
         var h = HarnessFor(stageOutput);
-        _storage = CellList(prepared["storageCells"]);
-        _walls = CellList(prepared["sites"]);
-        foreach (var raw in prepared["sites"].AsSlice())
-        {
-            _sites.Add(raw.AsMap() ?? []);
-        }
+        _storage = CellList(prepared.StorageCells.Select(c => (c.X, c.Z)));
+        _walls = CellList(prepared.Sites.Select(s => (s.X, s.Z)));
+        _sites.AddRange(prepared.Sites);
 
         if (_sites.Count != _profile.Segments)
         {
@@ -242,7 +243,7 @@ internal sealed partial class SpeedmatrixRun
         // Frozen needs do not survive a reload (the op is per game), so the save carries the stage only; each case
         // freezes again after loading.
         var started = DateTime.UtcNow;
-        _ = await h.CallAsync("save-stage", "rimgovernor/save_game", new JsonObject { ["saveName"] = _profile.Save }, cancellationToken).ConfigureAwait(false);
+        _ = await h.CallAsync("save-stage", "rimgovernor/save_game", HostJson.Arguments(new SaveGameRequest { SaveName = _profile.Save }), cancellationToken).ConfigureAwait(false);
         await WaitSavedAsync(started, cancellationToken).ConfigureAwait(false);
     }
 
@@ -251,31 +252,44 @@ internal sealed partial class SpeedmatrixRun
     {
         var root = _config.Root;
         var deadline = started.AddSeconds(90);
+
+        // A save the game is still writing grows, so a candidate counts once its length has held for two seconds.
+        var stableFor = TimeSpan.FromSeconds(2);
+        var seen = new Dictionary<string, (long Length, DateTime Since)>(StringComparer.Ordinal);
+        using var pace = Wait.Pace(TimeSpan.FromSeconds(1));
         while (true)
         {
+            var now = DateTime.UtcNow;
             foreach (var dir in new[] { "headless-profile", "profile" })
             {
                 var candidate = Path.Combine(root, dir, "Saves", _profile.Save + ".rws");
                 var info = new FileInfo(candidate);
-                if (info.Exists && info.Length > 0 && info.LastWriteTimeUtc >= started.AddSeconds(-1))
+                if (!info.Exists || info.Length == 0 || info.LastWriteTimeUtc < started.AddSeconds(-1))
                 {
-                    // A save the game is still writing grows; require it stable.
-                    await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
-                    var again = new FileInfo(candidate);
-                    if (again.Exists && again.Length == info.Length)
+                    _ = seen.Remove(candidate);
+                    continue;
+                }
+
+                if (seen.TryGetValue(candidate, out var last) && last.Length == info.Length)
+                {
+                    if (now - last.Since >= stableFor)
                     {
                         _report["stage_save"] = candidate;
                         return;
                     }
                 }
+                else
+                {
+                    seen[candidate] = (info.Length, now);
+                }
             }
 
-            if (DateTime.UtcNow > deadline)
+            if (now > deadline)
             {
                 throw new AcceptanceException($"stage save {_profile.Save} did not appear under {root} within 90s");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -323,14 +337,7 @@ internal sealed partial class SpeedmatrixRun
             _ = await h.PauseClockAsync("pause", cancellationToken).ConfigureAwait(false);
             var identity = await ReadIdentityAsync(h, cancellationToken).ConfigureAwait(false);
             report["frozen_needs"] = (await Needs.FreezeNeedsAsync(h, null, [], cancellationToken).ConfigureAwait(false)).DeepClone();
-            var before = await ControlAsync(h, identity, "control-before", cancellationToken).ConfigureAwait(false);
-            report["control_before"] = before.DeepClone();
-            if (before["storedUnits"].AsNumber() != 0 || before["wallsBuilt"].AsNumber() != 0 || before["wallBlueprints"].AsNumber() != 0)
-            {
-                throw new AcceptanceException("stage is not fresh after reload: " + before.ToJson());
-            }
-
-            var startTick = (ulong)before["tick"].AsNumber();
+            var startTick = await FreshStageTickAsync(h, identity, report, cancellationToken).ConfigureAwait(false);
 
             // The brain runs in the game process, so the serve flag the case adds (--clock-test-acceleration)
             // cannot be applied; the launch records them under its env entries.
@@ -410,13 +417,13 @@ internal sealed partial class SpeedmatrixRun
             }
 
             var wallSeconds = (DateTimeOffset.UtcNow - resumedAt).TotalSeconds;
-            report["wait"] = new JsonObject { ["start_tick"] = startTick, ["last_tick"] = lastTick, ["wall_seconds"] = wallSeconds, ["work_done"] = workDone };
+            report["wait"] = OutputJson.Fields(("start_tick", startTick), ("last_tick", lastTick), ("wall_seconds", wallSeconds), ("work_done", workDone));
             if (waitErr is not null)
             {
                 try
                 {
                     var final = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
-                    report["rounds_review_at_failure"] = new JsonObject { ["revision"] = final.Revision, ["tick"] = final.Tick.Value, ["progress"] = final.Progress.Count };
+                    report["rounds_review_at_failure"] = OutputJson.Fields(("revision", final.Revision), ("tick", final.Tick.Value), ("progress", final.Progress.Count));
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -449,14 +456,10 @@ internal sealed partial class SpeedmatrixRun
             var metrics = CaseMetrics(c, phases, holds, startTick, lastTick, wallSeconds);
 
             // The observation capture account and the frame recorder, from the same recording the clock and step phases come from.
-            foreach (var (key, value) in ObservationRow(phases.Observation, phases.Frames))
-            {
-                metrics[key] = value?.DeepClone();
-            }
-
+            AddAll(metrics, ObservationRow(phases.Observation, phases.Frames));
             if (readerSummary is not null)
             {
-                metrics["readers"] = readerSummary.DeepClone();
+                metrics.Add("readers", readerSummary.DeepClone());
                 var readerProblems = ObservationReaders.ReaderProblems(readerSummary);
                 if (readerProblems.Count > 0)
                 {
@@ -465,7 +468,7 @@ internal sealed partial class SpeedmatrixRun
             }
 
             report["metrics"] = metrics.DeepClone();
-            AppendMetrics(metrics);
+            AppendMetrics(metrics, new SpeedRowFacts(c.Name, GovernorOff: false, phases.Frames.Intervals.Samples, phases.Observation.Hops));
 
             // Independent native read after the service released the slot.
             h = HarnessFor(output);
@@ -540,36 +543,56 @@ internal sealed partial class SpeedmatrixRun
         }
     }
 
-    // Reads the stage's counters through test/throughput_control.
-    private async Task<JsonObject> ControlAsync(Harness h, JsonObject identity, string label, CancellationToken cancellationToken)
+    // Reads the stage's counters through test/throughput_control: the reply as recorded (the report's control blocks and
+    // the outcome read it whole) and as its record.
+    private async Task<JsonObject> ControlAsync(Harness h, JsonObject identity, string label, CancellationToken cancellationToken) =>
+        (await ControlReadAsync(h, identity, label, cancellationToken).ConfigureAwait(false)).Raw;
+
+    private async Task<(JsonObject Raw, Fx.ThroughputControlRead Read)> ControlReadAsync(Harness h, JsonObject identity, string label, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync(
-            label,
-            ControlTool,
-            new JsonObject
-            {
-                ["colonyId"] = identity["colonyId"].AsString(),
-                ["loadToken"] = identity["loadToken"].AsString(),
-                ["mapId"] = (int)identity["mapId"].AsNumber(),
-                ["storageCells"] = _storage,
-                ["wallCells"] = _walls,
-            },
-            cancellationToken).ConfigureAwait(false);
-        return reply["success"].AsBool() == true ? reply : throw new AcceptanceException($"{ControlTool} refused: {reply.ToJson()}");
+        var id = Harness.IdentityOf(identity);
+        var request = new Fx.ThroughputControlRequest { ColonyId = id.ColonyId, LoadToken = id.LoadToken, MapId = id.MapId, StorageCells = _storage, WallCells = _walls };
+        var reply = await h.CallAsync(label, ControlTool, FixtureRecordJson.Args(request), cancellationToken).ConfigureAwait(false);
+        var read = Harness.FixtureReply<Fx.ThroughputControlRead>(ControlTool, reply);
+        return read.Success ? (reply, read) : throw new AcceptanceException($"{ControlTool} refused: {reply.ToJson()}");
+    }
+
+    // Reads the reloaded stage's counters into the report (control_before), requires them fresh (nothing stored, built or
+    // laid out) and returns the reload's tick.
+    private async Task<ulong> FreshStageTickAsync(Harness h, JsonObject identity, Report report, CancellationToken cancellationToken)
+    {
+        var (before, read) = await ControlReadAsync(h, identity, "control-before", cancellationToken).ConfigureAwait(false);
+        report["control_before"] = before.DeepClone();
+        if (read.StoredUnits != 0 || read.WallsBuilt != 0 || read.WallBlueprints != 0)
+        {
+            throw new AcceptanceException("stage is not fresh after reload: " + before.ToJson());
+        }
+
+        return (ulong)read.Tick;
+    }
+
+    // Copies every field of a metrics block onto the row, in order.
+    private static void AddAll(JsonObject row, JsonObject block)
+    {
+        foreach (var (key, value) in block)
+        {
+            row.Add(key, value?.DeepClone());
+        }
     }
 
     // Writes every staged wall segment into the service's journal as its own building plan (no player route exists) and
     // returns the plan ids. The service has not resumed yet, so it reads them as the world's standing work.
     private async Task<List<PlanId>> SubmitWallsAsync(Journal journal, string prefix, JsonObject identity, Report report, CancellationToken cancellationToken)
     {
-        var world = new World(new ColonyId(identity["colonyId"].AsString()), new LoadId(identity["loadToken"].AsString()), new MapId((int)identity["mapId"].AsNumber()));
+        var id = Harness.IdentityOf(identity);
+        var world = new World(new ColonyId(id.ColonyId), new LoadId(id.LoadToken), new MapId(id.MapId));
         var ids = new List<PlanId>();
         var submissions = new JsonArray();
         for (var i = 0; i < _sites.Count; i++)
         {
             var site = _sites[i];
             var label = i + 1;
-            var rotationText = site["rotation"].AsString();
+            var rotationText = site.Rotation;
             if (!Enum.TryParse<Rotation>(rotationText.StartsWith("ROTATION_", StringComparison.Ordinal) ? rotationText["ROTATION_".Length..] : rotationText, ignoreCase: true, out var rotation))
             {
                 throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"wall {label}: rotation: unknown rotation \"{rotationText}\""));
@@ -578,7 +601,7 @@ internal sealed partial class SpeedmatrixRun
             Submission submission;
             try
             {
-                var building = new Building(site["defName"].AsString(), new Cell((int)site["x"].AsNumber(), (int)site["z"].AsNumber()), rotation, site["stuff"].AsString());
+                var building = new Building(site.DefName, new Cell(site.X, site.Z), rotation, site.Stuff);
                 (submission, _) = await journal.SubmitBuildingAsync(
                     new SubmissionRequest(string.Create(CultureInfo.InvariantCulture, $"{prefix}-wall-{label}"), world, building),
                     cancellationToken).ConfigureAwait(false);
@@ -589,12 +612,10 @@ internal sealed partial class SpeedmatrixRun
             }
 
             ids.Add(submission.Plan);
-            submissions.Add(new JsonObject
-            {
-                ["requestId"] = submission.Request.RequestId,
-                ["planId"] = submission.Plan.Value,
-                ["revision"] = submission.Revision.Value,
-            });
+            submissions.Add(OutputJson.Fields(
+                ("requestId", submission.Request.RequestId),
+                ("planId", submission.Plan.Value),
+                ("revision", submission.Revision.Value)));
         }
 
         report["submissions"] = submissions;
@@ -715,131 +736,116 @@ internal sealed partial class SpeedmatrixRun
             holdsPer6000 = (double)holds.Holds * 6000 / (lastTick - startTick);
         }
 
-        var reasons = new JsonObject();
-        foreach (var (reason, count) in holds.Reasons.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-        {
-            reasons[reason] = count;
-        }
-
-        var runVerdicts = new JsonObject();
-        foreach (var (verdict, count) in steps.RunVerdicts)
-        {
-            runVerdicts[verdict] = count;
-        }
-
-        var stepReasons = new JsonObject();
-        foreach (var (reason, count) in steps.Reasons)
-        {
-            stepReasons[reason] = count;
-        }
-
-        var hazardGaps = new JsonArray([.. clock.NativeHazardGaps.Select(g => (JsonNode?)new JsonObject
-        {
-            ["hazard_class"] = g.HazardClass,
-            ["bound_ticks"] = g.BoundTicks,
-            ["max_tick_gap"] = g.MaxTickGap,
-            ["hooked"] = g.Hooked,
-        })]);
-        var latencies = new JsonArray([.. holds.Latencies.Select(l => (JsonNode?)l.ToJson())]);
-        return new JsonObject
-        {
-            ["case"] = c.Name,
-            ["speed"] = c.Speed,
-            ["test_acceleration"] = c.TestAcceleration,
-            ["player"] = c.Player,
+        var reasons = Counts(holds.Reasons.OrderBy(pair => pair.Key, StringComparer.Ordinal));
+        var runVerdicts = Counts(steps.RunVerdicts);
+        var stepReasons = Counts(steps.Reasons);
+        var hazardGaps = OutputJson.Array(clock.NativeHazardGaps, g => OutputJson.Fields(
+            ("hazard_class", g.HazardClass),
+            ("bound_ticks", g.BoundTicks),
+            ("max_tick_gap", g.MaxTickGap),
+            ("hooked", g.Hooked)));
+        var latencies = OutputJson.Array(holds.Latencies, l => l.ToJson());
+        return OutputJson.Fields(
+            ("case", c.Name),
+            ("speed", c.Speed),
+            ("test_acceleration", c.TestAcceleration),
+            ("player", c.Player),
 
             // Player acceleration's frame account: frames paced, those over the frame budget and the widest frame's tick work.
-            ["paced_frames"] = clock.NativePacedFrames,
-            ["paced_frames_over_budget"] = clock.NativePacedOverBudget,
-            ["max_paced_frame_ms"] = clock.NativeMaxPacedFrameMs,
+            ("paced_frames", clock.NativePacedFrames),
+            ("paced_frames_over_budget", clock.NativePacedOverBudget),
+            ("max_paced_frame_ms", clock.NativeMaxPacedFrameMs),
 
-            ["ticks_advanced"] = lastTick - startTick,
-            ["wall_seconds"] = wallSeconds,
-            ["wall_tps"] = clock.WallTps,
+            ("ticks_advanced", lastTick - startTick),
+            ("wall_seconds", wallSeconds),
+            ("wall_tps", clock.WallTps),
 
             // Effective speed: the share of the speed's own rate the row achieved, holds included (1 is a clock that was
             // never held and never slowed); native's own effective ticks per second, averaged over the status samples
             // that reported one, stands beside it.
-            ["effective_speed"] = SpeedMatrix.EffectiveSpeed(clock.WallTps, c.Speed),
-            ["target_tps"] = SpeedMatrix.TargetTps(c.Speed),
-            ["native_effective_tps_mean"] = clock.EffectiveTpsMean(),
-            ["paused_ms"] = clock.NativePausedMs,
-            ["running_ms"] = clock.NativeRunningMs,
-            ["paused_fraction_native"] = clock.PausedFractionNative(),
-            ["native_pause_samples"] = clock.NativePauseSamples,
+            ("effective_speed", SpeedMatrix.EffectiveSpeed(clock.WallTps, c.Speed)),
+            ("target_tps", SpeedMatrix.TargetTps(c.Speed)),
+            ("native_effective_tps_mean", clock.EffectiveTpsMean()),
+            ("paused_ms", clock.NativePausedMs),
+            ("running_ms", clock.NativeRunningMs),
+            ("paused_fraction_native", clock.PausedFractionNative()),
+            ("native_pause_samples", clock.NativePauseSamples),
 
             // The supervisor's probe path split: hazard probe against the fact-change digests, session-cumulative
             // between the row's two clock accounting reads, and the detection gaps the session reported.
-            ["probe_ms"] = clock.NativeProbeMs,
-            ["digest_ms"] = clock.NativeDigestMs,
-            ["digest_share"] = clock.DigestShare(),
-            ["probes"] = clock.NativeProbes,
-            ["digests"] = clock.NativeDigests,
-            ["max_probe_tick_gap"] = clock.NativeMaxProbeTickGap,
-            ["hazard_gaps"] = hazardGaps,
-            ["paused_fraction"] = pausedFraction,
-            ["paused_fraction_sampling"] = "status-sample ratio, a sampling diagnostic; paused_fraction_native is the measure",
-            ["paused_samples"] = clock.PausedSamples,
-            ["clock_samples"] = clock.ClockSamples,
-            ["paused_sampled_seconds"] = clock.SampledSecs,
-            ["steps"] = steps.Steps,
-            ["reads_per_step"] = readsPerStep,
+            ("probe_ms", clock.NativeProbeMs),
+            ("digest_ms", clock.NativeDigestMs),
+            ("digest_share", clock.DigestShare()),
+            ("probes", clock.NativeProbes),
+            ("digests", clock.NativeDigests),
+            ("max_probe_tick_gap", clock.NativeMaxProbeTickGap),
+            ("hazard_gaps", hazardGaps),
+            ("paused_fraction", pausedFraction),
+            ("paused_fraction_sampling", "status-sample ratio, a sampling diagnostic; paused_fraction_native is the measure"),
+            ("paused_samples", clock.PausedSamples),
+            ("clock_samples", clock.ClockSamples),
+            ("paused_sampled_seconds", clock.SampledSecs),
+            ("steps", steps.Steps),
+            ("reads_per_step", readsPerStep),
 
             // The mean and worst step wall, and the player-gate wait a step spent queued behind the Worker's dispatch step.
-            ["step_ms_mean"] = steps.StepMs(),
-            ["step_ms_max"] = steps.MaxElapsedMs,
-            ["gate_wait_ms_mean"] = gateWaitMean,
-            ["gate_wait_ms_max"] = steps.MaxGateWaitMs,
+            ("step_ms_mean", steps.StepMs()),
+            ("step_ms_max", steps.MaxElapsedMs),
+            ("gate_wait_ms_mean", gateWaitMean),
+            ("gate_wait_ms_max", steps.MaxGateWaitMs),
 
             // Hold metrics, from native's hold and resume rows: holds by reason (letter_pause, review, coupled_order,
             // ...) and the native time each hold lasted before a Run resumed it.
-            ["holds"] = holds.Holds,
-            ["holds_per_6000_ticks"] = holdsPer6000,
-            ["hold_reasons"] = reasons,
-            ["resume_latency_ms_mean"] = holds.MeanResumeMs,
-            ["resume_latency_ms_max"] = holds.MaxResumeMs,
-            ["resume_samples"] = holds.ResumeCount,
+            ("holds", holds.Holds),
+            ("holds_per_6000_ticks", holdsPer6000),
+            ("hold_reasons", reasons),
+            ("resume_latency_ms_mean", holds.MeanResumeMs),
+            ("resume_latency_ms_max", holds.MaxResumeMs),
+            ("resume_samples", holds.ResumeCount),
 
             // Per hold: detect_ticks, hold_ticks, resume_ms.
-            ["hold_latencies"] = latencies,
+            ("hold_latencies", latencies),
 
             // The steps a hold woke and how long the wake took; the brain's own Run, Hold and refusal rows, and the
             // coupled orders that rode on them.
-            ["hold_woken_steps"] = steps.HoldWoken,
-            ["hold_wake_ms_mean"] = phases.MeanHoldWakeMs,
-            ["hold_wake_ms_max"] = phases.MaxHoldWakeMs,
-            ["run_verdicts"] = runVerdicts,
-            ["coupled_runs"] = steps.CoupledRuns,
-            ["coupled_orders"] = steps.CoupledOrders,
+            ("hold_woken_steps", steps.HoldWoken),
+            ("hold_wake_ms_mean", phases.MeanHoldWakeMs),
+            ("hold_wake_ms_max", phases.MaxHoldWakeMs),
+            ("run_verdicts", runVerdicts),
+            ("coupled_runs", steps.CoupledRuns),
+            ("coupled_orders", steps.CoupledOrders),
 
             // Live dispatch: steps by reason, the worker's native runs made under
             // a running clock and the fraction native refused.
-            ["step_reasons"] = stepReasons,
-            ["dispatches"] = phases.Dispatch.Calls,
-            ["live_dispatches"] = phases.Dispatch.Live,
-            ["refused_dispatches"] = phases.Dispatch.Refused,
-            ["live_refused_dispatches"] = phases.Dispatch.LiveRefused,
-            ["refused_fraction"] = phases.Dispatch.RefusedFraction(),
+            ("step_reasons", stepReasons),
+            ("dispatches", phases.Dispatch.Calls),
+            ("live_dispatches", phases.Dispatch.Live),
+            ("refused_dispatches", phases.Dispatch.Refused),
+            ("live_refused_dispatches", phases.Dispatch.LiveRefused),
+            ("refused_fraction", phases.Dispatch.RefusedFraction()),
 
             // Dispatches held on stale facts before native ran them.
-            ["stale_facts_holds"] = phases.Dispatch.StaleHolds,
-        };
+            ("stale_facts_holds", phases.Dispatch.StaleHolds));
     }
+
+    // A count per key, as an object in the pairs' order.
+    private static JsonObject Counts(IEnumerable<KeyValuePair<string, int>> pairs) =>
+        new(pairs.Select(pair => KeyValuePair.Create(pair.Key, (JsonNode?)pair.Value)));
+
+    private static JsonObject Counts(IEnumerable<KeyValuePair<string, ulong>> pairs) =>
+        new(pairs.Select(pair => KeyValuePair.Create(pair.Key, (JsonNode?)pair.Value)));
 
     // Records a metrics row on the matrix report and for the comparators (the report holds its own copy).
-    private void AppendMetrics(JsonObject row)
+    private void AppendMetrics(JsonObject row, SpeedRowFacts facts)
     {
         _rows.Add(row);
-        _report["speed_metrics"] = new JsonArray([.. _rows.Select(r => (JsonNode?)r.DeepClone())]);
+        _rowFacts.Add(facts);
+        _report["speed_metrics"] = OutputJson.Array(_rows, r => r.DeepClone());
     }
 
-    // Renders fixture cell objects as the "x:z,x:z" list test/throughput_control parses.
-    private static string CellList(JsonNode? value) =>
-        string.Join(',', value.AsSlice().Select(raw =>
-        {
-            var cell = raw.AsMap();
-            return string.Create(CultureInfo.InvariantCulture, $"{(int)cell?["x"].AsNumber()!}:{(int)cell["z"].AsNumber()}");
-        }));
+    // Renders fixture cells as the "x:z,x:z" list test/throughput_control parses.
+    private static string CellList(IEnumerable<(int X, int Z)> cells) =>
+        string.Join(',', cells.Select(cell => string.Create(CultureInfo.InvariantCulture, $"{cell.X}:{cell.Z}")));
 
     private static string RandomSuffix() => Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(4));
 }

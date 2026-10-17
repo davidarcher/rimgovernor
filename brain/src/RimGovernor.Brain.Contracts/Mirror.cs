@@ -290,11 +290,6 @@ public sealed record CombatEventRow
     /// </summary>
     public string? TargetId { get; init; }
 
-    /// <summary>
-    /// weapon, projectile, building or state def
-    /// </summary>
-    public string? DefName { get; init; }
-
     public Common.Cell? Cell { get; init; }
 
     public string? Detail { get; init; }

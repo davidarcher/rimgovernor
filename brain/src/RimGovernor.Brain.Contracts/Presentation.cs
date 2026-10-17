@@ -185,8 +185,6 @@ public sealed record LookTarget
 
     public string? Label { get; init; }
 
-    public string? DefName { get; init; }
-
     public int? MapId { get; init; }
 
     public Common.Cell? Position { get; init; }

@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -10,43 +10,19 @@ namespace RimGovernor.Brain.Acceptance;
 // each family's p90 to the median p90 of the last -window successful runs' records, and opens or comments on one
 // regression issue naming the families and the commit range.
 
-/// <summary>One nightly run's artifact (Go <c>perfRecord</c>).</summary>
+/// <summary>One nightly run's artifact (Go <c>perfRecord</c>); its JSON form is commit, run_id (omitted when 0), at and profile.</summary>
 public sealed class PerfRecord
 {
     public string Commit { get; set; } = "";
 
+    [JsonPropertyName("run_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public long RunId { get; set; }
 
+    [JsonConverter(typeof(RoundtripInstantConverter))]
     public DateTimeOffset At { get; set; }
 
     public ProfileSummary Profile { get; set; } = new();
-
-    /// <summary>The record as its JSON object (tags commit, run_id (omitted when 0), at, profile).</summary>
-    public JsonObject ToJson()
-    {
-        var row = new JsonObject { ["commit"] = Commit };
-        if (RunId != 0)
-        {
-            row["run_id"] = RunId;
-        }
-
-        row["at"] = At.ToString("O", CultureInfo.InvariantCulture);
-        row["profile"] = Profile.ToJson();
-        return row;
-    }
-
-    public static PerfRecord FromJson(JsonObject node)
-    {
-        ArgumentNullException.ThrowIfNull(node);
-        var at = node["at"].AsString();
-        return new PerfRecord
-        {
-            Commit = node["commit"].AsString(),
-            RunId = (long)Math.Max(node["run_id"].AsNumber(), 0),
-            At = at.Length > 0 && DateTimeOffset.TryParse(at, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed) ? parsed : default,
-            Profile = ProfileSummary.FromJson(node["profile"]),
-        };
-    }
 }
 
 /// <summary>One span whose p90 exceeds its baseline (Go <c>perfRegression</c>).</summary>
@@ -140,7 +116,7 @@ public static class ProfileCompareCommand
             {
                 try
                 {
-                    records.Add(PerfRecord.FromJson(Dyn.ParseObject(File.ReadAllText(path))));
+                    records.Add(JsonSerializer.Deserialize(File.ReadAllText(path), ProfileJsonContext.Default.PerfRecord) ?? throw new JsonException("the record is JSON null"));
                 }
                 catch (Exception e) when (e is JsonException or AcceptanceException)
                 {
@@ -168,19 +144,19 @@ public static class ProfileCompareCommand
             throw new AcceptanceException($"gh run list {PerfWorkflow}: {e.Message}", e);
         }
 
-        JsonNode? runs;
+        List<GhRun> runs;
         try
         {
-            runs = JsonNode.Parse(output);
+            runs = JsonSerializer.Deserialize(output, ProfileJsonContext.Default.ListGhRun) ?? [];
         }
         catch (JsonException e)
         {
             throw new AcceptanceException(e.Message, e);
         }
 
-        foreach (var run in runs.AsSlice())
+        foreach (var run in runs)
         {
-            var id = ((long)run.Member("databaseId").AsNumber()).ToString(CultureInfo.InvariantCulture);
+            var id = run.DatabaseId.ToString(CultureInfo.InvariantCulture);
             try
             {
                 _ = await CiFixture.Gh(["run", "download", id, "-R", FactoryRepo, "--pattern", PerfArtifact + "*", "--dir", Path.Combine(dir, id)], cancellationToken).ConfigureAwait(false);
@@ -245,21 +221,21 @@ public static class ProfileCompareCommand
             throw new AcceptanceException("gh issue list: " + e.Message, e);
         }
 
-        JsonNode? issues;
+        List<GhIssue> issues;
         try
         {
-            issues = JsonNode.Parse(output);
+            issues = JsonSerializer.Deserialize(output, ProfileJsonContext.Default.ListGhIssue) ?? [];
         }
         catch (JsonException e)
         {
             throw new AcceptanceException(e.Message, e);
         }
 
-        foreach (var issue in issues.AsSlice())
+        foreach (var issue in issues)
         {
-            if (issue.Member("title").AsString() == PerfIssueTitle)
+            if (issue.Title == PerfIssueTitle)
             {
-                var number = ((long)issue.Member("number").AsNumber()).ToString(CultureInfo.InvariantCulture);
+                var number = issue.Number.ToString(CultureInfo.InvariantCulture);
                 _ = await CiFixture.Gh(["issue", "comment", number, "-R", FactoryRepo, "--body", body], cancellationToken).ConfigureAwait(false);
                 return;
             }
@@ -317,7 +293,8 @@ public static class ProfileCompareCommand
             var current = new PerfRecord { Commit = commit.Value, RunId = runId, At = DateTimeOffset.UtcNow };
             try
             {
-                current.Profile = ProfileSummary.FromJson(Dyn.ParseObject(await File.ReadAllTextAsync(currentPath.Value, cancellationToken).ConfigureAwait(false)));
+                current.Profile = JsonSerializer.Deserialize(await File.ReadAllTextAsync(currentPath.Value, cancellationToken).ConfigureAwait(false), ProfileJsonContext.Default.ProfileSummary)
+                    ?? throw new JsonException("the profile is JSON null");
             }
             catch (Exception e) when (e is JsonException or AcceptanceException)
             {
@@ -329,7 +306,7 @@ public static class ProfileCompareCommand
                 throw new AcceptanceException($"{currentPath.Value} holds no captures");
             }
 
-            var record = current.ToJson().ToJsonString(Indented);
+            var record = OutputJson.Node(current, ProfileJsonContext.Default.PerfRecord).ToJsonString(Indented);
             var outDir = Path.GetDirectoryName(Path.GetFullPath(outPath.Value));
             if (!string.IsNullOrEmpty(outDir))
             {

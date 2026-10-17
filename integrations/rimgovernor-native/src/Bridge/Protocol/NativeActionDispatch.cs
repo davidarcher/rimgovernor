@@ -268,7 +268,7 @@ namespace HomeBridge.BridgeTools
 
         private static Receipts.ConstructionEffect Effect(Thing thing, RimGovernor.Contracts.Wire.Placement.PlacementCandidate candidate) => new Receipts.ConstructionEffect
         {
-            DefName = candidate.DefName, Stuff = candidate.Stuff ?? "", Cell = new Common.Cell { X = candidate.X.GetValueOrDefault(), Z = candidate.Z.GetValueOrDefault() },
+            Stuff = candidate.Stuff ?? "", Cell = new Common.Cell { X = candidate.X.GetValueOrDefault(), Z = candidate.Z.GetValueOrDefault() },
             Rotation = candidate.Rotation,
             Stage = Stage(thing), Started = true, Failed = false,
         };

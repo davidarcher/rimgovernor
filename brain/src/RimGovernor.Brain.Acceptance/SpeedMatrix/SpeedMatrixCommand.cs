@@ -1,5 +1,5 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -137,7 +137,7 @@ public static class SpeedMatrixCommand
     private static FixtureStart Start(string profile) => new()
     {
         Op = SpeedmatrixRun.PrepareTool,
-        Args = new JsonObject { ["itemCount"] = SpeedmatrixRun.Items, ["wallSegments"] = SpeedmatrixRun.Segments },
+        Args = FixtureRecordJson.Args(new Fx.ThroughputPrepareRequest { ItemCount = SpeedmatrixRun.Items, WallSegments = SpeedmatrixRun.Segments }),
         On = profile == Observations ? new SaveStart { Name = Baselines.BaselineName } : new DebugStart { Size = new DebugStartSize { Flat = true } },
     };
 
@@ -173,7 +173,7 @@ public static class SpeedMatrixCommand
             try
             {
                 var (colonists, added) = await DebugGame.StaffCrewAsync(session.Harness, 3, timeout.Token).ConfigureAwait(false);
-                report["crew"] = new JsonObject { ["declared"] = 3, ["colonists"] = colonists, ["added"] = added };
+                report["crew"] = OutputJson.Fields(("declared", 3), ("colonists", colonists), ("added", added));
                 await SpeedmatrixRun.RunAsync(session, cfg, report, profile, opts.Speeds, timeout.Token).ConfigureAwait(false);
             }
             finally

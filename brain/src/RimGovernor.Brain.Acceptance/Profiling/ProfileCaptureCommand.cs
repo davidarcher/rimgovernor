@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -95,7 +96,7 @@ public static class ProfileCaptureCommand
             IgnoreMods = ignoreMods,
             NoHeal = p.NoHeal,
             Op = ProfileOp,
-            Args = new JsonObject { ["count"] = p.Count, ["equality"] = p.Equality },
+            Args = FixtureRecordJson.Args(new Fx.ProfileCaptureRequest { Count = p.Count, Equality = p.Equality }),
         };
         if (!await host.PreflightAsync(call, info, cancellationToken).ConfigureAwait(false))
         {
@@ -143,7 +144,7 @@ public static class ProfileCaptureCommand
 
         if (p.Json)
         {
-            await stdout.WriteLineAsync(profile.ToJson().ToJsonString(Indented)).ConfigureAwait(false);
+            await stdout.WriteLineAsync(OutputJson.Node(profile, ProfileJsonContext.Default.ProfileSummary).ToJsonString(Indented)).ConfigureAwait(false);
         }
         else
         {
@@ -152,7 +153,7 @@ public static class ProfileCaptureCommand
             await stdout.WriteLineAsync($"profile-capture: {save} in {GoDuration.Format(elapsed)} ({result.Output})").ConfigureAwait(false);
         }
 
-        return profile.Equality is not null && profile.Equality["equal"].AsBool() != true ? 1 : 0;
+        return profile.Equality is { Equal: false } ? 1 : 0;
     }
 
     /// <summary>

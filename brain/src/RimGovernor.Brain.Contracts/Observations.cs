@@ -1948,13 +1948,6 @@ public abstract record ListSuppliesReplyOutcome
     public static implicit operator ListSuppliesReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
-public sealed record FilterSpecialRule
-{
-    public string? DefName { get; init; }
-
-    public bool? Allowed { get; init; }
-}
-
 public sealed record StockpileFilter
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
@@ -4326,8 +4319,6 @@ public sealed record QuestGravEngine
 public sealed record WorldSite
 {
     public string? Id { get; init; }
-
-    public string? DefName { get; init; }
 
     public string? Label { get; init; }
 
@@ -9325,8 +9316,6 @@ public sealed record IdeoRitual
 {
     public string? Id { get; init; }
 
-    public string? DefName { get; init; }
-
     public string? Pattern { get; init; }
 
     public int? LastFinishedTick { get; init; }
@@ -9344,8 +9333,6 @@ public sealed record IdeoRitual
 public sealed record IdeoBuilding
 {
     public string? Id { get; init; }
-
-    public string? DefName { get; init; }
 
     public string? Building { get; init; }
 }

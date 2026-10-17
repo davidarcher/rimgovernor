@@ -40,14 +40,7 @@ internal sealed partial class SpeedmatrixRun
         _ = await h.PauseClockAsync("pause", cancellationToken).ConfigureAwait(false);
         var identity = await ReadIdentityAsync(h, cancellationToken).ConfigureAwait(false);
         report["frozen_needs"] = (await Needs.FreezeNeedsAsync(h, null, [], cancellationToken).ConfigureAwait(false)).DeepClone();
-        var before = await ControlAsync(h, identity, "control-before", cancellationToken).ConfigureAwait(false);
-        report["control_before"] = before.DeepClone();
-        if (before["storedUnits"].AsNumber() != 0 || before["wallsBuilt"].AsNumber() != 0 || before["wallBlueprints"].AsNumber() != 0)
-        {
-            throw new AcceptanceException("stage is not fresh after reload: " + before.ToJson());
-        }
-
-        var startTick = (ulong)before["tick"].AsNumber();
+        var startTick = await FreshStageTickAsync(h, identity, report, cancellationToken).ConfigureAwait(false);
         var accountingStart = await ClockAccounting.ReadAsync(h, "clock-accounting-start", cancellationToken).ConfigureAwait(false);
         _ = await h.SetTimeSpeedAsync("play", new() { Speed = c.Speed, UltraSpeedBoost = c.TestAcceleration }, cancellationToken).ConfigureAwait(false);
         var resumedAt = DateTimeOffset.UtcNow;
@@ -82,7 +75,7 @@ internal sealed partial class SpeedmatrixRun
             waitErr = e;
         }
 
-        report["wait"] = new JsonObject { ["start_tick"] = startTick, ["last_tick"] = lastTick, ["wall_seconds"] = wallSeconds, ["tick_reads"] = reads };
+        report["wait"] = OutputJson.Fields(("start_tick", startTick), ("last_tick", lastTick), ("wall_seconds", wallSeconds), ("tick_reads", reads));
         if (waitErr is not null)
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"tick target wait (start {startTick}, last {lastTick}, want +{_profile.Ticks}): {waitErr.Message}"), waitErr);
@@ -97,38 +90,35 @@ internal sealed partial class SpeedmatrixRun
         var outcome = SpeedMatrix.OutcomeFromControl(c.Name, after) with { HealthyColonists = healthy };
         report["outcome"] = outcome.ToJson();
         var wallTps = wallSeconds > 0 && lastTick > startTick ? (lastTick - startTick) / wallSeconds : 0.0;
-        var metrics = new JsonObject
-        {
-            ["case"] = c.Name,
-            ["speed"] = c.Speed,
-            ["test_acceleration"] = c.TestAcceleration,
-            ["governor_off"] = true,
-            ["ticks_advanced"] = lastTick - startTick,
-            ["wall_seconds"] = wallSeconds,
-            ["wall_tps"] = wallTps,
-            ["effective_speed"] = SpeedMatrix.EffectiveSpeed(wallTps, c.Speed),
-            ["paused_ms"] = clock.NativePausedMs,
-            ["running_ms"] = clock.NativeRunningMs,
-            ["paused_fraction_native"] = clock.PausedFractionNative(),
-            ["native_pause_samples"] = clock.NativePauseSamples,
-            ["paused_fraction"] = 0.0,
-            ["paused_samples"] = 0,
-            ["clock_samples"] = 0,
-            ["paused_sampled_seconds"] = 0.0,
-            ["steps"] = 0,
-            ["reads_per_step"] = 0.0,
-            ["holds"] = 0,
-            ["resume_latency_ms_mean"] = 0.0,
-            ["tick_reads"] = reads,
-        };
-        // Nothing records an OTLP timeline here, so the row's observation and frame accounts are empty (unknown, not zero).
-        foreach (var (key, value) in ObservationRow(new ObservationSample(), new FrameSample()))
-        {
-            metrics[key] = value?.DeepClone();
-        }
+        var metrics = OutputJson.Fields(
+            ("case", c.Name),
+            ("speed", c.Speed),
+            ("test_acceleration", c.TestAcceleration),
+            ("governor_off", true),
+            ("ticks_advanced", lastTick - startTick),
+            ("wall_seconds", wallSeconds),
+            ("wall_tps", wallTps),
+            ("effective_speed", SpeedMatrix.EffectiveSpeed(wallTps, c.Speed)),
+            ("paused_ms", clock.NativePausedMs),
+            ("running_ms", clock.NativeRunningMs),
+            ("paused_fraction_native", clock.PausedFractionNative()),
+            ("native_pause_samples", clock.NativePauseSamples),
+            ("paused_fraction", 0.0),
+            ("paused_samples", 0),
+            ("clock_samples", 0),
+            ("paused_sampled_seconds", 0.0),
+            ("steps", 0),
+            ("reads_per_step", 0.0),
+            ("holds", 0),
+            ("resume_latency_ms_mean", 0.0),
+            ("tick_reads", reads));
 
+        // Nothing records an OTLP timeline here, so the row's observation and frame accounts are empty (unknown, not zero).
+        var observations = new ObservationSample();
+        var frames = new FrameSample();
+        AddAll(metrics, ObservationRow(observations, frames));
         report["metrics"] = metrics.DeepClone();
-        AppendMetrics(metrics);
+        AppendMetrics(metrics, new SpeedRowFacts(c.Name, GovernorOff: true, frames.Intervals.Samples, observations.Hops));
     }
 
     // Reads the loaded identity the stage reload produced.

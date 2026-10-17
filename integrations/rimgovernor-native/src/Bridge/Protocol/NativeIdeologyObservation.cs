@@ -47,11 +47,11 @@ namespace HomeBridge.BridgeTools
                         row = row with { Roles = [.. row.Roles, held] };
                         break;
                     case Precept_Ritual ritual:
-                        row = row with { Rituals = [.. row.Rituals, new Obs.IdeoRitual { Id = id, DefName = def, Pattern = ritual.sourcePattern == null ? null : Id(ritual.sourcePattern.defName),
+                        row = row with { Rituals = [.. row.Rituals, new Obs.IdeoRitual { Id = id, Pattern = ritual.sourcePattern == null ? null : Id(ritual.sourcePattern.defName),
                             LastFinishedTick = ritual.lastFinishedTick, ActiveObligations = ritual.activeObligations?.Count ?? 0, RepeatPenaltyActive = ritual.RepeatPenaltyActive, Running = NativeRitualBegin.Running(ritual) }] };
                         break;
                     case Precept_Building building:
-                        row = row with { Buildings = [.. row.Buildings, new Obs.IdeoBuilding { Id = id, DefName = def, Building = building.ThingDef == null ? null : Id(building.ThingDef.defName) }] };
+                        row = row with { Buildings = [.. row.Buildings, new Obs.IdeoBuilding { Id = id, Building = building.ThingDef == null ? null : Id(building.ThingDef.defName) }] };
                         break;
                     default:
                         row = row with { Precepts = [.. row.Precepts, new Obs.IdeoPrecept { Id = id, DefName = def }] };

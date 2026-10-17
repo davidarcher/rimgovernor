@@ -156,7 +156,7 @@ namespace HomeBridge.BridgeTools
                     open = Math.Max(open, fall != null && delay != null && delay.FieldExists() ? now + fall.ticksToImpact + delay.GetValue<int>() : now + PodOpenFallbackTicks);
                 }
                 _active = true;
-                Record(Mirror.CombatLogKind.HostileArrived, Clock.CombatEvent.Unspecified, pawns[0], null, __instance.def?.defName ?? __instance.GetType().Name,
+                Record(Mirror.CombatLogKind.HostileArrived, Clock.CombatEvent.Unspecified, pawns[0], null,
                     pawns.Count + " pawns in pods", cells.Count > 0 ? cells[0] : (IntVec3?)null, "pods", row =>
                     {
                         row = row with { OpenTick = open };
@@ -169,7 +169,7 @@ namespace HomeBridge.BridgeTools
 
         /// Record appends an event row on thing's map while combat is active,
         /// stamping the pawns among thing and other with its mark.
-        internal static void Record(Mirror.CombatLogKind kind, Clock.CombatEvent stop, Thing? thing, Thing? other, string? defName, string? detail, IntVec3? cell = null, string? strategy = null, Func<Mirror.CombatEventRow, Mirror.CombatEventRow>? fill = null)
+        internal static void Record(Mirror.CombatLogKind kind, Clock.CombatEvent stop, Thing? thing, Thing? other, string? detail, IntVec3? cell = null, string? strategy = null, Func<Mirror.CombatEventRow, Mirror.CombatEventRow>? fill = null)
         {
             if (!Active) return;
             try
@@ -181,7 +181,6 @@ namespace HomeBridge.BridgeTools
                 if (stop != Clock.CombatEvent.Unspecified) row = row with { Stop = stop };
                 if (thing != null) row = row with { ThingId = LoadId(thing) };
                 if (other != null) row = row with { TargetId = LoadId(other) };
-                if (!string.IsNullOrEmpty(defName)) row = row with { DefName = defName };
                 if (!string.IsNullOrEmpty(detail)) row = row with { Detail = detail!.Length > MaxDetailChars ? detail.Substring(0, MaxDetailChars - TruncatedMarker.Length) + TruncatedMarker : detail };
                 if (!string.IsNullOrEmpty(strategy)) row = row with { RaidStrategy = strategy };
                 if (fill != null) row = fill(row);
@@ -366,8 +365,7 @@ namespace HomeBridge.BridgeTools
                 var caster = __instance.caster;
                 if (caster == null || !caster.Spawned) return;
                 var target = __instance.CurrentTarget;
-                Record(Mirror.CombatLogKind.ShotFired, Clock.CombatEvent.Unspecified, caster, target.Thing, __instance.EquipmentSource?.def.defName ?? __instance.verbProps.label,
-                    null, caster.Position);
+                Record(Mirror.CombatLogKind.ShotFired, Clock.CombatEvent.Unspecified, caster, target.Thing, null, caster.Position);
             }
             catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
@@ -375,7 +373,7 @@ namespace HomeBridge.BridgeTools
         private static void OnExplosion(Explosion __instance)
         {
             if (!Active) return;
-            try { Record(Mirror.CombatLogKind.Explosion, Clock.CombatEvent.Unspecified, __instance, __instance.instigator, __instance.damType?.defName,
+            try { Record(Mirror.CombatLogKind.Explosion, Clock.CombatEvent.Unspecified, __instance, __instance.instigator,
                 "radius " + __instance.radius.ToString("0.#", CultureInfo.InvariantCulture)); }
             catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
@@ -383,7 +381,7 @@ namespace HomeBridge.BridgeTools
         private static void OnFire(Fire __instance)
         {
             if (!Active) return;
-            try { Record(Mirror.CombatLogKind.FireStarted, Clock.CombatEvent.Unspecified, __instance, __instance.parent, null, null); }
+            try { Record(Mirror.CombatLogKind.FireStarted, Clock.CombatEvent.Unspecified, __instance, __instance.parent, null); }
             catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
 
@@ -392,7 +390,7 @@ namespace HomeBridge.BridgeTools
         private static void OnDoorPostfix(Building_Door __instance, bool __state)
         {
             if (!Active || __instance == null || __instance.Open == __state) return;
-            Record(__instance.Open ? Mirror.CombatLogKind.DoorOpened : Mirror.CombatLogKind.DoorClosed, Clock.CombatEvent.Unspecified, __instance, null, __instance.def.defName, null);
+            Record(__instance.Open ? Mirror.CombatLogKind.DoorOpened : Mirror.CombatLogKind.DoorClosed, Clock.CombatEvent.Unspecified, __instance, null, null);
         }
 
         private static void OnShieldReset(CompShield __instance)

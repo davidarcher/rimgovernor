@@ -173,7 +173,6 @@ namespace HomeBridge.BridgeTools
                 var thing = target.Thing;
                 row = row with { Id = Id(thing.GetUniqueLoadID()) };
                 row = row with { Label = Diagnostic(thing is Pawn pawn ? pawn.Name?.ToStringShort ?? pawn.LabelShort : thing.LabelCap) };
-                if (thing.def != null && ProtoBoundary.IsIdentifier(thing.def.defName)) row = row with { DefName = thing.def.defName };
                 if (thing.Map != null) { row = row with { MapId = thing.Map.uniqueID }; if (thing.Spawned && thing.Position.InBounds(thing.Map)) row = row with { Position = Cell(thing.Position) }; }
                 return row;
             }
@@ -182,7 +181,6 @@ namespace HomeBridge.BridgeTools
                 var worldObject = target.WorldObject;
                 row = row with { Id = Id(worldObject.GetUniqueLoadID()) };
                 row = row with { Label = Diagnostic(target.Label ?? string.Empty) };
-                if (worldObject.def != null && ProtoBoundary.IsIdentifier(worldObject.def.defName)) row = row with { DefName = worldObject.def.defName };
                 return row;
             }
             if (target.IsMapTarget && target.Map != null && target.Cell.IsValid && target.Cell.InBounds(target.Map))

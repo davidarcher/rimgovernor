@@ -78,4 +78,5 @@ public static class HostJson
 [JsonSerializable(typeof(TimeSpeedReply))]
 [JsonSerializable(typeof(LoadGameRequest))]
 [JsonSerializable(typeof(LoadGameReply))]
+[JsonSerializable(typeof(SaveGameRequest))]
 internal sealed partial class HostJsonContext : JsonSerializerContext;
