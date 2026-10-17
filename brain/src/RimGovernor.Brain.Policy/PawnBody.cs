@@ -18,9 +18,6 @@ public sealed record PawnBody
     /// <summary>Cells per second, with the current Moving capacity.</summary>
     public Fact<double> MoveSpeed { get; init; }
 
-    /// <summary>The mass the pawn carries, in kg.</summary>
-    public Fact<double> CarryCapacity { get; init; }
-
     /// <summary>The toxic environment resistance, 0-1.</summary>
     public Fact<double> ToxicResistance { get; init; }
 
@@ -35,11 +32,4 @@ public sealed record PawnBody
     public Fact<double> Frostbite { get; init; }
 
     public Fact<double> ToxicBuildup { get; init; }
-
-    // Moving, Manipulation and Consciousness are capacity levels.
-    public Fact<double> Moving { get; init; }
-
-    public Fact<double> Manipulation { get; init; }
-
-    public Fact<double> Consciousness { get; init; }
 }

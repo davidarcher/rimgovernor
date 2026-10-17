@@ -75,57 +75,21 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static Obs.ApparelRequirementFact Requirement(ApparelRequirement r)
-        {
-            var row = new Obs.ApparelRequirementFact();
-            row = row with { BodyPartGroups = [.. row.BodyPartGroups, .. (r.bodyPartGroupsMatchAny ?? new List<BodyPartGroupDef>()).Select(d => Id(d.defName))] };
-            row = row with { RequiredDefs = [.. row.RequiredDefs, .. (r.requiredDefs ?? new List<ThingDef>()).Select(d => Id(d.defName))] };
-            row = row with { RequiredTags = [.. row.RequiredTags, .. (r.requiredTags ?? new List<string>()).Where(ProtoBoundary.IsIdentifier)] };
-            row = row with { AllowedTags = [.. row.AllowedTags, .. (r.allowedTags ?? new List<string>()).Where(ProtoBoundary.IsIdentifier)] };
-            return row;
-        }
-
         internal static Obs.PawnPolicyInputs Inputs(Pawn pawn)
         {
             var row = new Obs.PawnPolicyInputs();
-            if (pawn.outfits?.CurrentApparelPolicy is ApparelPolicy outfit) row = row with { OutfitPolicyId = Id(outfit.GetUniqueLoadID()) };
-            if (pawn.drugs?.CurrentPolicy is DrugPolicy drug) row = row with { DrugPolicyId = Id(drug.GetUniqueLoadID()) };
             if (pawn.reading?.CurrentPolicy is ReadingPolicy reading) row = row with { ReadingPolicyId = Id(reading.GetUniqueLoadID()) };
             if (pawn.inventoryStock?.stockEntries is Dictionary<InventoryStockGroupDef, InventoryStockEntry> stock)
                 foreach (var entry in stock.OrderBy(e => e.Key.defName, StringComparer.Ordinal))
-                    row = row with { InventoryStock = [.. row.InventoryStock, new Obs.InventoryStockSetting { Group = Id(entry.Key.defName), ThingDef = Id(entry.Value.thingDef?.defName ?? entry.Key.DefaultThingDef.defName), Count = entry.Value.count }] };
-            var hediffs = pawn.health?.hediffSet?.hediffs ?? new List<Hediff>();
-            foreach (var chemical in DefDatabase<ChemicalDef>.AllDefsListForReading.OrderBy(d => d.defName, StringComparer.Ordinal)) {
-                var addiction = hediffs.OfType<Hediff_Addiction>().FirstOrDefault(h => h.Chemical == chemical);
-                var tolerance = chemical.toleranceHediff == null ? null : hediffs.FirstOrDefault(h => h.def == chemical.toleranceHediff);
-                if (addiction == null && tolerance == null) continue;
-                var state = new Obs.ChemicalState { Chemical = Id(chemical.defName) };
-                if (addiction != null) { state = state with { Addiction = Number(addiction.Severity) }; state = state with { Withdrawal = addiction.CurStageIndex == 1 }; }
-                if (tolerance != null) state = state with { Tolerance = Number(tolerance.Severity) };
-                row = row with { Chemicals = [.. row.Chemicals, state] };
-            }
-            if (pawn.genes != null)
-                row = row with { DependencyChemicals = [.. row.DependencyChemicals, .. pawn.genes.GenesListForReading.OfType<Gene_ChemicalDependency>()
-                    .Where(g => g.def.chemical != null).Select(g => Id(g.def.chemical.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal)] };
-            if (ModsConfig.RoyaltyActive && pawn.royalty?.MostSeniorTitle is RoyalTitle title)
-                row = row with { RoyalTitle = Id(title.def.defName) };
+                    row = row with { InventoryStock = [.. row.InventoryStock, new Obs.InventoryStockSetting { Group = Id(entry.Key.defName), Count = entry.Value.count }] };
             if (ModsConfig.IdeologyActive && pawn.Ideo is Ideo ideo) {
                 row = row with { IdeoId = Id(ideo.GetUniqueLoadID()) };
                 if (pawn.ideo != null) row = row with { IdeoCertainty = Number(pawn.ideo.Certainty) };
                 row = row with { Precepts = [.. row.Precepts, .. ideo.PreceptsListForReading.Select(p => Id(p.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal)] };
-                row = row with { PreceptApparel = [.. row.PreceptApparel, .. ideo.PreceptsListForReading.OfType<Precept_Apparel>().Where(p => p.apparelDef != null)
-                    .Select(p => Id(p.apparelDef.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal)] };
-                if (ideo.GetRole(pawn) is Precept_Role role) {
-                    row = row with { IdeoRole = Id(role.def.defName) };
-                    foreach (var r in role.ApparelRequirements ?? new List<PreceptApparelRequirement>())
-                        if (r.requirement != null) row = row with { RoleApparel = [.. row.RoleApparel, Requirement(r.requirement)] };
-                }
+                if (ideo.GetRole(pawn) is Precept_Role role) row = row with { IdeoRole = Id(role.def.defName) };
             }
-            if (pawn.guest is Pawn_GuestTracker guest && pawn.HostFaction != null) {
+            if (pawn.guest is Pawn_GuestTracker guest && pawn.HostFaction != null)
                 row = row with { GuestStatus = (RimGovernor.Contracts.Wire.Defs.GuestStatus)(int)guest.GuestStatus };
-                if (guest.IsPrisoner && guest.ExclusiveInteractionMode != null) row = row with { PrisonerInteraction = Id(guest.ExclusiveInteractionMode.defName) };
-                if (guest.IsSlave && guest.slaveInteractionMode != null) row = row with { SlaveInteraction = Id(guest.slaveInteractionMode.defName) };
-            }
             if (!pawn.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
                 row = row with { MedicalTendQuality = Number(pawn.GetStatValue(StatDefOf.MedicalTendQuality)) };
             return row;

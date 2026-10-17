@@ -105,22 +105,6 @@ public sealed record FilthModel
             var poisonings = meals * exposure * standingChance;
             output.Add(new FilthCost
             {
-                Node = node,
-                Filth = Def,
-                Cells = cells,
-                Exposed = [.. exposed],
-                CleanlinessPerUnit = per,
-                FoodPoisonPerUnit = chance,
-                PoisonOnsetCleanliness = onset,
-                UnitsToPoison = units,
-                ImpressivenessInputPerUnit = per / PolicyConstants.ImpressivenessCleanlinessScale,
-                RunsPerDay = r.Runs,
-                RunTicks = r.Ticks,
-                StandingUnits = standing,
-                Exposure = exposure,
-                StandingPoison = standingChance,
-                MealsPerDay = meals,
-                PoisoningsPerDay = poisonings,
                 PoisonWorkDays = poisonings * Poisoning.WorkDays(),
             });
         }
@@ -249,49 +233,6 @@ public sealed record PoisoningModel
 /// </summary>
 public sealed record FilthCost
 {
-    public string Node { get; init; } = string.Empty;
-
-    public string Filth { get; init; } = string.Empty;
-
-    public int Cells { get; init; }
-
-    public IReadOnlyList<string> Exposed { get; init; } = [];
-
-    public double CleanlinessPerUnit { get; init; }
-
-    public double FoodPoisonPerUnit { get; init; }
-
-    public double PoisonOnsetCleanliness { get; init; }
-
-    public double UnitsToPoison { get; init; }
-
-    public double ImpressivenessInputPerUnit { get; init; }
-
-    /// <summary>The node's butchering: runs a day.</summary>
-    public double RunsPerDay { get; init; }
-
-    /// <summary>The node's butchering: work ticks of one run.</summary>
-    public double RunTicks { get; init; }
-
-    /// <summary>The units standing at once.</summary>
-    public double StandingUnits { get; init; }
-
-    /// <summary>The share of the day any stands.</summary>
-    public double Exposure { get; init; }
-
-    /// <summary>The food poison chance at their cleanliness.</summary>
-    public double StandingPoison { get; init; }
-
-    /// <summary>
-    /// The meals a day the exposed nodes' stations in the room make (the graph's demand), each poisoned with
-    /// chance StandingPoison while the filth stands (CompFoodPoisonable.Notify_RecipeProduced) and each
-    /// poisoned meal giving its eater one poisoning (PostIngested).
-    /// </summary>
-    public double MealsPerDay { get; init; }
-
-    /// <summary>Their product with Exposure.</summary>
-    public double PoisoningsPerDay { get; init; }
-
     /// <summary>The work-days a day they cost (PoisoningModel.WorkDays).</summary>
     public double PoisonWorkDays { get; init; }
 

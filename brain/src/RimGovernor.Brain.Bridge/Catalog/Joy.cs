@@ -142,7 +142,6 @@ public sealed partial class DefinitionCatalog
 
             sources.Add(new P.JoySource
             {
-                Giver = giver.defName,
                 Weight = giver.baseChance * (double)giver.pctPawnsEverDo,
                 Session = job.joyGainRate * (double)job.joyDuration,
                 Outdoor = giver.unroofedOnly || giver.requiresEnjoyOutdoors || game.OutdoorGivers.Contains(giver.defName),

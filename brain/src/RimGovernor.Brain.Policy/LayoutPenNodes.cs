@@ -13,16 +13,9 @@ public sealed record StationHerd(Resource Race, int Animals)
 public sealed record PenNode
 {
     public string Id { get; init; } = "";
-    public Resource Race { get; init; }
-    public int Animals { get; init; }
-
     /// <summary>The nutrition a day the herd eats (AdultFeedPerDay times the animals); unknown with the race's feed.</summary>
     public Fact<double> Hunger { get; init; }
 
-    /// <summary>The nutrition a day the pen's grazing does not grow, hauled to the pen; unknown while the hunger or the pasture is.</summary>
-    public Fact<double> HandFed { get; init; }
-
-    public string Reason { get; init; } = "";
 }
 
 /// <summary>Ports <c>layout_pen_nodes.go</c>: pens as outdoor nodes of the station graph.</summary>
@@ -79,7 +72,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var node = new PenNode { Id = PenId(h.Race), Race = h.Race, Animals = h.Animals, Hunger = Unknown<double>(), HandFed = Unknown<double>(), Reason = ReasonPenHerd };
+            var node = new PenNode { Id = PenId(h.Race), Hunger = Unknown<double>() };
             if (race.AdultFeedPerDay.TryGetValue(out var feed) && FoodNumber(feed))
             {
                 node = node with { Hunger = Known(feed * h.Animals) };
@@ -115,7 +108,6 @@ public static partial class PolicyFunctions
         }
         var (perCell, _) = pasture.Weakest();
         var shortfall = Math.Max(hunger - (PenCells(hunger, perCell) * perCell), 0);
-        node = node with { HandFed = Known(shortfall) };
         if (shortfall <= 0)
         {
             return node;

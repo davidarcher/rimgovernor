@@ -156,14 +156,14 @@ internal sealed partial class Tiler
         var p = Out.Plan;
         if (p.Roofed.Empty())
         {
-            NoteAirlock(-1, ReasonTileAirlockTemperate, TilePlace, 0, 0);
+            NoteAirlock(-1, ReasonTileAirlockTemperate, TilePlace);
             return false;
         }
         var known = In.OutdoorCurve.TryGetValue(out var curve);
         var m = In.Catalog.Climate;
         if (!known || !m.Valid() || !FinitePositive(In.SteelValue))
         {
-            NoteAirlock(-1, ReasonTileAirlockUnpriced, TileUnsatisfied, 0, 0);
+            NoteAirlock(-1, ReasonTileAirlockUnpriced, TileUnsatisfied);
             return false;
         }
         var movements = ExteriorDoorMovements(p);
@@ -190,14 +190,14 @@ internal sealed partial class Tiler
             }
             catch (DomainException)
             {
-                NoteAirlock(g.Id, ReasonTileAirlockUnpriced, TileUnsatisfied, 0, 0);
+                NoteAirlock(g.Id, ReasonTileAirlockUnpriced, TileUnsatisfied);
                 continue;
             }
             var door = options[0].TotalW;
             var airlock = options[1].TotalW;
             if (airlock >= door)
             {
-                NoteAirlock(g.Id, ReasonTileAirlockNotPaid, TileUnsatisfied, door, airlock);
+                NoteAirlock(g.Id, ReasonTileAirlockNotPaid, TileUnsatisfied);
                 continue;
             }
             var rot = room.DoorRot!.Value;
@@ -205,7 +205,7 @@ internal sealed partial class Tiler
             var ground = new List<Cell>(child.AirlockWalls()) { child.Vestibule(), child.Door };
             if (ground.Any(c => !Free.Contains(c) || claimed.Contains(c)) || !Free.Contains(Outside(child.Door, rot)))
             {
-                NoteAirlock(g.Id, ReasonTileAirlockNoGround, TileUnsatisfied, door, airlock);
+                NoteAirlock(g.Id, ReasonTileAirlockNoGround, TileUnsatisfied);
                 continue;
             }
             foreach (var c in ground)
@@ -214,12 +214,12 @@ internal sealed partial class Tiler
             }
             child = child with { Id = Out.Plan.NextRoomId, Parent = room.Id };
             Out.Plan = Out.Plan with { NextRoomId = Out.Plan.NextRoomId + 1, Rooms = [.. Out.Plan.Rooms, child] };
-            NoteAirlock(g.Id, ReasonTileAirlock, TilePlace, door, airlock);
+            NoteAirlock(g.Id, ReasonTileAirlock, TilePlace);
             placed = true;
         }
         return placed;
     }
 
-    internal void NoteAirlock(int group, string reason, string verdict, double doorW, double airlockW) =>
-        Out.Decisions.Add(new TileDecision { Group = group, Other = -1, Verdict = verdict, Reason = reason, DoorW = doorW, AirlockW = airlockW });
+    internal void NoteAirlock(int group, string reason, string verdict) =>
+        Out.Decisions.Add(new TileDecision { Group = group, Verdict = verdict, Reason = reason });
 }

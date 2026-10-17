@@ -108,9 +108,6 @@ public readonly record struct LightPrice(double WorkDayW, double LampW, double C
     /// <summary>What a dark cell costs the movements a day through it: the extra time each passage takes at the dark speed, as a share of a work-day.</summary>
     public double WalkCellW(double movements) => movements * CellWalkDays * ((1 / PolicyFunctions.LightSpeed(0)) - 1) * WorkDayW;
 
-    /// <summary>The price of the cheapest lamp of either kind.</summary>
-    internal double CheapestLampW() => WallLampW > 0 ? Math.Min(LampW, WallLampW) : LampW;
-
     /// <summary>The standing lamps that could stand on spots.</summary>
     internal List<LampCand> StandingCands(IReadOnlyList<Cell> spots)
     {
@@ -328,14 +325,13 @@ public static partial class PolicyFunctions
     /// Places lamps greedily from the candidates: each step takes the one whose newly lit dark cost, less its
     /// own cost, is largest, and only while that is positive (ties and losses place none). Of two lamps on one
     /// cell the cheaper cover wins; the candidates' order breaks ties, and a cell holds one lamp. It returns the
-    /// lamps in the order placed with their costs and the dark cost left unlit.
+    /// lamps in the order placed with their costs.
     /// </summary>
-    internal static (List<LampCand> Lamps, double LeftW) PlanLamps(IReadOnlyList<DarkCell> cells, IReadOnlyList<LampCand> cands)
+    internal static List<LampCand> PlanLamps(IReadOnlyList<DarkCell> cells, IReadOnlyList<LampCand> cands)
     {
         var lamps = new List<LampCand>();
         var lit = new bool[cells.Count];
         var taken = new HashSet<Cell>();
-        var leftW = cells.Sum(c => c.W);
         while (true)
         {
             var best = -1;
@@ -363,7 +359,7 @@ public static partial class PolicyFunctions
             }
             if (best < 0)
             {
-                return (lamps, leftW);
+                return lamps;
             }
             var pick = cands[best];
             lamps.Add(pick);
@@ -373,7 +369,6 @@ public static partial class PolicyFunctions
                 if (!lit[j] && Distance(pick.Cell, cells[j].Cell) <= pick.Reach)
                 {
                     lit[j] = true;
-                    leftW -= cells[j].W;
                 }
             }
         }
@@ -381,8 +376,6 @@ public static partial class PolicyFunctions
 
     /// <summary>Reports a room with a roof and no sky: a fenced room that is not an outdoor role. An outdoor room gets the sun's light and no lamp.</summary>
     internal static bool LightRoofed(PlannedRoom r) => !r.Role.IsOutdoor() && !r.Unfenced();
-
-    internal static double LampsW(IEnumerable<LampCand> lamps) => lamps.Sum(l => l.W);
 
     /// <summary>
     /// The cells of the plan a wall lamp can hang on: the wall ring of every fenced indoor room (a fence, or no
@@ -495,7 +488,7 @@ public static partial class PolicyFunctions
             var g = t.In.Groups[t.Rooms[i].Group];
             if (!LightRoofed(room))
             {
-                t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsSky, PolicyFunctions.TilePlace, 0, 0);
+                t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsSky, PolicyFunctions.TilePlace);
                 continue;
             }
             var work = new HashSet<Cell>();
@@ -525,7 +518,7 @@ public static partial class PolicyFunctions
             {
                 if (work.Count > 0)
                 {
-                    t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsUnpriced, PolicyFunctions.TileUnsatisfied, 0, 0);
+                    t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsUnpriced, PolicyFunctions.TileUnsatisfied);
                 }
                 continue;
             }
@@ -547,13 +540,12 @@ public static partial class PolicyFunctions
                     cells.Add(new DarkCell(c, w));
                 }
             }
-            var (lamps, left) = PlanLamps(cells, t.In.Light.RoomCands(room.Region.Cells(), taken, work, filled, isWall));
-            var total = cells.Sum(c => c.W);
+            var lamps = PlanLamps(cells, t.In.Light.RoomCands(room.Region.Cells(), taken, work, filled, isWall));
             if (lamps.Count == 0)
             {
-                if (total > 0)
+                if (cells.Sum(c => c.W) > 0)
                 {
-                    t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsNotPaid, PolicyFunctions.TileUnsatisfied, total, t.In.Light.CheapestLampW());
+                    t.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsNotPaid, PolicyFunctions.TileUnsatisfied);
                 }
                 continue;
             }
@@ -563,12 +555,12 @@ public static partial class PolicyFunctions
                 t.Out.Lamps[room.Id] = list;
             }
             list.AddRange(lamps.Select(l => l.Lamp));
-            t.NoteLamps(g.Id, PolicyConstants.ReasonTileLamps, PolicyFunctions.TilePlace, left, LampsW(lamps));
+            t.NoteLamps(g.Id, PolicyConstants.ReasonTileLamps, PolicyFunctions.TilePlace);
         }
     }
 
-    internal static void NoteLamps(this Tiler t, int group, string reason, string verdict, double darkW, double lampW) =>
-        t.Out.Decisions.Add(new TileDecision { Group = group, Other = -1, Verdict = verdict, Reason = reason, DarkW = darkW, LampW = lampW });
+    internal static void NoteLamps(this Tiler t, int group, string reason, string verdict) =>
+        t.Out.Decisions.Add(new TileDecision { Group = group, Verdict = verdict, Reason = reason });
 
     /// <summary>
     /// The lamps the plan places in the room whose floor holds c, in the order the plan placed them (the most

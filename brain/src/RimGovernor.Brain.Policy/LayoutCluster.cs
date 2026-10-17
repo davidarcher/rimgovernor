@@ -270,13 +270,9 @@ public sealed record ConflictCost
 
     public string Node { get; init; } = string.Empty;
 
-    public string Def { get; init; } = string.Empty;
-
     public RoomRole Role { get; init; }
 
     public int Count { get; set; }
-
-    public double Factor { get; init; }
 
     public double TicksPerDay { get; set; }
 }
@@ -299,18 +295,11 @@ public sealed record ClusterDecision
 
     public string Reason { get; init; } = string.Empty;
 
-    public double Weight { get; init; }
-
     /// <summary>Names an environment conflict between the two parts, if any; it does not stop a merge.</summary>
     public string Conflict { get; init; } = string.Empty;
 
-    /// <summary>What a merge would add to its parts (a merge or a keep) or what the unsplit pool loses (a split): data for the search (#2877, #2878); nothing here weighs them against flow.</summary>
-    public IReadOnlyList<ConflictCost> Costs { get; init; } = [];
-
     public IReadOnlyList<LostRoleEffect> LostEffects { get; init; } = [];
 
-    /// <summary>What a merge of a filth node with other stations costs or, on a merge, what the room now pays (FilthCost).</summary>
-    public IReadOnlyList<FilthCost> Filth { get; init; } = [];
 }
 
 /// <summary>The room groups and why they are what they are.</summary>
@@ -633,11 +622,8 @@ public static partial class PolicyFunctions
                 A = p.NodeA,
                 B = p.NodeB,
                 Verdict = ClusterKeep,
-                Weight = p.Weight,
-                Costs = CostsAdded(em.Costs, ea.Costs, eb.Costs),
                 LostEffects = EffectsAdded(em.Effects, ea.Effects, eb.Effects),
                 Conflict = ColdBandConflict(ea, eb) ? ConflictColdBand : string.Empty,
-                Filth = FilthConflict(ea, eb) ? em.FilthCosts : [],
             };
             var rule = c.RuleBetween(members[ra]!, members[rb]!);
             if (rule == PairRule.Apart)
@@ -1228,7 +1214,7 @@ internal sealed class Clusterer
                     output[i].TicksPerDay += ticks;
                     continue;
                 }
-                output.Add(new ConflictCost { Kind = need.Kind, Node = n.Id, Def = n.Def, Role = role, Count = u.Count, Factor = need.Factor, TicksPerDay = ticks });
+                output.Add(new ConflictCost { Kind = need.Kind, Node = n.Id, Role = role, Count = u.Count, TicksPerDay = ticks });
             }
         }
         return [.. output.OrderBy(x => x.Node, StringComparer.Ordinal).ThenBy(x => Wire.Name(x.Kind), StringComparer.Ordinal).ThenBy(x => Wire.Name(x.Role), StringComparer.Ordinal)];
@@ -1252,7 +1238,7 @@ internal sealed class Clusterer
         {
             return [u];
         }
-        decisions.Add(new ClusterDecision { A = Node(u).Id, Verdict = PolicyConstants.ClusterSplit, Reason = reason, Costs = e.Costs, LostEffects = e.Effects });
+        decisions.Add(new ClusterDecision { A = Node(u).Id, Verdict = PolicyConstants.ClusterSplit, Reason = reason, LostEffects = e.Effects });
         var left = Split(n, (count + 1) / 2, decisions);
         var right = Split(n, count / 2, decisions);
         return [.. left, .. right];

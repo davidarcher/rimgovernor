@@ -1156,12 +1156,10 @@ public sealed record PawnSettings
 /// read it (unknown, not zero). comfortable_min_c and comfortable_max_c are
 /// StatDefOf.ComfyTemperatureMin/Max (degrees C, apparel included);
 /// move_speed is StatDefOf.MoveSpeed in cells per second, with the current
-/// Moving capacity; carry_capacity is MassCarryCapacity in kg;
-/// toxic_environment_resistance is StatDefOf.ToxicEnvironmentResistance (0-1).
+/// Moving capacity; toxic_environment_resistance is StatDefOf.ToxicEnvironmentResistance (0-1).
 /// cell_temperature_c is the temperature at the pawn's cell. hypothermia,
 /// heatstroke, frostbite (highest part) and toxic_buildup are hediff
-/// severities, 0 when the pawn has none. moving, manipulation and
-/// consciousness are PawnCapacityDefOf levels (1 = full).
+/// severities, 0 when the pawn has none.
 /// </summary>
 public sealed record PawnBodyStats
 {
@@ -1170,8 +1168,6 @@ public sealed record PawnBodyStats
     public double? ComfortableMaxC { get; init; }
 
     public double? MoveSpeed { get; init; }
-
-    public double? CarryCapacity { get; init; }
 
     public double? ToxicEnvironmentResistance { get; init; }
 
@@ -1185,11 +1181,6 @@ public sealed record PawnBodyStats
 
     public double? ToxicBuildup { get; init; }
 
-    public double? Moving { get; init; }
-
-    public double? Manipulation { get; init; }
-
-    public double? Consciousness { get; init; }
 }
 
 /// <summary>
@@ -1202,40 +1193,18 @@ public sealed record PawnBodyStats
 /// </summary>
 public sealed record PawnPolicyInputs
 {
-    public string? OutfitPolicyId { get; init; }
-
-    public string? DrugPolicyId { get; init; }
-
     public string? ReadingPolicyId { get; init; }
 
     /// <summary>
-    /// Pawn_InventoryStockTracker entries (medicine carry): group def, chosen
-    /// thing def and desired count.
+    /// Pawn_InventoryStockTracker entries (medicine carry): group def and
+    /// desired count.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<InventoryStockSetting>))]
     public EquatableArray<InventoryStockSetting> InventoryStock { get; init; }
 
     /// <summary>
-    /// One row per ChemicalDef with an addiction or tolerance hediff.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ChemicalState>))]
-    public EquatableArray<ChemicalState> Chemicals { get; init; }
-
-    /// <summary>
-    /// ChemicalDef defNames of the pawn's Gene_ChemicalDependency genes.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> DependencyChemicals { get; init; }
-
-    /// <summary>
-    /// Most senior royal title's defName (its requiredApparel is the RoyalTitleDef row).
-    /// </summary>
-    public string? RoyalTitle { get; init; }
-
-    /// <summary>
     /// Ideo.GetUniqueLoadID(), the ideo's precept defNames (diet, apparel and
-    /// every other issue), the pawn's Precept_Role defName with its apparel
-    /// requirements, and the apparelDef of each Precept_Apparel.
+    /// every other issue) and the pawn's Precept_Role defName.
     /// </summary>
     public string? IdeoId { get; init; }
 
@@ -1244,21 +1213,10 @@ public sealed record PawnPolicyInputs
 
     public string? IdeoRole { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ApparelRequirementFact>))]
-    public EquatableArray<ApparelRequirementFact> RoleApparel { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PreceptApparel { get; init; }
-
     /// <summary>
-    /// GuestStatus (Guest, Prisoner, Slave) and the prisoner/slave
-    /// interaction mode defNames; absent for a pawn that is no guest.
+    /// GuestStatus (Guest, Prisoner, Slave); absent for a pawn that is no guest.
     /// </summary>
     public Defs.GuestStatus? GuestStatus { get; init; }
-
-    public string? PrisonerInteraction { get; init; }
-
-    public string? SlaveInteraction { get; init; }
 
     /// <summary>
     /// StatDefOf.MedicalTendQuality of the pawn as a doctor, before vanilla's
@@ -1277,43 +1235,7 @@ public sealed record InventoryStockSetting
 {
     public string? Group { get; init; }
 
-    public string? ThingDef { get; init; }
-
     public int? Count { get; init; }
-}
-
-/// <summary>
-/// addiction: Hediff_Addiction severity, absent without one; withdrawal: the
-/// addiction is in its withdrawal stage; tolerance: the tolerance hediff's
-/// severity, absent without one.
-/// </summary>
-public sealed record ChemicalState
-{
-    public string? Chemical { get; init; }
-
-    public double? Addiction { get; init; }
-
-    public bool? Withdrawal { get; init; }
-
-    public double? Tolerance { get; init; }
-}
-
-/// <summary>
-/// A Precept_Role's apparel requirement: ideoligion instance state, not a def row.
-/// </summary>
-public sealed record ApparelRequirementFact
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> BodyPartGroups { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> RequiredDefs { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> RequiredTags { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> AllowedTags { get; init; }
 }
 
 public sealed record TrainingEntry

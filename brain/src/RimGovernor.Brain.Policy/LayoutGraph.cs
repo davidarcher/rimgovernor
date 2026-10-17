@@ -225,8 +225,6 @@ public sealed record StationNode
     /// <summary>The catalog's environment needs of the station that apply to this use of it.</summary>
     public IReadOnlyList<EnvNeed> Needs { get; set; } = [];
 
-    public string Reason { get; set; } = string.Empty;
-
     /// <summary>
     /// The work ticks a day the colony asks of the node's stations together (recipe runs times the station's
     /// work per run); 0 for a node that is not worked. Conflict costs are priced against it.
@@ -254,9 +252,6 @@ public sealed record StationNode
 
     /// <summary>The work ticks of one butchery run (#2988).</summary>
     public double FilthWork { get; set; }
-
-    /// <summary>The sleeper's room-impressiveness target of a target-sized bedroom (a suite, #2939). Zero for an ordinary node.</summary>
-    public double Target { get; set; }
 
     /// <summary>The interior cells that meet the target.</summary>
     public int Floor { get; set; }
@@ -286,7 +281,6 @@ public sealed record StationEdge
 
     public bool Required { get; set; }
 
-    public string Reason { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -425,7 +419,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
     public string AddNode(string def, StationPurpose purpose, int count, IReadOnlyList<EnvNeed> needs, string reason)
     {
         var id = PolicyFunctions.NodeId(def, purpose);
-        Nodes[id] = new StationNode { Id = id, Def = def, Purpose = purpose, Count = count, Needs = needs, Reason = reason };
+        Nodes[id] = new StationNode { Id = id, Def = def, Purpose = purpose, Count = count, Needs = needs };
         return id;
     }
 
@@ -439,15 +433,11 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         var key = (a, c);
         if (!Edges.TryGetValue(key, out var e))
         {
-            e = new StationEdge { A = a, B = c, Reason = reason };
+            e = new StationEdge { A = a, B = c };
             Edges[key] = e;
         }
         e.Weight += weight;
         e.Required = e.Required || required;
-        if (required)
-        {
-            e.Reason = reason;
-        }
     }
 
     public StationGraph Graph()
@@ -500,7 +490,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                 {
                     var w = suites[i];
                     var id = string.Create(CultureInfo.InvariantCulture, $"{PolicyFunctions.NodeId(k.Def, k.Purpose)}/suite{i}");
-                    Nodes[id] = new StationNode { Id = id, Def = k.Def, Purpose = k.Purpose, Count = 1, Reason = PolicyConstants.ReasonBedsSuite, Target = w.Target, Floor = (int)PolicyFunctions.SuiteCells(w.Target), Kept = w.Kept };
+                    Nodes[id] = new StationNode { Id = id, Def = k.Def, Purpose = k.Purpose, Count = 1, Floor = (int)PolicyFunctions.SuiteCells(w.Target), Kept = w.Kept };
                     people -= Math.Max(s.Capacity.Slots, 1);
                 }
                 if (people <= 0)

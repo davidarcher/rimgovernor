@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// Everything tiling reads. Embedding must come from Embed over Groups. OutdoorCurve and RoofDistance are the roofed
-/// set's reads; an unknown read leaves the roofed set empty and the decision says so. FullRotRateC (the band a cold
+/// Everything tiling reads. Embedding must come from Embed over Groups. OutdoorCurve is the roofed
+/// set's read; an unknown read leaves the roofed set empty and the decision says so. FullRotRateC (the band a cold
 /// room is held under) and SteelValue (the market value a build cost is counted in) are the airlocks' pricing reads;
 /// either unknown leaves the airlocks unpriced. VentAvailable is whether the vent is researched. Light is the price of
 /// darkness against lamps; invalid leaves the lamps unplaced. Sites are the power sites the site embedding placed
@@ -23,7 +23,6 @@ public sealed record TileInput
     public IReadOnlyList<LayoutReservation> Reservations { get; init; } = [];
     public MapSurvey Survey { get; init; } = default!;
     public Fact<EquatableArray<double>> OutdoorCurve { get; init; }
-    public double RoofDistance { get; init; }
     public double FullRotRateC { get; init; }
     public double SteelValue { get; init; }
     public Fact<bool> VentAvailable { get; init; }
@@ -47,14 +46,8 @@ public sealed record TileInput
 public sealed record TileDecision
 {
     public int Group { get; init; }
-    public int Other { get; init; }
     public string Verdict { get; init; } = "";
     public string Reason { get; init; } = "";
-    public string Field { get; init; } = "";
-    public double DoorW { get; init; }
-    public double AirlockW { get; init; }
-    public double DarkW { get; init; }
-    public double LampW { get; init; }
     public string Move { get; init; } = "";
 }
 
@@ -77,9 +70,6 @@ public sealed class TileResult
 
     /// <summary>The conduit net's decisions, one per routed or blocked link.</summary>
     public List<ConduitDecision> ConduitDecisions { get; } = [];
-
-    /// <summary>The roofed set's decisions.</summary>
-    public IReadOnlyList<RoofDecision> RoofDecisions { get; set; } = [];
 
     /// <summary>The lamp cells of each lit room by room id.</summary>
     public Dictionary<int, List<PlannedLamp>> Lamps { get; } = [];
@@ -104,7 +94,7 @@ public sealed class TileRoleException(string message) : TileException("group rol
 public sealed class TileClosedException(string message) : TileException("packed rooms leave no way in: " + message);
 
 /// <summary>A room of the tiler: its group, its block and its role.</summary>
-internal readonly record struct TileRoom(int Group, Rectangle Rect, PlannedRole Role);
+internal readonly record struct TileRoom(int Group, Rectangle Rect);
 
 /// <summary>
 /// Ports <c>layout_tile.go</c>. Tiling turns the embedding into a LayoutPlan: one room per placed group on the
@@ -332,7 +322,7 @@ internal sealed partial class Tiler(TileInput input)
                 }
             }
             index[b.Group] = Rooms.Count;
-            Rooms.Add(new TileRoom(b.Group, b.Interior, role));
+            Rooms.Add(new TileRoom(b.Group, b.Interior));
             var room = new PlannedRoom
             {
                 Id = b.Built,
@@ -423,13 +413,11 @@ internal sealed partial class Tiler(TileInput input)
         Furnish();
         var roof = PlanRoofed(Out.Plan, RoofInputOf());
         Out.Plan = Out.Plan with { Roofed = roof.Roofed };
-        Out.RoofDecisions = roof.Decisions;
         if (PlaceAirlocks())
         {
             // the vestibules are rooms too: roof them
             roof = PlanRoofed(Out.Plan, RoofInputOf());
             Out.Plan = Out.Plan with { Roofed = roof.Roofed };
-            Out.RoofDecisions = roof.Decisions;
         }
         this.PlaceLamps();
         Out.Plan = Out.Plan with
@@ -448,7 +436,7 @@ internal sealed partial class Tiler(TileInput input)
     internal bool Open(int i) => Plan.Rooms[i].Unfenced();
 
     internal void Note(int group, int other, string verdict, string reason) =>
-        Out.Decisions.Add(new TileDecision { Group = group, Other = other, Verdict = verdict, Reason = reason });
+        Out.Decisions.Add(new TileDecision { Group = group, Verdict = verdict, Reason = reason });
 
     internal int Find(int i)
     {
@@ -963,7 +951,7 @@ internal sealed partial class Tiler(TileInput input)
             Out.Pieces[room.Id] = pieces;
             foreach (var m in moves)
             {
-                Out.Decisions.Add(new TileDecision { Group = g.Id, Other = -1, Verdict = TilePlace, Reason = ReasonInteriorSearchMove, Move = m.Slot + ":" + m.Reason() });
+                Out.Decisions.Add(new TileDecision { Group = g.Id, Verdict = TilePlace, Reason = ReasonInteriorSearchMove, Move = m.Slot + ":" + m.Reason() });
             }
         }
     }
@@ -989,5 +977,5 @@ internal sealed partial class Tiler(TileInput input)
     }
 
     /// <summary>What the roofed set reads from the tiler's input.</summary>
-    internal RoofInput RoofInputOf() => new() { Curve = In.OutdoorCurve, Cold = In.Survey.Cold, Hot = In.Survey.Hot, RoofDistance = In.RoofDistance };
+    internal RoofInput RoofInputOf() => new() { Curve = In.OutdoorCurve, Cold = In.Survey.Cold, Hot = In.Survey.Hot };
 }

@@ -144,26 +144,7 @@ public static partial class PolicyFunctions
         return gates;
     }
 
-    /// <summary>
-    /// Marks the cells of a w x h map the core ring walls in: each room's interior with its walls, the pen, barn, vet
-    /// room and turbine pairs beside them, and any geothermal crowding that footprint. It follows the plan's real
-    /// outline, not its bounding rectangle.
-    /// </summary>
-    internal static bool[] CoreFootprint(LayoutPlan plan, int w, int h)
-    {
-        var fp = CoreBaseFootprint(plan, w, h);
-        const int gap = PerimeterGap;
-        foreach (var r in plan.Reservations)
-        {
-            if (OuterEnclosed(r.Kind) && CrowdsCore(fp, w, h, r.Area, gap))
-            {
-                MarkRegion(fp, w, h, r.Area.Grow(1));
-            }
-        }
-        return fp;
-    }
-
-    /// <summary>CoreFootprint before any outer-ring unit is taken in.</summary>
+    /// <summary>The cells of a w x h map the core ring walls in: each room's interior with its walls, and the turbine pairs beside them.</summary>
     internal static bool[] CoreBaseFootprint(LayoutPlan plan, int w, int h)
     {
         var fp = new bool[Math.Max(w, 0) * Math.Max(h, 0)];

@@ -273,7 +273,6 @@ public sealed record StationFacts
             Reservations = Plan.Reserved(),
             Survey = Survey,
             OutdoorCurve = OutdoorCurve,
-            RoofDistance = RoofDistance,
             FullRotRateC = FullRotRateC,
             SteelValue = steel,
             VentAvailable = VentAvailable,

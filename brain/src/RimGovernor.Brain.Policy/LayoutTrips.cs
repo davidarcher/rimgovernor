@@ -9,51 +9,6 @@ public readonly record struct OutsideTrip(int Room, double Weight);
 /// <summary>Ports <c>layout_trips.go</c>, <c>layout_succession.go</c>, <c>layout_suite_role.go</c>, <c>layout_switch.go</c>, <c>layout_search_rand.go</c>, <c>layout_seed_rooms.go</c> and <c>layout_room_sizes.go</c>.</summary>
 public static partial class PolicyFunctions
 {
-    /// <summary>
-    /// The flow-weighted walking distance over p's room trips: each trip pays Weight times the shortest walk (RouteWalk:
-    /// doors, link doors, hallways and the open ground round the rooms) between its rooms' centres. A room that cannot be
-    /// reached costs WalkUnreachable steps; a trip naming a room the plan lacks costs nothing. The total is rounded to
-    /// whole steps.
-    /// </summary>
-    internal static int TripWalk(LayoutPlan p)
-    {
-        var (walk, rooms) = RouteWalk(p);
-        var centre = new Dictionary<int, Cell>();
-        foreach (var r in rooms)
-        {
-            var b = r.Region.Bounds();
-            centre[r.Id] = new Cell(b.X + (b.Width / 2), b.Z + (b.Height / 2));
-        }
-
-        // One search per target room serves every trip that ends there.
-        var byTarget = new Dictionary<int, List<RoomTrip>>();
-        var targets = new List<int>();
-        foreach (var t in p.Trips)
-        {
-            if (!centre.ContainsKey(t.A) || !centre.ContainsKey(t.B))
-            {
-                continue;
-            }
-            if (!byTarget.TryGetValue(t.B, out var list))
-            {
-                targets.Add(t.B);
-                byTarget[t.B] = list = [];
-            }
-            list.Add(t);
-        }
-        var total = 0.0;
-        foreach (var to in targets)
-        {
-            var dist = RouteDist(walk, [centre[to]]);
-            foreach (var t in byTarget[to])
-            {
-                var d = dist.TryGetValue(centre[t.A], out var found) ? found : WalkUnreachable;
-                total += t.Weight * d;
-            }
-        }
-        return (int)Math.Round(total, MidpointRounding.AwayFromZero);
-    }
-
     /// <summary>A suite's plan role.</summary>
     public static PlannedRole PlannedSuite => PlannedRole.Suite;
 

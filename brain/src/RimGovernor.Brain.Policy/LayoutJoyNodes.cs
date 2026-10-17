@@ -64,8 +64,6 @@ public sealed record JoyTable
 /// <summary>One joy giver a colonist may use without a building: its chance, the joy a session of its job gives before the game's per-tick scale, and whether it is outdoors.</summary>
 public sealed record JoySource
 {
-    public string Giver { get; init; } = string.Empty;
-
     public double Weight { get; init; }
 
     public double Session { get; init; }
@@ -106,13 +104,7 @@ public sealed record JoyModel
         var share = outdoor / weight;
         return Known(new RecreationNode
         {
-            NeedPerDay = need,
-            Session = session,
-            Sessions = sessions,
-            OutdoorShare = share,
             Outdoor = sessions * share,
-            Indoor = sessions * (1 - share),
-            Reason = PolicyConstants.ReasonRecreation,
         });
     }
 }
@@ -123,23 +115,8 @@ public sealed record JoyModel
 /// </summary>
 public sealed record RecreationNode
 {
-    /// <summary>The joy a colonist loses awake in a day.</summary>
-    public double NeedPerDay { get; init; }
-
-    /// <summary>The mean joy a session gives.</summary>
-    public double Session { get; init; }
-
-    /// <summary>The sessions a colonist takes a day.</summary>
-    public double Sessions { get; init; }
-
-    /// <summary>The chance-weighted share of sessions taken outdoors.</summary>
-    public double OutdoorShare { get; init; }
-
     public double Outdoor { get; init; }
 
-    public double Indoor { get; init; }
-
-    public string Reason { get; init; } = string.Empty;
 }
 
 public static partial class PolicyFunctions

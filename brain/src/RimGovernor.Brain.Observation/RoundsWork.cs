@@ -157,16 +157,12 @@ public static partial class ObservationPackage
                         ComfortableMinC = Optional(b.ComfortableMinC is not null, b.ComfortableMinC.GetValueOrDefault()),
                         ComfortableMaxC = Optional(b.ComfortableMaxC is not null, b.ComfortableMaxC.GetValueOrDefault()),
                         MoveSpeed = Optional(b.MoveSpeed is not null, b.MoveSpeed.GetValueOrDefault()),
-                        CarryCapacity = Optional(b.CarryCapacity is not null, b.CarryCapacity.GetValueOrDefault()),
                         ToxicResistance = Optional(b.ToxicEnvironmentResistance is not null, b.ToxicEnvironmentResistance.GetValueOrDefault()),
                         CellTemperatureC = Optional(b.CellTemperatureC is not null, b.CellTemperatureC.GetValueOrDefault()),
                         Hypothermia = Optional(b.Hypothermia is not null, b.Hypothermia.GetValueOrDefault()),
                         Heatstroke = Optional(b.Heatstroke is not null, b.Heatstroke.GetValueOrDefault()),
                         Frostbite = Optional(b.Frostbite is not null, b.Frostbite.GetValueOrDefault()),
                         ToxicBuildup = Optional(b.ToxicBuildup is not null, b.ToxicBuildup.GetValueOrDefault()),
-                        Moving = Optional(b.Moving is not null, b.Moving.GetValueOrDefault()),
-                        Manipulation = Optional(b.Manipulation is not null, b.Manipulation.GetValueOrDefault()),
-                        Consciousness = Optional(b.Consciousness is not null, b.Consciousness.GetValueOrDefault()),
                     }),
                 };
             }

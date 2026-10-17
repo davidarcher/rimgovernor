@@ -21,22 +21,12 @@ public sealed record FieldNode
 {
     public string Id { get; init; } = string.Empty;
 
-    /// <summary>The crop's name.</summary>
-    public string Crop { get; init; } = string.Empty;
-
-    /// <summary>The resource the crop's harvest yields.</summary>
-    public Resource Harvests { get; init; }
-
     /// <summary>The field's cells: FieldCapacityTarget for the colony.</summary>
     public int Area { get; init; }
-
-    /// <summary>The zoning mask the field sits on (ZoneField).</summary>
-    public ZoneKind Mask { get; init; }
 
     /// <summary>The least soil fertility the crop grows in; the cells where both hold are the candidates the tiler gets.</summary>
     public double FertilityMin { get; init; }
 
-    public string Reason { get; init; } = string.Empty;
 }
 
 public sealed partial class StationGraph
@@ -85,12 +75,8 @@ internal sealed partial class GraphBuilder
             var node = new FieldNode
             {
                 Id = PolicyFunctions.FieldId(crop.Name),
-                Crop = crop.Name,
-                Harvests = harvests,
                 Area = cells,
-                Mask = ZoneKind.Field,
                 FertilityMin = Math.Max(fertility, PolicyFunctions.ZoneFieldFertility),
-                Reason = PolicyConstants.ReasonFieldDemand,
             };
             output.Add(node);
             var uk = crop.UnitsPerCell.TryGetValue(out var perCell);

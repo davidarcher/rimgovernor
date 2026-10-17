@@ -436,15 +436,10 @@ namespace HomeBridge.BridgeTools
                     ComfortableMinC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)),
                     ComfortableMaxC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
                     MoveSpeed=Number(pawn.GetStatValue(StatDefOf.MoveSpeed)),
-                    CarryCapacity=Number(MassUtility.Capacity(pawn)),
                     ToxicEnvironmentResistance=Number(pawn.GetStatValue(StatDefOf.ToxicEnvironmentResistance)),
                     Hypothermia=Severity(pawn,"Hypothermia"), Heatstroke=Severity(pawn,"Heatstroke"),
                     Frostbite=Severity(pawn,"Frostbite"), ToxicBuildup=Severity(pawn,"ToxicBuildup") };
                 if(pawn.Spawned) body = body with { CellTemperatureC = Number(pawn.AmbientTemperature) };
-                var capacities=pawn.health.capacities;
-                body = body with { Moving = Number(capacities.GetLevel(PawnCapacityDefOf.Moving)) };
-                body = body with { Manipulation = Number(capacities.GetLevel(PawnCapacityDefOf.Manipulation)) };
-                body = body with { Consciousness = Number(capacities.GetLevel(PawnCapacityDefOf.Consciousness)) };
                 row = row with { Body = body };
             } catch(InvalidOperationException) {
                 // A failed stat read leaves the whole block absent, never zeros.

@@ -260,7 +260,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             t.Plan = t.Plan with { Zones = [.. t.Plan.Zones, z] };
-            t.Out.Decisions.Add(new TileDecision { Group = -1, Other = -1, Field = f.Id, Verdict = TilePlace, Reason = ReasonTileField });
+            t.Out.Decisions.Add(new TileDecision { Group = -1, Verdict = TilePlace, Reason = ReasonTileField });
         }
     }
 
