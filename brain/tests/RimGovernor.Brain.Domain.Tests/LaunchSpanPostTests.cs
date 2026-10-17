@@ -14,6 +14,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// brain replays them into its traces ring, and result.json's <c>boot_phases</c> reads that ring back together with the
 /// game's own launch tree.
 /// </summary>
+[Collection(SpanWriters.Name)]
 public sealed class LaunchSpanPostTests
 {
     [Fact]

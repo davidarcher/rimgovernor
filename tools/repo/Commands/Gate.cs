@@ -9,7 +9,8 @@ namespace RimGovernor.Tools.Workflow.Commands;
 /// The gate a change passes before it lands. Builds run one after another: RimGovernor.slnx (locked restore, warnings
 /// as errors), the native contract probes against the brain contracts it just built, the real-Harmony hook set probe,
 /// and the native mod when the game's assemblies are installed and its inputs changed. Then every test job runs at
-/// once, each printed whole when it finishes. Output lands under <c>.rimgovernor/gate</c>.
+/// once, each printed whole when it finishes. Output lands under <c>.rimgovernor/gate</c>; the solution builds into its
+/// own artifacts root there, so it shares no bin, obj or restore file with an editor's builds of the same projects (#3346).
 /// </summary>
 internal static class Gate
 {
@@ -37,6 +38,11 @@ internal static class Gate
     private sealed record Paths(string Repo)
     {
         public string Out => Path.Combine(Repo, ".rimgovernor", "gate");
+
+        public string Artifacts => Path.Combine(Out, "artifacts");
+
+        /// <summary>Where the artifacts layout puts a Release build of <paramref name="project"/>.</summary>
+        public string Bin(string project) => Path.Combine(Artifacts, "bin", project, "release");
 
         public string Probes => Path.Combine(Out, "probes");
 
@@ -67,12 +73,13 @@ internal static class Gate
 
     private static async Task BuildAsync(Paths p, CancellationToken ct)
     {
-        await StepAsync(p.Repo, "build RimGovernor.slnx", ["build", "RimGovernor.slnx", .. Strict], ct).ConfigureAwait(false);
+        await StepAsync(p.Repo, "build RimGovernor.slnx", ["build", "RimGovernor.slnx", .. Strict, .. ArtifactsOf(p)], ct).ConfigureAwait(false);
         var probes = Path.Combine(p.Repo, "contracts", "tests");
         await StepAsync(
             probes,
             "build native contract probes",
-            ["build", "NativeContractProbes.csproj", .. Strict, $"-p:OutputPath={p.Probes}/bin/", $"-p:BaseIntermediateOutputPath={p.Probes}/obj/"],
+            ["build", "NativeContractProbes.csproj", .. Strict, $"-p:OutputPath={p.Probes}/bin/", $"-p:BaseIntermediateOutputPath={p.Probes}/obj/",
+                $"-p:BrainBinDir={p.Bin("RimGovernor.Brain.Contracts")}"],
             ct).ConfigureAwait(false);
         if (!File.Exists(p.Harmony))
         {
@@ -89,6 +96,8 @@ internal static class Gate
         }
         await BuildNativeAsync(p, ct).ConfigureAwait(false);
     }
+
+    private static string[] ArtifactsOf(Paths p) => ["-p:UseArtifactsOutput=true", $"-p:ArtifactsPath={p.Artifacts}"];
 
     private static string[] Strict => ["-c", "Release", "-v", "minimal", "-nologo", "-p:RestoreLockedMode=true", "-p:TreatWarningsAsErrors=true"];
 
@@ -155,7 +164,7 @@ internal static class Gate
         var hookset = Path.Combine(p.HookSet, "bin", "NativeHookSetProbe.dll");
         var jobs = new List<Job>
         {
-            new("dotnet test RimGovernor.slnx", c => Dotnet(p.Repo, c, "test", "RimGovernor.slnx", "-c", "Release", "--nologo", "--no-build")),
+            new("dotnet test RimGovernor.slnx", c => Dotnet(p.Repo, c, ["test", "RimGovernor.slnx", "-c", "Release", "--nologo", "--no-build", .. ArtifactsOf(p)])),
             new("native contract probes", async c =>
             {
                 var output = new StringBuilder();
