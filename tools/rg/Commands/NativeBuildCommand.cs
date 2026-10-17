@@ -1,4 +1,5 @@
-using NativeModBuild = RimGovernor.Brain.Acceptance.NativeModBuild;
+using FixtureInputs = RimGovernor.Brain.Acceptance.FixtureInputs;
+using NativeModBuild =RimGovernor.Brain.Acceptance.NativeModBuild;
 using NativeModBuildOptions = RimGovernor.Brain.Acceptance.NativeModBuildOptions;
 using NativeSourceInputs = RimGovernor.Brain.Acceptance.NativeSourceInputs;
 using SetupDiscovery = RimGovernor.Brain.Acceptance.SetupDiscovery;
@@ -19,7 +20,7 @@ internal static class NativeBuildCommand
     private const string Usage = """
         usage: native-build -out <dir> [-fixtures A,B] [-rimworld <dir>] [-harmony <0Harmony.dll>] [-if-current]
           -out         a fresh directory; receives build/ (logs, the source copy) and the package RimGovernor/
-          -fixtures    comma-separated fixture build flags (each a scripts/fixtures class); none is the production build
+          -fixtures    comma-separated fixture build flags (each a scripts/fixtures class); none is the production build; "all" is every flag the native project conditions a fixture on
           -rimworld    the RimWorld install (default: RIMGOVERNOR_RIMWORLD_DIR, then Steam)
           -harmony     0Harmony.dll (default: RIMGOVERNOR_HARMONY_DLL, then the Steam workshop item)
           -if-current  keep -out when it holds a build of these sources, inputs and fixtures; else replace it
@@ -49,7 +50,9 @@ internal static class NativeBuildCommand
                 Repo = repo,
                 RimWorldDir = inputs.RimWorldDir,
                 Harmony = inputs.Harmony,
-                Fixtures = flags.String("fixtures").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                Fixtures = flags.String("fixtures") == "all"
+                    ? FixtureInputs.BuildFlags(repo)
+                    : flags.String("fixtures").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
                 OutputRoot = output,
                 Log = Console.Out,
             };

@@ -65,8 +65,8 @@ Do not turn unverified coverage into a new issue; state it in the commit.
 `RimGovernor.cmd test` runs the gate (`tools/repo/Commands/Gate.cs`). It builds, in
 order, [RimGovernor.slnx](../../RimGovernor.slnx) (every C# project; locked restore,
 warnings as errors), the native contract probes, the real-Harmony hook set probe and
-the native mod, then runs `dotnet test` on the solution, the pure probes, the
-proto-boundary probe and the hook set probe at once, printing each when it finishes.
+the native mod (once as shipped, once with every fixture flag so `scripts/fixtures/*.cs` compiles), then runs `dotnet test` on the solution, the pure probes, the
+proto-boundary probe, the hook set probe and the checks that every fixture source has a Compile item (and every item a source) at once, printing each when it finishes.
 Outputs live under `.rimgovernor/gate/`; the native mod is rebuilt (`native-build
 -if-current`) only when its manifest no longer records the worktree's sources and
 the game's assemblies.

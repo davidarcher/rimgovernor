@@ -42,6 +42,8 @@ internal static class Gate
 
         public string Mod => Path.Combine(Out, "native", "mod");
 
+        public string FixtureMod => Path.Combine(Out, "native", "fixture-mod");
+
         public string Manifest => Path.Combine(Mod, "RimGovernor", "native-manifest.json");
 
         public string RimWorldDir { get; } = Environment.GetEnvironmentVariable("RIMWORLD_DIR") is { Length: > 0 } dir ? dir : DefaultRimWorldDir;
@@ -107,6 +109,12 @@ internal static class Gate
             "build native mod",
             [Path.Combine(p.Bin("rg"), "rg.dll"), "native-build", "-if-current", "-out", p.Mod, "-rimworld", p.RimWorldDir, "-harmony", p.Harmony],
             ct).ConfigureAwait(false);
+        // The fixture mod with every fixture flag: compiles scripts/fixtures/*.cs, which the production build leaves out (#3436).
+        await StepAsync(
+            p.Repo,
+            "build native fixture mod",
+            [Path.Combine(p.Bin("rg"), "rg.dll"), "native-build", "-if-current", "-fixtures", "all", "-out", p.FixtureMod, "-rimworld", p.RimWorldDir, "-harmony", p.Harmony],
+            ct).ConfigureAwait(false);
     }
 
     private static async Task TestAsync(Paths p, CancellationToken ct)
@@ -129,6 +137,7 @@ internal static class Gate
                 File.Exists(hookset) ? Dotnet(p.Repo, c, hookset) : Task.FromResult("unavailable (not built; Harmony missing)\n")),
             new("contract orphans", _ => Task.Run(() => Orphans(p))),
             new("banned-API uses", _ => Task.Run(() => BannedApi(p))),
+            new("fixture compile items", _ => Task.Run(() => FixtureItems(p))),
         };
         Log.Info($"test: {jobs.Count} jobs at once; each prints when it finishes");
         var failed = new List<string>();
@@ -251,6 +260,13 @@ internal static class Gate
             throw new ToolException(string.Join("\n", problems));
         }
         return "suppressed uses: none\n";
+    }
+
+    /// <summary>Every fixture source has a Compile item in the native project and every item has its source (<see cref="FixtureCompileItems"/>).</summary>
+    private static string FixtureItems(Paths p)
+    {
+        var problems = FixtureCompileItems.Check(p.Repo);
+        return problems.Count > 0 ? throw new ToolException(string.Join("\n", problems)) : "fixture sources and Compile items agree\n";
     }
 
     /// <summary>Runs dotnet captured and returns its output; a non-zero exit throws with that output.</summary>

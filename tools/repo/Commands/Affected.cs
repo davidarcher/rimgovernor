@@ -80,7 +80,7 @@ internal static class Affected
     {
         if (!full && !GateOwed(changed))
         {
-            Log.Info("test: nothing the gate builds changed, nothing to test");
+            Log.Info("test: the gate did not run: nothing it builds changed (pass -full to run it anyway)");
             return;
         }
         await Gate.RunAsync(repo, ct).ConfigureAwait(false);
