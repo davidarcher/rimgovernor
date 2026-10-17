@@ -80,6 +80,18 @@ namespace HomeBridge.BridgeTools
             catch (EncoderFallbackException) { return false; }
         }
 
+        /// <summary>
+        /// A free-text wire field: valid UTF-8 (a lone surrogate throws), cut to 4096 characters without
+        /// splitting a surrogate pair.
+        /// </summary>
+        internal static string WireText(string value)
+        {
+            Utf8.GetByteCount(value);
+            int end = 0;
+            for (int count = 0; end < value.Length && count < 4096; count++, end++) if (char.IsHighSurrogate(value[end])) end++;
+            return value.Substring(0, end);
+        }
+
         internal static bool Complete([NotNullWhen(true)] Common.Identity? expected) => expected != null
             && IsIdentifier(expected.ColonyId) && IsIdentifier(expected.LoadToken) && expected.MapId >= 0;
 

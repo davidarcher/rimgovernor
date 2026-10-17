@@ -111,7 +111,7 @@ public interface INativeFacade
     /// brain begins empty and native keeps no reference to an earlier brain's read. In
     /// process only, so no op routes it; it does not need the game thread.
     /// </summary>
-    Task<ChannelReader<Clock.ClockEvent>> OpenColonyEventsAsync(CancellationToken cancellationToken);
+    Task<ChannelReader<ColonyEvent>> OpenColonyEventsAsync(CancellationToken cancellationToken);
 
     /// <summary>The colony events dropped since the last <see cref="OpenColonyEventsAsync"/>; any change forces a Full step.</summary>
     long ColonyEventsLost { get; }

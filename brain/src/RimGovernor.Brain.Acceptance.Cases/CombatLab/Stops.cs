@@ -72,8 +72,8 @@ internal static class CombatLabStops
             // The clock_hold row carries what the status does not: the thing and the event's detected and occurrence ticks.
             var row = await s.HoldRowAsync(label, held, cancellationToken).ConfigureAwait(false);
             var tick = ClockRows.Tick(row);
-            var detected = ClockRows.Whole(row, ClockEventTelemetry.DetectedTickKey);
-            var occurred = ClockRows.Whole(row, ClockEventTelemetry.OccurrenceTickKey);
+            var detected = ClockRows.Whole(row, ColonyEventTelemetry.DetectedTickKey);
+            var occurred = ClockRows.Whole(row, ColonyEventTelemetry.OccurrenceTickKey);
             var thing = ClockRows.Text(row, "thing");
             var reason = ClockRows.Text(row, "combat_reason");
             s.Record(label, CombatLabKit.Obj(

@@ -134,9 +134,8 @@ namespace HomeBridge.BridgeTools
             if (hit == null) return false;
             _combatPending = null;
             s.Typed.CombatEvent = hit.Event;
-            var payload = new Dictionary<string, object?> { { "combatEvent", (int)hit.Event }, { "reason", hit.Reason },
-                { "thingId", hit.ThingId }, { "occurrenceTick", hit.Tick } };
-            Stop(s, "combat_event", EventName(hit.Event) + ": " + hit.Reason, true, payload);
+            Stop(s, new HoldCause(Clock.HoldReason.CombatEvent, EventName(hit.Event) + ": " + hit.Reason,
+                new RimGovernor.Brain.NativeFacade.CombatEvidence(hit.Event, hit.ThingId, hit.Reason), hit.Tick), true);
             return true;
         }
 

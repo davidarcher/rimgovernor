@@ -41,6 +41,12 @@
           "RimGovernor.Brain.Store": "[1.0.0, )"
         }
       },
+      "rimgovernor.brain.nativefacade": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Contracts": "[1.0.0, )"
+        }
+      },
       "rimgovernor.brain.observation": {
         "type": "Project",
         "dependencies": {

@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // target speed or Held; the driver is the hold state machine that keeps it so.
 
 /// <summary>What the run driver reads natively beyond the scheduler's own reads: the colony events and the emergency census.</summary>
-public interface IClockDriverNative : IClockEventNative
+public interface IClockDriverNative : IColonyEventNative
 {
     /// <summary>The emergency census of the world <paramref name="identity"/> names.</summary>
     Task<EmergencyObservation> ReadEmergencyAsync(PbCommon.Identity identity, CancellationToken ct);

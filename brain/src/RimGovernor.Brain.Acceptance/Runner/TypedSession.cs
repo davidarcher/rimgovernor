@@ -206,7 +206,7 @@ public sealed class TypedSession : ITypedSession
         var deadline = DateTime.UtcNow + HoldRowWait;
         while (true)
         {
-            if (Telemetry(TelemetryKinds.ClockHold).LastOrDefault(row => ClockRows.Whole(row, ClockEventTelemetry.StopAtMsKey) == heldAt) is { } row)
+            if (Telemetry(TelemetryKinds.ClockHold).LastOrDefault(row => ClockRows.Whole(row, ColonyEventTelemetry.StopAtMsKey) == heldAt) is { } row)
             {
                 return row;
             }

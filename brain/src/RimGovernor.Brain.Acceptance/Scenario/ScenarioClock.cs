@@ -351,7 +351,7 @@ public sealed class ScenarioClock
         ArgumentNullException.ThrowIfNull(held);
         var heldAt = held["heldAtUnixMs"].AsUInt64() is { } at ? (long)at : (long?)null;
         return AwaitRowsAsync(
-            () => RunRows(TelemetryKinds.ClockHold).FirstOrDefault(row => heldAt is null || ClockRows.Whole(row, ClockEventTelemetry.StopAtMsKey) == heldAt),
+            () => RunRows(TelemetryKinds.ClockHold).FirstOrDefault(row => heldAt is null || ClockRows.Whole(row, ColonyEventTelemetry.StopAtMsKey) == heldAt),
             RowWait,
             $"the clock_hold row of the {ScenarioProjection.NamedStopReason(held["stopReason"].AsString())} hold",
             cancellationToken);

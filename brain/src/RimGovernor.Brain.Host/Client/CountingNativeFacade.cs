@@ -83,7 +83,7 @@ internal sealed class CountingNativeFacade(INativeFacade inner) : INativeFacade
     public Task<Clock.StatusReply> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken) => Count(() => inner.ReadClockStatusAsync(request, cancellationToken));
 
     // Opening the colony events reads nothing from the game: it is passed through uncounted.
-    public Task<ChannelReader<Clock.ClockEvent>> OpenColonyEventsAsync(CancellationToken cancellationToken) => inner.OpenColonyEventsAsync(cancellationToken);
+    public Task<ChannelReader<ColonyEvent>> OpenColonyEventsAsync(CancellationToken cancellationToken) => inner.OpenColonyEventsAsync(cancellationToken);
 
     public long ColonyEventsLost => inner.ColonyEventsLost;
 

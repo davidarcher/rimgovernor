@@ -10,7 +10,7 @@ The clock is continuous run with named holds: `Run(target speed, policy)`, `Hold
 heartbeat ([Execute under supervision](../architecture/control-loop.md#execute-under-supervision) and the
 [clock wire contract](../../../contracts/wire/clock-lifecycle.md)). This page owns what the brain does with the colony
 events native pushes and with each run decision: the event consumer, the run decision, the scheduler step and the run driver. The brain
-persists no clock state: there is no clock event inbox, review log, attempt, receipt or lease store (#3417).
+persists no clock state: there is no colony event inbox, review log, attempt, receipt or lease store (#3417).
 
 ## Immediate protection and ordinary review
 
@@ -46,10 +46,10 @@ about the clock is persisted: a restart finds native held (`NEVER_RUN` or the la
 
 ## Colony event queue
 
-Native pushes typed `ClockEvent` records onto `ColonyEventChannel`, a bounded queue
-of 1024 it owns in the game process, with a non-blocking `TryWrite` on the game
-thread. A write that finds the queue full, or an event native fails to build, is
-dropped and counted in `ColonyEventsLost`; it never pauses the game. The brain
+Native pushes `ColonyEvent` records (plain in-process records in `Brain.NativeFacade`,
+built by their producers) onto `ColonyEventChannel`, a bounded queue of 1024 it owns
+in the game process, with a non-blocking `TryWrite` on the game thread. A write that
+finds the queue full is dropped and counted in `ColonyEventsLost`; it never pauses the game. The brain
 keeps no copy and there is no cursor: each event carries its own world's context,
 and a load or map change rewrites none. Status reads initialize the tick watchers.
 Neither the queue nor a read advances time or acquires authority.

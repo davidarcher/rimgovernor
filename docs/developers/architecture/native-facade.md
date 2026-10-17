@@ -65,9 +65,9 @@ schedule; there is no shared-memory ring.
 ## Colony event handoff
 
 `OpenColonyEventsAsync` opens the supervisor's `ColonyEventChannel` in process and returns its reader; it has no
-`NativeOps` entry and no `/native` route. Native writes each clock event with a non-blocking `TryWrite` on the game
-thread into a queue of 1024; a write that finds it full, or an event native fails to build, is dropped and counted in
-`ColonyEventsLost`. The open drops what is queued and clears the counter, so the brain starts empty and plans its first
+`NativeOps` entry and no `/native` route. Native builds each colony event as a plain record (`ColonyEvents.cs`) and
+writes it with a non-blocking `TryWrite` on the game thread into a queue of 1024; a write that finds it full is dropped
+and counted in `ColonyEventsLost`. The open drops what is queued and clears the counter, so the brain starts empty and plans its first
 step Full; any later change in the counter makes the next step Full too.
 
 ## Def stat table

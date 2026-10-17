@@ -204,8 +204,8 @@ public static class HazardCases
             cancellationToken).ConfigureAwait(false);
         var kind = ClockRows.Reason(stopped);
         var stopTick = ClockRows.Tick(stopped);
-        var detected = ClockRows.Whole(stopped, ClockEventTelemetry.DetectedTickKey);
-        var occurrence = ClockRows.Whole(stopped, ClockEventTelemetry.OccurrenceTickKey);
+        var detected = ClockRows.Whole(stopped, ColonyEventTelemetry.DetectedTickKey);
+        var occurrence = ClockRows.Whole(stopped, ColonyEventTelemetry.OccurrenceTickKey);
         var shown = $"{kind} at tick {stopTick}: {ClockRows.Text(stopped, "msg")}";
         var summary = new JsonObject
         {
@@ -333,7 +333,7 @@ public static class HazardCases
             cancellationToken).ConfigureAwait(false);
         var wakeTick = ClockRows.Tick(wake);
         var families = string.Join(",", ClockRows.Strings(wake, "families"));
-        summary["wake"] = new JsonObject { ["families"] = families, ["reason"] = ClockRows.Text(wake, ClockEventTelemetry.ReasonKey) };
+        summary["wake"] = new JsonObject { ["families"] = families, ["reason"] = ClockRows.Text(wake, ColonyEventTelemetry.ReasonKey) };
         summary["wake_tick"] = wakeTick;
         var gap = wakeTick - injectTick;
         summary["inject_gap_ticks"] = gap;

@@ -286,7 +286,7 @@ floors and stopped inputs; bill filters and suspension settings are untouched. E
 ingredient alternatives include quantity conversion and are not truncated. Transient
 unissued construction commitments apply only while the brain holds the clock in Run.
 
-Dispatch ingests buffered and fresh native clock events before using a captured load
+Dispatch ingests buffered and fresh native colony events before using a captured load
 token/tick and again after preparation, so a busy writer cannot defer a known player
 hold or danger event past an old order. External holds are recorded as clock holds
 independent of observation and review revisions; there is no player-direction counter.

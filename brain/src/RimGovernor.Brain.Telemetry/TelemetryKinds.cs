@@ -35,33 +35,33 @@ public static class TelemetryKinds
     /// <summary>One stockpile, field or building layout decision (<see cref="LayoutEditKind"/>).</summary>
     public static readonly TelemetryKind LayoutEdit = new(LayoutEditKind);
 
-    /// <summary>The clock entered a hold (<see cref="ClockEventTelemetry.HoldKind"/>): a hazard, a game pause, a combat event or a brain hold.</summary>
-    public static readonly TelemetryKind ClockHold = new(ClockEventTelemetry.HoldKind);
+    /// <summary>The clock entered a hold (<see cref="ColonyEventTelemetry.HoldKind"/>): a hazard, a game pause, a combat event or a brain hold.</summary>
+    public static readonly TelemetryKind ClockHold = new(ColonyEventTelemetry.HoldKind);
 
-    /// <summary>A Run resumed a held clock (<see cref="ClockEventTelemetry.ResumeKind"/>).</summary>
-    public static readonly TelemetryKind ClockResume = new(ClockEventTelemetry.ResumeKind);
+    /// <summary>A Run resumed a held clock (<see cref="ColonyEventTelemetry.ResumeKind"/>).</summary>
+    public static readonly TelemetryKind ClockResume = new(ColonyEventTelemetry.ResumeKind);
 
-    /// <summary>The native authority generation moved (<see cref="ClockEventTelemetry.AuthorityKind"/>).</summary>
-    public static readonly TelemetryKind ClockAuthority = new(ClockEventTelemetry.AuthorityKind);
+    /// <summary>The native authority generation moved (<see cref="ColonyEventTelemetry.AuthorityKind"/>).</summary>
+    public static readonly TelemetryKind ClockAuthority = new(ColonyEventTelemetry.AuthorityKind);
 
-    /// <summary>A new game alert (<see cref="ClockEventTelemetry.AlertKind"/>).</summary>
-    public static readonly TelemetryKind ClockAlert = new(ClockEventTelemetry.AlertKind);
+    /// <summary>A new game alert (<see cref="ColonyEventTelemetry.AlertKind"/>).</summary>
+    public static readonly TelemetryKind ClockAlert = new(ColonyEventTelemetry.AlertKind);
 
-    /// <summary>A new letter or transient message (<see cref="ClockEventTelemetry.NotificationKind"/>).</summary>
-    public static readonly TelemetryKind ClockNotification = new(ClockEventTelemetry.NotificationKind);
+    /// <summary>A new letter or transient message (<see cref="ColonyEventTelemetry.NotificationKind"/>).</summary>
+    public static readonly TelemetryKind ClockNotification = new(ColonyEventTelemetry.NotificationKind);
 
-    /// <summary>A colonist injury observed without a hold (<see cref="ClockEventTelemetry.InjuryKind"/>).</summary>
-    public static readonly TelemetryKind ClockInjury = new(ClockEventTelemetry.InjuryKind);
+    /// <summary>A colonist injury observed without a hold (<see cref="ColonyEventTelemetry.InjuryKind"/>).</summary>
+    public static readonly TelemetryKind ClockInjury = new(ColonyEventTelemetry.InjuryKind);
 
-    /// <summary>No conscious hostiles remain (<see cref="ClockEventTelemetry.HostilesClearedKind"/>).</summary>
-    public static readonly TelemetryKind ClockHostilesCleared = new(ClockEventTelemetry.HostilesClearedKind);
+    /// <summary>No conscious hostiles remain (<see cref="ColonyEventTelemetry.HostilesClearedKind"/>).</summary>
+    public static readonly TelemetryKind ClockHostilesCleared = new(ColonyEventTelemetry.HostilesClearedKind);
 
-    /// <summary>Observed fact families changed under a running clock (<see cref="ClockEventTelemetry.InvalidationKind"/>).</summary>
-    public static readonly TelemetryKind ClockInvalidation = new(ClockEventTelemetry.InvalidationKind);
+    /// <summary>Observed fact families changed under a running clock (<see cref="ColonyEventTelemetry.InvalidationKind"/>).</summary>
+    public static readonly TelemetryKind ClockInvalidation = new(ColonyEventTelemetry.InvalidationKind);
 
-    /// <summary>A long event or transient force pause began or cleared (<see cref="ClockEventTelemetry.LongEventKind"/>).</summary>
-    public static readonly TelemetryKind ClockLongEvent = new(ClockEventTelemetry.LongEventKind);
+    /// <summary>A long event or transient force pause began or cleared (<see cref="ColonyEventTelemetry.LongEventKind"/>).</summary>
+    public static readonly TelemetryKind ClockLongEvent = new(ColonyEventTelemetry.LongEventKind);
 
-    /// <summary>A pending hold's pause did not take; the hold stays armed (<see cref="ClockEventTelemetry.PauseFailedKind"/>).</summary>
-    public static readonly TelemetryKind ClockPauseFailed = new(ClockEventTelemetry.PauseFailedKind);
+    /// <summary>A pending hold's pause did not take; the hold stays armed (<see cref="ColonyEventTelemetry.PauseFailedKind"/>).</summary>
+    public static readonly TelemetryKind ClockPauseFailed = new(ColonyEventTelemetry.PauseFailedKind);
 }

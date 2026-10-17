@@ -119,6 +119,6 @@ namespace HomeBridge.BridgeTools
             else AccessTools.Method(typeof(DiaOption), "Activate").Invoke(option, new object[0]);
         }
 
-        private static string Text(string? text) => NativeClockEventProjection.Text((text ?? "").StripTags());
+        private static string Text(string? text) => ProtoBoundary.WireText((text ?? "").StripTags());
     }
 }

@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using NativeEvents = RimGovernor.Brain.NativeFacade;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -8,13 +9,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // matches.
 
 /// <summary>What the native clock exposes to the colony event consumer.</summary>
-public interface IClockEventNative
+public interface IColonyEventNative
 {
     /// <summary>One bare or identified step read; the consumer uses it only for the current world's context.</summary>
     Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeApi.StepRequest request, CancellationToken ct);
 
     /// <summary>Opens a fresh, empty native queue and returns its reading side; the loss counter restarts at zero and the previous reader completes.</summary>
-    Task<ChannelReader<PbClock.ClockEvent>> OpenColonyEventsAsync(CancellationToken ct);
+    Task<ChannelReader<NativeEvents.ColonyEvent>> OpenColonyEventsAsync(CancellationToken ct);
 
     /// <summary>The events native dropped since the open; any change forces a Full step.</summary>
     long ColonyEventsLost { get; }
@@ -27,7 +28,7 @@ public interface IClockEventNative
 /// native's loss counter, or a batch that could not be read against a context, wakes a Full step. It never takes the
 /// player gate.
 /// </summary>
-internal sealed class ColonyEventConsumer(Session session, IClockEventNative native, WakeSignal? wake, ClockRunConfig config)
+internal sealed class ColonyEventConsumer(Session session, IColonyEventNative native, WakeSignal? wake, ClockRunConfig config)
 {
     // One native queue's worth (ColonyEventChannel.Capacity): a batch never grows past what native can hold.
     private const int BatchLimit = 1024;
@@ -70,10 +71,10 @@ internal sealed class ColonyEventConsumer(Session session, IClockEventNative nat
     /// <summary>Opens the queue and delivers its events until <paramref name="ct"/> ends.</summary>
     public async Task RunAsync(CancellationToken ct)
     {
-        ChannelReader<PbClock.ClockEvent>? reader = null;
+        ChannelReader<NativeEvents.ColonyEvent>? reader = null;
         long lost = 0;
         var backoff = TimeSpan.Zero;
-        var batch = new List<PbClock.ClockEvent>();
+        var batch = new List<NativeEvents.ColonyEvent>();
         while (!ct.IsCancellationRequested)
         {
             try
@@ -137,7 +138,7 @@ internal sealed class ColonyEventConsumer(Session session, IClockEventNative nat
         || (state.ObservationKnown && Equals(observed.Identity, Boundary.Identity(state.Snapshot)) && observed.NativeGeneration is not null && observed.NativeGeneration.GetValueOrDefault() == (ulong)state.Snapshot.Native.Value);
 
     // Delivers one batch against the current context. A batch that cannot be read against one is lost: it wakes Full.
-    private async Task DeliverAsync(List<PbClock.ClockEvent> batch, bool lossChanged, CancellationToken ct)
+    private async Task DeliverAsync(List<NativeEvents.ColonyEvent> batch, bool lossChanged, CancellationToken ct)
     {
         PbCommon.ObservationContext current;
         try

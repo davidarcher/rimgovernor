@@ -64,7 +64,7 @@ internal static class ZoneInvalidation
         {
             ["families"] = new JsonArray([.. ClockRows.Strings(row, "families").Select(x => (JsonNode?)x)]),
             ["entity_ids"] = new JsonArray([.. ClockRows.Strings(row, "entity_ids").Select(x => (JsonNode?)x)]),
-            ["reason"] = ClockRows.Text(row, ClockEventTelemetry.ReasonKey),
+            ["reason"] = ClockRows.Text(row, ColonyEventTelemetry.ReasonKey),
             ["cells"] = cells,
             ["tick"] = ClockRows.Tick(row),
         };
@@ -88,7 +88,7 @@ internal static class ZoneInvalidation
             throw new AcceptanceException($"clock_invalidation entity_ids = [{string.Join(' ', ids)}], expected [{zoneId}]: {shown}");
         }
 
-        if (!ClockRows.Text(row, ClockEventTelemetry.ReasonKey).Contains(zoneId, StringComparison.Ordinal))
+        if (!ClockRows.Text(row, ColonyEventTelemetry.ReasonKey).Contains(zoneId, StringComparison.Ordinal))
         {
             throw new AcceptanceException($"clock_invalidation reason does not name the zone: {shown}");
         }

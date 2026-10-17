@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using NativeEvents = RimGovernor.Brain.NativeFacade;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -134,9 +135,9 @@ internal static partial class Pkg
     /// <summary>
     /// Reads the wake-relevant facts out of one batch of this world's events: the families its
     /// ObservationInvalidated events named, whether authority changed, and whether the batch carried a native hold
-    /// with the earliest such event's native stamp (null when the event carried none).
+    /// with the earliest such event's native stamp.
     /// </summary>
-    internal static ColonyEventWake EventsWake(IReadOnlyList<ClockPb.ClockEvent> events)
+    internal static ColonyEventWake EventsWake(IReadOnlyList<NativeEvents.ColonyEvent> events)
     {
         var families = new List<FactFamily>();
         var seen = new HashSet<FactFamily>();
@@ -145,27 +146,24 @@ internal static partial class Pkg
         DateTimeOffset? stopAt = null;
         foreach (var @event in events)
         {
-            switch (@event.Event)
+            switch (@event)
             {
-                case ClockPb.ClockEventEvent.HoldEnteredCase { Value: var held }:
+                case NativeEvents.HoldEntered held:
                     // The brain's own holds are not wakes: the driver that took them plans again itself.
                     if (!BrainRequestedHold(held.Reason))
                     {
                         stopped = true;
-                        if (@event.ObservedAtUnixMs is not null && @event.ObservedAtUnixMs.GetValueOrDefault() > 0)
+                        var at = DateTimeOffset.FromUnixTimeMilliseconds(held.Origin.ObservedAtUnixMs);
+                        if (stopAt is null || at < stopAt)
                         {
-                            var at = DateTimeOffset.FromUnixTimeMilliseconds(@event.ObservedAtUnixMs.GetValueOrDefault());
-                            if (stopAt is null || at < stopAt)
-                            {
-                                stopAt = at;
-                            }
+                            stopAt = at;
                         }
                     }
                     break;
-                case ClockPb.ClockEventEvent.AuthorityChangedCase:
+                case NativeEvents.AuthorityChanged:
                     authority = true;
                     break;
-                case ClockPb.ClockEventEvent.ObservationInvalidatedCase { Value: var invalidated }:
+                case NativeEvents.ObservationInvalidated invalidated:
                     foreach (var wire in invalidated.Families)
                     {
                         if (!BridgeApi.FactFamilyFromWire(wire, out var family))
@@ -191,17 +189,13 @@ internal static partial class Pkg
     /// the controller does not know names nothing here; the wake's authority flag (EventsWake)
     /// already re-runs everything.
     /// </summary>
-    internal static IReadOnlyList<Facts.Section> EventSections(IReadOnlyList<ClockPb.ClockEvent> events)
+    internal static IReadOnlyList<Facts.Section> EventSections(IReadOnlyList<NativeEvents.ColonyEvent> events)
     {
         var output = new List<Facts.Section>();
         var seen = new HashSet<Facts.Section>();
         foreach (var @event in events)
         {
-            if (@event.Event is not ClockPb.ClockEventEvent.ObservationInvalidatedCase { Value: var invalidated })
-            {
-                continue;
-            }
-            if (!Facts.Invalidation.TryFromWire(invalidated, out var inv))
+            if (@event is not NativeEvents.ObservationInvalidated invalidated || !TryInvalidation(invalidated, out var inv))
             {
                 continue;
             }
@@ -216,18 +210,36 @@ internal static partial class Pkg
         return output;
     }
 
-    /// <summary>Go <c>OtherWorld</c>: whether the event was observed in another world (colony, load or map) than <paramref name="current"/>, the world loaded now.</summary>
-    internal static bool OtherWorld(ClockPb.ClockEvent @event, CommonPb.Identity? current)
+    // The store's view of one invalidation; an unknown family reports false.
+    private static bool TryInvalidation(NativeEvents.ObservationInvalidated value, out Facts.Invalidation invalidation)
     {
-        var a = @event.Context?.Identity;
-        if (a is null || current is null)
+        var families = new List<FactFamily>();
+        foreach (var wire in value.Families)
+        {
+            if (!BridgeApi.FactFamilyFromWire(wire, out var family))
+            {
+                invalidation = new Facts.Invalidation();
+                return false;
+            }
+            families.Add(family);
+        }
+        FactRect? rect = value.Cells is { } cells ? new FactRect(cells.MinX, cells.MinZ, cells.MaxX, cells.MaxZ) : null;
+        invalidation = new Facts.Invalidation { Families = EquatableArray.From(families), Ids = EquatableArray.From(value.EntityIds), Rect = rect };
+        return true;
+    }
+
+    /// <summary>Go <c>OtherWorld</c>: whether the event was observed in another world (colony, load or map) than <paramref name="current"/>, the world loaded now.</summary>
+    internal static bool OtherWorld(NativeEvents.ColonyEvent @event, CommonPb.Identity? current)
+    {
+        if (current is null)
         {
             return false;
         }
+        var a = @event.Origin;
         return !string.Equals(a.ColonyId, current.ColonyId ?? "", StringComparison.Ordinal) || !string.Equals(a.LoadToken, current.LoadToken ?? "", StringComparison.Ordinal) || a.MapId != current.MapId;
     }
 
     /// <summary>Whether the hold was the brain's own request (a coupled order, a review or an autosave) rather than native's.</summary>
-    internal static bool BrainRequestedHold(ClockPb.HoldReason? reason) =>
+    internal static bool BrainRequestedHold(ClockPb.HoldReason reason) =>
         reason is ClockPb.HoldReason.CoupledOrder or ClockPb.HoldReason.Review or ClockPb.HoldReason.Autosave;
 }

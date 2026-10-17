@@ -18,6 +18,8 @@
     <ProjectReference Include="../RimGovernor.Brain.Snapshot/RimGovernor.Brain.Snapshot.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Simulation/RimGovernor.Brain.Simulation.csproj" />
+    <!-- The colony event records native pushes (ColonyEvents.cs) are what the event consumer reads. -->
+    <ProjectReference Include="../RimGovernor.Brain.NativeFacade/RimGovernor.Brain.NativeFacade.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- Go's domain.Known / domain.Unknown read the same in C#. -->

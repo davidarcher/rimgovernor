@@ -7,6 +7,7 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using JournalStore = RimGovernor.Brain.Store.Store;
+using NativeEvents = RimGovernor.Brain.NativeFacade;
 using PbAuthority = RimGovernor.Contracts.Wire.Authority;
 using PbClock = RimGovernor.Contracts.Wire.Clock;
 using PbCommon = RimGovernor.Contracts.Wire.Common;
@@ -150,7 +151,7 @@ public sealed class ClockRunDriverTests
         {
             lock (_mu)
             {
-                Append(new PbClock.ClockEventEvent.ObservationInvalidatedCase(new PbClock.ObservationInvalidated { Families = [family], Reason = "test" }), world);
+                Append(o => new NativeEvents.ObservationInvalidated(o, "", [family], "test", [], null), world);
             }
         }
 
@@ -172,12 +173,12 @@ public sealed class ClockRunDriverTests
 
         private PbCommon.ObservationContext Context() => new() { Identity = WorldIdentity, Tick = _tick, NativeGeneration = _generation };
 
-        private void Append(PbClock.ClockEventEvent row, PbCommon.Identity? world = null)
+        private void Append(Func<NativeEvents.ColonyEventOrigin, NativeEvents.ColonyEvent> build, PbCommon.Identity? world = null)
         {
             _appended++;
             _pushed++;
-            var context = Context() with { Identity = world ?? WorldIdentity };
-            _channel.Publish(new PbClock.ClockEvent { Context = context, ObservedAtUnixMs = _tick, Event = row });
+            var identity = world ?? WorldIdentity;
+            _channel.Publish(build(new NativeEvents.ColonyEventOrigin(identity.ColonyId, identity.LoadToken, identity.MapId, _tick, _tick)));
         }
 
         private PbClock.Status Status() => new()
@@ -221,7 +222,8 @@ public sealed class ClockRunDriverTests
                 _speed = request.Speed.GetValueOrDefault();
                 if (_held)
                 {
-                    Append(new PbClock.ClockEventEvent.ResumedCase(new PbClock.Resumed { Speed = _speed, From = _reason }));
+                    var from = _reason;
+                    Append(o => new NativeEvents.Resumed(o, "", _speed, from));
                     _held = false;
                     AfterResume?.Invoke();
                 }
@@ -241,14 +243,14 @@ public sealed class ClockRunDriverTests
                 if (!_held)
                 {
                     _holds++;
-                    TakeHold(request.Reason.GetValueOrDefault(), new PbClock.HoldEvidence.PauseCase(new PbClock.PauseEvidence { ActualPaused = true, PauseVerified = true }));
+                    TakeHold(request.Reason.GetValueOrDefault(), new NativeEvents.PauseEvidence(true, true, null, null));
                 }
                 return new PbClock.StatusReply { Outcome = new PbClock.StatusReplyOutcome.StatusCase(Status()) };
             }
         }
 
         /// <summary>The supervisor holds the clock itself on a hazard, as a native watcher does; a held clock keeps its first reason.</summary>
-        public void Hazard(PbClock.HoldReason reason, PbClock.HoldEvidence evidence)
+        public void Hazard(PbClock.HoldReason reason, NativeEvents.HoldEvidence evidence)
         {
             lock (_mu)
             {
@@ -260,15 +262,16 @@ public sealed class ClockRunDriverTests
         }
 
         public void HostileHazard() =>
-            Hazard(PbClock.HoldReason.Hostile, new PbClock.HoldEvidence.PawnCase(new PbClock.PawnEvent { PawnId = "raider-1", Name = "Raider", Reason = "hostile within range" }));
+            Hazard(PbClock.HoldReason.Hostile, new NativeEvents.PawnEvidence(new NativeEvents.EventPawn("raider-1", "Raider", 0, 0, "hostile within range")));
 
-        private void TakeHold(PbClock.HoldReason reason, PbClock.HoldEvidence evidence)
+        private void TakeHold(PbClock.HoldReason reason, NativeEvents.HoldEvidence evidence)
         {
             _held = true;
             _holdSerial++;
             _reason = reason;
             _heldAtMs = 1_000_000 + _appended;
-            Append(new PbClock.ClockEventEvent.HoldEnteredCase(new PbClock.HoldEntered { Reason = reason, Evidence = evidence, DetectedTick = _tick }));
+            var heldAt = _heldAtMs;
+            Append(o => new NativeEvents.HoldEntered(o, "", reason, evidence, o.Tick, null, heldAt));
         }
 
         public PbClock.HeartbeatReply Heartbeat()
@@ -308,7 +311,7 @@ public sealed class ClockRunDriverTests
             }
         }
 
-        public Task<System.Threading.Channels.ChannelReader<PbClock.ClockEvent>> OpenColonyEventsAsync(CancellationToken ct)
+        public Task<System.Threading.Channels.ChannelReader<NativeEvents.ColonyEvent>> OpenColonyEventsAsync(CancellationToken ct)
         {
             lock (_mu)
             {
@@ -868,7 +871,7 @@ public sealed class ClockRunDriverTests
         rig.Game.AfterResume = () =>
         {
             rig.Game.AfterResume = null;
-            rig.Game.Hazard(PbClock.HoldReason.ColonistDowned, new PbClock.HoldEvidence.PawnCase(new PbClock.PawnEvent { PawnId = "colonist-1", Name = "Ann", Reason = "downed" }));
+            rig.Game.Hazard(PbClock.HoldReason.ColonistDowned, new NativeEvents.PawnEvidence(new NativeEvents.EventPawn("colonist-1", "Ann", 0, 0, "downed")));
         };
         Assert.True(await rig.StepAsync());
         Assert.True(rig.Game.Held);
@@ -965,7 +968,7 @@ public sealed class ClockRunDriverTests
         metrics.Admitted(null, rig.Game.Tick, rig.Time.Now(), true);
         Assert.True(metrics.Active);
 
-        rig.Game.Hazard(PbClock.HoldReason.CombatEvent, new PbClock.HoldEvidence.CombatCase(new PbClock.CombatEventHold { Event = PbClock.CombatEvent.Downed, ThingId = "colonist-1" }));
+        rig.Game.Hazard(PbClock.HoldReason.CombatEvent, new NativeEvents.CombatEvidence(PbClock.CombatEvent.Downed, "colonist-1", "downed"));
         await rig.DeliveredAsync();
 
         // The stop is the fight's next decision: the defense planner is marked and the clock stays held.
@@ -989,7 +992,7 @@ public sealed class ClockRunDriverTests
         await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
-        rig.Game.Hazard(PbClock.HoldReason.CombatEvent, new PbClock.HoldEvidence.CombatCase(new PbClock.CombatEventHold { Event = PbClock.CombatEvent.Downed }));
+        rig.Game.Hazard(PbClock.HoldReason.CombatEvent, new NativeEvents.CombatEvidence(PbClock.CombatEvent.Downed, null, "downed"));
         await rig.DeliveredAsync();
 
         var marks = rig.Scheduler.Queue.Seq;
@@ -1076,7 +1079,7 @@ public sealed class ClockRunDriverTests
 
         var metrics = (CombatStopMetrics)typeof(ClockRunDriver).GetField("_combatStops", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(rig.Driver)!;
         metrics.Admitted(null, rig.Game.Tick, rig.Time.Now(), true);
-        rig.Game.Hazard(PbClock.HoldReason.CombatEvent, new PbClock.HoldEvidence.CombatCase(new PbClock.CombatEventHold { Event = PbClock.CombatEvent.Downed }));
+        rig.Game.Hazard(PbClock.HoldReason.CombatEvent, new NativeEvents.CombatEvidence(PbClock.CombatEvent.Downed, null, "downed"));
         await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         Assert.True(await rig.StepAsync());
@@ -1179,21 +1182,20 @@ public sealed class ClockRunDriverTests
     [Fact]
     public async Task TheColonyEventChannelDropsAndCountsPastItsCapacityAndOpensEmpty()
     {
+        var @event = new NativeEvents.HostilesCleared(new NativeEvents.ColonyEventOrigin(Colony, Load, Map, StartTick, 0), "");
         var channel = new ColonyEventChannel();
         var reader = channel.Open();
         for (var i = 0; i <= ColonyEventChannel.Capacity; i++)
         {
-            channel.Publish(new PbClock.ClockEvent());
+            channel.Publish(@event);
         }
         Assert.Equal(1, channel.Lost);
-        channel.CountLost();
-        Assert.Equal(2, channel.Lost);
 
         // A reopen (a restarted or reloaded brain) begins with no backlog and no loss.
         reader = channel.Open();
         Assert.False(reader.TryRead(out _));
         Assert.Equal(0, channel.Lost);
-        channel.Publish(new PbClock.ClockEvent());
+        channel.Publish(@event);
         Assert.True(await reader.WaitToReadAsync(Ct));
         Assert.True(reader.TryRead(out _));
     }
@@ -1215,7 +1217,7 @@ public sealed class ClockRunDriverTests
         Assert.False(reader.IsAlive);
 
         // A write after the open reaches only the new reader.
-        channel.Publish(new PbClock.ClockEvent());
+        channel.Publish(new NativeEvents.HostilesCleared(new NativeEvents.ColonyEventOrigin(Colony, Load, Map, StartTick, 0), ""));
         Assert.True(fresh.TryRead(out _));
         Assert.Equal(0, channel.Lost);
     }

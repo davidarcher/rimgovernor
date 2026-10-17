@@ -1,10 +1,10 @@
 namespace RimGovernor.Brain.Telemetry;
 
 /// <summary>
-/// The kinds and shared field keys of the rows native emits, one per journalled clock or colony event
+/// The kinds and shared field keys of the rows native emits, one per colony event
 /// (otel-signals.md#clock-and-colony-events). Native is the one source of these rows; the brain does not republish them.
 /// </summary>
-public static class ClockEventTelemetry
+public static class ColonyEventTelemetry
 {
     public const string HoldKind = "clock_hold";
     public const string ResumeKind = "clock_resume";

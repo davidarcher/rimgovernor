@@ -160,7 +160,7 @@ internal sealed partial class FacadeNativeClient :
     Task<EntityRows<O.BillStackRow>> IEntityNative.ReadBillStacksAsync(C.Identity identity, CancellationToken ct) =>
         ReadBillStacksAsync(identity, ct);
 
-    Task<O.BundleSnapshot?> IClockEventNative.ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct) =>
+    Task<O.BundleSnapshot?> IColonyEventNative.ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct) =>
         ReadStepAsync(request, ct);
 
     Task<O.BundleSnapshot?> IClockStepNative.ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct) =>
@@ -169,10 +169,10 @@ internal sealed partial class FacadeNativeClient :
     Task<WorldProgressionRead> IClockStepNative.ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct) =>
         ReadWorldProgressionAsync(identity, ct);
 
-    Task<System.Threading.Channels.ChannelReader<PbClock.ClockEvent>> IClockEventNative.OpenColonyEventsAsync(CancellationToken ct) =>
+    Task<System.Threading.Channels.ChannelReader<ColonyEvent>> IColonyEventNative.OpenColonyEventsAsync(CancellationToken ct) =>
         OpenColonyEventsAsync(ct);
 
-    long IClockEventNative.ColonyEventsLost => ColonyEventsLost;
+    long IColonyEventNative.ColonyEventsLost => ColonyEventsLost;
 
     Task<Bridge.Contracts.PlanningWindow> IPlanningWindowNative.ReadPlanningWindowAsync(C.Identity identity, Policy.Rectangle region, CancellationToken ct) =>
         ReadPlanningWindowAsync(identity, region, ct);

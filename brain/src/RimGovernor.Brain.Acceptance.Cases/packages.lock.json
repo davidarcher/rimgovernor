@@ -55,6 +55,7 @@
           "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Executor": "[1.0.0, )",
+          "RimGovernor.Brain.NativeFacade": "[1.0.0, )",
           "RimGovernor.Brain.Observation": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
           "RimGovernor.Brain.Simulation": "[1.0.0, )",

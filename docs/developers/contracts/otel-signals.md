@@ -73,21 +73,21 @@ the first native protective effect.
 | `clock_stop` | event row, one per combat hold the brain resumed from while a fight was open. `event` (the armed combat event), `tick`, `resume_latency_ms` (hold to the resuming `Run`), `over_budget` and `resume_budget_ms` when the resume-latency gate tripped, `ticks_since_stop` |
 | `combat_summary` | event row at combat end. `stops`, `by_event`, `resume_latency_p50_ms`, `resume_latency_p95_ms`, `resume_budget_ms`, `gate_tripped`, `ticks_between_stops_p50`, `ticks_between_stops_p95` |
 | `authority` | event row, the brain's view of its grant: `change` (`lost`, `retaken`; absent when the colony event consumer saw authority change under it), `reason` and the detail attrs; `WARN` for `lost`. Native's own generation moves are `clock_authority` rows ([below](#clock-and-colony-events)) |
-| `colony_events_lost` | event row, component `clock-scheduler`: the brain did not receive some colony events and its next step plans Full. `lost` (native's loss counter since the open: queue full or an event native failed to build), or `events` and `err` (a batch the consumer could not read against the current context). Read in the OTLP timeline. |
+| `colony_events_lost` | event row, component `clock-scheduler`: the brain did not receive some colony events and its next step plans Full. `lost` (native's loss counter since the open: writes that found the queue full), or `events` and `err` (a batch the consumer could not read against the current context). Read in the OTLP timeline. |
 
 ### Clock and colony events
 
-Native emits one row per event it produces (`ClockEventRows`, written from
-`NativeClockRuntime.Append` through the brain's emitter, attached once
+Native emits one row per colony event it produces (`ColonyEventRows`, written from
+`NativeClockRuntime.Publish` through the brain's emitter, attached once
 `BrainHost` has started), component `clock`; the brain does not republish
-them. Kind constants: `TelemetryKinds.Clock*`, keys in `ClockEventTelemetry`.
+them. Kind constants: `TelemetryKinds.Clock*`, keys in `ColonyEventTelemetry`.
 Every row carries `msg` (the event's detail), `tick`, `observed_at_unix_ms`
-(native's clock), `colony`, `load`, `map` and `native_generation`. Enum values
+(native's clock), `colony`, `load` and `map`. Enum values
 are their C# names (`LetterPause`, `Fast`, `Research`).
 
 | Kind | Shape and fields |
 |---|---|
-| `clock_hold` | the clock entered a hold: a native hazard, a game pause, an armed combat event or a brain hold. `reason` (the `HoldReason`), `stop_at_ms` (the stamp `Status` reports as held-at), the legs `detected_tick`, `occurrence_tick`, `hold_ticks`, `detect_ticks`, and `evidence` (`pawn`, `injury`, `health`, `pause`, `notifications`, `unavailable`, `combat`) with its fields: `pawn`, `pawn_name`, `x`, `z`, `pawn_reason`; `before`/`after` health maps (`severity`); `min_health_fraction`, `health_drop_fraction`; `actual_paused`, `pause_verified`, `letter_id`, `letter_label`, `letter_def`, `dialog_title`; `letters`, `messages`; `unavailable_reason`, `unavailable_detail`; `combat_event`, `thing`, `combat_reason`. Readers: `StopSummaries` (speed matrix), the launcher Observe tab, and the acceptance cases through `ScenarioClock.RunRows` (`AdvanceGame` letter attribution, `combatlab/stops`, `hazard/*`) |
+| `clock_hold` | the clock entered a hold: a native hazard, a game pause, an armed combat event or a brain hold. `reason` (the `HoldReason`), `stop_at_ms` (the stamp `Status` reports as held-at), the legs `detected_tick`, `occurrence_tick`, `hold_ticks`, `detect_ticks`, and `evidence` (`pawn`, `injury`, `health`, `pause`, `notifications`, `unavailable`, `combat`) with its fields: `pawn`, `pawn_name`, `x`, `z`, `pawn_reason`; `before`/`after` health maps (`severity`); `min_health_fraction`, `health_drop_fraction`; `actual_paused`, `pause_verified`, `letter_id`, `letter_label`, `letter_def`, `dialog_title`; `letters`; `combat_event`, `thing`, `combat_reason`. Readers: `StopSummaries` (speed matrix), the launcher Observe tab, and the acceptance cases through `ScenarioClock.RunRows` (`AdvanceGame` letter attribution, `combatlab/stops`, `hazard/*`) |
 | `clock_resume` | a Run resumed a held clock. `from` (the hold reason it ended), `speed`; `observed_at_unix_ms` is the resume time. Readers: `StopSummaries`, the launcher Observe tab |
 | `clock_authority` | the native authority generation moved. `generation`, `reason`, `active`. Readers: the postmortem's authority generations, the launcher Observe tab |
 | `clock_alert` | a new game alert. `key`, `label`, `priority` |
@@ -95,8 +95,8 @@ are their C# names (`LetterPause`, `Fast`, `Research`).
 | `clock_injury` | a colonist injury observed without a hold. The `injury` evidence fields above |
 | `clock_hostiles_cleared` | no conscious hostiles remain (the row carries the common fields only) |
 | `clock_invalidation` | observed fact families changed under a running clock. `families` (`FactFamily` names), `reason`, `entity_ids` and `cells` (`min_x`, `min_z`, `max_x`, `max_z`) when native could narrow the change. Readers: `zone/delete`, `hazard/injury` |
-| `clock_long_event` | a long event or transient force pause: `state` `waiting` (with the `pause` evidence fields) or `cleared` |
-| `clock_pause_failed` | a pending hold's pause did not take and stays armed. The pending hold's `reason` and `evidence` |
+| `clock_long_event` | a long event or transient force pause: `state` `waiting` or `cleared` |
+| `clock_pause_failed` | a pending hold's pause did not take and stays armed. The pending hold's `reason` |
 
 The other kinds are read in the OTLP timeline and the launcher's Log view.
 

@@ -163,7 +163,7 @@ namespace HomeBridge.BridgeTools
             => Read(NativeOps.ReadClockStatus, request, () => NativeClockTools.HandleReadStatus(request), cancellationToken);
 
         // The queue is lock-free and native-owned: opening it needs no game-thread hop.
-        public Task<ChannelReader<Clock.ClockEvent>> OpenColonyEventsAsync(CancellationToken cancellationToken)
+        public Task<ChannelReader<ColonyEvent>> OpenColonyEventsAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(Supervisor.ColonyEvents.Open());

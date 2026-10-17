@@ -9,9 +9,11 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace HomeBridge.BridgeTools
 {
@@ -105,11 +107,11 @@ namespace HomeBridge.BridgeTools
                 if (s.TestAcceleration) OnUpdate();
                 if (!s.Active) return;
                 if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map))
-                { Stop(s, "session_changed", "Loaded game changed.", false, null); return; }
+                { Stop(s, Clock.HoldReason.SessionChanged, "Loaded game changed.", false); return; }
                 var tm = Find.TickManager;
-                if (tm == null) { Stop(s, "unavailable", "Tick manager disappeared.", false, null); return; }
+                if (tm == null) { Stop(s, Clock.HoldReason.Unavailable, "Tick manager disappeared.", false); return; }
                 if (tm.TicksGame < s.LastTick)
-                { Stop(s, "session_changed", "Game clock rewound.", true, null); return; }
+                { Stop(s, Clock.HoldReason.SessionChanged, "Game clock rewound.", true); return; }
                 s.LastTick = tm.TicksGame;
                 CaptureTypedContext(s);
                 if (StopInvalidTypedAuthority(s)) return;
@@ -166,15 +168,15 @@ namespace HomeBridge.BridgeTools
                 {
                     // A stale watcher belongs to the old session. Retire it,
                     // but never pause the newly loaded colony.
-                    if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map)) { Stop(s, "session_changed", "Loaded game changed.", false, null); return; }
+                    if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map)) { Stop(s, Clock.HoldReason.SessionChanged, "Loaded game changed.", false); return; }
                     var tm = Find.TickManager;
-                    if (tm == null) { Stop(s, "unavailable", "Tick manager disappeared.", false, null); return; }
-                    if (tm.TicksGame < s.LastTick) { Stop(s, "session_changed", "Game clock rewound.", true, null); return; }
+                    if (tm == null) { Stop(s, Clock.HoldReason.Unavailable, "Tick manager disappeared.", false); return; }
+                    if (tm.TicksGame < s.LastTick) { Stop(s, Clock.HoldReason.SessionChanged, "Game clock rewound.", true); return; }
                     s.LastTick = tm.TicksGame;
                     CaptureTypedContext(s);
-                    if (s.PendingKind != null)
+                    if (s.Pending is { } pending)
                     {
-                        Stop(s, s.PendingKind, s.PendingDetail, true, s.PendingPayload);
+                        Stop(s, pending, true);
                         return;
                     }
                     if (StopInvalidTypedAuthority(s)) return;
@@ -184,18 +186,17 @@ namespace HomeBridge.BridgeTools
                     if (tm.ForcePaused) { HandleForcePause(s); return; }
                     if (s.ForcePauseSinceMs != 0 && !ResumeAfterForcePause(s)) return;
                     if (tm.CurTimeSpeed == TimeSpeed.Paused) {
+                        // The letter LetterStack.ReceiveLetter paused for, when the pause hook attributed one.
                         var letter = LetterPauseHook.Consume();
-                        Stop(s, letter == null ? "external_pause" : "letter_pause", ExternalPauseDetail(), false,
-                            letter == null ? null : new Dictionary<string, object?> { { "letterId", letter }, { "source", "LetterStack.ReceiveLetter" } });
+                        Stop(s, letter == null ? new HoldCause(Clock.HoldReason.ExternalPause, ExternalPauseDetail())
+                            : new HoldCause(Clock.HoldReason.LetterPause, ExternalPauseDetail(), PauseLetterId: letter), false);
                         return;
                     }
-                    if (tm.CurTimeSpeed != s.RequestedSpeed) { Stop(s, "external_speed_changed", "Speed changed outside the supervisor.", true,
-                        new Dictionary<string, object?> { { "expectedSpeed", s.RequestedSpeed.ToString() },
-                            { "actualSpeed", tm.CurTimeSpeed.ToString() } }); return; }
+                    if (tm.CurTimeSpeed != s.RequestedSpeed) { Stop(s, Clock.HoldReason.ExternalSpeedChanged, "Speed changed outside the supervisor.", true); return; }
                     if (!RunProbeIfDue(s, tm)) return;
                     RunDigestIfDue(s, tm);
                 }
-                catch (Exception ex) { Stop(s, "watcher_error", ex.GetType().Name + ": " + ex.Message, true, null); }
+                catch (Exception ex) { Stop(s, Clock.HoldReason.WatcherError, ex.GetType().Name + ": " + ex.Message, true); }
             }
         }
 
@@ -229,7 +230,7 @@ namespace HomeBridge.BridgeTools
             s.Timing.ProbeElapsed += probeTook;
             ClockProbeAccounting.Probed(probeTook);
             if (hit == null) return true;
-            Stop(s, hit.Kind, hit.Detail, true, hit.Payload);
+            Stop(s, hit, true);
             return false;
         }
 
@@ -304,30 +305,29 @@ namespace HomeBridge.BridgeTools
                 // A choice dialog the game opened by itself is answered through
                 // Operations.AnswerDialog once the controller has read its
                 // options; it is named so the stop is actionable headless.
-                Stop(s, naming ? "colony_naming" : dialog != null ? "dialog_pause" : "force_paused",
+                Stop(s, naming ? Clock.HoldReason.ColonyNaming : dialog != null ? Clock.HoldReason.DialogPause : Clock.HoldReason.GameForced,
                     naming ? "RimWorld requests initial faction and settlement names."
                         : dialog != null ? "Game is force-paused by " + dialog.GetType().FullName + " (" + (ChoiceDialogTools.Title(dialog) ?? "") + "); read the colony facts dialog section and answer it."
-                        : ForcePauseDetail(), true, null);
+                        : ForcePauseDetail(), true);
                 return;
             }
             var now = NowMs();
             if (s.ForcePauseSinceMs == 0)
             {
                 s.ForcePauseSinceMs = now;
-                s.ForcePauseKind = LongEventHandler.AnyEventNowOrWaiting
-                    ? "long_event" : "transient_force_pause";
-                Add(s.ForcePauseKind,
-                    (s.ForcePauseKind == "long_event"
+                s.ForcePauseLongEvent = LongEventHandler.AnyEventNowOrWaiting;
+                Publish(new ForcePauseWaiting(Origin(s),
+                    (s.ForcePauseLongEvent
                         ? "A long event (an autosave, most likely) is holding the clock"
                         : "The clock is force-paused with no window behind it")
                     + "; waiting up to " + (ForcePauseGraceMs / 1000)
                     + " s for it to clear. Play is NOT stopped and nothing needs dismissing. "
-                    + ClockState() + ".", s, null);
+                    + ClockState() + "."));
             }
             if (now - s.ForcePauseSinceMs < ForcePauseGraceMs) return;
-            Stop(s, "force_paused", ForcePauseDetail() + " It did not clear in "
+            Stop(s, Clock.HoldReason.GameForced, ForcePauseDetail() + " It did not clear in "
                 + (ForcePauseGraceMs / 1000) + " s, which is far longer than an autosave, "
-                + "so this is no longer treated as transient.", true, null);
+                + "so this is no longer treated as transient.", true);
         }
 
         /// The force pause cleared. Put the requested speed back and carry on.
@@ -335,22 +335,18 @@ namespace HomeBridge.BridgeTools
         private static bool ResumeAfterForcePause(State s)
         {
             var waited = NowMs() - s.ForcePauseSinceMs;
-            var kind = s.ForcePauseKind ?? "transient_force_pause";
-            s.ForcePauseSinceMs = 0; s.ForcePauseKind = null;
+            var longEvent = s.ForcePauseLongEvent;
+            s.ForcePauseSinceMs = 0; s.ForcePauseLongEvent = false;
             var tm = Find.TickManager;
-            var restored = tm != null && tm.CurTimeSpeed == s.RequestedSpeed;
-            if (!restored)
+            if (tm == null || tm.CurTimeSpeed != s.RequestedSpeed)
             {
-                Stop(s, "external_pause", "Clock changed during a force pause; explicit player resume required.", false, null);
+                Stop(s, Clock.HoldReason.ExternalPause, "Clock changed during a force pause; explicit player resume required.", false);
                 return false;
             }
-            Add("force_pause_cleared", "The " + (kind == "long_event" ? "long event" : "transient force pause")
-                + " cleared after " + (waited / 1000) + "." + ((waited % 1000) / 100) + " s; speed "
-                + (restored ? "restored to " + s.RequestedSpeed : "could NOT be restored to " + s.RequestedSpeed)
-                + ". Play was never stopped.", s, null);
-            if (restored) return true;
-            Stop(s, "run_refused", "The requested speed did not take after a force pause cleared.", true, null);
-            return false;
+            Publish(new ForcePauseCleared(Origin(s), "The " + (longEvent ? "long event" : "transient force pause")
+                + " cleared after " + (waited / 1000) + "." + ((waited % 1000) / 100) + " s; speed restored to " + s.RequestedSpeed
+                + ". Play was never stopped."));
+            return true;
         }
 
         /// Read by a human on stream. An unexplained pause is not evidence of a
@@ -425,18 +421,24 @@ namespace HomeBridge.BridgeTools
             var research = ResearchDigest();
             var world = WorldDigest();
             var conditions = ConditionDigest(s.Map);
-            var families = new List<string>();
+            var families = new List<Clock.FactFamily>();
             var reasons = new List<string>();
-            if (s.ResearchDigest != null && s.ResearchDigest != research) { families.Add("research"); families.Add("definitions"); reasons.Add("research " + research); }
-            if (s.WorldDigest != null && s.WorldDigest != world) { families.Add("world"); reasons.Add("faction relations changed"); }
-            if (s.ConditionDigest != null && s.ConditionDigest != conditions) { families.Add("colony"); reasons.Add("game conditions " + (conditions == "" ? "cleared" : conditions)); }
+            if (s.ResearchDigest != null && s.ResearchDigest != research) { families.Add(Clock.FactFamily.Research); families.Add(Clock.FactFamily.Definitions); reasons.Add("research " + research); }
+            if (s.WorldDigest != null && s.WorldDigest != world) { families.Add(Clock.FactFamily.World); reasons.Add("faction relations changed"); }
+            if (s.ConditionDigest != null && s.ConditionDigest != conditions) { families.Add(Clock.FactFamily.Colony); reasons.Add("game conditions " + (conditions == "" ? "cleared" : conditions)); }
             s.ResearchDigest = research; s.WorldDigest = world; s.ConditionDigest = conditions;
-            if (families.Count != 0)
-                Add("observation_invalidated", "Observed facts changed: " + string.Join("; ", reasons) + ".", s,
-                    new Dictionary<string, object?> { { "families", families }, { "reason", string.Join("; ", reasons) } });
+            if (families.Count != 0) Invalidate(s, string.Join("; ", reasons), families);
             PublishZoneChanges(s);
             PublishHarvestChanges(s);
         }
+        /// Publishes one ObservationInvalidated: the stale families, narrowed
+        /// to the changed rows' ids and the one rectangle the change touched
+        /// when the caller can attribute it.
+        private static void Invalidate(State s, string reason, IReadOnlyList<Clock.FactFamily> families,
+            IReadOnlyList<string>? entityIds = null, CellRectangle? cells = null, string? detail = null) =>
+            Publish(new ObservationInvalidated(Origin(s), detail ?? "Observed facts changed: " + reason + ".", families, reason,
+                entityIds ?? Array.Empty<string>(), cells));
+        private static readonly Clock.FactFamily[] ColonyFamily = { Clock.FactFamily.Colony };
         /// A growing zone turning ripe (any sown plant harvestable now) or
         /// fully harvested appends one colony row narrowed to those zones
         ///, so the grower review runs without waiting for a stop.
@@ -454,10 +456,7 @@ namespace HomeBridge.BridgeTools
             var parts = new List<string>();
             if (turned.Count != 0) parts.Add("zones harvestable: " + string.Join(", ", turned));
             if (cleared.Count != 0) parts.Add("zones harvested: " + string.Join(", ", cleared));
-            var reason = string.Join("; ", parts);
-            var payload = new Dictionary<string, object?> { { "families", new List<string> { "colony" } }, { "reason", reason } };
-            if (changed.Count <= InvalidationEntitiesMax) payload["entityIds"] = changed;
-            Add("observation_invalidated", "Observed facts changed: " + reason + ".", s, payload);
+            Invalidate(s, string.Join("; ", parts), ColonyFamily, changed.Count <= InvalidationEntitiesMax ? changed : null);
         }
         private static HashSet<string> RipeZones(Map map)
         {
@@ -508,13 +507,9 @@ namespace HomeBridge.BridgeTools
             if (changed.Count == 0) return;
             changed.Sort(StringComparer.Ordinal);
             var reason = "zones edited: " + string.Join(", ", changed);
-            var payload = new Dictionary<string, object?> { { "families", new List<string> { "colony" } }, { "reason", reason } };
             if (changed.Count <= InvalidationEntitiesMax && span != null)
-            {
-                payload["entityIds"] = changed;
-                payload["cells"] = new Dictionary<string, object?> { { "minX", span.MinX }, { "minZ", span.MinZ }, { "maxX", span.MaxX }, { "maxZ", span.MaxZ } };
-            }
-            Add("observation_invalidated", "Observed facts changed: " + reason + ".", s, payload);
+                Invalidate(s, reason, ColonyFamily, changed, new CellRectangle(span.MinX, span.MinZ, span.MaxX, span.MaxZ));
+            else Invalidate(s, reason, ColonyFamily);
         }
         /// Stockpile fill on its own, shorter cadence (StockpileFillIntervalTicks):
         /// items arriving in or leaving a stockpile append one colony row
@@ -539,10 +534,7 @@ namespace HomeBridge.BridgeTools
             // A vanished zone is already a zone edit; only fill moves here.
             if (changed.Count == 0) return;
             changed.Sort(StringComparer.Ordinal);
-            var reason = "stockpile fill: " + string.Join(", ", changed);
-            var payload = new Dictionary<string, object?> { { "families", new List<string> { "colony" } }, { "reason", reason } };
-            if (changed.Count <= InvalidationEntitiesMax) payload["entityIds"] = changed;
-            Add("observation_invalidated", "Observed facts changed: " + reason + ".", s, payload);
+            Invalidate(s, "stockpile fill: " + string.Join(", ", changed), ColonyFamily, changed.Count <= InvalidationEntitiesMax ? changed : null);
         }
         /// Used (not storage-empty) cells per stockpile zone, by zone id.
         private static Dictionary<string, int> StockpileFill(Map map)
@@ -631,9 +623,11 @@ namespace HomeBridge.BridgeTools
             }
             return string.Join(",", parts);
         }
-        private static Hit? Probe(State s)
+        private static HoldCause? Probe(State s)
         {
-            var newLetters = new List<Dictionary<string, object?>>();
+            var newLetters = new List<EventLetter>();
+            var names = new List<string>();
+            var arrived = new List<long>();
             foreach (var l in GameWatchReads.Letters())
             {
                 var id = GameWatchReads.SafeLetterId(l);
@@ -646,50 +640,44 @@ namespace HomeBridge.BridgeTools
                 if (l.GetType() == typeof(StandardLetter) && !l.ShouldAutomaticallyOpenLetter && l.def != null
                     && NonStoppingLetterDefs.Contains(l.def.defName))
                 {
-                    Add("notification_new", label, s, new Dictionary<string, object?> {
-                        { "id", id }, { "label", label }, { "letterDef", l.def.defName } });
+                    Publish(new LetterNotified(Origin(s), label, new EventLetter(id, label, l.def.defName)));
                     continue;
                 }
-                newLetters.Add(new Dictionary<string, object?> { { "id", id }, { "label", label },
-                    { "letterDef", l.def != null ? l.def.defName : null }, { "arrivalTick", SafeArrivalTick(l) } });
+                newLetters.Add(new EventLetter(id, label, l.def?.defName));
+                names.Add(label);
+                arrived.Add(SafeArrivalTick(l));
             }
-            var newMessages = new List<Dictionary<string, object?>>();
             foreach (var m in GameWatchReads.LiveMessages())
             {
                 var id = GameWatchReads.SafeMessageId(m);
                 if (!s.Messages.Add(id)) continue;
                 var type = GameWatchReads.SafeMessageType(m);
                 var text = GameWatchReads.SafeMessageText(m) ?? "Transient message";
-                var payload = new Dictionary<string, object?> { { "id", id },
-                    { "text", text }, { "startingTick", GameWatchReads.SafeMessageTick(m) } };
                 // Same rule for the transient top-left messages: only
                 // ThreatBig, ThreatSmall, PawnDeath and an unknown type stop.
                 if (type != null && NonStoppingMessageTypes.Contains(type))
                 {
-                    Add("notification_new", text, s, payload);
+                    Publish(new MessageNotified(Origin(s), text, id, text));
                     continue;
                 }
                 if (type == null || !(new[] { "RejectInput", "CautionInput", "SilentInput", "TaskCompletion" }).Contains(type))
-                    newMessages.Add(payload);
+                {
+                    names.Add(text);
+                    arrived.Add(GameWatchReads.SafeMessageTick(m));
+                }
             }
-            if (newLetters.Count > 0 || newMessages.Count > 0)
+            if (names.Count > 0)
             {
-                var names = newLetters.Select(x => Convert.ToString(x["label"]))
-                    .Concat(newMessages.Select(x => Convert.ToString(x["text"]))).ToList();
-                var payload = new Dictionary<string, object?> { { "letters", newLetters },
-                        { "messages", newMessages }, { "letterCount", newLetters.Count },
-                        { "messageCount", newMessages.Count } };
                 // The newest arrival is the hazard's occurrence: the
                 // older ones were already stopping play had they been seen.
-                var arrived = newLetters.Select(x => x["arrivalTick"]).Concat(newMessages.Select(x => x["startingTick"]))
-                    .Where(t => t != null).Select(t => Convert.ToInt64(t)).Where(t => t >= 0).ToList();
-                if (arrived.Count > 0) payload["occurrenceTick"] = arrived.Max();
-                return new Hit("notification_batch", names.Count + " new notification(s): " + string.Join("; ", names), payload);
+                var known = arrived.Where(t => t >= 0).ToList();
+                return new HoldCause(Clock.HoldReason.NotificationBatch, names.Count + " new notification(s): " + string.Join("; ", names),
+                    new NotificationEvidence(newLetters), known.Count > 0 ? known.Max() : null);
             }
             // An alert never stops play; a new one is a message. The key set only
             // grows within an epoch, so an alert that flaps cannot re-report.
             foreach (var a in GameWatchReads.ActiveAlertKeys(AlertPriority.High, null))
-                if (s.AlertKeys.Add(a.Key)) Add("alert_new", a.Value, s, AlertRow(a));
+                if (s.AlertKeys.Add(a.Key)) Publish(Alert(Origin(s), a));
             var pawns = GameWatchReads.SpawnedPawns(Find.CurrentMap);
             var colonists = pawns.Where(GameWatchReads.SafeIsColonist).ToList();
             // A resting patient who is no longer eligible needs a fresh
@@ -717,17 +705,17 @@ namespace HomeBridge.BridgeTools
                     && GameWatchReads.IsHostile(p, out why)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= s.HostileWithin))
-                    return PawnHit("hostile", p, why, SpawnedTick(p));
+                    return PawnHit(Clock.HoldReason.Hostile, p, why, SpawnedTick(p));
                 if (GameWatchReads.SafeIsColonist(p)
                     && (GameWatchReads.SafeDowned(p) || GameWatchReads.SafeDead(p))
                     && !s.IgnoredDowned.Contains(p.thingIDNumber)
                     && !SafeSurgicalRecovery(s, p)
                     && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p, s.Policy!.SeriousSummaryHealthFloor.GetValueOrDefault())))
-                    return PawnHit("colonist_downed", p, GameWatchReads.SafeDead(p) ? "dead" : "downed", DownedTick(p));
+                    return PawnHit(Clock.HoldReason.ColonistDowned, p, GameWatchReads.SafeDead(p) ? "dead" : "downed", DownedTick(p));
                 if (ThreateningPredatorHunt(p)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= 40))
-                    return PawnHit("predator_hunt", p, "PredatorHunt targeting colony property or unreadable prey within 40 cells", JobStartTick(p));
+                    return PawnHit(Clock.HoldReason.PredatorHunt, p, "PredatorHunt targeting colony property or unreadable prey within 40 cells", JobStartTick(p));
                 if (GameWatchReads.SafeIsColonist(p))
                 {
                     if (p.CurJobDef == JobDefOf.Hunt)
@@ -741,11 +729,9 @@ namespace HomeBridge.BridgeTools
                         // and the invalidated colony facts replan at once.
                         if (prey != null && !prey.Dead && !HuntingSafety.RouteSafe(p, prey, s.Policy!.PredatorMarginCells.GetValueOrDefault())
                             && HuntingSafety.Withdraw(p, prey))
-                            Add("observation_invalidated", "Observed facts changed: unsafe hunt of "
-                                + GameWatchReads.SafeName(prey) + " withdrawn.", s,
-                                new Dictionary<string, object?> {
-                                    { "families", new List<string> { "colony", "pawns" } },
-                                    { "reason", "hunting route unsafe; hunt of " + prey.thingIDNumber + " by " + p.thingIDNumber + " withdrawn" } });
+                            Invalidate(s, "hunting route unsafe; hunt of " + prey.thingIDNumber + " by " + p.thingIDNumber + " withdrawn",
+                                new[] { Clock.FactFamily.Colony, Clock.FactFamily.Pawns },
+                                detail: "Observed facts changed: unsafe hunt of " + GameWatchReads.SafeName(prey) + " withdrawn.");
                     }
                     var after = InjurySnapshot.Capture(p);
                     InjurySnapshot? before;
@@ -773,13 +759,9 @@ namespace HomeBridge.BridgeTools
                         && !fightOwned
                         && HealthThresholdCrossed(s, before, after))
                     {
-                        var health = new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
-                                { "pawnName", GameWatchReads.SafeName(p) },
-                                { "position", Position(p) }, { "minHealthFraction", s.MinHealthFraction },
-                                { "healthDropFraction", s.HealthDropFraction } };
-                        if (after.NewestWoundAgeTicks != int.MaxValue) health["occurrenceTick"] = tick - after.NewestWoundAgeTicks;
-                        return new Hit("colonist_health", GameWatchReads.SafeName(p)
-                            + " crossed a combat health threshold.", health);
+                        return new HoldCause(Clock.HoldReason.ColonistHealth, GameWatchReads.SafeName(p) + " crossed a combat health threshold.",
+                            new HealthEvidence(PawnOf(p), s.MinHealthFraction, s.HealthDropFraction),
+                            after.NewestWoundAgeTicks != int.MaxValue ? tick - after.NewestWoundAgeTicks : null);
                     }
                     if (before != null
                         && (after.Count > before.Count
@@ -787,10 +769,7 @@ namespace HomeBridge.BridgeTools
                             || after.BleedRate > before.BleedRate + 0.001f
                             || after.BloodLoss > before.BloodLoss + 0.001f))
                     {
-                        var payload = new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
-                                { "pawnName", GameWatchReads.SafeName(p) },
-                                { "position", Position(p) }, { "severityBefore", before.Severity },
-                                { "severityAfter", after.Severity } };
+                        var injury = new EventInjury(PawnOf(p), before.Severity, after.Severity);
                         var threshold = !fightOwned && HealthThresholdCrossed(s, before, after);
                         // Colony mode stops on any worsening -- except for a
                         // colonist who already caused a colonist_injury stop
@@ -809,8 +788,8 @@ namespace HomeBridge.BridgeTools
                         var owedMs = InjuryCooldownRemainingMs(p.thingIDNumber, s.InjuryStopCooldownMs);
                         var acknowledged = s.IgnoredInjured.Contains(p.thingIDNumber);
                         var suppressed = !threshold && (owedMs > 0 || acknowledged);
-                        if (after.Count > before.Count && after.NewestWoundAgeTicks != int.MaxValue && Find.TickManager != null)
-                            payload["occurrenceTick"] = Find.TickManager.TicksGame - after.NewestWoundAgeTicks;
+                        long? occurrence = after.Count > before.Count && after.NewestWoundAgeTicks != int.MaxValue && Find.TickManager != null
+                            ? Find.TickManager.TicksGame - after.NewestWoundAgeTicks : null;
                         // A new wound stops the run only past the native
                         // severity floor: bleeding out inside the policy's
                         // injury_severity_floor_ticks, or a life-threatening
@@ -825,9 +804,9 @@ namespace HomeBridge.BridgeTools
                         if (((s.Mode == "colony" && newWound && severe) || threshold) && !suppressed)
                         {
                             RecordInjuryStop(p);
-                            return new Hit("colonist_injury", InjuryDetail(s, p, before, after), payload);
+                            return new HoldCause(Clock.HoldReason.ColonistInjury, InjuryDetail(s, p, before, after), new InjuryEvidence(injury), occurrence);
                         }
-                        Add("injury_observed", GameWatchReads.SafeName(p)
+                        Publish(new InjuryObserved(Origin(s), GameWatchReads.SafeName(p)
                             + (suppressed
                                 ? (acknowledged
                                     ? " took another injury; play continues under the configured injury acknowledgement."
@@ -837,7 +816,7 @@ namespace HomeBridge.BridgeTools
                                     ? " took a new wound under the severity floor; play continues and the medical planner reviews it."
                                     : newWound
                                         ? " took a sub-threshold combat injury; play continues."
-                                        : " has a known wound worsening (blood loss/severity creep); play continues.")), s, payload);
+                                        : " has a known wound worsening (blood loss/severity creep); play continues.")), injury));
                         if (demoted) InvalidateMedicalFacts(s, p.thingIDNumber,
                             GameWatchReads.SafeName(p) + " took a new wound under the severity floor");
                         // Both modes deliberately coalesce ordinary damage into
@@ -910,9 +889,9 @@ namespace HomeBridge.BridgeTools
                 parts.Add(drafted.Count + " colonist" + (drafted.Count == 1 ? "" : "s")
                     + " still drafted (" + string.Join(", ", drafted
                         .Select(GameWatchReads.SafeName).ToArray()) + ")");
-            Add("hostiles_cleared", "No conscious hostiles remain: "
+            Publish(new HostilesCleared(Origin(s), "No conscious hostiles remain: "
                 + (parts.Count > 0 ? string.Join("; ", parts.ToArray())
-                    : "nothing downed and nobody drafted") + ".", s, null);
+                    : "nothing downed and nobody drafted") + "."));
         }
 
         private static bool SafeDrafted(Pawn pawn) { try { return pawn.Drafted; } catch { return false; } }
@@ -937,10 +916,7 @@ namespace HomeBridge.BridgeTools
             int last;
             if (!force && s.MedicalWakes.TryGetValue(pawnId, out last) && tick - last < MedicalWakeIntervalTicks) return;
             s.MedicalWakes[pawnId] = tick;
-            Add("observation_invalidated", "Observed facts changed: " + reason + ".", s,
-                new Dictionary<string, object?> {
-                    { "families", new List<string> { "pawns", "emergency" } },
-                    { "reason", reason } });
+            Invalidate(s, reason, new[] { Clock.FactFamily.Pawns, Clock.FactFamily.Emergency });
         }
 
         private static void RecordInjuryStop(Pawn pawn)
@@ -977,28 +953,23 @@ namespace HomeBridge.BridgeTools
             } catch { return false; }
         }
 
-        private static Hit PawnHit(string kind, Pawn pawn, string reason, int? occurrenceTick = null)
-        {
-            var payload = new Dictionary<string, object?> { { "pawnId", pawn.thingIDNumber },
-                    { "pawnName", GameWatchReads.SafeName(pawn) }, { "position", Position(pawn) },
-                    { "reason", reason } };
+        private static HoldCause PawnHit(Clock.HoldReason reason, Pawn pawn, string why, int? occurrenceTick = null) =>
             // The tick the hazard arose where the game records one, for
             // the stop's detect_ticks; absent when it does not.
-            if (occurrenceTick.HasValue && occurrenceTick.Value >= 0) payload["occurrenceTick"] = occurrenceTick.Value;
-            return new Hit(kind, GameWatchReads.SafeName(pawn) + " (" + reason + ")", payload);
-        }
+            new HoldCause(reason, GameWatchReads.SafeName(pawn) + " (" + why + ")", new PawnEvidence(PawnOf(pawn, why)),
+                occurrenceTick.HasValue && occurrenceTick.Value >= 0 ? occurrenceTick.Value : null);
         private static int SafeArrivalTick(Letter letter) { try { return letter.arrivalTick; } catch { return -1; } }
         private static int? JobStartTick(Pawn pawn) { try { var job = pawn.CurJob; return job != null && job.startTick >= 0 ? job.startTick : (int?)null; } catch { return null; } }
-        /// One alert row; the key is type|priority|normalized-label.
-        private static Dictionary<string, object?> AlertRow(KeyValuePair<string, string> a)
+        /// One new alert; the key is type|priority|normalized-label.
+        private static AlertRaised Alert(ColonyEventOrigin origin, KeyValuePair<string, string> a)
         {
             var parts = a.Key.Split('|');
-            return new Dictionary<string, object?> { { "alertKey", a.Key }, { "label", a.Value },
-                { "priority", parts.Length > 1 ? parts[1] : null } };
+            return new AlertRaised(origin, a.Value, a.Key, a.Value, parts.Length > 1 ? parts[1] : null);
         }
 
-        private static object Position(Pawn pawn) { return new Dictionary<string, object?> {
-            { "x", pawn.Position.x }, { "z", pawn.Position.z } }; }
+        /// A pawn an event names, at its current cell.
+        private static EventPawn PawnOf(Pawn pawn, string? reason = null) =>
+            new EventPawn(pawn.GetUniqueLoadID(), GameWatchReads.SafeName(pawn) ?? "", pawn.Position.x, pawn.Position.z, reason);
 
         private static List<string> ForcePausingWindows()
         {
@@ -1042,17 +1013,18 @@ namespace HomeBridge.BridgeTools
         private static int Distance(Pawn a, Pawn b) { return Math.Max(Math.Abs(a.Position.x - b.Position.x), Math.Abs(a.Position.z - b.Position.z)); }
         /// Enters a hold: pauses (when asked) and publishes one HoldEntered. The
         /// native clock then stays held until the brain sends Run.
-        private static void Stop(State? s, string kind, string? detail, bool pause,
-            Dictionary<string, object?>? payload)
+        private static void Stop(State? s, Clock.HoldReason reason, string detail, bool pause) =>
+            Stop(s, new HoldCause(reason, detail), pause);
+        private static void Stop(State? s, HoldCause cause, bool pause)
         {
             if (s == null || !ReferenceEquals(s, _state) || !s.Active) return;
             // The hold is entered when the stop is first raised (Status reports
             // a pending stop as held); a failed pause's per-frame retry is the
             // same hold and does not bump the serial again.
-            if (s.PendingKind == null) HoldSerial.Entered();
+            if (s.Pending == null) HoldSerial.Entered();
             // The tick the stop was first raised at; a failed pause retries
             // per frame and keeps it, so the published stop tick can be later.
-            if (s.PendingKind == null && Find.TickManager != null) s.DetectedTick = Find.TickManager.TicksGame;
+            if (s.Pending == null && Find.TickManager != null) s.DetectedTick = Find.TickManager.TicksGame;
             if (pause && Find.TickManager != null && Find.TickManager.CurTimeSpeed != TimeSpeed.Paused) Find.TickManager.Pause();
             s.PausedAtStop = Find.TickManager != null && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
             s.PauseVerified = !pause || s.PausedAtStop;
@@ -1062,22 +1034,38 @@ namespace HomeBridge.BridgeTools
             {
                 // Stay armed and retry on the next frame. Going inactive here
                 // would turn a failed pause into unguarded play.
-                s.PendingKind = kind; s.PendingDetail = detail; s.PendingPayload = payload;
+                s.Pending = cause;
                 if (!s.PauseFailureReported)
                 {
                     s.PauseFailureReported = true;
-                    Add("pause_failed", "Pause did not take while handling " + kind + ": " + detail,
-                        s, payload);
+                    Publish(new PauseFailed(Origin(s), "Pause did not take while handling " + cause.Reason + ": " + cause.Detail, cause.Reason));
                 }
                 return;
             }
-            s.PendingKind = null; s.PendingDetail = null; s.PendingPayload = null;
+            s.Pending = null;
             RestoreBoost(s);
-            s.StopAtMs = NowMs();
-            payload = payload ?? new Dictionary<string, object?>();
-            payload["detectedTick"] = s.DetectedTick;
-            s.Active = false; s.StopReason = kind; s.StopDetail = detail; ClockPauseAccounting.Stopped(); Add(kind, detail, s, payload);
-            LogTiming(s, kind);
+            var stopAt = NowMs();
+            s.StopAtMs = stopAt;
+            s.Active = false; s.StopReason = cause.Reason; s.StopDetail = cause.Detail; ClockPauseAccounting.Stopped();
+            Publish(new HoldEntered(Origin(s), cause.Detail, cause.Reason, EvidenceOf(s, cause), s.DetectedTick, cause.OccurrenceTick, stopAt));
+            LogTiming(s, cause.Reason.ToString());
+        }
+        /// What a hold carries: the hazard's own evidence, else the pause
+        /// itself while its game is loaded (the letter vanilla paused for, the
+        /// force-pausing dialog), else nothing beyond its reason.
+        private static HoldEvidence EvidenceOf(State s, HoldCause cause)
+        {
+            if (cause.Evidence != null) return cause.Evidence;
+            if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map)) return new UnobservedEvidence();
+            EventLetter? letter = null;
+            if (cause.PauseLetterId is { } id)
+            {
+                var stacked = GameWatchReads.Letters().FirstOrDefault(value => value.GetUniqueLoadID() == id);
+                letter = new EventLetter(id, stacked?.Label.ToString(), stacked?.def?.defName);
+            }
+            var dialog = cause.Reason == Clock.HoldReason.DialogPause ? ChoiceDialogTools.Pending() : null;
+            return new PauseEvidence(Find.TickManager != null && Find.TickManager.Paused, TypedOf(s).StopPauseVerified, letter,
+                dialog != null ? ChoiceDialogTools.Title(dialog) : null);
         }
         private static void RestoreBoost(State s)
         {
@@ -1089,34 +1077,6 @@ namespace HomeBridge.BridgeTools
             if (!s.BoostOwned) return;
             BoostField.SetValue(null, s.PriorBoost);
             s.BoostOwned = false;
-        }
-        private static void Add(string kind, string? detail, State s, Dictionary<string, object?>? payload)
-        {
-            // An event native cannot build is lost, not a hold: it is counted, and the brain plans Full on any loss.
-            try { Append(TypedEvent(kind, detail, s, payload), s.StopAtMs); }
-            catch (Exception error)
-            {
-                ColonyEvents.CountLost();
-                ModLog.Warn("clock", "Clock event " + kind + " was lost: " + error.GetType().Name);
-            }
-        }
-        // Epoch-less producers (authority changes observed while no epoch is
-        // running). The row carries no owner; the current map supplies its
-        // context. Nothing is armed, so a failed publication only logs.
-        private static bool Publish(string kind, string? detail, Dictionary<string, object?>? payload)
-        {
-            lock (Gate)
-            {
-                try
-                {
-                    if (Current.Game == null || Find.CurrentMap == null) return false;
-                    var value = OwnerlessEvent(kind, detail, payload);
-                    if (value == null) return false;
-                    Append(value);
-                    return true;
-                }
-                catch (Exception error) { ColonyEvents.CountLost(); ModLog.Warn("clock", "clock publication of " + kind + " failed: " + error.GetType().Name); return false; }
-            }
         }
         private static HashSet<string> Csv(string value) { return new HashSet<string>((value ?? "").Split(',').Select(x => x.Trim()).Where(x => x.Length > 0), StringComparer.OrdinalIgnoreCase); }
         private static HashSet<int> PawnIds(string value) { var r = new HashSet<int>(); foreach (var x in Csv(value)) { int n; var digits = new string(x.Reverse().TakeWhile(char.IsDigit).Reverse().ToArray()); if (int.TryParse(digits, out n)) r.Add(n); } return r; }
@@ -1137,7 +1097,7 @@ namespace HomeBridge.BridgeTools
             public long StartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
         }
         private static double Ms(long stopwatchTicks) { return stopwatchTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency; }
-        private static void LogTiming(State s, string kind)
+        private static void LogTiming(State s, string reason)
         {
             if (!TestAccelerationLaunch) return;
             var t = s.Timing;
@@ -1145,20 +1105,18 @@ namespace HomeBridge.BridgeTools
             var ticks = s.LastTick - s.StartTick;
             ModLog.Info("clock", string.Format(CultureInfo.InvariantCulture,
                 "RimGovernor clock run segment timing{0}: hold={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} probes={11} probeMs={12:F1} maxProbeTickGap={13} digests={14} digestMs={15:F1}",
-                "", kind, s.RequestedSpeed, s.TestAcceleration, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
+                "", reason, s.RequestedSpeed, s.TestAcceleration, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
                 t.Frames, t.MaxFrameTicks, t.HookTicks, Ms(t.HookElapsed), s.ProbeCount, Ms(t.ProbeElapsed), s.MaxProbeTickGap,
                 t.Digests, Ms(t.DigestElapsed)));
             var prof = TickProfile.Take();
             if (prof.Length > 0) ModLog.Info("clock", "RimGovernor clock run segment tick profile:" + prof);
         }
 
-        private sealed class Hit
-        {
-            public readonly string Kind; public readonly string Detail;
-            public readonly Dictionary<string, object?> Payload;
-            public Hit(string kind, string detail, Dictionary<string, object?> payload)
-            { Kind = kind; Detail = detail; Payload = payload; }
-        }
+        /// Why a hold is entered: its reason and detail, the hazard's evidence
+        /// and the tick it arose when the probe has them, and the letter a
+        /// letter pause names. A hold without evidence carries the pause itself.
+        private sealed record HoldCause(Clock.HoldReason Reason, string Detail, HoldEvidence? Evidence = null,
+            long? OccurrenceTick = null, string? PauseLetterId = null);
 
         private sealed class InjurySnapshot
         {
@@ -1217,16 +1175,17 @@ namespace HomeBridge.BridgeTools
             public long? StopAtMs;
             public int DetectedTick;
             public bool? PauseVerified; public bool PauseFailureReported;
-            public string? StopReason; public string? StopDetail;
-            public string? PendingKind; public string? PendingDetail;
+            public Clock.HoldReason? StopReason; public string? StopDetail;
+            // A hold whose pause has not taken yet; retried each frame.
+            public HoldCause? Pending;
             // null until the epoch's first probe baselined them; see PublishFactChanges.
             public string? ResearchDigest; public string? WorldDigest; public string? ConditionDigest;
             public Dictionary<string, ZoneDigest>? ZoneDigests;
             public Dictionary<string, int>? StockpileFill; public int LastFillTick;
             public HashSet<string>? RipeZones;
             // Wall-clock ms at which a windowless force pause began, 0 when none.
-            public long ForcePauseSinceMs; public string? ForcePauseKind;
-            public Dictionary<string, object?>? PendingPayload;
+            // Whether that force pause is a long event rather than a windowless transient.
+            public long ForcePauseSinceMs; public bool ForcePauseLongEvent;
             public readonly HashSet<string> Letters = new HashSet<string>(StringComparer.Ordinal);
             public readonly HashSet<string> Messages = new HashSet<string>(StringComparer.Ordinal);
             public readonly Dictionary<int, InjurySnapshot> Injuries = new Dictionary<int, InjurySnapshot>();

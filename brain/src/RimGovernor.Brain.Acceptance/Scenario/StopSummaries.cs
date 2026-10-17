@@ -140,7 +140,7 @@ public static class StopSummaries
                 continue;
             }
 
-            var observed = Number(row.Payload, ClockEventTelemetry.ObservedAtKey);
+            var observed = Number(row.Payload, ColonyEventTelemetry.ObservedAtKey);
             if (sinceUnixMs > 0 && (observed is not { } at || at < sinceUnixMs))
             {
                 continue;
@@ -155,7 +155,7 @@ public static class StopSummaries
                 if (pending is null)
                 {
                     pending = latency;
-                    pendingAt = Number(row.Payload, ClockEventTelemetry.StopAtMsKey) ?? observed ?? 0;
+                    pendingAt = Number(row.Payload, ColonyEventTelemetry.StopAtMsKey) ?? observed ?? 0;
                 }
 
                 continue;
@@ -191,14 +191,14 @@ public static class StopSummaries
     {
         var output = new HoldLatency
         {
-            Reason = ReasonName(payload.GetValueOrDefault(ClockEventTelemetry.ReasonKey) as string ?? ""),
-            HoldTick = (long)(Number(payload, ClockEventTelemetry.TickKey) ?? 0),
+            Reason = ReasonName(payload.GetValueOrDefault(ColonyEventTelemetry.ReasonKey) as string ?? ""),
+            HoldTick = (long)(Number(payload, ColonyEventTelemetry.TickKey) ?? 0),
         };
-        if (Number(payload, ClockEventTelemetry.DetectedTickKey) is { } detected)
+        if (Number(payload, ColonyEventTelemetry.DetectedTickKey) is { } detected)
         {
             output.DetectedTick = (long)detected;
             output.HoldTicks = output.HoldTick - (long)detected;
-            if (Number(payload, ClockEventTelemetry.OccurrenceTickKey) is { } occurrence)
+            if (Number(payload, ColonyEventTelemetry.OccurrenceTickKey) is { } occurrence)
             {
                 output.OccurrenceTick = (long)occurrence;
                 output.DetectTicks = (long)detected - (long)occurrence;

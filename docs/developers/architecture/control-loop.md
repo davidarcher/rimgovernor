@@ -688,7 +688,7 @@ force reconciliation. Tests reject undeclared planner reads.
 
 ```mermaid
 flowchart TD
-    Event[Clock event, outcome or cadence] --> Queue[Select due and invalidated planners]
+    Event[Colony event, outcome or cadence] --> Queue[Select due and invalidated planners]
     Queue --> Immediate[Inspect immediate protection]
     Immediate --> Protection[Protective Methods through Hands]
     Protection --> Advance[Yield for dispatch and native time]

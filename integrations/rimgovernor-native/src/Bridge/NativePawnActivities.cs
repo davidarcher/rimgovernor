@@ -603,13 +603,13 @@ namespace HomeBridge.BridgeTools
     {
         internal static void ActivityUnavailable(string detail)
         {
-            if (_state?.Active == true) Stop(_state, "unavailable", "voluntary_control:" + detail, true, null);
+            if (_state?.Active == true) Stop(_state, RimGovernor.Contracts.Wire.Clock.HoldReason.Unavailable, "voluntary_control:" + detail, true);
             else Find.TickManager.Pause();
         }
         // Reuse the existing clock stop/journal/invalidation path, not a second event store.
         internal static void ActivityExecutionChanged(string detail)
         {
-            if (_state?.Active == true) Stop(_state, "unavailable", "pawn_activity:" + detail, true, null);
+            if (_state?.Active == true) Stop(_state, RimGovernor.Contracts.Wire.Clock.HoldReason.Unavailable, "pawn_activity:" + detail, true);
             else Find.TickManager.Pause();
         }
     }

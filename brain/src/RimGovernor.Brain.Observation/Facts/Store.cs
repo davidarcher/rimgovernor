@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Bridge;
-using ClockPb = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Facts;
 
@@ -368,30 +367,5 @@ public sealed record Invalidation
             }
         }
         return output;
-    }
-
-    /// <summary>
-    /// Decodes an ObservationInvalidated; an unknown family reports false. A rectangle is taken as the decoder
-    /// validated it (bridge accepts only present, ordered bounds).
-    /// </summary>
-    public static bool TryFromWire(ClockPb.ObservationInvalidated wire, out Invalidation invalidation)
-    {
-        var families = new List<FactFamily>();
-        foreach (var family in wire.Families)
-        {
-            if (!BridgeFunctions.FactFamilyFromWire(family, out var mapped))
-            {
-                invalidation = new Invalidation();
-                return false;
-            }
-            families.Add(mapped);
-        }
-        Rect? rect = null;
-        if (wire.Cells is { } cells)
-        {
-            rect = new Rect(cells.Minimum?.X ?? 0, cells.Minimum?.Z ?? 0, cells.Maximum?.X ?? 0, cells.Maximum?.Z ?? 0);
-        }
-        invalidation = new Invalidation { Families = EquatableArray.From(families), Ids = EquatableArray.From(wire.EntityIds), Rect = rect };
-        return true;
     }
 }

@@ -19,7 +19,7 @@ flowchart LR
     Facade --> Native
     Native --> Game
     Runtime --> Policy
-    Native -. clock events .-> Runtime
+    Native -. colony events .-> Runtime
 ```
 
 ## Ownership

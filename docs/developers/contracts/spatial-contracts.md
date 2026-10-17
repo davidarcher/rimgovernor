@@ -604,7 +604,7 @@ stands as created. A source answers nothing while the fact it judges by is unkno
 `RoundsStockpilePlanner` commits the edits as one plan per cycle, each action under
 its target's fresh CAS token: `stockpile_patch` (zone or shelf), `zone_cell_edit` or `zone_delete`; a
 create is a native zone preview and a `zone_create` method. Each is a
-`layout`/`stockpiles` clock event.
+`layout`/`stockpiles` colony event.
 
 **Shelves** stand inside a store's zone on free floor, never on a planned walkway (a cell a
 layout route crosses, `policy.PlannedWalkways` over `CheckRoutes`' per-cell path counts) nor

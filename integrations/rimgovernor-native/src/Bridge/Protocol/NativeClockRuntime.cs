@@ -9,6 +9,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Contracts.Wire;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Authority = RimGovernor.Contracts.Wire.Authority;
@@ -43,19 +44,19 @@ namespace HomeBridge.BridgeTools
         {
             var generation = TypedOf(s).ExpectedGeneration;
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-            { Stop(s, "unavailable", "Authorizing native authority is unavailable.", true, null); return true; }
+            { Stop(s, Clock.HoldReason.Unavailable, "Authorizing native authority is unavailable.", true); return true; }
             var result = authority.Check(generation);
             if (result.Success && TypedHooksReadyThisFrame()) return false;
             var reason = result.Snapshot.Reason;
             // Shutdown is the old game unloading under a load: the session
             // changed, not a pause (a small map's fast frames reach this
             // check before the swapped game does).
-            var kind = reason == NativeControlRevocationReason.IdentityChanged || reason == NativeControlRevocationReason.Shutdown ? "session_changed"
+            var held = reason == NativeControlRevocationReason.IdentityChanged || reason == NativeControlRevocationReason.Shutdown ? Clock.HoldReason.SessionChanged
                 : reason == NativeControlRevocationReason.HooksUnavailable || reason == NativeControlRevocationReason.GenerationExhausted
-                    || reason == NativeControlRevocationReason.ClockUnavailable || !TypedHooksReady() ? "unavailable" : "external_pause";
+                    || reason == NativeControlRevocationReason.ClockUnavailable || !TypedHooksReady() ? Clock.HoldReason.Unavailable : Clock.HoldReason.ExternalPause;
             var detail = result.Snapshot.Detail;
-            Stop(s, kind, "Authorizing native authority stopped: " + reason + "; " + result.Error
-                + (string.IsNullOrEmpty(detail) ? "" : "; " + detail), true, null);
+            Stop(s, held, "Authorizing native authority stopped: " + reason + "; " + result.Error
+                + (string.IsNullOrEmpty(detail) ? "" : "; " + detail), true);
             return true;
         }
         private static void CaptureTypedContext(State s)
@@ -114,8 +115,8 @@ namespace HomeBridge.BridgeTools
             if (existing != null && existing.Active)
             {
                 if (!ReferenceEquals(existing.Session, Current.Game) || !ReferenceEquals(existing.Map, Find.CurrentMap))
-                    Stop(existing, "session_changed", "Loaded game changed.", false, null);
-                else if (existing.PendingKind != null)
+                    Stop(existing, Clock.HoldReason.SessionChanged, "Loaded game changed.", false);
+                else if (existing.Pending != null)
                     return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The clock is entering a hold and its pause has not taken yet.");
                 else return ChangeRun(existing, typed, speed);
             }
@@ -205,7 +206,7 @@ namespace HomeBridge.BridgeTools
             }
             if (ForcePausingWindows().Count > 0)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, ForcePauseDetail());
-            var from = previous != null && ReferenceEquals(previous.Session, Current.Game) ? previous.StopReason ?? "unavailable" : "never_run";
+            var from = previous != null && ReferenceEquals(previous.Session, Current.Game) ? previous.StopReason ?? Clock.HoldReason.Unavailable : Clock.HoldReason.NeverRun;
             var tm = Find.TickManager;
             var s = new State(Current.Game, Find.CurrentMap) {
                 Active = true, RequestedSpeed = speed, Typed = typed,
@@ -245,7 +246,7 @@ namespace HomeBridge.BridgeTools
                 // Running is itself a request for safety. If the initial probe
                 // finds danger, do not leave a running game unattended merely
                 // because no speed change was needed: the hold is the answer.
-                Stop(s, hit.Kind, hit.Detail, true, hit.Payload);
+                Stop(s, hit, true);
                 return null;
             }
             SetBoost(s, boost);
@@ -258,11 +259,10 @@ namespace HomeBridge.BridgeTools
             SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = speed);
             if (Find.TickManager.CurTimeSpeed != speed)
             {
-                Stop(s, "run_refused", "The requested speed did not take.", true, null);
+                Stop(s, Clock.HoldReason.RunRefused, "The requested speed did not take.", true);
                 return null;
             }
-            Add("resumed", "Clock resumed at " + speed + ".", s,
-                new Dictionary<string, object?> { { "speed", speed.ToString() }, { "from", from } });
+            Publish(new Resumed(Origin(s), "Clock resumed at " + speed + ".", WireSpeed(speed), from));
             return null;
         }
 
@@ -284,13 +284,13 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
-                var kind = HoldKind(request.Reason.GetValueOrDefault());
-                var detail = Text(string.IsNullOrWhiteSpace(request.Detail) ? "Held by the brain: " + kind + "." : request.Detail);
+                var reason = request.Reason.GetValueOrDefault();
+                var detail = string.IsNullOrWhiteSpace(request.Detail) ? "Held by the brain: " + reason + "." : request.Detail;
                 var s = _state;
                 var sameSession = s != null && ReferenceEquals(s.Session, Current.Game) && ReferenceEquals(s.Map, Find.CurrentMap);
-                if (s != null && s.Active && sameSession && s.PendingKind == null)
+                if (s != null && s.Active && sameSession && s.Pending == null)
                 {
-                    Stop(s, kind, detail, true, null);
+                    Stop(s, reason, detail, true);
                 }
                 else if (s == null || !sameSession)
                 {
@@ -307,7 +307,7 @@ namespace HomeBridge.BridgeTools
                         _state = shell;
                         ClockPauseAccounting.Started(shell.Session);
                         ClockProbeAccounting.Started(shell.Session);
-                        Stop(shell, kind, detail, true, null);
+                        Stop(shell, reason, detail, true);
                     }
                 }
                 else if (Find.TickManager != null && Find.TickManager.CurTimeSpeed != TimeSpeed.Paused)
@@ -323,18 +323,6 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static string HoldKind(Clock.HoldReason reason)
-        {
-            switch (reason)
-            {
-                case Clock.HoldReason.CoupledOrder: return "coupled_order";
-                case Clock.HoldReason.Review: return "review";
-                case Clock.HoldReason.Autosave: return "autosave";
-                case Clock.HoldReason.GameForced: return "force_paused";
-                default: throw new ArgumentOutOfRangeException(nameof(reason));
-            }
-        }
-
         /// Heartbeat: the brain's contact for the one ceiling. Not published and
         /// not a hold; silence only lowers the ceiling. Reads are not contact.
         internal static Clock.HeartbeatAck TypedHeartbeat()
@@ -345,10 +333,10 @@ namespace HomeBridge.BridgeTools
                 ceiling.Beat(NowMs());
                 var s = _state;
                 var live = s != null && ReferenceEquals(s.Session, Current.Game);
-                var running = live && s!.Active && s.PendingKind == null;
+                var running = live && s!.Active && s.Pending == null;
                 return new Clock.HeartbeatAck {
                     State = running ? Clock.ClockState.Running : Clock.ClockState.Held,
-                    Reason = running ? null : live ? HoldReasonOf(s!.PendingKind ?? s.StopReason) : Clock.HoldReason.NeverRun };
+                    Reason = running ? null : live ? s!.Pending?.Reason ?? s.StopReason : Clock.HoldReason.NeverRun };
             }
         }
 
@@ -365,15 +353,14 @@ namespace HomeBridge.BridgeTools
                 else
                 {
                     result = result with { TargetSpeed = WireSpeed(s.RequestedSpeed) };
-                    if (s.Active && s.PendingKind == null)
+                    if (s.Active && s.Pending == null)
                         result = result with { State = Clock.ClockState.Running, PacedTicksPerSecond = (uint)PacedTicksPerSecond(s),
                             PacingReason = PacingReasonOf(s), CeilingTicksPerSecond = (uint)CeilingTicksPerSecond(s) };
                     else
                     {
-                        var reasonKind = s.PendingKind ?? s.StopReason;
-                        result = result with { State = Clock.ClockState.Held, Reason = HoldReasonOf(reasonKind),
-                            Detail = Text(s.PendingKind != null ? s.PendingDetail : s.StopDetail), PauseVerified = TypedOf(s).StopPauseVerified };
-                        if (s.StopAtMs.HasValue && s.PendingKind == null) result = result with { HeldAtUnixMs = s.StopAtMs.Value };
+                        result = result with { State = Clock.ClockState.Held, Reason = s.Pending?.Reason ?? s.StopReason,
+                            Detail = ProtoBoundary.WireText(s.Pending?.Detail ?? s.StopDetail ?? ""), PauseVerified = TypedOf(s).StopPauseVerified };
+                        if (s.StopAtMs.HasValue && s.Pending == null) result = result with { HeldAtUnixMs = s.StopAtMs.Value };
                         if (TypedOf(s).CombatEvent != Clock.CombatEvent.Unspecified) result = result with { CombatEvent = TypedOf(s).CombatEvent };
                     }
                 }
@@ -413,23 +400,37 @@ namespace HomeBridge.BridgeTools
                 // Coalesce: the newest published event already names this generation.
                 if (snapshot.Generation == _publishedGeneration) return;
                 _publishedGeneration = snapshot.Generation;
-                Publish("authority_changed", "Native authority generation " + previous + " -> " + snapshot.Generation + " (" + snapshot.Reason + ").",
-                    new Dictionary<string, object?> { { "generation", checked((long)snapshot.Generation) },
-                        { "reason", snapshot.Reason.ToString() }, { "active", snapshot.Active } });
+                // Observed whether or not a run segment exists: the current map supplies the origin, and with no
+                // loaded map there is no world to publish under.
+                if (Current.Game == null || Find.CurrentMap == null || !ProtoBoundary.TryReadContext(Find.CurrentMap, out var observed, out _)) return;
+                Publish(new AuthorityChanged(OriginOf(observed), "Native authority generation " + previous + " -> " + snapshot.Generation + " (" + snapshot.Reason + ").",
+                    snapshot.Generation, snapshot.Reason.ToString(), snapshot.Active));
             }
         }
+
         // The only colony-event producer. An event is queued after its context
         // read, so a publication that read causes (a revoke through the
         // authority seam) is queued first. The queue never blocks: a full one
         // drops the event and counts the loss (ColonyEventChannel). Each
-        // event is also one OTLP row (ClockEventRows), lost or not; a hold's
-        // row carries stopAtMs, the stamp Status reports as held-at.
-        private static void Append(Clock.ClockEvent value, long? stopAtMs = null)
+        // event is also one OTLP row (ColonyEventRows), lost or not.
+        private static void Publish(ColonyEvent value)
         {
-            if (!ValidStoredEvent(value)) throw new InvalidOperationException("Clock event is incomplete");
             ColonyEvents.Publish(value);
-            EmitRow(value, stopAtMs);
+            EmitRow(value);
         }
+
+        // Where a run segment's event was observed: the current context while
+        // its game is loaded, else the last one it observed (the old segment's
+        // last tick stays attached to its old identity during replacement).
+        private static ColonyEventOrigin Origin(State s)
+        {
+            var typed = TypedOf(s);
+            if (ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map)
+                && ProtoBoundary.TryReadContext(s.Map, out var current, out _)) typed.LastObservation = current;
+            return OriginOf(typed.LastObservation);
+        }
+        private static ColonyEventOrigin OriginOf(Common.ObservationContext context) =>
+            new ColonyEventOrigin(context.Identity.ColonyId, context.Identity.LoadToken, context.Identity.MapId, context.Tick, NowMs());
 
         // The brain's emitter, attached once BrainHost has started; before it
         // (or without the brain) events have no row.
@@ -440,106 +441,21 @@ namespace HomeBridge.BridgeTools
             lock (Gate) _rows = emitter;
         }
         // Telemetry never fails the publication: a row that cannot be written is logged once and dropped.
-        private static void EmitRow(Clock.ClockEvent value, long? stopAtMs)
+        private static void EmitRow(ColonyEvent value)
         {
             if (_rows is not { } emitter) return;
-            try { ClockEventRows.Write(emitter, value, stopAtMs); }
+            try { ColonyEventRows.Write(emitter, value); }
             catch (Exception error)
             {
                 if (_rowFailureLogged) return;
                 _rowFailureLogged = true;
-                ModLog.Warn("clock", "Clock event row was not written: " + error);
+                ModLog.Warn("clock", "Colony event row was not written: " + error);
             }
         }
-        // Events published outside a run segment take their context from the
-        // current map. Null means no complete context exists to publish under.
-        private static Clock.ClockEvent? OwnerlessEvent(string kind, string? detail, Dictionary<string, object?>? payload)
-        {
-            if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var observed, out _)) return null;
-            return NativeClockEventProjection.Event(kind, detail, payload, observed, NowMs(),
-                number => throw new InvalidOperationException("Context-only clock events carry no pawn evidence"));
-        }
-        private static Clock.ClockEvent TypedEvent(string kind, string? detail, State s, Dictionary<string, object?>? payload)
-        {
-            var typed = TypedOf(s);
-            var observed = typed.LastObservation;
-            // The old segment's last observed tick stays attached to its old identity during replacement.
-            if (ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map))
-            {
-                if (!ProtoBoundary.TryReadContext(s.Map, out var current, out _)) throw new InvalidOperationException("Clock event context unavailable");
-                observed = current;
-            }
-            typed.LastObservation = observed;
-            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, NowMs(),
-                number => s.Map.mapPawns.AllPawns.Single(p => p.thingIDNumber == number).GetUniqueLoadID());
-            if (kind == "pause_failed" && result.Event?.PauseFailed?.Pending is { } pending)
-                result = result with { Event = new Clock.PauseFailed { Pending = pending with { Reason = HoldReasonOf(s.PendingKind) } } };
-            if (result.Event?.HoldEntered is { Evidence: Clock.HoldEvidence.UnavailableCase } entered
-                && ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map))
-            {
-                var pause = new Clock.PauseEvidence { ActualPaused = Find.TickManager.Paused, PauseVerified = typed.StopPauseVerified };
-                if (kind == "dialog_pause")
-                {
-                    var dialog = ChoiceDialogTools.Pending();
-                    if (dialog == null) throw new InvalidOperationException("Dialog pause lacks its force-pausing choice dialog");
-                    pause = pause with { Dialog = new Clock.DialogPause { Title = Text(ChoiceDialogTools.Title(dialog)) } };
-                }
-                if (kind == "letter_pause")
-                {
-                    object? source, id;
-                    if (payload == null || !payload.TryGetValue("source", out source) || !Equals(source, "LetterStack.ReceiveLetter")
-                        || !payload.TryGetValue("letterId", out id) || !(id is string) || !ProtoBoundary.IsIdentifier((string)id))
-                        throw new InvalidOperationException("Letter pause lacks exact native callback attribution");
-                    var letterRow = new Clock.Letter { Id = (string)id };
-                    var letter = GameWatchReads.Letters().SingleOrDefault(value => value.GetUniqueLoadID() == (string)id);
-                    if (letter != null)
-                    {
-                        letterRow = letterRow with { Label = Text(letter.Label.ToString()) };
-                        if (letter.def != null && ProtoBoundary.IsIdentifier(letter.def.defName)) letterRow = letterRow with { DefName = letter.def.defName };
-                    }
-                    pause = pause with { Letter = letterRow };
-                }
-                result = result with { Event = entered with { Evidence = new Clock.HoldEvidence.PauseCase(pause) } };
-            }
-            return result;
-        }
-        private static bool ValidStoredEvent(Clock.ClockEvent value)
-        {
-            var identity = value.Context?.Identity;
-            if (value.Context == null || identity == null
-                || !ProtoBoundary.IsIdentifier(identity.ColonyId)
-                || !ProtoBoundary.IsIdentifier(identity.LoadToken)
-                || identity.MapId < 0 || value.Context.Tick < 0
-                || value.Context.NativeGeneration is null || value.Context.NativeGeneration == 0
-                || value.ObservedAtUnixMs is null || value.ObservedAtUnixMs < 0
-                || value.Event is null) return false;
-            var body = value.Event;
-            if (body.AuthorityChanged != null) return body.AuthorityChanged.Generation is > 0;
-            if (body.HoldEntered != null) return ValidStoredHold(body.HoldEntered);
-            if (body.PauseFailed != null) return body.PauseFailed.Pending != null && ValidStoredHold(body.PauseFailed.Pending);
-            if (body.Resumed != null) return body.Resumed.Speed is { } resumed && OrdinarySpeed(resumed)
-                && body.Resumed.From is { } from && Enum.IsDefined(from) && from != Clock.HoldReason.Unspecified;
-            if (body.Notification != null) return body.Notification.Source is not null;
-            if (body.ObservationInvalidated != null) return body.ObservationInvalidated.Families.Count > 0 && body.ObservationInvalidated.Families.Count <= 8
-                && body.ObservationInvalidated.Families.All(family => family != Clock.FactFamily.Unspecified && Enum.IsDefined(family))
-                && ValidInvalidationScope(body.ObservationInvalidated);
-            return true;
-        }
-        // The narrowing of an invalidation: at most 64 distinct entity
-        // ids and one rectangle with present, nonnegative, ordered corners.
+        // The narrowing of an invalidation: at most 64 entity ids, past which
+        // the event names the family alone.
         // Kept (docs/developers/contracts/kept-constants.md).
         internal const int InvalidationEntitiesMax = 64;
-        private static bool ValidInvalidationScope(Clock.ObservationInvalidated value)
-        {
-            if (value.EntityIds.Count > InvalidationEntitiesMax || value.EntityIds.Distinct(StringComparer.Ordinal).Count() != value.EntityIds.Count
-                || !value.EntityIds.All(ProtoBoundary.IsIdentifier)) return false;
-            var cells = value.Cells;
-            if (cells == null) return true;
-            return cells.Minimum != null && cells.Maximum != null
-                && cells.Minimum.X >= 0 && cells.Minimum.Z >= 0 && cells.Minimum.X <= cells.Maximum.X && cells.Minimum.Z <= cells.Maximum.Z;
-        }
-        private static bool ValidStoredHold(Clock.HoldEntered value) => value.Reason is not null && value.Reason.GetValueOrDefault() != Clock.HoldReason.Unspecified
-            && Enum.IsDefined(value.Reason.GetValueOrDefault()) && value.Evidence is not null;
         internal static bool OrdinarySpeed(Clock.Speed speed) => speed == Clock.Speed.Normal || speed == Clock.Speed.Fast || speed == Clock.Speed.Superfast || speed == Clock.Speed.Ultrafast;
         private static TimeSpeed NativeSpeed(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal : speed == Clock.Speed.Fast ? TimeSpeed.Fast : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast : speed == Clock.Speed.Ultrafast ? TimeSpeed.Ultrafast : throw new ArgumentOutOfRangeException(nameof(speed));
         private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.Speed.Ultrafast : throw new InvalidOperationException("Nonordinary run speed");
@@ -591,8 +507,5 @@ namespace HomeBridge.BridgeTools
         }
         private static bool Positive(float value) => !float.IsNaN(value) && !float.IsInfinity(value) && value > 0;
         private static bool Fraction(float value) => !float.IsNaN(value) && value >= 0.01f && value <= 1;
-        private static Common.Unavailable Unavailable(string detail) => new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = detail };
-        private static string Text(string? text) => NativeClockEventProjection.Text(text ?? "");
-        private static Clock.HoldReason HoldReasonOf(string? kind) => NativeClockEventProjection.HoldReason(kind);
     }
 }
