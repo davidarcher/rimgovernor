@@ -169,6 +169,10 @@ internal sealed class SchedulerLoop
             {
                 _steps.Succeeded();
             }
+            else if (outcome == Outcome.Faulted && error is OperationCanceledException && !faulted && _steps.Cancelled())
+            {
+                Suspend(SuspensionKind.Fault, $"{StepSupervisor.CancelLimit} consecutive steps cancelled by their call budget: {error.Message}");
+            }
             else if (faulted && (_steps.Faulted(stall: outcome == Outcome.Stalled) || outcome == Outcome.Wedged))
             {
                 var kind = outcome switch

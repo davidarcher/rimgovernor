@@ -77,8 +77,12 @@ internal sealed class PlannerSupervisor(int missLimit, HostLog log)
 /// </summary>
 internal sealed class StepSupervisor(int faultLimit)
 {
+    /// <summary>Consecutive call-budget cancellations that suspend authority: a slow step is retried, but not forever.</summary>
+    internal const int CancelLimit = 5;
+
     private readonly object _mu = new();
     private int _consecutive;
+    private int _cancelled;
     private long _faults;
     private long _stalls;
     private long _steps;
@@ -109,6 +113,7 @@ internal sealed class StepSupervisor(int faultLimit)
         {
             _steps++;
             _consecutive = 0;
+            _cancelled = 0;
         }
     }
 
@@ -118,6 +123,7 @@ internal sealed class StepSupervisor(int faultLimit)
         lock (_mu)
         {
             _steps++;
+            _cancelled = 0;
             _consecutive++;
             if (stall)
             {
@@ -128,6 +134,17 @@ internal sealed class StepSupervisor(int faultLimit)
                 _faults++;
             }
             return _consecutive >= faultLimit;
+        }
+    }
+
+    /// <summary>Counts one step cancelled by its call budget; true when that many in a row reached <see cref="CancelLimit"/>. A success or a fault ends the run.</summary>
+    public bool Cancelled()
+    {
+        lock (_mu)
+        {
+            _steps++;
+            _consecutive = 0;
+            return ++_cancelled >= CancelLimit;
         }
     }
 

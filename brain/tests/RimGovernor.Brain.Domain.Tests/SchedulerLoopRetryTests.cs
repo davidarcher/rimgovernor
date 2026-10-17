@@ -20,4 +20,32 @@ public sealed class SchedulerLoopRetryTests
         Assert.False(SchedulerLoop.IsRetry(new TimeoutException("stalled"), faulted: false));
         Assert.False(SchedulerLoop.IsRetry(new TaskCanceledException(), faulted: false));
     }
+
+    [Fact]
+    public void ConsecutiveCancellationsReachTheLimitAndASuccessResetsThem()
+    {
+        var steps = new StepSupervisor(faultLimit: 5);
+        for (var i = 1; i < StepSupervisor.CancelLimit; i++)
+        {
+            Assert.False(steps.Cancelled());
+        }
+        steps.Succeeded();
+        for (var i = 1; i < StepSupervisor.CancelLimit; i++)
+        {
+            Assert.False(steps.Cancelled());
+        }
+        Assert.True(steps.Cancelled());
+    }
+
+    [Fact]
+    public void AFaultEndsTheCancellationRun()
+    {
+        var steps = new StepSupervisor(faultLimit: 5);
+        for (var i = 1; i < StepSupervisor.CancelLimit; i++)
+        {
+            Assert.False(steps.Cancelled());
+        }
+        Assert.False(steps.Faulted(stall: false));
+        Assert.False(steps.Cancelled());
+    }
 }

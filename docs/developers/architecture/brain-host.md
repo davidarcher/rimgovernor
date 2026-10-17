@@ -33,7 +33,7 @@ Each step runs on the pool behind a guard: past `StallAfter` it is recorded as a
 stops waiting and the brain is wedged. `FaultLimit` consecutive faults or any stall/wedge suspends authority
 (`Session.Disable`), logs it, and keeps the game running; only the player's resume clears the suspension. Hazard stops
 reported in `BrainHost.Status()`. A step cancelled by its call budget (`CallTimeout`) is a retry, not a fault: it does not count toward
-`FaultLimit`, and the scheduler replans with a full step after it (#3435).
+`FaultLimit`, and the scheduler replans with a full step after it (#3435). `StepSupervisor.CancelLimit` (5) consecutive cancellations suspend authority like a fault; a success or a fault ends the run.
 reported in `BrainHost.Status()`.
 
 ## Native client and composition (#3113)
