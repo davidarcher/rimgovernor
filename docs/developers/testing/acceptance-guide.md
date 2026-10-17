@@ -103,6 +103,13 @@ fixture. Use production operations for the behavior under test. A prepared save
 or scenario is appropriate when history, biome or season is the precondition;
 do not grow a colony for twenty minutes to arrange a small assertion.
 
+A paused lab never advances the tick, and RimWorld's pathfinder gathers its map
+data once per tick. A fixture that spawns or changes buildings, rock or terrain
+and then reads routes without ticking must dirty that data first
+(`PathFinderMapData.Notify_MapDirtied`, as `test/planned_site_clearing` does);
+otherwise `FindPathNow` paths over stale connectivity and finds nothing while
+`CanReach` still answers true.
+
 Try a fixture without writing a case:
 
 ```text

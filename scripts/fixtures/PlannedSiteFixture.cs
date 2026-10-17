@@ -139,6 +139,10 @@ public sealed partial class PawnControlFixture
             GenSpawn.Spawn(steel, At(4, 7), map);
             var granite = DefDatabase<ThingDef>.GetNamed("Granite");
             var rock = new[] { At(6, 7), At(7, 7) }.Select(c => GenSpawn.Spawn(ThingMaker.MakeThing(granite), c, map)).ToArray();
+            // #3336: the paused lab never advances the tick, and PathFinderMapData gathers once per tick: the read's routes
+            // would path over the data gathered before this spawn (stale connectivity after the rock's region rebuild) and
+            // find nothing. Ticking would let a colonist start the clearing; dirty the data the way a fogged map does instead.
+            HarmonyLib.AccessTools.Method(typeof(PathFinderMapData), "Notify_MapDirtied").Invoke(map.pathFinder.MapData, null);
             Cell C(int x, int z) { var cell = At(x, z); return new(cell.x, cell.z); }
             Obs.PlannedSiteAnswer Read(string id, params Cell[] cells)
             {
