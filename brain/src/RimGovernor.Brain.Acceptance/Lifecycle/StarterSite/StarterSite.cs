@@ -107,12 +107,14 @@ public sealed class StarterSite
         return string.Join(';', rooms);
     }
 
-    private async Task<JsonObject?> ArgsCoreAsync(Harness harness, int size, bool bedrooms, CancellationToken cancellationToken)
+    /// <summary>
+    /// The siteX/siteZ/doorX/doorZ arguments of a <paramref name="size"/> x <paramref name="size"/> fixture hut on
+    /// <paramref name="planned"/>'s shelter, plus the plan's bedroom-wing rooms as bedrooms when asked; throws when the plan
+    /// holds no shelter.
+    /// </summary>
+    public static JsonObject SiteArgs(StarterSitePlan planned, int size, bool bedrooms)
     {
-        // The first plan is the seed rooms and the outskirts, which hold the shelter the fixture hut stands on (no
-        // ledger and no stock are read). Go also dumped the survey to RIMGOVERNOR_SURVEY_DUMP for the policy layout
-        // benchmarks; the survey is the planner's input here and the benchmark capture is not ported.
-        var planned = await _planner.PlanAsync(harness, cancellationToken).ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(planned);
         if (PlannedSite(planned.Plan, planned.Bounds, size) is not { } placed)
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"no planned shelter for a {size}x{size} fixture hut on this map"));
@@ -131,5 +133,13 @@ public sealed class StarterSite
         }
 
         return args;
+    }
+
+    private async Task<JsonObject?> ArgsCoreAsync(Harness harness, int size, bool bedrooms, CancellationToken cancellationToken)
+    {
+        // The first plan is the seed rooms and the outskirts, which hold the shelter the fixture hut stands on (no
+        // ledger and no stock are read). Go also dumped the survey to RIMGOVERNOR_SURVEY_DUMP for the policy layout
+        // benchmarks; the survey is the planner's input here and the benchmark capture is not ported.
+        return SiteArgs(await _planner.PlanAsync(harness, cancellationToken).ConfigureAwait(false), size, bedrooms);
     }
 }
