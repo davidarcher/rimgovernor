@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -14,19 +13,8 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativeClearanceObservationTools
+    internal static class NativeClearanceObservationTools
     {
-        private const string ToolName = "rimgovernor/observations_get_clearance_targets";
-        [Tool(ToolName, Title = "Read clearance targets", Description = "Complete bounded census of visible, deconstructible non-player buildings across the map, plus, on any requested planned ground, the player's own buildings and constructed floors (one row per cell), plus the rock and slag chunk stacks standing in Home with their storage state and a free outdoor footprint for a dumping stockpile. Includes exact footprints, roof-support blockers, sealed ancient danger and deconstruction ownership. Read-only; does not admit removal.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ClearanceTargetsReply.", Always = true)]
-        public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ClearanceTargetsRequest string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.ClearanceTargetsRequest? parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ClearanceTargetsReply { Outcome = new Obs.ClearanceTargetsReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleRead(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         internal static Obs.ClearanceTargetsReply HandleRead(Obs.ClearanceTargetsRequest request)
         {
             if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))

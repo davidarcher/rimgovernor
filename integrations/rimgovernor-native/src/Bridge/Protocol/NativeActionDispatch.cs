@@ -300,19 +300,8 @@ namespace HomeBridge.BridgeTools
         };
     }
 
-    public sealed class NativeActionTools
+    internal static class NativeActionTools
     {
-        public NativeActionTools() { NativeActionDispatch.AssertComplete(); }
-
-        [Tool("rimgovernor/operations_apply", Title = "Apply intent actions", Description = "Apply a batch of idempotent intents in order on the game thread. Each is validated against live state and applied or refused independently; a resent key returns its first result.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ApplyReply.", Always = true)]
-        public async Task<object> Apply(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official operations ApplyRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Operations.ApplyRequest>(ctx, "rimgovernor/operations_apply", request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Operations.ApplyReply { BatchFailure = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleApply(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Operations.ApplyReply HandleApply(Operations.ApplyRequest parsed)

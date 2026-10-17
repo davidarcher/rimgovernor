@@ -2,28 +2,14 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Authority = RimGovernor.Contracts.Wire.Authority;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativeAuthorityTools
+    internal static class NativeAuthorityTools
     {
-        private const string ToolName = "rimgovernor/authority_read_status";
-
-        [Tool(ToolName, Title = "Read native control authority", Description = "Read current native authority without changing mode. request is official ProtoJSON for rimgovernor.authority.v1.StatusRequest.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.authority.v1.StatusReply.", Always = true)]
-        public async Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON StatusRequest with exact colony/load/map identity.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Authority.StatusRequest>(ctx, ToolName, request,
-                out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Authority.StatusReply { Outcome = new Authority.StatusReplyOutcome.FailureCase(failure) });
-
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadStatus(parsed), cancellationToken);
-        }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Authority.StatusReply HandleReadStatus(Authority.StatusRequest parsed)

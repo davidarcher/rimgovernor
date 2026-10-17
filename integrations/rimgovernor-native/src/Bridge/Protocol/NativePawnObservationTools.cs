@@ -14,30 +14,8 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativePawnObservationTools
+    internal static class NativePawnObservationTools
     {
-        [Tool("rimgovernor/observations_list_pawns", Title = "Read map pawns",
-            Description = "Official ListPawnsRequest ProtoJSON. Current map spawned pawns; includeDead also includes inner pawns of spawned corpses. Filters intersect, exact IDs, case-insensitive label substring, Chebyshev distance to another live colonist. All detail families default requested; unsupported fields carry issues. The list is complete.")]
-        [ToolResponse("payload", "string", "Official observations ListPawnsReply ProtoJSON.", Always = true)]
-        public async Task<object> ListPawns(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a ListPawnsRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.ListPawnsRequest>(ctx, "rimgovernor/observations_list_pawns", request!, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ListPawnsReply { Outcome = new Obs.ListPawnsReplyOutcome.FailureCase(failure) });
-            // Read on the game thread; delta and format on an encoder
-            // worker, since the delta digests the whole reply.
-            var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
-            if (lease == null) return ProtoBoundary.Encode(new Obs.ListPawnsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted,
-                "Pawn reply encoders stayed saturated for " + ReplyEncoder.ReserveTimeoutMs + " ms; nothing was read.") });
-            try
-            {
-                var captured = await ProtoBoundary.CaptureOnMainThread(ctx, () => HandleListPawns(parsed), cancellationToken).ConfigureAwait(false);
-                var owned = lease; lease = null;
-                return await ProtoBoundary.EncodeDetached(captured, owned, reply => EncodePawns(reply, parsed), cancellationToken).ConfigureAwait(false);
-            }
-            finally { lease?.Dispose(); }
-        }
-
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.ListPawnsReply HandleListPawns(Obs.ListPawnsRequest parsed)
         {
@@ -47,12 +25,6 @@ namespace HomeBridge.BridgeTools
             try { return new Obs.ListPawnsReply { Outcome = Read(map, parsed, context) }; }
             catch (Exception error) { ModLog.Error("observe", "Pawn facts read failed: " + error); return new Obs.ListPawnsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed,
                 PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: "+error)) }; }
-        }
-
-        private static Dictionary<string, object?> EncodePawns(Obs.ListPawnsReply reply, Obs.ListPawnsRequest parsed)
-        {
-            if (reply.Outcome?.Observed == null) return ProtoBoundary.Encode(reply);
-            return ProtoBoundary.Encode(reply);
         }
 
         // On the main thread.

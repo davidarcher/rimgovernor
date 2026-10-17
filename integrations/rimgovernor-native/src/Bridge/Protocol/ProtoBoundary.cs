@@ -1,452 +1,55 @@
 #nullable enable
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.IO.Compression;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using RimGovernor.Host.Sdk;
 using Verse;
-using RimGovernor.Contracts.Wire;
 using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace HomeBridge.BridgeTools
 {
+    /// <summary>
+    /// The game-thread boundary of the typed cores: <see cref="OnGameThread{T}"/> runs a core on the game thread,
+    /// beside the identity and refusal helpers every core validates its request with.
+    /// </summary>
     internal static class ProtoBoundary
     {
         private static readonly Encoding Utf8 = new UTF8Encoding(false, true);
 
-        internal static bool TryParse<T>(IRimBridgeContext ctx, string toolName, object? request,
-            [NotNullWhen(true)] out T? value, [NotNullWhen(false)] out Common.Failure? failure) where T : class
-        {
-            value = null;
-            callerForm.Value = FormOf(ctx);
-            var arguments = ctx?.Arguments;
-            if (arguments == null)
-            {
-                failure = Fail(Common.FailureCode.Unavailable, "Original invocation arguments are unavailable.");
-                return false;
-            }
-            foreach (var key in arguments.Keys)
-            {
-                if (key != "request" && key != TraceArgument && key != MainThreadAdmission.ClassArgument && key != EncodingArgument)
-                {
-                    failure = Fail(Common.FailureCode.InvalidRequest, "The sole caller argument must be request.");
-                    return false;
-                }
-            }
-            if (!arguments.TryGetValue("request", out var raw) || !TryString(raw, out var json)
-                || !(request is string expected) || !string.Equals(json, expected, StringComparison.Ordinal))
-            {
-                failure = Fail(Common.FailureCode.InvalidRequest, "request must be a JSON string.");
-                return false;
-            }
-            try
-            {
-                Utf8.GetByteCount(json); // strict: invalid Unicode throws below
-                value = WireJson.Deserialize<T>(json);
-                failure = null;
-                return true;
-            }
-            catch (System.Text.Json.JsonException)
-            {
-                failure = Fail(Common.FailureCode.InvalidRequest, "request is not valid JSON for this method.");
-                return false;
-            }
-            catch (NotSupportedException)
-            {
-                failure = Fail(Common.FailureCode.InvalidRequest, "request is not valid JSON for this method.");
-                return false;
-            }
-            catch (EncoderFallbackException)
-            {
-                failure = Fail(Common.FailureCode.InvalidRequest, "request must contain valid Unicode.");
-                return false;
-            }
-        }
-
-        private static bool TryString(object? raw, [NotNullWhen(true)] out string? value)
-        {
-            value = raw as string;
-            if (value != null) return true;
-            var token = raw as JValue;
-            if (token == null || token.Type != JTokenType.String) return false;
-            value = token.Value as string;
-            return value != null;
-        }
-
-        // The SDK recognizes this concrete envelope; generated CLR properties are not its wire format.
-        // Every pass is charged to the open observation hop, including
-        // the repeated passes a size check pays for. WireJson output is already
-        // compact, so compact only documents the caller's intent.
-        internal static string Format<T>(T reply, bool compact = false) where T : class
-        {
-            var began = Stopwatch.GetTimestamp();
-            try { return WireJson.Serialize(reply); }
-            finally { ObservationWork.Formatted(Stopwatch.GetTimestamp() - began); }
-        }
-
-        // The Go controller always sends encoding=proto-gzip and accepts
-        // only field "proto": base64 of the gzip-compressed binary protobuf
-        // message; it refuses a ProtoJSON reply. ProtoJSON in field "payload"
-        // remains solely for callers that omit the argument: the acceptance
-        // harness and cases that call the companion directly and assert on
-        // that text.
-        //
-        // Every reply of a call follows its argument, including refusals
-        // encoded before or without a main-thread hop: TryParse records the
-        // form in the call's async flow (callerForm), and a hop pins it on
-        // the thread that runs it (RunHop reads the argument, a detached
-        // encode inherits it), since the main thread and encoder workers do
-        // not share the caller's flow.
-        internal const string EncodingArgument = "encoding";
-        internal const string BinaryEncoding = "proto-gzip";
-        internal const string PayloadField = "payload";
-        internal const string ProtoField = "proto";
-        internal enum ReplyForm { Payload, Gzip }
-        [ThreadStatic] private static ReplyForm? form;
-        private static readonly AsyncLocal<ReplyForm> callerForm = new AsyncLocal<ReplyForm>();
-
-        /// <summary>Runs encode with the binary reply form on or off for this thread.</summary>
-        internal static T WithBinary<T>(bool on, Func<T> encode) => WithForm(on ? ReplyForm.Gzip : ReplyForm.Payload, encode);
-
-        /// <summary>Runs encode with this reply form for this thread.</summary>
-        internal static T WithForm<T>(ReplyForm value, Func<T> encode)
-        {
-            var previous = form;
-            form = value;
-            try { return encode(); }
-            finally { form = previous; }
-        }
-
-        // The reply form the caller asked for.
-        internal static ReplyForm FormOf(IRimBridgeContext ctx)
-        {
-            var arguments = ctx?.Arguments;
-            if (arguments == null || !arguments.TryGetValue(EncodingArgument, out var raw) || !TryString(raw, out var value)) return ReplyForm.Payload;
-            if (string.Equals(value, BinaryEncoding, StringComparison.Ordinal)) return ReplyForm.Gzip;
-            return ReplyForm.Payload;
-        }
-
-        // The reply body in the form this thread's caller asked for, and the
-        // envelope field that carries it; charged to the hop like Format.
-        private static object Body<T>(T reply, bool compact, out string field) where T : class
-        {
-            var wanted = form ?? callerForm.Value;
-            if (wanted == ReplyForm.Payload)
-            {
-                field = PayloadField;
-                return Format(reply, compact);
-            }
-            field = ProtoField;
-            var began = Stopwatch.GetTimestamp();
-            try
-            {
-                var raw = WireJson.SerializeToUtf8Bytes(reply);
-                using (var buffer = new MemoryStream())
-                {
-                    using (var gzip = new GZipStream(buffer, CompressionLevel.Fastest, true))
-                        gzip.Write(raw, 0, raw.Length);
-                    return Convert.ToBase64String(buffer.GetBuffer(), 0, (int)buffer.Length);
-                }
-            }
-            finally { ObservationWork.Formatted(Stopwatch.GetTimestamp() - began); }
-        }
-
-        // Inside an OnMainThread body on the game thread, Encode only records
-        // the reply; OnMainThread encodes it on a worker once the hop ends
-        //, so no reply is formatted on the game thread. The reply
-        // must not be mutated after the body returns it.
-        [ThreadStatic] private static bool deferEncode;
-        private const string PendingField = "\u0000pending";
-
-        private sealed class Pending
-        {
-            internal readonly Func<Dictionary<string, object?>> Encode;
-            internal Pending(Func<Dictionary<string, object?>> encode) { Encode = encode; }
-        }
-
-        internal static Dictionary<string, object?> Encode<T>(T reply, bool compact = false) where T : class
-        {
-            if (deferEncode) return Envelope(PendingField, new Pending(() => Encode(reply, compact)));
-            var payload = Body(reply, compact, out var field);
-            if (payload is string text) Measure(text);
-            return Envelope(field, payload);
-        }
-
-        private static Dictionary<string, object?> Envelope(string field, object payload)
-            => new Dictionary<string, object?>(StringComparer.Ordinal) { [field] = payload };
-
-        // The payload's UTF-8 length, recorded as the bytes the hop returns.
-        private static int Measure(string payload)
-        {
-            var began = Stopwatch.GetTimestamp();
-            var bytes = Utf8.GetByteCount(payload);
-            ObservationWork.SizeChecked(Stopwatch.GetTimestamp() - began);
-            ObservationWork.Payload(bytes);
-            return bytes;
-        }
-
-        // Timing is reported beside the payload so the Go sampler can split
-        // native main-thread scheduling from tool execution: queueMs is the
-        // wait between requesting the main thread and the body starting,
-        // executeMs is the body itself including ProtoJSON formatting (a
-        // detached hop's formatting runs on an encoder worker instead and is
-        // reported apart, in the observation account's encode block),
-        // class is the admission class the hop ran under and queueDepth how
-        // many hops were pending when it was queued. It
-        // covers every tool whose single main-thread hop goes through
-        // OnMainThread. The
-        // caller's trace argument (a W3C traceparent of the controller's span,
-        // or the older "<trace_id>/<span_id>"; opaque here) is echoed as timing.trace so
-        // the phases join the controller's trace.
-        internal const string TimingField = "timing";
-        internal const string TraceArgument = "trace";
-
-        // Hops are ordered by the caller's class argument (control,
-        // observation) through MainThreadAdmission, so a queued
-        // renew or stop runs before the reads queued ahead of it.
-        //
-        // A reply the body built with Encode is encoded after the hop on an
-        // encoder worker (EncodeDetached without a lease: these replies are
-        // the control and single-read ones, never held back by bulk encodes).
-        internal static async Task<object> OnMainThread(IRimBridgeContext ctx, Func<object> body, CancellationToken cancellationToken)
-        {
-            var captured = (Captured<object>)await RunHop(ctx, body, (value, hop) => new Captured<object>(value, hop), cancellationToken, defer: true).ConfigureAwait(false);
-            var hop = captured.Hop;
-            if (captured.Value is Dictionary<string, object?> envelope && envelope.Count == 1 && envelope.TryGetValue(PendingField, out var value) && value is Pending pending)
-                return await EncodeDetached(new Captured<Pending>(pending, hop), null, p => p.Encode(), CancellationToken.None).ConfigureAwait(false);
-            return WithTiming(captured.Value, hop.Queued, hop.Started, hop.Finished, hop.Trace, hop.Class, hop.Depth, hop.Work);
-        }
-
-        /// <summary>One main-thread hop's timing and account, for its reply's timing block.</summary>
-        internal sealed class HopTiming
-        {
-            internal long Queued, Started, Finished;
-            internal string? Trace, Class;
-            internal int Depth;
-            internal ObservationWork.Hop? Work;
-            internal int GameThread;
-            internal ReplyForm Form;
-        }
-
         /// <summary>
-        /// A value captured on the game thread for an encoder to own,
-        /// with the hop that captured it. The value must not reference live
-        /// game objects, engine collections, deferred iterators or state that
-        /// anything else mutates: it is read on another thread after the game
-        /// thread has moved on.
-        /// </summary>
-        internal sealed class Captured<T>
-        {
-            internal readonly T Value;
-            internal readonly HopTiming Hop;
-            internal Captured(T value, HopTiming hop) { Value = value; Hop = hop; }
-        }
-
-        /// <summary>
-        /// The first half of a detached hop: capture runs on the game
-        /// thread under the hop's admission class, watchdog and observation
-        /// account, and must only read (no formatting, no byte counting, no
-        /// waiting on a worker). Its main-thread time is the hop's executeMs.
-        /// </summary>
-        internal static async Task<Captured<T>> CaptureOnMainThread<T>(IRimBridgeContext ctx, Func<T> capture, CancellationToken cancellationToken)
-            => (Captured<T>)await RunHop(ctx, () => capture()!, (value, hop) => new Captured<T>((T)value, hop), cancellationToken).ConfigureAwait(false);
-
-        /// <summary>
-        /// The second half: encode formats the captured value into its
-        /// envelope on an encoder worker the lease reserved, never on the game
-        /// thread (checked by thread identity), and the envelope carries the
-        /// capture hop's timing with the worker's queue wait and encode time
-        /// in its encode block. The lease is owned from this call on and
-        /// released when the encode settles, however it settles; a token
-        /// cancelled before the worker starts skips the encode.
-        /// </summary>
-        internal static Task<object> EncodeDetached<T>(Captured<T> captured, ReplyEncoder.Lease? lease, Func<T, Dictionary<string, object?>> encode, CancellationToken cancellationToken)
-        {
-            var queued = Stopwatch.GetTimestamp();
-            var hop = captured.Hop;
-            Task<object> task;
-            try
-            {
-                task = ReplyEncoder.Run(() =>
-                {
-                    if (Thread.CurrentThread.ManagedThreadId == hop.GameThread)
-                        throw new InvalidOperationException("A detached reply must not encode on the game thread.");
-                    var work = hop.Work ?? new ObservationWork.Hop();
-                    var started = Stopwatch.GetTimestamp();
-                    ObservationWork.Resume(work);
-                    Dictionary<string, object?> envelope;
-                    try { envelope = WithForm(hop.Form, () => encode(captured.Value)); }
-                    catch (Exception) { ObservationWork.Outcome("error"); throw; }
-                    finally
-                    {
-                        work.EncodeQueueTicks = Math.Max(0, started - queued);
-                        work.EncodeTicks = Math.Max(0, Stopwatch.GetTimestamp() - started);
-                        work.Encoding = false;
-                        ObservationWork.End();
-                    }
-                    return WithTiming(envelope, hop.Queued, hop.Started, hop.Finished, hop.Trace, hop.Class, hop.Depth, work);
-                }, cancellationToken);
-            }
-            catch (Exception)
-            {
-                lease?.Dispose();
-                throw;
-            }
-            if (lease != null) task.ContinueWith(_ => lease.Dispose(), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-            return task;
-        }
-
-        /// <summary>
-        /// Who asks for a game-thread hop: a tool invocation (everything its context carries) or the in-process
-        /// facade (no context: the host's game-thread access, the operation name and the admission class).
-        /// </summary>
-        internal sealed class HopOrigin
-        {
-            internal readonly IRimBridgeMainThread MainThread;
-            internal readonly string Operation;
-            internal readonly string? Trace, Class;
-            internal readonly ReplyForm Form;
-            private HopOrigin(IRimBridgeMainThread mainThread, string operation, string? trace, string? cls, ReplyForm form)
-            { MainThread = mainThread; Operation = operation; Trace = trace; Class = cls; Form = form; }
-
-            internal static HopOrigin Of(IRimBridgeContext ctx) => new HopOrigin(ctx.MainThread, OperationOf(ctx), TraceOf(ctx), ClassOf(ctx), FormOf(ctx));
-
-            internal static HopOrigin Facade(string operation, string? cls)
-                => new HopOrigin(RimBridgeMainThreadAccess.Current ?? throw new InvalidOperationException("The host's game-thread access is not available."),
-                    operation, null, cls, ReplyForm.Payload);
-        }
-
-        /// <summary>
-        /// A typed game-thread hop for a caller without a tool context (the native facade): body runs on the game
-        /// thread under the same admission class, per-frame allowance, watchdog and observation account as a
-        /// tool's hop, and its reply is returned as built, never encoded.
+        /// Runs body on the game thread under its admission class (control before observation), the per-frame
+        /// allowance, the watchdog and the observation account, and returns its reply as built.
         /// </summary>
         internal static async Task<T> OnGameThread<T>(string operation, Func<T> body, CancellationToken cancellationToken, string? cls = null) where T : class
-            => (T)await RunHop(HopOrigin.Facade(operation, cls), () => body(), (value, hop) => value, cancellationToken).ConfigureAwait(false);
-
-        private static Task<object> RunHop(IRimBridgeContext ctx, Func<object> body, Func<object, HopTiming, object> complete, CancellationToken cancellationToken, bool defer = false)
-            => RunHop(HopOrigin.Of(ctx), body, complete, cancellationToken, defer);
-
-        private static Task<object> RunHop(HopOrigin origin, Func<object> body, Func<object, HopTiming, object> complete, CancellationToken cancellationToken, bool defer = false)
         {
-            var queued = Stopwatch.GetTimestamp();
-            var trace = origin.Trace;
-            var wanted = origin.Form;
-            var rank = MainThreadAdmission.RankOf(origin.Class);
-            var hop = MainThreadWatchdog.Enqueue(origin.Operation, trace);
-            int depth = 0;
-            var task = MainThreadAdmission.Enqueue(origin.MainThread, rank, () =>
+            var mainThread = RimBridgeMainThreadAccess.Current ?? throw new InvalidOperationException("The host's game-thread access is not available.");
+            var hop = MainThreadWatchdog.Enqueue(operation, null);
+            var task = MainThreadAdmission.Enqueue(mainThread, MainThreadAdmission.RankOf(cls), () =>
             {
                 MainThreadWatchdog.Start(hop);
-#if !NATIVE_CONTRACT_PROBES
-                // The frame boundary's patch installs on the first hop:
-                // nothing runs a startup constructor in this assembly. The
-                // contract probes build has no game boundary to patch, so the
-                // install is gated out of it rather than faked.
-                ObservationFrameHook.Ensure();
-                PlayerSpeedKeyBlock.Ensure();
-                ModLogTick.Ensure();
-#endif
                 var started = Stopwatch.GetTimestamp();
-                var work = ObservationWork.Begin();
-                ModLog.CurrentTrace = trace;
-                try
-                {
-                    object reply;
-                    var deferred = deferEncode;
-                    deferEncode = defer;
-                    try { reply = WithForm(wanted, body); }
-                    finally { deferEncode = deferred; }
-                    var finished = Stopwatch.GetTimestamp();
-                    FrameAccounting.Observed(finished - started, trace);
-                    return complete(reply, new HopTiming { Queued = queued, Started = started, Finished = finished, Trace = trace,
-                        Class = MainThreadAdmission.ClassOf(rank), Depth = depth, Work = ObservationWork.End(), GameThread = Thread.CurrentThread.ManagedThreadId, Form = wanted });
-                }
+                ObservationWork.Begin();
+                try { return body(); }
                 catch (Exception)
                 {
-                    // A hop that threw still spent its main-thread time and
-                    // still belongs in the account.
                     ObservationWork.Outcome("error");
-                    FrameAccounting.Observed(Stopwatch.GetTimestamp() - started, trace);
-                    ObservationWork.End();
                     throw;
                 }
-                finally { ModLog.CurrentTrace = null; MainThreadWatchdog.Finish(hop); }
-            }, cancellationToken, out depth);
-            // A hop the host never runs (cancelled while queued) still leaves
-            // the watchdog once its task settles.
-            task.ContinueWith(_ => MainThreadWatchdog.Finish(hop), TaskContinuationOptions.ExecuteSynchronously);
-            return task;
+                finally
+                {
+                    // A hop that threw still spent its main-thread time and still belongs in the account.
+                    FrameAccounting.Observed(Stopwatch.GetTimestamp() - started, null);
+                    ObservationWork.End();
+                    MainThreadWatchdog.Finish(hop);
+                }
+            }, cancellationToken, out _);
+            try { return (T)await task.ConfigureAwait(false); }
+            // A hop the host never runs (cancelled while queued) still leaves the watchdog.
+            finally { MainThreadWatchdog.Finish(hop); }
         }
-
-        // The caller's class argument, or null when it sent none.
-        internal static string? ClassOf(IRimBridgeContext ctx)
-        {
-            var arguments = ctx?.Arguments;
-            if (arguments == null || !arguments.TryGetValue(MainThreadAdmission.ClassArgument, out var raw) || !TryString(raw, out var cls)) return null;
-            return cls;
-        }
-
-        // The host's capability id (the tool) and operation id for the
-        // watchdog line; a context that cannot be read is never a failure.
-        private static string OperationOf(IRimBridgeContext ctx)
-        {
-            try
-            {
-                var capability = ctx?.CapabilityId; var operation = ctx?.OperationId;
-                return (string.IsNullOrEmpty(capability) ? "tool" : capability!) + (string.IsNullOrEmpty(operation) ? "" : " op=" + operation);
-            }
-            catch (Exception) { return "tool"; } // the label only names a log line; a context that cannot answer has no better name
-        }
-
-        // The caller's trace argument, or null when it sent none or the raw
-        // arguments are unreadable; a missing echo is never a failure.
-        internal static string? TraceOf(IRimBridgeContext ctx)
-        {
-            var arguments = ctx?.Arguments;
-            if (arguments == null || !arguments.TryGetValue(TraceArgument, out var raw) || !TryString(raw, out var trace)) return null;
-            return trace.Length > 0 && trace.Length <= 64 ? trace : null;
-        }
-
-        /// <summary>A main-thread reply, encoded off the game thread (OnMainThread).</summary>
-        internal static Task<object> OnMainThreadEncoded<T>(IRimBridgeContext ctx, Func<T> body, CancellationToken cancellationToken) where T : class
-            => OnMainThread(ctx, () => Encode(body()), cancellationToken);
-
-        internal static object WithTiming(object reply, long queued, long started, long finished, string? trace = null, string? cls = null, int queueDepth = -1,
-            ObservationWork.Hop? work = null)
-        {
-            var envelope = reply as Dictionary<string, object?>;
-            if (envelope == null || !(envelope.ContainsKey(PayloadField) || envelope.ContainsKey(ProtoField)) || envelope.ContainsKey(TimingField)) return reply;
-            var timing = new Dictionary<string, object?>(StringComparer.Ordinal)
-            {
-                ["queueMs"] = Millis(started - queued),
-                ["executeMs"] = Millis(finished - started),
-            };
-            if (trace != null) timing[TraceArgument] = trace;
-            if (cls != null) timing[MainThreadAdmission.ClassArgument] = cls;
-            if (queueDepth >= 0) timing["queueDepth"] = queueDepth;
-            // The hop's own observation account and the session's update
-            // intervals; both absent when nothing recorded them.
-            var observation = ObservationWork.Report(work);
-            if (observation != null) timing["observation"] = observation;
-            var frames = FrameAccounting.Report();
-            if (frames != null) timing["frames"] = frames;
-            // The per-frame allowance's account, once it deferred a hop.
-            var budget = MainThreadAdmission.BudgetReport();
-            if (budget != null) timing["mainThreadBudget"] = budget;
-            envelope[TimingField] = timing;
-            return envelope;
-        }
-
-        private static double Millis(long ticks)
-            => ticks <= 0 ? 0.0 : Math.Round(ticks * 1000.0 / Stopwatch.Frequency, 3);
 
         // refusalClass names how RimWorld answers the same request again; left
         // unspecified, RefusalClassOf(code) classifies it where it is sent.

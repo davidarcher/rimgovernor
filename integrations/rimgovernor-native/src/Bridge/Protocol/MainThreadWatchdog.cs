@@ -9,7 +9,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Names a main-thread hop that has stalled. Every
-    // ProtoBoundary.OnMainThread hop registers here when queued, marks itself
+    // ProtoBoundary.OnGameThread hop registers here when queued, marks itself
     // started when the game thread picks it up, and unregisters when its body
     // returns. A background timer scans the live hops once a second and logs,
     // once per hop, the first time one has waited in the queue longer than

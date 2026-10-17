@@ -29,10 +29,8 @@ namespace HomeBridge.BridgeTools
     // path as lifecycle_save into the game's Saves folder under the spec's save
     // name, ending the entry with NewColonyCompleted. A phase exception, a failed
     // save or the request's timeout ends it with a failure.
-    public sealed class ProtoLifecycleNewColonyTools
+    internal static class ProtoLifecycleNewColonyTools
     {
-        private const string NewColonyToolName = "rimgovernor/lifecycle_new_colony";
-        private const string ReadNewColonyToolName = "rimgovernor/lifecycle_read_new_colony";
         private const int MaxEntries = 32;
 
         private static readonly object Lock = new object();
@@ -75,28 +73,6 @@ namespace HomeBridge.BridgeTools
             public float? MinTemperature, MaxTemperature;
             public List<BiomeDef> Biomes = new List<BiomeDef>();
             public NativeNewColonyScenarioParts.Plan Parts = null!;
-        }
-
-        [Tool(NewColonyToolName, Title = "Start a new colony",
-            Description = "Start generating a colony from a spec on the main menu. Returns NewColonyPending; poll rimgovernor/lifecycle_read_new_colony.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.NewColonyReply.", Always = true)]
-        public async Task<object> NewColony(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle NewColonyRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Lifecycle.NewColonyRequest>(ctx, NewColonyToolName, request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.NewColonyReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => StartNewColony(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool(ReadNewColonyToolName, Title = "Read a new colony's progress",
-            Description = "Poll a request_id from rimgovernor/lifecycle_new_colony for NewColonyCompleted/NewColonyPending/NewColonySuperseded/Failure.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.NewColonyReply.", Always = true)]
-        public async Task<object> ReadNewColony(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle RequestStatus ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Lifecycle.RequestStatus>(ctx, ReadNewColonyToolName, request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.NewColonyReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PollNewColony(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         private static Lifecycle.NewColonyReply Fail(Common.FailureCode code, string detail) =>

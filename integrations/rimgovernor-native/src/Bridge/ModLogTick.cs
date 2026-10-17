@@ -9,14 +9,7 @@ namespace HomeBridge.BridgeTools
     // no game is loaded.
     internal static class ModLogTick
     {
-        private static bool wired;
-
-        internal static void Ensure()
-        {
-            if (wired) return;
-            wired = true;
-            ModLog.TickSource = Read;
-        }
+        internal static void Install() => ModLog.TickSource = Read;
 
         private static long Read() => Current.Game == null ? -1 : (Find.TickManager?.TicksGame ?? -1);
     }

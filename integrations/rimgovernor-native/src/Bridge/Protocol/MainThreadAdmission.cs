@@ -7,7 +7,7 @@ using RimGovernor.Host.Sdk;
 
 namespace HomeBridge.BridgeTools
 {
-    // Orders ProtoBoundary.OnMainThread hops by admission class. The
+    // Orders ProtoBoundary.OnGameThread hops by admission class. The
     // host runs queued main-thread invocations in arrival order once per
     // frame, so a renew or stop queued behind a burst of bundle reads waited
     // for every one of them. Every hop is queued here instead and the host

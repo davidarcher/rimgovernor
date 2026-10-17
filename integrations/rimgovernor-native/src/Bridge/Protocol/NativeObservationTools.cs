@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
@@ -16,19 +15,8 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativeObservationTools
+    internal static class NativeObservationTools
     {
-        [Tool("rimgovernor/observations_read_status", Title = "Read colony status",
-            Description = "Official StatusRequest ProtoJSON. Colonists/threats default true, detail false, predator radius30. Read-only simulation facts; no clock/UI operations. Lists are complete.")]
-        [ToolResponse("payload", "string", "Official observations StatusReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a StatusRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.StatusRequest>(ctx, "rimgovernor/observations_read_status", request!, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.StatusReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadStatus(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.StatusReply HandleReadStatus(Obs.StatusRequest parsed)
         {
@@ -37,17 +25,6 @@ namespace HomeBridge.BridgeTools
                 return new Obs.StatusReply { Outcome = failure };
             try { return new Obs.StatusReply { Outcome = Status(map, parsed, context) }; }
             catch (Exception) { return new Obs.StatusReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native status facts could not be read completely.") }; }
-        }
-
-        [Tool("rimgovernor/observations_get_cells", Title = "Read map cells",
-            Description = "Official GetCellsRequest ProtoJSON. An inclusive rectangle of at most 1048576 cells on the map, returned with the map dimensions as a CellGrid (the snapshot frame grid's typed arrays; a fogged cell is not held). The grid carries each cell's things, terrain and foundation affordances. Read-only.")]
-        [ToolResponse("payload", "string", "Official observations GetCellsReply ProtoJSON.", Always = true)]
-        public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a GetCellsRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.GetCellsRequest>(ctx, "rimgovernor/observations_get_cells", request!, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.GetCellsReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleGetCells(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
@@ -74,17 +51,6 @@ namespace HomeBridge.BridgeTools
                 return new Obs.GetCellsReply { Outcome = snapshot };
             }
             catch (Exception) { return new Obs.GetCellsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native cell facts could not be read completely.") }; }
-        }
-
-        [Tool("rimgovernor/observations_read_excavation_site", Title = "Read excavation site",
-            Description = "Official ExcavationSiteRequest ProtoJSON. Certifies exact rock cells for staged room/corridor excavation: per-cell rock, roof, fog, designation and eligibility plus counterfactual roof support after removing every requested cell, pending collapse and mining worker access. Fogged cells are unknown. Read-only.")]
-        [ToolResponse("payload", "string", "Official observations ExcavationSiteReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadExcavationSite(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be an ExcavationSiteRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.ExcavationSiteRequest>(ctx, "rimgovernor/observations_read_excavation_site", request!, out var parsed, out var failure)
-                || !NativeExcavationSite.Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadExcavationSite(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // On the game thread: the typed core of the tool.

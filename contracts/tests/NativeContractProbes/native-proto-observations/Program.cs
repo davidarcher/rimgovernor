@@ -46,12 +46,6 @@ internal static class NativeProtoObservationsProbe
         Check(Valid("ValidateCells","GetCellsRequest",request(rect(0,0,1023,1023))),"whole-map rectangle accepted");
         foreach(var invalid in new[]{request(""),request(rect(0,0,1024,1023)),request(rect(1,0,0,0)),request(rect(-1,0,0,0)),request(rect(0,0,0,0).Replace("\"z\":0}}","\"z\":null}}")),request(rect(0,0,2147483647,2147483647))})
             Check(!Valid("ValidateCells","GetCellsRequest",invalid),"invalid/oversized cells refused");
-        var server=Assembly.LoadFrom(directories.Select(d=>Path.Combine(d,"RimGovernor.Host.dll")).First(File.Exists));
-        var binder=server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider",true)!.GetMethod("BindArguments",Flags)!;
-        foreach(var methodName in new[]{"ReadStatus","GetCells"}) foreach(var value in new object?[]{"{}",new Dictionary<string,object>(),new List<object>(),null,17,true}) {
-            var bound=(object[])binder.Invoke(null,new object?[]{tools.GetMethod(methodName),new Dictionary<string,object?>{{"request",value}},null,CancellationToken.None})!;
-            Check(ReferenceEquals(bound[2],value),"actual SDK raw value preserved: "+methodName);
-        }
         // ---- N01.03: shared row CAS helper (NativeObservationSnapshot over NativeSnapshotVersions).
         var snapshotType=bridge.GetType("HomeBridge.BridgeTools.NativeObservationSnapshot",true)!;
         object ParseCommon(string type,string json) {
@@ -86,7 +80,7 @@ internal static class NativeProtoObservationsProbe
             Check(!Accepts(Parse(oversizedCursor)),"an oversized cursor is still refused by "+toolType);
         }
 
-        Console.WriteLine(checks+" compiled observation request/binder assertions passed; no gameplay assertions.");return 0;
+        Console.WriteLine(checks+" compiled observation request assertions passed; no gameplay assertions.");return 0;
     }
     private static void WriteNothing(BinaryWriter writer) { }
     private static void WriteOne(BinaryWriter writer) => writer.Write(1);

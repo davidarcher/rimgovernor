@@ -30,11 +30,7 @@ public interface IRimBridgeMainThread
     Task InvokeAsync(Action action, CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// The host's game-thread access for in-process callers that are not inside a tool invocation (the native
-/// facade, #3080): a tool reaches the game thread through <see cref="IRimBridgeContext.MainThread"/>, a caller
-/// without a context through this. The host sets it in its mod constructor, before any tool is discovered.
-/// </summary>
+/// <summary>The host's tool registry as the mod's HTTP control channel calls it (host and fixture tools).</summary>
 public interface IRimBridgeToolInvoker
 {
     /// <summary>The canonical tool names (<c>rimgovernor/set_time_speed</c>, <c>test/lab_start</c>) registered now.</summary>
@@ -49,35 +45,29 @@ public interface IRimBridgeToolInvoker
 
 /// <summary>
 /// Where the host publishes <see cref="IRimBridgeToolInvoker"/> (every registered tool by name, whatever arguments
-/// it takes, run as a wire call runs it) for the mod's HTTP control channel, together with the tool-class instances the
-/// host constructed. Null until the host's registry is built. Each tool class is constructed once, by the host on the
-/// game thread (#3289): the HTTP channel waits for <see cref="Published"/> and then shares these instances instead of
-/// building its own, since some tool constructors install Harmony patches and add Defs.
+/// it takes, run as a wire call runs it) for the mod's HTTP control channel. Null until the host's registry is built.
 /// </summary>
 public static class RimBridgeToolAccess
 {
     private static readonly TaskCompletionSource<bool> PublishedSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static IRimBridgeToolInvoker _current;
-    private static IReadOnlyDictionary<Type, object> _instances = new Dictionary<Type, object>();
 
     public static IRimBridgeToolInvoker Current => Volatile.Read(ref _current);
 
-    /// <summary>Completes once <see cref="Publish"/> has run: <see cref="Current"/> and the instances are then set.</summary>
+    /// <summary>Completes once <see cref="Publish"/> has run and <see cref="Current"/> is set.</summary>
     public static Task Published => PublishedSource.Task;
 
-    /// <summary>The host publishes its registry and the tool-class instances it built (types with only static tools have none).</summary>
-    public static void Publish(IRimBridgeToolInvoker invoker, IReadOnlyDictionary<Type, object> instances)
+    public static void Publish(IRimBridgeToolInvoker invoker)
     {
-        Volatile.Write(ref _instances, instances ?? throw new ArgumentNullException(nameof(instances)));
         Volatile.Write(ref _current, invoker ?? throw new ArgumentNullException(nameof(invoker)));
         PublishedSource.TrySetResult(true);
     }
-
-    /// <summary>The host's instance of tool class <paramref name="type"/>; false when the host did not construct one.</summary>
-    public static bool TryGetInstance(Type type, out object instance)
-        => Volatile.Read(ref _instances).TryGetValue(type, out instance);
 }
 
+/// <summary>
+/// The host's game-thread access for in-process callers (the native facade, #3080). The host sets it in its mod
+/// constructor, before any companion assembly loads.
+/// </summary>
 public static class RimBridgeMainThreadAccess
 {
     private static IRimBridgeMainThread _current;

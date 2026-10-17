@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using UnityEngine;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -15,18 +14,8 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativePresentationReadTools
+    internal static class NativePresentationReadTools
     {
-        [Tool("rimgovernor/presentation_camera", Title = "Read native camera", Description = "Graphical camera facts only; no camera movement or rendering demand. Headless camera is unavailable.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON CameraReply.", Always = true)]
-        public async Task<object> Camera(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ReadRequest string in raw transport value.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Presentation.ReadRequest>(ctx, "rimgovernor/presentation_camera", request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Presentation.CameraReply { Outcome = new Presentation.CameraReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleCamera(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Presentation.CameraReply HandleCamera(Presentation.ReadRequest parsed)
         {
@@ -54,16 +43,6 @@ namespace HomeBridge.BridgeTools
             catch (Exception errorRead) { return new Presentation.CameraReply { Outcome = ReadFailure(errorRead) }; }
         }
 
-        [Tool("rimgovernor/presentation_selection", Title = "Read native selection", Description = "Complete bounded graphical selection IDs from native things, zones and plans. No inspect strings, gizmo enumeration, selection changes or capture authority.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON SelectionReply; unproven optional fingerprint/gizmo facts are omitted.", Always = true)]
-        public async Task<object> Selection(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ReadRequest string in raw transport value.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Presentation.ReadRequest>(ctx, "rimgovernor/presentation_selection", request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Presentation.SelectionReply { Outcome = new Presentation.SelectionReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleSelection(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Presentation.SelectionReply HandleSelection(Presentation.ReadRequest parsed)
         {
@@ -83,16 +62,6 @@ namespace HomeBridge.BridgeTools
                 return new Presentation.SelectionReply { Outcome = snapshot };
             }
             catch (Exception errorRead) { return new Presentation.SelectionReply { Outcome = ReadFailure(errorRead) }; }
-        }
-
-        [Tool("rimgovernor/presentation_colonists", Title = "Read native colonist roster", Description = "Complete bounded FreeColonistsSpawned roster. Default includes all loaded maps; currentMapOnly narrows it; the controller joins includeDossier from its bundle pawn table. No world caravan, prisoner, slave or unspawned-pawn claim.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ColonistRosterReply; usable in headless and graphical games.", Always = true)]
-        public async Task<object> Colonists(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ColonistRosterRequest string in raw transport value.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Presentation.ColonistRosterRequest>(ctx, "rimgovernor/presentation_colonists", request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Outcome = new Presentation.ColonistRosterReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleColonists(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
@@ -159,12 +128,6 @@ namespace HomeBridge.BridgeTools
         private static double Positive(double value) => Finite(value) > 0 ? value : throw new InvalidOperationException("Native camera size is not positive.");
         internal static Presentation.Listing Listing(int count) => new Presentation.Listing { TotalCount = checked((uint)count), ReturnedCount = checked((uint)count), Complete = true, Truncated = false };
         private static Common.Failure Unavailable(string detail) => ProtoBoundary.Fail(Common.FailureCode.Unavailable, detail);
-        private static Common.Failure ReadFailure(Exception error) => error is ReadLimit || error is NativePawnObservationTools.ReadLimit ? ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, error.Message) : Unavailable("Native presentation facts could not be read completely.");
-        internal static object Encode<T>(T reply) where T : class
-        {
-            return ProtoBoundary.Encode(reply);
-        }
-        private static void Require(bool value, string detail) { if (!value) throw new ReadLimit(detail); }
-        internal sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
+        private static Common.Failure ReadFailure(Exception error) => error is NativePawnObservationTools.ReadLimit ? ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, error.Message) : Unavailable("Native presentation facts could not be read completely.");
     }
 }

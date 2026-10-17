@@ -41,7 +41,9 @@ listener (`HttpListener`) the mod hosts, with route modules the brain publishes 
 The mod side is `HttpChannelHost.cs` in the Bridge: `NativeOpTable` is an explicit table, compile-checked by the
 `NativeOps` entries. A facade op runs its `INativeFacade` method on the in-process facade, the same typed call the brain
 makes; the harness's pull read of the newest frame (`NativeOps.ReadSnapshot`) runs `SnapshotStream.Read` in a game-thread
-hop; nothing is found by reflection. `HttpChannelBootstrap` (a module initializer) starts the server when
+hop; the acceptance-only reads (`AcceptanceReadTools.Ops`: colony facts, blight, starter site, Impressiveness,
+capture profile, animal races) take a JSON object of named arguments and answer `{"payload": "<json>"}`; nothing is
+found by reflection. `HttpChannelBootstrap.Start`, called once by `NativeStartup`, starts the server when
 `RIMGOVERNOR_OTLP_DIR` is set (the directory of the OTLP rings; `RIMGOVERNOR_RUN_ID` optionally names the run). Unset,
 nothing listens. The channel binds only after the host has built its registry (`RimBridgeToolAccess.Published`, on the
 game thread once play data has loaded), so the registry fallback and the facade's one-time installs are ready.

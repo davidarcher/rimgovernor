@@ -6,7 +6,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -23,7 +22,6 @@ namespace HomeBridge.BridgeTools
     // native-static-state.md. Read-only; no orders, no UI, no camera.
     internal static class NativeWorldProgressionObservation
     {
-        internal const string ToolName = "rimgovernor/observations_read_world_progression";
 
 
         private static Obs.ResourceStock StoredItemRow(IGrouping<ThingDef, Thing> group) => new Obs.ResourceStock
@@ -360,19 +358,8 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    public sealed class NativeWorldProgressionObservationTools
+    internal static class NativeWorldProgressionObservationTools
     {
-        [Tool(NativeWorldProgressionObservation.ToolName, Title = "Read caravans, assemblies, quests and factions",
-            Description = "Official WorldProgressionRequest ProtoJSON. Read-only census of every map's colonists and (optionally) stored items, player caravans and their home-route reachability/inventory, native caravan-assembly jobs and visible non-hidden quests. Does not advance time or issue orders.")]
-        [ToolResponse("payload", "string", "Official observations WorldProgressionReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadWorldProgression(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a WorldProgressionRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, NativeWorldProgressionObservation.ToolName, request!, out Obs.WorldProgressionRequest? parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WorldProgressionReply { Outcome = new Obs.WorldProgressionReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadWorldProgression(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         internal static Obs.WorldProgressionReply HandleReadWorldProgression(Obs.WorldProgressionRequest request)
         {
             if (!Validate(request, out var failure))

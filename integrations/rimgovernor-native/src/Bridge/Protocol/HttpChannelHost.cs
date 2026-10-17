@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     /// The local HTTP/JSON control channel inside the mod (#3083), a test-only surface for the out-of-process acceptance
     /// harness. <c>POST /native/&lt;op&gt;</c> dispatches by an explicit table: each <see cref="NativeOps"/> entry runs its
     /// <see cref="INativeFacade"/> method on the in-process facade (the same typed call the brain makes), the
-    /// harness's pull read of the newest frame runs its core here, and any other name is a tool of the host's own
+    /// harness's pull read of the newest frame runs its core here, the acceptance reads (<see cref="AcceptanceReadTools"/>) run theirs, and any other name is a tool of the host's own
     /// registry (its lifecycle tools such as <c>rimgovernor/set_time_speed</c> and the <c>test/*</c> fixtures), run with
     /// a JSON object of named arguments. The channel itself (listener, guard, routes, endpoint file) is the game-free
     /// RimGovernor.Brain.HttpChannel; this file only adapts the mod to it and starts it.
@@ -37,7 +37,16 @@ namespace HomeBridge.BridgeTools
             }
             ops.Add(NativeOps.ReadSnapshot.Name, (body, ct) => NativeOps.ReadSnapshot.InvokeJsonAsync(body,
                 (request, token) => ProtoBoundary.OnGameThread(NativeOps.ReadSnapshot.Tool, () => SnapshotStream.Read(request), token), ct));
+            foreach (var (name, read) in AcceptanceReadTools.Ops)
+                ops.Add(name, async (body, ct) => new JsonObject { ["payload"] = await read(Arguments(body), ct).ConfigureAwait(false) }.ToJsonString());
             return ops;
+        }
+
+        // An acceptance op's body: a JSON object of named arguments, empty when none.
+        private static JsonObject Arguments(string body)
+        {
+            if (string.IsNullOrWhiteSpace(body)) return new JsonObject();
+            return JsonNode.Parse(body) as JsonObject ?? throw new System.Text.Json.JsonException("The arguments must be a JSON object.");
         }
 
         /// <summary>The ops of the table plus every tool the host registry knows (it fills in as the host starts, so it is read on each call).</summary>
@@ -119,8 +128,7 @@ namespace HomeBridge.BridgeTools
         /// </summary>
         internal static Task<RouteTable?> Routes => published.Task;
 
-#pragma warning disable CA2255 // See NativeFacadeBootstrap: the host has no startup hook for a plugin assembly.
-        [ModuleInitializer]
+        /// <summary>Called once by <see cref="NativeStartup"/>.</summary>
         internal static void Start()
         {
             var directory = Environment.GetEnvironmentVariable(DirectoryVariable);
@@ -131,8 +139,8 @@ namespace HomeBridge.BridgeTools
             }
             var runId = Environment.GetEnvironmentVariable(RunIdVariable);
             // Binding and writing the file are off the loading thread: a slow disk must not delay the host's mod load.
-            // The routes wait for the host's registry, which shares the tool instances (#3289): the host builds it on
-            // the game thread once play data has loaded.
+            // The routes wait for the host's registry (its own and the fixture tools): the host publishes it on the
+            // game thread right after the native startup.
             Task.Run(async () =>
             {
                 try
@@ -162,6 +170,5 @@ namespace HomeBridge.BridgeTools
                 }
             });
         }
-#pragma warning restore CA2255
     }
 }

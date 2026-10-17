@@ -299,18 +299,4 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    /// <summary>Publishes the facade to the brain in the same process when the host loads this assembly.</summary>
-    internal static class NativeFacadeBootstrap
-    {
-        // CA2255 warns against module initializers in libraries; this assembly is a plugin the host loads by file
-        // with no startup hook of its own (see ObservationFrameHook), and the facade must exist before the first
-        // tool call. The initializer does no game work: it hands out an object whose calls hop later.
-#pragma warning disable CA2255
-        [ModuleInitializer]
-        internal static void Publish()
-        {
-            if (NativeFacadeRegistry.Current == null) NativeFacadeRegistry.Publish(InProcessNativeFacade.Instance);
-        }
-#pragma warning restore CA2255
-    }
 }

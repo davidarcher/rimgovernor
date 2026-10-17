@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -14,19 +13,8 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativeRoomObservationTools
+    internal static class NativeRoomObservationTools
     {
-        private const string ToolName = "rimgovernor/observations_list_rooms";
-        [Tool(ToolName, Title = "Read typed rooms", Description = "Complete room census and exact footprint intersection filters. Defaults exclude psychologically outdoor rooms and doorways. Contents count buildings, optionally including boundary buildings. IDs are ephemeral within the current room graph; no CAS.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ListRoomsReply with explicit unknown stats and unrequested cells.", Always = true)]
-        public async Task<object> ListRooms(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ListRoomsRequest string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.ListRoomsRequest? parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ListRoomsReply { Outcome = new Obs.ListRoomsReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListRooms(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.ListRoomsReply HandleListRooms(Obs.ListRoomsRequest parsed)
         {
@@ -215,7 +203,6 @@ namespace HomeBridge.BridgeTools
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.X is not null && cell.Z is not null && cell.X.GetValueOrDefault() >= 0 && cell.Z.GetValueOrDefault() >= 0;
         private static IntVec3 NativeCell(Common.Cell? cell) => new IntVec3((cell?.X).GetValueOrDefault(), 0, (cell?.Z).GetValueOrDefault());
         private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
-        private static Obs.EntityRef Entity(Thing thing) => new Obs.EntityRef { Id = Name(thing.GetUniqueLoadID()), DefName = Name(thing.def.defName), MapId = thing.Map.uniqueID, Position = Cell(thing.Position) };
         private static string Id(int id) => id >= 0 ? id.ToString(CultureInfo.InvariantCulture) : throw new InvalidOperationException("Invalid room ID.");
         private static string Name(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid native room identifier.");
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };

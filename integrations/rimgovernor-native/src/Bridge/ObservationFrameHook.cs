@@ -26,11 +26,11 @@ namespace HomeBridge.BridgeTools
     /// The intervals are Unity update intervals, never a statement about GPU
     /// presentation: an unrendered launch still updates.
     ///
-    /// The patch installs on the first main-thread hop (ProtoBoundary calls
-    /// Ensure), not from a startup constructor: this assembly is loaded by
-    /// RimGovernor.Host as a tool plugin rather than as a mod assembly, so
-    /// RimWorld never runs a [StaticConstructorOnStartup] here -- the first
-    /// attempt at this hook was such a constructor and it never ran.
+    /// The patch installs from the native startup (NativeStartup, the
+    /// module initializer the host runs), not from a startup constructor:
+    /// this assembly is loaded by RimGovernor.Host as a tool plugin rather
+    /// than as a mod assembly, so RimWorld never runs a
+    /// [StaticConstructorOnStartup] here.
     public static class ObservationFrameHook
     {
         public const string Owner = "rimgovernor.native.observation-frames";

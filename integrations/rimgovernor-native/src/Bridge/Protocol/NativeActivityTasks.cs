@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
@@ -13,16 +12,8 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools;
 
-public sealed class NativeActivityTasks
+internal static class NativeActivityTasks
 {
-    [Tool("rimgovernor/activity_tasks", Description = "Read exact activity ownership and bounded legal bindings for selected Method tasks. No orders or economic selection.")]
-    public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken ct,
-        [ToolParameter(Description = "ActivityTaskRequest JSON.")] object? request = null)
-    {
-        if (!ProtoBoundary.TryParse<Obs.ActivityTaskRequest>(ctx, "rimgovernor/activity_tasks", request!, out var parsed, out _))
-            return ProtoBoundary.Encode(new Obs.ActivityTaskRead());
-        return ProtoBoundary.Encode(await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed), ct).ConfigureAwait(false));
-    }
     internal static Obs.ActivityTaskRead Read(Obs.ActivityTaskRequest request)
     {
         if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out _)) return new();

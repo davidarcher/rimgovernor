@@ -23,8 +23,8 @@ internal static class Gate
     [
         "native-roof-support", "native-designation-guards", "native-home-coverage", "native-construction-tier-gate",
         "native-speed-key-block", "native-clock-ceiling", "native-team-policy", "native-traffic-counts",
-        "native-production-bill-settings", "native-observation-work", "native-reply-encoder",
-        "native-threat-classifier", "native-acquisition-token", "native-ref-index",
+        "native-production-bill-settings", "native-observation-work",
+        "native-threat-classifier", "native-acquisition-token", "native-ref-index", "native-proto-boundary",
     ];
 
     private sealed record Paths(string Repo)
@@ -43,8 +43,6 @@ internal static class Gate
         public string Mod => Path.Combine(Out, "native", "mod");
 
         public string Manifest => Path.Combine(Mod, "RimGovernor", "native-manifest.json");
-
-        public string HostDll => Path.Combine(Mod, "RimGovernor", "Assemblies", "RimGovernor.Host.dll");
 
         public string RimWorldDir { get; } = Environment.GetEnvironmentVariable("RIMWORLD_DIR") is { Length: > 0 } dir ? dir : DefaultRimWorldDir;
 
@@ -127,10 +125,6 @@ internal static class Gate
                 }
                 return output.ToString();
             }),
-            new("native-proto-boundary", c =>
-                File.Exists(p.HostDll) ? Dotnet(p.Repo, c, probes, "native-proto-boundary", p.HostDll)
-                : File.Exists(p.Manifest) ? throw new ToolException($"the native build is staged but {p.HostDll} is missing")
-                : Task.FromResult($"unavailable (missing {p.HostDll})\n")),
             new("native-hook-set", c =>
                 File.Exists(hookset) ? Dotnet(p.Repo, c, hookset) : Task.FromResult("unavailable (not built; Harmony missing)\n")),
             new("contract orphans", _ => Task.Run(() => Orphans(p))),

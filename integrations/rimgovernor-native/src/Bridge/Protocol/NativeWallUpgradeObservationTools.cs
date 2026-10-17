@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -30,22 +29,8 @@ namespace HomeBridge.BridgeTools
     // Workers, stock, geometry and the roof-support
     // snapshot are not projected: Go owns builders and stock (its material
     // budget); cells come through GetCells.
-    public sealed class NativeWallUpgradeObservationTools
+    internal static class NativeWallUpgradeObservationTools
     {
-        internal const string ToolName = "rimgovernor/observations_list_wall_upgrade_sites";
-
-        public NativeWallUpgradeObservationTools() { WallUpgradeSafety.Install(); }
-
-        [Tool(ToolName, Title = "Read typed wall upgrade sites", Description = "Complete stone-shell replacement geometry: with target_id, every admissible replacement normal of that colonist wall (enclosed roofed interior, exterior backup cells, colonist side supports, corner access) with stone material costs; without it, completed permanent walls whose backups remain, naming the next backup to clear. No designation or work is admitted.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON WallUpgradeSitesReply.", Always = true)]
-        public async Task<object> ListSites(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON WallUpgradeSitesRequest string in raw transport value.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.WallUpgradeSitesRequest? parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WallUpgradeSitesReply { Outcome = new Obs.WallUpgradeSitesReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListWallUpgradeSites(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         internal static Obs.WallUpgradeSitesReply HandleListWallUpgradeSites(Obs.WallUpgradeSitesRequest request)
         {
             if (!Validate(request, out var failure))

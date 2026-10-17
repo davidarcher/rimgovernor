@@ -9,28 +9,14 @@ using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativeClockTools
+    internal static class NativeClockTools
     {
-        [Tool("rimgovernor/clock_read_status", Title = "Read clock", Description = "Read the native clock: running at the target speed or held for a named reason, with actual pause/speed and the one ceiling. A read is not brain contact; heartbeat is.")]
-        [ToolResponse("payload", "string", "Official clock StatusReply ProtoJSON.", Always = true)]
-        public Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official clock StatusRequest ProtoJSON string.")] object? request = null)
-            => Dispatch<Clock.StatusRequest, Clock.StatusReply>(ctx, cancellationToken, "rimgovernor/clock_read_status", request,
-                failure => new Clock.StatusReply { Outcome = new Clock.StatusReplyOutcome.FailureCase(failure) }, HandleReadStatus);
-
         // The typed cores below run on the game thread; the tools and the in-process facade share them.
         internal static Clock.StatusReply HandleReadStatus(Clock.StatusRequest parsed)
         {
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.StatusReply { Outcome = failure };
             return new Clock.StatusReply { Outcome = Read(context) };
         }
-
-        [Tool("rimgovernor/clock_read_events", Title = "Read clock events", Description = "Read immutable clock events using an explicit nonnegative cursor and limit1..128, never held; advances are announced on the rimgovernor.clock channel; legacy or incomplete history is unavailable.")]
-        [ToolResponse("payload", "string", "Official clock EventsReply ProtoJSON.", Always = true)]
-        public Task<object> ReadEvents(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official clock EventsRequest ProtoJSON string.")] object? request = null)
-            => Dispatch<Clock.EventsRequest, Clock.EventsReply>(ctx, cancellationToken, "rimgovernor/clock_read_events", request,
-                failure => new Clock.EventsReply { Outcome = new Clock.EventsReplyOutcome.FailureCase(failure) }, HandleReadEvents);
 
         internal static Clock.EventsReply HandleReadEvents(Clock.EventsRequest parsed)
         {
@@ -39,13 +25,6 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.EventsReply { Outcome = failure };
             return Supervisor.TypedEvents(parsed, context);
         }
-
-        [Tool("rimgovernor/clock_run", Title = "Run the clock", Description = "Run the clock at the target speed under the watch policy: resumes a held clock, or changes speed and policy in place while running. Idempotent. Needs the current authority generation; refused while a long event or force-pausing window holds the game.")]
-        [ToolResponse("payload", "string", "Official clock StatusReply ProtoJSON.", Always = true)]
-        public Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official clock RunRequest ProtoJSON string.")] object? request = null)
-            => Dispatch<Clock.RunRequest, Clock.StatusReply>(ctx, cancellationToken, "rimgovernor/clock_run", request,
-                failure => new Clock.StatusReply { Outcome = new Clock.StatusReplyOutcome.FailureCase(failure) }, HandleRun);
 
         internal static Clock.StatusReply HandleRun(Clock.RunRequest parsed)
         {
@@ -69,13 +48,6 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        [Tool("rimgovernor/clock_hold", Title = "Hold the clock", Description = "Hold the clock for a brain reason (coupled order, review, autosave, game forced): pauses and journals one HoldEntered. While held the first reason stands. Needs only the loaded identity, so cleanup can always stop play.")]
-        [ToolResponse("payload", "string", "Official clock StatusReply ProtoJSON.", Always = true)]
-        public Task<object> Hold(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official clock HoldRequest ProtoJSON string.")] object? request = null)
-            => Dispatch<Clock.HoldRequest, Clock.StatusReply>(ctx, cancellationToken, "rimgovernor/clock_hold", request,
-                failure => new Clock.StatusReply { Outcome = new Clock.StatusReplyOutcome.FailureCase(failure) }, HandleHold);
-
         internal static Clock.StatusReply HandleHold(Clock.HoldRequest parsed)
         {
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return Failed(failure);
@@ -84,27 +56,12 @@ namespace HomeBridge.BridgeTools
             catch (Exception) { return new Clock.StatusReply { Outcome = Read(context) }; }
         }
 
-        [Tool("rimgovernor/clock_heartbeat", Title = "Clock heartbeat", Description = "The brain's contact for the one ceiling. Not journalled, not a hold; silence only lowers the ceiling to Normal. Replies with the clock state, hold reason and ceiling.")]
-        [ToolResponse("payload", "string", "Official clock HeartbeatReply ProtoJSON.", Always = true)]
-        public Task<object> Heartbeat(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official clock HeartbeatRequest ProtoJSON string.")] object? request = null)
-            => Dispatch<Clock.HeartbeatRequest, Clock.HeartbeatReply>(ctx, cancellationToken, "rimgovernor/clock_heartbeat", request,
-                failure => new Clock.HeartbeatReply { Outcome = new Clock.HeartbeatReplyOutcome.FailureCase(failure) }, HandleHeartbeat);
-
         internal static Clock.HeartbeatReply HandleHeartbeat(Clock.HeartbeatRequest parsed)
         {
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out _, out var failure)) return new Clock.HeartbeatReply { Outcome = failure };
             return new Clock.HeartbeatReply { Outcome = Supervisor.TypedHeartbeat() };
         }
 
-        private static async Task<object> Dispatch<T, TReply>(IRimBridgeContext ctx, CancellationToken token, string tool, object? request,
-            Func<Common.Failure, TReply> refused, Func<T, TReply> apply) where T : class where TReply : class
-        {
-            if (!ProtoBoundary.TryParse<T>(ctx, tool, request, out var parsed, out var failure)) return ProtoBoundary.Encode(refused(failure));
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                return ProtoBoundary.Encode(apply(parsed));
-            }, token).ConfigureAwait(false);
-        }
         internal static Clock.Status Read(Common.ObservationContext context)
         {
             try { return Supervisor.TypedStatus(context); }

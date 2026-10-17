@@ -17,7 +17,7 @@ The project compiles against fake Verse/Harmony stubs and takes no
 `-p:HarmonyAssembly`; the real `0Harmony.dll` directory (the Steam workshop
 `2009463077/Current/Assemblies`) is a runtime argument only.
 
-Tests load the actual adapter, the Contracts wire records, SDK binder and normalizer. No
+Tests load the actual adapter, and the Contracts wire records. No
 game state is created.
 
 Camera reads follow the audited native driver facts: position, root/zoom sizes,

@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using UnityEngine;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -14,25 +13,13 @@ namespace HomeBridge.BridgeTools
 {
     // The controller's map overlay: one named layer per call, drawn by
     // GovernorOverlay. Output only; nothing reads it back.
-    public sealed class ProtoOverlayTools
+    internal static class ProtoOverlayTools
     {
-        private const string ToolName = "rimgovernor/presentation_overlay";
         // Input bounds on a draw request; kept (docs/developers/contracts/kept-constants.md).
         private const int MaxCells = 250000;
         private const int MaxLabels = 4096;
         private const int MaxLines = 4096;
         private const int MaxLayerId = 64;
-
-        [Tool(ToolName, Title = "Draw a map overlay layer",
-            Description = "Replace one named overlay layer with the given shapes and labels. enabled=false removes it.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.presentation.v1.OverlayReply.", Always = true)]
-        public async Task<object> Draw(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON OverlayRequest string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Presentation.OverlayRequest? parsed, out var failure))
-                return ProtoBoundary.Encode(new Presentation.OverlayReply { Outcome = new Presentation.OverlayReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Apply(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         // Call only on the game thread.
         internal static Presentation.OverlayReply Apply(Presentation.OverlayRequest request)

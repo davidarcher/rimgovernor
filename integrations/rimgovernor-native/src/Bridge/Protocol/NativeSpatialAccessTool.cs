@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -19,22 +18,11 @@ namespace HomeBridge.BridgeTools
     // safe four-neighbour component with the same component once the
     // requested cells are impassable. Native CanReach answers the exact
     // target cells separately. No orders, path-grid edits or simulation.
-    public sealed class NativeSpatialAccessTool
+    internal static class NativeSpatialAccessTool
     {
         // The one surviving cap: the per-colonist work scans the whole map. Over it the read
         // is unavailable (LimitExceeded), never partial.
         internal const long MaximumMapCells = 262144;
-
-        [Tool("rimgovernor/observations_read_spatial_access", Title = "Read projected colony access",
-            Description = "Official SpatialAccessRequest ProtoJSON. Single-frame main-thread audit of each mobile colonist's current safe four-neighbour reach against the same reach with blocked_cells impassable, plus native CanReach for target_cells. pawn_ids restricts the census. Colonists past the request's budget_ms come back skipped; a map over 262144 cells is unavailable.")]
-        [ToolResponse("payload", "string", "Official observations SpatialAccessReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadSpatialAccess(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a SpatialAccessRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_spatial_access", request!, out Obs.SpatialAccessRequest? parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Outcome = new Obs.SpatialAccessReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadSpatialAccess(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         internal static Obs.SpatialAccessReply HandleReadSpatialAccess(Obs.SpatialAccessRequest request)
         {

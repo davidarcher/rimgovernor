@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
@@ -13,17 +12,8 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools;
 
-public sealed class NativeConstructionActivity
+internal static class NativeConstructionActivity
 {
-    [Tool("rimgovernor/construction_activity", Description = "Read observed and planned site demand, exact material sources, eligible suppliers/builders, native route/work estimates, planned-site legality and routes between planned sites. No orders.")]
-    public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken ct,
-        [ToolParameter(Description = "ConstructionActivityRequest JSON.")] object? request = null)
-    {
-        if (!ProtoBoundary.TryParse<Obs.ConstructionActivityRequest>(ctx, "rimgovernor/construction_activity", request!, out var parsed, out _))
-            return ProtoBoundary.Encode(new Obs.ConstructionActivityRead());
-        return ProtoBoundary.Encode(await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed), ct).ConfigureAwait(false));
-    }
-
     // A site the rows estimate. Placed: a blueprint or frame (Thing set). Planned: unplaced cells, where a route
     // from an origin ends at the piece nearest it (Target).
     private sealed record Site(string Id, BuildableDef Definition, IntVec3 Location, Func<IntVec3, IntVec3> Target,

@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -20,19 +19,8 @@ namespace HomeBridge.BridgeTools
     // walk-in raid approach (ground pathing to any map edge without opening
     // doors). Neither read reserves cells, previews placement or predicts
     // where a raid will actually path.
-    public sealed class NativeDefenseObservationTools
+    internal static class NativeDefenseObservationTools
     {
-        [Tool("rimgovernor/observations_read_defense_site", Title = "Read defense site census",
-            Description = "Official DefenseSiteRequest ProtoJSON. Inclusive rectangle of any size: terrain, traversal, native cover fill and the cover thing's clearance identity, sight blocking, edifice ownership, natural rock, doors, home area and ground reachability to a map edge without opening doors; plus the session's observed hostile arrivals. Unavailable instead of truncation.")]
-        [ToolResponse("payload", "string", "Official observations DefenseSiteReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadDefenseSite(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a DefenseSiteRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.DefenseSiteRequest>(ctx, "rimgovernor/observations_read_defense_site", request!, out var parsed, out var failure)
-                || !ValidateSite(parsed, out failure)) return ProtoBoundary.Encode(new Obs.DefenseSiteReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadDefenseSite(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         internal static Obs.DefenseSiteReply HandleReadDefenseSite(Obs.DefenseSiteRequest request)
         {
             if (!ValidateSite(request, out var failure0)) return new Obs.DefenseSiteReply { Outcome = failure0 };
@@ -45,17 +33,6 @@ namespace HomeBridge.BridgeTools
                 return new Obs.DefenseSiteReply { Outcome = Site(map, request.Region ?? new Obs.Rectangle(), cells, context) };
             }
             catch (Exception) { return new Obs.DefenseSiteReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native defense site facts could not be read completely.") }; }
-        }
-
-        [Tool("rimgovernor/observations_read_lines_of_fire", Title = "Read lines of fire",
-            Description = "Official LinesOfFireRequest ProtoJSON. Native line of sight and CoverUtility block chance for every (firing, approach) cell pair, firing-major, until the request's budget_ms runs out; the snapshot is then skipped and holds the pairs read.")]
-        [ToolResponse("payload", "string", "Official observations LinesOfFireReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadLinesOfFire(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a LinesOfFireRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.LinesOfFireRequest>(ctx, "rimgovernor/observations_read_lines_of_fire", request!, out var parsed, out var failure)
-                || !ValidateLines(parsed, out failure)) return ProtoBoundary.Encode(new Obs.LinesOfFireReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadLinesOfFire(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         internal static Obs.LinesOfFireReply HandleReadLinesOfFire(Obs.LinesOfFireRequest request)

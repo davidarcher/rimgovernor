@@ -10,7 +10,7 @@ native-proto-placement):
 dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto-observations <args...>
 ```
 
-The suite loads actual compiled adapters and uses the actual SDK binder. It checks
+The suite loads actual compiled adapters. It checks
 presence, bounded unique geometry, overflow-safe rectangles, unsupported fields,
 finite radius, and the singleton map-dimension request with all fields false.
 It does not create game state or claim native pawn/threat/cell outcomes.
@@ -20,7 +20,7 @@ sections have explicit issues; missing trackers are unavailable, not healthy zer
 Cell reads support terrain, roof, visibility, traversal, zone, room, growth and
 things; requested areas or designations fail Unsupported. Exact selection order is retained; rectangles use z/x
 order and report their inclusive bounding rectangle. Frozen cursors remain unsupported.
-Pawn rows expose available draft-control CAS and claims; these request/binder checks
+Pawn rows expose available draft-control CAS and claims; these request checks
 do not establish native hook behavior. Collection/reply overflow cannot truncate success.
 Root integration owns capability advertisement and fresh-game acceptance.
 

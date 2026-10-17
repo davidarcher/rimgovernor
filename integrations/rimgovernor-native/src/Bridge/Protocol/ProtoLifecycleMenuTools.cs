@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
@@ -19,10 +18,8 @@ namespace HomeBridge.BridgeTools
     // ProtoLifecycleNewColonyTools starts from (Entry program state, no game,
     // no queued long event). Already at a fresh main menu, Menu completes at
     // once with unloaded=false.
-    public sealed class ProtoLifecycleMenuTools
+    internal static class ProtoLifecycleMenuTools
     {
-        private const string MenuToolName = "rimgovernor/lifecycle_menu";
-        private const string ReadMenuToolName = "rimgovernor/lifecycle_read_menu";
         private const int MaxEntries = 32;
 
         private static readonly object Lock = new object();
@@ -35,28 +32,6 @@ namespace HomeBridge.BridgeTools
             public readonly DateTime StartedUtc = DateTime.UtcNow;
             public Lifecycle.MenuReply? Reply; // Terminal outcome; null while the unload is running.
             public Entry(string requestId) { RequestId = requestId; }
-        }
-
-        [Tool(MenuToolName, Title = "Return to the main menu",
-            Description = "End the loaded game without saving and return the running process to a fresh main menu. Returns MenuPending; poll rimgovernor/lifecycle_read_menu.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.MenuReply.", Always = true)]
-        public async Task<object> Menu(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle MenuRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Lifecycle.MenuRequest>(ctx, MenuToolName, request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.MenuReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => StartMenu(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool(ReadMenuToolName, Title = "Read a return to the main menu",
-            Description = "Poll a request_id from rimgovernor/lifecycle_menu for MenuCompleted/MenuPending/Failure.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.MenuReply.", Always = true)]
-        public async Task<object> ReadMenu(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle RequestStatus ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Lifecycle.RequestStatus>(ctx, ReadMenuToolName, request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.MenuReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PollMenu(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         private static Lifecycle.MenuReply Fail(Common.FailureCode code, string detail) =>

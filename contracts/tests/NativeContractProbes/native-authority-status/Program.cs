@@ -1,8 +1,5 @@
 #nullable disable
 using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using HomeBridge.BridgeTools;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -28,67 +25,30 @@ internal static class NativeAuthorityStatusProbe
             "Projection lost known tick/map zero");
         return status;
     }
-    private sealed class ContextStub : RimGovernor.Host.Sdk.IRimBridgeContext, RimGovernor.Host.Sdk.IRimBridgeMainThread
-    {
-        public IDictionary<string, object> Arguments { get; set; } = new Dictionary<string, object>();
-        public RimGovernor.Host.Sdk.IRimBridgeMainThread MainThread => this;
-        public string OperationId => "probe";
-        public string CapabilityId => "probe";
-        public bool IsMainThread => true;
-        public Task InvokeAsync(Action action, CancellationToken token) => InvokeAsync<object>(() => { action(); return null!; }, token);
-        public int Invocations;
-        public Task<T> InvokeAsync<T>(Func<T> action, CancellationToken token)
-        {
-            token.ThrowIfCancellationRequested();
-            Invocations++;
-            return Task.FromResult(action());
-        }
-    }
-    private static Wire.StatusReply Decode(object envelope)
-    {
-        var fields = (Dictionary<string, object>)envelope;
-        // The envelope carries the payload plus, from a main-thread hop, the
-        // companion's own timing split; nothing else.
-        Check(fields["payload"] is string && fields.Count == (fields.ContainsKey(ProtoBoundary.TimingField) ? 2 : 1), "Exact typed payload envelope");
-        return RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.StatusReply>((string)fields["payload"]);
-    }
+    // The /native/{op} route decodes the request with WireJson before the core runs.
+    private static Wire.StatusReply Read(Wire.StatusRequest request) => NativeAuthorityTools.HandleReadStatus(
+        RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.StatusRequest>(RimGovernor.Contracts.Wire.WireJson.Serialize(request)));
     private static void EndpointAdmission()
     {
         var game = new Game(); Current.Game = game; Find.CurrentMap = new Map { uniqueID = 0 };
         Find.TickManager = new TickManager { TicksGame = 0 };
-        var endpoint = new NativeAuthorityTools(); var ctx = new ContextStub();
-        var missing = Decode(endpoint.ReadStatus(ctx, CancellationToken.None).GetAwaiter().GetResult());
-        Check(missing.Failure != null
-            && missing.Failure.Code == Common.FailureCode.InvalidRequest, "Missing request reaches typed failure");
-        Check(ctx.Invocations == 0, "Missing request entered game dispatcher");
-        Check(!NativeControlAuthority.TryGetForGame(game, out _), "Missing request allocated authority");
-        ctx.Arguments!["request"] = 42;
-        var nonString = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, 42).GetAwaiter().GetResult());
-        Check(nonString.Failure.Code == Common.FailureCode.InvalidRequest && ctx.Invocations == 0, "Non-string request was admitted");
-        var request = RimGovernor.Contracts.Wire.WireJson.Serialize(new Wire.StatusRequest { Identity = Context.Identity });
-        ctx.Arguments["request"] = request;
-        ctx.Arguments["extra"] = true;
-        Check(Decode(endpoint.ReadStatus(ctx, CancellationToken.None, request).GetAwaiter().GetResult()).Failure.Code
-            == Common.FailureCode.InvalidRequest && ctx.Invocations == 0, "Unknown outer argument was admitted");
-        ctx.Arguments.Remove("extra");
+        var missing = Read(new Wire.StatusRequest());
+        Check(missing.Failure != null, "Missing identity reaches typed failure");
+        Check(!NativeControlAuthority.TryGetForGame(game, out _), "Missing identity allocated authority");
+        var request = new Wire.StatusRequest { Identity = Context.Identity };
         for (int i = 0; i < 2; i++)
         {
-            var absent = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, request).GetAwaiter().GetResult());
+            var absent = Read(request);
             Check(absent.Status.Unavailable != null
                 && absent.Status.Unavailable.Reason == Common.UnavailableReason.NotObserved, "Missing state did not report unavailable");
             Check(absent.Status.Context.NativeGeneration == null, "Missing state fabricated authority generation");
             Check(!NativeControlAuthority.TryGetForGame(game, out _), "Read allocated native authority");
         }
-        Check(ctx.Invocations == 2, "Valid reads did not dispatch exactly once each");
-        var staleRequest = RimGovernor.Contracts.Wire.WireJson.Serialize(new Wire.StatusRequest { Identity = new Common.Identity
-            { ColonyId = "colony", LoadToken = "stale", MapId = 0 } });
-        ctx.Arguments["request"] = staleRequest;
-        var stale = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, staleRequest).GetAwaiter().GetResult());
+        var stale = Read(new Wire.StatusRequest { Identity = new Common.Identity { ColonyId = "colony", LoadToken = "stale", MapId = 0 } });
         Check(stale.Failure.Code == Common.FailureCode.StaleIdentity, "Stale identity accepted");
         Check(!NativeControlAuthority.TryGetForGame(game, out _), "Stale read allocated authority");
         var existing = NativeControlAuthority.ForGame(game);
-        ctx.Arguments["request"] = request;
-        var known = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, request).GetAwaiter().GetResult());
+        var known = Read(request);
         Check(known.Status.Context.NativeGeneration == 1, "Existing generation omitted");
         Check(known.Status.Unavailable != null
             && !existing.Status().Available && !existing.Status().Active, "Read enabled unverified authority");
@@ -115,18 +75,12 @@ internal static class NativeAuthorityStatusProbe
             "A second shutdown neither advances the generation nor loses the reason");
 
         Current.Game = null; Find.CurrentMap = null; Find.TickManager = null;
-        var endpoint = new NativeAuthorityTools(); var ctx = new ContextStub();
-        var request = RimGovernor.Contracts.Wire.WireJson.Serialize(new Wire.StatusRequest { Identity = Context.Identity });
-        ctx.Arguments!["request"] = request;
-        var read = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, request).GetAwaiter().GetResult());
+        var read = Read(new Wire.StatusRequest { Identity = Context.Identity });
         Check(read.Status != null && read.Status.Inactive != null
             && read.Status.Inactive.Reason == Wire.RevocationReason.Shutdown, "Unloaded game reads Inactive(SHUTDOWN)");
         Check(read.Status.Context.Identity.Equals(Context.Identity) && read.Status.Context.Tick == 43
             && read.Status.Context.NativeGeneration == 3, "Retained context carries the final identity, tick and generation");
-        var other = RimGovernor.Contracts.Wire.WireJson.Serialize(new Wire.StatusRequest { Identity = new Common.Identity
-            { ColonyId = "colony", LoadToken = "other", MapId = 0 } });
-        ctx.Arguments["request"] = other;
-        var unknown = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, other).GetAwaiter().GetResult());
+        var unknown = Read(new Wire.StatusRequest { Identity = new Common.Identity { ColonyId = "colony", LoadToken = "other", MapId = 0 } });
         Check(unknown.Failure != null && unknown.Failure.Code == Common.FailureCode.Unavailable,
             "Another identity still fails with no game loaded");
 
@@ -186,6 +140,6 @@ internal static class NativeAuthorityStatusProbe
         Check(unknown.Unavailable != null, "Unknown internal enum leaked onto wire");
         EndpointAdmission();
         Shutdown();
-        Console.WriteLine("Native authority status passed " + checks + " projection and endpoint-boundary assertions; SDK transport/native gameplay remain separate.");
+        Console.WriteLine("Native authority status passed " + checks + " projection and endpoint-core assertions; the route and native gameplay remain separate.");
     }
 }

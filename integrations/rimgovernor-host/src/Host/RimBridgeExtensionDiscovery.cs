@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using RimGovernor.Host.Core;
 using RimGovernor.Host.Sdk;
 using Verse;
@@ -65,6 +66,10 @@ internal static class RimBridgeExtensionDiscovery
                 var assembly = LoadBundledAssembly(candidate.AssemblyPath);
                 if (assembly != null)
                 {
+                    // A companion's startup is its module initializer: RimWorld runs no [StaticConstructorOnStartup]
+                    // in an assembly the host loads by file, so the host runs it here, on the game thread, once play
+                    // data has loaded and before the registry is published.
+                    RuntimeHelpers.RunModuleConstructor(assembly.ManifestModule.ModuleHandle);
                     result.Add(new LoadedCompanionAssembly
                     {
                         Assembly = assembly,

@@ -15,8 +15,8 @@ namespace HomeBridge.BridgeTools
 {
     /// <summary>
     /// Starts the in-process brain (#3115) when the game was launched with <see cref="InProcLaunch.Flag"/>; without the
-    /// flag nothing here runs, so no brain thread, database or telemetry file exists. Like the other two bootstraps this
-    /// is a module initializer, because the Bridge has no game-side startup hook. The initializer does no game work: it
+    /// flag nothing here runs, so no brain thread, database or telemetry file exists. <see cref="NativeStartup"/> starts
+    /// it, and the start does no game work: it
     /// schedules one task that waits (bounded) for the Defs, resolves the launch environment (<see cref="InProcEnvironment"/>),
     /// takes the HTTP channel's route table and starts <see cref="BrainHost"/>, and the host is stopped on process exit.
     /// Every failure is logged and none is thrown into the loading host.
@@ -35,14 +35,12 @@ namespace HomeBridge.BridgeTools
         private static BrainHost? host;
         private static HuntEstimateService? huntEstimates;
 
-#pragma warning disable CA2255 // See NativeFacadeBootstrap: the host has no startup hook for a plugin assembly.
-        [ModuleInitializer]
+        /// <summary>Called once by <see cref="NativeStartup"/>.</summary>
         internal static void Start()
         {
             if (!InProcLaunch.Requested(Environment.GetCommandLineArgs())) return;
             _ = Task.Run(RunAsync);
         }
-#pragma warning restore CA2255
 
         private static async Task RunAsync()
         {

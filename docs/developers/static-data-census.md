@@ -345,7 +345,6 @@ Kept, reason recorded:
 | ProtoLifecycleSaveTools.cs | 192 | state | Performs the trusted pause-gated checkpoint save with identity and tick re-verification and a request-outcome table. |  | none |
 | ProtoOverlayTools.cs | 110 | state | Draws a named controller overlay layer of cell shapes and labels on the map. |  | none |
 | ProtoPresentationMediaTools.cs | 71 | state | Reads and leases the controller rendering demand state. |  | none |
-| ReplyEncoder.cs | 52 | code | Bounded encoder-worker slot reservation for detached replies. |  | none |
 | RowDiff.cs | 57 | code | Per-row hash compare of a keyed family to report changed and removed ids. |  | none |
 | SnapshotFrames.cs | 282 | mixed | Captures one whole snapshot stream frame of all state families plus combat inputs in one hop. | CombatInputs copies mortar verbProps minRange and range and caps (64 doors, 16 mortars); hive ThingDefOf constant | ThingDef verbs (VerbProperties.minRange and range) of the turret gun def; caps as GameConstants (#2626) or Go |
 | SnapshotStream.cs | 300 | state | Opens the frame handoff and the pull read, schedules frame captures on ticks, pause edges and writes, and publishes frames. |  | none |

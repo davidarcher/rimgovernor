@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -21,7 +20,7 @@ namespace HomeBridge.BridgeTools
     /// available sections. Notifications are game-global, so any loaded map
     /// identity resolves; nothing here opens, dismisses or acknowledges.
     /// </summary>
-    public sealed class NativeNotificationReadTools
+    internal static class NativeNotificationReadTools
     {
         private const int DefaultLetterLimit = 40;
         private const int DefaultMessageLimit = 12;
@@ -31,16 +30,6 @@ namespace HomeBridge.BridgeTools
         private static readonly FieldInfo? LiveMessagesField = BridgeCommon.PrivateStaticField(typeof(Messages), "liveMessages");
         private static readonly FieldInfo? MessageStartingTimeField = BridgeCommon.PrivateInstanceField(typeof(Message), "startingTime");
         private static readonly FieldInfo? DiaOptionTextField = BridgeCommon.PrivateInstanceField(typeof(DiaOption), "text");
-
-        [Tool("rimgovernor/presentation_notifications", Title = "Read native notifications", Description = "Letter stack, live transient messages and active alerts as independently available sections, newest/loudest first with exact counts. Read-only: no open, dismiss, choice or acknowledgement.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON NotificationsReply; usable in headless and graphical games.", Always = true)]
-        public async Task<object> Notifications(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON NotificationsRequest string in raw transport value.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Presentation.NotificationsRequest>(ctx, "rimgovernor/presentation_notifications", request, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.NotificationsReply { Outcome = new Presentation.NotificationsReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleNotifications(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         internal static Presentation.NotificationsReply HandleNotifications(Presentation.NotificationsRequest request)
         {
@@ -62,11 +51,10 @@ namespace HomeBridge.BridgeTools
                         (Presentation.Alerts v) => new Presentation.AlertSection { Outcome = v }, u => new Presentation.AlertSection { Outcome = u }) };
                 return new Presentation.NotificationsReply { Outcome = snapshot };
             }
-            catch (Exception errorRead)
+            catch (Exception)
             {
-                return new Presentation.NotificationsReply { Outcome = ProtoBoundary.Fail(
-                    errorRead is NativePresentationReadTools.ReadLimit ? Common.FailureCode.CapacityExhausted : Common.FailureCode.Unavailable,
-                    errorRead is NativePresentationReadTools.ReadLimit ? errorRead.Message : "Native notifications could not be read completely.") };
+                return new Presentation.NotificationsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable,
+                    "Native notifications could not be read completely.") };
             }
         }
 

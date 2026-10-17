@@ -22,41 +22,8 @@ namespace HomeBridge.BridgeTools
     /// or DeferredSeconds); a worker publishes it, so the game thread never
     /// waits on a reader. Nothing is captured until a subscriber attaches: the
     /// brain through the facade, or the acceptance harness through the
-    /// observations_read_snapshot tool, which pulls the newest frame.
+    /// observations_read_snapshot op, which pulls the newest frame.
     /// </summary>
-    public sealed class SnapshotStreamTools
-    {
-        private const string ReadToolName = "rimgovernor/observations_read_snapshot";
-
-        [Tool(ReadToolName, Title = "Read snapshot",
-            Description = "Official SnapshotReadRequest ProtoJSON. Returns the newest captured snapshot frame (the first read subscribes the default shape), the frame head and the applied-write counter. Read-only.")]
-        [ToolResponse("payload", "string", "Official observations SnapshotReadReply ProtoJSON.", Always = true)]
-        public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a SnapshotReadRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.SnapshotReadRequest>(ctx, ReadToolName, request!, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.SnapshotReadReply { Outcome = new Obs.SnapshotReadReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(SnapshotStream.Read(parsed)), cancellationToken).ConfigureAwait(false);
-        }
-
-        private const string FlushToolName = "rimgovernor/observations_flush_snapshot";
-
-        [Tool(FlushToolName, Title = "Flush snapshot",
-            Description = "Official FlushSnapshotRequest ProtoJSON. Makes the next frame capture if an applied write is uncaptured (deferred writes, #1274). Returns without waiting for the capture.")]
-        [ToolResponse("payload", "string", "Official observations FlushSnapshotReply ProtoJSON.", Always = true)]
-        public Task<object> Flush(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a FlushSnapshotRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.FlushSnapshotRequest>(ctx, FlushToolName, request!, out _, out var failure))
-                return Task.FromResult<object>(ProtoBoundary.Encode(new Obs.FlushSnapshotReply { Outcome = new Obs.FlushSnapshotReplyOutcome.FailureCase(failure) }));
-            return Task.FromResult<object>(ProtoBoundary.Encode(HandleFlush()));
-        }
-
-        // Any thread: the typed core of the flush tool.
-        internal static Obs.FlushSnapshotReply HandleFlush() =>
-            new Obs.FlushSnapshotReply { Outcome = new Obs.FlushSnapshotReplyOutcome.FlushedCase(SnapshotStream.Flush()) };
-    }
-
     internal static class SnapshotStream
     {
         internal const int PeriodTicks = 60;

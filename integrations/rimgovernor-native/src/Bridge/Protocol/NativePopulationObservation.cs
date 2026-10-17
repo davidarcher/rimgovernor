@@ -22,19 +22,8 @@ namespace HomeBridge.BridgeTools
     // select a prisoner-interaction write. Single complete page, like
     // ReadStatus/ReadHusbandry/ReadPrisonerInteraction; a paginated population
     // is deferred to whatever candidate search eventually needs one.
-    public sealed class NativePopulationObservation
+    internal static class NativePopulationObservation
     {
-        [Tool("rimgovernor/observations_read_population", Title = "Read colony population and custody",
-            Description = "Official PopulationRequest ProtoJSON. Read current map humanlike population: admission, guest/prisoner status, recruitment eligibility, current exclusive interaction and owned bed. Single complete page 1..256; unavailable instead of truncation.")]
-        [ToolResponse("payload", "string", "Official observations PopulationReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadPopulation(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a PopulationRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.PopulationRequest>(ctx, "rimgovernor/observations_read_population", request!, out var parsed, out var failure)
-                || !ValidatePopulation(parsed, out failure)) return ProtoBoundary.Encode(new Obs.PopulationReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadPopulation(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         internal static Obs.PopulationReply HandleReadPopulation(Obs.PopulationRequest request)
         {
             if (!ValidatePopulation(request, out var failure0)) return new Obs.PopulationReply { Outcome = failure0 };

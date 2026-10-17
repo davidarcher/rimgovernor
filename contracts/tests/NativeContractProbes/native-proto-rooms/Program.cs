@@ -93,20 +93,10 @@ internal static class NativeProtoRoomsProbe
         foreach (var value in new[] { -20d, 0d, 100d }) Check((double)Call("Finite", value) == value, "Negative temperature/cleanliness and known zero preserved");
         foreach (var value in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity }) Refused(() => Call("Finite", value), "Nonfinite native fact cannot be a number");
         Refused(() => Wire("ListRoomsRequest", "{\"set\":true}"), "Mutation-shaped unknown field rejected");
-        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d,"RimGovernor.Host.dll")).First(File.Exists));
-        var binder = server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider",true)!.GetMethod("BindArguments",Flags)!;
-        foreach (var value in new object?[] { "{}", new Dictionary<string,object>(), new List<object>(), null, 1, false })
-        {
-            var bound = (object[])binder.Invoke(null,new object?[] { tools.GetMethod("ListRooms"),new Dictionary<string,object?> { ["request"]=value },null,CancellationToken.None })!;
-            Check(ReferenceEquals(bound[2],value),"SDK preserves raw boundary type");
-        }
-        var reply = (IDictionary)Call("Encode", Wire("ListRoomsReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"rooms\":[{\"id\":\"0\",\"temperatureC\":0,\"outdoors\":false,\"stats\":[{\"defName\":\"Wealth\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_READ_FAILED\"}}]}]}}}"));
-        var room = ((IList)Get(Get(Get(Wire("ListRoomsReply",(string)reply["payload"]!),"Outcome"),"Observed"),"Rooms"))[0]!;
-        Check(Get(room,"TemperatureC") is double temperatureC && temperatureC==0,"Known zero temperature survives encoding");
-        Check(Get(room,"Outdoors") is false,"Known indoor false survives encoding");
+        var room = ((IList)Get(Get(Get(Wire("ListRoomsReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"rooms\":[{\"id\":\"0\",\"temperatureC\":0,\"outdoors\":false,\"stats\":[{\"defName\":\"Wealth\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_READ_FAILED\"}}]}]}}}"),"Outcome"),"Observed"),"Rooms"))[0]!;
+        Check(Get(room,"TemperatureC") is double temperatureC && temperatureC==0,"Known zero temperature survives decoding");
+        Check(Get(room,"Outdoors") is false,"Known indoor false survives decoding");
         var stat = ((IList)Get(room,"Stats"))[0]!; Check(Get(stat,"Value")==null && Get(stat,"Unavailable")!=null,"Unavailable stat is not zero");
-        var oversized=(IDictionary)Call("Encode",Wire("ListRoomsReply","{\"outcome\":{\"type\":\"unavailable\",\"value\":{\"detail\":\""+new string('x',1024*1024)+"\"}}}"));
-        Check(Get(Get(Wire("ListRoomsReply",(string)oversized["payload"]!),"Outcome"),"Unavailable")!=null,"Oversized result refuses instead of truncating facts");
 
         // ---- N01.03: Project() fixture -- bed/stockpile membership + CAS token ----
         // Builds a minimal but real Room/District/Region/Map graph via reflection so

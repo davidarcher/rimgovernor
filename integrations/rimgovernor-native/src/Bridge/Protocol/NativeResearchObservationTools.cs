@@ -15,19 +15,8 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativeResearchObservationTools
+    internal static class NativeResearchObservationTools
     {
-        private const string ToolName = "rimgovernor/observations_read_research";
-        [Tool(ToolName, Title = "Read typed research", Description = "Complete research projects, native requirement gates and optional bench/researcher capability. Reads existing progress and slots without initializing saved research state. No research selection or UI changes.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ResearchReply; no invented CAS snapshot or frozen cursor.", Always = true)]
-        public async Task<object> ReadResearch(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ResearchRequest string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.ResearchRequest? parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ResearchReply { Outcome = new Obs.ResearchReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadResearch(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.ResearchReply HandleReadResearch(Obs.ResearchRequest parsed)
         {

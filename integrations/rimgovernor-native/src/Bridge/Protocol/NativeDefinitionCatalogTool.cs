@@ -6,7 +6,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using RimGovernor.Brain.Domain;
@@ -19,19 +18,8 @@ namespace HomeBridge.BridgeTools
     // buildable or sowable definition and every research project. They hold
     // for the whole load, so the controller reads them once per load token
     // and frames carry only per-map, per-tick values.
-    public sealed class NativeDefinitionCatalogTool
+    internal static class NativeDefinitionCatalogTool
     {
-        internal const string ToolName = "rimgovernor/observations_read_definition_catalog";
-
-        [Tool(ToolName, Title = "Read the definition catalog", Description = "What the game computes in code for the definitions the brain reads from its own Def objects: derived facts, per-race facts, the stat environment and class chains. Fixed for a load. Read-only.")]
-        [ToolResponse("payload", "string", "Official DefinitionCatalogReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadDefinitionCatalog(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw DefinitionCatalogRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.DefinitionCatalogRequest>(ctx, ToolName, request!, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.DefinitionCatalogReply { Outcome = new Obs.DefinitionCatalogReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadDefinitionCatalog(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.DefinitionCatalogReply HandleReadDefinitionCatalog(Obs.DefinitionCatalogRequest parsed)
@@ -64,7 +52,7 @@ namespace HomeBridge.BridgeTools
             {
                 // The brain builds its catalog over the load's def stat table right after this read, off the game thread.
                 NativeStatTable.EnsureForLoad(context.Identity.LoadToken);
-                return new Obs.DefinitionCatalogReply { Outcome = Read(context, (parsed.HeldFingerprint ?? "")) };
+                return new Obs.DefinitionCatalogReply { Outcome = Read(context) };
             }
             catch (Exception ex)
             {
@@ -73,12 +61,9 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static Obs.DefinitionCatalog Read(Common.ObservationContext context, string heldFingerprint)
+        private static Obs.DefinitionCatalog Read(Common.ObservationContext context)
         {
-            var fingerprint = NativeCatalogFingerprint.Value;
-            var catalog = new Obs.DefinitionCatalog { Context = context, Fingerprint = fingerprint, StatEnv = StatEnv() };
-            // The caller holds this static part: only what changes per load is sent.
-            if (heldFingerprint == fingerprint) return catalog;
+            var catalog = new Obs.DefinitionCatalog { Context = context, StatEnv = StatEnv() };
             // The reply carries no def rows or game constants (#3100): the in-process brain builds its catalog over the
             // game's Def objects (NativeCatalogFactory), so only what the game computes in code is sent.
             // The base chains of the def classes the game has.

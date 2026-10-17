@@ -107,8 +107,6 @@ namespace HomeBridge.BridgeTools
     // means ordered; the next census reads progress.
     internal static class NativeAcquire
     {
-        private const string Kind = "Acquire";
-
         private static AcquireRequest? Request(Operations.DesignateIntent intent) =>
             intent.Target != null && ProtoBoundary.IsIdentifier(intent.Target.Id) && intent.ExpectedDef is not null && ProtoBoundary.IsIdentifier(intent.ExpectedDef)
             && intent.Cell != null && intent.Cell.X is not null && intent.Cell.Z is not null && intent.Cell.X.GetValueOrDefault() >= 0 && intent.Cell.Z.GetValueOrDefault() >= 0

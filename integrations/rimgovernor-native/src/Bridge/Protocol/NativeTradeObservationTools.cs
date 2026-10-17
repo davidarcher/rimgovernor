@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
@@ -22,9 +21,6 @@ namespace HomeBridge.BridgeTools
     // issues an order.
     internal static class NativeTradeObservation
     {
-        internal const string TradersToolName = "rimgovernor/observations_list_traders";
-        internal const string SheetToolName = "rimgovernor/observations_read_trade_sheet";
-        internal const string SessionToolName = "rimgovernor/observations_read_trade_session";
 
         private static bool SafeBool(Func<bool> f) { try { return f(); } catch { return false; } }
         private static int SafeInt(Func<int> f) { try { return f(); } catch { return 0; } }
@@ -226,19 +222,8 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    public sealed class NativeTradeObservationTools
+    internal static class NativeTradeObservationTools
     {
-        [Tool(NativeTradeObservation.TradersToolName, Title = "List map traders and eligible negotiators",
-            Description = "Official TradersRequest ProtoJSON. Read-only census of every trader caravan pawn on the identified map and every colonist eligible to negotiate. Orbital trade ships share this census and open through a real comms job. Does not advance time.")]
-        [ToolResponse("payload", "string", "Official observations TradersReply ProtoJSON.", Always = true)]
-        public async Task<object> ListTraders(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a TradersRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, NativeTradeObservation.TradersToolName, request!, out Obs.TradersRequest? parsed, out var failure)
-                || parsed.Scope?.ExpectedIdentity == null) return ProtoBoundary.Encode(new Obs.TradersReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListTraders(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         internal static Obs.TradersReply HandleListTraders(Obs.TradersRequest request)
         {
             if (request.Scope?.ExpectedIdentity == null)
@@ -250,17 +235,6 @@ namespace HomeBridge.BridgeTools
                 new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trader census could not be read completely." } }; }
         }
 
-        [Tool(NativeTradeObservation.SessionToolName, Title = "Read the adapter's live trade session or walk",
-            Description = "Official TradeSessionRequest ProtoJSON. Read-only: the trader and negotiator of the native trade session this adapter holds (open=true), or of the negotiator still walking to open it (open=false); both absent when neither. Issues no order: a walk the game interrupted reads as absent. Does not advance time.")]
-        [ToolResponse("payload", "string", "Official observations TradeSessionReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadTradeSession(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a TradeSessionRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, NativeTradeObservation.SessionToolName, request!, out Obs.TradeSessionRequest? parsed, out var failure)
-                || parsed.Scope?.ExpectedIdentity == null) return ProtoBoundary.Encode(new Obs.TradeSessionReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadTradeSession(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         internal static Obs.TradeSessionReply HandleReadTradeSession(Obs.TradeSessionRequest request)
         {
             if (request.Scope?.ExpectedIdentity == null)
@@ -270,17 +244,6 @@ namespace HomeBridge.BridgeTools
             try { return new Obs.TradeSessionReply { Outcome = NativeTradeObservation.Session(context) }; }
             catch (Exception) { return new Obs.TradeSessionReply { Outcome =
                 new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trade session could not be read." } }; }
-        }
-
-        [Tool(NativeTradeObservation.SheetToolName, Title = "Read the open trade session's sheet",
-            Description = "Official TradeSheetRequest ProtoJSON. Read-only, complete and unfiltered sheet of the native trade session this adapter opened: every row with both sides' counts and prices, the current deal signature (also the snapshot token) and both affordability verdicts. Refuses when no session is open for the identity or the requested session_id is not the open one. Filters and pagination are not applied; the whole sheet is one page.")]
-        [ToolResponse("payload", "string", "Official observations TradeSheetReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadTradeSheet(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a TradeSheetRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, NativeTradeObservation.SheetToolName, request!, out Obs.TradeSheetRequest? parsed, out var failure)
-                || parsed.Scope?.ExpectedIdentity == null) return ProtoBoundary.Encode(new Obs.TradeSheetReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadTradeSheet(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         internal static Obs.TradeSheetReply HandleReadTradeSheet(Obs.TradeSheetRequest request)

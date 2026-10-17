@@ -24,8 +24,8 @@ namespace HomeBridge.BridgeTools
         private static int _inPlayerInput;
         private static float _lastMessage = float.NegativeInfinity;
 
-        /// <summary>Install once, from the first main-thread hop (ProtoBoundary).</summary>
-        internal static void Ensure()
+        /// <summary>Install once, from the native startup.</summary>
+        internal static void Install()
         {
             if (Interlocked.CompareExchange(ref _patched, 1, 0) != 0) return;
             try

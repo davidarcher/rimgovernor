@@ -19,20 +19,8 @@ namespace HomeBridge.BridgeTools
     // and are excluded here. A recipe read without bench_id is the definition
     // catalog: which player-buildable benches host a recipe and whether its
     // research is complete, so a planner can stage a bench before one exists.
-    public sealed class NativeBillsObservationTools
+    internal static class NativeBillsObservationTools
     {
-        internal const string BillsToolName = "rimgovernor/observations_read_bills";
-        internal const string RecipesToolName = "rimgovernor/observations_read_recipes";
-
-        [Tool(BillsToolName, Title = "Read typed bill census", Description = "Complete bill stacks of every spawned bench (IBillGiver building) on the current map, with a snapshot token of each ordered stack. Defaults to player benches; no bill changes.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON BillsReply.", Always = true)]
-        public async Task<object> ReadBills(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON BillsRequest string in raw transport value.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.BillsRequest>(ctx, BillsToolName, request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.BillsReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadBills(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.BillsReply HandleReadBills(Obs.BillsRequest parsed)
@@ -58,16 +46,6 @@ namespace HomeBridge.BridgeTools
                 return new Obs.BillsReply { Outcome = snapshot };
             }
             catch (Exception e) { return new Obs.BillsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, Failed("Bench or bill facts", e)) }; }
-        }
-
-        [Tool(RecipesToolName, Title = "Read typed bench recipes", Description = "The recipes of one bench (bench_id) with whether each is available now and on that bench, and the bench's definition. What a recipe makes, costs and needs is its RecipeDef row in the definition catalog.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON RecipesReply.", Always = true)]
-        public async Task<object> ReadRecipes(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON RecipesRequest string in raw transport value.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.RecipesRequest>(ctx, RecipesToolName, request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.RecipesReply { Outcome = failure });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadRecipes(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
@@ -148,8 +126,6 @@ namespace HomeBridge.BridgeTools
                 && (recipe.requiredGiverWorkType == null || recipe.requiredGiverWorkType == d.workType))
             .OrderBy(d => d.defName, StringComparer.Ordinal).Select(d => d.workType).FirstOrDefault();
 
-        private static Obs.EntityRef Entity(Thing thing, Map map) => new Obs.EntityRef { Id = Id(thing.GetUniqueLoadID()), DefName = Id(thing.def.defName),
-            Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap), MapId = map.uniqueID, Position = new Common.Cell { X = thing.Position.x, Z = thing.Position.z } };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         // The detail names the failure so a controller log is diagnosable

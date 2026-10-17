@@ -2,43 +2,16 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class ProtoGovernorStateTools
+    internal static class ProtoGovernorStateTools
     {
-        [Tool("rimgovernor/lifecycle_read_governor_state", Title = "Read governor state",
-            Description = "Read every opaque governor-state blob saved with the game (#882).")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.GovernorStateReply.", Always = true)]
-        public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle GovernorStateRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Lifecycle.GovernorStateRequest>(ctx, "rimgovernor/lifecycle_read_governor_state", request,
-                out _, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.GovernorStateReply { Outcome = new Lifecycle.GovernorStateReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleRead(), cancellationToken).ConfigureAwait(false);
-        }
-
         // On the game thread: the typed core of the read, shared with the in-process facade.
         internal static Lifecycle.GovernorStateReply HandleRead() => Reply();
-
-        [Tool("rimgovernor/lifecycle_put_governor_state_batch", Title = "Put governor state batch",
-            Description = "Replace the whole opaque ASCII governor-state blob set in one call; keys absent from the batch are removed. Runs off the game thread. Durable once the game next saves (#2357). The reply carries no blobs.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.GovernorStateReply.", Always = true)]
-        public async Task<object> PutBatch(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle PutGovernorStateBatchRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Lifecycle.PutGovernorStateBatchRequest>(ctx, "rimgovernor/lifecycle_put_governor_state_batch", request,
-                out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.GovernorStateReply { Outcome = new Lifecycle.GovernorStateReplyOutcome.FailureCase(failure) });
-            var reply = TryPut(parsed, out var set);
-            if (reply != null) return ProtoBoundary.Encode(reply);
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PutOnGameThread(set), cancellationToken).ConfigureAwait(false);
-        }
 
         // Off the game thread: validates the batch and stages it when the game already carries the component.
         // Null means a save that predates the component needs the game thread to attach it: PutOnGameThread(set).

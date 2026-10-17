@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -19,19 +18,8 @@ namespace HomeBridge.BridgeTools
     // Single complete page, like ReadStatus/ReadPopulation/ReadPrisonerInteraction;
     // a paginated herd is deferred to whatever candidate search eventually
     // drives a routine herd planner.
-    public sealed class NativeHusbandryObservation
+    internal static class NativeHusbandryObservation
     {
-        [Tool("rimgovernor/observations_read_husbandry", Title = "Read colony husbandry census",
-            Description = "Official HusbandryRequest ProtoJSON. Read current map player animals (plus factionless animals with include_wild): exact settings/census CAS tokens, training, tame, release and safe-to-slaughter eligibility facts. Single complete page 1..256; unavailable instead of truncation.")]
-        [ToolResponse("payload", "string", "Official observations HusbandryReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadHusbandry(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a HusbandryRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_husbandry", request!, out Obs.HusbandryRequest? parsed, out var failure)
-                || !ValidateHusbandry(parsed, out failure)) return ProtoBoundary.Encode(new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadHusbandry(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         internal static Obs.HusbandryReply HandleReadHusbandry(Obs.HusbandryRequest request)
         {
             if (!ValidateHusbandry(request, out var failure0)) return new Obs.HusbandryReply { Outcome = new Obs.HusbandryReplyOutcome.FailureCase(failure0) };

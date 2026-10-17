@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -13,18 +12,8 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools;
 
-public sealed class NativeRecipeActivity
+internal static class NativeRecipeActivity
 {
-    [Tool("rimgovernor/recipe_activity", Description = "Read every exact tailoring recipe, stuff, input, route and unfinished-work alternatives without selecting or issuing work.")]
-    public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken ct,
-        [ToolParameter(Description = "RecipeActivityRequest JSON.")] object? request = null)
-    {
-        if (!ProtoBoundary.TryParse<Obs.RecipeActivityRequest>(ctx, "rimgovernor/recipe_activity", request!, out var parsed, out _))
-            return ProtoBoundary.Encode(new Obs.RecipeActivityRead());
-        var result = await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed), ct).ConfigureAwait(false);
-        return ProtoBoundary.Encode(result);
-    }
-
     /// <summary>
     /// Every free colonist's tailoring alternatives at every bench, stuff, stack and accepting storage cell (#3341). A
     /// stack's carry and return legs and a bench's output legs are searched once for every colonist (NativePathLegs).

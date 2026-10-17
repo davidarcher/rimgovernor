@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -13,22 +12,11 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativeZoneObservationTools
+    internal static class NativeZoneObservationTools
     {
-        private const string ToolName = "rimgovernor/observations_list_zones";
         // A caller names at most this many zones by exact id (input bound).
         // Kept (docs/developers/contracts/kept-constants.md).
         private const int MaxIds = 16;
-
-        [Tool(ToolName, Title = "Read typed zones", Description = "Read exact zone identity, type, bounds and per-zone CAS snapshot tokens. Cells are included only when requested. No filter contents, stored resources, anomalies or crop-plant counts yet.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ListZonesReply. Unsupported facts are explicit.", Always = true)]
-        public async Task<object> ListZones(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ListZonesRequest string in raw transport value.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Obs.ListZonesRequest? parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListZonesReply { Outcome = new Obs.ListZonesReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListZones(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         internal static Obs.ListZonesReply HandleListZones(Obs.ListZonesRequest request)
         {

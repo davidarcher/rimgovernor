@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -14,19 +13,8 @@ using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativeBuildingObservationTools
+    internal static class NativeBuildingObservationTools
     {
-        internal const string ToolName = "rimgovernor/observations_list_buildings";
-
-        [Tool(ToolName, Title = "Read typed buildings", Description = "Read complete building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ListBuildingsReply. Unsupported facts are explicit.", Always = true)]
-        public async Task<object> ListBuildings(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ListBuildingsRequest string in raw transport value.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.ListBuildingsRequest>(ctx, ToolName, request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Outcome = new Obs.ListBuildingsReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListBuildings(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.ListBuildingsReply HandleListBuildings(Obs.ListBuildingsRequest parsed)

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -31,7 +30,6 @@ namespace HomeBridge.BridgeTools
     // caravan currently sits.
     internal static class NativeWorldObservation
     {
-        internal const string ToolName = "rimgovernor/observations_read_world";
 
         // Versioned over the observed FactionState facts (player, goodwill,
         // hostile).
@@ -67,19 +65,8 @@ namespace HomeBridge.BridgeTools
 
     }
 
-    public sealed class NativeWorldObservationTools
+    internal static class NativeWorldObservationTools
     {
-        [Tool(NativeWorldObservation.ToolName, Title = "Read settlements near a world tile",
-            Description = "Official WorldRequest ProtoJSON. Read-only settlements within settlement_radius tiles (default 0: exact tile) of the requested tile, each with fresh faction relation/goodwill and self-computed CAS tokens. WorldTile terrain facts are not yet implemented. Does not advance time or issue orders.")]
-        [ToolResponse("payload", "string", "Official observations WorldReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadWorld(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a WorldRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, NativeWorldObservation.ToolName, request!, out Obs.WorldRequest? parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.WorldReply { Outcome = new Obs.WorldReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadWorld(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         internal static Obs.WorldReply HandleReadWorld(Obs.WorldRequest request)
         {
             if (!Validate(request, out var failure))

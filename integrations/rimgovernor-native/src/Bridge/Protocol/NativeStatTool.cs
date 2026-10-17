@@ -3,7 +3,6 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -15,21 +14,8 @@ namespace HomeBridge.BridgeTools
     // definition (with optional stuff and quality), a thing or a pawn. The
     // definition path is GetStatValueAbstract and ShouldShowFor, so it is the
     // live oracle for the Go stat evaluator. Read-only; an unknown stat or subject is a typed failure.
-    public sealed class NativeStatTool
+    internal static class NativeStatTool
     {
-        internal const string ToolName = "rimgovernor/observations_evaluate_stat";
-
-        [Tool(ToolName, Title = "Evaluate a stat", Description = "Official EvaluateStatRequest ProtoJSON. Read-only: the game's final value, per-part explanation lines and ShouldShowFor for one stat of a definition (optional stuff and quality), a thing or a pawn. An unknown stat or subject is a NOT_FOUND failure.")]
-        [ToolResponse("payload", "string", "Official EvaluateStatReply ProtoJSON.", Always = true)]
-        public async Task<object> EvaluateStat(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be an EvaluateStatRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, out Obs.EvaluateStatRequest? parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Outcome = new Obs.EvaluateStatReplyOutcome.FailureCase(failure) });
-            if (parsed.Scope?.ExpectedIdentity == null || string.IsNullOrEmpty(parsed.Stat) || parsed.Subject?.Subject == null)
-                return ProtoBoundary.Encode(new Obs.EvaluateStatReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, stat and subject are required.") });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleEvaluateStat(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         internal static Obs.EvaluateStatReply HandleEvaluateStat(Obs.EvaluateStatRequest request)
         {

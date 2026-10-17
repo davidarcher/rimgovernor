@@ -1,27 +1,14 @@
 #nullable enable
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class ProtoIdentityTools
+    internal static class ProtoIdentityTools
     {
-        [Tool("rimgovernor/lifecycle_read_tick", Title = "Read native tick",
-            Description = "Read the current colony, load, map, tick, generation and pause state (force pause, time speed, force-pausing windows) without the capability list.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.TickReply.", Always = true)]
-        public async Task<object> ReadTick(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle TickRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Lifecycle.TickRequest>(ctx, "rimgovernor/lifecycle_read_tick", request,
-                out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.TickReply { Outcome = new Lifecycle.TickReplyOutcome.FailureCase(failure) });
-
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadTick(parsed), cancellationToken).ConfigureAwait(false);
-        }
         // On the game thread: the tick read, shared by the tool and the in-process facade.
         internal static Lifecycle.TickReply HandleReadTick(Lifecycle.TickRequest parsed)
         {
@@ -48,18 +35,6 @@ namespace HomeBridge.BridgeTools
             return new Lifecycle.TickReply { Outcome = loaded };
         }
 
-        [Tool("rimgovernor/lifecycle_read_identity", Title = "Read native identity",
-            Description = "Read the current colony, load, map and native contract capabilities.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.", Always = true)]
-        public async Task<object> ReadIdentity(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle IdentityRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Lifecycle.IdentityRequest>(ctx, "rimgovernor/lifecycle_read_identity", request,
-                out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.IdentityReply { Outcome = new Lifecycle.IdentityReplyOutcome.FailureCase(failure) });
-
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadIdentity(parsed), cancellationToken).ConfigureAwait(false);
-        }
         // On the game thread: the identity read, shared by the tool and the in-process facade.
         internal static Lifecycle.IdentityReply HandleReadIdentity(Lifecycle.IdentityRequest parsed)
         {

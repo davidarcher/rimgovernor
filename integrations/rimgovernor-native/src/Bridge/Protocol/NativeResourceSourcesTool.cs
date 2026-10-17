@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -22,19 +21,8 @@ namespace HomeBridge.BridgeTools
     // capacity is populated by Storage below. Extraction-development detail
     // stays unset (an explicit Unsupported failure when development is
     // requested).
-    public sealed class NativeResourceSourcesTool
+    internal static class NativeResourceSourcesTool
     {
-        private const string ToolName = "rimgovernor/observations_list_resource_sources";
-
-        [Tool(ToolName, Title = "Read reachable native resource sources", Description = "Every visible, safely reachable native mining or mature wild-plant sources for one exact output resource definition. Yields are estimates; only ordinary pawn labor produces actual stock. Extraction-development detail is not yet implemented by this adapter.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ResourceSourcesReply.", Always = true)]
-        public async Task<object> ListResourceSources(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ResourceSourcesRequest string in raw transport value.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, out Obs.ResourceSourcesRequest? parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Outcome = new Obs.ResourceSourcesReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListResourceSources(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         internal static Obs.ResourceSourcesReply HandleListResourceSources(Obs.ResourceSourcesRequest request)
         {

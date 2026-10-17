@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
-using RimGovernor.Host.Sdk;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
@@ -22,10 +21,8 @@ namespace HomeBridge.BridgeTools
     // see MapVisualReadyTracker below). Authority re-grant after a DISCONNECT
     // revocation is the ordinary SetMode path ; competing viewers and
     // Go-side transport reconnection remain separate, unimplemented capability.
-    public sealed class ProtoLifecycleLoadTools
+    internal static class ProtoLifecycleLoadTools
     {
-        private const string LoadToolName = "rimgovernor/lifecycle_load";
-        private const string ReadLoadToolName = "rimgovernor/lifecycle_read_load";
 
         // Bounded in-memory table of in-flight/recent load requests, guarded by
         // Lock. Only one load is ever actually "active" (native only ever calls
@@ -52,30 +49,6 @@ namespace HomeBridge.BridgeTools
                 RequestId = requestId; SaveName = saveName; ExpectedColonyIdentity = expectedColonyIdentity;
                 StartedUtc = startedUtc; TimeoutMs = timeoutMs; RequestedReadiness = requestedReadiness;
             }
-        }
-
-        [Tool(LoadToolName, Title = "Start a native load",
-            Description = "Start loading a named save into the running process. Returns LoadPending; poll rimgovernor/lifecycle_read_load for completion.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.LoadReply.", Always = true)]
-        public async Task<object> Load(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle LoadRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, LoadToolName, request, out Lifecycle.LoadRequest? parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadReplyOutcome.FailureCase(failure) });
-
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => StartLoad(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool(ReadLoadToolName, Title = "Read a native load's progress",
-            Description = "Poll a request_id from rimgovernor/lifecycle_load for LoadCompleted/LoadPending/LoadSuperseded/Failure.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.LoadReply.", Always = true)]
-        public async Task<object> ReadLoad(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle RequestStatus ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ReadLoadToolName, request, out Lifecycle.RequestStatus? parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadReplyOutcome.FailureCase(failure) });
-
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PollLoad(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // Call only on the game thread.

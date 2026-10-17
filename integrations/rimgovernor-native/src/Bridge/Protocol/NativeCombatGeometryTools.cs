@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -24,9 +23,8 @@ namespace HomeBridge.BridgeTools
     /// and, for a named pawn, the path ticks to each cell. Read-only, one
     /// main-thread hop.
     /// </summary>
-    public sealed class NativeCombatGeometryTools
+    internal static class NativeCombatGeometryTools
     {
-        private const string ToolName = "rimgovernor/combat_geometry";
         /// The caps, measured on lab-ranged against the 50 ms main-thread
         /// budget: 64 cells x 8 pawns took 1.3-6.6 ms of main thread
         /// (worst of 5 per run, path ticks included), about 13 ms at the caps.
@@ -35,17 +33,6 @@ namespace HomeBridge.BridgeTools
         internal const int MaxHostiles = 16;
         /// A firing_cells proposal's search radius cap.
         internal const int MaxRadius = 12;
-
-        [Tool(ToolName, Title = "Read combat geometry",
-            Description = "Official CombatGeometryRequest ProtoJSON. Cover, line of fire and colonist-in-path from each candidate cell to each hostile, and a named pawn's path ticks to each cell. An optional propose block adds ranked candidate cells for one role (cover_behind_line, adjacent_to_choke, firing_cells), scored alike; rescue_path returns the named pawn's route cells with a hostile line-of-fire and door flag each. At most 64 cells (named plus proposed) and 16 hostiles. Read-only.")]
-        [ToolResponse("payload", "string", "Official mirror CombatGeometryReply ProtoJSON.", Always = true)]
-        public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a CombatGeometryRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Mirror.CombatGeometryRequest>(ctx, ToolName, request!, out var parsed, out var failure)
-                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Mirror.CombatGeometryReply { Outcome = new Mirror.CombatGeometryReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleRead(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         internal static Mirror.CombatGeometryReply HandleRead(Mirror.CombatGeometryRequest request)
         {

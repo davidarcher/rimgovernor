@@ -20,10 +20,6 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -c Release -- n
 The executable loads the actual compiled adapter and the Contracts wire records.
 It checks request presence and decoder errors (`System.Text.Json.JsonException`), explicit evaluated refusal, material
 unavailability, complete geometry validation and oversized-response refusal.
-It also invokes the actual SDK argument binder against the production method and
-its root dictionary normalizer against ProtoBoundary.Encode. Missing and malformed
-raw values must reach boundary validation without SDK coercion. The binder is not
-a full journal invocation. The sibling native-proto-boundary probe uses explicit
-journal/game seams to check parsing and identity refusal. This suite creates no
+The sibling native-proto-boundary probe checks identifiers and identity reads. This suite creates no
 Game and seeds no native definitions; game placement, stock scans and absence
 of clock/camera/order changes require the separate native acceptance run.

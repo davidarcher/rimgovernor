@@ -60,8 +60,6 @@ internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilit
 
     public IReadOnlyList<DiscoveredTool> Tools { get; }
 
-    /// <summary>The tool classes this provider dispatches to, with the instance the host built for each (null when every tool is static).</summary>
-    public IReadOnlyList<ToolClass> ToolClasses => _toolClasses;
 
     public IEnumerable<RimBridgeCapabilityRegistration> GetCapabilities()
     {

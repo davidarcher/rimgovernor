@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -14,19 +13,8 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativeSuppliesObservationTools
+    internal static class NativeSuppliesObservationTools
     {
-        private const string ToolName = "rimgovernor/observations_list_supplies";
-        [Tool(ToolName, Title = "Read typed supply census", Description = "Complete stock by exact native definition. Defaults haulable/ours/includeHeld. Units retain all ownership buckets; ours selects definitions with usable units. Excludes worn gear, orbital stock and delivered construction resources.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON ListSuppliesReply. No sampled item/holder/corpse collections or invented CAS snapshots.", Always = true)]
-        public async Task<object> ListSupplies(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ListSuppliesRequest string in raw transport value.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.ListSuppliesRequest>(ctx, ToolName, request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ListSuppliesReply { Outcome = new Obs.ListSuppliesReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleListSupplies(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.ListSuppliesReply HandleListSupplies(Obs.ListSuppliesRequest parsed)
         {

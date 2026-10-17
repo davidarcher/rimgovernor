@@ -44,7 +44,6 @@ internal static class NativeProtoPresentationProbe
             roster = Wire("ColonistRosterRequest", "{" + identity + ",\"currentMapOnly\":" + value + "}");
             Check(Get(roster, "CurrentMapOnly") is bool currentMapOnly && currentMapOnly == (value == "true"), "Explicit map scope retained");
         }
-        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimGovernor.Host.dll")).First(File.Exists));
         foreach (var value in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
         {
             try { tools.GetMethod("Finite", Flags)!.Invoke(null, new object[] { value }); throw new Exception("Nonfinite camera accepted"); }
@@ -54,24 +53,12 @@ internal static class NativeProtoPresentationProbe
         var listing = tools.GetMethod("Listing", Flags)!.Invoke(null, new object[] { 0 })!;
         Check(Get(listing, "TotalCount") is uint totalCount && totalCount == 0
             && Get(listing, "Complete") is true && Get(listing, "Truncated") is false, "Complete empty selection differs from unavailable");
-        var binder = server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider", true)!.GetMethod("BindArguments", Flags)!;
-        foreach (var method in new[] { "Camera", "Selection", "Colonists" })
-            foreach (var value in new object?[] { "{}", new Dictionary<string, object>(), new List<object>(), null, 17, true })
-            {
-                var bound = (object[])binder.Invoke(null, new object?[] { tools.GetMethod(method),
-                    new Dictionary<string, object?> { ["request"] = value }, null, CancellationToken.None })!;
-                Check(ReferenceEquals(bound[2], value), "Real SDK preserves raw request: " + method);
-            }
         var reply = Wire("SelectionReply", "{\"outcome\":{\"type\":\"selection\",\"value\":{\"listing\":{\"totalCount\":0,\"returnedCount\":0,\"complete\":true,\"truncated\":false}}}}");
-        var envelope = tools.GetMethod("Encode", Flags)!.Invoke(null, new[] { reply })!;
-        var normalize = server.GetType("RimGovernor.Host.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
-        var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
-        Check(normalized.Count == 1 && normalized["payload"] is string, "SDK preserves sole ProtoJSON payload");
-        var selected = Get(Get(Wire("SelectionReply", (string)normalized["payload"]!), "Outcome"), "Selection");
+        var selected = Get(Get(reply, "Outcome"), "Selection");
         Check(Get(selected, "Fingerprint") == null && Get(selected, "VisibleGizmoCount") == null, "Unproven optional capture/gizmo facts remain absent");
         var unavailable = Wire("CameraReply", "{\"outcome\":{\"type\":\"failure\",\"value\":{\"code\":\"FAILURE_CODE_UNAVAILABLE\"}}}");
         Check(Get(Get(unavailable, "Outcome"), "Camera") == null, "Unavailable camera never becomes zero geometry");
-        Console.WriteLine(checks + " compiled presentation/SDK assertions passed; no gameplay assertions.");
+        Console.WriteLine(checks + " compiled presentation assertions passed; no gameplay assertions.");
         return 0;
     }
 }

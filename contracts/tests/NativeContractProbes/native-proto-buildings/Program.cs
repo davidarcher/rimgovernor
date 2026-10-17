@@ -51,20 +51,7 @@ internal static class NativeProtoBuildingsProbe
             Check(!Valid(request(fields)), "Invalid or unsupported request refused: " + fields);
         var ids = string.Join(",", Enumerable.Range(0, 257).Select(i => "\"thing" + i + "\""));
         Check(!Valid(request("\"ids\":[" + ids + "]")), "ID filter bound enforced");
-        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimGovernor.Host.dll")).First(File.Exists));
-        var binder = server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider", true)!.GetMethod("BindArguments", Flags)!;
-        foreach (var value in new object?[] { "{}", new Dictionary<string, object>(), new List<object>(), null, 17, true })
-        {
-            var bound = (object[])binder.Invoke(null, new object?[] { tools.GetMethod("ListBuildings"),
-                new Dictionary<string, object?> { ["request"] = value }, null, CancellationToken.None })!;
-            Check(ReferenceEquals(bound[2], value), "Real SDK preserves raw request");
-        }
-        var reply = Wire("ListBuildingsReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"burning\":false,\"usesHitPoints\":true,\"construction\":{\"resourcesComplete\":false}}],\"completeness\":{}}}}");
-        var envelope = tools.Assembly.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!.GetMethod("Encode", Flags)!.MakeGenericMethod(reply.GetType()).Invoke(null, new object[] { reply, false })!;
-        var normalize = server.GetType("RimGovernor.Host.LegacyToolExecution", true)!.GetMethod("ToDictionary", Flags)!;
-        var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
-        Check(normalized.Count == 1 && normalized["payload"] is string, "SDK retains sole ProtoJSON payload");
-        var snapshot = Get(Get(Wire("ListBuildingsReply", (string)normalized["payload"]!), "Outcome"), "Observed");
+        var snapshot = Get(Get(Wire("ListBuildingsReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"burning\":false,\"usesHitPoints\":true,\"construction\":{\"resourcesComplete\":false}}],\"completeness\":{}}}}"), "Outcome"), "Observed");
         var row = ((IList)Get(snapshot, "Buildings"))[0]!;
         Check(Get(row, "Burning") is false, "Known false burning retained");
         Check(Get(Get(row, "Building"), "Snapshot") == null, "No fabricated CAS snapshot");

@@ -123,8 +123,8 @@ Machine: not recorded. Run: none.
 
 Decided (user, 2026-10-13):
 
-- **Who starts it.** `BrainBootstrap` (Bridge, `Protocol/`) is a `[ModuleInitializer]` like `NativeFacadeBootstrap` and
-  `HttpChannelBootstrap`: the Bridge has no game-side startup hook. Without `-rimgovernor-inproc`
+- **Who starts it.** `BrainBootstrap.Start` (Bridge, `Protocol/`), called once by the mod's one startup,
+  `NativeStartup` ([native facade](native-facade.md)). Without `-rimgovernor-inproc`
   (`InProcLaunch.Requested(Environment.GetCommandLineArgs())`) it does nothing: no thread, database or file. With it,
   one task polls the game thread (a facade hop, so it is also "not yet" until the host has set up game-thread access)
   until `PlayDataLoader.Loaded` and the Defs exist, for up to 20 minutes; resolves the environment; takes the route

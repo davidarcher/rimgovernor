@@ -3,7 +3,6 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -16,7 +15,6 @@ namespace HomeBridge.BridgeTools
     // to Hands; these reads never open dialogs, queue incidents or charge goodwill.
     internal static class NativeTradeAcquisition
     {
-        internal const string ToolName = "rimgovernor/observations_read_trade_acquisition";
 
         // FactionDialogMaker writes these inline (no const or static field), so
         // GameConstants cannot carry them; this is their one native copy, shared
@@ -125,7 +123,7 @@ namespace HomeBridge.BridgeTools
         }
     }
 
-    public sealed class NativeTradeAcquisitionTools
+    internal static class NativeTradeAcquisitionTools
     {
         private static Obs.TradeAcquisition Read(Map map, Common.ObservationContext context, Obs.TradeAcquisitionRequest request)
         {
@@ -133,18 +131,6 @@ namespace HomeBridge.BridgeTools
             if (request.Pack != null) row = row with { Pack = NativeCaravanOperations.Preview(request.Pack, context) };
             return row;
         }
-        [Tool(NativeTradeAcquisition.ToolName, Title = "Read controllable trade prerequisites",
-            Description = "Official TradeAcquisitionRequest ProtoJSON. Read-only usable comms consoles and negotiators, all passing ships and native request eligibility, adjusted goodwill cost, post-payment relation, cooldown and arrival bounds. Unknown sampled arrival time stays absent. Issues no orders.")]
-        [ToolResponse("payload", "string", "Official TradeAcquisitionReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadTradeAcquisition(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a TradeAcquisitionRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.TradeAcquisitionRequest>(ctx, NativeTradeAcquisition.ToolName, request!, out var parsed, out var failure)
-                || parsed.Scope?.ExpectedIdentity == null)
-                return ProtoBoundary.Encode(new Obs.TradeAcquisitionReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandleReadTradeAcquisition(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
         internal static Obs.TradeAcquisitionReply HandleReadTradeAcquisition(Obs.TradeAcquisitionRequest request)
         {
             if (request.Scope?.ExpectedIdentity == null)

@@ -1,26 +1,13 @@
 #nullable enable
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimGovernor.Contracts.Wire.Placement;
 using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class PlacementPreviewsTools
+    internal static class PlacementPreviewsTools
     {
-        internal const string ToolName = "rimgovernor/placement_preview";
-
-        [Tool(ToolName, Title = "Placement preview",
-            Description = "Read ordinary native placement facts for 1..64 ordered candidates in one main-thread turn. request is the official ProtoJSON PlacementRequest string. No orders, clock, camera or god mode effects.")]
-        public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw transport value; must be a ProtoJSON PlacementRequest string with exact identity and 1..64 placements.", Required = true)] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<PlacementRequest>(ctx, ToolName, request!, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new PlacementReply { Outcome = failure });
-
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => HandlePreview(parsed, cancellationToken), cancellationToken).ConfigureAwait(false);
-        }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static PlacementReply HandlePreview(PlacementRequest parsed, CancellationToken cancellationToken)

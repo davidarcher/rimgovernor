@@ -33,7 +33,5 @@ namespace HomeBridge.BridgeTools
                     Detail = "Complete bounded recovery census is unavailable." } };
             }
         }
-        private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
-        private static Obs.EntityRef Entity(Thing t) => new Obs.EntityRef { Id = t.GetUniqueLoadID(), DefName = t.def.defName, MapId = t.Map.uniqueID, Position = Cell(t.Position) };
     }
 }

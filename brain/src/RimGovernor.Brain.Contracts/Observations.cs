@@ -10420,9 +10420,7 @@ public sealed record SnapshotStreamRequest
 /// The definition catalog: the generated def rows and the stat environment
 /// the planning views read (research projects are ResearchProjectDef rows of
 /// `defs`). `context` and `stat_env` are per load; every other field is static for
-/// the game process (defs load once at boot) and is the part `fingerprint` names.
-/// A read that sends `held_fingerprint` equal to the game's own gets only the per-load
-/// fields and `fingerprint`; any other read gets the static part too.
+/// the game process (defs load once at boot).
 /// </summary>
 public sealed record DefinitionCatalog
 {
@@ -10455,12 +10453,6 @@ public sealed record DefinitionCatalog
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<ThingDefFacts>))]
     public EquatableArray<ThingDefFacts> ThingFacts { get; init; }
-
-    /// <summary>
-    /// Names the static part: game version, language, and each active mod's id,
-    /// version and def-file write times. Always set.
-    /// </summary>
-    public string Fingerprint { get; init; } = "";
 }
 
 /// <summary>
@@ -10998,11 +10990,6 @@ public sealed record DefinitionCatalogRequest
     public ReadScope? Scope { get; init; }
 
     public bool? Creation { get; init; }
-
-    /// <summary>
-    /// The fingerprint of the static part the caller already holds (scoped reads only).
-    /// </summary>
-    public string? HeldFingerprint { get; init; }
 }
 
 /// <summary>

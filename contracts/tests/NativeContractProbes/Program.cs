@@ -35,14 +35,13 @@ internal static class NativeContractProbesDispatcher
                 case "native-authority-control": NativeAuthorityControlProbe.Invoke(); return 0;
                 case "native-authority-status": NativeAuthorityStatusProbe.Invoke(); return 0;
                 case "native-observation-work": NativeObservationWorkProbe.Invoke(); return 0;
-                case "native-reply-encoder": NativeReplyEncoderProbe.Invoke(); return 0;
                 case "native-threat-classifier": NativeThreatClassifierProbe.Invoke(); return 0;
                 case "native-acquisition-token": NativeAcquisitionTokenProbe.Invoke(); return 0;
                 case "native-construction-causality": NativeConstructionCausalityProbe.Invoke(); return 0;
                 case "native-ref-index": NativeRefIndexProbe.Invoke(); return 0;
 
                 // ---- Category 4: hybrid fake-Verse + real-DLL reflection ----
-                case "native-proto-boundary": NativeProtoBoundaryProbe.Invoke(rest); return 0;
+                case "native-proto-boundary": NativeProtoBoundaryProbe.Invoke(); return 0;
 
                 // ---- Category 3: reflection-over-real-compiled-DLL (args[0] = bridge DLL path) ----
                 case "native-movement-operations": NativeMovementOperationsProbe.Invoke(rest); return 0;
@@ -82,7 +81,7 @@ internal static class NativeContractProbesDispatcher
         foreach (var name in new[]
         {
             "native-authority", "native-authority-control", "native-authority-status",
-            "native-threat-classifier", "native-reply-encoder", "native-acquisition-token",
+            "native-threat-classifier", "native-acquisition-token",
             "native-proto-boundary",
             "native-movement-operations",
             "native-pawn-control-state", "native-pawn-observations", "native-proto-buildings",

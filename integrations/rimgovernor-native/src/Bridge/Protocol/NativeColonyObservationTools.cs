@@ -15,31 +15,8 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    public sealed class NativeColonyObservationTools
+    internal static class NativeColonyObservationTools
     {
-        internal const string ToolName = "rimgovernor/observations_read_colony_facts";
-
-        [Tool(ToolName, Title = "Read typed routine colony facts", Description = "Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional gear, edible crop and growing-environment planning facts; definitions are the definition catalog's. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.")]
-        [ToolResponse("payload", "string", "Official ColonyFactsReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw ColonyFactsRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Obs.ColonyFactsRequest>(ctx, ToolName, request!, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Outcome = new Obs.ColonyFactsReplyOutcome.FailureCase(failure) });
-            // Read on the game thread; delta and format on an
-            // encoder worker, since the delta digests the whole reply.
-            var lease = await ReplyEncoder.Reserve(cancellationToken).ConfigureAwait(false);
-            if (lease == null) return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted,
-                "Colony facts reply encoders stayed saturated for " + ReplyEncoder.ReserveTimeoutMs + " ms; nothing was read.") });
-            try
-            {
-                var captured = await ProtoBoundary.CaptureOnMainThread(ctx, () => HandleReadColonyFacts(parsed), cancellationToken).ConfigureAwait(false);
-                var owned = lease; lease = null;
-                return await ProtoBoundary.EncodeDetached(captured, owned, reply => EncodeFacts(reply, parsed), cancellationToken).ConfigureAwait(false);
-            }
-            finally { lease?.Dispose(); }
-        }
-
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.ColonyFactsReply HandleReadColonyFacts(Obs.ColonyFactsRequest parsed)
         {
@@ -48,12 +25,6 @@ namespace HomeBridge.BridgeTools
                 return new Obs.ColonyFactsReply { Outcome = invalid };
             try { return new Obs.ColonyFactsReply { Outcome = Read(map, parsed, context) }; }
             catch (Exception error) { ModLog.Error("observe", "Colony facts read failed: " + error); return new Obs.ColonyFactsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native colony facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }; }
-        }
-
-        private static Dictionary<string, object?> EncodeFacts(Obs.ColonyFactsReply reply, Obs.ColonyFactsRequest parsed)
-        {
-            if (reply.Outcome?.Observed == null) return ProtoBoundary.Encode(reply);
-            return ProtoBoundary.Encode(reply, compact: true);
         }
 
         internal static bool Validate(Obs.ColonyFactsRequest request, out Common.Failure failure)
@@ -495,7 +466,6 @@ namespace HomeBridge.BridgeTools
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
         private static Obs.MapSize Size(Map map) => new Obs.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
         private static double Finite(double v) => double.IsNaN(v) || double.IsInfinity(v) ? throw new InvalidOperationException("Nonfinite fact.") : v;
-        private static double Nonnegative(double v) => Finite(v) >= 0 ? v : throw new InvalidOperationException("Negative fact.");
         private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source)
         {
             var result = new Obs.ForecastFacts { CombinedFoodSupply = Food(source.combinedFoodSupply),

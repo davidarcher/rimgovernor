@@ -20,10 +20,8 @@ namespace HomeBridge.BridgeTools
     // by request_id, never to poll an in-progress save. Reconnect session
     // semantics, competing viewers and media/control ownership are separate,
     // unimplemented capability.
-    public sealed class ProtoLifecycleSaveTools
+    internal static class ProtoLifecycleSaveTools
     {
-        private const string ToolName = "rimgovernor/lifecycle_save";
-        private const string ReadToolName = "rimgovernor/lifecycle_read_save";
 
         // Bounded in-memory table of recent save outcomes, guarded by Lock, so
         // ReadSave can answer a request_id whose original reply the caller
@@ -38,30 +36,6 @@ namespace HomeBridge.BridgeTools
             public readonly DateTime RecordedUtc;
             public readonly Lifecycle.SaveReply Reply;
             public Entry(string requestId, DateTime recordedUtc, Lifecycle.SaveReply reply) { RequestId = requestId; RecordedUtc = recordedUtc; Reply = reply; }
-        }
-
-        [Tool(ToolName, Title = "Trusted native save checkpoint",
-            Description = "Verify identity/tick/pause, perform a single native save and re-verify nothing moved.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.SaveReply.", Always = true)]
-        public async Task<object> Save(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle SaveRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request, out Lifecycle.SaveRequest? parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveReplyOutcome.FailureCase(failure) });
-
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Apply(parsed), cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool(ReadToolName, Title = "Read a prior native save's outcome",
-            Description = "Re-read a rimgovernor/lifecycle_save request_id's exact SaveCompleted/SaveUncertain/Failure outcome after a lost reply.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.SaveReply.", Always = true)]
-        public async Task<object> ReadSave(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official lifecycle RequestStatus ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ReadToolName, request, out Lifecycle.RequestStatus? parsed, out var failure))
-                return ProtoBoundary.Encode(new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveReplyOutcome.FailureCase(failure) });
-
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => PollSave(parsed), cancellationToken).ConfigureAwait(false);
         }
 
         // Call only on the game thread.

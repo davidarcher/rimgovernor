@@ -2,8 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using HomeBridge.BridgeTools;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -20,37 +18,23 @@ internal static class NativeAuthorityControlProbe
     private static NativeControlAuthority state = null!;
     private static readonly Common.Identity Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 };
     private static void Check(bool condition, string text) { checks++; if (!condition) throw new Exception(text); }
-    private sealed class Context : RimGovernor.Host.Sdk.IRimBridgeContext, RimGovernor.Host.Sdk.IRimBridgeMainThread
+    // The /native/{op} route decodes the request with WireJson before the core runs, so a
+    // request goes through JSON exactly as it would over the route.
+    private static Wire.ControlReply Call(Wire.ControlRequest request)
     {
-        public IDictionary<string, object> Arguments { get; set; } = new Dictionary<string, object>();
-        public RimGovernor.Host.Sdk.IRimBridgeMainThread MainThread => this;
-        public string OperationId => "probe";
-        public string CapabilityId => "probe";
-        public bool IsMainThread => true;
-        public Task InvokeAsync(Action action, CancellationToken token) => InvokeAsync<object>(() => { action(); return null!; }, token);
-        public int Invocations;
-        public Task<T> InvokeAsync<T>(Func<T> action, CancellationToken token)
-        { token.ThrowIfCancellationRequested(); Invocations++; return Task.FromResult(action()); }
-    }
-    private static Wire.ControlReply Decode(object value)
-    {
-        var envelope = (Dictionary<string, object>)value;
-        // payload plus, from a main-thread hop, the companion's timing split; nothing else.
-        Check(envelope["payload"] is string && envelope.Count == (envelope.ContainsKey(ProtoBoundary.TimingField) ? 2 : 1), "payload envelope");
-        var reply = RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.ControlReply>((string)envelope["payload"]);
+        var decoded = RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.ControlRequest>(RimGovernor.Contracts.Wire.WireJson.Serialize(request));
+        var reply = NativeAuthorityControlTools.Apply(decoded);
         Check(reply.Equals(RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.ControlReply>(RimGovernor.Contracts.Wire.WireJson.Serialize(reply))), "JSON preserves reply");
         return reply;
     }
-    private static Wire.ControlReply Call(Wire.ControlRequest request) => CallJson(RimGovernor.Contracts.Wire.WireJson.Serialize(request));
     // A wire enum value outside the schema cannot be held by a record (the encoder refuses it), so it is sent as raw JSON text.
     private static string UndefinedEnum(Wire.ControlRequest request, string member) =>
         System.Text.RegularExpressions.Regex.Replace(RimGovernor.Contracts.Wire.WireJson.Serialize(request), "\"" + member + "\":\"[^\"]*\"", "\"" + member + "\":\"UNDEFINED_999\"");
-    private static Wire.ControlReply CallJson(string json, int dispatches = 1)
+    // JSON the wire records refuse never reaches the core: the route answers 400 invalid_request.
+    private static bool Undecodable(string json)
     {
-        var ctx = new Context(); ctx.Arguments!["request"] = json;
-        var reply = Decode(new NativeAuthorityControlTools().Control(ctx, CancellationToken.None, json).GetAwaiter().GetResult());
-        Check(ctx.Invocations == dispatches, dispatches == 1 ? "valid JSON must dispatch once" : "undefined enum value must be refused before dispatch");
-        return reply;
+        try { RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.ControlRequest>(json); return false; }
+        catch (System.Text.Json.JsonException) { return true; }
     }
     private static Wire.ControlRequest SetMode(Wire.Mode mode, ulong? generation = null) => new() { Operation = new Wire.SetMode
     {
@@ -77,19 +61,10 @@ internal static class NativeAuthorityControlProbe
     private static void Boundary()
     {
         Current.Game = new Game(); Find.CurrentMap = new Map(); Find.TickManager = new TickManager();
-        var ctx = new Context(); var endpoint = new NativeAuthorityControlTools();
-        Failure(Decode(endpoint.Control(ctx, CancellationToken.None).GetAwaiter().GetResult()), Common.FailureCode.InvalidRequest);
-        ctx.Arguments!["request"] = 5;
-        Failure(Decode(endpoint.Control(ctx, CancellationToken.None, 5).GetAwaiter().GetResult()), Common.FailureCode.InvalidRequest);
         foreach (var json in new[] { "null", "{", "{\"unknown\":true}", "{\"setMode\":{\"expectedGeneration\":\"-1\"}}",
             "{\"acquire\":{\"expectedGeneration\":\"1\"}}", "{\"renew\":{\"expectedGeneration\":\"1\"}}" })
-        {
-            ctx.Arguments["request"] = json;
-            Failure(Decode(endpoint.Control(ctx, CancellationToken.None, json).GetAwaiter().GetResult()), Common.FailureCode.InvalidRequest);
-        }
-        ctx.Arguments["request"] = "{}"; ctx.Arguments["extra"] = false;
-        Failure(Decode(endpoint.Control(ctx, CancellationToken.None, "{}").GetAwaiter().GetResult()), Common.FailureCode.InvalidRequest);
-        Check(ctx.Invocations == 0, "invalid boundary invoked game thread");
+            Check(Undecodable(json) || NativeAuthorityControlTools.Apply(RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.ControlRequest>(json) ?? new Wire.ControlRequest()).Failure?.Code == Common.FailureCode.InvalidRequest,
+                "malformed control refused: " + json);
         Check(!NativeControlAuthority.TryGetForGame(Current.Game, out _), "malformed control allocated state");
         Failure(Call(new Wire.ControlRequest()), Common.FailureCode.InvalidRequest);
         Check(!NativeControlAuthority.TryGetForGame(Current.Game, out _), "missing operation allocated state");
@@ -105,7 +80,7 @@ internal static class NativeAuthorityControlProbe
             var request = WithSetMode(SetMode(Wire.Mode.Auto), mutate); Failure(Call(request), Common.FailureCode.InvalidRequest);
             Check(state.Status().Generation == generation && !state.Status().Active, "invalid set_mode mutated state");
         }
-        Failure(CallJson(UndefinedEnum(SetMode(Wire.Mode.Auto), "mode"), 0), Common.FailureCode.InvalidRequest);
+        Check(Undecodable(UndefinedEnum(SetMode(Wire.Mode.Auto), "mode")), "undefined set_mode mode refused before dispatch");
         Check(state.Status().Generation == generation && !state.Status().Active, "undefined set_mode mode mutated state");
         var stale = WithSetMode(SetMode(Wire.Mode.Auto), s => s with { Identity = s.Identity with { LoadToken = "old" } });
         Failure(Call(stale), Common.FailureCode.StaleIdentity);
@@ -166,7 +141,7 @@ internal static class NativeAuthorityControlProbe
             Wire.RevocationReason.ExternalOrder, Wire.RevocationReason.IdentityChanged, Wire.RevocationReason.HooksUnavailable,
             Wire.RevocationReason.GenerationExhausted, Wire.RevocationReason.Unavailable })
             Failure(Call(Revoke(reason)), Common.FailureCode.InvalidRequest);
-        Failure(CallJson(UndefinedEnum(Revoke(Wire.RevocationReason.Manual), "reason"), 0), Common.FailureCode.InvalidRequest);
+        Check(Undecodable(UndefinedEnum(Revoke(Wire.RevocationReason.Manual), "reason")), "undefined revoke reason refused before dispatch");
         foreach (Func<Wire.Revoke, Wire.Revoke> mutate in new Func<Wire.Revoke, Wire.Revoke>[] {
             r => r with { ExpectedGeneration = null }, r => r with { ExpectedGeneration = 0 }, r => r with { Reason = null }, r => r with { Identity = null } })
         {

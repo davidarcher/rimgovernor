@@ -83,22 +83,11 @@ internal static class NativeProtoResearchProbe
         knowledge[def] = float.NaN;
         Refused(() => Call("Progress", def, progress, knowledge, true), "Corrupt stored progress rejected");
 
-        var server = Assembly.LoadFrom(directories.Select(d => Path.Combine(d, "RimGovernor.Host.dll")).First(File.Exists));
-        var binder = server.GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider", true)!.GetMethod("BindArguments", Flags)!;
-        foreach (var value in new object?[] { "{}", new Dictionary<string, object>(), new List<object>(), null, 17, true })
-        {
-            var bound = (object[])binder.Invoke(null, new object?[] { tools.GetMethod("ReadResearch"),
-                new Dictionary<string, object?> { ["request"] = value }, null, CancellationToken.None })!;
-            Check(ReferenceEquals(bound[2], value), "SDK preserves raw request for strict boundary");
-        }
-        var envelope = (IDictionary)Call("Encode", Wire("ResearchReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"projects\":[{\"progress\":0,\"finished\":false,\"canStart\":false}],\"slots\":[{}]}}}"));
-        var observed = Get(Get(Wire("ResearchReply", (string)envelope["payload"]!), "Outcome"), "Observed");
+        var observed = Get(Get(Wire("ResearchReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"projects\":[{\"progress\":0,\"finished\":false,\"canStart\":false}],\"slots\":[{}]}}}"), "Outcome"), "Observed");
         var row = ((IList)Get(observed, "Projects"))[0]!;
         Check(Get(row, "Progress") is double progressValue && progressValue == 0, "Known zero progress retained");
         Check(Get(row, "CanStart") is false, "Known false eligibility retained");
         Check(Get(observed, "Snapshot") == null, "No fabricated CAS token");
-        var oversized = (IDictionary)Call("Encode", Wire("ResearchReply", "{\"outcome\":{\"type\":\"unavailable\",\"value\":{\"detail\":\"" + new string('x', 1024 * 1024) + "\"}}}"));
-        Check(Get(Get(Wire("ResearchReply", (string)oversized["payload"]!), "Outcome"), "Unavailable") != null, "Oversized reply refuses instead of truncating facts");
 
         // N01.03: Capability() (bench/facility/researcher projection) and Read()'s Anomaly
         // path (ModsConfig.AnomalyActive, KnowledgeCategoryProject, EntityCodex.Hidden) cannot

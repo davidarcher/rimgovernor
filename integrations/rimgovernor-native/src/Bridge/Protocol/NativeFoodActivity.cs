@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -14,19 +13,9 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 namespace HomeBridge.BridgeTools;
 
 /// <summary>Native legality and route observations. No orders, demand or economic selection.</summary>
-public sealed class NativeFoodActivity
+internal static class NativeFoodActivity
 {
     internal static bool Available(Pawn pawn) => pawn.CurJob == null || pawn.CurJob.def == JobDefOf.Wait || pawn.CurJob.def == JobDefOf.Wait_Wander || pawn.CurJob.def == JobDefOf.GotoWander;
-    [Tool("rimgovernor/food_activity", Description = "Read eligible harvest/delivery routes and current loose food. Read-only FoodActivityRequest; known=false is unavailable, truncated=true is an incomplete cooking search.")]
-    public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken ct,
-        [ToolParameter(Description = "FoodActivityRequest JSON.")] object? request = null)
-    {
-        if (!ProtoBoundary.TryParse<Obs.FoodActivityRequest>(ctx, "rimgovernor/food_activity", request!, out var parsed, out _))
-            return ProtoBoundary.Encode(new Obs.FoodActivityRead());
-        var result = await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed), ct).ConfigureAwait(false);
-        return ProtoBoundary.Encode(result);
-    }
-
     /// <summary>
     /// Every free colonist's harvest and haul rows for the asked plants (or, executing, the one pawn's), to every
     /// accepting storage cell (#3341). A source's route to a cell is searched once for every colonist (NativePathLegs).

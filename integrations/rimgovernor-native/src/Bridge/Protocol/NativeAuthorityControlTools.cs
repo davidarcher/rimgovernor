@@ -1,7 +1,6 @@
 #nullable enable
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Host.Sdk;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Authority = RimGovernor.Contracts.Wire.Authority;
@@ -10,19 +9,8 @@ namespace HomeBridge.BridgeTools
 {
     // The authenticated host exposes this capability only to its explicit player-control owner.
     // Model/operation dispatch holds no mode-setting capability; direction is a CAS identity, not authentication.
-    public sealed class NativeAuthorityControlTools
+    internal static class NativeAuthorityControlTools
     {
-        private const string ToolName = "rimgovernor/authority_control";
-
-        [Tool(ToolName, Title = "Native player control authority", Description = "Trusted host player-control path only. Set or revoke native authority mode using exact identity and generation.")]
-        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.authority.v1.ControlReply.", Always = true)]
-        public async Task<object> Control(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON ControlRequest. Never exposed to model dispatch.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse<Authority.ControlRequest>(ctx, ToolName, request, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Authority.ControlReply { Outcome = new Authority.ControlReplyOutcome.FailureCase(failure) });
-            return await ProtoBoundary.OnMainThreadEncoded(ctx, () => Apply(parsed), cancellationToken).ConfigureAwait(false);
-        }
 
         internal static Authority.ControlReply Apply(Authority.ControlRequest request)
         {

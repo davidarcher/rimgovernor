@@ -73,7 +73,6 @@ Contracts|Observations.CropForecast.SowWork
 Contracts|Observations.CropForecast.StalledPlants
 Contracts|Observations.CropForecast.StandingYield
 Contracts|Observations.CurvePointRow.Y
-Contracts|Observations.DefinitionCatalog.Fingerprint
 Contracts|Observations.DefinitionCatalogReplyOutcome.Creation
 Contracts|Observations.FactionState.Relation
 Contracts|Observations.FilthState.Cleanable
