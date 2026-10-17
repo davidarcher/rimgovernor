@@ -475,12 +475,12 @@ memory), `test/mood_thoughts` (a named memory scaled to a mood size), `test/part
 active state, not a prediction from mood, and are absent when no state is active. the brain
 projects them as `EmergencyPawn.MentalState`, a `Fact[policy.MentalState]`; missing
 fields leave it unknown. Worker eligibility uses mental-state presence.
-`pawn/mental-state` uses the test-only `test/mental_state_berserk` fixture and
-verifies both reads.
+`pawn/mental-state` stages Berserk on a colonist through `test/stage` (`StagePawn.MentalState`)
+and verifies both reads.
 
 **Inspiration.** Pawn rows carry `inspiration`, the current `InspirationDef`
 defName. An empty string is a known "no inspiration"; the field is absent when the
 pawn has no inspiration handler, and the brain keeps that unknown. It reaches
 `policy.PawnProfile.Inspiration` through `WorkPawn.Inspiration`; nothing acts on it.
-`pawn/inspiration` uses the test-only `test/inspire_creativity` fixture and reads
-`Inspired_Creativity` back through the profile.
+`pawn/inspiration` stages `Inspired_Creativity` through `test/stage` (`StagePawn.Inspiration`)
+and reads it back through the profile.

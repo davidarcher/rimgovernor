@@ -4,9 +4,9 @@ using System.Collections.Generic;
 namespace RimGovernor.Fixtures.Contracts;
 
 /// <summary>
-/// What <c>test/stage</c> builds on the loaded map in one call, primitive by primitive and in this order: find the
-/// site, clear areas, set cells, build rooms, place buildings, spawn things, spawn or set pawns (with the raid's arrival
-/// mode and lords), then zones. Every cell and rect is relative to the found site's south-west corner, or absolute when
+/// What <c>test/stage</c> builds on the loaded game in one call, primitive by primitive and in this order: research,
+/// world, find the site, clear areas, set cells, build rooms, place buildings, spawn things, spawn or set pawns (with
+/// the raid's arrival mode and lords), zones, fire incidents, then generate quests. Every cell and rect is relative to the found site's south-west corner, or absolute when
 /// there is no site. Def names are the game's; the fixture resolves each by name and refuses an unknown one. A name keys
 /// what an entry made in the <see cref="StageReply"/>.
 /// </summary>
@@ -23,6 +23,12 @@ public sealed record StageSpec
     /// mid-fight (a combat case adds a manhunter to a served window).
     /// </summary>
     public bool Paused { get; init; }
+
+    /// <summary>Research projects finished or set to a progress, in list order.</summary>
+    public IReadOnlyList<StageResearch> Research { get; init; } = [];
+
+    /// <summary>The world's outdoor temperature and clock; null leaves both.</summary>
+    public StageWorld? World { get; init; }
 
     /// <summary>The site the rest of the spec is laid out on; null lays it out on absolute cells.</summary>
     public StageSite? Site { get; init; }
@@ -44,6 +50,80 @@ public sealed record StageSpec
 
     /// <summary>How the staged hostiles arrive and fight; null spawns them at their cells under an assault lord.</summary>
     public StageRaid? Raid { get; init; }
+
+    /// <summary>Incidents fired through the game's own incident workers once everything else is staged.</summary>
+    public IReadOnlyList<StageIncident> Incidents { get; init; } = [];
+
+    /// <summary>Quests generated from their scripts and offered, last.</summary>
+    public IReadOnlyList<StageQuest> Quests { get; init; } = [];
+}
+
+/// <summary>
+/// Research: the ResearchProjectDef finished (its prerequisites are left as they are), or, with Progress, set to that
+/// fraction of its base cost and left unfinished.
+/// </summary>
+public sealed record StageResearch
+{
+    public required string Def { get; init; }
+
+    /// <summary>0..1 of the base cost; null finishes the project.</summary>
+    public float? Progress { get; init; }
+}
+
+/// <summary>World: each non-null field is set before anything on the map is staged.</summary>
+public sealed record StageWorld
+{
+    /// <summary>
+    /// Pins the outdoor (and seasonal) temperature in °C, as a lab start pins it, and holds the weather; the pin persists
+    /// in the save.
+    /// </summary>
+    public float? OutdoorTemperature { get; init; }
+
+    /// <summary>Moves the game clock forward (0..23 game hours) to the start of this local hour of the current map.</summary>
+    public int? Hour { get; init; }
+}
+
+/// <summary>
+/// Fire incident: the IncidentDef executed now, forced, with the storyteller's default parms for its category at the map
+/// and the fields below over them. A def the game cannot fire now refuses the staging.
+/// </summary>
+public sealed record StageIncident
+{
+    public required string Name { get; init; }
+
+    public required string Def { get; init; }
+
+    /// <summary>Threat points; null keeps the storyteller's.</summary>
+    public float? Points { get; init; }
+
+    /// <summary>
+    /// A TraderKindDef the arrivals trade as; the faction becomes the first non-hostile one whose caravans or visitors
+    /// carry it.
+    /// </summary>
+    public string? TraderKind { get; init; }
+}
+
+/// <summary>
+/// Generate quest: the QuestScriptDef generated through the native storyteller path and offered, not yet accepted. A
+/// script whose root refuses its test run, or a quest that comes out hidden or already accepted, refuses the staging.
+/// </summary>
+public sealed record StageQuest
+{
+    public required string Name { get; init; }
+
+    public required string Script { get; init; }
+
+    /// <summary>The points slate value; null takes the map's default threat points.</summary>
+    public float? Points { get; init; }
+
+    /// <summary>A floor under Points (the quiet storyteller's points are below what a raid part can generate).</summary>
+    public float MinPoints { get; init; }
+
+    /// <summary>Lifts the quiet storyteller's ban on violent quests for this one generation.</summary>
+    public bool AllowViolent { get; init; }
+
+    /// <summary>Above zero holds the offer open this many days.</summary>
+    public int ExpireDays { get; init; }
 }
 
 /// <summary>One map cell.</summary>
@@ -270,7 +350,8 @@ public sealed record StagePawn
 
     public int StunTicks { get; init; }
 
-    public required StageCell Cell { get; init; }
+    /// <summary>Where the pawn stands; null leaves an existing colonist where it is (a generated pawn needs a cell).</summary>
+    public StageCell? Cell { get; init; }
 
     /// <summary>Every work type the pawn can do at this priority (0..4), before Work.</summary>
     public int? AllWork { get; init; }
@@ -292,6 +373,12 @@ public sealed record StagePawn
 
     /// <summary>The label of an existing drug policy.</summary>
     public string? DrugPolicy { get; init; }
+
+    /// <summary>A MentalStateDef the pawn is forced into (woken first); its failing to start refuses the staging.</summary>
+    public string? MentalState { get; init; }
+
+    /// <summary>An InspirationDef the pawn starts; its failing to start refuses the staging.</summary>
+    public string? Inspiration { get; init; }
 }
 
 /// <summary>A TraitDef at a degree.</summary>

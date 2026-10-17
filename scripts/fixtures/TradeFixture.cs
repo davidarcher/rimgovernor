@@ -27,24 +27,6 @@ namespace HomeBridge.BridgeTools
                 if (action == "session_setup") return PrepareSession(map, channel);
                 if (action.StartsWith("request_")) return RequestFixture(map, action, channel, pawnId, traderId);
                 if (action == "session_inventory") return SessionInventory(map, channel, traderId, caravanId);
-                Func<bool, string, object> incident = (caravan, caravanKind) => {
-                    var def = DefDatabase<IncidentDef>.GetNamed(caravan ? "TraderCaravanArrival" : "VisitorGroup");
-                    var parms = StorytellerUtility.DefaultParmsNow(def.category, map);
-                    var kind = DefDatabase<TraderKindDef>.GetNamed(caravan ? caravanKind : "Visitor_Neolithic_Standard");
-                    parms.faction = Find.FactionManager.AllFactions.First(f => !f.IsPlayer && !f.defeated
-                        && !f.HostileTo(Faction.OfPlayer) && (caravan
-                            ? f.def.caravanTraderKinds.Contains(kind) : f.def.visitorTraderKinds.Contains(kind)));
-                    if (caravan) parms.traderKind = kind;
-                    var eligible = def.Worker.CanFireNow(parms);
-                    var applied = eligible && def.Worker.TryExecute(parms);
-                    var traderIds = applied
-                        ? map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == parms.faction && p.trader != null && p.trader.traderKind != null)
-                            .Select(p => p.GetUniqueLoadID()).ToArray()
-                        : new string[0];
-                    return new { eligible, applied, definition = def.defName, traderKind = kind.defName,
-                        faction = parms.faction.Name, traderIds };
-                };
-                if (action == "incident" || action == "visitor_incident") return incident(action == "incident", "Caravan_Outlander_BulkGoods");
                 // The routine trade case: a colony with no medicine
                 // and unforbidden silver inside the home area (a caravan
                 // buys only home-area or stored items), then an arriving
@@ -121,7 +103,10 @@ namespace HomeBridge.BridgeTools
                         }
                     }
                     // Outlander bulk traders buy steel; neolithic traders cover the herbal-medicine and food cases.
-                    var arrival = incident(true, steel > 0 ? "Caravan_Outlander_BulkGoods" : "Caravan_Neolithic_BulkGoods");
+                    var kind = DefDatabase<TraderKindDef>.GetNamed(steel > 0 ? "Caravan_Outlander_BulkGoods" : "Caravan_Neolithic_BulkGoods");
+                    var (parms, arrived) = FixtureKit.FireIncident(map, IncidentDefOf.TraderCaravanArrival, null, kind);
+                    var arrival = new { applied = true, definition = IncidentDefOf.TraderCaravanArrival.defName, traderKind = kind.defName, faction = parms.faction.Name,
+                        traderIds = arrived.Where(p => p.trader?.traderKind != null).Select(p => p.GetUniqueLoadID()).ToArray() };
                     var traderPawns = map.mapPawns.AllPawnsSpawned.Where(p => p.trader != null && p.trader.traderKind != null
                         && p.Faction != null && !p.Faction.IsPlayer).ToList();
                     var stocked = new System.Collections.Generic.List<object>();

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using Fx = RimGovernor.Fixtures.Contracts;
 using Journal = RimGovernor.Brain.Store.Store;
 using ReviewRounds = RimGovernor.Brain.Store.Rounds;
 
@@ -64,8 +65,8 @@ internal static class ShelterBunks
         report["dropped_wood"] = dropped;
 
         // The baseline has not researched ComplexFurniture, so the beds rung would be refused.
-        var furniture = await h.CallAsync("finish-furniture", "test/hut_shell_fixture", new JsonObject { ["action"] = "furniture" }, cancellationToken).ConfigureAwait(false);
-        report["furniture"] = furniture;
+        _ = await FixtureStage.ApplyAsync(h, "finish-furniture", new Fx.StageSpec { Research = [new() { Def = "ComplexFurniture" }] }, cancellationToken).ConfigureAwait(false);
+        report["furniture"] = "ComplexFurniture";
 
         // The baseline already stands a few walls, which may sit on the ring the planner sites.
         var standing = await StandingWallsAsync(s, report, cancellationToken).ConfigureAwait(false);

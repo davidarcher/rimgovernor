@@ -82,7 +82,6 @@ public sealed partial class PawnControlFixture
             var generator = Spawn("WoodFiredGenerator", new IntVec3(x - 4, 0, z + height - 1));
             var fuel = generator.TryGetComp<CompRefuelable>(); fuel.Refuel(fuel.Props.fuelCapacity);
             for (var at = x - 4; at <= x; at++) Spawn("PowerConduit", new IntVec3(at, 0, z + height - 1));
-            AcceptanceWorld.SetLab(-10);
             map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
             thermalBed.GetRoom().Temperature = -10;
             map.powerNetManager.UpdatePowerNetsAndConnections_First();

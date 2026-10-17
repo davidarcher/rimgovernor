@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -11,7 +12,7 @@ internal static class PortfolioThermalCase
         Name = "production/coupled-thermal",
         Scope = "A brief normal review supplies its own room geometry. A prepared powered but leaky cold room then enters normal portfolio selection. Require journaled roof work, actual closure and warmer occupied sleep; no chosen task or Method is installed. Unit tests cannot prove native roof jobs, temperature or occupied use.",
         Start = new LabStart(),
-        RequiredOps = ["test/portfolio_thermal_prepare", "test/portfolio_thermal_read"],
+        RequiredOps = [FixtureStage.Tool, "test/portfolio_thermal_prepare", "test/portfolio_thermal_read"],
         Keep = ["Food", "Rest", "Joy"], QuietWorld = true, Crew = new Crew { Size = 3 },
         Service = true, NoCheckpoint = true, Budget = TimeSpan.FromMinutes(15), Stall = TimeSpan.FromSeconds(120),
         Run = async (s, ct) =>
@@ -45,6 +46,7 @@ internal static class PortfolioThermalCase
                 .OrderBy(r => r.Region.Cells().Count).ThenBy(r => r.Id).FirstOrDefault()
                 ?? throw new AcceptanceException("Normal first review supplied no supported small rectangular sleeping room; thermal setup cannot invent planner geometry.");
             var bounds = room.Region.Bounds();
+            _ = await FixtureStage.ApplyAsync(s.Harness, "thermal-cold", new Fx.StageSpec { World = new() { OutdoorTemperature = -10 } }, ct).ConfigureAwait(false);
             var prepared = await s.Harness.CallAsync("thermal-stage", "test/portfolio_thermal_prepare", new JsonObject
             {
                 ["x"] = bounds.X, ["z"] = bounds.Z, ["width"] = bounds.Width, ["height"] = bounds.Height,

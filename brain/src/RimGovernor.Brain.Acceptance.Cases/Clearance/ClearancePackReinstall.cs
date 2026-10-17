@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using Fx = RimGovernor.Fixtures.Contracts;
 using static RimGovernor.Brain.Acceptance.Cases.CaseJson;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -32,7 +33,7 @@ internal static class ClearancePackReinstall
             + "shelter bed and installs the same building, quality and hit points kept, in the bedroom from packed stock (#2118). "
             + "Native: uninstall and install jobs with their reservations, the ReadPackedItems read contract, vanilla minifying.",
         Start = new LabStart(),
-        RequiredOps = [PlanStage.Tool],
+        RequiredOps = [PlanStage.Tool, FixtureStage.Tool],
         Serve = new ServeSpec { Families = ["sleeping", "clearance", "work"], NativeTimeout = TimeSpan.FromSeconds(60), Prefix = "pack-reinstall" },
         Budget = TimeSpan.FromMinutes(14),
         Crew = new Crew { Size = 3 },
@@ -131,7 +132,7 @@ internal static class ClearancePackReinstall
         }
 
         // Wooden beds need ComplexFurniture and the tier reads Masonry with Stonecutting, as the bedroom case's colony does.
-        _ = await PlanStage.StageAsync(s.Harness, "stage-research", new StageSpec { Research = ["Stonecutting", "ComplexFurniture"] }, cancellationToken).ConfigureAwait(false);
+        _ = await FixtureStage.ApplyAsync(s.Harness, "stage-research", new Fx.StageSpec { Research = [new() { Def = "Stonecutting" }, new() { Def = "ComplexFurniture" }] }, cancellationToken).ConfigureAwait(false);
 
         // Phase one: an inert controller derives and records the layout plan.
         var one = await StartPhaseAsync(s, ["work"], cancellationToken).ConfigureAwait(false);

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using Fx = RimGovernor.Fixtures.Contracts;
 using static RimGovernor.Brain.Acceptance.Cases.CaseJson;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -29,7 +30,6 @@ internal sealed record JoinerAnswer(string Method, string Plan, int Reward, stri
 /// </summary>
 internal static class QuestJoiner
 {
-    private const string PrepareTool = "test/joiner_quest_prepare";
     private const string ReadTool = "test/joiner_quest_read";
 
     /// <summary>Bounds each service-side wait; the stall budget ends it earlier when nothing moves.</summary>
@@ -41,6 +41,30 @@ internal static class QuestJoiner
     /// </summary>
     private const ulong ArrivalTicks = 3000;
 
+    /// <summary>
+    /// The offer and its capacity: two spare unowned sleeping spots in the Home area beside the first colonist (exactly
+    /// the spare bed policy.JoinerCapacity looks for) and 40 stacks of survival meals lifting the food runway past the
+    /// joiner floor. The quiet baseline sits at the storyteller's 35-point floor, below what Util_Raid can generate a
+    /// raider for, so the offer is generated at no less than 300 points with violent quests lifted for it; its own
+    /// window (~0.3 days) would run out while the supervised windows play the startup days, so it is held open 30 days.
+    /// </summary>
+    private static readonly Fx.StageSpec Stage = new()
+    {
+        Paused = true,
+        Site = new()
+        {
+            Width = 6,
+            Height = 3,
+            Near = Fx.StageAnchor.Colonist,
+            Radius = 14,
+            Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unfogged],
+        },
+        Cells = [new() { Rect = new(0, 0, 6, 3), Home = true }],
+        Buildings = [new() { Name = "beds", Def = "SleepingSpot", Cells = [new(0, 0), new(2, 0)] }],
+        Things = [new() { Name = "meals", Def = "MealSurvivalPack", Count = 400, Cell = new(0, 2), Near = true }],
+        Quests = [new() { Name = "joiner", Script = "ThreatReward_Raid_Joiner", MinPoints = 300, AllowViolent = true, ExpireDays = 30 }],
+    };
+
     internal static AcceptanceCase Case() => new()
     {
         Name = "quest/joiner",
@@ -48,7 +72,7 @@ internal static class QuestJoiner
             "script_def and, with capacity under the bot's population target (#1032: food floor, a spare unowned bed), " +
             "the joiners family accepts it through the " +
             "QuestAccept vertical and the joiner arrives natively.",
-        Start = new FixtureStart { Op = PrepareTool, On = new LabStart() },
+        Start = FixtureStage.Start(Stage),
 
         // The building families keep supervised windows running; the joiner planner alone never advances the clock.
         Serve = new ServeSpec
@@ -108,27 +132,24 @@ internal static class QuestJoiner
         var report = s.Report;
         var h = s.Harness;
         var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
+        var staged = FixtureStage.Prepared(s);
         if (!s.Names.Contains(ReadTool))
         {
             throw new AcceptanceException($"missing {ReadTool} in discovery; rebuild the native mod with -Fixture QuestAcceptFixture");
         }
 
-        var questId = prepared["questId"].AsString();
-        if (questId.Length == 0 || prepared["scriptDef"].AsString() != "ThreatReward_Raid_Joiner" || prepared["state"].AsString() != "NotYetAccepted")
+        var offer = staged.Quests["joiner"];
+        var questId = offer.Id;
+        if (offer.Script != "ThreatReward_Raid_Joiner" || offer.State != "NotYetAccepted")
         {
-            throw new AcceptanceException($"fixture: unexpected joiner offer: {prepared.ToJson()}");
+            throw new AcceptanceException($"fixture: unexpected joiner offer: {offer}");
         }
 
-        if (prepared["beds"].AsSlice().Count == 0)
-        {
-            throw new AcceptanceException($"fixture: no spare bed spawned: {prepared.ToJson()}");
-        }
-
-        var before = prepared["colonists"].AsSlice().Count;
+        var fixture = await h.CallAsync("joiner-before", ReadTool, new JsonObject { ["questId"] = questId }, cancellationToken).ConfigureAwait(false);
+        var before = fixture["colonists"].AsSlice().Count;
         if (before == 0)
         {
-            throw new AcceptanceException($"fixture: no colonists: {prepared.ToJson()}");
+            throw new AcceptanceException($"fixture: no colonists: {fixture.ToJson()}");
         }
 
         report["fixture_quest"] = questId;

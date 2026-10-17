@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -10,7 +11,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class LabTrainingRange
 {
-    private static readonly string[] Ops = ["test/training_prepare", "test/training_inspect", "test/training_act"];
+    private static readonly string[] Ops = ["test/training_prepare", "test/training_inspect", "test/training_act", FixtureStage.Tool];
 
     internal static IEnumerable<AcceptanceCase> Cases()
     {
@@ -138,7 +139,7 @@ internal static class LabTrainingRange
 
         foreach (var (who, research, weapon, level) in new[] { (low, "Gunsmithing", "Gun_PracticeRifle", 8), (high, "ChargedShot", "Gun_PracticePulseRifle", 10) })
         {
-            await who.ActAsync(new JsonObject { ["action"] = "research", ["research"] = research }, cancellationToken).ConfigureAwait(false);
+            _ = await FixtureStage.ApplyAsync(s.Harness, "training-research", new Fx.StageSpec { Research = [new() { Def = research }] }, cancellationToken).ConfigureAwait(false);
             JsonObject last;
             string seen;
             try

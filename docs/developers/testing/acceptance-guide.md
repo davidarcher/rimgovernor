@@ -82,16 +82,19 @@ added only for something the primitives cannot express: a fault hook, a recorder
 or a content flow. Read-only probes are not test ops: a missing read is promoted into the
 [observations contract](../contracts/README.md) and read through production.
 
-The spec is `StageSpec` (`brain/src/RimGovernor.Fixtures.Contracts`). Its core primitives are find site
+The spec is `StageSpec` (`brain/src/RimGovernor.Fixtures.Contracts`). Its primitives are research (`StageResearch`:
+finish a project, or set its progress), world (`StageWorld`: pinned outdoor temperature, clock hour), find site
 (`StageSite`), clear area (`StageClear`), set cells (`StageCells`: terrain, roof, home, fog), build room
 (`StageRoom`), place building (`StageBuilding`: complete, frame or blueprint), spawn thing (`StageThing`), spawn or
-set pawn (`StagePawn`: kind, faction, age, skills, traits, gear, hediffs, work, timetable, needs, policies), zone
-(`StageZone`) and the raid that drives staged hostiles (`StageRaid`). One fixture op, `test/stage`, applies a spec
-and replies a `StageReply` keyed by the names in the spec: each entry's ids and cells. A case stages through
+set pawn (`StagePawn`: kind, faction, age, skills, traits, gear, hediffs, work, timetable, needs, policies, mental
+state, inspiration), zone (`StageZone`), the raid that drives staged hostiles (`StageRaid`), fire incident
+(`StageIncident`: an IncidentDef through its own worker, optionally with points or a trader kind) and generate quest
+(`StageQuest`: a QuestScriptDef offered as a not-yet-accepted quest). One fixture op, `test/stage`, applies a spec
+and replies a `StageReply` keyed by the names in the spec: each entry's ids and cells, the incidents' pawns and the
+quests' ids. A case stages through
 `FixtureStage`: `FixtureStage.Start(spec)` as its start (the reply is `FixtureStage.Prepared(s)`), or
 `FixtureStage.ApplyAsync` mid-case. The shared primitives on the mod side live in `scripts/fixtures/FixtureKit.cs`.
-The native setup refuses a production Bridge that carries a contracts type or a `test/*` op. Research, world,
-incident and quest primitives come next (#3388).
+The native setup refuses a production Bridge that carries a contracts type or a `test/*` op.
 
 A lab start is a pinned blank 100×100 map with a colonist count. Spawn at known offsets from its center. A
 prepared save or scenario is appropriate when history, biome or season is the precondition.

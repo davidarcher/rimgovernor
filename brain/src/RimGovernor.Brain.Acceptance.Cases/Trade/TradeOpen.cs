@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -20,6 +21,7 @@ internal static class TradeOpen
         Scope = "Native OpenTrade intent: a real TradeSession admission against an actual spawned trader "
             + "caravan, unknown-trader and other-pair refusals, open-or-reuse under a fresh key, a resent key replayed, and the session in the trade-session read.",
         Start = new LabStart(),
+        RequiredOps = [FixtureStage.Tool],
         Quiet = QuietMode.Required,
         Budget = TimeSpan.FromMinutes(5),
         Crew = new Crew { Size = 3 },
@@ -39,24 +41,20 @@ internal static class TradeOpen
             }
         }
 
-        var incident = await h.CallAsync("spawn-trader", "test/trade_fixture", new JsonObject { ["action"] = "incident" }, cancellationToken).ConfigureAwait(false);
-        if (incident["eligible"].AsBool() != true)
-        {
-            throw new AcceptanceException($"spawn-trader: incident was not eligible to fire: {incident.ToJson()}");
-        }
-
-        if (incident["applied"].AsBool() != true)
-        {
-            throw new AcceptanceException($"spawn-trader: incident did not apply: {incident.ToJson()}");
-        }
-
-        var traderId = CaseJson.Texts(incident["traderIds"]).FirstOrDefault() ?? "";
+        // test/stage refuses an incident that cannot fire or does not execute, so a reply means the caravan arrived.
+        var staged = await FixtureStage.ApplyAsync(
+            h,
+            "spawn-trader",
+            new Fx.StageSpec { Incidents = [new() { Name = "trader", Def = "TraderCaravanArrival", TraderKind = "Caravan_Outlander_BulkGoods" }] },
+            cancellationToken).ConfigureAwait(false);
+        var incident = staged.Incidents["trader"];
+        var traderId = incident.Traders.Count > 0 ? incident.Traders[0] : "";
         if (traderId.Length == 0)
         {
-            throw new AcceptanceException($"spawn-trader: no trader pawn was spawned: {incident.ToJson()}");
+            throw new AcceptanceException($"spawn-trader: no trader pawn was spawned: {incident}");
         }
 
-        report["incident"] = incident;
+        report["incident"] = new JsonObject { ["faction"] = incident.Faction, ["points"] = incident.Points, ["traders"] = new JsonArray([.. incident.Traders.Select(id => (JsonNode?)id)]) };
 
         var snapshot = await h.CallAsync("snapshot-colonists", "test/trade_fixture", new JsonObject { ["action"] = "snapshot" }, cancellationToken).ConfigureAwait(false);
         var negotiatorId = "";

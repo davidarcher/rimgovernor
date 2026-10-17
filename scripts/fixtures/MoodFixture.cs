@@ -15,37 +15,6 @@ namespace HomeBridge.BridgeTools
     // Test-build-only setup; subsequent recovery must use ordinary native ticks.
     public sealed class MoodFixture
     {
-        [Tool("test/mental_state_berserk", Description = "UNSAFE FOR MODEL EXECUTION. Induce Berserk in one paused disposable colonist for mental-state readback.")]
-        public async Task<object> Berserk(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null || !Find.TickManager.Paused)
-                    throw new InvalidOperationException("A paused disposable colony is required.");
-                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
-                    .First(p => !p.Dead && !p.Downed && !p.InMentalState);
-                pawn.drafter.Drafted = false;
-                if (!pawn.mindState.mentalStateHandler.TryStartMentalState(MentalStateDefOf.Berserk, forced: true, forceWake: true)
-                    || pawn.MentalStateDef != MentalStateDefOf.Berserk)
-                    throw new InvalidOperationException("Berserk did not start.");
-                return new { success = true, pawn = pawn.GetUniqueLoadID() };
-            }, cancellationToken);
-        }
-        [Tool("test/inspire_creativity", Description = "UNSAFE FOR MODEL EXECUTION. Give one paused disposable colonist Inspired_Creativity for inspiration readback.")]
-        public async Task<object> InspireCreativity(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null || !Find.TickManager.Paused)
-                    throw new InvalidOperationException("A paused disposable colony is required.");
-                var def = DefDatabase<InspirationDef>.GetNamed("Inspired_Creativity");
-                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
-                    .First(p => !p.Dead && !p.Downed && !p.InMentalState && p.mindState?.inspirationHandler != null && !p.Inspired);
-                if (!pawn.mindState.inspirationHandler.TryStartInspiration(def) || pawn.InspirationDef != def)
-                    throw new InvalidOperationException("Inspired_Creativity did not start.");
-                return new { success = true, pawn = pawn.GetUniqueLoadID() };
-            }, cancellationToken);
-        }
         [Tool("test/pacifist_ignore", Description = "UNSAFE FOR MODEL EXECUTION. Give one paused disposable colonist an adulthood backstory that disables violence and set its hostility response to Ignore (#1299).")]
         public async Task<object> PacifistIgnore(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {

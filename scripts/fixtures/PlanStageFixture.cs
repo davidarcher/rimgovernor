@@ -14,14 +14,14 @@ namespace HomeBridge.BridgeTools
     // plan the controller has already derived, so the plan-vs-ground
     // reconciler has a standing room to work on: finished player walls and
     // doors of a chosen stuff, a roof over the room, a constructed floor,
-    // furniture with a fixed quality and hit points, loose stock, a stockpile
-    // (the warehouse) and finished research. Nothing here designates or orders
+    // furniture with a fixed quality and hit points, loose stock and a
+    // stockpile (the warehouse). Nothing here designates or orders
     // anything. audit reads back the things (by load id, spawned or packed)
     // and the cells (terrain, roof and the room each stands in) a case
     // compares before and after the reconciler ran.
     public sealed class PlanStageFixture
     {
-        [Tool("test/plan_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable plan-staging fixture (#2118). action stage takes spec JSON {research:[ResearchProjectDef], walls:[{x,z,stuff}], doors:[{x,z,rotation 0..3,stuff}], roof:[{minX,minZ,maxX,maxZ}], floor:[{def,cells:[{x,z}]}], things:[{def,stuff,x,z,rotation,quality 0..6,hitFraction 0..1,foreign (true leaves the thing unowned and a plant fully grown),filled (true loads an ancient casket with friendly contents)}], drops:[{def,count,x,z}], stockpile:{minX,minZ,maxX,maxZ}} and replies the staged things' load ids; walls, doors and things become finished player buildings, moving pawns and items off their cells. action audit takes {ids:[load id],cells:[{x,z}]} and replies each id's def, stuff, quality, hit points, cell and whether it is packed (a minified item) or spawned, and each cell's edifice (def, stuff, id), terrain, roof and room (id, role, enclosed).")]
+        [Tool("test/plan_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable plan-staging fixture (#2118). action stage takes spec JSON {walls:[{x,z,stuff}], doors:[{x,z,rotation 0..3,stuff}], roof:[{minX,minZ,maxX,maxZ}], floor:[{def,cells:[{x,z}]}], things:[{def,stuff,x,z,rotation,quality 0..6,hitFraction 0..1,foreign (true leaves the thing unowned and a plant fully grown),filled (true loads an ancient casket with friendly contents)}], drops:[{def,count,x,z}], stockpile:{minX,minZ,maxX,maxZ}} and replies the staged things' load ids; walls, doors and things become finished player buildings, moving pawns and items off their cells. action audit takes {ids:[load id],cells:[{x,z}]} and replies each id's def, stuff, quality, hit points, cell and whether it is packed (a minified item) or spawned, and each cell's edifice (def, stuff, id), terrain, roof and room (id, role, enclosed).")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "stage", string spec = "{}")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -96,12 +96,6 @@ namespace HomeBridge.BridgeTools
 
         private static object Stage(Map map, JObject spec)
         {
-            var finished = new List<string>();
-            foreach (var name in (spec["research"] as JArray ?? new JArray()).Select(t => (string)t)) {
-                var project = DefDatabase<ResearchProjectDef>.GetNamedSilentFail(name) ?? throw new ArgumentException("No research " + name);
-                if (!project.IsFinished) Find.ResearchManager.FinishProject(project, doCompletionDialog: false, researcher: null, doCompletionLetter: false);
-                finished.Add(name);
-            }
             var avoid = new HashSet<IntVec3>();
             var wallRows = Rows(spec["walls"]).ToList();
             var doorRows = Rows(spec["doors"]).ToList();
@@ -168,7 +162,7 @@ namespace HomeBridge.BridgeTools
                 zoneRect = new { minX = rect.minX, minZ = rect.minZ, maxX = rect.maxX, maxZ = rect.maxZ };
             }
             map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
-            return new { success = true, tick = Find.TickManager.TicksGame, research = finished, spawned, things, stockpile = zoneRect };
+            return new { success = true, tick = Find.TickManager.TicksGame, spawned, things, stockpile = zoneRect };
         }
 
         // Describe is one thing's audit row; packedIn is the minified item

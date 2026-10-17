@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -9,7 +10,7 @@ internal static class PawnMentalState
     {
         Name = "pawn/mental-state",
         Scope = "Induced Berserk is read as its native defName, aggression and zero initial age through pawn and colonist status reads, including the Go Fact projection.",
-        Start = new FixtureStart { Op = "test/mental_state_berserk", On = new LabStart() },
+        Start = FixtureStage.Start(new Fx.StageSpec { Paused = true, Pawns = [new Fx.StagePawn { Name = "pawn", Colonist = 0, MentalState = "Berserk" }] }),
         Budget = TimeSpan.FromMinutes(1),
         Crew = new Crew { Size = 3 },
         Run = RunAsync,
@@ -26,7 +27,7 @@ internal static class PawnMentalState
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
-        var pawnId = PawnSupport.Fixture(s, "pawn", "pawn");
+        var pawnId = FixtureStage.Prepared(s).Pawns["pawn"].Id;
         var h = s.Harness;
         var row = await PawnSupport.ReadPawnAsync(h, s, "mental-state", pawnId, false, cancellationToken).ConfigureAwait(false);
         if (Known(row) is not { } state || state.DefName != "Berserk" || !state.IsAggro || state.Ticks != 0)

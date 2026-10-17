@@ -226,6 +226,88 @@ namespace HomeBridge.BridgeTools
             foreach (var row in rows) { foreach (var ch in row) hash = (hash ^ ch) * 16777619u; hash = (hash ^ '|') * 16777619u; }
             return hash.ToString("x8");
         }
+
+        // Research: finish the project itself (prerequisites untouched), with no dialog or letter.
+        public static void FinishResearch(ResearchProjectDef project)
+        {
+            if (!project.IsFinished) Find.ResearchManager.FinishProject(project, doCompletionDialog: false, researcher: null, doCompletionLetter: false);
+        }
+
+        // Research: set an unfinished project's progress to fraction of its base cost. ResearchManager has no public
+        // progress setter, so its private progress table is written by name.
+        public static void SetResearchProgress(ResearchProjectDef project, float fraction)
+        {
+            if (fraction < 0f || fraction >= 1f) throw new ArgumentException($"Research {project.defName}: progress must be within 0..1 (exclusive of 1; finish it instead).");
+            if (project.IsFinished) throw new InvalidOperationException($"Research {project.defName} is already finished.");
+            var progress = AccessTools.Field(typeof(ResearchManager), "progress")?.GetValue(Find.ResearchManager) as Dictionary<ResearchProjectDef, float>
+                ?? throw new InvalidOperationException("ResearchManager.progress is unavailable.");
+            progress[project] = project.baseCost * fraction;
+        }
+
+        // World: pin the outdoor and seasonal temperature (and hold the weather) through the lab start's patches.
+        public static void PinOutdoorTemperature(float celsius)
+        {
+            if (float.IsNaN(celsius) || celsius < -100f || celsius > 100f) throw new ArgumentException($"Outdoor temperature {celsius} is not within -100..100.");
+            LabStart.EnsurePatched();
+            AcceptanceWorld.SetLab(celsius);
+        }
+
+        // World: move the game clock forward to the start of local hour on map (the next one; none when it is that
+        // hour's start already).
+        public static void AdvanceToHour(Map map, int hour)
+        {
+            if (hour < 0 || hour > 23) throw new ArgumentException($"Hour {hour} is not within 0..23.");
+            var now = GenLocalDate.DayPercent(map) * GenDate.HoursPerDay;
+            var ticks = (int)Math.Round(((hour - now + GenDate.HoursPerDay) % GenDate.HoursPerDay) * GenDate.TicksPerHour);
+            Find.TickManager.DebugSetTicksGame(Find.TickManager.TicksGame + ticks);
+        }
+
+        // Fire incident: def executed now through its own worker, forced, over the storyteller's default parms for its
+        // category. A trader kind picks the first non-hostile faction carrying it. Returns the pawns that arrived.
+        public static (IncidentParms Parms, List<Pawn> Arrived) FireIncident(Map map, IncidentDef def, float? points, TraderKindDef traderKind)
+        {
+            var parms = StorytellerUtility.DefaultParmsNow(def.category, map);
+            parms.forced = true;
+            if (points is float p) parms.points = p;
+            if (traderKind != null)
+            {
+                parms.traderKind = traderKind;
+                parms.faction = Find.FactionManager.AllFactions.FirstOrDefault(f => !f.IsPlayer && !f.defeated && !f.HostileTo(Faction.OfPlayer)
+                    && (f.def.caravanTraderKinds.Contains(traderKind) || f.def.visitorTraderKinds.Contains(traderKind)))
+                    ?? throw new InvalidOperationException($"No non-hostile faction trades as {traderKind.defName}.");
+            }
+            // IncidentWorker caches CanFireNow per game tick in private fields that start as tick 0 = false, so a worker
+            // never asked before answers false on a tick-0 lab without checking; forget the cached tick first.
+            AccessTools.Field(typeof(IncidentWorker), "lastCheckCanRunTick").SetValue(def.Worker, -1);
+            if (!def.Worker.CanFireNow(parms)) throw new InvalidOperationException($"The game cannot fire {def.defName} now.");
+            var before = new HashSet<Pawn>(map.mapPawns.AllPawnsSpawned);
+            if (!def.Worker.TryExecute(parms)) throw new InvalidOperationException($"{def.defName} did not apply.");
+            return (parms, map.mapPawns.AllPawnsSpawned.Where(x => !before.Contains(x)).OrderBy(x => x.thingIDNumber).ToList());
+        }
+
+        // Generate quest: the script generated through the native storyteller path at points (the map's default threat
+        // points when null, floored at minPoints) and offered. allowViolent lifts the quiet storyteller's violent-quest
+        // ban for this generation only (it gates selection and generation; the threat scale stays zero).
+        public static (Quest Quest, float Points) GenerateQuest(Map map, QuestScriptDef script, float? points, float minPoints, bool allowViolent, int expireDays)
+        {
+            var at = Math.Max(points ?? StorytellerUtility.DefaultThreatPointsNow(map), minPoints);
+            var difficulty = Find.Storyteller.difficulty;
+            var violent = difficulty.allowViolentQuests;
+            if (allowViolent) difficulty.allowViolentQuests = true;
+            Quest quest;
+            try
+            {
+                var slate = new RimWorld.QuestGen.Slate();
+                slate.Set("points", at);
+                if (!script.root.TestRun(slate)) throw new InvalidOperationException($"{script.defName} refused its test run at {at} points.");
+                quest = QuestUtility.GenerateQuestAndMakeAvailable(script, at);
+            }
+            finally { difficulty.allowViolentQuests = violent; }
+            if (quest == null || quest.State != QuestState.NotYetAccepted || quest.hidden)
+                throw new InvalidOperationException($"{script.defName} did not come out a visible, not-yet-accepted offer.");
+            if (expireDays > 0) quest.acceptanceExpireTick = Find.TickManager.TicksGame + expireDays * GenDate.TicksPerDay;
+            return (quest, at);
+        }
     }
 
     // The blank lab map: a fixture case spawns what it needs at known

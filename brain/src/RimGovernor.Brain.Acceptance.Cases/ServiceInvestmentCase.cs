@@ -4,6 +4,7 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Store.Codec;
 using RimGovernor.Brain.Telemetry.Otlp;
+using Fx = RimGovernor.Fixtures.Contracts;
 using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -15,11 +16,14 @@ internal static class ServiceInvestmentCase
         Name = "shelter/service-investment",
         Scope = "Prepared cold occupied room and two partly funded frames competing for five steel enter ordinary review. The shared selector must finish useful heat through journal/Hands while leaving unrelated lower-tier construction in place. Prepared layout describes existing room geometry, never a chosen worker or task. Pure tests cannot prove native frame work, power or warming.",
         Start = new LabStart(),
-        RequiredOps = ["test/service_shelter_prepare", "test/service_shelter_read"],
+        RequiredOps = [FixtureStage.Tool, "test/service_shelter_prepare", "test/service_shelter_read"],
         Keep = ["Rest"], QuietWorld = true, Crew = new Crew { Size = 2 }, Service = true,
         NoCheckpoint = true, Budget = TimeSpan.FromMinutes(5), Stall = TimeSpan.FromSeconds(45),
         Run = async (s, ct) =>
         {
+            // A cold world for the cold room.
+            _ = await FixtureStage.ApplyAsync(s.Harness, "stage-cold", new Fx.StageSpec { World = new() { OutdoorTemperature = -10 } }, ct).ConfigureAwait(false);
+
             // Recreate only the fixture's already-standing room description in the existing save owner.
             var prepared = await s.Harness.CallAsync("prepare-service-room", "test/service_shelter_prepare", [], ct).ConfigureAwait(false);
             var x = (int)prepared["x"].AsNumber(); var z = (int)prepared["z"].AsNumber();

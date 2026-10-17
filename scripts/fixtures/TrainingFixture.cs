@@ -107,19 +107,15 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        [Tool("test/training_act", Description = "UNSAFE FOR MODEL EXECUTION. One disturbance for the training fixture: finish a research project, set a Shooting level, light a fire on a thing, draft a pawn, or have one pawn chat with another. Test builds only.")]
+        [Tool("test/training_act", Description = "UNSAFE FOR MODEL EXECUTION. One disturbance for the training fixture: set a Shooting level, light a fire on a thing, draft a pawn, or have one pawn chat with another. Test builds only.")]
         public async Task<object> Act(IRimBridgeContext ctx, CancellationToken cancellationToken, string action,
-            string pawnId = "", string otherId = "", string thingId = "", string research = "", int level = 0)
+            string pawnId = "", string otherId = "", string thingId = "", int level = 0)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 Pawn Pawn(string id) => map.mapPawns.AllPawnsSpawned.Single(p => p.GetUniqueLoadID() == id);
                 switch (action)
                 {
-                    case "research":
-                        var project = DefDatabase<ResearchProjectDef>.GetNamed(research);
-                        Find.ResearchManager.FinishProject(project, doCompletionDialog: false, researcher: null, doCompletionLetter: false);
-                        return new { success = project.IsFinished };
                     case "level":
                         var record = Pawn(pawnId).skills.GetSkill(SkillDefOf.Shooting);
                         record.Level = level;

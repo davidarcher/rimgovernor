@@ -13,6 +13,9 @@ public sealed record StageReply
 
     public int Seed { get; init; }
 
+    /// <summary>Each staged research project's progress as a fraction of its base cost; 1 when finished.</summary>
+    public IReadOnlyDictionary<string, float> Research { get; init; } = new Dictionary<string, float>();
+
     /// <summary>The found site, absolute; null when the spec had none.</summary>
     public StageRect? Site { get; init; }
 
@@ -26,6 +29,17 @@ public sealed record StageReply
 
     /// <summary>Zone name to the game's zone id.</summary>
     public IReadOnlyDictionary<string, string> Zones { get; init; } = new Dictionary<string, string>();
+
+    public IReadOnlyDictionary<string, StagedIncident> Incidents { get; init; } = new Dictionary<string, StagedIncident>();
+
+    public IReadOnlyDictionary<string, StagedQuest> Quests { get; init; } = new Dictionary<string, StagedQuest>();
+
+    /// <summary>The outdoor temperature in °C, the game tick and the map's local hour (0..23) once staging ends.</summary>
+    public float OutdoorTemperature { get; init; }
+
+    public int Tick { get; init; }
+
+    public int Hour { get; init; }
 
     /// <summary>One line per staged pawn and thing, for a combat case's metrics row.</summary>
     public string Digest { get; init; } = "";
@@ -59,6 +73,11 @@ public sealed record StagedPawn
 
     public string? LordJob { get; init; }
 
+    /// <summary>The MentalStateDef and InspirationDef the pawn is in; null without one.</summary>
+    public string? MentalState { get; init; }
+
+    public string? Inspiration { get; init; }
+
     /// <summary>Summary health 0..1.</summary>
     public float Health { get; init; }
 
@@ -66,3 +85,9 @@ public sealed record StagedPawn
 }
 
 public sealed record StagedApparel(string Id, string Def);
+
+/// <summary>A fired incident: its faction def (null without one), points, the pawns it brought and which of them trade.</summary>
+public sealed record StagedIncident(string? Faction, float Points, IReadOnlyList<string> Pawns, IReadOnlyList<string> Traders);
+
+/// <summary>A generated quest's load id, root script and state.</summary>
+public sealed record StagedQuest(string Id, string Script, string State, float Points);

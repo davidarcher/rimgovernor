@@ -60,6 +60,17 @@ namespace HomeBridge.BridgeTools
                 return r.Width > 0 && r.Height > 0 && rect.InBounds(map) ? rect : throw new ArgumentException($"Rect {r} is empty or off the map.");
             }
 
+            var research = new Dictionary<string, float>();
+            foreach (var r in spec.Research)
+            {
+                var project = FixtureKit.Def<ResearchProjectDef>(r.Def);
+                if (r.Progress is float fraction) FixtureKit.SetResearchProgress(project, fraction);
+                else FixtureKit.FinishResearch(project);
+                research[project.defName] = project.IsFinished ? 1f : project.ProgressPercent;
+            }
+            if (spec.World?.OutdoorTemperature is float outdoor) FixtureKit.PinOutdoorTemperature(outdoor);
+            if (spec.World?.Hour is int hour) FixtureKit.AdvanceToHour(map, hour);
+
             Rand.PushState(StageSeed.Staging(spec.Seed));
             try
             {
@@ -148,8 +159,10 @@ namespace HomeBridge.BridgeTools
                 IntVec3? arrivalCenter = null;
                 foreach (var p in spec.Pawns)
                 {
-                    var cell = At(p.Cell);
-                    var pawn = p.Colonist is int index ? Move(colonists, index, cell, p) : Generate(map, p, Owner(p.Faction), spec.Seed, cell, arrival != null, raiders, prisoners, insects, mechs);
+                    IntVec3? at = p.Cell is StageCell c ? At(c) : (IntVec3?)null;
+                    var pawn = p.Colonist is int index ? Move(colonists, index, at, p)
+                        : Generate(map, p, Owner(p.Faction), spec.Seed, at ?? throw new ArgumentException($"Pawn {p.Name}: a generated pawn needs a cell."), arrival != null, raiders, prisoners, insects, mechs);
+                    var cell = at ?? pawn.Position;
                     Equip(pawn, p);
                     Set(pawn, p);
                     if (staged.Any(x => x.Name == p.Name)) throw new ArgumentException($"Two pawns are named {p.Name}.");
@@ -186,13 +199,28 @@ namespace HomeBridge.BridgeTools
                 {
                     Id = pawn.GetUniqueLoadID(), Kind = pawn.kindDef.defName, Cell = Out(pawn.PositionHeld), Spawned = pawn.Spawned,
                     Hostile = pawn.HostileTo(Faction.OfPlayer), Prisoner = pawn.IsPrisonerOfColony, Weapon = pawn.equipment?.Primary?.def.defName,
-                    LordJob = pawn.GetLord()?.LordJob?.GetType().Name, Health = pawn.health.summaryHealth.SummaryHealthPercent,
+                    LordJob = pawn.GetLord()?.LordJob?.GetType().Name, MentalState = pawn.MentalStateDef?.defName, Inspiration = pawn.InspirationDef?.defName,
+                    Health = pawn.health.summaryHealth.SummaryHealthPercent,
                     Worn = pawn.apparel?.WornApparel.Select(a => new StagedApparel(a.GetUniqueLoadID(), a.def.defName)).ToList() ?? new List<StagedApparel>(),
                 };
             foreach (var z in spec.Zones)
                 Add(zones, z.Name, LayZone(map, z, z.Cells.Select(At).ToList()));
+            var incidents = new Dictionary<string, StagedIncident>();
+            foreach (var i in spec.Incidents)
+            {
+                var (parms, arrived) = FixtureKit.FireIncident(map, FixtureKit.Def<IncidentDef>(i.Def), i.Points, i.TraderKind == null ? null : FixtureKit.Def<TraderKindDef>(i.TraderKind));
+                Add(incidents, i.Name, new StagedIncident(parms.faction?.def.defName, parms.points, Ids(arrived),
+                    Ids(arrived.Where(x => x.trader?.traderKind != null))));
+            }
+            var quests = new Dictionary<string, StagedQuest>();
+            foreach (var q in spec.Quests)
+            {
+                var (quest, points) = FixtureKit.GenerateQuest(map, FixtureKit.Def<QuestScriptDef>(q.Script), q.Points, q.MinPoints, q.AllowViolent, q.ExpireDays);
+                Add(quests, q.Name, new StagedQuest(quest.GetUniqueLoadID(), quest.root.defName, quest.State.ToString(), points));
+            }
             var rows = FixtureKit.DigestRows(map);
-            return new StageReply { Success = true, Seed = spec.Seed, Site = site, Rooms = rooms, Buildings = buildings, Things = things, Pawns = pawns, Zones = zones,
+            return new StageReply { Success = true, Seed = spec.Seed, Research = research, Site = site, Rooms = rooms, Buildings = buildings, Things = things, Pawns = pawns, Zones = zones,
+                Incidents = incidents, Quests = quests, OutdoorTemperature = map.mapTemperature.OutdoorTemp, Tick = Find.TickManager.TicksGame, Hour = GenLocalDate.HourOfDay(map),
                 Digest = FixtureKit.Digest(rows), DigestRows = rows };
         }
 
@@ -207,13 +235,16 @@ namespace HomeBridge.BridgeTools
             _ => throw new ArgumentException($"Unknown ground {g}."),
         };
 
-        private static Pawn Move(List<Pawn> colonists, int index, IntVec3 cell, StagePawn p)
+        private static Pawn Move(List<Pawn> colonists, int index, IntVec3? cell, StagePawn p)
         {
             if (p.Kind != null) throw new ArgumentException($"Pawn {p.Name} names both a Kind and a Colonist.");
             if (index < 0 || index >= colonists.Count) throw new ArgumentException($"Colonist index {index}: the map has {colonists.Count} free colonists.");
             var pawn = colonists[index];
-            pawn.Position = cell;
-            pawn.Notify_Teleported(true, true);
+            if (cell is IntVec3 to)
+            {
+                pawn.Position = to;
+                pawn.Notify_Teleported(true, true);
+            }
             return pawn;
         }
 
@@ -317,6 +348,19 @@ namespace HomeBridge.BridgeTools
                 pawn.foodRestriction.CurrentFoodPolicy = Current.Game.foodRestrictionDatabase.AllFoodRestrictions.FirstOrDefault(x => x.label == p.FoodPolicy) ?? throw new ArgumentException($"No food policy {p.FoodPolicy}.");
             if (p.DrugPolicy != null)
                 pawn.drugs.CurrentPolicy = Current.Game.drugPolicyDatabase.AllPolicies.FirstOrDefault(x => x.label == p.DrugPolicy) ?? throw new ArgumentException($"No drug policy {p.DrugPolicy}.");
+            if (p.MentalState != null)
+            {
+                var state = FixtureKit.Def<MentalStateDef>(p.MentalState);
+                if (pawn.drafter != null) pawn.drafter.Drafted = false;
+                if (!pawn.mindState.mentalStateHandler.TryStartMentalState(state, forced: true, forceWake: true) || pawn.MentalStateDef != state)
+                    throw new InvalidOperationException($"Pawn {p.Name}: {state.defName} did not start.");
+            }
+            if (p.Inspiration != null)
+            {
+                var inspiration = FixtureKit.Def<InspirationDef>(p.Inspiration);
+                if (pawn.mindState?.inspirationHandler == null || !pawn.mindState.inspirationHandler.TryStartInspiration(inspiration) || pawn.InspirationDef != inspiration)
+                    throw new InvalidOperationException($"Pawn {p.Name}: {inspiration.defName} did not start.");
+            }
         }
 
         private static int Priority(int value) => value >= 0 && value <= 4 ? value : throw new ArgumentException($"Work priority {value} is not within 0..4.");
@@ -360,7 +404,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class StageFixture
     {
-        [Tool("test/stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3393): stage a StageSpec (RimGovernor.Fixtures.Contracts) on the current map in one call: find a site, clear areas, set cells, build rooms, place buildings, spawn items, spawn or set pawns (generated or existing colonists, gear, wounds, work, timetable, needs, policies) with a raid's arrival and lords, and lay zones. Resets the lab damage and shot ledgers. Replies a StageReply: the ids and cells of everything made, keyed by the spec's names, and a name-free digest.")]
+        [Tool("test/stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3393, #3395): stage a StageSpec (RimGovernor.Fixtures.Contracts) on the current game in one call: finish or set research, pin the outdoor temperature and move the clock, find a site, clear areas, set cells, build rooms, place buildings, spawn items, spawn or set pawns (generated or existing colonists, gear, wounds, work, timetable, needs, policies, mental state, inspiration) with a raid's arrival and lords, lay zones, fire incidents and generate quest offers. Resets the lab damage and shot ledgers. Replies a StageReply: the ids and cells of everything made, keyed by the spec's names, and a name-free digest.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "The StageSpec as JSON (FixtureJson).")] string spec)
         {

@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using DomainWire = RimGovernor.Brain.Domain.Wire;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -38,7 +39,7 @@ internal static class FloorStandingRoom
             + "fitting floor and swaps the walls to stone in place while the room stays enclosed and no staged wall or door "
             + "is ever deconstructed (#2118). Native: floor and wall jobs, vanilla's in-place frame, the enclosure read.",
         Start = new LabStart(),
-        RequiredOps = [PlanStage.Tool],
+        RequiredOps = [PlanStage.Tool, FixtureStage.Tool],
         Service = true,
         Budget = TimeSpan.FromMinutes(14),
         Crew = new Crew { Size = 3 },
@@ -74,7 +75,7 @@ internal static class FloorStandingRoom
             throw new AcceptanceException($"lab start: no centre in {s.Prepared.ToJson()}");
         }
 
-        _ = await PlanStage.StageAsync(h, "stage-research", new StageSpec { Research = ["Stonecutting", "ComplexFurniture"] }, cancellationToken).ConfigureAwait(false);
+        _ = await FixtureStage.ApplyAsync(h, "stage-research", new Fx.StageSpec { Research = [new() { Def = "Stonecutting" }, new() { Def = "ComplexFurniture" }] }, cancellationToken).ConfigureAwait(false);
 
         // An inert run (the work family only) so the controller records the layout plan the room is staged from.
         var one = await RoutineService.StartAsync(s, Prefix, ["work"], cancellationToken).ConfigureAwait(false);

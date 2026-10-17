@@ -29,7 +29,6 @@ public sealed class ServiceInvestmentFixture
             active = false;
             var map = Find.CurrentMap;
             if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused lab required.");
-            AcceptanceWorld.SetLab(-10);
             hut = FixtureHut.Build(map, 5, map.Center - new IntVec3(2, 0, 2), null, 2);
             hut.Room.Temperature = -10;
             foreach (var pawn in hut.People)

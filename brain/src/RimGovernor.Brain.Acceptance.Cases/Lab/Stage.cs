@@ -3,8 +3,9 @@ using Fx = RimGovernor.Fixtures.Contracts;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>lab/stage</c> (#3393): one test/stage call stages a spec that uses every core primitive on the blank lab, and the
-/// typed reply names what each entry made at the cells the spec put it, relative to the site the search found.
+/// <c>lab/stage</c> (#3393, #3395): one test/stage call stages a spec that uses every core primitive on the blank lab, and
+/// the typed reply names what each entry made at the cells the spec put it, relative to the site the search found.
+/// Incidents and quests are proven by the cases that use them (trade/open, quest/joiner).
 /// </summary>
 internal static class LabStage
 {
@@ -14,6 +15,10 @@ internal static class LabStage
     private static readonly Fx.StageSpec Spec = new()
     {
         Paused = true,
+
+        // Stonecutting finished; MultiAnalyzer (deep in the tree, never finished on the lab) a quarter done.
+        Research = [new Fx.StageResearch { Def = "Stonecutting" }, new Fx.StageResearch { Def = "MultiAnalyzer", Progress = 0.25f }],
+        World = new Fx.StageWorld { OutdoorTemperature = 5, Hour = 13 },
         Site = new Fx.StageSite
         {
             Width = 12,
@@ -55,7 +60,11 @@ internal static class LabStage
                 Work = new Dictionary<string, int> { ["Cooking"] = 1 },
                 Timetable = Fx.StageTimeAssignment.Work,
                 Needs = new Dictionary<string, float> { ["Food"] = 0.5f },
+                Inspiration = "Inspired_Creativity",
             },
+
+            // No cell: the second colonist stays where it stands.
+            new Fx.StagePawn { Name = "sad", Colonist = 1, MentalState = "Wander_Sad" },
             new Fx.StagePawn
             {
                 Name = "raider",
@@ -79,10 +88,12 @@ internal static class LabStage
     internal static TypedCase Case() => new()
     {
         Name = "lab/stage",
-        Scope = "Fixture layer (#3393): test/stage stages one spec using every core primitive (site search, clear, set cells, room, "
-            + "complete, frame and blueprint buildings, items placed near and forbidden, an existing colonist with work, timetable and "
-            + "needs set, a generated armed raider and a player animal, a stockpile and a growing zone) and its typed StageReply keys "
-            + "each entry's ids and cells by the spec's names at the found site.",
+        Scope = "Fixture layer (#3393, #3395): test/stage stages one spec using every core primitive (research finished and in "
+            + "progress, a pinned outdoor temperature and clock hour, site search, clear, set cells, room, "
+            + "complete, frame and blueprint buildings, items placed near and forbidden, an existing colonist with work, timetable, "
+            + "needs and an inspiration set, a second colonist left in place in a mental state, a generated armed raider and a "
+            + "player animal, a stockpile and a growing zone) and its typed StageReply keys each entry's ids and cells by the "
+            + "spec's names at the found site.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 2 },
@@ -106,6 +117,10 @@ internal static class LabStage
         }
 
         Want(site.Width == 12 && site.Height == 12, $"site {site}, want 12x12");
+        Want(reply.Research.GetValueOrDefault("Stonecutting") == 1f, "Stonecutting not finished");
+        Want(Math.Abs(reply.Research.GetValueOrDefault("MultiAnalyzer") - 0.25f) < 0.001f, $"MultiAnalyzer at {reply.Research.GetValueOrDefault("MultiAnalyzer")}, want 0.25");
+        Want(Math.Abs(reply.OutdoorTemperature - 5) < 0.5f, $"outdoor {reply.OutdoorTemperature} C, want 5");
+        Want(reply.Hour == 13, $"hour {reply.Hour}, want 13");
         var hut = reply.Rooms.GetValueOrDefault("hut");
         Want(hut is { Walls.Count: 15, Doors.Count: 1, Interior.Count: 9 }, $"hut {Show(hut)}, want 15 walls, 1 door, 9 interior cells");
         Want(hut?.Interior is [var first, ..] && first == At(1, 1), $"hut interior does not start at {At(1, 1)}");
@@ -114,7 +129,10 @@ internal static class LabStage
         Want(reply.Buildings.GetValueOrDefault("sandbags") is { Ids.Count: 2 } bags && bags.Cells.SequenceEqual([At(10, 0), At(11, 0)]), "sandbags not at (10,0) and (11,0)");
         Want(reply.Things.GetValueOrDefault("steel") is { Ids.Count: > 0 } steel && steel.Cells.All(c => Math.Abs(c.X - At(8, 3).X) <= 2 && Math.Abs(c.Z - At(8, 3).Z) <= 2), "steel not placed near (8,3)");
         var cook = reply.Pawns.GetValueOrDefault("cook");
-        Want(cook is { Spawned: true, Hostile: false } && cook.Cell == At(2, 2), $"cook {cook}, want a spawned colonist at {At(2, 2)}");
+        Want(
+            cook is { Spawned: true, Hostile: false, Inspiration: "Inspired_Creativity" } && cook.Cell == At(2, 2),
+            $"cook {cook}, want a spawned inspired colonist at {At(2, 2)}");
+        Want(reply.Pawns.GetValueOrDefault("sad") is { Spawned: true, MentalState: "Wander_Sad" }, $"sad {reply.Pawns.GetValueOrDefault("sad")}, want a colonist in Wander_Sad");
         var raider = reply.Pawns.GetValueOrDefault("raider");
         Want(
             raider is { Hostile: true, Weapon: Rifle, LordJob: "LordJob_AssaultColony", Worn.Count: 0 } && raider.Cell == At(10, 10),

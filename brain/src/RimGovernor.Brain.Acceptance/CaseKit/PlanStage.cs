@@ -110,8 +110,6 @@ public sealed record StageDrop(string Def, int Count, int X, int Z)
 /// <summary>One staging call (Go <c>planstage.Spec</c>).</summary>
 public sealed record StageSpec
 {
-    public IReadOnlyList<string> Research { get; init; } = [];
-
     public IReadOnlyList<StageBuilding> Walls { get; init; } = [];
 
     public IReadOnlyList<StageBuilding> Doors { get; init; } = [];
@@ -130,11 +128,6 @@ public sealed record StageSpec
     public JsonObject ToJson()
     {
         var row = new JsonObject();
-        if (Research.Count > 0)
-        {
-            row["research"] = new JsonArray([.. Research.Select(r => (JsonNode?)JsonValue.Create(r))]);
-        }
-
         Add(row, "walls", Walls.Select(b => b.ToJson()));
         Add(row, "doors", Doors.Select(b => b.ToJson()));
         Add(row, "roof", Roof.Select(r => r.ToJson()));
