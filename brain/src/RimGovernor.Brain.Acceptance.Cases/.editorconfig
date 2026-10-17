@@ -288,19 +288,10 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Letter/LetterPause.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Lifecycle/Checkpoint.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lifecycle/HeadlessSoak.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Lifecycle/IdeoligionDesign.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Lifecycle/LifecycleCases.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lifecycle/Load.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Lifecycle/NewColony.cs]
@@ -321,22 +312,10 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Lifecycle/Reuse.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Lifecycle/RuntimeFault.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Lifecycle/ScenarioStartParts.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Lifecycle/Shutdown.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lifecycle/StartCost.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Light/LightDark.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Mapscope/MapscopeIsolation.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Medical/MedicalKit.cs]
@@ -435,9 +414,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Pawn/SelfTend.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Presentation/PresentationRoster.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Quest/QuestAccept.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -466,12 +442,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Quest/QuestTitle.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Recovery/RecoveryArea.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Recovery/RecoveryService.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Refrigeration/RefrigerationBuild.cs]
@@ -534,9 +504,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Sleeping/SleepingSuites.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Smoke/SmokeIdentity.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Solo/SoloSeaIce.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -547,9 +514,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/SpeedMatrix/Observations.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Startup/StartupLaborCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Stats/StatsEvaluateStat.cs]
@@ -604,12 +568,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Tools/ToolsBaselineGen.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Tools/ToolsDeepResources.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Tools/ToolsFacts.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Tools/ToolsVariantSaveGen.cs]

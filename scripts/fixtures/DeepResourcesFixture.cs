@@ -2,6 +2,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -53,8 +54,8 @@ namespace HomeBridge.BridgeTools
                     var drill = (Building)GenSpawn.Spawn(ThingMaker.MakeThing(drillDef), cell, map);
                     drill.SetFaction(Faction.OfPlayer);
                 }
-                return new { success = true, x = centre.x, z = centre.z, count = 300, cellCount = 3 };
-            }, cancellationToken);
+                return new DeepResourcesReply { Success = true, X = centre.x, Z = centre.z };
+            }, cancellationToken).ConfigureAwait(false);
         }
     }
 }

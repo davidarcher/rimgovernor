@@ -216,10 +216,6 @@ public abstract record ReceiptOutcome
 
     public static implicit operator ReceiptOutcome(Applied value) => new AppliedCase(value);
 
-    /// <summary>The <c>Uncertain</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Uncertain? Uncertain => (this as UncertainCase)?.Value;
-
     public sealed record UncertainCase(Uncertain Value) : ReceiptOutcome;
 
     public static implicit operator ReceiptOutcome(Uncertain value) => new UncertainCase(value);
@@ -1162,8 +1158,6 @@ public sealed record UnknownAttempt
 public sealed record InFlight
 {
     public Common.AttemptKey? Attempt { get; init; }
-
-    public Common.ObservationContext? AdmittedContext { get; init; }
 }
 
 public sealed record LookupReply

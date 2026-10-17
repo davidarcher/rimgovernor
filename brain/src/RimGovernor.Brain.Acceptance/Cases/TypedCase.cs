@@ -56,6 +56,9 @@ public sealed record TypedCase
     /// <summary>A DLC profile the claim requires; the case then owns a fresh process.</summary>
     public IReadOnlyList<string> Expansions { get; init; } = [];
 
+    /// <summary>The body leaves the process on a game the next case did not open (an unload, a reload, unpatched process state), so the runner does not keep it; an expansion profile implies it.</summary>
+    public bool NoKeep { get; init; }
+
     /// <summary>The service <see cref="ITypedSession.ServeUntilAsync"/> hands the clock to; null for a native-only case.</summary>
     public ServeSpec? Serve { get; init; }
 
@@ -117,7 +120,7 @@ public sealed record TypedCase
         Crew = Crew,
         Serve = Serve,
         Expansions = Expansions,
-        NoKeep = Expansions.Count > 0,
+        NoKeep = NoKeep || Expansions.Count > 0,
 
         // The ring skips a slow precondition; a typed case stages its precondition instead of playing into it.
         NoCheckpoint = true,

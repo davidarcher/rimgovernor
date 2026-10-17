@@ -1,9 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -29,7 +26,7 @@ public sealed record NewColonyRun
     public long TotalMs { get; init; }
 }
 
-/// <summary>The new-colony op's driver and the save-file digests of a generated start (Go <c>newcolony.go</c>).</summary>
+/// <summary>The new-colony op's driver (Go <c>newcolony.go</c>).</summary>
 public static class NewColony
 {
     /// <summary>Prefixes the wire names of NewColonyPhase.</summary>
@@ -44,68 +41,6 @@ public static class NewColony
     private const int PollBudget = 6000;
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
-
-    private static readonly TimeSpan SaveScanTimeout = TimeSpan.FromSeconds(60);
-
-    private static readonly Regex MapThingPattern = new(
-        "<thing Class=\"[^\"]*\">\\s*<def>([^<]*)</def>.*?<pos>([^<]*)</pos>",
-        RegexOptions.Singleline | RegexOptions.CultureInvariant,
-        SaveScanTimeout);
-
-    private static readonly Regex MapTerrainBlock = new(
-        "<terrainGrid>.*?</terrainGrid>",
-        RegexOptions.Singleline | RegexOptions.CultureInvariant,
-        SaveScanTimeout);
-
-    private static readonly Regex StartingTilePattern = new(
-        "<startingTile>(\\d+)",
-        RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(10));
-
-    /// <summary>
-    /// A digest of the generated map in a save, for comparing two starts of one spec: the terrain grid and every
-    /// thing's def and position, sorted. Ids, ticks and anything else a start stamps are left out.
-    /// </summary>
-    public static string SaveMapHash(string savePath)
-    {
-        var text = File.ReadAllText(savePath);
-        var start = text.IndexOf("<maps>", StringComparison.Ordinal);
-        var end = text.LastIndexOf("</maps>", StringComparison.Ordinal);
-        if (start < 0 || end < start)
-        {
-            throw new AcceptanceException($"{savePath} has no maps section");
-        }
-
-        text = text[start..end];
-        var terrain = MapTerrainBlock.Match(text);
-        if (!terrain.Success)
-        {
-            throw new AcceptanceException($"{savePath} has no terrain grid");
-        }
-
-        var things = new List<string>();
-        foreach (Match match in MapThingPattern.Matches(text))
-        {
-            things.Add(match.Groups[1].Value + "@" + match.Groups[2].Value);
-        }
-
-        if (things.Count == 0)
-        {
-            throw new AcceptanceException($"{savePath} has no map things");
-        }
-
-        things.Sort(StringComparer.Ordinal);
-        using var sum = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        sum.AppendData(Encoding.UTF8.GetBytes(terrain.Value));
-        foreach (var thing in things)
-        {
-            sum.AppendData("\n"u8);
-            sum.AppendData(Encoding.UTF8.GetBytes(thing));
-        }
-
-        var digest = Convert.ToHexStringLower(sum.GetHashAndReset().AsSpan(0, 8));
-        return string.Create(CultureInfo.InvariantCulture, $"{digest}/{things.Count}-things");
-    }
 
     /// <summary>Wraps a wire spec in a <c>lifecycle_new_colony</c> request; a zero timeout is <see cref="NewColonyTimeout"/>.</summary>
     public static JsonObject NewColonyRequest(string id, JsonObject spec, TimeSpan timeout)
@@ -199,15 +134,6 @@ public static class NewColony
         }
 
         throw new AcceptanceException($"{label}: new colony did not complete within the polling budget (phases [{string.Join(' ', phases)}])");
-    }
-
-    /// <summary>The world tile the save's colony settled.</summary>
-    public static int SaveStartingTile(string savePath)
-    {
-        var match = StartingTilePattern.Match(File.ReadAllText(savePath));
-        return !match.Success
-            ? throw new AcceptanceException($"{savePath} records no starting tile")
-            : int.Parse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture);
     }
 
     private static bool TryCase(JsonObject message, string name, out JsonObject value)

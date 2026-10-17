@@ -77,7 +77,6 @@ public static class CaseCatalog
         OdysseyCases.Register(registry);
         PawnCases.Register(registry);
         PowerCases.Register(registry);
-        PresentationCases.Register(registry);
         ProductionCases.Register(registry);
         QuestCases.Register(registry);
         RecoveryCases.Register(registry);
@@ -92,7 +91,6 @@ public static class CaseCatalog
         SmokeCases.Register(registry);
         SoloCases.Register(registry);
         SpeedmatrixCases.Register(registry);
-        StartupCases.Register(registry);
         StatsCases.Register(registry);
         StorageCases.Register(registry);
         SuppliesCases.Register(registry);

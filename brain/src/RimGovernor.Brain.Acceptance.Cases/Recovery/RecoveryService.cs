@@ -1,174 +1,123 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Contracts.Wire;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>recovery/service</c> (Go <c>recovery/service.go</c>): the disaster-recovery service vertical through
-/// GiveJobIntent Repair on Actions/Apply. A genuinely damaged player Wall is repaired by a real native
-/// WorkGiver_Repair job ordered for an undrafted colonist, observed via real game ticks and independently confirmed via
-/// <c>observations_list_buildings</c> (HitPoints == MaxHitPoints), not just the applied result. It uses the disposable
-/// <c>test/recovery_service_prepare</c> fixture: one damaged player Wall and one capable, reachable colonist.
+/// <c>recovery/service</c>: the disaster-recovery repair dispatch. A GiveJobIntent Repair on a staged damaged player
+/// wall in the home area starts the vanilla WorkGiver_Repair job, an unknown pawn is refused, a resent key returns its
+/// first result, and the game repairs the wall to full hit points.
 /// </summary>
 internal static class RecoveryService
 {
-    internal static AcceptanceCase Case() => new()
+    private const string Wall = "wall";
+    private const string Builder = "builder";
+
+    internal static TypedCase Case() => new()
     {
         Name = "recovery/service",
-        Scope = "GiveJobIntent Repair (disaster-recovery service) dispatch: a genuinely damaged player Wall is "
-            + "actually repaired by a real native WorkGiver_Repair job, unknown-pawn refusal, real HitPoints change "
-            + "observed via native ticks (not just an applied result), and key replay idempotency.",
-        Start = new FixtureStart { On = new LabStart(), Op = "test/recovery_service_prepare" },
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Scope = "GiveJobIntent Repair on operations_apply: on a staged damaged player Wall in the home area, the applied "
+            + "receipt names the Repair job for the builder on the wall; an unknown pawn is refused; a resent key returns its "
+            + "first result; observations_list_buildings then reads the wall back at full hit points. The repair runs "
+            + "RimWorld's own WorkGiver_Repair and JobDriver.",
+        Ticks = 20000,
+        Tier = CaseTier.Nightly,
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            Site = new Fx.StageSite
+            {
+                Width = 6,
+                Height = 6,
+                Near = Fx.StageAnchor.Colonist,
+                OffsetX = 4,
+                Radius = 40,
+                Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unzoned, Fx.StageGround.Unfogged],
+            },
+            Cells = [new Fx.StageCells { Rect = new Fx.StageRect(0, 0, 6, 6), Terrain = "Concrete", Home = true }],
+            Buildings = [new Fx.StageBuilding { Name = Wall, Def = "Wall", Stuff = "WoodLog", Cells = [new(3, 3)], HitPoints = 60 }],
+            Pawns =
+            [
+                new Fx.StagePawn
+                {
+                    Name = Builder,
+                    Colonist = 0,
+                    Cell = new(1, 1),
+                    Work = new Dictionary<string, int> { ["Construction"] = 1 },
+                    Timetable = Fx.StageTimeAssignment.Work,
+                },
+            ],
+        },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        // Fixture: one genuinely damaged player Wall and one capable Construction-enabled colonist. Run this BEFORE
-        // acquiring authority: the fixture spawns/damages a building directly outside any authority scope, and
-        // NativeControlAuthority.RevokeExternal revokes any held lease for such external activity.
-        var report = s.Report;
-        var h = s.Harness;
-        var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        if (!Dyn.Contains(s.Names, "rimgovernor/operations_apply"))
+        var wallId = s.Staged!.Buildings[Wall].Ids.Single();
+        var builderId = s.Staged.Pawns[Builder].Id;
+
+        async Task<Observations.BuildingState> WallAsync(string label, CancellationToken ct)
         {
-            throw new AcceptanceException("missing rimgovernor/operations_apply in discovery");
+            var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [wallId], Statuses = [Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
+            return rows is [{ HitPoints: not null, MaxHitPoints: not null } row] && row.Building.Id == wallId
+                ? row
+                : throw new AcceptanceException($"{label}: want one built row with hit points for {wallId}, got {string.Join("; ", rows)}");
         }
 
-        var pawnId = prepared["pawn"].AsString();
-        var wallId = prepared["wall"].AsString();
-        if (pawnId.Length == 0 || wallId.Length == 0)
+        async Task<Operations.ActionResult> RepairAsync(string key, string pawn)
         {
-            throw new AcceptanceException($"prepare: missing fixture pawn/wall ids: {prepared.ToJson()}");
-        }
-
-        var maxHitPoints = prepared["maxHitPoints"].AsNumber();
-        var damagedHitPoints = prepared["damagedHitPoints"].AsNumber();
-        if (maxHitPoints <= 0 || damagedHitPoints <= 0 || damagedHitPoints >= maxHitPoints)
-        {
-            throw new AcceptanceException($"prepare: fixture wall is not genuinely damaged: {prepared.ToJson()}");
-        }
-
-        report["fixture_pawn"] = pawnId;
-        report["fixture_wall"] = wallId;
-        report["fixture_max_hit_points"] = maxHitPoints;
-        report["fixture_damaged_hit_points"] = damagedHitPoints;
-
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
-
-        // wallState reads HitPoints/maxHitPoints through observations_list_buildings with statuses=[built],
-        // purely to independently assert the wall's real HitPoints
-        // before/after dispatch.
-        async Task<(double HitPoints, double MaxHitPoints)> WallState(string label)
-        {
-            var reply = await h.WireAsync(
-                label,
-                "observations_list_buildings",
-                new JsonObject
-                {
-                    ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                    ["ids"] = new JsonArray(wallId),
-                    ["statuses"] = new JsonArray("BUILDING_STATUS_BUILT"),
-                },
-                cancellationToken).ConfigureAwait(false);
-            var (_, observed) = Harness.Outcome(reply, "observed");
-            var rows = observed["buildings"].AsSlice();
-            if (rows.Count != 1)
-            {
-                throw new AcceptanceException($"{label}: expected exactly one building row, got {observed.ToJson()}");
-            }
-
-            var row = rows[0].AsMap() ?? [];
-            if (row["building"].AsMap()?["id"].AsString() != wallId)
-            {
-                throw new AcceptanceException($"{label}: unexpected building row: {row.ToJson()}");
-            }
-
-            if (!row.ContainsKey("hitPoints"))
-            {
-                throw new AcceptanceException($"{label}: missing hitPoints: {row.ToJson()}");
-            }
-
-            return (row["hitPoints"].AsNumber(), row["maxHitPoints"].AsNumber());
-        }
-
-        async Task<JsonObject> Apply(string key, string pawn)
-        {
-            var reply = await h.WireAsync(
+            var reply = await s.CallAsync(
                 key,
-                "operations_apply",
-                new JsonObject
+                NativeOps.Apply,
+                new Operations.ApplyRequest
                 {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject { ["key"] = key, ["giveJob"] = ApplyIntents.GiveJob(pawn, "Repair", wallId)["giveJob"]?.DeepClone() }),
+                    Identity = s.Identity,
+                    Actions = [new Operations.Action { Key = key, Intent = new Operations.GiveJobIntent { Pawn = new Common.Ref { Id = pawn }, Job = "Repair", Targets = [new Common.Ref { Id = wallId }] } }],
                 },
                 cancellationToken).ConfigureAwait(false);
-            var results = reply["results"].AsSlice();
-            if (results.Count != 1)
-            {
-                throw new AcceptanceException($"{key}: expected one result: {reply.ToJson()}");
-            }
-
-            return results[0].AsMap() ?? [];
+            return reply.Results.ToList() is [{ } result]
+                ? result
+                : throw new AcceptanceException($"{key}: want one result, got {reply.BatchFailure} {string.Join("; ", reply.Results)}");
         }
 
-        var (beforeHitPoints, beforeMax) = await WallState("wall-before").ConfigureAwait(false);
-        if (beforeHitPoints >= beforeMax)
+        var before = await WallAsync("wall-before", cancellationToken).ConfigureAwait(false);
+        s.RecordWire("wall_before", before);
+        if (before.HitPoints >= before.MaxHitPoints)
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"wall-before: expected the fixture wall to be genuinely damaged, got hitPoints={beforeHitPoints} maxHitPoints={beforeMax}"));
+            throw new AcceptanceException($"wall-before: the staged wall is not damaged: {before.HitPoints}/{before.MaxHitPoints}");
         }
 
-        report["wall_before_hit_points"] = beforeHitPoints;
-        report["wall_max_hit_points"] = beforeMax;
-        var unknown = await Apply("recovery-unknown-pawn", "Human_unknown_recovery_pawn").ConfigureAwait(false);
-        if (unknown["refused"] is null)
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        var unknown = await RepairAsync("recovery-unknown-pawn", "Human_unknown_recovery_pawn").ConfigureAwait(false);
+        if (unknown.Outcome?.Refused is null)
         {
-            throw new AcceptanceException($"recovery-unknown-pawn: expected a refusal, got {unknown.ToJson()}");
+            throw new AcceptanceException($"recovery-unknown-pawn: want a refusal, got {unknown}");
         }
 
-        var repair = await Apply("recovery-repair", pawnId).ConfigureAwait(false);
-        if (repair["applied"].AsMap()?["applied"].AsMap() is not { } applied)
+        var repair = await RepairAsync("recovery-repair", builderId).ConfigureAwait(false);
+        s.RecordWire("repair", repair);
+        var job = repair.Outcome?.Applied?.Outcome?.Applied?.Observed?.Effect?.Job;
+        if (job?.PawnId != builderId || job.JobDef != "Repair" || job.TargetA?.Target?.ThingId != wallId)
         {
-            throw new AcceptanceException($"recovery-repair: expected an applied result, got {repair.ToJson()}");
+            throw new AcceptanceException($"recovery-repair: want an applied Repair job for {builderId} on {wallId}, got {repair}");
         }
 
-        var job = applied["observed"].AsMap()?["job"].AsMap();
-        if (job?["pawnId"].AsString() != pawnId || job["jobDef"].AsString() != "Repair")
+        var replay = await RepairAsync("recovery-repair", builderId).ConfigureAwait(false);
+        if (WireJson.Serialize(replay) != WireJson.Serialize(repair))
         {
-            throw new AcceptanceException($"recovery-repair: unexpected applied repair evidence: {job.ToJson()}");
+            throw new AcceptanceException($"recovery-repair: the resent key returned {replay}, not its first result");
         }
 
-        if (job["targetA"].AsMap()?["thingId"].AsString() != wallId)
+        var after = before;
+        _ = await s.RunUntilAsync("repaired", 20000, async ct =>
         {
-            throw new AcceptanceException($"recovery-repair: unexpected repair target: {job.ToJson()}");
-        }
-
-        var replay = await Apply("recovery-repair", pawnId).ConfigureAwait(false);
-        if (!Dyn.DeepEqual(replay, repair))
-        {
-            throw new AcceptanceException($"recovery-repair: resent key changed its result: {repair.ToJson()} then {replay.ToJson()}");
-        }
-
-        // Run real game time until the wall is back to full HitPoints.
-        for (var advanced = 0; ; advanced += 300)
-        {
-            if (advanced >= 3 * Wait.TicksPerDay)
-            {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"wall was not repaired within {advanced} ticks"));
-            }
-
-            _ = await s.AdvanceAsync(300, null, cancellationToken).ConfigureAwait(false);
-            var (afterHitPoints, afterMax) = await WallState(string.Create(CultureInfo.InvariantCulture, $"wall-{advanced}")).ConfigureAwait(false);
-            if (afterHitPoints >= afterMax)
-            {
-                report["wall_after_hit_points"] = afterHitPoints;
-                break;
-            }
-        }
-
-        report["wall_repaired"] = true;
+            after = await WallAsync("wall-after", ct).ConfigureAwait(false);
+            return (Wait.Signature(after.HitPoints), after.HitPoints >= after.MaxHitPoints);
+        }, cancellationToken).ConfigureAwait(false);
+        s.RecordWire("wall_after", after);
     }
 }

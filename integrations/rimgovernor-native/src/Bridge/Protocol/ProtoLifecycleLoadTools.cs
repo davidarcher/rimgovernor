@@ -175,7 +175,7 @@ namespace HomeBridge.BridgeTools
             if (entry.ExpectedColonyIdentity != null && (entry.ExpectedColonyIdentity.ColonyId ?? "") != (context.Identity?.ColonyId ?? ""))
                 return CompleteWith(entry, new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadSuperseded
                 {
-                    RequestId = entry.RequestId, ObservedContext = context,
+                    RequestId = entry.RequestId,
                     Detail = "Observed colony after load does not match the identity this request expected."
                 } });
 

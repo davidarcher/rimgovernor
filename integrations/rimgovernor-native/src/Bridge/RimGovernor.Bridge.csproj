@@ -96,7 +96,6 @@
     <Compile Include="../../../../scripts/fixtures/ForecastFixture.cs" Condition="'$(ForecastFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BuildingTemperatureFixture.cs" Condition="'$(BuildingTemperatureFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CaravanDepartureFixture.cs" Condition="'$(CaravanDepartureFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/RecoveryServiceFixture.cs" Condition="'$(RecoveryServiceFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuestAcceptFixture.cs" Condition="'$(QuestAcceptFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuestShuttleFixture.cs" Condition="'$(QuestAcceptFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FirstRitualFixture.cs" Condition="'$(FirstRitualFixture)' == 'true'" />
@@ -106,7 +105,6 @@
     <Compile Include="../../../../scripts/fixtures/PlanStageFixture.cs" Condition="'$(PlanStageFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RecoveryAreaFixture.cs" Condition="'$(RecoveryAreaFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BedAssignFixture.cs" Condition="'$(BedAssignFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/StartupLaborFixture.cs" Condition="'$(StartupLaborFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BuriedSteelFixture.cs" Condition="'$(BuriedSteelFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ApplyRefusalFixture.cs" Condition="'$(ApplyRefusalFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BlightFixture.cs" Condition="'$(BlightFixture)' == 'true'" />

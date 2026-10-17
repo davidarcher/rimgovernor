@@ -1,318 +1,173 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Control = RimGovernor.Contracts.Wire.Authority;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Presentation = RimGovernor.Contracts.Wire.Presentation;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>mapscope/isolation</c> (Go <c>mapscope/isolation.go</c>): typed reads and operations are scoped to the map their
-/// identity names, not to whichever map the player is viewing. A fixture-generated second player map makes the
-/// distinction observable. Requires a build with the MapScopeFixture for test/map_scope_generate and test/map_scope_view.
+/// <c>mapscope/isolation</c>: two loaded player maps. Reads for either map's identity resolve that map whichever is
+/// viewed; the player's switch of the viewed map invalidates authority as IDENTITY_CHANGED; the roster carries map ids;
+/// presentation reads bound to the viewed map refuse the other identity as stale; an unloaded map is stale with the
+/// viewed context; back on the home map a draft bound to it lands there.
 /// </summary>
 internal static class MapscopeIsolation
 {
-    internal static AcceptanceCase Case() => new()
+    private const string GenerateTool = "test/map_scope_generate";
+    private const string ViewTool = "test/map_scope_view";
+
+    private static readonly FixtureOp<string, Fx.MapScopeReply> Generate = new(GenerateTool, _ => [], (label, reply) => Read(GenerateTool, label, reply));
+
+    private static readonly FixtureOp<int, Fx.MapScopeReply> View = new(
+        ViewTool,
+        mapId => new JsonObject([new KeyValuePair<string, JsonNode?>("mapId", mapId)]),
+        (label, reply) => Read(ViewTool, label, reply));
+
+    internal static TypedCase Case() => new()
     {
         Name = "mapscope/isolation",
-        Scope = "Two loaded player maps: a status read for the second map's identity answers about that map while the first is viewed; switching the viewed map invalidates authority (IdentityChanged, generation+1) but reads for either identity still resolve their own map, the roster spans both maps with map_id, presentation reads bound to the viewed map refuse the other identity as stale, an identity naming an unloaded map is stale with the viewed context, and after switching back a draft operation bound to the first map is granted and lands there.",
-        Start = new LabStart(),
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Scope = "Two loaded player maps (test/map_scope_generate settles a second; test/map_scope_view is the player's "
+            + "map switch): observations_read_status for either identity answers about its own map whichever is viewed; the "
+            + "switch invalidates authority as Inactive(IDENTITY_CHANGED) at generation+1; presentation_colonists rows carry "
+            + "the home map id and a currentMapOnly roster for the second map is empty; presentation_selection refuses the "
+            + "home identity STALE_IDENTITY with the viewed map's context while accepting the second's; an unloaded map id is "
+            + "STALE_IDENTITY with the viewed context; back home, a regranted draft lands on the home map's colonist with the "
+            + "receipt's snapshot token.",
+        Ticks = 0,
+        Tier = CaseTier.Nightly,
+        Ops = [GenerateTool, ViewTool],
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static Fx.MapScopeReply Read(string tool, string label, JsonObject? reply) =>
+        reply is not null && Fx.FixtureJson.Deserialize<Fx.MapScopeReply>(reply.ToJsonString()) is { Success: true } read
+            ? read
+            : throw new AcceptanceException($"{label}: {tool} refused: {reply?.ToJsonString()}");
+
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
         var home = s.Identity;
-        foreach (var tool in new[]
+        var expected = await TypedAuthority.ExpectedGenerationAsync(s, "status-fresh", home, cancellationToken).ConfigureAwait(false);
+        _ = await TypedAuthority.GrantAsync(s, "grant-home", home, expected, cancellationToken).ConfigureAwait(false);
+
+        // A second player map; a read for its identity answers about it while the home map stays viewed.
+        var generated = await s.FixtureAsync("generate", Generate, "", cancellationToken).ConfigureAwait(false);
+        s.RecordWire("generated", generated);
+        if (generated.HomeMapId != home.MapId || generated.SecondMapId == home.MapId || generated.ViewedMapId != home.MapId)
         {
-            "rimgovernor/authority_read_status", "rimgovernor/authority_control", "rimgovernor/observations_read_status",
-            "rimgovernor/observations_list_pawns", "rimgovernor/presentation_colonists", "rimgovernor/presentation_selection",
-            "test/map_scope_generate", "test/map_scope_view",
-        })
-        {
-            if (!Dyn.Contains(s.Names, tool))
-            {
-                throw new AcceptanceException($"missing {tool} in discovery (fixture build required)");
-            }
+            throw new AcceptanceException($"generate: want a distinct second map with map {home.MapId} still viewed, got {generated}");
         }
 
-        var homeMap = (int)home["mapId"].AsNumber();
+        var second = home with { MapId = generated.SecondMapId };
+        await StatusOnAsync(s, "status-second-while-home-viewed", second, cancellationToken).ConfigureAwait(false);
+        await StatusOnAsync(s, "status-home-while-home-viewed", home, cancellationToken).ConfigureAwait(false);
 
-        // Setup: Auto granted on the viewed (home) map.
-        var (generation, state) = await AuthorityAsync(h, "status-fresh", home, cancellationToken).ConfigureAwait(false);
-        if (state.ContainsKey("unavailable"))
+        // Generation may flip the viewed map and back, which authority sees as the player's own view change: measure from here.
+        var beforeSwitch = await TypedAuthority.StatusAsync(s, "status-after-generate", home, cancellationToken).ConfigureAwait(false);
+        _ = await s.FixtureAsync("view-second", View, second.MapId, cancellationToken).ConfigureAwait(false);
+        var afterSwitch = await TypedAuthority.StatusAsync(s, "status-after-switch", home, cancellationToken).ConfigureAwait(false);
+        s.RecordWire("status_after_switch", afterSwitch);
+        if (afterSwitch.State?.Inactive?.Reason != Control.RevocationReason.IdentityChanged
+            || afterSwitch.Context?.NativeGeneration != beforeSwitch.Context?.NativeGeneration + 1)
         {
-            generation = 1;
+            throw new AcceptanceException($"status-after-switch: want Inactive(IDENTITY_CHANGED) at generation {beforeSwitch.Context?.NativeGeneration + 1}, got {afterSwitch}");
         }
 
-        var granted = await GrantAsync(h, "grant-home", home, generation, cancellationToken).ConfigureAwait(false);
+        await StatusOnAsync(s, "status-home-while-second-viewed", home, cancellationToken).ConfigureAwait(false);
+        await StatusOnAsync(s, "status-second-while-second-viewed", second, cancellationToken).ConfigureAwait(false);
 
-        // Case 1: a second player map exists; a read for its identity answers about it while the home map stays viewed.
-        JsonObject generated;
-        try
+        // The roster carries map ids: every colonist is on the home map, and none on the second.
+        var roster = await RosterAsync(s, "roster", new Presentation.ColonistRosterRequest { Identity = home, CurrentMapOnly = false }, cancellationToken).ConfigureAwait(false);
+        if (roster.Count == 0 || roster.Any(row => row.MapId != home.MapId))
         {
-            generated = await h.CallAsync("generate", "test/map_scope_generate", [], cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException("generate: " + e.Message, e);
+            throw new AcceptanceException($"roster: want colonists all on map {home.MapId}, got {string.Join("; ", roster)}");
         }
 
-        var secondMap = (int)generated["secondMapId"].AsNumber();
-        if (generated["success"].AsBool() != true || secondMap == homeMap || (int)generated["viewedMapId"].AsNumber() != homeMap)
+        var secondOnly = await RosterAsync(s, "roster-second-only", new Presentation.ColonistRosterRequest { Identity = second, CurrentMapOnly = true }, cancellationToken).ConfigureAwait(false);
+        if (secondOnly.Count != 0)
         {
-            throw new AcceptanceException($"generate: expected a distinct second map with home still viewed, got {generated.ToJson()}");
+            throw new AcceptanceException($"roster-second-only: want no colonists on the generated map, got {secondOnly.Count}");
         }
 
-        var second = WithMap(home, secondMap);
-        s.Report["setup"] = new JsonObject { ["homeMapId"] = homeMap, ["secondMapId"] = secondMap, ["generationGranted"] = granted };
-        await StatusOnAsync(h, "status-second-while-home-viewed", second, secondMap, cancellationToken).ConfigureAwait(false);
-        await StatusOnAsync(h, "status-home-while-home-viewed", home, homeMap, cancellationToken).ConfigureAwait(false);
-
-        // Map generation may flip the viewed map and back; that is the player's own view change as far as authority is
-        // concerned. Measure from here.
-        var (beforeSwitch, beforeState) = await AuthorityAsync(h, "status-after-generate", home, cancellationToken).ConfigureAwait(false);
-        s.Report["case_generate"] = new JsonObject { ["state"] = beforeState, ["generation"] = beforeSwitch };
-
-        // Case 2: switching the viewed map invalidates authority as IdentityChanged at generation+1; reads for either
-        // identity still resolve their own map.
-        JsonObject viewed;
-        try
+        // Presentation state lives on the viewed map: the home identity is stale there with the viewed map's context; the
+        // second identity passes the identity check (a snapshot when rendered, the graphical-only refusal headless).
+        var homeSelection = await s.CallAsync("selection-home-while-second-viewed", NativeOps.ReadSelection, new Presentation.ReadRequest { Identity = home }, cancellationToken).ConfigureAwait(false);
+        StaleOn("selection-home-while-second-viewed", homeSelection.Outcome?.Failure, second.MapId, homeSelection.Outcome);
+        var secondSelection = await s.CallAsync("selection-second-while-second-viewed", NativeOps.ReadSelection, new Presentation.ReadRequest { Identity = second }, cancellationToken).ConfigureAwait(false);
+        if (secondSelection.Outcome?.Selection is null && secondSelection.Outcome?.Failure?.Code != Common.FailureCode.Unavailable)
         {
-            viewed = await h.CallAsync("view-second", "test/map_scope_view", new JsonObject { ["mapId"] = secondMap }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException("view-second: " + e.Message, e);
+            throw new AcceptanceException($"selection-second-while-second-viewed: want a selection or the headless refusal, got {secondSelection.Outcome}");
         }
 
-        if ((int)viewed["viewedMapId"].AsNumber() != secondMap)
-        {
-            throw new AcceptanceException($"view-second: expected map {secondMap} viewed, got {viewed.ToJson()}");
-        }
+        // An identity naming a map that is not loaded is stale, with the viewed map's context to re-anchor on.
+        var gone = await s.CallAsync("status-unloaded-map", NativeOps.ReadStatus, new Observations.StatusRequest { Scope = new() { ExpectedIdentity = home with { MapId = 987654 } } }, cancellationToken).ConfigureAwait(false);
+        StaleOn("status-unloaded-map", gone.Outcome?.Failure, second.MapId, gone.Outcome);
 
-        var (afterSwitch, switchState) = await AuthorityAsync(h, "status-after-switch", home, cancellationToken).ConfigureAwait(false);
-        var inactive = switchState["inactive"].AsMap();
-        if (inactive is null || inactive["reason"].AsString() != "REVOCATION_REASON_IDENTITY_CHANGED")
-        {
-            throw new AcceptanceException($"status-after-switch: expected inactive IDENTITY_CHANGED, got {switchState.ToJson()}");
-        }
-
-        if (afterSwitch != beforeSwitch + 1)
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"status-after-switch: expected generation {beforeSwitch + 1}, got {afterSwitch}"));
-        }
-
-        await StatusOnAsync(h, "status-home-while-second-viewed", home, homeMap, cancellationToken).ConfigureAwait(false);
-        await StatusOnAsync(h, "status-second-while-second-viewed", second, secondMap, cancellationToken).ConfigureAwait(false);
-        s.Report["case_switch"] = new JsonObject { ["state"] = switchState, ["generation"] = afterSwitch };
-
-        // Case 3: the roster spans both maps and carries map_id; the home map's colonists are all on the home map, and
-        // none is claimed on the second.
-        var rosterReply = await h.WireAsync("roster", "presentation_colonists", new JsonObject { ["identity"] = home.DeepClone() }, cancellationToken).ConfigureAwait(false);
-        var roster = OutcomeOf("roster", rosterReply, "roster");
-        var colonists = roster["colonists"].AsSlice();
-        if (colonists.Count == 0)
-        {
-            throw new AcceptanceException("roster: no colonists");
-        }
-
-        var firstColonist = string.Empty;
-        foreach (var row in colonists)
-        {
-            var m = row.AsMap() ?? [];
-            if ((int)m["mapId"].AsNumber() != homeMap)
-            {
-                throw new AcceptanceException($"roster: colonist {m.ToJson()} is not on the home map");
-            }
-
-            if (firstColonist.Length == 0)
-            {
-                firstColonist = m["pawnId"].AsString();
-            }
-        }
-
-        var narrowReply = await h.WireAsync(
-            "roster-second-only",
-            "presentation_colonists",
-            new JsonObject { ["identity"] = second.DeepClone(), ["currentMapOnly"] = true },
-            cancellationToken).ConfigureAwait(false);
-        var narrow = OutcomeOf("roster-second-only", narrowReply, "roster");
-        var narrowCount = narrow["colonists"].AsSlice().Count;
-        if (narrowCount != 0)
-        {
-            throw new AcceptanceException($"roster-second-only: expected no colonists on the generated map, got {narrowCount}");
-        }
-
-        s.Report["case_roster"] = new JsonObject { ["colonists"] = colonists.Count, ["secondOnly"] = 0 };
-
-        // Case 4: presentation state lives on the viewed map; the home identity is stale there, with the viewed map's
-        // context, while the second is not.
-        var selectionReply = await h.WireAsync("selection-home-while-second-viewed", "presentation_selection", new JsonObject { ["identity"] = home.DeepClone() }, cancellationToken).ConfigureAwait(false);
-        if (FailureCode(selectionReply) != "FAILURE_CODE_STALE_IDENTITY")
-        {
-            throw new AcceptanceException($"selection-home-while-second-viewed: expected STALE_IDENTITY, got {selectionReply.ToJson()}");
-        }
-
-        var observed = selectionReply["failure"].AsMap()?["observedContext"].AsMap();
-        if ((int)(observed?["identity"].AsMap()?["mapId"].AsNumber() ?? 0) != secondMap)
-        {
-            throw new AcceptanceException($"selection-home-while-second-viewed: expected observed map {secondMap}, got {observed.ToJson()}");
-        }
-
-        var selectionSecond = await h.WireAsync("selection-second-while-second-viewed", "presentation_selection", new JsonObject { ["identity"] = second.DeepClone() }, cancellationToken).ConfigureAwait(false);
-
-        // Identity accepted: a selection snapshot when rendered, and headless the graphical-only refusal, which comes
-        // after the identity check.
-        if (!selectionSecond.ContainsKey("selection") && !(s.Config.Headless && FailureCode(selectionSecond) == "FAILURE_CODE_UNAVAILABLE"))
-        {
-            throw new AcceptanceException($"selection-second-while-second-viewed: expected a selection outcome, got {selectionSecond.ToJson()}");
-        }
-
-        // Case 5: an identity naming a map that is not loaded is stale, carrying the viewed map's context so the caller
-        // can re-anchor.
-        var goneReply = await h.WireAsync(
-            "status-unloaded-map",
-            "observations_read_status",
-            new JsonObject { ["scope"] = new JsonObject { ["expectedIdentity"] = WithMap(home, 987654) } },
-            cancellationToken).ConfigureAwait(false);
-        if (FailureCode(goneReply) != "FAILURE_CODE_STALE_IDENTITY")
-        {
-            throw new AcceptanceException($"status-unloaded-map: expected STALE_IDENTITY, got {goneReply.ToJson()}");
-        }
-
-        var goneObserved = goneReply["failure"].AsMap()?["observedContext"].AsMap();
-        if ((int)(goneObserved?["identity"].AsMap()?["mapId"].AsNumber() ?? 0) != secondMap)
-        {
-            throw new AcceptanceException($"status-unloaded-map: expected observed map {secondMap}, got {goneObserved.ToJson()}");
-        }
-
-        // Case 6: back on the home map, a fresh grant admits a draft bound to the home identity and it lands on the home
-        // map's colonist.
-        try
-        {
-            _ = await h.CallAsync("view-home", "test/map_scope_view", new JsonObject { ["mapId"] = homeMap }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException("view-home: " + e.Message, e);
-        }
-
-        var (backGeneration, _) = await AuthorityAsync(h, "status-back-home", home, cancellationToken).ConfigureAwait(false);
-        var regranted = await GrantAsync(h, "regrant-home", home, backGeneration, cancellationToken).ConfigureAwait(false);
-        var draftResult = await ApplyIntents.ApplyOneAsync(
-            h,
+        // Back on the home map, a fresh grant admits a draft bound to the home identity, and it lands there.
+        _ = await s.FixtureAsync("view-home", View, home.MapId, cancellationToken).ConfigureAwait(false);
+        var back = await TypedAuthority.StatusAsync(s, "status-back-home", home, cancellationToken).ConfigureAwait(false);
+        _ = await TypedAuthority.GrantAsync(s, "regrant-home", home, back.Context?.NativeGeneration ?? throw new AcceptanceException($"status-back-home: no generation: {back}"), cancellationToken).ConfigureAwait(false);
+        var colonist = roster[0].PawnId ?? throw new AcceptanceException("roster: the first colonist has no pawn id");
+        var draft = await s.CallAsync(
             "draft",
-            home,
-            "mapscope-draft-1",
-            new JsonObject { ["draft"] = new JsonObject { ["pawnId"] = firstColonist, ["drafted"] = true } },
+            NativeOps.Apply,
+            new Operations.ApplyRequest
+            {
+                Identity = home,
+                Actions = [new Operations.Action { Key = "mapscope-draft-1", Intent = new Operations.DraftIntent { PawnId = colonist, Drafted = true } }],
+            },
             cancellationToken).ConfigureAwait(false);
-        var job = ApplyIntents.AppliedJob("draft", draftResult);
-        if (job["issued"].AsBool() != true)
+        var receipt = draft.Results.ToList() is [{ Outcome.Applied: { } applied }] ? applied : throw new AcceptanceException($"draft: want one applied result, got {draft.BatchFailure} {string.Join("; ", draft.Results)}");
+        s.RecordWire("draft", receipt);
+        var job = receipt.Outcome?.Applied?.Observed?.Effect?.Job;
+        if (job?.Issued != true || receipt.AdmittedContext?.Identity.MapId != home.MapId)
         {
-            throw new AcceptanceException($"draft: expected {firstColonist} drafted, got {draftResult.ToJson()}");
+            throw new AcceptanceException($"draft: want {colonist} drafted, admitted on map {home.MapId}, got {receipt}");
         }
 
-        var receipt = draftResult["applied"].AsMap();
-        var afterReply = await h.WireAsync(
+        var pawns = await s.CallAsync(
             "pawn-after",
-            "observations_list_pawns",
-            new JsonObject
-            {
-                ["scope"] = new JsonObject { ["expectedIdentity"] = home.DeepClone() },
-                ["filter"] = new JsonObject { ["colonist"] = true, ["downed"] = false, ["ids"] = new JsonArray(firstColonist) },
-            },
+            NativeOps.ListPawns,
+            new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new Observations.PawnFilter { Ids = [colonist], Colonist = true } },
             cancellationToken).ConfigureAwait(false);
-        var admittedIdentity = receipt?["admittedContext"].AsMap()?["identity"].AsMap();
-        if ((int)(admittedIdentity?["mapId"].AsNumber() ?? 0) != homeMap)
+        var rows = TypedReads.Observed("pawn-after", NativeOps.ListPawns, pawns, pawns.Outcome?.Observed).Pawns.ToList();
+        if (rows is not [{ Drafted: true } after] || after.Pawn.MapId != home.MapId || after.PawnSnapshot?.Token != job.ResultingSnapshotToken)
         {
-            throw new AcceptanceException($"draft: admitted on map {admittedIdentity?["mapId"].ToJson()}, expected {homeMap}");
-        }
-
-        var afterObserved = OutcomeOf("pawn-after", afterReply, "observed");
-        var afterRows = afterObserved["pawns"].AsSlice();
-        if (afterRows.Count != 1)
-        {
-            throw new AcceptanceException($"pawn-after: expected one row, got {afterRows.Count}");
-        }
-
-        var after = afterRows[0].AsMap();
-        var afterPawn = after?["pawn"].AsMap();
-        var afterSnapshot = after?["pawnSnapshot"].AsMap();
-        if (after?["drafted"].AsBool() != true || (int)(afterPawn?["mapId"].AsNumber() ?? 0) != homeMap
-            || afterSnapshot?["token"].AsString() != job["resultingSnapshotToken"].AsString())
-        {
-            throw new AcceptanceException($"draft: expected {firstColonist} drafted on map {homeMap} with the receipt's snapshot token, got {after.ToJson()}");
-        }
-
-        s.Report["case_draft_home"] = new JsonObject { ["generation"] = regranted, ["pawnId"] = firstColonist };
-    }
-
-    private static JsonObject WithMap(JsonObject identity, int mapId)
-    {
-        var copy = (JsonObject)identity.DeepClone();
-        copy["mapId"] = mapId;
-        return copy;
-    }
-
-    private static string FailureCode(JsonObject reply) => reply["failure"].AsMap()?["code"].AsString() ?? string.Empty;
-
-    private static JsonObject OutcomeOf(string label, JsonObject reply, string kind)
-    {
-        try
-        {
-            return Harness.Outcome(reply, kind).Value;
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"{label}: expected a {kind} outcome: {e.Message}", e);
+            throw new AcceptanceException($"pawn-after: want {colonist} drafted on map {home.MapId} with the receipt's snapshot token {job.ResultingSnapshotToken}, got {string.Join("; ", rows)}");
         }
     }
 
-    // Asserts observations_read_status for identity answers with that identity's map in its context, whichever map is viewed.
-    private static async Task StatusOnAsync(Harness h, string label, JsonObject identity, int mapId, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<Presentation.ColonistReference>> RosterAsync(ITypedSession s, string label, Presentation.ColonistRosterRequest request, CancellationToken cancellationToken)
     {
-        var reply = await h.WireAsync(
+        var reply = await s.CallAsync(label, NativeOps.ReadColonists, request, cancellationToken).ConfigureAwait(false);
+        return reply.Outcome?.Roster?.Colonists.ToList() ?? throw new AcceptanceException($"{label}: want a roster, got {reply.Outcome}");
+    }
+
+    // A STALE_IDENTITY refusal carrying the viewed map's context.
+    private static void StaleOn(string label, Common.Failure? failure, int viewedMap, object? reply)
+    {
+        if (failure?.Code != Common.FailureCode.StaleIdentity || failure.ObservedContext?.Identity.MapId != viewedMap)
+        {
+            throw new AcceptanceException($"{label}: want STALE_IDENTITY observed on map {viewedMap}, got {reply}");
+        }
+    }
+
+    // observations_read_status for identity answers with that identity's map in its context, whichever map is viewed.
+    private static async Task StatusOnAsync(ITypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
+    {
+        var reply = await s.CallAsync(
             label,
-            "observations_read_status",
-            new JsonObject
-            {
-                ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                ["colonists"] = false,
-                ["threats"] = false,
-            },
+            NativeOps.ReadStatus,
+            new Observations.StatusRequest { Scope = new() { ExpectedIdentity = identity }, Colonists = false, Threats = false },
             cancellationToken).ConfigureAwait(false);
-        var observed = OutcomeOf(label, reply, "observed");
-        var context = observed["context"].AsMap();
-        if ((int)(context?["identity"].AsMap()?["mapId"].AsNumber() ?? 0) != mapId)
+        var observed = TypedReads.Observed(label, NativeOps.ReadStatus, reply, reply.Outcome?.Observed);
+        if (observed.Context?.Identity.MapId != identity.MapId)
         {
-            throw new AcceptanceException($"{label}: expected context map {mapId}, got {context.ToJson()}");
+            throw new AcceptanceException($"{label}: want context map {identity.MapId}, got {observed.Context}");
         }
-    }
-
-    private static async Task<(ulong Generation, JsonObject State)> AuthorityAsync(Harness h, string label, JsonObject identity, CancellationToken cancellationToken)
-    {
-        var reply = await h.WireAsync(label, "authority_read_status", new JsonObject { ["identity"] = identity.DeepClone() }, cancellationToken).ConfigureAwait(false);
-        var status = OutcomeOf(label, reply, "status");
-        var generation = status["context"].AsMap()?["nativeGeneration"].AsUInt64() ?? 0;
-        var state = new JsonObject();
-        foreach (var key in new[] { "unavailable", "inactive", "active" })
-        {
-            if (status.TryGetPropertyValue(key, out var value))
-            {
-                state[key] = value?.DeepClone();
-            }
-        }
-
-        return state.Count != 1
-            ? throw new AcceptanceException($"{label}: expected exactly one authority state, got {status.ToJson()}")
-            : (generation, state);
-    }
-
-    private static async Task<ulong> GrantAsync(Harness h, string label, JsonObject identity, ulong expected, CancellationToken cancellationToken)
-    {
-        var granted = await Authority.GrantAutoAtAsync(h.WireFunc(), label, identity, expected, cancellationToken).ConfigureAwait(false);
-        return granted["context"].AsMap()?["nativeGeneration"].AsUInt64() ?? 0;
     }
 }

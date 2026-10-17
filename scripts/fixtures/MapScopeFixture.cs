@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using RimWorld.Planet;
@@ -37,8 +38,7 @@ namespace HomeBridge.BridgeTools
                 var second = GetOrGenerateMapUtility.GetOrGenerateMap(tile, new IntVec3(75, 1, 75), null);
                 if (second == null || ReferenceEquals(second, home)) throw new InvalidOperationException("Second map was not generated");
                 if (!ReferenceEquals(Find.CurrentMap, home)) Current.Game.CurrentMap = home;
-                return new { success = true, homeMapId = home.uniqueID, secondMapId = second.uniqueID, tile = tile.tileId,
-                    viewedMapId = Find.CurrentMap.uniqueID, loadedMaps = Find.Maps.Count };
+                return new MapScopeReply { Success = true, HomeMapId = home.uniqueID, SecondMapId = second.uniqueID, ViewedMapId = Find.CurrentMap.uniqueID };
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
                 var map = Find.Maps.FirstOrDefault(m => m.uniqueID == mapId);
                 if (map == null) throw new ArgumentException("No loaded map with id " + mapId);
                 Current.Game.CurrentMap = map;
-                return new { success = true, viewedMapId = Find.CurrentMap.uniqueID };
+                return new MapScopeReply { Success = true, ViewedMapId = Find.CurrentMap.uniqueID };
             }, cancellationToken).ConfigureAwait(false);
         }
     }

@@ -371,8 +371,6 @@ public sealed record LoadSuperseded
 {
     public string? RequestId { get; init; }
 
-    public Common.ObservationContext? ObservedContext { get; init; }
-
     public string? Detail { get; init; }
 }
 

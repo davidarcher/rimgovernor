@@ -1,117 +1,80 @@
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>tools/deepresources</c> (Go <c>deepresources.go</c>): seeded deep resource lumps, scanners and drills read back exactly.</summary>
+/// <summary>
+/// <c>tools/deepresources</c>: seeded deep resource lumps aggregate by connected definition, both scanner types expose
+/// their native state, and drills report exact deposit and depletion (#482, #538).
+/// </summary>
 internal static class ToolsDeepResources
 {
-    internal static AcceptanceCase Case() => new()
+    private const string SeedTool = "test/deep_resources_seed";
+
+    private static readonly FixtureOp<string, Fx.DeepResourcesReply> Seed = new(
+        SeedTool,
+        _ => [],
+        (label, reply) => reply is not null && Fx.FixtureJson.Deserialize<Fx.DeepResourcesReply>(reply.ToJsonString()) is { Success: true } read
+            ? read
+            : throw new AcceptanceException($"{label}: {SeedTool} refused: {reply?.ToJsonString()}"));
+
+    internal static TypedCase Case() => new()
     {
         Name = "tools/deepresources",
-        Tier = CaseTier.Off,
-        Scope = "Seeded deep resource lumps aggregate by connected definition, both scanner types expose native state, and drills report exact deposit, depletion and controller ownership (#482, #538).",
-        Start = new FixtureStart { Op = "test/deep_resources_seed", On = new LabStart() },
-        Budget = TimeSpan.FromMinutes(3),
-        Crew = new Crew { Size = 3 },
+        Scope = "colony facts deepResources over test/deep_resources_seed (no stage primitive writes the deep resource grid): "
+            + "three Plasteel cells read as one 300-count lump, a separate 25-count Plasteel cell as another, a diagonal Steel "
+            + "pair as one 70-count lump; both scanner types read built, unpowered, idle, with a positive time to next find; "
+            + "the drill on the lump reads 100 Plasteel remaining and the drill over cleared ground reads depleted with no deposit.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Ops = [SeedTool],
         Run = RunAsync,
     };
 
-    private static (double X, double Z) Cell(JsonNode? position) => (position.Member("x").AsNumber(), position.Member("z").AsNumber());
-
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var seed = s.Prepared;
-        if (seed is null || seed["success"].AsBool() != true)
+        var seed = await s.FixtureAsync("seed", Seed, "", cancellationToken).ConfigureAwait(false);
+        var (ex, ez) = (seed.X, seed.Z);
+        var reply = await s.CallAsync("deep-resources", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var facts = TypedReads.Observed("deep-resources", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+        var f = facts.DeepResources?.Outcome?.Observed ?? throw new AcceptanceException($"deep-resources: no observed census: {facts.DeepResources}");
+        s.RecordWire("deep_resources", f);
+
+        bool At(Common.Cell? cell, int x, int z) => cell?.X == x && cell.Z == z;
+        var near = f.Lumps.Where(l => l.Centre is { X: { } x, Z: { } z } && Math.Abs(x - ex) <= 5 && Math.Abs(z - ez) <= 5).ToList();
+        bool Lump(string def, int x, int z, long count, uint cells) => near.Any(l => l.DefName == def && At(l.Centre, x, z) && l.Count == count && l.CellCount == cells);
+        if (near.Count != 3 || !Lump("Plasteel", ex, ez, 300, 3) || !Lump("Plasteel", ex + 4, ez, 25, 1) || !Lump("Steel", ex + 3, ez + 3, 70, 2))
         {
-            throw new AcceptanceException($"seed failed: {seed?.ToJson()}");
+            throw new AcceptanceException($"lumps: want Plasteel 300x3 at the centre, Plasteel 25x1 at +4 and Steel 70x2 at +3,+3, got {string.Join("; ", near)}");
         }
 
-        var ex = seed["x"].AsNumber();
-        var ez = seed["z"].AsNumber();
-        var facts = await ToolsFacts.ReadAsync(h, "deep-resources", cancellationToken).ConfigureAwait(false);
-        var f = facts.Member("deepResources").Member("observed").AsMap()
-            ?? throw new AcceptanceException($"deep resources unavailable: {facts.Member("deepResources").ToJson()}");
-
-        var found = 0;
-        foreach (var lump in f.Member("lumps").AsSlice())
+        foreach (var (kind, rows) in new[] { ("ground", f.GroundScanners), ("long-range", f.LongRangeScanners) })
         {
-            var (x, z) = Cell(lump.Member("centre"));
-            if (x < ex - 5 || x > ex + 5 || z < ez - 5 || z > ez + 5)
+            var scanners = rows.Where(r => r.Position?.X == ex - 12).ToList();
+            if (scanners is not [{ Built: true, Powered: false, Working: false, TicksToNextFind: > 0 }])
             {
-                continue;
-            }
-
-            var def = lump.Member("defName").AsString();
-            var count = lump.Member("count").AsNumber();
-            var cells = lump.Member("cellCount").AsNumber();
-            var valid = def == "Plasteel" && ((x == ex && z == ez && count == 300 && cells == 3) || (x == ex + 4 && z == ez && count == 25 && cells == 1));
-            valid = valid || (def == "Steel" && x == ex + 3 && z == ez + 3 && count == 70 && cells == 2);
-            if (!valid)
-            {
-                throw new AcceptanceException($"incorrect lump aggregation: {lump.ToJson()}");
-            }
-
-            found++;
-        }
-
-        if (found != 3)
-        {
-            throw new AcceptanceException($"got {found} fixture lumps, want 3");
-        }
-
-        foreach (var rows in new[] { f.Member("groundScanners").AsSlice(), f.Member("longRangeScanners").AsSlice() })
-        {
-            var foundScanner = false;
-            foreach (var row in rows)
-            {
-                if (Cell(row.Member("position")).X != ex - 12)
-                {
-                    continue;
-                }
-
-                if (row.Member("built").AsBool() != true
-                    || row.Member("powered").AsBool() != false
-                    || row.Member("working").AsBool() != false
-                    || row.Member("ticksToNextFind") is not { } ticks
-                    || ticks.AsNumber() <= 0)
-                {
-                    throw new AcceptanceException($"incorrect scanner state: {row.ToJson()}");
-                }
-
-                foundScanner = true;
-            }
-
-            if (!foundScanner)
-            {
-                throw new AcceptanceException($"fixture scanner missing: {rows.Count} rows");
+                throw new AcceptanceException($"{kind} scanner: want one built, unpowered, idle scanner at x {ex - 12} with a positive time to next find, got {string.Join("; ", rows)}");
             }
         }
 
-        // The drill on the lump reads its deposit; the drill over cleared ground reads depleted with no deposit.
-        var drills = new Dictionary<(double, double), JsonNode?>();
-        foreach (var row in f.Member("drills").AsSlice())
+        if (f.Drills.FirstOrDefault(d => d.DefName != "DeepDrill" || d.Depleted is null || d.Designated != false) is { } incomplete)
         {
-            if (row.Member("defName").AsString() != "DeepDrill" || row.Member("depleted") is null || row.Member("designated").AsBool() != false)
-            {
-                throw new AcceptanceException($"incomplete drill row: {row.ToJson()}");
-            }
-
-            drills[Cell(row.Member("position"))] = row;
+            throw new AcceptanceException($"drills: incomplete row {incomplete}");
         }
 
-        drills.TryGetValue((ex, ez), out var yielding);
-        drills.TryGetValue((ex, ez - 8), out var depleted);
-        if (yielding is null || yielding.Member("depleted").AsBool() != false || yielding.Member("resource").AsString() != "Plasteel" || yielding.Member("remaining").AsNumber() != 100)
+        var yielding = f.Drills.FirstOrDefault(d => At(d.Position, ex, ez));
+        if (yielding is not { Depleted: false, Resource: "Plasteel", Remaining: 100 })
         {
-            throw new AcceptanceException($"incorrect yielding drill state: {yielding.ToJson()}");
+            throw new AcceptanceException($"drills: want the drill on the lump to read 100 Plasteel remaining, got {yielding}");
         }
 
-        if (depleted is null || depleted.Member("depleted").AsBool() != true || depleted.Member("resource") is not null || depleted.Member("remaining") is not null)
+        var depleted = f.Drills.FirstOrDefault(d => At(d.Position, ex, ez - 8));
+        if (depleted is not { Depleted: true, Resource: null, Remaining: null })
         {
-            throw new AcceptanceException($"incorrect depleted drill state: {depleted.ToJson()}");
+            throw new AcceptanceException($"drills: want the drill over cleared ground depleted with no deposit, got {depleted}");
         }
-
-        s.Report["deep_resources"] = f.DeepClone();
     }
 }

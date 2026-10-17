@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
+using RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using Verse;
 
@@ -32,7 +33,7 @@ namespace HomeBridge.BridgeTools
                 new Harmony(NativeAuthorityHooks.Owner).Unpatch(status.Method, HarmonyPatchType.All, NativeAuthorityHooks.Owner);
                 var removed = !NativeAuthorityHooks.Statuses.First(h => h.Name == hook).Installed;
                 if (!removed) throw new InvalidOperationException("Hook is still installed after Unpatch");
-                return new { success = true, hook, removed = true, health = NativeAuthorityHooks.Health.VerifiedTargets, required = NativeAuthorityHooks.Health.RequiredTargets };
+                return new RuntimeFaultReply { Success = true, Removed = true, Health = NativeAuthorityHooks.Health.VerifiedTargets, Required = NativeAuthorityHooks.Health.RequiredTargets };
             }, cancellationToken).ConfigureAwait(false);
         }
     }

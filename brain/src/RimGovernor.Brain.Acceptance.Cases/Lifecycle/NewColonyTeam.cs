@@ -65,7 +65,7 @@ internal static class LifecycleNewColonyTeam
         }
     }
 
-    internal sealed class TeamPawn
+    private sealed class TeamPawn
     {
         internal string Name { get; init; } = "";
 
@@ -83,7 +83,7 @@ internal static class LifecycleNewColonyTeam
         internal HashSet<string> Incapable { get; } = new(StringComparer.Ordinal);
     }
 
-    internal static string Digest(IReadOnlyList<TeamPawn> team)
+    private static string Digest(IReadOnlyList<TeamPawn> team)
     {
         var rows = new List<string>();
         foreach (var p in team)
@@ -120,7 +120,7 @@ internal static class LifecycleNewColonyTeam
     }
 
     /// <summary>Lists the live colony's colonists with biography.</summary>
-    internal static async Task<IReadOnlyList<TeamPawn>> ReadAsync(Harness h, string label, int count, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<TeamPawn>> ReadAsync(Harness h, string label, int count, CancellationToken cancellationToken)
     {
         var identity = await Session.ReadIdentityAsync(h, label + "-identity", cancellationToken).ConfigureAwait(false);
         var team = new List<TeamPawn>();

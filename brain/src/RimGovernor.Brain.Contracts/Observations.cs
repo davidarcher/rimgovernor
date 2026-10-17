@@ -750,8 +750,6 @@ public sealed record Hediff
 
     public bool Visible { get; init; }
 
-    public bool Permanent { get; init; }
-
     public bool Tended { get; init; }
 
     /// <summary>
@@ -3529,8 +3527,6 @@ public sealed record ResourceSource
     public string? Blocker { get; init; }
 
     public double? Distance { get; init; }
-
-    public bool? Depleted { get; init; }
 
     public long? Remaining { get; init; }
 

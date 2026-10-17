@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
         private static Obs.Hediff HediffRow(Pawn pawn,Hediff h)
         {
                 var item=new Obs.Hediff {DefName=Id(h.def.defName),Severity=Number(h.Severity),
-                    Visible=h.Visible,Permanent=h.IsPermanent(),Tended=h.IsTended()};
+                    Visible=h.Visible,Tended=h.IsTended()};
                 if(h.Part!=null) {
                     var index=pawn.RaceProps.body.AllParts.IndexOf(h.Part);
                     if(index<0) throw new InvalidOperationException("Hediff body part is not in this pawn's body.");

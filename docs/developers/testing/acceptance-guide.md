@@ -48,6 +48,7 @@ with `registry.Register(...)` like a legacy case:
 | `Stage` | A `Fixtures.Contracts` `StageSpec` applied by `test/stage` on the opened start (rule 2). Its reply is `ITypedSession.Staged`. |
 | `Ops` | The fixture ops the body calls. |
 | `Crew`, `Keep`, `QuietWorld`, `Expansions`, `Serve` | The defaults' departures (rule 7). |
+| `NoKeep` | The body leaves the process on a game the next case did not open (an unload, a reload, unpatched process state), so the runner does not keep the game. An expansion profile implies it. |
 | `Run`, `Postmortem` | The body, over an `ITypedSession` (rules 4–6). |
 | Variants | There is no member for variants. A data-driven case registers one `TypedCase` per row. A variant that duplicates another's claim is deleted. |
 

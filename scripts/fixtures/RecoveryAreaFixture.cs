@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -10,12 +11,10 @@ namespace HomeBridge.BridgeTools
     // Private disposable acceptance only. Builds one small roofed refuge
     // Area and one outdoor Area near an existing colonist, restricts that
     // colonist to the outdoor area, and registers a ToxicFallout hazard
-    // condition on the current paused map, so recoveryareaaccept can
-    // exercise NativeWorkSettings' PatchPawn AllowedArea dispatch (the
-    // native write surface PlanSheltering's area changes reach) without
-    // depending on native random colony layout or an existing named safe
-    // area, mirroring RecoveryServiceFixture's/DisasterFixture's own
-    // minimal disposable-spawn pattern.
+    // condition on the current paused map, so recovery/area can exercise
+    // NativeWorkSettings' PatchPawn AllowedArea dispatch (the native write
+    // surface PlanSheltering's area changes reach). No stage primitive makes
+    // an allowed Area or restricts a pawn to one.
     public sealed class RecoveryAreaFixture
     {
         [Tool("test/recovery_area_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one small roofed refuge Area and one outdoor Area near an existing colonist, restrict that colonist to the outdoor area, and register a ToxicFallout hazard condition on the current paused map.")]
@@ -74,16 +73,10 @@ namespace HomeBridge.BridgeTools
                 var toxic = GameConditionMaker.MakeCondition(DefDatabase<GameConditionDef>.GetNamed("ToxicFallout"), 1200);
                 map.gameConditionManager.RegisterCondition(toxic);
 
-                var identity = Current.Game.GetComponent<ColonyIdentity>();
-                return new {
-                    success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
-                    tick = Find.TickManager.TicksGame, pawn = pawn.GetUniqueLoadID(),
-                    refuge = refuge.GetUniqueLoadID(), outdoor = outdoor.GetUniqueLoadID(),
-                    setup = "Test-only roofed refuge/outdoor area, hazard registration and restriction setup; native PatchPawn AllowedArea dispatch remains native.",
-                };
+                return new RecoveryAreaReply { Success = true, Pawn = pawn.GetUniqueLoadID(), Refuge = refuge.GetUniqueLoadID(), Outdoor = outdoor.GetUniqueLoadID() };
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        private static object Refuse(string reason) => new { success = false, reason };
+        private static RecoveryAreaReply Refuse(string reason) => throw new System.InvalidOperationException(reason);
     }
 }
