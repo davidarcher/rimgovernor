@@ -123,7 +123,10 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
         var root = ready.RootElement;
         if (root.GetProperty("kind").GetString() != "ready" || root.GetProperty("gameBuild").GetString() != _settings.GameBuild || root.GetProperty("mods").GetString() != _settings.PredictorMods)
             throw new IOException("worker_build_or_mods_mismatch");
-        using var adapterAssembly = File.OpenRead(typeof(LocalEncounterPredictor).Assembly.Location);
+#pragma warning disable IL3000 // Empty inside a single-file host (rg.exe): the process file then is the adapter assembly.
+        var adapterPath = typeof(LocalEncounterPredictor).Assembly.Location;
+#pragma warning restore IL3000
+        using var adapterAssembly = File.OpenRead(adapterPath.Length > 0 ? adapterPath : Environment.ProcessPath ?? throw new IOException("adapter_path_unknown"));
         _engine = (root.GetProperty("engine").GetString() ?? throw new JsonException("engine identity missing")) + ":mods=" + _settings.PredictorMods + ":" + Convert.ToHexString(SHA256.HashData(adapterAssembly));
     }
 
