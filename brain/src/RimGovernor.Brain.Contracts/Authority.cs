@@ -167,23 +167,6 @@ public sealed record Revoke
     public RevocationReason? Reason { get; init; }
 }
 
-/// <summary>
-/// Trusted control-plane view change. Neither moves pawns nor grants authority.
-/// </summary>
-public sealed record FocusMap
-{
-    public Common.Identity? Identity { get; init; }
-
-    public ulong? ExpectedGeneration { get; init; }
-
-    public Common.Identity? Target { get; init; }
-}
-
-public sealed record FocusedMap
-{
-    public Common.ObservationContext? Context { get; init; }
-}
-
 public sealed record ControlRequest
 {
     public ControlRequestOperation? Operation { get; init; }
@@ -193,7 +176,6 @@ public sealed record ControlRequest
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(ControlRequestOperation.SetModeCase), "setMode")]
 [JsonDerivedType(typeof(ControlRequestOperation.RevokeCase), "revoke")]
-[JsonDerivedType(typeof(ControlRequestOperation.FocusMapCase), "focusMap")]
 public abstract record ControlRequestOperation
 {
     private protected ControlRequestOperation() { }
@@ -205,14 +187,6 @@ public abstract record ControlRequestOperation
     public sealed record RevokeCase(Revoke Value) : ControlRequestOperation;
 
     public static implicit operator ControlRequestOperation(Revoke value) => new RevokeCase(value);
-
-    /// <summary>The <c>FocusMap</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public FocusMap? FocusMap => (this as FocusMapCase)?.Value;
-
-    public sealed record FocusMapCase(FocusMap Value) : ControlRequestOperation;
-
-    public static implicit operator ControlRequestOperation(FocusMap value) => new FocusMapCase(value);
 }
 
 public sealed record Granted
@@ -239,7 +213,6 @@ public sealed record ControlReply
 [JsonDerivedType(typeof(ControlReplyOutcome.GrantedCase), "granted")]
 [JsonDerivedType(typeof(ControlReplyOutcome.RevokedCase), "revoked")]
 [JsonDerivedType(typeof(ControlReplyOutcome.FailureCase), "failure")]
-[JsonDerivedType(typeof(ControlReplyOutcome.FocusedMapCase), "focusedMap")]
 public abstract record ControlReplyOutcome
 {
     private protected ControlReplyOutcome() { }
@@ -267,14 +240,6 @@ public abstract record ControlReplyOutcome
     public sealed record FailureCase(Common.Failure Value) : ControlReplyOutcome;
 
     public static implicit operator ControlReplyOutcome(Common.Failure value) => new FailureCase(value);
-
-    /// <summary>The <c>FocusedMap</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public FocusedMap? FocusedMap => (this as FocusedMapCase)?.Value;
-
-    public sealed record FocusedMapCase(FocusedMap Value) : ControlReplyOutcome;
-
-    public static implicit operator ControlReplyOutcome(FocusedMap value) => new FocusedMapCase(value);
 }
 
 /// <summary>

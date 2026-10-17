@@ -1,4 +1,3 @@
-Contracts|Authority.ControlRequestOperation.FocusMap
 Contracts|Authority.WritePrecondition.Attempt
 Contracts|Authority.WritePrecondition.Identity
 Contracts|Clock.HeartbeatAck.Reason

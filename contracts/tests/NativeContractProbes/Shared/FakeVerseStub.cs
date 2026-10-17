@@ -84,13 +84,6 @@ namespace RimWorld
 }
 namespace HomeBridge.BridgeTools
 {
-    // SnapshotStream's native frame hook is outside these in-process probes.
-    // The control adapter still requests a capture after changing the view.
-    internal static class SnapshotStream
-    {
-        internal static int CaptureRequests;
-        internal static void RequestCapture() => CaptureRequests++;
-    }
     public class ColonyIdentity { public string ColonyId = "colony"; public string LoadToken = "load"; }
 
 }

@@ -3,16 +3,6 @@ using RimGovernor.Brain.Bridge.Contracts;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// Control may have changed. Observe current authority before another
-/// control decision; a failed response is never a retry license.
-/// </summary>
-internal sealed class FacadeAuthorityUncertainException(Exception cause, BridgeResult receipt)
-    : Exception("authority outcome uncertain: " + cause.Message, cause)
-{
-    public BridgeResult Receipt { get; } = receipt;
-}
-
-/// <summary>
 /// The native checkpoint save outcome is not confirmed (identity, tick or
 /// pause moved before or during the save). It is never a license to retry blindly; observe current state first.
 /// </summary>
@@ -24,19 +14,9 @@ internal sealed class FacadeSaveUncertainException(PbLifecycle.SaveUncertain val
     public BridgeResult Receipt { get; } = receipt;
 }
 
-/// <summary>The shared validation helpers of the write paths (actions, rules, clock, authority focus, lifecycle save).</summary>
+/// <summary>The shared validation helpers of the write paths (clock status).</summary>
 internal static class FacadeWriteChecks
 {
-    /// <summary>A valid identity and a positive generation.</summary>
-    internal static void WriteAuthorityRequest(PbCommon.Identity? identity, ulong? generation)
-    {
-        WireValidation.AuthorityIdentity(identity);
-        if (generation is null || generation.GetValueOrDefault() == 0)
-        {
-            throw BridgeContractException.Contract("positive authority generation required");
-        }
-    }
-
     /// <summary>
     /// The status of a status reply, after the typed failure arm and an unavailable status
     /// are turned into exceptions.

@@ -1,11 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Focuses the native map view on a target, implemented by the session.</summary>
-internal interface IPlayerMapFocus
-{
-    Task<NativeGeneration> FocusMapAsync(GenerationSnapshot before, GenerationSnapshot target, CancellationToken ct);
-}
-
 /// <summary>Proves the view changed while the prior Auto grant was live.</summary>
 internal interface IPlayerMapFocusConfirmation
 {
@@ -48,35 +42,8 @@ public sealed partial class Player
         return await HandoffHeldAsync(state, target, generation, call, epoch).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Runs under the caller's player gate. Durable departure evidence authorizes only its exact physical
-    /// destination and observed crew.
-    /// </summary>
-    internal async Task<bool> ExpeditionHandoffAsync(ControlState state, RoundsReading read, CancellationToken call, CancellationToken epoch)
+    private async Task<bool> HandoffHeldAsync(ControlState state, GenerationSnapshot target, NativeGeneration generation, CancellationToken call, CancellationToken epoch)
     {
-        if (!state.Enabled || !state.ObservationKnown || read.Frame.Quests is null)
-        {
-            return false;
-        }
-        var prior = await _journal.CurrentControlAsync(call).ConfigureAwait(false);
-        if (prior.Phase != ControlPhase.Running || prior.Request.World != PlayerWorld(state.Snapshot))
-        {
-            return false;
-        }
-        var plans = await Task.Run(() => _journal.PlanHistoryWithMethods(256, ["quest-expedition-*", "quest-site-*-return-*"], call), call).ConfigureAwait(false);
-        if (!ExpeditionHandoffTarget(state.Snapshot, read.Frame.Quests, plans).TryGetValue(out var target))
-        {
-            return false;
-        }
-        return await HandoffHeldAsync(state, target, null, call, epoch).ConfigureAwait(false);
-    }
-
-    private async Task<bool> HandoffHeldAsync(ControlState state, GenerationSnapshot target, NativeGeneration? alreadyFocused, CancellationToken call, CancellationToken epoch)
-    {
-        if (_session is not IPlayerMapFocus focus)
-        {
-            return false;
-        }
         Current(call, epoch);
         var request = new ControlRequest(
             string.Create(System.Globalization.CultureInfo.InvariantCulture, $"expedition-focus-{state.Snapshot.Colony.Value}-{state.Snapshot.Load.Value}-{target.Map.Value}-{state.Snapshot.Native.Value}"),
@@ -87,13 +54,10 @@ public sealed partial class Player
         {
             return false;
         }
-        NativeGeneration generation;
         try
         {
             _session.Disable();
             _ = await StopRoundsAsync(call).ConfigureAwait(false);
-            Current(call, epoch);
-            generation = alreadyFocused ?? await focus.FocusMapAsync(state.Snapshot, target, call).ConfigureAwait(false);
             Current(call, epoch);
             await WorldAsync(request.World, call).ConfigureAwait(false);
         }

@@ -1,12 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native map-focus capability.</summary>
-public interface IMapFocusNative
-{
-    Task<PbAuthority.ControlReply> FocusMapAsync(PbAuthority.FocusMap request, CancellationToken ct);
-}
-
-public sealed partial class Session : IPlayerMapFocus, IPlayerMapFocusConfirmation
+public sealed partial class Session : IPlayerMapFocusConfirmation
 {
     /// <summary>
     /// Proves vanilla changed the view while the prior Auto grant was live. Another native interruption cannot
@@ -27,18 +21,5 @@ public sealed partial class Session : IPlayerMapFocus, IPlayerMapFocusConfirmati
             throw new ControlException();
         }
         ct.ThrowIfCancellationRequested();
-    }
-
-    public async Task<NativeGeneration> FocusMapAsync(GenerationSnapshot before, GenerationSnapshot target, CancellationToken ct)
-    {
-        var c = _control;
-        if (c.Native is not IMapFocusNative native)
-        {
-            throw new ControlException();
-        }
-        await c.Config.StopWrites(ct).ConfigureAwait(false);
-        ct.ThrowIfCancellationRequested();
-        var reply = await native.FocusMapAsync(new PbAuthority.FocusMap { Identity = Control.ControlIdentity(before), Target = Control.ControlIdentity(target), ExpectedGeneration = before.Native.Value }, ct).ConfigureAwait(false);
-        return new NativeGeneration(reply.Outcome?.FocusedMap?.Context?.NativeGeneration ?? 0);
     }
 }

@@ -23,7 +23,6 @@ public sealed partial class FacadeNativeClient :
     IColonyStatusNative,
     IArrivalPawns,
     IBoundaryNative,
-    IMapFocusNative,
     IRoundsBuildingSource,
     IRoundsWorkBenchSource,
     IRoundsDefenseSource
@@ -134,8 +133,6 @@ public sealed partial class FacadeNativeClient :
     Task<O.ListPawnsReply> IArrivalPawns.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct) =>
         ReadCombatPawnsAsync(identity, pawnIds, ct);
 
-    Task<PbAuthority.ControlReply> IMapFocusNative.FocusMapAsync(PbAuthority.FocusMap request, CancellationToken ct) =>
-        FocusMapAsync(request, ct);
 
     Task<EmergencyObservation> IBoundaryNative.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
         ReadEmergencyAsync(identity, ct);

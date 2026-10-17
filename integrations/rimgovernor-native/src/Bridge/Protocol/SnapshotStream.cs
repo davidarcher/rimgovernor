@@ -105,9 +105,6 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        /// Makes the next frame capture at once (a map focus change), whoever is subscribed.
-        internal static void RequestCapture() => Interlocked.Exchange(ref capturedWrites, -1);
-
         /// The newest published frame for a pull subscriber. The first read subscribes (the stream keeps the
         /// shape the brain set, else the default) and makes the next frame capture.
         internal static Obs.SnapshotReadReply Read(Obs.SnapshotReadRequest request)

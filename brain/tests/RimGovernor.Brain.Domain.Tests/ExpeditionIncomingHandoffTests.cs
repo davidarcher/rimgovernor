@@ -54,7 +54,7 @@ public sealed class ExpeditionIncomingHandoffTests
         public Task<World> ReadWorldAsync(CancellationToken ct) => Task.FromResult(new World(new(Colony), new(Load), new(ExpeditionMap)));
     }
 
-    private sealed class Session : IPlayerSession, IPlayerMapFocus, IPlayerMapFocusConfirmation
+    private sealed class Session : IPlayerSession, IPlayerMapFocusConfirmation
     {
         private ControlState _state = new(Home, true, true);
 
@@ -81,7 +81,6 @@ public sealed class ExpeditionIncomingHandoffTests
 
         public Task CloseAsync(CancellationToken ct) => Task.CompletedTask;
 
-        public Task<NativeGeneration> FocusMapAsync(GenerationSnapshot before, GenerationSnapshot target, CancellationToken ct) => Task.FromResult(new NativeGeneration(2));
 
         public Task ConfirmMapFocusAsync(GenerationSnapshot before, GenerationSnapshot target, NativeGeneration generation, CancellationToken ct)
         {

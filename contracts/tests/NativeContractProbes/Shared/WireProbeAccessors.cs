@@ -11,7 +11,6 @@ internal static class WireProbeAccessors
     {
         public Authority.SetMode SetMode => (r.Operation as Authority.ControlRequestOperation.SetModeCase)?.Value;
         public Authority.Revoke Revoke => (r.Operation as Authority.ControlRequestOperation.RevokeCase)?.Value;
-        public Authority.FocusMap FocusMap => r.Operation?.FocusMap;
     }
     extension(Authority.StatusReply r)
     {
@@ -22,7 +21,6 @@ internal static class WireProbeAccessors
     {
         public Authority.Granted Granted => r.Outcome?.Granted;
         public Authority.Revoked Revoked => r.Outcome?.Revoked;
-        public Authority.FocusedMap FocusedMap => r.Outcome?.FocusedMap;
         public Common.Failure Failure => r.Outcome?.Failure;
     }
     extension(Authority.Status s)

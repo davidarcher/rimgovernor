@@ -220,7 +220,7 @@ public sealed partial class Control : IDisposable
                 var revoked = result.Outcome?.Revoked;
                 if (revoked is null || revoked.Context is null || !Equals(revoked.Context.Identity, ControlIdentity(requested)) || revoked.Context.NativeGeneration is null || revoked.Context.NativeGeneration.GetValueOrDefault() != generation + 1 || generation + 1 == ulong.MaxValue)
                 {
-                    throw new ControlException("Acquire: revoked == nil || revoked.Context == nil || !proto.Equal(revoked.Context.Identity, ...");
+                    throw new ControlException("Acquire: revoked == nil || revoked.Context == nil || !proto.Equal(revoked.Context.Identity, ..." + NativeRefusal(result));
                 }
                 generation = revoked.Context.NativeGeneration.GetValueOrDefault();
             }
@@ -665,12 +665,16 @@ public sealed partial class Control : IDisposable
         return new Entry(_gate, source);
     }
 
+    /// <summary>The native refusal a control reply carried, appended to the exception that rejects the reply; empty when it carried none.</summary>
+    private static string NativeRefusal(PbAuthority.ControlReply reply) =>
+        reply.Outcome?.Failure is { } failure ? $" (native refused {failure.Code}: {failure.Detail})" : "";
+
     private void AcceptGrant(PbAuthority.ControlReply reply, GenerationSnapshot snapshot, CancellationToken call, CancellationToken epoch)
     {
         var grant = reply.Outcome?.Granted;
         if (grant is null || grant.Context is null || !Equals(grant.Context.Identity, ControlIdentity(snapshot)) || grant.Context.NativeGeneration is null || grant.Context.NativeGeneration.GetValueOrDefault() != snapshot.Native.Value || grant.Authority is null || grant.Authority.Mode.GetValueOrDefault() != PbAuthority.Mode.Auto)
         {
-            throw new ControlException("acceptGrant: grant == nil || grant.Context == nil || !proto.Equal(grant.Context.Identity, ...");
+            throw new ControlException("acceptGrant: grant == nil || grant.Context == nil || !proto.Equal(grant.Context.Identity, ..." + NativeRefusal(reply));
         }
         lock (_mu)
         {
@@ -741,7 +745,7 @@ public sealed partial class Control : IDisposable
         var revoked = result.Outcome?.Revoked;
         if (revoked is null || revoked.Context is null || !Equals(revoked.Context.Identity, ControlIdentity(snapshot)) || revoked.Context.NativeGeneration is null || revoked.Context.NativeGeneration.GetValueOrDefault() != generation + 1 || revoked.Authority is null || revoked.Authority.Reason is null || revoked.Authority.Reason.GetValueOrDefault() != reason)
         {
-            throw new ControlException("revoke: revoked == nil || revoked.Context == nil || !proto.Equal(revoked.Context.Identity, ...");
+            throw new ControlException("revoke: revoked == nil || revoked.Context == nil || !proto.Equal(revoked.Context.Identity, ..." + NativeRefusal(result));
         }
         PublishDisabled(snapshot, revoked.Context.NativeGeneration.GetValueOrDefault(), ct);
     }

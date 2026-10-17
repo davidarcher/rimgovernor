@@ -47,7 +47,6 @@ internal static class NativeAuthorityControlProbe
     // Requests are immutable records: a change builds a modified copy of the operation.
     private static Wire.ControlRequest WithSetMode(Wire.ControlRequest request, Func<Wire.SetMode, Wire.SetMode> change) => new() { Operation = change(request.SetMode) };
     private static Wire.ControlRequest WithRevoke(Wire.ControlRequest request, Func<Wire.Revoke, Wire.Revoke> change) => new() { Operation = change(request.Revoke) };
-    private static Wire.ControlRequest WithFocus(Wire.ControlRequest request, Func<Wire.FocusMap, Wire.FocusMap> change) => new() { Operation = change(request.FocusMap) };
     private static void Failure(Wire.ControlReply reply, Common.FailureCode code)
     { Check(reply.Failure != null && reply.Failure.Code == code, "expected " + code + ": " + reply); }
     private static void Reset()
@@ -161,55 +160,7 @@ internal static class NativeAuthorityControlProbe
     }
     internal static void Invoke()
     {
-        Boundary(); InvalidFields(); EagerInitialization(); GrantsAndRevocations(); FocusMaps();
+        Boundary(); InvalidFields(); EagerInitialization(); GrantsAndRevocations();
         Console.WriteLine($"Native authority Control: {checks} checks (production parser, identity, adapter and state; SDK/hook transport seams).");
-    }
-
-    private static void FocusMaps()
-    {
-        Reset(); Check(Call(SetMode(Wire.Mode.Auto)).Granted != null, "Auto before focus");
-        var source = Find.CurrentMap;
-        var destination = new Map { uniqueID = 77 };
-        source.mapPawns.AllPawns.Add(new Pawn { thingIDNumber = 1 });
-        destination.mapPawns.AllPawns.Add(new Pawn { thingIDNumber = 2 });
-        Find.LoadedMaps = new List<Map> { source, destination };
-        try
-        {
-            var generation = state.Status().Generation;
-            var captures = SnapshotStream.CaptureRequests;
-            var target = Identity with { MapId = 77 };
-            Wire.ControlRequest Request() => new() { Operation = new Wire.FocusMap
-            { Identity = Identity, Target = target, ExpectedGeneration = generation } };
-            foreach (var field in new[] { "source", "generation", "unloaded", "targetLoad" })
-            {
-                var request = field switch
-                {
-                    "source" => WithFocus(Request(), f => f with { Identity = f.Identity with { MapId = 77 } }),
-                    "generation" => WithFocus(Request(), f => f with { ExpectedGeneration = f.ExpectedGeneration + 1 }),
-                    "unloaded" => WithFocus(Request(), f => f with { Target = f.Target with { MapId = 99 } }),
-                    "targetLoad" => WithFocus(Request(), f => f with { Target = f.Target with { LoadToken = "other" } }),
-                    _ => Request()
-                };
-                Failure(Call(request), field == "generation" ? Common.FailureCode.StaleGeneration
-                    : field == "targetLoad" ? Common.FailureCode.InvalidRequest : Common.FailureCode.StaleIdentity);
-                Check(ReferenceEquals(Find.CurrentMap, source) && state.Status().Generation == generation
-                    && SnapshotStream.CaptureRequests == captures, "refused focus changed view, authority or capture");
-            }
-            var reply = Call(Request());
-            Check(reply.FocusedMap != null && reply.FocusedMap.Context.Identity.Equals(target)
-                && reply.FocusedMap.Context.NativeGeneration == generation + 1, "focus exact target context/generation");
-            Check(ReferenceEquals(Find.CurrentMap, destination), "focus did not select exact loaded map");
-            Check(source.mapPawns.AllPawns.Count == 1 && source.mapPawns.AllPawns[0].thingIDNumber == 1
-                && destination.mapPawns.AllPawns.Count == 1 && destination.mapPawns.AllPawns[0].thingIDNumber == 2,
-                "focus moved a pawn");
-            Check(SnapshotStream.CaptureRequests == captures + 1, "focus did not request one capture");
-            Check(!state.Status().Active && state.Status().Reason == NativeControlRevocationReason.IdentityChanged,
-                "focus granted authority");
-            var inactive = WithFocus(Request(), f => f with { Identity = target, Target = Identity, ExpectedGeneration = state.Status().Generation });
-            Failure(Call(inactive), Common.FailureCode.AuthorityRequired);
-            Check(ReferenceEquals(Find.CurrentMap, destination) && SnapshotStream.CaptureRequests == captures + 1,
-                "inactive focus changed view");
-        }
-        finally { Find.LoadedMaps = null; }
     }
 }

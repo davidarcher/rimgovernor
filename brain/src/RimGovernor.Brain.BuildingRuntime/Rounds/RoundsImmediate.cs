@@ -96,12 +96,6 @@ public sealed partial class Rounder
 
         var reading = await RoundsReads.ObserveRoundsProtection(Native, Clock, expected, MaxAge, ctx).ConfigureAwait(false);
         PublishFrame(expected, reading.Frame);
-        var handed = await p.ExpeditionHandoffAsync(state, reading, ctx, epoch).ConfigureAwait(false);
-        if (handed)
-        {
-            return await p.StopRoundsAsync(ctx).ConfigureAwait(false);
-        }
-
         var f = reading.Projection.Facts;
         var layout = await p.Journal.LayoutPlanAsync(state.Snapshot, expected.Tick, ctx).ConfigureAwait(false);
         if (layout is { Invalid: true } && !LayoutInvalidLogged)

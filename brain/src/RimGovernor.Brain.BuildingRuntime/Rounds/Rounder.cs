@@ -378,10 +378,6 @@ public sealed partial class Rounder
         using var window = ClockPlanning.StandaloneWindow(Native);
         var reading = await ObserveRoundsAsync(Native, expected, RoomsEnabled(), claims, readDefinitions, ct).ConfigureAwait(false);
         PublishFrame(expected, reading.Frame);
-        if (await p.ExpeditionHandoffAsync(state, reading, ct, epoch).ConfigureAwait(false))
-        {
-            return await p.StopRoundsAsync(ct).ConfigureAwait(false);
-        }
         await BreakDispatch.ReleaseBreakWorkAsync(p.Journal, state.Snapshot, reading.Emergency, plans, ct).ConfigureAwait(false);
         LogTechTier(reading.Projection, ct);
         LogQuestSkips(reading.Projection.Facts, ct);

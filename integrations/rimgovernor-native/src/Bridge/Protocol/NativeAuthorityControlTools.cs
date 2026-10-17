@@ -14,8 +14,6 @@ namespace HomeBridge.BridgeTools
 
         internal static Authority.ControlReply Apply(Authority.ControlRequest request)
         {
-            if (request.Operation is Authority.ControlRequestOperation.FocusMapCase { Value: var focus })
-                return Focus(focus);
             Common.Identity? identity;
             Authority.SetMode? setMode = null;
             Authority.Revoke? revoke = null;
@@ -79,28 +77,6 @@ namespace HomeBridge.BridgeTools
             {
                 Context = context, Authority = projected.State?.Active
             } };
-        }
-
-        private static Authority.ControlReply Focus(Authority.FocusMap request)
-        {
-            if (request.ExpectedGeneration is null || request.ExpectedGeneration.GetValueOrDefault() == 0 || request.Target == null
-                || request.Identity == null || (request.Target.ColonyId ?? "") != (request.Identity.ColonyId ?? "")
-                || (request.Target.LoadToken ?? "") != (request.Identity.LoadToken ?? "")) return Invalid();
-            if (!ProtoBoundary.ValidateViewedIdentity(request.Identity, out var before, out var failure))
-                return new Authority.ControlReply { Outcome = failure };
-            if (!ProtoBoundary.ValidateIdentity(request.Target, out var map, out var context, out failure))
-                return new Authority.ControlReply { Outcome = failure };
-            if (!NativeControlAuthority.TryGetForGame(Current.Game, out var state) || state == null)
-                return new Authority.ControlReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native authority unavailable.") };
-            var snapshot = state.Status();
-            if (snapshot.Generation != request.ExpectedGeneration.GetValueOrDefault())
-                return new Authority.ControlReply { Outcome = Refusal(NativeControlError.StaleGeneration, before) };
-            if (!snapshot.Active)
-                return new Authority.ControlReply { Outcome = Refusal(NativeControlError.AuthorityRequired, before) };
-            Current.Game.CurrentMap = map;
-            context = context with { NativeGeneration = state.Status().Generation };
-            SnapshotStream.RequestCapture();
-            return new Authority.ControlReply { Outcome = new Authority.FocusedMap { Context = context } };
         }
 
         internal static Common.Failure Refusal(NativeControlError error, Common.ObservationContext context)
