@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using RimGovernor.Brain.Acceptance;
 using Xunit;
 
@@ -46,5 +47,32 @@ public sealed class NativeModBuildTests : IDisposable
             """);
 
         Assert.Equal(["LedgerFixture", "MoodFixture", "PawnControlFixture", "TrainingFixture"], FixtureInputs.BuildFlags(repo));
+    }
+
+    /// <summary>
+    /// The work sync rewrites, with the current time, a file it did not itself last write, even when its content
+    /// already matches: build_native_mod.ps1 left such files with the source's old timestamp beside outputs built from
+    /// other content. A file the sync wrote and nobody changed keeps its timestamp.
+    /// </summary>
+    [Fact]
+    public void TheWorkSyncRewritesWhatItDidNotWriteAndKeepsWhatItDid()
+    {
+        var source = Path.Combine(repo, "source");
+        var work = Path.Combine(repo, "work");
+        _ = Directory.CreateDirectory(source);
+        File.WriteAllText(Path.Combine(source, "A.cs"), "class A {}");
+        var copied = new Dictionary<string, string> { ["A.cs"] = Convert.ToHexStringLower(SHA256.HashData("class A {}"u8)) };
+        _ = Directory.CreateDirectory(work);
+        var target = Path.Combine(work, "A.cs");
+        File.WriteAllText(target, "class A {}");
+        var old = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(target, old);
+
+        NativeModBuild.SyncWork(source, work, copied);
+        var synced = File.GetLastWriteTimeUtc(target);
+        Assert.True(synced > old);
+
+        NativeModBuild.SyncWork(source, work, copied);
+        Assert.Equal(synced, File.GetLastWriteTimeUtc(target));
     }
 }

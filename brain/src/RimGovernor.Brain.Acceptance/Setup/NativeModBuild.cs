@@ -319,17 +319,24 @@ public static class NativeModBuild
     /// <summary>
     /// Mirrors the pristine copy into the work directory, leaving its build output (obj, bin, _out) alone. A file whose
     /// content changed is rewritten with the current time, so it is newer than the outputs built from the previous one;
-    /// an unchanged file keeps its timestamp, so MSBuild sees nothing to do.
+    /// an unchanged file keeps its timestamp, so MSBuild sees nothing to do. Unchanged means the file and this sync's own
+    /// record of what it last wrote both match: a file some other writer put there (the deleted build_native_mod.ps1
+    /// kept the source's old timestamp, so outputs built from other content looked current) is rewritten, and a work
+    /// directory without the record is rewritten whole, once.
     /// </summary>
-    private static void SyncWork(string source, string work, IReadOnlyDictionary<string, string> copied)
+    internal static void SyncWork(string source, string work, IReadOnlyDictionary<string, string> copied)
     {
         _ = Directory.CreateDirectory(work);
         Directory.SetLastWriteTimeUtc(work, DateTime.UtcNow);
+        var recordPath = Path.Combine(work, "_out", "synced-sources.txt");
+        var record = File.Exists(recordPath)
+            ? File.ReadLines(recordPath).Select(line => line.Split('\t')).Where(p => p.Length == 2).ToDictionary(p => p[0], p => p[1], StringComparer.Ordinal)
+            : [];
         var now = DateTime.UtcNow;
         foreach (var (relative, sha) in copied)
         {
             var target = Path.Combine(work, relative.Replace('/', Path.DirectorySeparatorChar));
-            if (File.Exists(target) && Sha256(target) == sha)
+            if (record.GetValueOrDefault(relative) == sha && File.Exists(target) && Sha256(target) == sha)
             {
                 continue;
             }
@@ -338,6 +345,8 @@ public static class NativeModBuild
             File.SetLastWriteTimeUtc(target, now);
         }
         DeleteRemoved(work, work, copied);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(recordPath)!);
+        File.WriteAllLines(recordPath, copied.Select(c => $"{c.Key}\t{c.Value}"));
     }
 
     /// <summary>Deletes the files under <paramref name="dir"/> the copy no longer has, without descending into build output.</summary>
