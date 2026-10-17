@@ -1,29 +1,29 @@
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace RimGovernor.Brain.Acceptance.Cases;
+namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>One structure or item: a Def (ThingDef) with optional Stuff (Go <c>combatlab.Thing</c>).</summary>
-internal sealed class FixtureThing
+public sealed class FixtureThing
 {
-    internal string Def { get; set; } = "";
+    public string Def { get; set; } = "";
 
-    internal string Stuff { get; set; } = "";
+    public string Stuff { get; set; } = "";
 
-    internal int X { get; set; }
+    public int X { get; set; }
 
-    internal int Z { get; set; }
+    public int Z { get; set; }
 
     /// <summary>Stages a building under the lab hostiles' faction.</summary>
-    internal bool Hostile { get; set; }
+    public bool Hostile { get; set; }
 
     /// <summary>When set, stages the building damaged.</summary>
-    internal int HitPoints { get; set; }
+    public int HitPoints { get; set; }
 
     /// <summary>An item (a chunk, a shell) rather than a building: the stage spec spawns it as a thing.</summary>
-    internal bool Item { get; set; }
+    public bool Item { get; set; }
 
     /// <summary>This entry as the stage spec's building or thing named <paramref name="name"/>.</summary>
-    internal void AddTo(string name, List<Fx.StageBuilding> buildings, List<Fx.StageThing> things)
+    public void AddTo(string name, List<Fx.StageBuilding> buildings, List<Fx.StageThing> things)
     {
         var cell = new Fx.StageCell(X, Z);
         var stuff = Stuff.Length > 0 ? Stuff : null;
@@ -46,49 +46,49 @@ internal sealed class FixtureThing
 }
 
 /// <summary>One staged combatant (Go <c>combatlab.Pawn</c>).</summary>
-internal sealed class LabPawn
+public sealed class LabPawn
 {
-    internal string Side { get; set; } = "";
+    public string Side { get; set; } = "";
 
-    internal int Index { get; set; }
+    public int Index { get; set; }
 
-    internal string Kind { get; set; } = "";
+    public string Kind { get; set; } = "";
 
-    internal int X { get; set; }
+    public int X { get; set; }
 
-    internal int Z { get; set; }
+    public int Z { get; set; }
 
-    internal string Weapon { get; set; } = "";
+    public string Weapon { get; set; } = "";
 
-    internal string WeaponStuff { get; set; } = "";
+    public string WeaponStuff { get; set; } = "";
 
     /// <summary>Stages the pawn downed under anesthetic.</summary>
-    internal bool Downed { get; set; }
+    public bool Downed { get; set; }
 
     /// <summary>Extra HediffDef names added at staging, e.g. a drug high or addiction.</summary>
-    internal List<string> Hediffs { get; set; } = [];
+    public List<string> Hediffs { get; set; } = [];
 
     /// <summary>One worn apparel def, staged charged if a shield.</summary>
-    internal string Apparel { get; set; } = "";
+    public string Apparel { get; set; } = "";
 
     /// <summary>The TrainableDefs an Animal has learned.</summary>
-    internal List<string> Trained { get; set; } = [];
+    public List<string> Trained { get; set; } = [];
 
     /// <summary>Stages the pawn with a blunt bruise.</summary>
-    internal bool Injured { get; set; }
+    public bool Injured { get; set; }
 
     /// <summary>ThingDef names put one each in the pawn's inventory, e.g. a carried go-juice.</summary>
-    internal List<string> Inventory { get; set; } = [];
+    public List<string> Inventory { get; set; } = [];
 
     /// <summary>Stuns the pawn directly for that many ticks.</summary>
-    internal int StunTicks { get; set; }
+    public int StunTicks { get; set; }
 
     /// <summary>
     /// This combatant as the stage spec's pawn named <paramref name="name"/>: a side is a faction and the fixed staging
     /// the combat lab gives it (hostiles and prisoners an adult of 30, no traits, Shooting and Melee 8 varied by a seed,
     /// stripped of their own gear; animals 3 years old).
     /// </summary>
-    internal Fx.StagePawn ToSpec(string name)
+    public Fx.StagePawn ToSpec(string name)
     {
         var gear = new Fx.StageGear
         {
@@ -132,64 +132,64 @@ internal sealed class LabPawn
 }
 
 /// <summary>A RoofDef over the cells MinX..MaxX, MinZ..MaxZ inclusive.</summary>
-internal sealed record LabRoof(string Def, int MinX, int MinZ, int MaxX, int MaxZ);
+public sealed record LabRoof(string Def, int MinX, int MinZ, int MaxX, int MaxZ);
 
 /// <summary>A siege lord's camp spot and blueprint points.</summary>
-internal sealed record LabSiege(int X, int Z, double Points);
+public sealed record LabSiege(int X, int Z, double Points);
 
 /// <summary>One map cell.</summary>
-internal readonly record struct LabCell(int X, int Z);
+public readonly record struct LabCell(int X, int Z);
 
 /// <summary>
 /// A fixture's hand-written defense layout: the firing line and its fall-back cells, the direction from the enemy
 /// toward home, and the choke the blockers hold, if any.
 /// </summary>
-internal sealed class LabLayout
+public sealed class LabLayout
 {
-    internal List<LabCell> Firing { get; } = [];
+    public List<LabCell> Firing { get; } = [];
 
-    internal List<LabCell> Retreat { get; } = [];
+    public List<LabCell> Retreat { get; } = [];
 
     /// <summary>A domain.Rotation name ("south": the enemy is north).</summary>
-    internal string Toward { get; set; } = "";
+    public string Toward { get; set; } = "";
 
-    internal LabCell? Choke { get; set; }
+    public LabCell? Choke { get; set; }
 }
 
 /// <summary>One staged combat. Colonists is the lab wipe's colonist count (Go <c>combatlab.Fixture</c>).</summary>
-internal sealed class LabFixture
+public sealed class LabFixture
 {
-    internal string Name { get; set; } = "";
+    public string Name { get; set; } = "";
 
-    internal int Colonists { get; set; }
+    public int Colonists { get; set; }
 
-    internal List<FixtureThing> Things { get; set; } = [];
+    public List<FixtureThing> Things { get; set; } = [];
 
-    internal List<LabPawn> Pawns { get; set; } = [];
+    public List<LabPawn> Pawns { get; set; } = [];
 
     /// <summary>A PawnsArrivalModeDef that drops the hostiles in around the first hostile's cell.</summary>
-    internal string Arrival { get; set; } = "";
+    public string Arrival { get; set; } = "";
 
-    internal LabRoof? Roof { get; set; }
+    public LabRoof? Roof { get; set; }
 
     /// <summary>Puts the hostiles under a real siege lord camped at its cell instead of an assault lord.</summary>
-    internal LabSiege? Siege { get; set; }
+    public LabSiege? Siege { get; set; }
 
-    internal bool PrisonBreak { get; set; }
+    public bool PrisonBreak { get; set; }
 
     /// <summary>Stages the hostiles' assault lord as a sapper raid.</summary>
-    internal bool Sappers { get; set; }
+    public bool Sappers { get; set; }
 
     /// <summary>When non-zero, varies the staging and reseeds the game's RNG once staging ends.</summary>
-    internal int Seed { get; set; }
+    public int Seed { get; set; }
 
-    internal LabLayout? Layout { get; set; }
+    public LabLayout? Layout { get; set; }
 
     /// <summary>
     /// The stage spec test/stage applies (#3393), on absolute cells: pawn i is named <c>p{i}</c> and thing i
     /// <c>t{i}</c>, so the reply reads back in fixture order.
     /// </summary>
-    internal Fx.StageSpec ToSpec()
+    public Fx.StageSpec ToSpec()
     {
         var buildings = new List<Fx.StageBuilding>();
         var things = new List<Fx.StageThing>();
@@ -222,72 +222,72 @@ internal sealed class LabFixture
     }
 
     /// <summary>Pawn <paramref name="i"/>'s name in <see cref="ToSpec"/>.</summary>
-    internal static string PawnName(int i) => "p" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    public static string PawnName(int i) => "p" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Thing <paramref name="i"/>'s name in <see cref="ToSpec"/>.</summary>
-    internal static string ThingName(int i) => "t" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    public static string ThingName(int i) => "t" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
 /// <summary>
 /// The standard combat fixtures (Go <c>combatlab/fixtures.go</c>): fixed layouts on the blank lab that every combat
 /// tactic case and recording stages instead of playing a colony into a raid.
 /// </summary>
-internal static class CombatFixtures
+public static class CombatFixtures
 {
     /// <summary>Stages a fixture spec on a wiped lab.</summary>
-    internal const string LabTool = "test/lab_stage";
+    public const string LabTool = "test/lab_stage";
 
-    internal const string Colonist = "colonist";
-    internal const string Hostile = "hostile";
+    public const string Colonist = "colonist";
+    public const string Hostile = "hostile";
 
     /// <summary>A generated player animal of Kind.</summary>
-    internal const string Animal = "animal";
+    public const string Animal = "animal";
 
     /// <summary>A wild Kind gone permanently manhunter.</summary>
-    internal const string Manhunter = "manhunter";
+    public const string Manhunter = "manhunter";
 
     /// <summary>A calm factionless animal of Kind.</summary>
-    internal const string Wild = "wild";
+    public const string Wild = "wild";
 
     /// <summary>A generated hostile Kind held as the colony's prisoner.</summary>
-    internal const string Prisoner = "prisoner";
+    public const string Prisoner = "prisoner";
 
     /// <summary>An insect Kind of the insects' faction under an assault lord.</summary>
-    internal const string Insect = "insect";
+    public const string Insect = "insect";
 
     /// <summary>A mechanoid Kind of the mechanoids' faction under an assault lord.</summary>
-    internal const string Mech = "mech";
+    public const string Mech = "mech";
 
-    internal const string Rifle = "Gun_AssaultRifle";
-    internal const string Longsword = "MeleeWeapon_LongSword";
-    internal const string Club = "MeleeWeapon_Club";
-    internal const string Gunner = "Mercenary_Gunner";
-    internal const string Slasher = "Mercenary_Slasher";
+    public const string Rifle = "Gun_AssaultRifle";
+    public const string Longsword = "MeleeWeapon_LongSword";
+    public const string Club = "MeleeWeapon_Club";
+    public const string Gunner = "Mercenary_Gunner";
+    public const string Slasher = "Mercenary_Slasher";
 
     /// <summary>Fixtures with committed metrics baselines. lab-infestation can be built but has no metrics baseline.</summary>
-    internal static readonly IReadOnlyList<string> Names =
+    public static readonly IReadOnlyList<string> Names =
     [
         "lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege", "lab-manhunter", "lab-mech",
         "lab-ranged-shield", "lab-mech-line", "lab-base", "lab-split-ranged",
     ];
 
-    internal const int MechStunTicks = 600;
-    internal const int BreachHalf = 5;
+    public const int MechStunTicks = 600;
+    public const int BreachHalf = 5;
     private const int BreachRaid = 15;
     private const int BaseHalf = 9;
-    internal const int ChokeHalf = 7;
+    public const int ChokeHalf = 7;
     private const int PodsDrop = 10;
     private const int PodsHalf = 6;
     private const int PodsSafe = -13;
     private const int PodsSafeHalf = 3;
-    internal const int SiegeOurMortar = -15;
-    internal const int SiegeCampMortar = 20;
+    public const int SiegeOurMortar = -15;
+    public const int SiegeCampMortar = 20;
     private const double SiegePoints = 500;
     private const int InfestRoom = 10;
     private const int InfestHalf = 5;
 
     /// <summary>Returns the named fixture around the lab centre (cx, cz).</summary>
-    internal static LabFixture Build(string name, int cx, int cz) => name switch
+    public static LabFixture Build(string name, int cx, int cz) => name switch
     {
         "lab-open" => Open(cx, cz),
         "lab-choke" => Choke(cx, cz),
@@ -564,7 +564,7 @@ internal static class CombatFixtures
     }
 
     // walledRoom is a granite wall ring of half edge half around (x, z) with a wooden door at door.
-    internal static List<FixtureThing> WalledRoom(int x, int z, int half, LabCell door)
+    public static List<FixtureThing> WalledRoom(int x, int z, int half, LabCell door)
     {
         var output = new List<FixtureThing>();
         for (var wx = x - half; wx <= x + half; wx++)

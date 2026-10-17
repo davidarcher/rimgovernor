@@ -27,7 +27,7 @@ public static class AcceptanceCommand
         TextWriter stdout,
         TextWriter stderr,
         CancellationToken cancellationToken,
-        ICombatLab? combatLab = null)
+        HuntingPredictor? huntingPredictor = null)
     {
         ArgumentNullException.ThrowIfNull(args);
         ArgumentNullException.ThrowIfNull(registry);
@@ -78,13 +78,7 @@ public static class AcceptanceCommand
             case "profile-capture":
                 return await ProfileCaptureCommand.RunAsync(rest, ProfileFixtureHost.Instance, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "sweep":
-                if (combatLab is null)
-                {
-                    await stderr.WriteLineAsync("sweep: the host wired no combat lab").ConfigureAwait(false);
-                    return 2;
-                }
-
-                return await SweepCommand.RunAsync(rest, registry, combatLab, stdout, stderr, cancellationToken).ConfigureAwait(false);
+                return await SweepCommand.RunAsync(rest, huntingPredictor, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "profile-compare":
                 return await ProfileCompareCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "prune":

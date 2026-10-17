@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Simulation.CombatMetrics;
 
-namespace RimGovernor.Brain.Acceptance.Cases;
+namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// The shot tap rows a combat run records (Go <c>shots.go</c>): one JSON object per line, in game order, each tagged by
@@ -31,10 +31,10 @@ internal static class CombatLabShots
     /// </summary>
     internal static async Task WriteShotsAsync(string dir, JsonObject reply, CancellationToken cancellationToken)
     {
-        var dropped = (int)reply["shotsDropped"].AsNumberOrZero();
+        var dropped = (int)reply["shotsDropped"].NumberOrZero();
         if (dropped > 0)
         {
-            throw new AcceptanceException($"shot tap dropped {CaseSupport.Tag(dropped)} rows");
+            throw new AcceptanceException($"shot tap dropped {SweepText.Tag(dropped)} rows");
         }
 
         var text = new StringBuilder();
@@ -83,24 +83,24 @@ internal static class CombatLabShots
             JsonObject row;
             try
             {
-                row = JsonNode.Parse(raw)?.AsObject() ?? throw new AcceptanceException($"line {CaseSupport.Tag(line)}: not an object");
+                row = JsonNode.Parse(raw)?.AsObject() ?? throw new AcceptanceException($"line {SweepText.Tag(line)}: not an object");
             }
             catch (System.Text.Json.JsonException e)
             {
-                throw new AcceptanceException($"line {CaseSupport.Tag(line)}: {e.Message}", e);
+                throw new AcceptanceException($"line {SweepText.Tag(line)}: {e.Message}", e);
             }
 
             var kind = row["k"].AsString();
             if (!Kinds.TryGetValue(kind, out var fields))
             {
-                throw new AcceptanceException($"line {CaseSupport.Tag(line)}: unknown kind \"{kind}\"");
+                throw new AcceptanceException($"line {SweepText.Tag(line)}: unknown kind \"{kind}\"");
             }
 
             foreach (var (name, _) in row)
             {
                 if (!fields.Any(f => f.Name == name))
                 {
-                    throw new AcceptanceException($"line {CaseSupport.Tag(line)} ({kind}): unknown field \"{name}\"");
+                    throw new AcceptanceException($"line {SweepText.Tag(line)} ({kind}): unknown field \"{name}\"");
                 }
             }
 
@@ -112,7 +112,7 @@ internal static class CombatLabShots
         {
             if (kind == "shot")
             {
-                shooter[(int)row["id"].AsNumberOrZero()] = row["shooter"].AsString();
+                shooter[(int)row["id"].NumberOrZero()] = row["shooter"].AsString();
             }
         }
 
@@ -125,18 +125,18 @@ internal static class CombatLabShots
                 {
                     's' => row[name].AsString(),
                     'b' => row[name].AsBool() == true,
-                    'f' => row[name].AsNumberOrZero(),
-                    'a' => new JsonArray([.. row[name].AsSlice().Select(v => (JsonNode?)JsonValue.Create((int)v.AsNumberOrZero()))]),
-                    _ => (int)row[name].AsNumberOrZero(),
+                    'f' => row[name].NumberOrZero(),
+                    'a' => new JsonArray([.. row[name].AsSlice().Select(v => (JsonNode?)JsonValue.Create((int)v.NumberOrZero()))]),
+                    _ => (int)row[name].NumberOrZero(),
                 };
             }
 
             output["seed"] = seed;
             if (kind == "impact" && output["hit"].AsString().Length > 0)
             {
-                var dealt = output["dealt"].AsNumberOrZero();
-                var id = (int)output["id"].AsNumberOrZero();
-                var tick = (int)output["tick"].AsNumberOrZero();
+                var dealt = output["dealt"].NumberOrZero();
+                var id = (int)output["id"].NumberOrZero();
+                var tick = (int)output["tick"].NumberOrZero();
                 foreach (var h in damage)
                 {
                     if (h.Tick == tick && h.Victim == output["hit"].AsString() && h.Instigator == shooter.GetValueOrDefault(id, ""))

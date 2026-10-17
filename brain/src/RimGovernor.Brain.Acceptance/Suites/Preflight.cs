@@ -35,8 +35,6 @@ public static class PreflightPass
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(selected);
-        ArgumentNullException.ThrowIfNull(opts);
-        ArgumentNullException.ThrowIfNull(stdout);
         var names = new List<string>();
         var ops = new List<string>();
         foreach (var c in selected)
@@ -49,6 +47,24 @@ public static class PreflightPass
             ops.AddRange(c.FixtureOps());
         }
 
+        return await RunAsync(names, ops, opts, stdout, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Runs the doctor against output directories named <paramref name="names"/> (each must be empty) and the fixture
+    /// <paramref name="ops"/> the run calls, and heals what it may: the pass of a driver that runs no cases (the sweep).
+    /// </summary>
+    public static async Task<PreflightResult> RunAsync(
+        IReadOnlyList<string> names,
+        IReadOnlyList<string> ops,
+        RunOptions opts,
+        TextWriter stdout,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(names);
+        ArgumentNullException.ThrowIfNull(ops);
+        ArgumentNullException.ThrowIfNull(opts);
+        ArgumentNullException.ThrowIfNull(stdout);
         var setup = AcceptanceDoctor.Setup ?? new FileDoctorSetup();
         var o = new DoctorOptions { Root = opts.Root, Output = opts.Output, Cases = names, GameId = opts.GameId, FixtureOps = ops };
         var checks = await DoctorChecks.RunAsync(o, setup, cancellationToken).ConfigureAwait(false);

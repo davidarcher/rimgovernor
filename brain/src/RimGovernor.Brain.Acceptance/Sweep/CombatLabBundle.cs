@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 using RimGovernor.Brain.Simulation.CombatMetrics;
 using FightMetrics = RimGovernor.Brain.Simulation.CombatMetrics.Metrics;
 
-namespace RimGovernor.Brain.Acceptance.Cases;
+namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// The bundle files a combat-fixture run records and the scoring of its raw reads (Go <c>metrics.go</c>).
@@ -18,9 +18,6 @@ internal static class CombatLabBundle
     internal const string ReadsFile = "combat_reads.jsonl";
     internal const string MetricsFile = "combat_metrics.json";
     internal const string CombatRowsFile = "combat_rows.jsonl";
-
-    /// <summary>The seed count a baseline sweep records (seeds 1..N) and <c>acceptance sweep</c> runs by default.</summary>
-    internal const int BaselineSeeds = 20;
 
     private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
 
@@ -43,17 +40,17 @@ internal static class CombatLabBundle
         {
             var row = r.AsMap() ?? [];
             damage.Add(new MetricsHit(
-                (int)row["tick"].AsNumberOrZero(),
+                (int)row["tick"].NumberOrZero(),
                 row["victim"].AsString(),
                 row["victimSide"].AsString(),
                 row["instigator"].AsString(),
                 row["instigatorSide"].AsString(),
-                row["dealt"].AsNumberOrZero(),
+                row["dealt"].NumberOrZero(),
                 row["downed"].AsBool() == true,
                 row["dead"].AsBool() == true));
         }
 
-        return new MetricsRead((int)read["tick"].AsNumberOrZero()) { Pawns = pawns, Damage = damage, DamageDropped = (int)read["damageDropped"].AsNumberOrZero() };
+        return new MetricsRead((int)read["tick"].NumberOrZero()) { Pawns = pawns, Damage = damage, DamageDropped = (int)read["damageDropped"].NumberOrZero() };
     }
 
     /// <summary>

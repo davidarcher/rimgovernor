@@ -87,9 +87,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/CombatLab/Emp.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/CombatLab/Frames.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/CombatLab/Geometry.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -102,19 +99,10 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/CombatLab/Hunt.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/CombatLab/HuntingPrediction.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/CombatLab/LabState.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/CombatLab/Lance.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/CombatLab/Metrics.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/CombatLab/MetricsCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/CombatLab/Mirror.cs]
@@ -144,16 +132,7 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/CombatLab/SeededStaging.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/CombatLab/ServeKit.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/CombatLab/Shots.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/CombatLab/SiegeStage.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/CombatLab/Stage.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/CombatLab/StageCase.cs]

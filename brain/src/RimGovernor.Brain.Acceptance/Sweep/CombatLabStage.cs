@@ -2,47 +2,47 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace RimGovernor.Brain.Acceptance.Cases;
+namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// A fixture as test/stage read it back: each pawn in spec order and the name-free map digest
 /// (Go <c>combatlab.Staged</c>).
 /// </summary>
-internal sealed class StagedFixture
+public sealed class StagedFixture
 {
-    internal required LabFixture Fixture { get; init; }
+    public required LabFixture Fixture { get; init; }
 
-    internal List<Fx.StagedPawn> Pawns { get; } = [];
+    public List<Fx.StagedPawn> Pawns { get; } = [];
 
     /// <summary>The staged things' load ids, spec order.</summary>
-    internal List<string> Things { get; } = [];
+    public List<string> Things { get; } = [];
 
-    internal string Digest { get; init; } = "";
+    public string Digest { get; init; } = "";
 
-    internal List<string> Rows { get; } = [];
+    public List<string> Rows { get; } = [];
 
     /// <summary>The seed test/stage echoed back.</summary>
-    internal int Seed { get; init; }
+    public int Seed { get; init; }
 
     /// <summary>The lab wipe's centre the fixture was built around.</summary>
-    internal LabCell Center { get; init; }
+    public LabCell Center { get; init; }
 
     /// <summary>The staged colonists' load ids, spec order.</summary>
-    internal List<string> Colonists() => Ids(CombatFixtures.Colonist);
+    public List<string> Colonists() => Ids(CombatFixtures.Colonist);
 
     /// <summary>The staged hostiles' load ids, spec order.</summary>
-    internal List<string> Hostiles() => Ids(CombatFixtures.Hostile);
+    public List<string> Hostiles() => Ids(CombatFixtures.Hostile);
 
     /// <summary>The staged player animals' load ids, spec order.</summary>
-    internal List<string> Animals() => Ids(CombatFixtures.Animal);
+    public List<string> Animals() => Ids(CombatFixtures.Animal);
 
     /// <summary>The staged manhunters' load ids, spec order.</summary>
-    internal List<string> Manhunters() => Ids(CombatFixtures.Manhunter);
+    public List<string> Manhunters() => Ids(CombatFixtures.Manhunter);
 
     /// <summary>The staged mechanoids' load ids, spec order.</summary>
-    internal List<string> Mechs() => Ids(CombatFixtures.Mech);
+    public List<string> Mechs() => Ids(CombatFixtures.Mech);
 
-    internal List<string> Ids(string side)
+    public List<string> Ids(string side)
     {
         var output = new List<string>();
         for (var i = 0; i < Fixture.Pawns.Count; i++)
@@ -58,23 +58,23 @@ internal sealed class StagedFixture
 }
 
 /// <summary>One pawn as test/lab_stage action read reports it.</summary>
-internal readonly record struct LabPosition(string Id, string Side, int X, int Z, bool Downed, bool Dead);
+public readonly record struct LabPosition(string Id, string Side, int X, int Z, bool Downed, bool Dead);
 
 /// <summary>
 /// Staging (Go <c>combatlab/stage.go</c>): wipes the lab to a fixture's colonists, builds it around the wipe's centre
 /// and stages it, then reads the lab back.
 /// </summary>
-internal static class CombatStage
+public static class CombatStage
 {
     /// <summary>An edit that stages the fixture under <paramref name="seed"/> (see <see cref="LabFixture.Seed"/>).</summary>
-    internal static Action<LabFixture, int, int> WithSeed(int seed) => (f, _, _) => f.Seed = seed;
+    public static Action<LabFixture, int, int> WithSeed(int seed) => (f, _, _) => f.Seed = seed;
 
     /// <summary>
     /// Wipes the lab to the fixture's colonists, builds it around the wipe's centre and stages it, checking every pawn
     /// read back where the spec put it, armed as specified, hostile under an assault lord. An edit adapts the named
     /// fixture for one case before staging, around the lab centre; it may change Colonists.
     /// </summary>
-    internal static async Task<StagedFixture> StageAsync(Harness h, string name, CancellationToken cancellationToken, params Action<LabFixture, int, int>[] edits)
+    public static async Task<StagedFixture> StageAsync(Harness h, string name, CancellationToken cancellationToken, params Action<LabFixture, int, int>[] edits)
     {
         var probe = CombatFixtures.Build(name, 0, 0);
         foreach (var edit in edits)
@@ -141,7 +141,7 @@ internal static class CombatStage
     /// Sets the game's RNG from <paramref name="seed"/> through test/lab_stage action reseed (#2849) and returns the next
     /// draws the native read without consuming them.
     /// </summary>
-    internal static async Task<List<int>> ReseedAsync(Harness h, int seed, CancellationToken cancellationToken)
+    public static async Task<List<int>> ReseedAsync(Harness h, int seed, CancellationToken cancellationToken)
     {
         if (seed == 0)
         {
@@ -158,7 +158,7 @@ internal static class CombatStage
     }
 
     /// <summary>Checks a reseed reply echoed the seed and carried draws.</summary>
-    internal static List<int> ParseReseed(JsonObject reply, int seed)
+    public static List<int> ParseReseed(JsonObject reply, int seed)
     {
         if (reply["success"].AsBool() != true)
         {
@@ -183,14 +183,14 @@ internal static class CombatStage
     }
 
     /// <summary>Returns every pawn on the lab with its cell, and the game tick.</summary>
-    internal static Task<(Dictionary<string, LabPosition> Pawns, int Tick)> ReadAsync(Harness h, CancellationToken cancellationToken) =>
+    public static Task<(Dictionary<string, LabPosition> Pawns, int Tick)> ReadAsync(Harness h, CancellationToken cancellationToken) =>
         ReadCoreAsync(h, new JsonObject { ["action"] = "read" }, cancellationToken);
 
     /// <summary>
     /// Runs <paramref name="n"/> synchronous game ticks on the paused lab (no clock, no safety stops: the fixture's
     /// hostiles are the point), then reads.
     /// </summary>
-    internal static Task<(Dictionary<string, LabPosition> Pawns, int Tick)> TickAsync(Harness h, int n, CancellationToken cancellationToken) =>
+    public static Task<(Dictionary<string, LabPosition> Pawns, int Tick)> TickAsync(Harness h, int n, CancellationToken cancellationToken) =>
         ReadCoreAsync(h, new JsonObject { ["action"] = "tick", ["ticks"] = n }, cancellationToken);
 
     private static async Task<(Dictionary<string, LabPosition> Pawns, int Tick)> ReadCoreAsync(Harness h, JsonObject args, CancellationToken cancellationToken)
@@ -219,7 +219,7 @@ internal static class CombatStage
     }
 
     /// <summary>The shortest squared distance between a live hostile and a live colonist in pawns; -1 when either side has none.</summary>
-    internal static int Gap(Dictionary<string, LabPosition> pawns)
+    public static int Gap(Dictionary<string, LabPosition> pawns)
     {
         var best = -1;
         foreach (var h in pawns.Values.OrderBy(p => p.Id, StringComparer.Ordinal))
@@ -248,7 +248,7 @@ internal static class CombatStage
     }
 
     /// <summary>The digest rows only one of two stagings has.</summary>
-    internal static string RowDiff(IEnumerable<string> a, IEnumerable<string> b)
+    public static string RowDiff(IEnumerable<string> a, IEnumerable<string> b)
     {
         var count = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var r in a)

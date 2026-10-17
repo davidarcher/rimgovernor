@@ -373,7 +373,7 @@ public sealed class CaseRunner
             staged = staged.WithOff("dev iteration");
         }
 
-        var session = new CaseSession(c, report, _deps.Scenario, opts.Seed, opts.RunSeed, staged, opts.StagesDir(c), opts.Through);
+        var session = new CaseSession(c, report, _deps.Scenario, opts.Seed, staged, opts.StagesDir(c), opts.Through);
         if (resumed.Resuming || staged.Staged)
         {
             // The restored store holds the earlier run's submissions.
@@ -746,7 +746,7 @@ public sealed class CaseRunner
             throw new AcceptanceException($"bundle {entry.Path} cannot be loaded under this tree: {reason}");
         }
 
-        var session = new CaseSession(c, report, _deps.Scenario, "", 0, StagePlan.None, "", "")
+        var session = new CaseSession(c, report, _deps.Scenario, "", StagePlan.None, "", "")
         {
             Resumed = entry,
             ResumeSuffix = opts.RunId(),

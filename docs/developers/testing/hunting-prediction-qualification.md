@@ -18,11 +18,12 @@ skill-8 Baseliners and three-year-old wild prey; revenge uses the game's Rough
 `manhunterChanceOnDamageFactor`; horizon 6,000 ticks. Two or more hunters are drafted and focus-fire
 (see the [contract](../contracts/encounter-prediction.md)); the worker arena does the same.
 
-Per cell, `combatlab/hunting-grid-predict-<cell>` makes **one** predictor request of 16 samples
-(independent seeds 1000001–1000016, none shared with a native seed) and measures cold start, the warm
-request and cancellation. `combatlab/hunting-grid-<cell>` runs one native encounter per `-run-seed`;
+Per cell, `acceptance sweep hunting-grid-<cell>` first makes **one** predictor request of 16 samples
+(independent seeds 1000001–1000016, none shared with a native seed) on the scene observed natively under
+seed 1, and measures cold start, the warm request and cancellation; it then runs one native encounter per
+sweep seed;
 collection uses 30 held-out seeds per cell (`10000..10029`), 450 native trials, with no calibration
-split because no fitted interval is used. Native seed is `cellIndex*100000 + runSeed`. Freeze protocol and
+split because no fitted interval is used. Native seed is `cellIndex*100000 + seed`. Freeze protocol and
 build/mod manifests first; a changed implementation needs a new collection.
 
 ## Criteria (per cell unless stated)
@@ -56,9 +57,10 @@ trials after the first failure. Retain rejected and unresolved trials.
 
 Build the existing RealCombat Host in Release and install the native fixture with
 `acceptance setup -rebuild -fixture DebugStartFixture,FreezeNeedsFixture,LetterFixture,QuietStorytellerFixture`.
-Run a cell with `acceptance run combatlab/hunting-grid-<cell> -root <abs> -output <abs fresh dir> -run-seed <n>`
-or `acceptance sweep hunting-grid-<cell> -workers 1 -seeds a,b,c -root <abs> -output <abs fresh dir>`
-(one case per call, fresh output directory each). Aggregate with:
+Run a cell with `acceptance sweep hunting-grid-<cell> -workers 1 -seeds a,b,c -root <abs> -output <abs fresh dir>`
+(one cell per call, fresh output directory each). The cell directory holds `prediction/hunting_cell_prediction.json`
+and, per seed, `seed-<n>/native_trial.json` and `seed-<n>/hunting_trial.json`. Aggregate with:
+Aggregate with:
 
 ```text
 RimGovernor.cmd acceptance sweep -hunting-report <absolute-output-directory> <absolute-report.json>

@@ -1,28 +1,28 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 
-namespace RimGovernor.Brain.Acceptance.Cases;
+namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>The combat sections of one snapshot frame (Go <c>bridge.Combat</c> as the family reads it).</summary>
-internal sealed record CombatState(JsonObject Frame)
+public sealed record CombatState(JsonObject Frame)
 {
-    internal JsonObject? Context => Frame["context"].AsMap();
+    public JsonObject? Context => Frame["context"].AsMap();
 
     /// <summary>The frame's <c>combatPawns</c> rows.</summary>
-    internal IReadOnlyList<JsonObject> Pawns => [.. Frame["combatPawns"].AsSlice().Select(p => p.AsMap() ?? [])];
+    public IReadOnlyList<JsonObject> Pawns => [.. Frame["combatPawns"].AsSlice().Select(p => p.AsMap() ?? [])];
 
     /// <summary>The frame's <c>combatEvents</c> rows.</summary>
-    internal IReadOnlyList<JsonObject> Events => [.. Frame["combatEvents"].AsSlice().Select(p => p.AsMap() ?? [])];
+    public IReadOnlyList<JsonObject> Events => [.. Frame["combatEvents"].AsSlice().Select(p => p.AsMap() ?? [])];
 
     /// <summary>The frame's tick.</summary>
-    internal long Tick => Context is { } context ? (long)context["tick"].AsNumberOrZero() : 0;
+    public long Tick => Context is { } context ? (long)context["tick"].NumberOrZero() : 0;
 }
 
 /// <summary>
 /// Reads the combat sections of the snapshot stream's frames over the tool channel: the case maps the frames the way
 /// the controller's bridge does (Go <c>combatFrames</c>).
 /// </summary>
-internal sealed class CombatFrames
+public sealed class CombatFrames
 {
     /// <summary>Bounds the wait for a frame after a step.</summary>
     private static readonly TimeSpan FrameWait = TimeSpan.FromSeconds(10);
@@ -39,7 +39,7 @@ internal sealed class CombatFrames
     }
 
     /// <summary>Subscribes the snapshot stream.</summary>
-    internal static async Task<CombatFrames> OpenAsync(Harness h, JsonObject identity, CancellationToken cancellationToken)
+    public static async Task<CombatFrames> OpenAsync(Harness h, JsonObject identity, CancellationToken cancellationToken)
     {
         var poller = new SnapshotPoller(h);
         _ = await poller.HeadAsync(cancellationToken).ConfigureAwait(false);
@@ -47,11 +47,11 @@ internal sealed class CombatFrames
     }
 
     /// <summary>The combat state of the first frame published after the last one read and captured at or past <paramref name="tick"/>.</summary>
-    internal async Task<CombatState> NextAsync(long tick, CancellationToken cancellationToken) =>
+    public async Task<CombatState> NextAsync(long tick, CancellationToken cancellationToken) =>
         new(await SnapshotAsync(tick, cancellationToken).ConfigureAwait(false));
 
     /// <summary>The first frame published after the last one read and captured at or past <paramref name="tick"/>.</summary>
-    internal async Task<JsonObject> SnapshotAsync(long tick, CancellationToken cancellationToken)
+    public async Task<JsonObject> SnapshotAsync(long tick, CancellationToken cancellationToken)
     {
         var deadline = DateTime.UtcNow + FrameWait;
         while (true)
@@ -67,7 +67,7 @@ internal sealed class CombatFrames
                     var identity = v["context"].AsMap()?["identity"];
                     if (!Dyn.DeepEqual(identity, _identity))
                     {
-                        throw new AcceptanceException($"frame {CaseSupport.Tag((long)frame.Number)} describes another world: {identity.ToJson()}");
+                        throw new AcceptanceException($"frame {SweepText.Tag((long)frame.Number)} describes another world: {identity.ToJson()}");
                     }
 
                     return v;

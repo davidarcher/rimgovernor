@@ -30,9 +30,6 @@ public interface ISession
     /// <summary>The case's declared Serve spec, or the zero spec for a native-only case.</summary>
     ServeSpec Spec { get; }
 
-    /// <summary>The run-level RNG seed (-run-seed), 0 for none.</summary>
-    int RunSeed { get; }
-
     /// <summary>
     /// <paramref name="baseId"/> on a fresh run and suffixed with the run's id on a resumed one: the restored store
     /// already holds the fresh run's submissions, and a replay under the resumed world's identity is a different request

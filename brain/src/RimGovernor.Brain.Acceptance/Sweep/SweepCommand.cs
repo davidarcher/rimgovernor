@@ -12,34 +12,10 @@ using SimMetrics = RimGovernor.Brain.Simulation.CombatMetrics.Metrics;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>A combat-lab tactic variant: a named <see cref="CombatTuning"/> swept in the real game over the same seeds (Go <c>combatlab.Variant</c>).</summary>
+/// <summary>A combat-lab tactic variant: a named <see cref="CombatTuning"/> swept in the real game over the same seeds.</summary>
 public sealed record CombatVariant(string Name, CombatTuning Tuning);
 
-/// <summary>
-/// What the sweep needs from the combat lab's case package (Go <c>cases/combatlab</c>), which another slice owns: the tactic
-/// variants, the shot dataset builder and where a recorded sweep lands in the source tree.
-/// </summary>
-public interface ICombatLab
-{
-    /// <summary>The ranged slice's tactic variants, the default (<see cref="SweepCommand.DefaultVariant"/>) first (Go <c>combatlab.Variants</c>).</summary>
-    IReadOnlyList<CombatVariant> Variants();
-
-    /// <summary>
-    /// Writes the shot dataset of a sweep: for each seed the shot rows of the bundle directory <paramref name="caseDir"/>
-    /// names, stamped with the seed. A seed without a shot file throws <see cref="AcceptanceException"/>: the dataset
-    /// covers every seed (Go <c>combatlab.BuildShotDataset</c>).
-    /// </summary>
-    void BuildShotDataset(Stream output, IReadOnlyList<int> seeds, Func<int, string> caseDir);
-
-    /// <summary>
-    /// The file a recorded sweep of <paramref name="fixture"/> lands in: the committed baseline, or with a non-empty
-    /// <paramref name="variant"/> the calibration variant file. Throws <see cref="AcceptanceException"/> when the source tree
-    /// cannot be found (resolved against the nearest .git).
-    /// </summary>
-    string RecordPath(string fixture, string variant);
-}
-
-/// <summary>The sweep subcommand's resolved configuration (Go <c>sweepOptions</c>).</summary>
+/// <summary>The sweep subcommand's resolved configuration.</summary>
 public sealed record SweepOptions
 {
     public IReadOnlyList<string> Fixtures { get; init; } = [];
@@ -56,21 +32,20 @@ public sealed record SweepOptions
 
     public string Against { get; init; } = "";
 
-    public bool Restage { get; init; }
-
     public bool Record { get; init; }
 
     public string Shots { get; init; } = "";
 
-    /// <summary>Names a tactic variant; <see cref="TuningEnv"/> is its <see cref="PolicyFunctions.CombatTuningEnv"/> value, set on every child.</summary>
+    /// <summary>Names a tactic variant; <see cref="TuningEnv"/> is its <see cref="PolicyFunctions.CombatTuningEnv"/> value, launched into every worker's game.</summary>
     public string Variant { get; init; } = "";
 
     public string TuningEnv { get; init; } = "";
 
-    public TimeSpan CaseTimeout { get; init; }
+    /// <summary>One seed's hang guard, from the game open to its bundle.</summary>
+    public TimeSpan SeedTimeout { get; init; } = SweepCommand.DefaultSeedTimeout;
 }
 
-/// <summary>The sweep files' source-generated JSON (indented like Go's <c>MarshalIndent</c>; field names come from the records' attributes).</summary>
+/// <summary>The sweep files' source-generated JSON (indented; field names come from the records' attributes).</summary>
 [JsonSourceGenerationOptions(WriteIndented = true, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(Sweep))]
 [JsonSerializable(typeof(Comparison))]
@@ -80,52 +55,68 @@ internal sealed partial class SweepJsonContext : JsonSerializerContext
 }
 
 /// <summary>
-/// <c>acceptance sweep</c> (Go <c>cmd/acceptance/sweep.go</c>): runs <c>combatlab/metrics-&lt;fixture&gt;</c> once per seed
-/// from one staged checkpoint (seed s reseeds the RNG after the load, <c>-run-seed</c>) on one or two private clones of
-/// <c>-root</c>, and writes <c>&lt;output&gt;/&lt;fixture&gt;/sweep.json</c> (per-seed rows plus summary). The report prints
-/// deaths and downs first; <c>-against</c> pairs the seeds with an earlier sweep and the exit code is 1 on a survival
-/// regression.
+/// <c>acceptance sweep</c>: the combat lab's own driver, outside the case runner. For each fixture it runs every seed in
+/// this process on one or two private clones of <c>-root</c> (<see cref="SweepSeed"/>: stage through the stage spec,
+/// reseed with the seed, serve, score) and writes <c>&lt;output&gt;/&lt;fixture&gt;/sweep.json</c> (per-seed rows plus
+/// summary). The report prints deaths and downs first; <c>-against</c> pairs the seeds with an earlier sweep and the exit
+/// code is 1 on a survival regression. <c>hunting-grid-&lt;cell&gt;</c> collects the hunting qualification instead.
 /// </summary>
 public static partial class SweepCommand
 {
-    /// <summary>The seed count a baseline sweep records (seeds 1..N): Go <c>combatlab.BaselineSeeds</c>.</summary>
+    /// <summary>The seed count a baseline sweep records (seeds 1..N).</summary>
     public const int BaselineSeeds = 20;
 
-    /// <summary>The variant whose tuning is the shipped one, whose real sweep is the committed baseline (Go <c>calibrate.DefaultVariant</c>).</summary>
+    /// <summary>The variant whose tuning is the shipped one, whose real sweep is the committed baseline.</summary>
     public const string DefaultVariant = "default";
 
-    /// <summary>The aggregate a metrics case writes beside its result.json (Go <c>combatlab.MetricsFile</c>).</summary>
-    public const string MetricsFile = "combat_metrics.json";
+    /// <summary>The baselines directory relative to the repository root.</summary>
+    public const string BaselinesDir = "brain/src/RimGovernor.Brain.Acceptance/Sweep/baselines";
 
-    private const string CasePrefix = "combatlab/metrics-";
+    /// <summary>
+    /// The calibration directory relative to the repository root: variants/ holds the real-game sweep files
+    /// <c>&lt;fixture&gt;/&lt;variant&gt;.json</c> of the non-default variants, shots/ the committed shot datasets.
+    /// </summary>
+    public const string CalibrationDir = "brain/src/RimGovernor.Brain.Acceptance/Sweep/calibration";
+
+    /// <summary>One seed's default hang guard: a cold launch and lab start plus the served fight and the reads after.</summary>
+    public static readonly TimeSpan DefaultSeedTimeout = TimeSpan.FromMinutes(10);
 
     /// <summary>The usage lines for the command's help text.</summary>
     public const string Usage = """
-          acceptance sweep <fixture>... -root <dir> -output <dir> [-n 20 | -seeds 1,2,5 -workers 1|2 -against <sweep.json|dir> -restage -record -variant <name> -shots <file> -game <id> -case-timeout <d>]
-            runs combatlab/metrics-<fixture> once per seed from one staged checkpoint (seed s reseeds the RNG after the load, -run-seed),
+          acceptance sweep <fixture>... -root <dir> -output <dir> [-n 20 | -seeds 1,2,5 -workers 1|2 -against <sweep.json|dir> -record -variant <name> -shots <file> -game <id> -timeout <d>]
+            stages <fixture> afresh for each seed through the stage spec, reseeds the RNG with the seed and serves the defense planner,
             on 1 or 2 private clones of -root, and writes <output>/<fixture>/sweep.json (per-seed rows plus summary) with the report printed
             deaths and downs first; -against pairs the seeds with an earlier sweep.json (or <dir>/<fixture>/sweep.json) and exits 1 on a survival regression
+          acceptance sweep hunting-grid-<cell> -root <dir> -output <dir> [-seeds a,b,c -workers 1|2]
+            the cell's one predictor request, then one native hunt per seed (hunting-prediction-qualification.md)
+          acceptance sweep -hunting-report <output-dir> <report.json>
         """;
 
-    /// <summary>Runs the subcommand with the arguments after <c>sweep</c>; returns the process exit code (2 refused, 1 a failed seed or a regression).</summary>
+    private const string HuntingPrefix = "hunting-grid-";
+
+    /// <summary>
+    /// Runs the subcommand with the arguments after <c>sweep</c>; returns the process exit code (2 refused, 1 a failed seed
+    /// or a regression). <paramref name="predictor"/> runs a hunting cell's predictor request; null refuses hunting cells.
+    /// </summary>
     public static async Task<int> RunAsync(
         IReadOnlyList<string> args,
-        CaseRegistry registry,
-        ICombatLab lab,
+        HuntingPredictor? predictor,
         TextWriter stdout,
         TextWriter stderr,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(args);
-        ArgumentNullException.ThrowIfNull(registry);
-        ArgumentNullException.ThrowIfNull(lab);
         ArgumentNullException.ThrowIfNull(stdout);
         ArgumentNullException.ThrowIfNull(stderr);
-        if (args.Count > 0 && args[0] == "-hunting-report") return HuntingReport(args.Skip(1).ToArray(), stdout, stderr);
+        if (args.Count > 0 && args[0] == "-hunting-report")
+        {
+            return HuntingReport([.. args.Skip(1)], stdout, stderr);
+        }
+
         SweepOptions opts;
         try
         {
-            opts = Parse(args, lab);
+            opts = Parse(args);
         }
         catch (AcceptanceException e)
         {
@@ -133,23 +124,36 @@ public static partial class SweepCommand
             return 2;
         }
 
-        // Taken before any game of the sweep boots, so the count is the box's peers.
-        var load = CombatDispatcher.LoadNote();
-        var selected = new List<AcceptanceCase>();
+        var ops = new List<string>();
         foreach (var f in opts.Fixtures)
         {
-            var c = registry.Lookup(f.StartsWith("hunting-grid-", StringComparison.Ordinal) ? "combatlab/" + f : CasePrefix + f);
-            if (c is null)
+            if (f.StartsWith(HuntingPrefix, StringComparison.Ordinal))
             {
-                await stderr.WriteLineAsync($"unknown fixture \"{f}\" (no case {CasePrefix}{f})").ConfigureAwait(false);
-                return 2;
-            }
+                if (opts.Record || opts.Against.Length != 0 || opts.Variant.Length != 0 || opts.Shots.Length != 0)
+                {
+                    await stderr.WriteLineAsync("hunting qualification uses retained trial reports, not combat tactic baselines").ConfigureAwait(false);
+                    return 2;
+                }
 
-            selected.Add(c);
+                if (predictor is null)
+                {
+                    await stderr.WriteLineAsync("sweep: the host wired no hunting predictor").ConfigureAwait(false);
+                    return 2;
+                }
+
+                ops.AddRange(HuntingOps);
+            }
+            else
+            {
+                ops.AddRange(SweepSeed.Ops);
+            }
         }
 
+        // Taken before any game of the sweep boots, so the count is the box's peers.
+        var load = CombatDispatcher.LoadNote();
         var pre = await PreflightPass.RunAsync(
-            selected,
+            opts.Fixtures,
+            [.. ops.Distinct(StringComparer.Ordinal)],
             new RunOptions { Root = opts.Root, Output = opts.Output, GameId = opts.GameId, NoHeal = true },
             stderr,
             cancellationToken).ConfigureAwait(false);
@@ -178,17 +182,21 @@ public static partial class SweepCommand
         var exit = 0;
         try
         {
-            foreach (var c in selected)
+            foreach (var f in opts.Fixtures)
             {
-                if (c.Name.StartsWith("combatlab/hunting-grid-", StringComparison.Ordinal))
+                if (f.StartsWith(HuntingPrefix, StringComparison.Ordinal))
                 {
-                    var huntingExit = await SweepHuntingAsync(c, opts, load, roots, stdout, stderr, cancellationToken).ConfigureAwait(false);
+                    var huntingExit = await SweepHuntingAsync(f[HuntingPrefix.Length..], predictor!, opts, load, roots, stdout, stderr, cancellationToken).ConfigureAwait(false);
                     exit = Math.Max(exit, huntingExit);
-                    if (huntingExit != 0) break;
+                    if (huntingExit != 0)
+                    {
+                        break;
+                    }
+
                     continue;
                 }
-                var fixture = c.Name[CasePrefix.Length..];
-                var code = await SweepFixtureAsync(c, fixture, opts, lab, load, roots, stdout, stderr, cancellationToken).ConfigureAwait(false);
+
+                var code = await SweepFixtureAsync(f, opts, load, roots, stdout, stderr, cancellationToken).ConfigureAwait(false);
                 exit = Math.Max(exit, code);
             }
         }
@@ -215,11 +223,10 @@ public static partial class SweepCommand
         return exit;
     }
 
-    /// <summary>Resolves the sweep subcommand's flags (Go <c>parseSweep</c>); throws <see cref="UsageException"/> on a refused invocation.</summary>
-    public static SweepOptions Parse(IReadOnlyList<string> args, ICombatLab lab)
+    /// <summary>Resolves the sweep subcommand's flags; throws <see cref="UsageException"/> on a refused invocation.</summary>
+    public static SweepOptions Parse(IReadOnlyList<string> args)
     {
         ArgumentNullException.ThrowIfNull(args);
-        ArgumentNullException.ThrowIfNull(lab);
         var fs = new FlagSet("sweep");
         var n = fs.Int("n", BaselineSeeds);
         var record = fs.Bool("record", false);
@@ -231,8 +238,7 @@ public static partial class SweepCommand
         var against = fs.String("against", "");
         var shots = fs.String("shots", "");
         var variant = fs.String("variant", "");
-        var restage = fs.Bool("restage", false);
-        var caseTimeout = fs.Duration("case-timeout", TimeSpan.Zero);
+        var timeout = fs.Duration("timeout", DefaultSeedTimeout);
         var fixtures = fs.ParseAfterPositionals(args);
         if (fs.Args.Count > 0)
         {
@@ -244,6 +250,17 @@ public static partial class SweepCommand
             throw new UsageException("sweep needs at least one fixture (lab-choke, ...)");
         }
 
+        foreach (var f in fixtures)
+        {
+            var known = f.StartsWith(HuntingPrefix, StringComparison.Ordinal)
+                ? HuntingQualification.Cells.Contains(f[HuntingPrefix.Length..], StringComparer.Ordinal)
+                : CombatFixtures.Names.Contains(f, StringComparer.Ordinal);
+            if (!known)
+            {
+                throw new UsageException($"unknown fixture \"{f}\" (have {string.Join(", ", CombatFixtures.Names)} and {HuntingPrefix}<cell>)");
+            }
+        }
+
         if (root.Value.Length == 0 || output.Value.Length == 0)
         {
             throw new UsageException("-root and -output are required");
@@ -252,6 +269,11 @@ public static partial class SweepCommand
         if (!Path.IsPathFullyQualified(root.Value))
         {
             throw new UsageException("-root must be absolute");
+        }
+
+        if (timeout.Value <= TimeSpan.Zero)
+        {
+            throw new UsageException("-timeout must be positive");
         }
 
         var shotsPath = "";
@@ -265,7 +287,7 @@ public static partial class SweepCommand
             shotsPath = Path.GetFullPath(shots.Value);
         }
 
-        var tuningEnv = variant.Value.Length > 0 ? VariantEnv(lab, variant.Value) : "";
+        var tuningEnv = variant.Value.Length > 0 ? VariantEnv(variant.Value) : "";
         var list = SweepSeeds(n.Value, seeds.Value);
         if (record.Value && (seeds.Value.Length > 0 || n.Value != BaselineSeeds))
         {
@@ -286,20 +308,35 @@ public static partial class SweepCommand
             Seeds = list,
             Workers = workers.Value,
             Against = against.Value.Length > 0 ? Path.GetFullPath(against.Value) : "",
-            Restage = restage.Value,
             Record = record.Value,
             Shots = shotsPath,
             Variant = variant.Value,
             TuningEnv = tuningEnv,
-            CaseTimeout = caseTimeout.Value,
+            SeedTimeout = timeout.Value,
         };
     }
 
-    /// <summary>The CombatTuningEnv value of a named non-default variant. The default variant is the committed baseline: sweep it without -variant.</summary>
-    public static string VariantEnv(ICombatLab lab, string name)
+    /// <summary>
+    /// The ranged slice's tactic variants, the default first: the two tuning knobs the ranged fallback and raid grouping
+    /// read, each moved both ways.
+    /// </summary>
+    public static IReadOnlyList<CombatVariant> Variants()
     {
-        ArgumentNullException.ThrowIfNull(lab);
-        var variants = lab.Variants();
+        var shipped = PolicyFunctions.DefaultCombatTuning();
+        return
+        [
+            new CombatVariant(DefaultVariant, shipped),
+            new CombatVariant("scatter-short", shipped with { ScatterCells = 8 }),
+            new CombatVariant("scatter-long", shipped with { ScatterCells = 45 }),
+            new CombatVariant("group-gap-tight", shipped with { GroupGap = 3 }),
+            new CombatVariant("group-gap-wide", shipped with { GroupGap = 20 }),
+        ];
+    }
+
+    /// <summary>The CombatTuningEnv value of a named non-default variant. The default variant is the committed baseline: sweep it without -variant.</summary>
+    public static string VariantEnv(string name)
+    {
+        var variants = Variants();
         foreach (var v in variants)
         {
             if (!string.Equals(v.Name, name, StringComparison.Ordinal))
@@ -328,7 +365,16 @@ public static partial class SweepCommand
         throw new UsageException($"unknown -variant \"{name}\" (have {string.Join(", ", variants.Select(v => v.Name))})");
     }
 
-    /// <summary>The tuning as the JSON object the service reads (the Go field names; every field, so the child does not depend on the default).</summary>
+    /// <summary>
+    /// The file a recorded sweep of <paramref name="fixture"/> lands in under <paramref name="repo"/>: the committed
+    /// baseline, or with a non-empty <paramref name="variant"/> the calibration variant file.
+    /// </summary>
+    public static string RecordPath(string repo, string fixture, string variant) =>
+        variant.Length == 0
+            ? Path.Combine(repo, BaselinesDir, fixture + ".json")
+            : Path.Combine(repo, CalibrationDir, "variants", fixture, variant + ".json");
+
+    /// <summary>The tuning as the JSON object the service reads (the Go field names; every field, so the game does not depend on the default).</summary>
     internal static JsonObject TuningJson(CombatTuning t) => new()
     {
         ["DoorCloseRange"] = t.DoorCloseRange,
@@ -345,7 +391,7 @@ public static partial class SweepCommand
         ["RushRange"] = t.RushRange,
     };
 
-    /// <summary>The explicit list or 1..n; seed 0 means no reseed and is refused (Go <c>sweepSeeds</c>).</summary>
+    /// <summary>The explicit list or 1..n; seed 0 means no reseed and is refused.</summary>
     public static IReadOnlyList<int> SweepSeeds(int n, string list)
     {
         var seeds = new List<int>();
@@ -385,11 +431,11 @@ public static partial class SweepCommand
         return seeds;
     }
 
+    private static string SeedDir(string dir, int seed) => Path.Combine(dir, string.Create(CultureInfo.InvariantCulture, $"seed-{seed}"));
+
     private static async Task<int> SweepFixtureAsync(
-        AcceptanceCase c,
         string fixture,
         SweepOptions opts,
-        ICombatLab lab,
         string load,
         string[] roots,
         TextWriter stdout,
@@ -397,17 +443,8 @@ public static partial class SweepCommand
         CancellationToken ct)
     {
         var dir = Path.Combine(opts.Output, fixture);
-        try
-        {
-            await StageForSweepAsync(c, opts, roots, dir, ct).ConfigureAwait(false);
-        }
-        catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException)
-        {
-            await stderr.WriteLineAsync($"{fixture}: stage: {e.Message}").ConfigureAwait(false);
-            return 1;
-        }
 
-        // A failed seed keeps what it did read (the digest and draws), as Go's dispatch kept the value beside the error.
+        // A failed seed keeps what it did read (the digest and draws) beside the error.
         var partial = new ConcurrentDictionary<int, SeedRow>();
         DispatchReport<SeedRow> report;
         string? dispatchError = null;
@@ -420,7 +457,7 @@ public static partial class SweepCommand
                 async (worker, seed, token) =>
                 {
                     await stderr.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"[worker {worker + 1}] {fixture} seed {seed}")).ConfigureAwait(false);
-                    var (row, error) = await RunSeedAsync(c, opts, roots[worker], dir, worker, seed, token).ConfigureAwait(false);
+                    var (row, error) = await SweepSeed.RunAsync(opts, roots[worker], fixture, worker, seed, SeedDir(dir, seed), token).ConfigureAwait(false);
                     if (error is not null)
                     {
                         partial[seed] = row;
@@ -470,7 +507,7 @@ public static partial class SweepCommand
         {
             try
             {
-                WriteShotDataset(lab, c, dir, opts.Seeds, opts.Shots);
+                await WriteShotDatasetAsync(dir, opts.Seeds, opts.Shots, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException)
             {
@@ -485,7 +522,7 @@ public static partial class SweepCommand
         {
             try
             {
-                RecordSweep(lab, result, opts.Variant);
+                RecordSweep(result, opts.Variant);
             }
             catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException)
             {
@@ -532,9 +569,9 @@ public static partial class SweepCommand
 
     /// <summary>
     /// Writes a clean sweep over the fixture's committed baseline, or with a variant over its calibration variant file, in
-    /// the source tree (Go <c>recordSweep</c>).
+    /// the source tree (resolved against the nearest .git above the working directory).
     /// </summary>
-    internal static void RecordSweep(ICombatLab lab, Sweep s, string variant)
+    internal static void RecordSweep(Sweep s, string variant)
     {
         var defects = s.Defects();
         if (defects.Count > 0)
@@ -542,7 +579,9 @@ public static partial class SweepCommand
             throw new AcceptanceException($"sweep is not a baseline: {string.Join("; ", defects)}");
         }
 
-        WriteJson(lab.RecordPath(s.Fixture, variant), s, SweepJsonContext.Default.Sweep);
+        var repo = NativeSourceInputs.FindRepo(Directory.GetCurrentDirectory())
+            ?? throw new AcceptanceException("cannot find the source tree (no .git above the working directory) to record the sweep in");
+        WriteJson(RecordPath(repo, s.Fixture, variant), s, SweepJsonContext.Default.Sweep);
     }
 
     /// <summary>Loads the baseline sweep (a file, or &lt;dir&gt;/&lt;fixture&gt;/sweep.json, or the baselines directory's &lt;fixture&gt;.json) and compares the candidate against it.</summary>
@@ -580,131 +619,14 @@ public static partial class SweepCommand
     }
 
     /// <summary>
-    /// Stages the fixture once, on worker 1, and gives every worker root its own copy of the bundle (through the shared
-    /// root, which keeps the bundle for the next sweep). Every seed then resumes that one checkpoint.
-    /// </summary>
-    private static async Task StageForSweepAsync(AcceptanceCase c, SweepOptions opts, string[] roots, string dir, CancellationToken ct)
-    {
-        if (!opts.Restage)
-        {
-            SuiteStages.CarryStages(opts.Root, roots[0], c.Name);
-        }
-
-        var argv = new List<string> { "-through", "staged", "-checkpoint-every", "0" };
-        if (opts.Restage)
-        {
-            argv.Add("-restage");
-        }
-
-        await RunChildAsync(c, opts, roots[0], Path.Combine(dir, "stage"), argv, ct).ConfigureAwait(false);
-        _ = SuiteStages.PublishStages(opts.Root, roots[0], c.Name);
-        foreach (var r in roots.Skip(1))
-        {
-            SuiteStages.CarryStages(opts.Root, r, c.Name);
-        }
-    }
-
-    /// <summary>Runs <c>acceptance run</c> for the case on a worker root into <paramref name="output"/>; throws when it cannot start or exits non-zero.</summary>
-    private static async Task RunChildAsync(AcceptanceCase c, SweepOptions opts, string root, string output, IReadOnlyList<string> extra, CancellationToken ct)
-    {
-        var tail = new List<string> { "run", c.Name, "-root", root, "-output", output, "-game", opts.GameId, "-no-doctor", "-no-series" };
-        if (opts.CaseTimeout > TimeSpan.Zero)
-        {
-            tail.AddRange(["-timeout", GoDuration.Format(opts.CaseTimeout)]);
-        }
-
-        tail.AddRange(extra);
-        Directory.CreateDirectory(output);
-        var logPath = output + ".log";
-        var env = new Dictionary<string, string>(StringComparer.Ordinal) { [Game.KeepGameEnv] = "1" };
-        if (opts.TuningEnv.Length > 0)
-        {
-            env[PolicyFunctions.CombatTuningEnv] = opts.TuningEnv;
-        }
-
-        var (self, _) = SelfInvocation.Resolve();
-        var result = await ChildProcess.RunAsync(self, SelfInvocation.AcceptanceArgv(tail), env, logPath, ct).ConfigureAwait(false);
-        if (result.Code != 0)
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{c.Name}: exit status {result.Code} (see {logPath})"));
-        }
-    }
-
-    /// <summary>
     /// Concatenates the seeds' shot tap rows (combat_shots.jsonl in each seed's bundle), each stamped with its seed, into one
     /// file. A seed without a shot file is an error: the dataset must cover every seed.
     /// </summary>
-    private static void WriteShotDataset(ICombatLab lab, AcceptanceCase c, string dir, IReadOnlyList<int> seeds, string path)
+    private static async Task WriteShotDatasetAsync(string dir, IReadOnlyList<int> seeds, string path, CancellationToken ct)
     {
         using var buffer = new MemoryStream();
-        lab.BuildShotDataset(buffer, seeds, seed => SeedCaseDir(c, dir, seed));
+        await CombatLabShots.BuildShotDatasetAsync(buffer, seeds, seed => SeedDir(dir, seed), ct).ConfigureAwait(false);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllBytes(path, buffer.ToArray());
-    }
-
-    private static string SeedCaseDir(AcceptanceCase c, string dir, int seed) =>
-        new RunOptions { Output = Path.Combine(dir, string.Create(CultureInfo.InvariantCulture, $"seed-{seed}")) }.CaseOutput(c);
-
-    /// <summary>Runs one seed on a worker root and reads the seed's row from its bundle: the metrics and the staging digest and reseed draws it reported.</summary>
-    private static async Task<(SeedRow Row, AcceptanceException? Error)> RunSeedAsync(
-        AcceptanceCase c,
-        SweepOptions opts,
-        string root,
-        string dir,
-        int worker,
-        int seed,
-        CancellationToken ct)
-    {
-        var row = new SeedRow { Seed = seed, Worker = worker + 1 };
-        var output = Path.Combine(dir, string.Create(CultureInfo.InvariantCulture, $"seed-{seed}"));
-        AcceptanceException? runError = null;
-        try
-        {
-            await RunChildAsync(c, opts, root, output, ["-checkpoint-every", "0", "-run-seed", seed.ToString(CultureInfo.InvariantCulture)], ct).ConfigureAwait(false);
-        }
-        catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException)
-        {
-            runError = e as AcceptanceException ?? new AcceptanceException(e.Message, e);
-        }
-
-        var caseDir = new RunOptions { Output = output }.CaseOutput(c);
-        try
-        {
-            if (JsonNode.Parse(File.ReadAllText(Path.Combine(caseDir, "result.json"))) is JsonObject result)
-            {
-                var draws = result["run_seed_draws"] is JsonArray a
-                    ? a.Select(n => n is JsonValue v && v.TryGetValue<int>(out var d) ? d : 0).ToList()
-                    : null;
-                row = row with
-                {
-                    StagedDigest = result["staged_digest"] is JsonValue sv && sv.TryGetValue<string>(out var digest) ? digest : null,
-                    RunSeedDraws = draws,
-                };
-            }
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
-        {
-            // No readable result.json: the row carries what the metrics say.
-        }
-
-        if (runError is not null)
-        {
-            return (row, runError);
-        }
-
-        try
-        {
-            var data = await File.ReadAllTextAsync(Path.Combine(caseDir, MetricsFile), ct).ConfigureAwait(false);
-            var m = JsonSerializer.Deserialize(data, SweepJsonContext.Default.SimMetrics);
-            return (row with { Metrics = m }, null);
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            return (row, new AcceptanceException(e.Message, e));
-        }
-        catch (JsonException e)
-        {
-            return (row, new AcceptanceException($"{MetricsFile}: {e.Message}", e));
-        }
+        await File.WriteAllBytesAsync(path, buffer.ToArray(), ct).ConfigureAwait(false);
     }
 }

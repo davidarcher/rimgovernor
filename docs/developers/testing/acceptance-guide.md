@@ -274,24 +274,24 @@ The stage key covers the area's brain files and stage names, not shared helpers.
 `-fresh` retains stages; `-restage` discards them. A pending resume takes
 precedence. `RIMGOVERNOR_ACCEPT_STAGES=0` disables caching.
 
-A staged checkpoint is staged once, at seed 0. `-run-seed <n>` reseeds the
-game RNG after the checkpoint loads (`combatlab/metrics-*`, through the lab's
-`test/lab_stage` action `reseed`, a harness-only test tool and not a model
-action), so seeds 1..N run from one bundle; the report carries `run_seed` and
-`run_seed_draws`. The reseed fixes the RNG start only: once two tactics diverge
-their draws diverge too, so paired seeds compare starting dice, not identical
-dice. `combatlab/reseed` checks the action itself.
-
 ## Combat lab sweeps
 
 `acceptance sweep <fixture>... -root <dir> -output <fresh dir>
-[-n 20 | -seeds 1,2,5] [-workers 1|2] [-against <sweep.json|dir>] [-restage]`
-runs `combatlab/metrics-<fixture>` once per seed, 1..N by default. The fixture
-is staged once (a cached stage bundle is reused), every worker root gets its
-own copy of that bundle, and seed `s` runs `-run-seed s` from it. Seeds are
-dispatched with `CombatDispatcher.Dispatch` on 1 or 2 private clones of `-root`
-(more is refused); the result records the workers and a RimWorld process count
-taken before dispatch, so a timing-dependent metric can be read against box load.
+[-n 20 | -seeds 1,2,5] [-workers 1|2] [-against <sweep.json|dir>] [-timeout 10m]`
+runs each combat fixture once per seed, 1..N by default. The sweep has its own
+driver (`brain/src/RimGovernor.Brain.Acceptance/Sweep`): it does not go through
+the case runner or the case catalog and keeps no checkpoints. Every seed opens
+the game in process on its worker root, stages the fixture fresh through the
+`Fixtures.Contracts` stage spec, reseeds the game RNG with the seed (the lab's
+`test/lab_stage` action `reseed`, a harness-only test tool and not a model
+action), serves the brain for the fixture's ticks and reads the outcome. Each
+seed's `result.json` carries `run_seed` and `run_seed_draws`. The reseed fixes
+the RNG start only: once two tactics diverge their draws diverge too, so paired
+seeds compare starting dice, not identical dice. `combatlab/reseed` checks the
+action itself. Seeds are dispatched with `CombatDispatcher.Dispatch` on 1 or 2
+private clones of `-root` (more is refused); the result records the workers and
+a RimWorld process count taken before dispatch, so a timing-dependent metric can
+be read against box load. `-timeout` bounds one seed (10 minutes by default).
 
 `<output>/<fixture>/sweep.json` is the sweep file (versioned): one row per seed (metrics, staging digest, reseed draws)
 plus a summary. The printed report leads with the seeds that saw a colonist
@@ -302,14 +302,15 @@ pairs the seeds of an earlier sweep file and prints the paired deltas; it exits
 1 when a seed gains a colonist death or the paired interval of colonist deaths
 or downs lies wholly above zero.
 
-Every metrics run also records the shot tap (`LabShotLedger` in
+Every seed also records the shot tap (`LabShotLedger` in
 `scripts/fixtures/DebugStartFixture.cs`, harness only): each projectile launch
 and impact, job starts, stances, draft changes and each pawn's first think
 ticks, read with `test/lab_stage` action `shots` into `combat_shots.jsonl` in the
-bundle. `acceptance sweep <fixture> -variant <name>` sweeps a tactic variant of
-the combat-lab variants in the real game: it sets the test-only
-`RIMGOVERNOR_COMBAT_TUNING` environment variable on the child service, and with
-`-record` writes `combatlab/calibration/variants/<fixture>/<variant>.json`
+seed directory. `acceptance sweep <fixture> -variant <name>` sweeps a tactic variant of
+the combat-lab variants in the real game: it launches the game with the test-only
+`RIMGOVERNOR_COMBAT_TUNING` environment variable (a kept game launched with a
+different value is relaunched), and with
+`-record` writes `brain/src/RimGovernor.Brain.Acceptance/Sweep/calibration/variants/<fixture>/<variant>.json`
 instead of the baseline (the `default` variant is the baseline and is refused).
 The variable is a JSON `CombatTuning` (fields over `PolicyFunctions.DefaultCombatTuning`,
 unknown fields and out-of-range values refused at start, unset means
@@ -321,20 +322,23 @@ collapses, a raid split into groups), so a layout-less fixture measures the same
 play under every variant.
 `acceptance sweep <fixture> -shots <file>` concatenates the seeds' rows,
 stamped with the seed and with the damage each impact dealt. The committed
-`CombatLab/calibration/shots/lab-ranged.jsonl` and its README (fields, how it
+`Sweep/calibration/shots/lab-ranged.jsonl` and its README (fields, how it
 was recorded) are the real timing data for combat simulator calibration.
 
-The combat baselines are sweep outputs: `CombatLab/baselines/<fixture>.json` is
+The combat baselines are sweep outputs: `Sweep/baselines/<fixture>.json` is
 the sweep of seeds 1..20 recorded from main with the routine
 defense planner running. A tactic is first compared on one seed (three at most);
 a full sweep of the same seeds runs only when asked or by the nightly, with `-against
-brain/src/RimGovernor.Brain.Acceptance.Cases/CombatLab/baselines` and gets paired deltas row
+brain/src/RimGovernor.Brain.Acceptance/Sweep/baselines` and gets paired deltas row
 by row. Re-record one with `acceptance sweep <fixture> -record`
 (seeds 1..20 only; a failed seed, a seed with no contact or no orders, or a
 summary that is not derived from the rows is refused). Re-record only when asked or by the nightly (not as a
 default step of a fix), after a schema bump or an intended change to the
 fixture or planner. lab-open
 is smoke-only: recorded, but not a tactics signal.
+
+`acceptance sweep hunting-grid-<cell>` runs a hunting qualification cell; see
+[hunting prediction qualification](hunting-prediction-qualification.md).
 
 `acceptance suite -stages` schedules missing stages and their dependent tails
 for iteration. The ordinary suite restages from scratch. Preserve

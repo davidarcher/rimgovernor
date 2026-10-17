@@ -99,7 +99,6 @@ public static class RunCommand
         var noDoctor = fs.Bool("no-doctor", false);
         var noHeal = fs.Bool("no-heal", false);
         var repeat = fs.Int("repeat", 1);
-        var runSeed = fs.Int("run-seed", 0);
         var seed = fs.String("seed", "");
         var postmortemOnly = fs.Bool("postmortem-only", false);
         var from = fs.String("from", "");
@@ -212,7 +211,6 @@ public static class RunCommand
             NoDoctor = noDoctor.Value,
             NoHeal = noHeal.Value,
             Repeat = repeat.Value,
-            RunSeed = runSeed.Value,
             Seed = seed.Value,
             PostmortemOnly = postmortemOnly.Value,
             From = from.Value,

@@ -39,7 +39,6 @@ Acceptance/Stages/RingPlanning.cs|RingPlanning.Fingerprint
 Acceptance/Stages/StagePlanning.cs|StagePlanning.CachedStage
 Acceptance/Suites/ChildProcess.cs|ChildProcess.KillTree
 Acceptance/Suites/SuiteRunner.cs|SuiteRunner.RunEntryOnceAsync
-Acceptance/Suites/SweepCommand.cs|SweepCommand.RunSeedAsync
 Bridge/Catalog/CreepJoinerDisarm.cs|DefinitionCatalog.BuildCreepJoinerDisarm
 BuildingRuntime/ArrivalHold.cs|Worker.ResendMoveAsync
 BuildingRuntime/Authorize.cs|PlanAuthorizer.AuthorizeRoundsPlanAsync

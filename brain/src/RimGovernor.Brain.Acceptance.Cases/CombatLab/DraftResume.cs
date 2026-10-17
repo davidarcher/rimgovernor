@@ -56,7 +56,7 @@ public static class CombatLabResume
         var staged = await CombatStage.StageAsync(s.Harness, "lab-choke", cancellationToken).ConfigureAwait(false);
         if (staged.Fixture.Layout is { } layout)
         {
-            _ = await CombatLabMetrics.StoreLayoutAsync(s.Harness, s.Identity, layout, cancellationToken).ConfigureAwait(false);
+            _ = await CombatLabLayout.StoreAsync(s.Harness, s.Identity, layout, cancellationToken).ConfigureAwait(false);
         }
 
         // A MajorThreat letter would pause the game as a player.

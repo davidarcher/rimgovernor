@@ -8,7 +8,7 @@ internal static class CombatLabReseed
     internal static AcceptanceCase Case() => new()
     {
         Name = "combatlab/reseed",
-        Scope = "Post-load reseed (#2849): reseeding the game RNG under seed 7 reads the same next draws every time, even after ticks advanced the RNG between, and seed 8 reads different draws. The same-checkpoint-twice property is also visible across combatlab/metrics-* runs: pass -run-seed and compare the report's run_seed_draws and staged_digest.",
+        Scope = "Post-load reseed (#2849): reseeding the game RNG under seed 7 reads the same next draws every time, even after ticks advanced the RNG between, and seed 8 reads different draws. The same property is visible across `acceptance sweep` seeds: compare each seed's run_seed_draws and staged_digest.",
         Start = new LabStart { Colonists = 5 },
         RequiredOps = [DebugGame.LabStartTool, CombatFixtures.LabTool],
         QuietWorld = true,

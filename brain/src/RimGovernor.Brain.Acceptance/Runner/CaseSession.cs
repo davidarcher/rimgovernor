@@ -33,13 +33,12 @@ public sealed class CaseSession : ISession, IRingHost
     private IScenarioRuntime? _runtime;
     private Harness? _runtimeHarness;
 
-    internal CaseSession(AcceptanceCase c, Report report, IScenarioDriver? scenario, string seed, int runSeed, StagePlan stagePlan, string stagesDir, string through)
+    internal CaseSession(AcceptanceCase c, Report report, IScenarioDriver? scenario, string seed, StagePlan stagePlan, string stagesDir, string through)
     {
         _case = c;
         _report = report;
         _scenario = scenario;
         _seed = seed;
-        RunSeed = runSeed;
         _stagePlan = stagePlan;
         _stagesDir = stagesDir;
         _through = through;
@@ -65,9 +64,6 @@ public sealed class CaseSession : ISession, IRingHost
 
     /// <inheritdoc />
     public ServeSpec Spec => _case.Serve ?? new ServeSpec();
-
-    /// <inheritdoc />
-    public int RunSeed { get; }
 
     /// <inheritdoc />
     public Checkpoint? Resumed { get; internal set; }

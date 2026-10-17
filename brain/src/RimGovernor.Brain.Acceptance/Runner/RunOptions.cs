@@ -70,9 +70,6 @@ public sealed record RunOptions
     /// <summary>Pins the world seed of a debug or scenario start (a result.json "world" block's seed reproduces that run's world). Implies Fresh.</summary>
     public string Seed { get; init; } = "";
 
-    /// <summary>Reseeds the game RNG once the run has opened (combatlab/metrics-*); 0 leaves the RNG as the save carried it.</summary>
-    public int RunSeed { get; init; }
-
     /// <summary>Runs each case this many times on the kept process and reports the pass rate and per-attempt seeds; 0 or 1 is one run.</summary>
     public int Repeat { get; init; }
 

@@ -29,7 +29,6 @@ public static class CombatLabCases
         registry.Register(CombatLabEmp.Case());
         registry.Register(CombatLabHiveTemperature.Case());
         registry.Register(CombatLabHoldFire.Case());
-        foreach (var prediction in CombatLabHuntingPrediction.Cases()) registry.Register(prediction);
         registry.Register(CombatLabHunt.SquadCase());
         registry.Register(CombatLabHunt.DoorCase());
         registry.Register(CombatLabLance.Case());
@@ -41,10 +40,6 @@ public static class CombatLabCases
         registry.Register(CombatLabStun.Case());
         registry.Register(CombatLabWild.Case());
         registry.Register(CombatLabResume.Case());
-        foreach (var metrics in CombatLabMetrics.Cases())
-        {
-            registry.Register(metrics);
-        }
     }
 
     /// <summary>An array of the strings.</summary>
