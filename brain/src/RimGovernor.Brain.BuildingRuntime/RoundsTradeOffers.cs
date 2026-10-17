@@ -124,7 +124,7 @@ public sealed partial class RoundsTradePlanner
                 continue;
             }
             var food = TradeFoodFact(row, catalog);
-            rows.Add(new Pol.TradeOffer { Def = row.DefName, Count = row.TraderCount, Price = row.BuyPrice, Pawn = row.PawnKnown && row.Pawn, Gender = row.PawnGender, Food = food });
+            rows.Add(new Pol.TradeOffer { Def = row.DefName, Count = row.TraderCount, Price = row.BuyPrice, Pawn = row.Pawn?.Gender, Food = food });
         }
         var offers = new Pol.TradeOffers { Participant = TradeParticipantOf(sheet.Target), Trader = sheet.Trader, Negotiator = sheet.Negotiator, Tick = new Tick(sheet.Context?.Tick ?? 0), Silver = silver, GoodsStacks = stacks, Rows = rows };
         Reviewer.TradeOffers.Record(state.Snapshot, offers);

@@ -27,7 +27,7 @@ public static partial class PolicyFunctions
             foreach (var target in objective.HackTargets)
             {
                 seen = true;
-                if (!target.Satisfied.TryGetValue(out var satisfied) || !satisfied)
+                if (!target.Satisfied)
                 {
                     return false;
                 }
@@ -147,15 +147,11 @@ public static partial class PolicyFunctions
             }
             foreach (var target in targets.OrderBy(t => t.Id, StringComparer.Ordinal))
             {
-                if (!target.Satisfied.TryGetValue(out var satisfied))
-                {
-                    return result with { Reason = "hack_state_unknown" };
-                }
-                if (satisfied)
+                if (target.Satisfied)
                 {
                     continue;
                 }
-                if (!target.Spawned.TryGetValue(out var spawned) || !spawned)
+                if (!target.Spawned)
                 {
                     return result with { Reason = "hack_target_unavailable" };
                 }
@@ -163,13 +159,7 @@ public static partial class PolicyFunctions
                 {
                     return result with { Reason = "off_map" };
                 }
-                var lk = target.LockedOut.TryGetValue(out var locked);
-                var ak = target.Autohack.TryGetValue(out var auto);
-                if (!lk || !ak)
-                {
-                    return result with { Reason = "hack_state_unknown" };
-                }
-                if (locked || auto)
+                if (target.LockedOut || target.Autohack)
                 {
                     return result;
                 }

@@ -70,7 +70,7 @@ public sealed class MedicalFamilyTests
 
     private static TendDoctorFacts Doctor(string id, int skill) => new()
     {
-        Pawn = new(id), Dead = Known(false), Downed = Known(false), Drafted = Known(false), MentalState = Known(false), PlayerForced = Known(false),
+        Pawn = new(id), Dead = Known(false), Downed = Known(false), Drafted = Known(false), MentalState = false, PlayerForced = Known(false),
         QueuedJobs = Known(0u), ExistingJobDef = Known(""), MedicineSkill = Known(skill), MedicineSkillDisabled = Known(false),
         DoctorWorkEnabled = Known(true), DoctorWorkOverrideDisabled = Known(false), ControlEligible = Known(true), TendCapacities = Known(true),
     };
@@ -109,7 +109,7 @@ public sealed class MedicalFamilyTests
     {
         static RescuerFacts Rescuer(string id) => new()
         {
-            Pawn = new(id), Dead = Known(false), Downed = Known(false), Drafted = Known(false), MentalState = Known(false),
+            Pawn = new(id), Dead = Known(false), Downed = Known(false), Drafted = Known(false), MentalState = false,
             PlayerForced = Known(false), QueuedJobs = Known(0u), ExistingJobDef = Known(""),
         };
         static RescuePatientFacts Downed(PawnId id) => new() { Pawn = id, Dead = Known(false), Downed = Known(true), InBed = Known(false), ExistingJobDef = Known("") };

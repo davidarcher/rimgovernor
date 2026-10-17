@@ -48,7 +48,7 @@ public static partial class PolicyFunctions
         {
             var race = new Resource(row.DefName);
             var ok = races.Race(race, out _);
-            if (ok && row.PawnKnown && row.Pawn && row.TraderCount >= 1 && !@out.Contains(race))
+            if (ok && row.Pawn is not null && row.TraderCount >= 1 && !@out.Contains(race))
             {
                 @out.Add(race);
             }
@@ -90,11 +90,11 @@ public static partial class PolicyFunctions
             TradeSheetRowFact? best = null;
             foreach (var row in rows)
             {
-                if (!row.PawnKnown || !row.Pawn || !row.TraderWillTradeKnown || !row.TraderWillTrade || row.TraderCount < 1 || row.ColonyCount != 0 || new Resource(row.DefName) != want.Race)
+                if (row.Pawn is not { } pawn || !row.TraderWillTradeKnown || !row.TraderWillTrade || row.TraderCount < 1 || row.ColonyCount != 0 || new Resource(row.DefName) != want.Race)
                 {
                     continue;
                 }
-                if (!((want.Male && row.PawnGender == "Male") || (want.Female && row.PawnGender == "Female")))
+                if (!((want.Male && pawn.Gender == RimGovernor.Contracts.Wire.Defs.Gender.Male) || (want.Female && pawn.Gender == RimGovernor.Contracts.Wire.Defs.Gender.Female)))
                 {
                     continue;
                 }

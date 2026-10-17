@@ -147,13 +147,13 @@ public sealed record QuestHackTarget
 
     public MapId Map { get; init; }
 
-    public Fact<bool> Spawned { get; init; }
+    public bool Spawned { get; init; }
 
-    public Fact<bool> Satisfied { get; init; }
+    public bool Satisfied { get; init; }
 
-    public Fact<bool> LockedOut { get; init; }
+    public bool LockedOut { get; init; }
 
-    public Fact<bool> Autohack { get; init; }
+    public bool Autohack { get; init; }
 
     public IReadOnlyList<PawnId> EligiblePawnIds { get; init; } = [];
 }

@@ -36,10 +36,8 @@ public sealed record TradeOffer
 
     public double Price { get; init; }
 
-    /// <summary>A live pawn row (Def is its race, Gender its sex), what an animal purchase candidate prices.</summary>
-    public bool Pawn { get; init; }
-
-    public string Gender { get; init; } = "";
+    /// <summary>A live pawn row's sex (Def is its race), what an animal purchase candidate prices; null on any other row.</summary>
+    public RimGovernor.Contracts.Wire.Defs.Gender? Pawn { get; init; }
 
     /// <summary>Classifies a food row (TradeFoodGood); unknown for any other row.</summary>
     public Fact<TradeFoodGood> Food { get; init; }

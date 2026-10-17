@@ -97,12 +97,11 @@ internal static class NativeProtoSuppliesProbe
         Check(ours(false, true, true, false, false), "Living player pawn held stock ours");
         Check(!ours(false, true, true, false, true), "Dead pawn held stock not ours");
         Check(!ours(false, true, false, true, false), "Trader held stock not ours");
-        var reply = Wire("ListSuppliesReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"stocks\":[{\"definition\":{\"defName\":\"Modded_Resourceα\"},\"units\":2147483648,\"ours\":0,\"issues\":[{\"field\":\"carried\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_NOT_REQUESTED\"}}]}]}}}");
+        var reply = Wire("ListSuppliesReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"stocks\":[{\"definition\":{\"defName\":\"Modded_Resourceα\"},\"units\":2147483648,\"ours\":0}]}}}");
         var snapshot = Get(Get(reply, "Outcome"), "Observed");
         var row = ((IList)Get(snapshot, "Stocks"))[0]!;
         Check((long)Get(row, "Units") == 2147483648L, "64-bit quantities roundtrip");
         Check(Get(row, "Ours") is long oursUnits && oursUnits == 0, "Known zero usable stock retained");
-        Check(Get(row, "Carried") == null && Get(row, "InContainer") == null, "Unrequested held stock remains unknown");
 
         // ==================== N01.03: Project()-level fixtures ====================
         // Real Census.Add()/Walk() traversal depends on Verse.FogGrid's NativeBitArray field,
@@ -160,28 +159,28 @@ internal static class NativeProtoSuppliesProbe
         void PlaceOnMap(object thing) => SetF(thing, "mapIndexOrState", (sbyte)0);
 
         object MakeEntry(object thing, object? holder, string? holderKind, bool ours, bool forbidden, bool fogged,
-            bool inHome, bool inStockpile, bool playerFaction, bool otherFaction, bool trader)
+            bool inHome, bool inStockpile, bool playerFaction, bool otherFaction)
         {
             var e = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(entryType);
             SetF(e, "Thing", thing); SetF(e, "Holder", holder); SetF(e, "HolderKind", holderKind);
             SetF(e, "Position", Activator.CreateInstance(game.GetType("Verse.IntVec3", true)!, 2, 0, 2));
             SetF(e, "Ours", ours); SetF(e, "Forbidden", forbidden); SetF(e, "Fogged", fogged);
             SetF(e, "InHome", inHome); SetF(e, "InStockpile", inStockpile);
-            SetF(e, "PlayerFaction", playerFaction); SetF(e, "OtherFaction", otherFaction); SetF(e, "Trader", trader);
+            SetF(e, "PlayerFaction", playerFaction); SetF(e, "OtherFaction", otherFaction);
             return e;
         }
-        object RunProject(IList entries, bool includeHeld)
+        object RunProject(IList entries)
         {
             var list = Activator.CreateInstance(typeof(List<>).MakeGenericType(entryType))!;
             foreach (var e in entries) ((IList)list).Add(e);
             var reservedTyped = Activator.CreateInstance(typeof(HashSet<>).MakeGenericType(game.GetType("Verse.Thing", true)!))!;
-            return projectM.Invoke(null, new object?[] { list, reservedTyped, includeHeld })!;
+            return projectM.Invoke(null, new object?[] { list, reservedTyped })!;
         }
 
         // ---- Item 5: a modded (non-vanilla) ThingDef fixture round-trips like a vanilla one ----
         var moddedThing = MakeThing("Modded_ExoticOreXYZ", 4, 501);
         PlaceOnMap(moddedThing);
-        var moddedRow = RunProject(new object[] { MakeEntry(moddedThing, null, null, true, false, false, true, false, true, false, false) }, true);
+        var moddedRow = RunProject(new object[] { MakeEntry(moddedThing, null, null, true, false, false, true, false, true, false) });
         var moddedDef = Get(moddedRow, "Definition");
         Check((string)Get(moddedDef, "DefName") == "Modded_ExoticOreXYZ" && (string)Get(moddedDef, "Label") == "Modded_ExoticOreXYZ", "Modded def name/label observed like a vanilla def");
         var moddedItems = (IList)Get(moddedRow, "Items");
@@ -218,9 +217,9 @@ internal static class NativeProtoSuppliesProbe
         var ration = MakeThing("Modded_CorpsePocketRation", 2, 603);
         PlaceOnMap(ration);
         var corpseRow = RunProject(new object[] {
-            MakeEntry(corpse, null, null, false, false, false, true, false, false, false, false),
-            MakeEntry(ration, corpse, "corpse", false, false, false, true, false, false, false, false),
-        }, true);
+            MakeEntry(corpse, null, null, false, false, false, true, false, false, false),
+            MakeEntry(ration, corpse, "corpse", false, false, false, true, false, false, false),
+        });
         Check(((IList)Get(corpseRow, "Corpses")).Count == 1, "Corpse traversal descends into held inventory and reports one corpse");
         var corpseState = ((IList)Get(corpseRow, "Corpses"))[0]!;
         Check((string)Get(corpseState, "Race") == "Human_Test" && (bool)Get(corpseState, "Humanlike"), "Corpse race and intelligence facts observed");
@@ -228,13 +227,13 @@ internal static class NativeProtoSuppliesProbe
         var corpseIssues = (IList)Get(corpseRow, "Issues");
         Check(corpseIssues.Count == 2 && Enumerable.Range(0, corpseIssues.Count).Any(i => ((string)Get(corpseIssues[i]!, "Field")).EndsWith(".rot_stage")), "Corpse without a rot component reports the documented rot_stage issue, not a crash");
 
-        // ---- Item 2: a live trader caravan pawn's carried goods surface as trader stock ----
+        // ---- Item 2: a live trader caravan pawn's carried goods are held stock, not ours ----
         var traderHolder = MakeThing("Trader_Pawn_Test", 1, 701);
         PlaceOnMap(traderHolder);
         var goods = MakeThing("Modded_TradeGoods", 6, 702);
         PlaceOnMap(goods);
-        var traderRow = RunProject(new object[] { MakeEntry(goods, traderHolder, "pawnInventory", false, false, false, false, false, false, true, true) }, true);
-        Check((long)Get(traderRow, "TraderStock") == 6 && (long)Get(traderRow, "Ours") == 0, "Trader-carried goods count as trader stock, not ours");
+        var traderRow = RunProject(new object[] { MakeEntry(goods, traderHolder, "pawnInventory", false, false, false, false, false, false, true) });
+        Check((long)Get(traderRow, "Ours") == 0, "Trader-carried goods are not ours");
         var traderHolders = (IList)Get(traderRow, "Holders");
         Check(traderHolders.Count == 1 && Get(traderHolders[0]!, "HolderKind").ToString() == "PawnInventory", "Trader caravan pawn recorded as the held-stock holder");
 
@@ -244,10 +243,10 @@ internal static class NativeProtoSuppliesProbe
         var nestedGem = MakeThing("Modded_NestedGem", 5, 803);
         PlaceOnMap(outerCrate); PlaceOnMap(innerCrate); PlaceOnMap(nestedGem);
         var nestedRow = RunProject(new object[] {
-            MakeEntry(outerCrate, null, null, true, false, false, true, false, true, false, false),
-            MakeEntry(innerCrate, outerCrate, "container", true, false, false, true, false, true, false, false),
-            MakeEntry(nestedGem, innerCrate, "container", true, false, false, true, false, true, false, false),
-        }, true);
+            MakeEntry(outerCrate, null, null, true, false, false, true, false, true, false),
+            MakeEntry(innerCrate, outerCrate, "container", true, false, false, true, false, true, false),
+            MakeEntry(nestedGem, innerCrate, "container", true, false, false, true, false, true, false),
+        });
         Check((long)Get(nestedRow, "Stacks") == 3, "All three nesting levels retained as distinct stacks");
         var nestedHolders = (IList)Get(nestedRow, "Holders");
         Check(nestedHolders.Count == 2
@@ -261,9 +260,9 @@ internal static class NativeProtoSuppliesProbe
         {
             var t = MakeThing("Modded_OverflowStack", 2, 900 + i);
             PlaceOnMap(t);
-            overflowEntries.Add(MakeEntry(t, null, null, true, false, false, true, false, true, false, false));
+            overflowEntries.Add(MakeEntry(t, null, null, true, false, false, true, false, true, false));
         }
-        var overflowRow = RunProject(overflowEntries, true);
+        var overflowRow = RunProject(overflowEntries);
         var overflowItems = (IList)Get(overflowRow, "Items");
         Check((long)Get(overflowRow, "Units") == 600 && (long)Get(overflowRow, "Stacks") == 300 && (long)Get(overflowRow, "OursUnforbidden") == 600,
             "300 stacks of one definition: units and ownership counts cover every entry");

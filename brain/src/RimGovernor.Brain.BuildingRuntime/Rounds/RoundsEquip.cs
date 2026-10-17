@@ -39,7 +39,7 @@ internal static class EquipCandidates
             Dead = Fact.Known(row.Dead),
             Downed = Fact.Known(row.Downed),
             Drafted = Fact.Known(row.Drafted),
-            MentalState = Fact.Known(row.MentalState is not null),
+            MentalState = row.MentalState is not null,
         };
         var work = ObservationApi.WorkPawnRow(row, catalog, things);
         facts = facts with { Profile = PolicyApi.BuildProfile(work) };

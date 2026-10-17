@@ -340,73 +340,20 @@ internal sealed partial class FacadeNativeClient
         return header;
     }
 
-    /// <summary>Go <c>tradeSheetRow</c>: one validated trade sheet line.</summary>
-    private static TradeSheetRow TradeSheetRowOf(PbObservations.TradeLine? v)
+    /// <summary>Go <c>tradeSheetRow</c>: one trade sheet line.</summary>
+    private static TradeSheetRow TradeSheetRowOf(PbObservations.TradeLine v)
     {
-        // The favor currency row has no ThingDef, so its definition is empty.
-        var favor = v is not null && v.Favor == true && v.Currency == true;
-        if (v is null || !IsValidId(v.LineId ?? "") || v.Definition is null || (!IsValidId(v.Definition.DefName ?? "") && !(favor && (v.Definition.DefName ?? "") == "")))
-        {
-            throw Contract("invalid trade sheet line");
-        }
-
-        if ((v.ColonyCount ?? 0) < 0 || (v.TraderCount ?? 0) < 0)
-        {
-            throw Contract("trade sheet line count negative");
-        }
-
-        var pawn = v.Pawn ?? false;
-        if (!pawn && (v.Skills.Count != 0 || v.ViolenceCapable is not null || (v.PawnId ?? "") != "" || v.PawnGender is not null
-            || v.GuestStatus is not null || v.PrisonerSecure is not null || v.PawnDowned is not null || v.ExtraHomeFaction is not null || v.ExtraHostFaction is not null))
-        {
-            throw Contract("pawn facts on a non-pawn trade line");
-        }
-
-        if ((pawn && (v.ThingId is not null || v.Quality is not null))
-            || (v.Quality is { } quality && !ValidQuality(quality))
-            || (v.HitPointsFraction is { } hitPoints && !(hitPoints >= 0 && hitPoints <= 1)))
-        {
-            throw Contract("invalid trade sheet thing facts");
-        }
-
-        if ((v.ExtraHomeFaction is not null && !IsValidId(v.ExtraHomeFaction.Id ?? "")) || (v.ExtraHostFaction is not null && !IsValidId(v.ExtraHostFaction.Id ?? "")))
-        {
-            throw Contract("trade sheet pawn id invalid");
-        }
-
-        var skills = new List<TradeSheetSkill>();
-        foreach (var skill in v.Skills)
-        {
-            if (!IsValidId(skill.DefName) || PassionName(skill.Passion).Length == 0)
-            {
-                throw Contract("invalid trade sheet pawn skill");
-            }
-
-            skills.Add(new TradeSheetSkill(skill.DefName, skill.Level, PassionName(skill.Passion), skill.Disabled));
-        }
-
         return new TradeSheetRow
         {
-            PawnId = v.PawnId ?? "",
-            PawnGender = v.PawnGender ?? "",
-            Skills = skills,
-            ViolenceCapable = v.ViolenceCapable ?? false,
-            ViolenceCapableKnown = v.ViolenceCapable is not null,
-            GuestStatus = v.GuestStatus ?? "",
-            PrisonerSecure = v.PrisonerSecure ?? false,
-            PrisonerSecureKnown = v.PrisonerSecure is not null,
-            PawnDowned = v.PawnDowned ?? false,
-            PawnDownedKnown = v.PawnDowned is not null,
-            ExtraHomeFaction = v.ExtraHomeFaction?.Id ?? "",
-            ExtraHostFaction = v.ExtraHostFaction?.Id ?? "",
+            Pawn = v.Pawn,
             ThingId = v.ThingId ?? "",
             Quality = v.Quality ?? 0,
             QualityKnown = v.Quality is not null,
             HitPoints = v.HitPointsFraction ?? 0,
             HitPointsKnown = v.HitPointsFraction is not null,
             ZoneId = v.ZoneId ?? "",
-            LineId = v.LineId!,
-            DefName = v.Definition.DefName ?? "",
+            LineId = v.LineId ?? "",
+            DefName = v.Definition?.DefName ?? "",
             Stuff = v.Stuff ?? "",
             ColonyCount = v.ColonyCount ?? 0,
             TraderCount = v.TraderCount ?? 0,
@@ -422,9 +369,8 @@ internal sealed partial class FacadeNativeClient
             TraderWillTradeKnown = v.TraderWillTrade is not null,
             Currency = v.Currency ?? false,
             CurrencyKnown = v.Currency is not null,
-            Pawn = pawn,
-            PawnKnown = v.Pawn is not null,
-            Favor = favor,
+            // The favor currency row has no ThingDef, so its definition is empty.
+            Favor = v.Favor == true && v.Currency == true,
         };
     }
 

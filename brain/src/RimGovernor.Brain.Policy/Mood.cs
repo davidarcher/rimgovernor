@@ -11,7 +11,8 @@ public enum MoodNeed
 
 public sealed record MoodPawn
 {
-    public Fact<MentalState> Break { get; init; }
+    /// <summary>The active native break; null when the pawn is in none.</summary>
+    public MentalState? Break { get; init; }
     public Fact<bool> HighExpectations { get; init; }
     public PawnId Id { get; init; }
     public Fact<double> Mood { get; init; }
@@ -31,10 +32,6 @@ public sealed record MoodPawn
 
     public void Validate()
     {
-        if (Break.TryGetValue(out var state) && (!PolicyFunctions.FoodId(state.DefName) || state.TicksInState < 0))
-        {
-            throw new DomainException("invalid mental-state evidence");
-        }
         if (!PolicyFunctions.FoodId(Id.Value))
         {
             throw new DomainException("invalid mood pawn");

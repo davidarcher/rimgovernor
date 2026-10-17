@@ -198,10 +198,10 @@ version 216; a database of another version is moved aside, never migrated):
 - **Request-ID replay.** Player submissions (policies, decisions, building and research intents,
   control intents, clock acknowledgements) are keyed by the caller's request ID within a world.
   Repeating an ID returns the recorded outcome; a changed body under the same ID is a conflict.
-  Native stockpile placement uses the immutable action ID as its replay key.
-  The existing in-memory action replay retains those creation receipts for the
-  load, including every created zone ID and actual footprint. The brain journals the
-  receipt and derives ownership from it; no ownership metadata is saved natively.
+  Native keeps no action replay: the in-process game-thread hop returns the result of every body
+  that ran, and cancellation reaches only a hop still queued. The brain journals each
+  receipt (a stockpile's created zone IDs and footprint included) and derives ownership from it;
+  no ownership metadata is saved natively.
 - **The Rounds cursor and policy inputs.** Latches, recovery histories and the Needs' progress rows let the
   next review continue where the last stopped; population and resource policies and
   per-pawn decisions are what the reviewer reads.

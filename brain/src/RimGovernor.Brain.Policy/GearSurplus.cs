@@ -136,7 +136,7 @@ public static partial class PolicyFunctions
         }
         var weapons = new Dictionary<Resource, int>(surplus.Weapons);
         var candidates = rows
-            .Where(r => r.ThingID.Length != 0 && !r.Pawn && r.SellPriceKnown && Finite(r.SellPrice) && r.SellPrice > 0)
+            .Where(r => r.ThingID.Length != 0 && r.Pawn is null && r.SellPriceKnown && Finite(r.SellPrice) && r.SellPrice > 0)
             .OrderBy(r => r.SellPrice)
             .ThenBy(r => r.ThingID, StringComparer.Ordinal)
             .ToList();

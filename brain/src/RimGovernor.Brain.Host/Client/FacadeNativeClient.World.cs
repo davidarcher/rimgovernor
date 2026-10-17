@@ -138,7 +138,7 @@ internal sealed partial class FacadeNativeClient
 
         if (outcome?.Observed is { } observed)
         {
-            return DecodeWorldProgressionSnapshot(observed, identity);
+            return DecodeWorldProgressionSnapshot(observed);
         }
 
         throw Contract("world progression outcome missing");

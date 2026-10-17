@@ -214,8 +214,7 @@ public static partial class PolicyFunctions
                 || row.TraderCount <= 0
                 || !row.TraderWillTradeKnown
                 || !row.TraderWillTrade
-                || !row.PawnKnown
-                || row.Pawn
+                || row.Pawn is not null
                 || !row.CurrencyKnown
                 || row.Currency
                 || !row.BuyPriceKnown

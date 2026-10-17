@@ -256,7 +256,11 @@ public static partial class PolicyFunctions
     private static bool LoadoutReady(LoadoutDefender d)
     {
         var p = d.Candidate;
-        foreach (var f in new[] { p.Dead, p.Downed, p.MentalState, p.IncapableOfViolence })
+        if (p.MentalState)
+        {
+            return false;
+        }
+        foreach (var f in new[] { p.Dead, p.Downed, p.IncapableOfViolence })
         {
             if (!f.TryGetValue(out var v) || v)
             {

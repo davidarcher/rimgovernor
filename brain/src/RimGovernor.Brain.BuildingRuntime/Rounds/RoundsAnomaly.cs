@@ -16,9 +16,8 @@ internal static partial class BuildingRuntimePackage
             var facts = SquadDefenderFacts(row, new HashSet<Domain.PawnId>(), Unknown<bool>());
             var dk = facts.Dead.TryGetValue(out var dead);
             var wk = facts.Downed.TryGetValue(out var downed);
-            var mk = facts.MentalState.TryGetValue(out var mental);
             var vk = facts.ViolenceCapable.TryGetValue(out var violent);
-            if (!dk || !wk || !mk || !vk || dead || downed || mental || !violent)
+            if (!dk || !wk || !vk || dead || downed || facts.MentalState || !violent)
             {
                 continue;
             }

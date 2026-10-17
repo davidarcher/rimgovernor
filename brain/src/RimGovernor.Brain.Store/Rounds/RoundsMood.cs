@@ -87,7 +87,7 @@ public sealed record RoundsMoodState
         {
             Pawn = new RoundsMoodPawn
             {
-                Break = PersistedFact.Reference(p.Break),
+                Break = p.Break,
                 Id = p.Id,
                 Mood = PersistedFact.Value(p.Mood),
                 Threshold = PersistedFact.Value(p.Threshold),
@@ -116,7 +116,7 @@ public sealed record RoundsMoodState
         {
             Pawn = new MoodPawn
             {
-                Break = PersistedFact.OfReference(Pawn.Break),
+                Break = Pawn.Break,
                 Id = Pawn.Id,
                 Mood = PersistedFact.Of(Pawn.Mood),
                 Threshold = PersistedFact.Of(Pawn.Threshold),

@@ -28,8 +28,6 @@ namespace HomeBridge.BridgeTools
                 if (world.Tile.Valid)
                 {
                     row = row with { Tile = world.Tile.tileId }; row = row with { LayerId = world.Tile.Layer.LayerID };
-                    if (origin != null && origin.Tile.Layer == world.Tile.Layer)
-                        row = row with { DistanceTiles = Find.WorldGrid.ApproxDistanceInTiles(origin.Tile, world.Tile) };
                 }
                 if (mapParent?.HasMap == true) row = row with { MapId = mapParent.Map.uniqueID };
                 if (origin != null && world.Tile.Valid && world.Tile.Layer.IsRootSurface && origin.Tile.Layer.IsRootSurface)
@@ -41,7 +39,7 @@ namespace HomeBridge.BridgeTools
                 if (world is PeaceTalks && world.Faction != null)
                 {
                     var goodwill = Faction.OfPlayer.GoodwillWith(world.Faction);
-                    row = row with { PeaceTalks = new Obs.QuestPeaceTalks { FactionId = world.Faction.GetUniqueLoadID(), CurrentGoodwill = goodwill,
+                    row = row with { PeaceTalks = new Obs.QuestPeaceTalks { FactionId = world.Faction.GetUniqueLoadID(),
                         WorstGoodwillLoss = -System.Math.Min(DiplomacyTuning.Goodwill_PeaceTalksDisasterRange.min, Faction.OfPlayer.GoodwillToMakeHostile(world.Faction)),
                         BestGoodwillGain = System.Math.Min(DiplomacyTuning.Goodwill_PeaceTalksTriumphRange.max, DiplomacyTuning.MaxGoodwill - goodwill), IdeologyActive = ModsConfig.IdeologyActive } };
                 }

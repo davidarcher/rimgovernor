@@ -15,7 +15,7 @@ public static class RescueFacts
             Dead = Fact.Known(row.Dead),
             Downed = Fact.Known(row.Downed),
             Drafted = Fact.Known(row.Drafted),
-            MentalState = Fact.Known(row.MentalState is not null),
+            MentalState = row.MentalState is not null,
         };
         if (row.Job is { } job)
         {
@@ -90,7 +90,7 @@ public static class TendFacts
             Dead = Fact.Known(row.Dead),
             Downed = Fact.Known(row.Downed),
             Drafted = Fact.Known(row.Drafted),
-            MentalState = Fact.Known(row.MentalState is not null),
+            MentalState = row.MentalState is not null,
         };
         if (row.Job is { } job)
         {

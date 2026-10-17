@@ -111,16 +111,6 @@ internal static class SuppliesReads
             {
                 throw new AcceptanceException("default read: expected a positive ours quantity");
             }
-
-            if (!row.ContainsKey("carried"))
-            {
-                throw new AcceptanceException("default read: carried should be populated (includeHeld defaults true)");
-            }
-
-            if (!row.ContainsKey("inContainer"))
-            {
-                throw new AcceptanceException("default read: inContainer should be populated (includeHeld defaults true)");
-            }
         }
 
         await CheckWeaponClassesAsync(h, identity, report, cancellationToken).ConfigureAwait(false);
@@ -152,11 +142,6 @@ internal static class SuppliesReads
         }
 
         var keys = new List<string> { "units", "stacks", "ours", "oursUnforbidden", "forbidden", "otherFaction", "fogged", "reserved", "inStockpile", "inHomeArea" };
-        if (includeHeld)
-        {
-            keys.AddRange(["carried", "inContainer", "traderStock"]);
-        }
-
         var values = new Dictionary<string, long>(StringComparer.Ordinal);
         foreach (var key in keys)
         {
@@ -168,13 +153,8 @@ internal static class SuppliesReads
             throw new AcceptanceException($"native stock {definitionText} has no units");
         }
 
-        var held = values.GetValueOrDefault("carried") + values.GetValueOrDefault("inContainer");
         var spawned = Count(row["spawned"], $"spawned for {definitionText}");
         var units = Count(row["units"], $"units for {definitionText}");
-        if (spawned + held != units)
-        {
-            throw new AcceptanceException($"spawned+held does not equal units for {definitionText}");
-        }
 
         var playerFaction = Count(row["playerFaction"], $"playerFaction for {definitionText}");
         if (playerFaction > units || values["ours"] > units)
@@ -247,9 +227,9 @@ internal static class SuppliesReads
                 total += holderUnits;
             }
 
-            if (total != held)
+            if (spawned + total != units)
             {
-                throw new AcceptanceException($"holder unit total {total} does not match held {held} for {definitionText}");
+                throw new AcceptanceException($"spawned plus holder units {spawned}+{total} does not equal units {units} for {definitionText}");
             }
         }
         else
@@ -259,20 +239,9 @@ internal static class SuppliesReads
                 throw new AcceptanceException($"holders populated without includeHeld for {definitionText}");
             }
 
-            foreach (var field in new[] { "carried", "inContainer", "traderStock" })
+            if (spawned != units)
             {
-                if (row.ContainsKey(field))
-                {
-                    throw new AcceptanceException($"{field} unexpectedly present without includeHeld for {definitionText}");
-                }
-            }
-
-            foreach (var field in new[] { "carried", "in_container", "trader_stock" })
-            {
-                if (!NativeAssert.RequireIssueReason(row["issues"].AsSlice(), field, "UNAVAILABLE_REASON_NOT_REQUESTED"))
-                {
-                    throw new AcceptanceException($"missing NOT_REQUESTED issue for {field} on {definitionText}");
-                }
+                throw new AcceptanceException($"spawned {spawned} does not equal units {units} without includeHeld for {definitionText}");
             }
         }
     }

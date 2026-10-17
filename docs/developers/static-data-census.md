@@ -166,7 +166,7 @@ Kept, reason recorded:
 | MainThreadWatchdog.cs | 117 | state | Background timer that logs main-thread hops that stalled queued or running. | StallSeconds SlowMillis (tuning) |  |
 | NativeAbilityOperations.cs | 390 | code | AbilityIntent handler: guards and uses a royal permit or ability via the game worker validation and favor/cooldown checks. |  |  |
 | NativeAcquisitionToken.cs | 31 | state | Version tokens for plant and hunt acquisition rows (resource, cell, harvestability, designation; corpse, designation). |  |  |
-| NativeActionDispatch.cs | 312 | state | Maps every Action arm to a handler and keeps a bounded replay LRU of results per idempotency key. | handler registry; ReplayCapacity=256 |  |
+| NativeActionDispatch.cs | 312 | state | Maps every Action arm to a handler. | handler registry |  |
 | NativeAnomalyColony.cs | 112 | excluded | Anomaly colony facts section. |  |  |
 | NativeAnomalyFacts.cs | 327 | excluded | Anomaly catalog and per-pawn/building row blocks. |  |  |
 | NativeApparelPolicyOperations.cs | 135 | mixed | Reads and writes a pawn outfit and wear requirements (title, role, precepts); census of apparel defs filtered by ApparelMeetsRequirement. | apparelDefs census list (ThingDef.IsApparel) and work type list copied per pawn (DefDatabase<WorkTypeDef>.AllDefs) | ThingDef.apparel (row set where is_apparel) and WorkTypeDef rows (Go can enumerate); requirement matching stays code |
@@ -253,7 +253,6 @@ Kept, reason recorded:
 | NativeNotificationReadTools.cs | 278 | state | Reads letter stack, live messages and active alerts into the Notifications reply. |  | Limits (40/12/40, ceiling 256) are tool constants, not game constants |
 | NativeObservationSnapshot.cs | 36 | code | Row-level CAS snapshot reference whose token is a NativeSnapshotVersions version. |  |  |
 | NativeObservationTools.cs | 389 | mixed | Status, cells and excavation-site read tools plus the threat, pawn-row, job-row and thing-row builders. | HiveBoundaryCells=10 hardcoded hive trespass radius; HostileBuilding rule (building.combatPower>0 or IsMortar, or Hive) | GameConstants (#2626) for the hive boundary radius if it mirrors a game value (else Go policy constant); BuildingProperties.combatPower/isMortar rows for the hostile-building rule |
-| NativeOdysseyColony.cs | 89 | excluded | Odyssey colony reads (not read). |  |  |
 | NativeOdysseyFacts.cs | 100 | excluded | Odyssey building hack and portal state and colony-map mutators (state); the catalog biome-animal and stockpile-type reads were deleted in #2632. |  |  |
 | NativeOperationTools.cs | 83 | code | Per-game operation state ledger holder and zone preview and receipt lookup tool entry points. |  |  |
 | NativeOrderDanger.cs | 16 | static | One constant: Danger.Deadly used for forced-order reach checks. | OrderDanger = Danger.Deadly | GameConstants (#2626): the Danger level vanilla float menu passes to CanReach |
@@ -719,13 +718,6 @@ Kept, reason recorded:
 | DeliveryLedgerFacts | message | 1756 | 8 | state | Delivery counters epoch, kills, butchers |  |  |
 | DeliveryLedgerSection | message | 1758 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | ColonyFactsSnapshot | message | 1759 | 52 | mixed | Colony facts root: counts, food, sections | policy_resources (dead); player_tech_level (faction def) | policy_resources deleted (#2655); player_tech_level = FactionDef.techLevel of the player faction (Defs.TechLevel enum) |
-| OdysseySection | message | 1811 | 2 | excluded | Odyssey section wrapper |  |  excluded #2632 |
-| OdysseyColonyFacts | message | 1812 | 4 | excluded | Odyssey colony facts |  |  excluded #2632 |
-| ActiveCondition | message | 1820 | 7 | excluded | Active game condition (Odyssey section) |  |  excluded #2632 |
-| HazardTerrain | message | 1824 | 6 | excluded | Hazard terrain defs on the map (Odyssey section) | dangerous; burn_damage; heat_per_tick; toxic_buildup_factor | TerrainDef fields in defs.proto excluded #2632; flagged for the owner |
-| LavaEmergenceState | message | 1828 | 2 | excluded | Lava emergence vent (Odyssey) |  |  excluded #2632 |
-| UndergroundSite | message | 1832 | 6 | excluded | Ancient hatch pocket map (Odyssey) |  |  excluded #2632 |
-| UndergroundHackable | message | 1836 | 8 | excluded | Hackable thing on a pocket map (Odyssey) |  |  excluded #2632 |
 | AnomalySection | message | 1849 | 2 | excluded | Anomaly section wrapper |  |  excluded #2631 |
 | AnomalyColonyFacts | message | 1850 | 7 | excluded | Anomaly colony facts |  |  excluded #2631 |
 | KnowledgeProgress | message | 1858 | 4 | excluded | Anomaly knowledge category progress |  |  excluded #2631 |
@@ -801,7 +793,6 @@ Kept, reason recorded:
 | CurvePointRow | message | 2526 | 2 | excluded | Biotech curve point |  | excluded owner #2630 owner Biotech |
 | GeneTuningFacts | message | 2537 | 8 | excluded | Biotech gene tuning constants |  | excluded owner #2630 owner Biotech |
 | BiotechCatalog | message | 2543 | 7 | excluded | Biotech catalog container |  | excluded owner #2630 owner Biotech |
-| HackableState | message | 2575 | 5 | excluded | Odyssey hackable state |  | excluded owner #2632 owner Odyssey |
 | AnomalyCatalog | message | 2586 | 8 | excluded | Anomaly catalog container |  | excluded owner #2631 owner Anomaly |
 | CreepJoinerFormRow | message | 2595 | 7 | excluded | Anomaly creepjoiner form copy |  | excluded owner #2631 owner Anomaly |
 | CreepJoinerBenefitRow | message | 2601 | 11 | excluded | Anomaly creepjoiner benefit copy |  | excluded owner #2631 owner Anomaly |

@@ -103,7 +103,7 @@ public static partial class ObservationPackage
             if (offered.Hunt)
             {
                 offered = offered with { Products = race.Butchery };
-                var verdict = census.Gate(new HuntPrey { Source = offered, Fogged = row.Fogged.GetValueOrDefault(), Mental = row.InMentalState.GetValueOrDefault() });
+                var verdict = census.Gate(new HuntPrey { Source = offered, Fogged = row.Fogged.GetValueOrDefault(), Mental = row.InMentalState });
                 if (verdict.Hold is { } held)
                 {
                     holds.Add(held with { Source = offered });
@@ -126,7 +126,7 @@ public static partial class ObservationPackage
     /// </summary>
     private static bool Meleeable(O.AcquisitionFacts row, Pawns pawns, AnimalRace race, AcquisitionSource prey)
     {
-        if (row.InMentalState.GetValueOrDefault() || race.Predator || !race.MeatNutritionPerUnit.TryGetValue(out var nutrition) || !(nutrition > 0))
+        if (row.InMentalState || race.Predator || !race.MeatNutritionPerUnit.TryGetValue(out var nutrition) || !(nutrition > 0))
         {
             return false;
         }
@@ -142,11 +142,7 @@ public static partial class ObservationPackage
         {
             return false;
         }
-        if (state.AnimalState.LifeStageIndex is null)
-        {
-            return false;
-        }
-        var index = state.AnimalState.LifeStageIndex.GetValueOrDefault();
+        var index = state.AnimalState.LifeStageIndex;
         if (index < 0 || index >= race.LifeStages.Count)
         {
             return false;
@@ -183,7 +179,7 @@ public static partial class ObservationPackage
                 ID = h.PawnId ?? "",
                 Cell = CellOf(h.Position),
                 Downed = h.Downed.GetValueOrDefault(),
-                MentalState = h.InMentalState.GetValueOrDefault(),
+                MentalState = h.InMentalState,
                 HuntingActive = h.HuntingActive.GetValueOrDefault(),
                 RangedBlockingShield = h.RangedBlockingShield.GetValueOrDefault(),
                 RouteSafePrey = safe,

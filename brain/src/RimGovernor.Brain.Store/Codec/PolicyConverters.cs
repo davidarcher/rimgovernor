@@ -1203,7 +1203,7 @@ internal sealed class MoodPawnConverter : ObjectCodec<MoodPawn>
     protected override MoodPawn Read(JsonElement e, Codecs o) =>
         new()
         {
-            Break = e.Get<Fact<MentalState>>("Break", o),
+            Break = e.GetOr<MentalState?>("Break", null, o),
             HighExpectations = e.Get<Fact<bool>>("HighExpectations", o),
             Id = e.Get<RimGovernor.Brain.Domain.PawnId>("Id", o),
             Mood = e.Get<Fact<double>>("Mood", o),

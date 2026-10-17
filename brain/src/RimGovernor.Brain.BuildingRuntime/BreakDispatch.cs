@@ -37,7 +37,7 @@ internal static class BreakDispatch
             {
                 aggressive.Add(p.Id);
             }
-            if (p.MentalState.IsKnown)
+            if (p.MentalState is not null)
             {
                 broken.Add(p.Id);
             }
@@ -103,7 +103,7 @@ public sealed partial class Worker
         foreach (var p in census.Facts.Colonists)
         {
             ids.Add(p.Id.Value);
-            if (p.MentalState.IsKnown)
+            if (p.MentalState is not null)
             {
                 broken.Add(p.Id);
             }

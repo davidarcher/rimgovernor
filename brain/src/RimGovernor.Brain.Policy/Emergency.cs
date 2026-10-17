@@ -12,7 +12,8 @@ public sealed record MentalState
 
 public sealed record EmergencyPawn
 {
-    public Fact<MentalState> MentalState { get; init; }
+    /// <summary>The active native break; null when the pawn is in none.</summary>
+    public MentalState? MentalState { get; init; }
 
     public PawnId Id { get; init; }
 

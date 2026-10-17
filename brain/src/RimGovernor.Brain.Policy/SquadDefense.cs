@@ -62,7 +62,7 @@ public record SquadDefenderFacts
 
     public Fact<bool> Drafted { get; init; }
 
-    public Fact<bool> MentalState { get; init; }
+    public bool MentalState { get; init; }
 
     public Fact<bool> PlayerForced { get; init; }
 
@@ -200,11 +200,7 @@ public static partial class PolicyFunctions
         {
             why.Add("drafted under another claim");
         }
-        if (!d.MentalState.TryGetValue(out var mental))
-        {
-            why.Add("mental state unknown");
-        }
-        else if (mental)
+        if (d.MentalState)
         {
             why.Add("in a mental state");
         }
@@ -503,12 +499,12 @@ public static partial class PolicyFunctions
             var dk = d.Dead.TryGetValue(out var dead);
             var wk = d.Downed.TryGetValue(out var downed);
             var (drafted, tk) = SquadDraftBusy(d);
-            var mk = d.MentalState.TryGetValue(out var mental);
+            var mental = d.MentalState;
             var vk = d.ViolenceCapable.TryGetValue(out var violent);
             var nk = d.NeedsTend.TryGetValue(out var needsTend);
             var hk2 = d.HealthFraction.TryGetValue(out var health);
             var ak = d.Armed.TryGetValue(out var armed);
-            if (!dk || !wk || !tk || !mk || !vk || !nk || !hk2 || !ak)
+            if (!dk || !wk || !tk || !vk || !nk || !hk2 || !ak)
             {
                 return false;
             }

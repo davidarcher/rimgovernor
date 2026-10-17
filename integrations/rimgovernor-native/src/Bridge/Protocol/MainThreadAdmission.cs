@@ -15,8 +15,8 @@ namespace HomeBridge.BridgeTools
     // executes the highest-class hop still pending (control before
     // observation, arrival order within a class) rather than
     // its own. Pumps equal hops, so every hop runs exactly once; a hop
-    // whose caller cancelled while queued is completed cancelled and
-    // skipped. A pump that finds the frame's allowance spent runs
+    // whose caller cancelled while queued leaves the queue cancelled, and
+    // a taken hop always completes with its body's result. A pump that finds the frame's allowance spent runs
     // nothing unless control is queued, and the frame boundary (Frame)
     // drains what stays queued, so every hop still runs exactly once.
     internal static class MainThreadAdmission
@@ -53,8 +53,19 @@ namespace HomeBridge.BridgeTools
         {
             var hop = new Hop(rank, body);
             lock (Gate) Pending[rank].Add(hop);
+            // Cancellation reaches a hop only while it is still queued: once a
+            // pump takes it, the caller gets the body's result, so a write
+            // that ran is never reported as lost.
             if (token.CanBeCanceled)
-                token.Register(() => hop.Completion.TrySetCanceled(token));
+            {
+                var registration = token.Register(() =>
+                {
+                    bool queued;
+                    lock (Gate) queued = Pending[rank].Remove(hop);
+                    if (queued) hop.Completion.TrySetCanceled(token);
+                });
+                hop.Completion.Task.ContinueWith(_ => registration.Dispose(), TaskContinuationOptions.ExecuteSynchronously);
+            }
             Task<object> pump;
             try
             {
@@ -106,16 +117,10 @@ namespace HomeBridge.BridgeTools
         // frame boundary to drain.
         private static object Pump()
         {
-            while (true)
-            {
-                if (Budgeted() && spent >= AllowanceTicks && !ControlPending()) return null!;
-                var hop = Take();
-                if (hop == null) return null!;
-                // Cancelled while queued: skipped.
-                if (hop.Completion.Task.IsCompleted) continue;
-                Run(hop);
-                return null!;
-            }
+            if (Budgeted() && spent >= AllowanceTicks && !ControlPending()) return null!;
+            var hop = Take();
+            if (hop != null) Run(hop);
+            return null!;
         }
 
         // The per-frame main-thread allowance for bridge hops while the
@@ -153,7 +158,6 @@ namespace HomeBridge.BridgeTools
             {
                 var hop = Take();
                 if (hop == null) break;
-                if (hop.Completion.Task.IsCompleted) continue;
                 Run(hop);
                 floor = false;
             }
@@ -180,7 +184,6 @@ namespace HomeBridge.BridgeTools
                     hop = Pending[0][0];
                     Pending[0].RemoveAt(0);
                 }
-                if (hop.Completion.Task.IsCompleted) continue;
                 Run(hop);
             }
         }

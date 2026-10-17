@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var group in selected)
                 {
                     var entriesForDefinition = group.ToList();
-                    var row = Project(entriesForDefinition, reserved, IncludeHeld(filter));
+                    var row = Project(entriesForDefinition, reserved);
                     var items = row.Items.ToList();
                     for (var index = 0; index < items.Count; index++)
                     {
@@ -83,13 +83,13 @@ namespace HomeBridge.BridgeTools
             internal Thing? Holder;
             internal string? HolderKind;
             internal IntVec3 Position;
-            internal bool Ours, Forbidden, Fogged, PlayerFaction, OtherFaction, Trader;
+            internal bool Ours, Forbidden, Fogged, PlayerFaction, OtherFaction;
         }
         private sealed class Holder
         {
             internal Thing Thing = null!;
             internal string Kind = "container";
-            internal bool Player, Other, Trader, Dead;
+            internal bool Player, Other, Dead;
         }
 
         private sealed class Census
@@ -137,7 +137,7 @@ namespace HomeBridge.BridgeTools
                 result.Add(new StockEntry { Thing = thing, Holder = holder?.Thing, HolderKind = holder?.Kind,
                     Position = position, Ours = IsOurs(fogged, holder != null, ownFaction, other, holder?.Dead ?? false),
                     Forbidden = forbidden, Fogged = fogged,
-                    PlayerFaction = ownFaction, OtherFaction = other, Trader = holder?.Trader ?? false });
+                    PlayerFaction = ownFaction, OtherFaction = other });
             }
             private void Walk(IThingHolder holder, Thing root, Holder? inherited, int depth)
             {
@@ -147,10 +147,9 @@ namespace HomeBridge.BridgeTools
                 if (holder is Pawn pawn)
                 {
                     var dead = pawn.Dead || inherited?.Dead == true;
-                    var role = pawn.GetTraderCaravanRole();
                     var info = new Holder { Thing = dead && inherited?.Kind == "corpse" ? inherited.Thing : pawn,
                         Player = pawn.Faction == player, Other = pawn.Faction != null && pawn.Faction != player,
-                        Trader = !dead && pawn.Faction != player && (role == TraderCaravanRole.Trader || role == TraderCaravanRole.Carrier), Dead = dead };
+                        Dead = dead };
                     if (pawn.inventory != null) Emit(pawn.inventory.innerContainer, root, Copy(info, dead ? "corpse" : "pawnInventory"), depth);
                     if (!dead && pawn.carryTracker != null) Emit(pawn.carryTracker.innerContainer, root, Copy(info, "carried"), depth);
                     return; // Apparel/equipment are worn gear, never available stock.
@@ -165,7 +164,7 @@ namespace HomeBridge.BridgeTools
                 var infoContainer = ownerThing == null ? inherited ?? throw new InvalidOperationException("Unnamed holder.")
                     : new Holder { Thing = ownerThing, Player = inherited?.Player ?? (ownerThing.Faction == player),
                         Other = inherited?.Other ?? (ownerThing.Faction != null && ownerThing.Faction != player),
-                        Trader = inherited?.Trader ?? false, Dead = inherited?.Dead == true };
+                        Dead = inherited?.Dead == true };
                 var direct = holder.GetDirectlyHeldThings();
                 if (direct != null) Emit(direct, root, infoContainer, depth);
                 var children = new List<IThingHolder>();
@@ -184,7 +183,7 @@ namespace HomeBridge.BridgeTools
                 }
             }
             private static Holder Copy(Holder value, string kind) => new Holder { Thing = value.Thing, Kind = kind,
-                Player = value.Player, Other = value.Other, Trader = value.Trader, Dead = value.Dead };
+                Player = value.Player, Other = value.Other, Dead = value.Dead };
         }
 
         internal static bool MatchesCategory(ThingDef definition, Obs.StockCategory category, bool held) => category == Obs.StockCategory.All
@@ -195,14 +194,12 @@ namespace HomeBridge.BridgeTools
         internal static bool IsOurs(bool fogged, bool held, bool playerFaction, bool otherFaction, bool deadHolder)
             => !fogged && (held ? playerFaction && !deadHolder : !otherFaction);
 
-        internal static Obs.ResourceStock Project(List<StockEntry> entries, HashSet<Thing> reservedThings, bool includeHeld)
+        internal static Obs.ResourceStock Project(List<StockEntry> entries, HashSet<Thing> reservedThings)
         {
             var first = entries[0].Thing.def;
             var row = new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = Id(first.defName) }, Stacks = entries.Count };
-            long totalUnits = 0, spawned = 0, carried = 0, inContainer = 0, ours = 0, oursUnforbidden = 0, forbidden = 0,
-                playerFaction = 0, otherFaction = 0, traderStock = 0, fogged = 0, reserved = 0;
-            if (!includeHeld) foreach (var field in new[] { "carried", "in_container", "trader_stock" })
-                row = row with { Issues = [.. row.Issues, Issue(field, Common.UnavailableReason.NotRequested, "Held stock was excluded from this census scope.")] };
+            long totalUnits = 0, spawned = 0, ours = 0, oursUnforbidden = 0, forbidden = 0,
+                playerFaction = 0, otherFaction = 0, fogged = 0, reserved = 0;
             foreach (var entry in entries)
             {
                 var units = entry.Thing.stackCount;
@@ -210,14 +207,11 @@ namespace HomeBridge.BridgeTools
                 {
                     totalUnits += units;
                     if (entry.Holder == null) spawned += units;
-                    else if (entry.HolderKind == "pawnInventory" || entry.HolderKind == "carried") carried += units;
-                    else inContainer += units;
                     if (entry.Ours) ours += units;
                     if (entry.Ours && !entry.Forbidden) oursUnforbidden += units;
                     if (entry.Forbidden) forbidden += units;
                     if (entry.PlayerFaction) playerFaction += units;
                     if (entry.OtherFaction) otherFaction += units;
-                    if (entry.Trader) traderStock += units;
                     if (entry.Fogged) fogged += units;
                     if (entry.Ours && reservedThings.Contains(entry.Thing)) reserved += units;
                 }
@@ -240,8 +234,7 @@ namespace HomeBridge.BridgeTools
             }
             row = row with { Issues = [.. row.Issues, Issue("items.snapshot", Common.UnavailableReason.Unsupported, "One or more items lack an Allow snapshot; only eligible loose supplies support Allow.")] };
             return row with { Units = totalUnits, Spawned = spawned, Ours = ours, OursUnforbidden = oursUnforbidden, Forbidden = forbidden,
-                PlayerFaction = playerFaction, OtherFaction = otherFaction, Fogged = fogged, Reserved = reserved,
-                Carried = includeHeld ? carried : null, InContainer = includeHeld ? inContainer : null, TraderStock = includeHeld ? traderStock : null };
+                PlayerFaction = playerFaction, OtherFaction = otherFaction, Fogged = fogged, Reserved = reserved };
         }
 
         // Held/container/corpse items have no Allow snapshot; give them a stateless CAS token

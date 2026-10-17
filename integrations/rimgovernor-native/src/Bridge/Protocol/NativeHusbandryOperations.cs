@@ -75,6 +75,8 @@ namespace HomeBridge.BridgeTools
             state = state with { AgeYears = animal.ageTracker.AgeBiologicalYearsFloat };
             state = state with { Adult = animal.ageTracker.Adult };
             state = state with { Gender = (RimGovernor.Contracts.Wire.Defs.Gender)(int)animal.gender };
+            state = state with { Downed = animal.Downed, InMentalState = animal.InMentalState,
+                Pregnant = animal.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().Any() };
             // The next life stage: its index and the ticks until
             // Pawn_AgeTracker reaches the next stage's minAge, absent in the last.
             var tracker = animal.ageTracker;
@@ -94,10 +96,7 @@ namespace HomeBridge.BridgeTools
         // Raw slaughter facts; policy decides which animals are protected.
         internal static RimGovernor.Contracts.Wire.Observations.AnimalState SlaughterFacts(Pawn animal, RimGovernor.Contracts.Wire.Observations.AnimalState state)
         {
-            state = state with { Downed = animal.Downed };
-            state = state with { InMentalState = animal.InMentalState };
             var pregnancy = animal.health.hediffSet.hediffs.OfType<Hediff_Pregnant>().FirstOrDefault();
-            state = state with { Pregnant = pregnancy != null };
             // Hediff_Pregnant.Tick's own progress rate: BodyResourceGrowthSpeed over
             // gestationPeriodDays * 60000 per tick.
             var speed = PawnUtility.BodyResourceGrowthSpeed(animal);

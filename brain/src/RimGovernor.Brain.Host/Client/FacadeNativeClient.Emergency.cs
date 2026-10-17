@@ -116,7 +116,7 @@ internal sealed partial class FacadeNativeClient
                 Downed = Known(row.Downed),
                 InBed = Known(row.InBed),
                 // A known value is an active state; no mental state reads as unknown to the policy.
-                MentalState = row.MentalState is { } m ? Known(new PolicyMentalState { DefName = m.DefName, IsAggro = m.IsAggro, TicksInState = m.Ticks }) : Unknown<PolicyMentalState>(),
+                MentalState = row.MentalState is { } m ? new PolicyMentalState { DefName = m.DefName, IsAggro = m.IsAggro, TicksInState = m.Ticks } : null,
             };
             if (row.Pawn.Position is { X: not null, Z: not null } at)
             {

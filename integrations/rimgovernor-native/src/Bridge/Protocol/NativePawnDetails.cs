@@ -507,14 +507,18 @@ namespace HomeBridge.BridgeTools
             var map=pawn.MapHeld;
             if(map?.designationManager!=null) {
                 var all=map.designationManager.AllDesignationsOn(pawn);
-                row = row with { Slaughter = all.Any(d=>d.def==DesignationDefOf.Slaughter) };row = row with { Release = all.Any(d=>d.def==DesignationDefOf.ReleaseAnimalToWild) };
+                row = row with { Slaughter = all.Any(d=>d.def==DesignationDefOf.Slaughter), Release = all.Any(d=>d.def==DesignationDefOf.ReleaseAnimalToWild),
+                    Tame = all.Any(d=>d.def==DesignationDefOf.Tame) };
             }
+            row = row with { Tameable = NativeHusbandryOperations.Tameable(pawn) };
             // Live spawned animals only: the guards and pen reads assume one.
             if(pawn.Dead || !pawn.Spawned) return row;
             if(pawn.Faction!=null && pawn.Faction==Faction.OfPlayerSilentFail) {
                 var eligible=NativeHusbandryOperations.Eligible(pawn);
                 row = row with { SafeToRelease = eligible && NativeHusbandryOperations.SafeToRelease(pawn) };
-                if(eligible) row = NativeHusbandryOperations.SlaughterFacts(pawn,row);
+                if(eligible) row = NativeHusbandryOperations.SlaughterFacts(pawn,row) with {
+                    FollowDrafted = pawn.playerSettings?.followDrafted ?? false, FollowFieldwork = pawn.playerSettings?.followFieldwork ?? false,
+                    Obedient = NativeHusbandryOperations.Obedient(pawn) };
                 // Medical care cap inputs.
                 if(pawn.playerSettings!=null) row = row with { MedicalCare = NativeEnums.Care(pawn.playerSettings.medCare) };
                 var bondPartners=pawn.relations?.DirectRelations.Where(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead && r.otherPawn.RaceProps.Humanlike).Select(r => r.otherPawn.GetUniqueLoadID()).OrderBy(i => i,System.StringComparer.Ordinal).ToList();
@@ -528,10 +532,6 @@ namespace HomeBridge.BridgeTools
                 }
                 // Area reconciliation: the saved restriction.
                 if(eligible) {row = row with { MasterId = NativeHusbandryOperations.MasterId(pawn) };row = row with { AllowedAreaId = NativeHusbandryOperations.AreaId(pawn) };row = row with { SupportsAllowedAreas = NativeHusbandryOperations.SupportsAllowedAreas(pawn) };}
-            } else if(pawn.Faction==null) {
-                // The tame target facts an animals/herd tame write needs.
-                row = row with { Tameable = NativeHusbandryOperations.Tameable(pawn) };
-                row = row with { Tame = map?.designationManager?.DesignationOn(pawn,DesignationDefOf.Tame)!=null };
             }
             return row;
         }

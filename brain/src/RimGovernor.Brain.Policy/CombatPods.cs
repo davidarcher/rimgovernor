@@ -447,7 +447,7 @@ public static partial class PolicyFunctions
     private static bool Evacuable(SquadDefenderFacts d)
     {
         var (busy, known) = SquadDraftBusy(d);
-        return !Positive(d.Dead) && !Positive(d.Downed) && !Positive(d.MentalState) && known && !busy
+        return !Positive(d.Dead) && !Positive(d.Downed) && !d.MentalState && known && !busy
             && (!Positive(d.ViolenceCapable) || !Positive(d.Armed));
     }
 

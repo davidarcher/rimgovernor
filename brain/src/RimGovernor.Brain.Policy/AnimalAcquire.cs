@@ -298,10 +298,10 @@ public static partial class PolicyFunctions
             {
                 var ok = input.Races.Race(new Resource(row.Def), out var race);
                 if (
-                    !row.Pawn
+                    row.Pawn is not { } gender
                     || !ok
                     || row.Count < 1
-                    || row.Gender.Length == 0
+                    || gender == RimGovernor.Contracts.Wire.Defs.Gender.None
                     || row.Def.Contains('/', StringComparison.Ordinal)
                     || !Finite(row.Price)
                     || row.Price <= 0
@@ -312,7 +312,7 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                if (!AnimalAcquisition.Yield(race, row.Gender == "Female", double.PositiveInfinity, out var y))
+                if (!AnimalAcquisition.Yield(race, gender == RimGovernor.Contracts.Wire.Defs.Gender.Female, double.PositiveInfinity, out var y))
                 {
                     continue;
                 }
@@ -320,7 +320,7 @@ public static partial class PolicyFunctions
                 perTrader.Add(
                     y.Channel(
                         CandidateKind.AnimalBuy,
-                        record.Trader + "/" + row.Def + "/" + row.Gender,
+                        record.Trader + "/" + row.Def + "/" + gender,
                         row.Price * TradeLaborPerSilver,
                         [new CandidateTerm("trade_silver", row.Price)]
                     )

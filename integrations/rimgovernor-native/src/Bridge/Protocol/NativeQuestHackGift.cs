@@ -57,10 +57,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var hack = target.TryGetComp<CompHackable>();
                     if (hack == null) continue;
-                    var state = new Obs.HackableState { Hacked = hack.IsHacked, LockedOut = hack.LockedOut, Autohack = hack.Autohack };
-                    if (!double.IsNaN(hack.ProgressPercent) && !double.IsInfinity(hack.ProgressPercent)) state = state with { ProgressPercent = hack.ProgressPercent };
-                    if (!double.IsNaN(hack.defence) && !double.IsInfinity(hack.defence)) state = state with { Defence = hack.defence };
-                    var fact = new Obs.QuestHackTarget { Id = target.GetUniqueLoadID(), Spawned = target.Spawned, Hackable = state,
+                    var fact = new Obs.QuestHackTarget { Id = target.GetUniqueLoadID(), Spawned = target.Spawned, LockedOut = hack.LockedOut, Autohack = hack.Autohack,
                         Satisfied = hack.IsHacked || (target.Destroyed && destroyedAllowed.Contains(target) && !strictlyHacked.Contains(target)) };
                     if (target.Spawned) { fact = fact with { MapId = target.Map.uniqueID }; fact = fact with { EligiblePawnIds = [.. fact.EligiblePawnIds, .. EligibleHackers(target).Select(p => p.GetUniqueLoadID())] }; }
                     row = row with { HackTargets = [.. row.HackTargets, fact] };

@@ -218,11 +218,11 @@ public static partial class ObservationPackage
             {
                 Id = t.Id ?? "",
                 Map = new MapId(t.MapId.GetValueOrDefault()),
-                Spawned = Optional(t.Spawned is not null, t.Spawned.GetValueOrDefault()),
-                LockedOut = Optional(t.Hackable?.LockedOut is not null, t.Hackable?.LockedOut ?? default),
-                Autohack = Optional(t.Hackable?.Autohack is not null, t.Hackable?.Autohack ?? default),
+                Spawned = t.Spawned,
+                LockedOut = t.LockedOut,
+                Autohack = t.Autohack,
                 EligiblePawnIds = eligible,
-                Satisfied = Optional(t.Satisfied is not null, t.Satisfied.GetValueOrDefault()),
+                Satisfied = t.Satisfied,
             });
         }
         row = row with { HackTargets = [.. row.HackTargets, .. targets] };

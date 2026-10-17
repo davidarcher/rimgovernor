@@ -14,7 +14,7 @@ public sealed record EquipCandidatePawn
 
     public Fact<bool> Drafted { get; init; }
 
-    public Fact<bool> MentalState { get; init; }
+    public bool MentalState { get; init; }
 
     public Fact<bool> IncapableOfViolence { get; init; }
 

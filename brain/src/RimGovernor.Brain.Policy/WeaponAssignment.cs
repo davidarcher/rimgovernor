@@ -126,11 +126,11 @@ public static partial class PolicyFunctions
 
     private static bool EquipAvailable(EquipCandidatePawn p)
     {
-        if (p.NoArms.Length != 0)
+        if (p.NoArms.Length != 0 || p.MentalState)
         {
             return false;
         }
-        foreach (var f in new[] { p.Dead, p.Downed, p.Drafted, p.MentalState, p.IncapableOfViolence })
+        foreach (var f in new[] { p.Dead, p.Downed, p.Drafted, p.IncapableOfViolence })
         {
             if (!f.TryGetValue(out var value) || value)
             {

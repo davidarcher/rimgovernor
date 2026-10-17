@@ -207,7 +207,7 @@ public static partial class ObservationPackage
         {
             w = w with
             {
-                Skills = Known(EquatableArray.From(bio.Skills.Select(entry => new WorkSkill { Learning = entry.Learning, Name = entry.DefName, Level = entry.Level, Stored = (int)entry.StoredLevel.GetValueOrDefault(), Disabled = entry.Disabled, Passion = SkillPassion(entry.Passion) }))),
+                Skills = Known(EquatableArray.From(bio.Skills.Select(entry => new WorkSkill { Learning = entry.Learning, Name = entry.DefName, Level = entry.Level, Stored = entry.StoredLevel, Disabled = entry.Disabled, Passion = SkillPassion(entry.Passion) }))),
                 // Traits, incapable work types and age feed the pawn profile.
                 Traits = Known(EquatableArray.From(bio.Traits.Select(entry => new PawnTrait { Name = entry.DefName, Degree = entry.Degree }))),
             };

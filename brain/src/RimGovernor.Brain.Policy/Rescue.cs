@@ -13,7 +13,7 @@ public sealed record RescuerFacts
 
     public Fact<bool> Drafted { get; init; }
 
-    public Fact<bool> MentalState { get; init; }
+    public bool MentalState { get; init; }
 
     public Fact<bool> PlayerForced { get; init; }
 
@@ -55,12 +55,12 @@ public static partial class PolicyFunctions
         static bool EligibleRescuer(RescuerFacts r)
         {
             if (!r.Dead.TryGetValue(out var dead) || !r.Downed.TryGetValue(out var downed)
-                || !r.Drafted.TryGetValue(out var drafted) || !r.MentalState.TryGetValue(out var mental)
+                || !r.Drafted.TryGetValue(out var drafted)
                 || !r.ExistingJobDef.TryGetValue(out var existing))
             {
                 return false;
             }
-            return !dead && !downed && !drafted && !mental && existing != "Rescue";
+            return !dead && !downed && !drafted && !r.MentalState && existing != "Rescue";
         }
 
         static bool EligiblePatient(RescuePatientFacts p)

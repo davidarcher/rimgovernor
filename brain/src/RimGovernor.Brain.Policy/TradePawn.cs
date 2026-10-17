@@ -48,11 +48,11 @@ public static partial class PolicyFunctions
         var found = false;
         foreach (var row in rows)
         {
-            if (!row.PawnKnown || !row.Pawn || !row.TraderWillTradeKnown || !row.TraderWillTrade || row.TraderCount < 1 || row.ColonyCount != 0)
+            if (row.Pawn is not { } pawn || !row.TraderWillTradeKnown || !row.TraderWillTrade || row.TraderCount < 1 || row.ColonyCount != 0)
             {
                 continue;
             }
-            if (!row.ViolenceCapableKnown || !row.ViolenceCapable || row.Skills.Count == 0)
+            if (!pawn.ViolenceCapable || pawn.Skills.Count == 0)
             {
                 continue;
             }
@@ -60,7 +60,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var score = PawnPurchaseValue(row.Skills) / row.BuyPrice;
+            var score = PawnPurchaseValue(pawn.Skills) / row.BuyPrice;
             if (!found || score > bestScore || (score == bestScore && string.CompareOrdinal(row.LineID, best.LineID) < 0))
             {
                 best = new TradeSelectionLine(row.LineID, 1);

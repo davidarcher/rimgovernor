@@ -45,41 +45,11 @@ public sealed record TradeSheetRow
 
     public bool CurrencyKnown { get; init; }
 
-    public bool Pawn { get; init; }
-
-    public bool PawnKnown { get; init; }
+    /// <summary>The offered pawn on a pawn row, null on every other row.</summary>
+    public RimGovernor.Contracts.Wire.Observations.TradePawn? Pawn { get; init; }
 
     /// <summary>Marks the favor currency row, which has no ThingDef (empty <see cref="DefName"/>).</summary>
     public bool Favor { get; init; }
-
-    // A pawn row's purchase facts: the offered pawn's load id, skills with passions, and whether it can do
-    // violence. Absent on every other row, and on a pawn native could not read.
-    public string PawnId { get; init; } = "";
-
-    public string PawnGender { get; init; } = "";
-
-    public IReadOnlyList<TradeSheetSkill> Skills { get; init; } = [];
-
-    public bool ViolenceCapable { get; init; }
-
-    public bool ViolenceCapableKnown { get; init; }
-
-    // A prisoner row's sale facts, read from the game: guest status (Guest, Prisoner, Slave), AllSellableColonyPawns'
-    // secure test, downed, and the extra home / host faction ids a sale (MemberSold) angers. Absent on a pawn
-    // without a guest tracker or faction.
-    public string GuestStatus { get; init; } = "";
-
-    public bool PrisonerSecure { get; init; }
-
-    public bool PrisonerSecureKnown { get; init; }
-
-    public bool PawnDowned { get; init; }
-
-    public bool PawnDownedKnown { get; init; }
-
-    public string ExtraHomeFaction { get; init; } = "";
-
-    public string ExtraHostFaction { get; init; } = "";
 
     // A non-pawn row's first colony thing and its quality: a packed sculpture's row matches its packed item by ThingId.
     public string ThingId { get; init; } = "";
@@ -96,9 +66,6 @@ public sealed record TradeSheetRow
     /// <summary>The stockpile the thing lies in.</summary>
     public string ZoneId { get; init; } = "";
 }
-
-/// <summary>Go's <c>TradeSheetSkill</c>: one skill of an offered pawn.</summary>
-public sealed record TradeSheetSkill(string Name, int Level, string Passion, bool Disabled);
 
 /// <summary>
 /// Go's <c>TradeSheetRead</c>: one complete, unfiltered read of the currently open session's trade sheet.

@@ -93,16 +93,36 @@ namespace HomeBridge.BridgeTools
             return snapshot;
         }
 
-        private static bool IsPawnRow(Tradeable t)
+        /// <summary>
+        /// A pawn line's pawn: what a purchase ranks (skills, passions,
+        /// violence capability) and a prisoner's sale facts, PreTraded's
+        /// MemberSold goodwill with the extra home or host faction and what
+        /// AllSellableColonyPawns lists on.
+        /// </summary>
+        private static Obs.TradePawn TradePawn(Pawn p)
         {
-            try { var def = t.ThingDef; if (def != null && def.category == ThingCategory.Pawn) return true; } catch { }
-            try { return t.AnyThing is Pawn; } catch { return false; }
+            var row = new Obs.TradePawn
+            {
+                Id = p.GetUniqueLoadID(),
+                Gender = (Defs.Gender)(int)p.gender,
+                ViolenceCapable = !p.WorkTagIsDisabled(WorkTags.Violent),
+                Downed = p.Downed,
+            };
+            if (p.guest != null) row = row with { GuestStatus = (Defs.GuestStatus)(int)p.guest.GuestStatus, PrisonerSecure = p.guest.PrisonerIsSecure };
+            var home = p.GetExtraHomeFaction();
+            if (home != null) row = row with { ExtraHomeFaction = NativeRef.Of(home) };
+            var host = p.GetExtraHostFaction();
+            if (host != null) row = row with { ExtraHostFaction = NativeRef.Of(host) };
+            if (p.skills != null)
+                row = row with { Skills = [.. p.skills.skills.Select(s => new Obs.Skill { DefName = s.def.defName, Level = s.Level, StoredLevel = s.levelInt, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled })] };
+            return row;
         }
 
         private static Obs.TradeLine Line(Tradeable t, int index)
         {
             ThingDef? def; try { def = t.ThingDef; } catch { def = null; }
-            var pawn = IsPawnRow(t);
+            Pawn? p; try { p = t.AnyThing as Pawn; } catch { p = null; }
+            var pawn = p != null;
             var favor = SafeBool(() => t.IsFavor);
             var line = new Obs.TradeLine
             {
@@ -115,7 +135,7 @@ namespace HomeBridge.BridgeTools
                 // makes every frame it draws.
                 BuyPrice = SafeFloat(() => t.GetPriceFor(TradeAction.PlayerBuys)), SellPrice = SafeFloat(() => t.GetPriceFor(TradeAction.PlayerSells)),
                 MarketValue = SafeFloat(() => t.BaseMarketValue),
-                TraderWillTrade = SafeBool(() => t.TraderWillTrade), Currency = SafeBool(() => t.IsCurrency), Pawn = pawn, Favor = favor,
+                TraderWillTrade = SafeBool(() => t.TraderWillTrade), Currency = SafeBool(() => t.IsCurrency), Pawn = p != null ? TradePawn(p) : null, Favor = favor,
                 TransferCount = SafeInt(() => t.CountToTransfer), MinimumCount = SafeInt(() => t.GetMinimumToTransfer()), MaximumCount = SafeInt(() => t.GetMaximumToTransfer()),
             };
             if (!pawn)
@@ -138,36 +158,6 @@ namespace HomeBridge.BridgeTools
                         if (zone != null) line = line with { ZoneId = zone.GetUniqueLoadID() };
                     }
                     catch { }
-                }
-            }
-            if (pawn)
-            {
-                // The purchase choice reads the pawn's skills, passions
-                // and violence capability; an unreadable pawn leaves them absent.
-                Pawn? p; try { p = t.AnyThing as Pawn; } catch { p = null; }
-                if (p != null)
-                {
-                    line = line with { PawnId = SafeText(() => p.GetUniqueLoadID()) };
-                    line = line with { PawnGender = SafeText(() => p.gender.ToString()) };
-                    line = line with { ViolenceCapable = SafeBool(() => !p.WorkTagIsDisabled(WorkTags.Violent)) };
-                    // A prisoner's sale facts: what PreTraded charges
-                    // (MemberSold goodwill with the extra home or host faction)
-                    // and what AllSellableColonyPawns lists on.
-                    if (p.guest != null)
-                    {
-                        line = line with { GuestStatus = SafeText(() => p.guest.GuestStatus.ToString()) };
-                        line = line with { PrisonerSecure = SafeBool(() => p.guest.PrisonerIsSecure) };
-                    }
-                    line = line with { PawnDowned = SafeBool(() => p.Downed) };
-                    try { var home = p.GetExtraHomeFaction(); if (home != null) line = line with { ExtraHomeFaction = NativeRef.Of(home) }; } catch { }
-                    try { var host = p.GetExtraHostFaction(); if (host != null) line = line with { ExtraHostFaction = NativeRef.Of(host) }; } catch { }
-                    try
-                    {
-                        if (p.skills != null)
-                            foreach (var s in p.skills.skills)
-                                line = line with { Skills = [.. line.Skills, new Obs.Skill { DefName = s.def.defName, Level = s.Level, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled }] };
-                    }
-                    catch { line = line with { Skills = [] }; }
                 }
             }
             return line;

@@ -1006,9 +1006,9 @@ public sealed record Skill
     public int Level { get; init; }
 
     /// <summary>
-    /// The unclamped stored level; only the pawn biography read carries it.
+    /// The unclamped stored level (SkillRecord.levelInt).
     /// </summary>
-    public double? StoredLevel { get; init; }
+    public int StoredLevel { get; init; }
 
     public Passion Passion { get; init; }
 
@@ -1246,19 +1246,19 @@ public sealed record TrainingEntry
 }
 
 /// <summary>
-/// One animal's facts. Two reads fill it: the pawn detail read (herd census:
-/// gender, age and life stage for every animal) and the husbandry read (the
-/// Animals-tab settings); a group the read does not project stays absent.
+/// One animal's facts, from one native builder shared by the pawn detail read and
+/// the husbandry read: body, herd and training facts for every animal; the player-animal
+/// settings, guards and care only for a live player animal (absent otherwise).
 /// Training is empty for an animal without a training tracker; release and
 /// slaughter are the live designations (false off a map).
 /// </summary>
 public sealed record AnimalState
 {
-    public Defs.Gender? Gender { get; init; }
+    public Defs.Gender Gender { get; init; }
 
-    public double? AgeYears { get; init; }
+    public double AgeYears { get; init; }
 
-    public bool? Pregnant { get; init; }
+    public bool Pregnant { get; init; }
 
     public string? PenId { get; init; }
 
@@ -1271,9 +1271,9 @@ public sealed record AnimalState
 
     public bool Slaughter { get; init; }
 
-    public bool? Tameable { get; init; }
+    public bool Tameable { get; init; }
 
-    public bool? Tame { get; init; }
+    public bool Tame { get; init; }
 
     public bool? SafeToRelease { get; init; }
 
@@ -1306,7 +1306,7 @@ public sealed record AnimalState
 
     public bool? Venerated { get; init; }
 
-    public bool? Adult { get; init; }
+    public bool Adult { get; init; }
 
     /// <summary>
     /// Medical care cap inputs, for a player animal: its
@@ -1329,14 +1329,14 @@ public sealed record AnimalState
 
     /// <summary>
     /// Raw slaughter facts of a player animal; policy decides who is protected
-    /// (FoodSlaughterChoice). downed and in_mental_state are the live Pawn
+    /// (FoodSlaughterChoice). downed and in_mental_state are every animal's live Pawn
     /// flags, colonist_bonded is TrainableUtility.GetAllColonistBondsFor
     /// non-empty, slaughter_designatable is Designator_Slaughter's own
     /// acceptance (false while a slaughter designation stands).
     /// </summary>
-    public bool? Downed { get; init; }
+    public bool Downed { get; init; }
 
-    public bool? InMentalState { get; init; }
+    public bool InMentalState { get; init; }
 
     public bool? ColonistBonded { get; init; }
 
@@ -1353,7 +1353,7 @@ public sealed record AnimalState
     /// </summary>
     public long? TicksToBirth { get; init; }
 
-    public int? LifeStageIndex { get; init; }
+    public int LifeStageIndex { get; init; }
 
     public long? TicksToNextLifeStage { get; init; }
 
@@ -1881,8 +1881,7 @@ public sealed record CorpseState
 
 /// <summary>
 /// One definition's stock: unit and stack counts by place, ownership and
-/// state. carried, in_container and trader_stock are absent when the census
-/// excluded held stock.
+/// state.
 /// </summary>
 public sealed record ResourceStock
 {
@@ -1894,10 +1893,6 @@ public sealed record ResourceStock
 
     public long Spawned { get; init; }
 
-    public long? Carried { get; init; }
-
-    public long? InContainer { get; init; }
-
     public long Ours { get; init; }
 
     public long OursUnforbidden { get; init; }
@@ -1907,8 +1902,6 @@ public sealed record ResourceStock
     public long PlayerFaction { get; init; }
 
     public long OtherFaction { get; init; }
-
-    public long? TraderStock { get; init; }
 
     public long Fogged { get; init; }
 
@@ -4404,14 +4397,17 @@ public sealed record QuestHackTarget
 
     public int? MapId { get; init; }
 
-    public bool? Spawned { get; init; }
+    public bool Spawned { get; init; }
 
-    public HackableState? Hackable { get; init; }
+    /// <summary>CompHackable.LockedOut and Autohack.</summary>
+    public bool LockedOut { get; init; }
+
+    public bool Autohack { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> EligiblePawnIds { get; init; }
 
-    public bool? Satisfied { get; init; }
+    public bool Satisfied { get; init; }
 }
 
 public sealed record QuestGiftRequest
@@ -4445,13 +4441,9 @@ public sealed record QuestSurveyScanner
 {
     public string? SiteId { get; init; }
 
-    public string? ScannerId { get; init; }
-
     public long? DurationTicks { get; init; }
 
     public long? EndTick { get; init; }
-
-    public long? RaidTick { get; init; }
 
     public bool? Alive { get; init; }
 
@@ -4492,8 +4484,6 @@ public sealed record WorldSite
     public WorldSiteState? State { get; init; }
 
     public int? MapId { get; init; }
-
-    public double? DistanceTiles { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> QuestIds { get; init; }
@@ -4545,10 +4535,6 @@ public sealed record QuestSiteSecurity
     public bool? DormantThreat { get; init; }
 
     public int? TrapCount { get; init; }
-
-    public long? DetectionTicksLeft { get; init; }
-
-    public int? RaidsSent { get; init; }
 }
 
 public sealed record QuestSiteExtraction
@@ -4607,8 +4593,6 @@ public sealed record QuestSiteHomeRoute
 public sealed record QuestPeaceTalks
 {
     public string? FactionId { get; init; }
-
-    public int? CurrentGoodwill { get; init; }
 
     public int? WorstGoodwillLoss { get; init; }
 
@@ -5600,7 +5584,8 @@ public sealed record TradeLine
 
     public bool? Currency { get; init; }
 
-    public bool? Pawn { get; init; }
+    /// <summary>The offered pawn on a pawn line, null on every other line.</summary>
+    public TradePawn? Pawn { get; init; }
 
     public long? TransferCount { get; init; }
 
@@ -5610,30 +5595,39 @@ public sealed record TradeLine
 
     public string? LineId { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Skill>))]
-    public EquatableArray<Skill> Skills { get; init; }
-
-    public bool? ViolenceCapable { get; init; }
-
-    public string? PawnId { get; init; }
-
     public string? ThingId { get; init; }
 
     public int? Quality { get; init; }
-
-    public string? PawnGender { get; init; }
 
     public double? HitPointsFraction { get; init; }
 
     public string? ZoneId { get; init; }
 
     public bool? Favor { get; init; }
+}
 
-    public string? GuestStatus { get; init; }
+/// <summary>
+/// A pawn trade line's pawn: its load id, gender, skills and violence capability (what a purchase ranks), and the
+/// prisoner sale facts PreTraded and AllSellableColonyPawns read (guest status, secure, downed, and the extra home /
+/// host faction a sale angers).
+/// </summary>
+public sealed record TradePawn
+{
+    public string Id { get; init; } = "";
 
-    public bool? PrisonerSecure { get; init; }
+    public Defs.Gender Gender { get; init; }
 
-    public bool? PawnDowned { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Skill>))]
+    public EquatableArray<Skill> Skills { get; init; }
+
+    public bool ViolenceCapable { get; init; }
+
+    /// <summary>Null on a pawn without a guest tracker.</summary>
+    public Defs.GuestStatus? GuestStatus { get; init; }
+
+    public bool PrisonerSecure { get; init; }
+
+    public bool Downed { get; init; }
 
     public Common.Ref? ExtraHomeFaction { get; init; }
 
@@ -6730,7 +6724,7 @@ public sealed record AcquisitionFacts
     /// </summary>
     public bool? Fogged { get; init; }
 
-    public bool? InMentalState { get; init; }
+    public bool InMentalState { get; init; }
 
     /// <summary>
     /// meat_amount is the live animal's MeatAmount stat (wounds, missing parts and malnutrition scale it);
@@ -6769,7 +6763,7 @@ public sealed record HunterFacts
 
     public bool? Downed { get; init; }
 
-    public bool? InMentalState { get; init; }
+    public bool InMentalState { get; init; }
 
     public bool? HuntingActive { get; init; }
 
@@ -8244,11 +8238,6 @@ public sealed record ColonyFactsSnapshot
     public BiotechSection? Biotech { get; init; }
 
     /// <summary>
-    /// Odyssey eruption, contamination and underground-site state; absent without Odyssey.
-    /// </summary>
-    public OdysseySection? Odyssey { get; init; }
-
-    /// <summary>
     /// Anomaly containment, knowledge and incident state; absent without Anomaly.
     /// </summary>
     public AnomalySection? Anomaly { get; init; }
@@ -8267,147 +8256,6 @@ public sealed record ColonyFactsSnapshot
     /// Raw hunt facts for policy.HuntGate; always present on a native read.
     /// </summary>
     public HuntCensus? HuntCensus { get; init; }
-}
-
-/// <summary>
-/// Odyssey colony facts, a keyed colony section. A scalar
-/// absent is unknown, never zero.
-/// conditions: every GameCondition active on the colony map, whatever its
-/// kind (lava flow, volcanic ash or winter, toxic fallout; the class says
-/// which). hazard_terrain: the terrain defs on the colony map whose own
-/// flags make them hurt or contaminate (TerrainDef.dangerous, burnDamage,
-/// heatPerTick or toxicBuildupFactor above zero) with the cells each covers.
-/// lava_emergences: spawned LavaEmergence things (an eruption's vents).
-/// sites: each ancient hatch's pocket (underground) map and its hack state.
-/// </summary>
-public sealed record OdysseySection
-{
-    public OdysseySectionOutcome? Outcome { get; init; }
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="OdysseySection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(OdysseySectionOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(OdysseySectionOutcome.UnavailableCase), "unavailable")]
-public abstract record OdysseySectionOutcome
-{
-    private protected OdysseySectionOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public OdysseyColonyFacts? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(OdysseyColonyFacts Value) : OdysseySectionOutcome;
-
-    public static implicit operator OdysseySectionOutcome(OdysseyColonyFacts value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : OdysseySectionOutcome;
-
-    public static implicit operator OdysseySectionOutcome(Common.Unavailable value) => new UnavailableCase(value);
-}
-
-public sealed record OdysseyColonyFacts
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ActiveCondition>))]
-    public EquatableArray<ActiveCondition> Conditions { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HazardTerrain>))]
-    public EquatableArray<HazardTerrain> HazardTerrain { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<LavaEmergenceState>))]
-    public EquatableArray<LavaEmergenceState> LavaEmergences { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<UndergroundSite>))]
-    public EquatableArray<UndergroundSite> Sites { get; init; }
-}
-
-/// <summary>
-/// def_name is the GameConditionDef; condition_class the GameCondition
-/// subclass CLR full name. Permanent conditions carry no ticks_left. causer_id is the
-/// Thing causing the condition (a toxic spewer, a climate adjuster), absent
-/// for an event's.
-/// </summary>
-public sealed record ActiveCondition
-{
-    public string? ConditionId { get; init; }
-
-    public string? DefName { get; init; }
-
-    public string? ConditionClass { get; init; }
-
-    public int? TicksPassed { get; init; }
-
-    public int? TicksLeft { get; init; }
-
-    public bool? Permanent { get; init; }
-
-    public string? CauserId { get; init; }
-}
-
-public sealed record HazardTerrain
-{
-    public string? DefName { get; init; }
-
-    public uint? Cells { get; init; }
-
-    public bool? Dangerous { get; init; }
-
-    public int? BurnDamage { get; init; }
-
-    public double? HeatPerTick { get; init; }
-
-    public double? ToxicBuildupFactor { get; init; }
-}
-
-public sealed record LavaEmergenceState
-{
-    public string? ThingId { get; init; }
-
-    public Common.Cell? Position { get; init; }
-}
-
-/// <summary>
-/// One AncientHatch with an existing pocket map: pocket_map_id, the hatch's
-/// stockpile type and layout, the colonists now on the pocket
-/// map and every CompHackable thing on it.
-/// </summary>
-public sealed record UndergroundSite
-{
-    public string? HatchId { get; init; }
-
-    public int? PocketMapId { get; init; }
-
-    public string? StockpileType { get; init; }
-
-    public string? Layout { get; init; }
-
-    public uint? ColonistsPresent { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<UndergroundHackable>))]
-    public EquatableArray<UndergroundHackable> Hackables { get; init; }
-}
-
-public sealed record UndergroundHackable
-{
-    public string? ThingId { get; init; }
-
-    public string? DefName { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public double? ProgressPercent { get; init; }
-
-    public double? Defence { get; init; }
-
-    public bool? Hacked { get; init; }
-
-    public bool? LockedOut { get; init; }
-
-    public bool? Autohack { get; init; }
 }
 
 /// <summary>
@@ -9950,23 +9798,6 @@ public sealed record MechWorkModeRoles
 public sealed record BiotechCatalog
 {
     public MechWorkModeRoles? MechWorkModes { get; init; }
-}
-
-
-/// <summary>
-/// CompHackable: progress_percent is 0..1, defence the hack work required.
-/// </summary>
-public sealed record HackableState
-{
-    public double? ProgressPercent { get; init; }
-
-    public double? Defence { get; init; }
-
-    public bool? Hacked { get; init; }
-
-    public bool? LockedOut { get; init; }
-
-    public bool? Autohack { get; init; }
 }
 
 

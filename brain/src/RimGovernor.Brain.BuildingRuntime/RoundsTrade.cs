@@ -372,7 +372,7 @@ public sealed partial class RoundsTradePlanner
             var pawnRows = new Dictionary<string, bool>();
             foreach (var row in facts.Rows)
             {
-                pawnRows[row.LineID] = row.PawnKnown && row.Pawn;
+                pawnRows[row.LineID] = row.Pawn is not null;
             }
             var sellsPawn = false;
             foreach (var line in selection.Selected)
@@ -655,7 +655,7 @@ internal static partial class BuildingRuntimePackage
     /// <summary>Classifies a food line from the catalog's rows and the evaluated Nutrition stat; a pawn or currency line is never food.</summary>
     internal static Fact<Pol.TradeFoodGood> TradeFoodFact(TradeSheetRow row, Bridge.DefinitionCatalog catalog)
     {
-        if (row.Pawn || row.Currency || row.DefName == "")
+        if (row.Pawn is not null || row.Currency || row.DefName == "")
         {
             return Unknown<Pol.TradeFoodGood>();
         }
@@ -682,8 +682,7 @@ internal static partial class BuildingRuntimePackage
                 TraderWillTradeKnown = row.TraderWillTradeKnown,
                 Currency = row.Currency,
                 CurrencyKnown = row.CurrencyKnown,
-                Pawn = row.Pawn,
-                PawnKnown = row.PawnKnown,
+                Pawn = row.Pawn is { } pawn ? TradeRowPawn(pawn) : null,
                 ThingID = row.ThingId,
                 Stuff = row.Stuff,
                 HitPoints = row.HitPoints,
@@ -691,32 +690,23 @@ internal static partial class BuildingRuntimePackage
                 Quality = row.Quality,
                 QualityKnown = row.QualityKnown,
                 ZoneID = row.ZoneId,
-                PawnID = row.PawnId,
-                PawnGender = row.PawnGender,
-                Skills = TradePawnSkills(row.Skills),
-                ViolenceCapable = row.ViolenceCapable,
-                ViolenceCapableKnown = row.ViolenceCapableKnown,
-                GuestStatus = row.GuestStatus,
-                PrisonerSecure = row.PrisonerSecure,
-                PrisonerSecureKnown = row.PrisonerSecureKnown,
-                PawnDowned = row.PawnDowned,
-                PawnDownedKnown = row.PawnDownedKnown,
-                ExtraHomeFaction = row.ExtraHomeFaction,
-                ExtraHostFaction = row.ExtraHostFaction,
             });
         }
         return output;
     }
 
-    internal static List<Pol.ProfileSkill> TradePawnSkills(IReadOnlyList<TradeSheetSkill> skills)
+    internal static Pol.TradeRowPawn TradeRowPawn(RimGovernor.Contracts.Wire.Observations.TradePawn pawn) => new()
     {
-        var output = new List<Pol.ProfileSkill>();
-        foreach (var skill in skills)
-        {
-            output.Add(new Pol.ProfileSkill { Name = skill.Name, Level = (int)skill.Level, Passion = skill.Passion, Disabled = skill.Disabled });
-        }
-        return output;
-    }
+        Id = pawn.Id,
+        Gender = pawn.Gender,
+        Skills = [.. pawn.Skills.Select(s => new Pol.ProfileSkill { Name = s.DefName, Level = s.Level, Passion = RimGovernor.Brain.Bridge.Contracts.BridgeFunctions.PassionName(s.Passion), Disabled = s.Disabled })],
+        ViolenceCapable = pawn.ViolenceCapable,
+        GuestStatus = pawn.GuestStatus,
+        PrisonerSecure = pawn.PrisonerSecure,
+        Downed = pawn.Downed,
+        ExtraHomeFaction = pawn.ExtraHomeFaction?.Id ?? "",
+        ExtraHostFaction = pawn.ExtraHostFaction?.Id ?? "",
+    };
 
     /// <summary>Reads both sides' current silver from the sheet's own currency row.</summary>
     internal static (long Colony, long Trader, bool Known) TradeSheetSilver(IReadOnlyList<TradeSheetRow> rows)

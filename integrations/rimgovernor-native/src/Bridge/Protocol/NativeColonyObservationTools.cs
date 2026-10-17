@@ -119,7 +119,6 @@ namespace HomeBridge.BridgeTools
             result = result with { Policies = NativePolicyFacts.Read(map) };
             result = result with { Biotech = NativeBiotechColony.Read(map) };
             result = result with { Royalty = NativeRoyaltyColony.Read(map) };
-            result = result with { Odyssey = NativeOdysseyColony.Read(map) };
             result = result with { Anomaly = NativeAnomalyColony.Read(map) };
             Span("cf.deep");
             if (demand > 0) result = result with { FoodRunwayDays = Finite(nutrition / demand) };

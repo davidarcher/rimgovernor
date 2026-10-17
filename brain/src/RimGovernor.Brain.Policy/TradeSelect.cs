@@ -36,16 +36,8 @@ public sealed record TradeSheetRowFact
 
     public bool CurrencyKnown { get; init; }
 
-    public bool Pawn { get; init; }
-
-    public bool PawnKnown { get; init; }
-
-    // Pawn rows only: what SelectPawnPurchase ranks.
-    public IReadOnlyList<ProfileSkill> Skills { get; init; } = [];
-
-    public bool ViolenceCapable { get; init; }
-
-    public bool ViolenceCapableKnown { get; init; }
+    /// <summary>The offered pawn on a pawn row, null on every other row.</summary>
+    public TradeRowPawn? Pawn { get; init; }
 
     /// <summary>A non-pawn row's first colony thing: a packed sculpture's row names its packed item.</summary>
     public string ThingID { get; init; } = "";
@@ -64,25 +56,28 @@ public sealed record TradeSheetRowFact
 
     /// <summary>A stuffed gear row's material (empty otherwise): what SaleGearSurplus matches beside the definition and condition.</summary>
     public string Stuff { get; init; } = "";
+}
 
-    /// <summary>A pawn row's load id (the animal census id for a colony animal): the key a live-animal sale matches and a purchase can name.</summary>
-    public string PawnID { get; init; } = "";
+/// <summary>A pawn trade row's pawn: what SelectPawnPurchase ranks, what a live-animal sale or founder purchase matches, and a prisoner's sale facts.</summary>
+public sealed record TradeRowPawn
+{
+    /// <summary>The pawn's load id (the animal census id for a colony animal): the key a live-animal sale matches and a purchase can name.</summary>
+    public string Id { get; init; } = "";
 
-    /// <summary>A pawn row's gender ("Male"/"Female"), as an animal's census gender: what a purchase of a founder's missing sex matches.</summary>
-    public string PawnGender { get; init; } = "";
+    public RimGovernor.Contracts.Wire.Defs.Gender Gender { get; init; }
 
-    // A prisoner row's sale facts: guest status, the secure and downed tests, and the extra home / host faction ids
-    // a sale angers.
-    public string GuestStatus { get; init; } = "";
+    public IReadOnlyList<ProfileSkill> Skills { get; init; } = [];
+
+    public bool ViolenceCapable { get; init; }
+
+    /// <summary>Null on a pawn without a guest tracker.</summary>
+    public RimGovernor.Contracts.Wire.Defs.GuestStatus? GuestStatus { get; init; }
 
     public bool PrisonerSecure { get; init; }
 
-    public bool PrisonerSecureKnown { get; init; }
+    public bool Downed { get; init; }
 
-    public bool PawnDowned { get; init; }
-
-    public bool PawnDownedKnown { get; init; }
-
+    // The extra home / host faction ids a sale angers.
     public string ExtraHomeFaction { get; init; } = "";
 
     public string ExtraHostFaction { get; init; } = "";
@@ -275,7 +270,7 @@ public static partial class PolicyFunctions
             }
             // Classification comes from ThingDef, never localized names or model guesses; an unknown flag is
             // never read as a permissive default.
-            if (!row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn || !row.CurrencyKnown || row.Currency)
+            if (!row.TraderWillTradeKnown || !row.TraderWillTrade || row.Pawn is not null || !row.CurrencyKnown || row.Currency)
             {
                 continue;
             }
@@ -377,7 +372,7 @@ public static partial class PolicyFunctions
         {
             return;
         }
-        SellRows(selected, facts.Rows, stopped, ref traderCash, true, row => row.PawnID.Length != 0 && facts.SaleAnimals.Contains(new PawnId(row.PawnID)));
+        SellRows(selected, facts.Rows, stopped, ref traderCash, true, row => row.Pawn is { } pawn && facts.SaleAnimals.Contains(new PawnId(pawn.Id)));
     }
 
     // The gear-sale step: each row whose thing is sale gear sells that one piece under the same rules.
@@ -403,7 +398,7 @@ public static partial class PolicyFunctions
         var output = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in rows)
         {
-            if (row.ThingID.Length == 0 || row.Pawn || !warehouses.Contains(row.ZoneID) || !row.HitPointsKnown || !row.QualityKnown)
+            if (row.ThingID.Length == 0 || row.Pawn is not null || !warehouses.Contains(row.ZoneID) || !row.HitPointsKnown || !row.QualityKnown)
             {
                 continue;
             }
@@ -432,7 +427,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (!row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn != pawns || !row.CurrencyKnown || row.Currency || stopped.Contains(row.DefName))
+            if (!row.TraderWillTradeKnown || !row.TraderWillTrade || (row.Pawn is not null) != pawns || !row.CurrencyKnown || row.Currency || stopped.Contains(row.DefName))
             {
                 continue;
             }

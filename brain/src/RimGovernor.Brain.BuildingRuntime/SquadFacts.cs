@@ -161,7 +161,7 @@ internal static partial class BuildingRuntimePackage
             Dead = Fact.Known(row.Dead),
             Downed = Fact.Known(row.Downed),
             Drafted = Fact.Known(row.Drafted),
-            MentalState = Fact.Known(row.MentalState is not null),
+            MentalState = row.MentalState is not null,
         };
         facts = facts with { DraftOwned = Fact.Known(needed.Contains(facts.Id)) };
         if (BridgeApi.PawnBiotech(row.Biotech).TryGetValue(out var bt))

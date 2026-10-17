@@ -23,8 +23,9 @@ namespace HomeBridge.BridgeTools
     }
 
     // Actions/Apply: every Action arm maps to exactly one handler. Actions in
-    // a batch apply in order and independently; a key's first result is
-    // replayed on resend while it stays in the in-memory window (never saved).
+    // a batch apply in order and independently. Nothing is replayed: the
+    // in-process hop always returns the result of a body that ran
+    // (MainThreadAdmission), so no reply is lost after the write.
     internal static class NativeActionDispatch
     {
         private static readonly Dictionary<Type, IActionHandler> Handlers = new Dictionary<Type, IActionHandler>
@@ -74,11 +75,6 @@ namespace HomeBridge.BridgeTools
             [typeof(Operations.ActionIntent.RemoveProductionBillCase)] = new RemoveProductionBillActionHandler(),
         };
 
-        private const int ReplayCapacity = 256;
-        private static readonly Dictionary<string, LinkedListNode<KeyValuePair<string, Operations.ActionResult>>> replay = new Dictionary<string, LinkedListNode<KeyValuePair<string, Operations.ActionResult>>>();
-        private static readonly LinkedList<KeyValuePair<string, Operations.ActionResult>> order = new LinkedList<KeyValuePair<string, Operations.ActionResult>>();
-        private static string replayLoad = "";
-
         // Fails the mod load when an Action arm has no handler.
         internal static void AssertComplete()
         {
@@ -102,27 +98,6 @@ namespace HomeBridge.BridgeTools
         {
             if (action.Key is null || !ProtoBoundary.IsIdentifier(action.Key))
                 return Refused((action.Key ?? ""), Common.FailureCode.InvalidRequest, "An action requires an identifier key.");
-            var slot = (context.Identity?.ColonyId ?? "") + "/" + (context.Identity?.LoadToken ?? "") + "/" + (action.Key ?? "");
-            var load = (context.Identity?.ColonyId ?? "") + "/" + (context.Identity?.LoadToken ?? "");
-            if (load != replayLoad) { replay.Clear(); order.Clear(); replayLoad = load; }
-            if (replay.TryGetValue(slot, out var seen))
-            {
-                if (seen.List != null) { order.Remove(seen); order.AddFirst(seen); }
-                return seen.Value.Value;
-            }
-            var result = Decide(action, context);
-            var node = new LinkedListNode<KeyValuePair<string, Operations.ActionResult>>(new KeyValuePair<string, Operations.ActionResult>(slot, result));
-            replay[slot] = node;
-            // Stockpile creation cannot be reconstructed by adopting zones on
-            // the drag: keep its receipt in this existing replay window until
-            // the load changes. All other intents retain the bounded LRU.
-            if ((result.Outcome?.Applied?.Outcome?.Applied?.Observed?.Effect?.Zone?.Created.Count ?? 0) == 0) order.AddFirst(node);
-            if (order.Count > ReplayCapacity) { replay.Remove(order.Last!.Value.Key); order.RemoveLast(); }
-            return result;
-        }
-
-        private static Operations.ActionResult Decide(Operations.Action action, Common.ObservationContext context)
-        {
             if (action.Intent is null || !Handlers.TryGetValue(action.Intent.GetType(), out var handler))
                 return Refused((action.Key ?? ""), Common.FailureCode.Unsupported, "No handler for this action kind.");
             try

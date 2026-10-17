@@ -167,8 +167,6 @@ public sealed partial record ColonyProjection
 
     public Fact<BiotechColony> Biotech { get; init; }
 
-    public Fact<OdysseyColony> Odyssey { get; init; }
-
     public Fact<AnomalyColony> Anomaly { get; init; }
 
     /// <summary>The Royalty colony section; unknown without Royalty or when the read failed.</summary>

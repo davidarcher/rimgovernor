@@ -55,9 +55,9 @@ public static partial class ObservationPackage
                 SuitablePen = Known(a.SuitablePen?.Id ?? ""),
                 SlaughterFacts = new SlaughterFacts
                 {
-                    Downed = Optional(state.Downed is not null, state.Downed.GetValueOrDefault()),
-                    InMentalState = Optional(state.InMentalState is not null, state.InMentalState.GetValueOrDefault()),
-                    Pregnant = Optional(state.Pregnant is not null, state.Pregnant.GetValueOrDefault()),
+                    Downed = Known(state.Downed),
+                    InMentalState = Known(state.InMentalState),
+                    Pregnant = Known(state.Pregnant),
                     Mastered = Mastered(state),
                     ColonistBonded = Optional(state.ColonistBonded is not null, state.ColonistBonded.GetValueOrDefault()),
                     Designatable = Optional(state.SlaughterDesignatable is not null, state.SlaughterDesignatable.GetValueOrDefault()),
@@ -113,8 +113,8 @@ public static partial class ObservationPackage
                 Pen = Known(""),
                 SuitablePen = Known(""),
                 Gender = state.Gender,
-                Tameable = Optional(state.Tameable is not null, state.Tameable.GetValueOrDefault()),
-                Tame = Optional(state.Tame is not null, state.Tame.GetValueOrDefault()),
+                Tameable = Known(state.Tameable),
+                Tame = Known(state.Tame),
                 MinimumHandlingSkill = race.MinimumHandlingSkill,
                 Pest = race.Pest,
                 Herd = HerdFactsOf(pawn, races),
@@ -155,15 +155,15 @@ public static partial class ObservationPackage
         var race = RaceOf(pawn, races);
         return new HerdFacts
         {
-            AgeYears = Optional(state.AgeYears is not null, state.AgeYears.GetValueOrDefault()),
+            AgeYears = Known(state.AgeYears),
             LifeExpectancy = race.LifeExpectancy,
             ManhunterOnTameFail = race.ManhunterOnTameFail,
             Sick = Optional(state.Sick is not null, state.Sick.GetValueOrDefault()),
-            Adult = Optional(state.Adult is not null, state.Adult.GetValueOrDefault()),
+            Adult = Known(state.Adult),
             Venerated = Optional(state.Venerated is not null, state.Venerated.GetValueOrDefault()),
             Predator = race.Predator,
             TicksToBirth = Optional(state.TicksToBirth is not null, state.TicksToBirth.GetValueOrDefault()),
-            LifeStageIndex = Optional(state.LifeStageIndex is not null, state.LifeStageIndex.GetValueOrDefault()),
+            LifeStageIndex = Known(state.LifeStageIndex),
             TicksToNextLifeStage = Optional(state.TicksToNextLifeStage is not null, state.TicksToNextLifeStage.GetValueOrDefault()),
         };
     }

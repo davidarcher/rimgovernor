@@ -168,17 +168,13 @@ public static partial class PolicyFunctions
     /// or host faction (a sale would anger it), and a known positive favor price. An unknown flag holds.
     /// </summary>
     private static bool FavorPrisonerRow(TradeSelectionFacts facts, TradeSheetRowFact row) =>
-        row.PawnKnown
-        && row.Pawn
-        && row.PawnID.Length != 0
-        && facts.FavorPrisoners.Contains(new PawnId(row.PawnID))
-        && row.GuestStatus == "Prisoner"
-        && row.PrisonerSecureKnown
-        && row.PrisonerSecure
-        && row.PawnDownedKnown
-        && !row.PawnDowned
-        && row.ExtraHomeFaction.Length == 0
-        && row.ExtraHostFaction.Length == 0
+        row.Pawn is { } pawn
+        && facts.FavorPrisoners.Contains(new PawnId(pawn.Id))
+        && pawn.GuestStatus == RimGovernor.Contracts.Wire.Defs.GuestStatus.Prisoner
+        && pawn.PrisonerSecure
+        && !pawn.Downed
+        && pawn.ExtraHomeFaction.Length == 0
+        && pawn.ExtraHostFaction.Length == 0
         && row.TraderWillTradeKnown
         && row.TraderWillTrade
         && row.CurrencyKnown
@@ -212,7 +208,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (!row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn || !row.CurrencyKnown || row.Currency)
+            if (!row.TraderWillTradeKnown || !row.TraderWillTrade || row.Pawn is not null || !row.CurrencyKnown || row.Currency)
             {
                 continue;
             }

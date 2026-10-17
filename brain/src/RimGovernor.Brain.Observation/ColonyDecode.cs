@@ -157,7 +157,6 @@ public static partial class ObservationPackage
         r = r with
         {
             Biotech = ColonyBiotech(v.Biotech),
-            Odyssey = ColonyOdyssey(v.Odyssey),
             Anomaly = ColonyAnomaly(v.Anomaly),
             RoyaltyColony = ColonyRoyalty(v.Royalty),
         };

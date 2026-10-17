@@ -284,12 +284,12 @@ public static partial class ObservationPackage
     private static bool StageFeedPerDay(AnimalRace race, Pawns pawns, string id, out double feed)
     {
         feed = 0;
-        if (!race.AdultFeedPerDay.TryGetValue(out var adult) || !pawns.TryGetValue(id, out var row) || row?.AnimalState is not { LifeStageIndex: not null } state)
+        if (!race.AdultFeedPerDay.TryGetValue(out var adult) || !pawns.TryGetValue(id, out var row) || row?.AnimalState is not { } state)
         {
             return false;
         }
         var stages = race.LifeStages;
-        var index = (int)state.LifeStageIndex.GetValueOrDefault();
+        var index = state.LifeStageIndex;
         if (index < 0 || index >= stages.Count || !(stages[^1].HungerRateFactor > 0))
         {
             return false;

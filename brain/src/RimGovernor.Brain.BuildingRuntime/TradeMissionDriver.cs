@@ -392,7 +392,7 @@ public sealed partial class RoundsTradePlanner
                 LineID = row.LineId,
                 DefName = row.DefName,
                 TraderCount = row.TraderCount,
-                Pawn = row.Pawn,
+                Pawn = row.Pawn is not null,
                 Currency = row.Currency,
                 BuyPrice = MissionOptional(row.BuyPrice, row.BuyPriceKnown),
                 WillTrade = MissionOptional(row.TraderWillTrade, row.TraderWillTradeKnown),

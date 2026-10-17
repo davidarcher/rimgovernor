@@ -58,7 +58,7 @@ public static partial class PolicyFunctions
         var taken = new List<Cell>();
         foreach (var d in view.Defenders)
         {
-            if (!at.TryGetValue(d.Id, out var c) || !pick(d) || Positive(d.Dead) || Positive(d.Downed) || Positive(d.MentalState))
+            if (!at.TryGetValue(d.Id, out var c) || !pick(d) || Positive(d.Dead) || Positive(d.Downed) || d.MentalState)
             {
                 continue;
             }

@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
                 if (precepts.Contains(d.defName) || requirements.Any(r => r.ApparelMeetsRequirement(d, false))) row = row with { RequiredDefs = [.. row.RequiredDefs, d.defName] };
             row = row with { Drafted = p.Drafted };
             if (p.workSettings != null) foreach (var d in DefDatabase<WorkTypeDef>.AllDefs) row = row with { Work = [.. row.Work, new Obs.WorkSetting { DefName = d.defName, Priority = p.workSettings.GetPriority(d), Disabled = p.WorkTypeIsDisabled(d) }] };
-            if (p.skills != null) foreach (var s in p.skills.skills) row = row with { Skills = [.. row.Skills, new Obs.Skill { DefName = s.def.defName, Level = s.Level, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled }] };
+            if (p.skills != null) foreach (var s in p.skills.skills) row = row with { Skills = [.. row.Skills, new Obs.Skill { DefName = s.def.defName, Level = s.Level, StoredLevel = s.levelInt, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled }] };
             return row;
         }
 

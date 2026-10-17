@@ -47,52 +47,10 @@ namespace HomeBridge.BridgeTools
             var snapshot = new Obs.HusbandrySnapshot { Context = context };
             foreach (var a in animals)
             {
-                var row = new Obs.HusbandryAnimal { Pawn = NativePawnObservationTools.Ref(a), Animal = AnimalRow(a) };
+                var row = new Obs.HusbandryAnimal { Pawn = NativePawnObservationTools.Ref(a), Animal = NativePawnDetails.Animal(a) };
                 snapshot = snapshot with { Animals = [.. snapshot.Animals, row] };
             }
             return snapshot;
-        }
-
-        private static Obs.AnimalState AnimalRow(Pawn animal)
-        {
-            // Gender, age and the other herd facts come only from the
-            // colony upkeep census (NativeHusbandryOperations.HerdFacts).
-            var row = new Obs.AnimalState();
-            if (animal.training != null)
-            {
-                foreach (var def in DefDatabase<TrainableDef>.AllDefsListForReading)
-                {
-                    var report = animal.training.CanAssignToTrain(def, out var visible);
-                    var entry = new Obs.TrainingEntry { DefName = def.defName, Learned = animal.training.HasLearned(def), Wanted = animal.training.GetWanted(def), Available = report.Accepted && visible };
-                    row = row with { Training = [.. row.Training, entry] };
-                }
-            }
-            if (animal.MapHeld?.designationManager != null)
-            {
-                var designations = animal.MapHeld.designationManager.AllDesignationsOn(animal);
-                row = row with { Slaughter = designations.Any(d => d.def == DesignationDefOf.Slaughter) };
-                row = row with { Release = designations.Any(d => d.def == DesignationDefOf.ReleaseAnimalToWild) };
-                row = row with { Tame = designations.Any(d => d.def == DesignationDefOf.Tame) };
-            }
-            if (NativeHusbandryOperations.Eligible(animal)) row = NativeHusbandryOperations.SlaughterFacts(animal, row);
-            row = row with { SafeToRelease = NativeHusbandryOperations.Eligible(animal) && NativeHusbandryOperations.SafeToRelease(animal) };
-            row = row with { Tameable = NativeHusbandryOperations.Tameable(animal) };
-            if (animal.Faction == Faction.OfPlayer)
-            {
-                row = row with { Sterilized = NativeHusbandryOperations.Sterilized(animal) };
-                row = row with { SterilizeQueued = NativeHusbandryOperations.SterilizeBill(animal) != null };
-            }
-            if (NativeHusbandryOperations.Eligible(animal))
-            {
-                row = row with { AllowedAreaId = NativeHusbandryOperations.AreaId(animal) };
-                row = row with { MasterId = NativeHusbandryOperations.MasterId(animal) };
-                row = row with { FollowDrafted = animal.playerSettings?.followDrafted ?? false };
-                row = row with { FollowFieldwork = animal.playerSettings?.followFieldwork ?? false };
-                row = row with { Obedient = NativeHusbandryOperations.Obedient(animal) };
-                row = row with { SupportsAllowedAreas = NativeHusbandryOperations.SupportsAllowedAreas(animal) };
-            }
-            if (animal.health?.hediffSet?.hediffs.OfType<Hediff_Pregnant>().Any() == true) row = row with { Pregnant = true };
-            return row;
         }
 
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };

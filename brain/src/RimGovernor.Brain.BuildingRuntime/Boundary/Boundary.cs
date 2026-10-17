@@ -221,20 +221,14 @@ public static class Boundary
     // ---- intent.go: dispatch an intent-mode action through Actions/Apply. ----
 
     /// <summary>
-    /// An intent-mode attempt's idempotency key: the action and attempt. A stockpile rectangle uses only its
-    /// immutable action id so a lost reply recovers every created identity from native replay. The action, not
-    /// the plan, keys it: a plan's building actions each start at attempt 1, and the native replay window would
-    /// answer the second with the first's result.
+    /// An intent-mode attempt's key: the action and attempt (a plan's building actions each start at attempt 1,
+    /// so the action, not the plan, keys it).
     /// </summary>
     public static string IntentKey(Placement p)
     {
         if (p.Action.CombatBatch is { } batch)
         {
             return batch.Key;
-        }
-        if (p.Action.ZoneCreate is { } z && z.Kind == Domain.ZoneKind.Stockpile)
-        {
-            return p.Action.Id.Value;
         }
         return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{p.Action.Id}/{p.Attempt}");
     }

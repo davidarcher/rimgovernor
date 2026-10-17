@@ -84,7 +84,7 @@ internal sealed partial class FacadeNativeClient
         }
         if (v.WorldProgression is not null)
         {
-            output = output with { Quests = BridgeFunctions.DecodeWorldProgressionSnapshot(v.WorldProgression, identity) };
+            output = output with { Quests = BridgeFunctions.DecodeWorldProgressionSnapshot(v.WorldProgression) };
         }
         if (v.Ideology is not null)
         {
@@ -320,7 +320,7 @@ internal sealed partial class FacadeNativeClient
         };
         if (v.WorldProgression is not null)
         {
-            output = output with { World = BridgeFunctions.DecodeWorldProgressionSnapshot(v.WorldProgression, identity) };
+            output = output with { World = BridgeFunctions.DecodeWorldProgressionSnapshot(v.WorldProgression) };
         }
         if (view.Prepared.Emergency is { } emergency)
         {

@@ -16,7 +16,7 @@ public sealed record TendDoctorFacts
 
     public Fact<bool> Drafted { get; init; }
 
-    public Fact<bool> MentalState { get; init; }
+    public bool MentalState { get; init; }
 
     public Fact<bool> PlayerForced { get; init; }
 
@@ -132,7 +132,7 @@ public static partial class PolicyFunctions
             var dk = d.Dead.TryGetValue(out var dead);
             var wk = d.Downed.TryGetValue(out var downed);
             var tk = d.Drafted.TryGetValue(out var drafted);
-            var mk = d.MentalState.TryGetValue(out var mental);
+            var mental = d.MentalState;
             var ek = d.ExistingJobDef.TryGetValue(out var existing);
             var sk = d.MedicineSkill.TryGetValue(out var skill);
             var sdk = d.MedicineSkillDisabled.TryGetValue(out var skillDisabled);
@@ -140,7 +140,7 @@ public static partial class PolicyFunctions
             var odk = d.DoctorWorkOverrideDisabled.TryGetValue(out var overrideDisabled);
             var cek = d.ControlEligible.TryGetValue(out var controlEligible);
             var cak = d.TendCapacities.TryGetValue(out var capacities);
-            if (!dk || !wk || !tk || !mk || !ek || !sk || !sdk || !wek || !odk || !cek || !cak)
+            if (!dk || !wk || !tk || !ek || !sk || !sdk || !wek || !odk || !cek || !cak)
             {
                 return false;
             }

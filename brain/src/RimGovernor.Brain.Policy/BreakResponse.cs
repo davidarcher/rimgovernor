@@ -22,10 +22,10 @@ public static partial class PolicyFunctions
     /// </summary>
     public static bool AggressiveBreak(EmergencyPawn p)
     {
-        var known = p.MentalState.TryGetValue(out var state);
+        var state = p.MentalState;
         var dk = p.Dead.TryGetValue(out var dead);
         var wk = p.Downed.TryGetValue(out var down);
-        return known && state!.IsAggro && state.DefName != "SocialFighting" && dk && wk && !dead && !down;
+        return state is not null && state.IsAggro && state.DefName != "SocialFighting" && dk && wk && !dead && !down;
     }
 
     /// <summary>
