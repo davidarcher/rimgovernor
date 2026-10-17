@@ -72,27 +72,31 @@ public sealed class ClothingChoiceTests
     [Fact]
     public void OnlyCommittedConstructionScarcityChangesStuffWithoutPinningIt()
     {
+        // Equal coverage and labor: the first stuff by id wins until committed construction takes it (#3330: the warmer wool
+        // is no longer a thermal relief).
         var census = Census(0); var read = Read(Option("Cloth"), Option("Wool"));
-        Assert.Equal("Wool", Recipe(Start(census, read, Resources(), out _)!).Stuff);
-        var facts = Facts() with { ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("Wool")] = 30 }) };
+        Assert.Equal("Cloth", Recipe(Start(census, read, Resources(), out _)!).Stuff);
+        var facts = Facts() with { ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("Cloth")] = 30 }) };
         var resources = WorkResourcesOf(WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
-        Assert.Equal("Wool", Recipe(Start(census, read, resources, out _)!).Stuff); // A standing site is optional.
+        Assert.Equal("Cloth", Recipe(Start(census, read, resources, out _)!).Stuff); // A standing site is optional.
         var evidence = WorkAdmissionEvidenceOf(Facts(), Known(default(EquatableArray<ProductionBatch>))) with
-        { Buildings = Known<EquatableArray<WorkBuildingCost>>([new("TestWall", "Wool", Known<EquatableArray<Amount>>([new(new("Wool"), 30)]))]) };
-        var wall = DomainAction.NewBuildingAction(new("competing-wall"), new("TestWall", new(3, 3), Rotation.North, "Wool"), ConstructionTier.Survive);
+        { Buildings = Known<EquatableArray<WorkBuildingCost>>([new("TestWall", "Cloth", Known<EquatableArray<Amount>>([new(new("Cloth"), 30)]))]) };
+        var wall = DomainAction.NewBuildingAction(new("competing-wall"), new("TestWall", new(3, 3), Rotation.North, "Cloth"), ConstructionTier.Survive);
         var committed = WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)),
             [new(new("construction-method"), wall, new() { Action = wall.Id, Stage = Stage.Pending })]);
-        Assert.Equal("Cloth", Recipe(Start(census, read, committed, out _)!).Stuff);
+        Assert.Equal("Wool", Recipe(Start(census, read, committed, out _)!).Stuff);
         Assert.Null(Start(census, read, Resources(0, 0), out _));
     }
 
     [Fact]
     public void GarmentShapeRemainsOpenUntilNeedsAndWorkAreCompared()
     {
+        // Both shapes relieve the same coverage. A cold ambient is no relief (#3330): with no forecast exposure to price the
+        // parka's warmth, the cheaper shirt wins. ForecastCoupledSelectionTests.ColdParka covers the priced cold case.
         var options = new[] { Garment("Shirt", "Cloth", 2), Garment("Parka", "Cloth", 20) };
         var read = Read(Option("Cloth", "Shirt", 20), Option("Cloth", "Parka", 200));
-        Assert.Equal("MakeParka", Recipe(Start(Census(0, options), read, Resources(), out _)!).Recipe);
-        Assert.Equal("MakeShirt", Recipe(Start(Census(20, options), read, Resources(), out _)!).Recipe);
+        Assert.Equal("MakeShirt", Recipe(Start(Census(0, options), read, Resources(), out _)!).Recipe);
+        Assert.Equal("MakeParka", Recipe(Start(Census(20, options), Read(Option("Cloth", "Shirt", 200), Option("Cloth", "Parka", 20)), Resources(), out _)!).Recipe);
     }
 
     [Fact]

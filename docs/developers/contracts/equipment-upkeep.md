@@ -282,7 +282,7 @@ normal shared candidate generation, ColonyForecast comparison, Method journal an
 The equipment loadout model owns demand. Generation reads every eligible
 `GearLoadoutInput.Options` garment/stuff option, not only the loadout winner's
 `Replacements`. Physical replacement execution needs a shared activity adapter.
-Nudist, outfit, coverage and climate constraints remain equipment policy.
+Nudist, outfit and coverage constraints remain equipment policy.
 
 `ClothingMethodCandidates` exposes transient recipe/delivery candidates to the
 shared ColonyForecast comparator before binding. Each observed bench recipe,
@@ -295,11 +295,21 @@ resumption using its exact recipe, stuff, creator and bound bill. No loose input
 are charged again after native observation shows their conversion into a UFT.
 Unsupported existing intent remains visible in findings and is not cancelled.
 
-Known clothing effects retain explicit lexicographic priorities:
+Known clothing relief retains explicit lexicographic priorities:
 
-1. Reduce cold/heat exposure within the loadout model's ambient/seasonal range.
-2. Restore missing core coverage or an observed required apparel definition.
-3. Replace a tattered worn garment.
+1. Restore missing core coverage or an observed required apparel definition.
+2. Replace a tattered worn garment.
+
+Warmth is not a relief (#3330). Each crafted candidate carries a comfort shift
+for its wearer: the garment's Cold/Heat insulation scaled by its quality
+multiplier (`GearInsulation`), less that of the worn items it replaces. The shift
+applies from the delivery's completion, and the forecast's Live temperature cards
+price it along the wearer's projected exposure as break risk, beside the crafting
+labor and stock. A garment whose only effect is warmth has no relief: it is
+selected only when that lowers break risk, so a content pawn, a short horizon or
+a card that is not Live crafts nothing for warmth. A garment that widens neither
+side of the comfort range and relieves nothing is not a candidate. A retained bill
+has no completion task to time a shift, so only its relief values it.
 
 Shared requirement IDs cap repeated benefit. Compatible garments can combine;
 conflicting garments for one wearer cannot claim simultaneous protection. Each
@@ -327,8 +337,9 @@ budget and at most 16 variants per row. Shared generation admits at most 16
 outcomes/32 tasks. Truncation is reported, never an optimum claim. A bundle uses
 one recipe per bench and distinct output cells; missing between-job routes can
 exclude sequential jobs on one worker. Route duration is a native path-cost
-estimate, not a simulation of pickup animations or future congestion. Relief uses
-observed Normal-quality stats; future crafted quality and future weather remain unassessed. Supported needs
+estimate, not a simulation of pickup animations or future congestion. Comfort shifts use
+the option's observed quality stats; future crafted quality, future weather and
+whether the wearer puts the garment on remain unassessed. Supported needs
 and participant commitments enter the shared portfolio comparison. Material
 scarcity is a hard shared budget, not a calibrated market-price valuation.
 

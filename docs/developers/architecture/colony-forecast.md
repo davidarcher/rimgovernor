@@ -246,7 +246,9 @@ because a shelter finishes elsewhere. Approach routes, moving services and idle
 intervals lack a temperature trace and remain unassessed. Degree-ticks are exposure,
 not injury probability, hypothermia onset or a physiological capacity model.
 Similarly, clothing recipe and delivery completion supplies a garment; it does
-not prove that a pawn wears it or gains physiological protection.
+not prove that a pawn wears it or gains physiological protection. The garment's
+comfort shift (#3330) applies to its wearer from the delivery's completion as a
+forecast assumption, which prices temperature mood only.
 
 ### Bounds and evidence
 
@@ -888,8 +890,8 @@ between different needs and joint worker/time capacity are not inferred here.
 
 The [equipment owner](../contracts/equipment-upkeep.md#live-clothing-requirement-selection)
 now attaches observed clothing requirement effects to exact material variants.
-The same bounded comparison ranks thermal safety, required coverage and condition
-before unclassified batch count, then uses ingredient market value and base recipe
+The same bounded comparison ranks required coverage and condition
+before unclassified batch count (warmth is a comfort shift priced as break risk, #3330), then uses ingredient market value and base recipe
 work as tie-break costs. Need relief is capped by stable need identity across
 selected batches. This explicit priority objective is separate from the supplied
 scalar utility proof; mixing them in one comparison is rejected.

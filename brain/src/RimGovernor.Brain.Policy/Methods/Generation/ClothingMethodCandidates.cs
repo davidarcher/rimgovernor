@@ -17,8 +17,9 @@ internal static class ClothingMethodCandidates
         var findings = new HashSet<string>(StringComparer.Ordinal);
         var garmentNeeds = new Dictionary<string, ClothingActivityRequirement>(StringComparer.Ordinal);
         var truncated = read.Truncated;
+        // A retained bill has no completion task to time a comfort shift (#3330), so only its relief can value it.
         foreach (var retained in read.Retained.OrderBy(r => r.Id, StringComparer.Ordinal))
-            foreach (var need in requirements.Where(n => n.Product == retained.Product && n.Stuff == retained.Stuff))
+            foreach (var need in requirements.Where(n => n.Product == retained.Product && n.Stuff == retained.Stuff && n.Assessment.Relief.Count > 0))
             {
                 if (outcomes.Count == 16) { truncated = true; break; }
                 if (!retained.CompletionTicks.IsKnown) { findings.Add("unknown_retained_completion:" + retained.Id); continue; }
@@ -70,13 +71,13 @@ internal static class ClothingMethodCandidates
             {
                 Resource = row.Stuff,
                 Source = row.Location,
-                Clothing = need,
                 Inputs = EquatableArray.From(row.Inputs.Select(i => (i.Thing, i.Resource, i.Count, i.AvailableCount))),
                 Recipe = new(row.Bill, row.Recipe, EquatableArray.From(row.Inputs.Select(i => new PawnActivityIngredient(i.Thing, i.Count))))
                 { Resource = row.Stuff, Stuff = row.Stuff, Unfinished = row.Unfinished }
             };
             bindings[(id, row.Pawn)] = new(id, row.Pawn, [make], PawnActivityKind.Deliver, "observed-output", "", "", 1, deadline, row.Location)
-            { Resource = row.Product, ProductStuff = row.Stuff, Source = row.Location, Destination = row.Destination };
+            // The completion carries the wearer's requirement: its comfort shift takes effect when the delivery completes (#3330).
+            { Resource = row.Product, ProductStuff = row.Stuff, Source = row.Location, Destination = row.Destination, Clothing = need };
             outcomes.Add(new(id, "clothing/" + need.Wearer + "/" + need.Product, id, Known((double)horizon), default)
             { ChoiceIdentity = "clothing/" + need.Wearer + "/" + need.Product, Requirements = need.Assessment with { Work = Known(travel + work + row.OutputTravelTicks.Value) } });
         }

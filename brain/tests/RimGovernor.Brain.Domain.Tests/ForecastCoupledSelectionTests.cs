@@ -518,6 +518,112 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Equal(Outcome(today, work, gear).Needs["pawn"].Mood, Outcome(extracted, work, gear).Needs["pawn"].Mood);
     }
 
+    // #3330: the wearer harvests outdoors at -10 C, comfortable from 10 C and observing EnvironmentCold at -12. No warm garment
+    // is physically available; a tailor can craft a parka (Cold 20, Normal quality). Replacing a worn jacket (Cold 5) over a
+    // shirt, the parka relieves nothing, so only its comfort shift (-15 from the craft's completion, leaving a deficit of 5,
+    // below the card's first band) can make the comparator select it. Bare, it also relieves torso coverage.
+    private static (ForecastCoupledSelection Result, ForecastCommitment[] Parkas) ColdParka(double mood,
+        MechanicCardStatus status = MechanicCardStatus.Verified, bool shirt = true)
+    {
+        static GearOption Garment(string product, GearSlot slot, string layer, double cold, GearSource source) => new()
+        {
+            ID = product, Definition = new(product), Stuff = new("Cloth"), Slot = slot, Layers = [layer], Groups = ["Torso"],
+            Source = source, Quality = 2, Condition = 1, Cold = cold, Cost = 20
+        };
+        var census = new GearObservation
+        {
+            Stored = Known(default(EquatableArray<RimGovernor.Brain.Policy.GearStock>)),
+            Pawns = [new() { Pawn = new("pawn"), Loadout = "load",
+                Candidates = Known(default(EquatableArray<RimGovernor.Brain.Policy.GearCandidate>)),
+                LoadoutModel = Known(new GearLoadoutInput { Ambient = -10, ComfortableMin = 10, ComfortableMax = 30,
+                    Worn = shirt ? [Garment("Shirt", GearSlot.SkinTorso, "OnSkin", 2, GearSource.Worn), Garment("Jacket", GearSlot.Outer, "Shell", 5, GearSource.Worn)] : [],
+                    Options = [Garment("Parka", GearSlot.Outer, "Shell", 20, GearSource.Bill)] }) }]
+        };
+        var stack = new RecipeIngredientObservation("cloth-stack", "Cloth", 10, new(5, 5), 10)
+        { Capacity = 75, ApproachTicks = Known(5.0), CarryTicks = Known(5.0), ReturnTicks = Known(5.0) };
+        var recipe = new RecipeActivityOption("parka-tailor", "tailor", "bench", "Tailor", "MakeParka", "Parka", "Cloth", "", "", new(10, 10),
+            [stack], Known(0.0), Known(20.0), Known(5.0), new(15, 15)) { RequiredCount = 10 };
+        var facts = Review(level: 1, fall: 0, harvest: 200);
+        var roster = WorkResourceTestFacts.Create("pawn", "tailor") with
+        { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Cloth"), 10)]) };
+        var template = facts.ForecastObserved.Needs!.Pawns[0];
+        facts = facts with
+        {
+            Gear = Known(census),
+            WorkView = WorkResourcesOf(WorkAdmissionEvidenceOf(roster, Known<EquatableArray<ProductionBatch>>([])), Known<EquatableArray<ProductionBatch>>([]), []),
+            ForecastObserved = facts.ForecastObserved with
+            {
+                Needs = facts.ForecastObserved.Needs with { Pawns = [template, template with { Pawn = "tailor" }] },
+                Coupled = facts.ForecastObserved.Coupled! with { Clothing = new() { Known = true, Context = Context, Options = [recipe] } }
+            }
+        };
+        var candidates = GenerateCoupledActivities(facts, Horizon)!;
+        var wearer = template with
+        { Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood), ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) };
+        var cells = candidates.Context.Activities.Activities.SelectMany(t => new[] { t.Location, t.EndLocation })
+            .Where(l => l.StartsWith("cell/", StringComparison.Ordinal)).Distinct().Select(l => l.Split('/'))
+            .Select(p => new Cell(int.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture), int.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture)));
+        // Each ingredient allocation is its own alternative.
+        var parkas = candidates.Alternatives.Where(c => c.ExclusiveOutcome == "clothing/pawn/Parka").ToArray();
+        Assert.NotEmpty(parkas);
+        facts = facts with { CoupledAlternatives = candidates with
+        {
+            Alternatives = EquatableArray.From(parkas),
+            Context = candidates.Context with
+            {
+                Needs = candidates.Context.Needs with { Pawns = [wearer, template with { Pawn = "tailor", Mood = Known(.9), MoodTarget = Known(.9), MoodUnclampedTarget = Known(.9) }] },
+                Shelters = [],
+                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, false, "", "", false, false, 0, false))) },
+                Cards = new Dictionary<string, MechanicCard> { ["EnvironmentCold"] = MechanicCards.ByDef["EnvironmentCold"] with { Status = status } },
+                CardPawns = new Dictionary<string, CardPawnFacts> { ["pawn"] = new()
+                {
+                    Traits = Known<EquatableArray<string>>([]), Hediffs = Known<EquatableArray<string>>([]),
+                    IdeologyActive = Known(false), Precepts = Known<EquatableArray<string>>([])
+                } },
+                ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = Known<EquatableArray<MoodThought>>([new("EnvironmentCold", -12)]) },
+            }
+        } };
+        // The wearer's outdoor harvest is the incumbent work the parka would warm.
+        var work = candidates.Alternatives.Where(c => c.ActivityCompletions.Count > 0 && c.ExclusiveOutcome.StartsWith("raw/", StringComparison.Ordinal))
+            .First(c => Outcome(facts, c).ThermalExposure.Single(t => t.Pawn == "pawn").AssessedTicks > 0);
+        return (Select(facts, 16384, work), parkas);
+    }
+
+    [Fact]
+    public void ClothingCandidatesCarryTheCraftedGarmentsComfortShiftAndNoThermalRelief()
+    {
+        Assert.All(ColdParka(.28).Parkas, parka =>
+        {
+            Assert.Equal([new ForecastComfortShift("pawn", -15, 0)], parka.ComfortShifts);
+            Assert.Empty(parka.Outcome!.Requirements!.Relief);
+        });
+        Assert.All(ColdParka(.28, shirt: false).Parkas, bare =>
+        {
+            Assert.Equal([new ForecastComfortShift("pawn", -20, 0)], bare.ComfortShifts);
+            Assert.Equal(["clothing/pawn/coverage/Torso"], bare.Outcome!.Requirements!.Relief.Select(r => r.Need));
+        });
+    }
+
+    [Fact]
+    public void APawnNearABreakAtColdOutdoorWorkGetsAParkaCrafted()
+    {
+        var (result, parkas) = ColdParka(.28);
+        Assert.Contains(Assert.Single(result.Selection.Selected), parkas.Select(p => p.Id));
+        Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+    }
+
+    [Fact]
+    public void AContentPawnGetsNoParkaForWarmthAloneButStillForCoverage()
+    {
+        Assert.Empty(ColdParka(.9).Result.Selection.Selected);
+        var (covered, parkas) = ColdParka(.9, shirt: false);
+        Assert.Contains(Assert.Single(covered.Selection.Selected), parkas.Select(p => p.Id));
+    }
+
+    [Fact]
+    public void ATemperatureCardThatIsNotLiveCraftsNothingForWarmth() =>
+        Assert.Empty(ColdParka(.28, MechanicCardStatus.Extracted).Result.Selection.Selected);
+
     [Fact]
     public void TheCoupledGeneratorOffersTheShippedCardsFilterCandidateBesideTheClothingFamily()
     {

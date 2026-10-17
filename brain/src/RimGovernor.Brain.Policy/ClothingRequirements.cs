@@ -2,6 +2,8 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
 {
+    /// <summary>Coverage, condition and required-apparel relief; null when the garment would strip a covered core group.
+    /// Warmth is not a relief: the candidate's comfort shift is priced by the forecast (#3330).</summary>
     private static List<ForecastRequirementRelief>? ClothingRelief(GearPawn pawn, GearLoadoutInput input, GearOption option)
     {
         var result = new List<ForecastRequirementRelief>();
@@ -18,17 +20,6 @@ public static partial class PolicyFunctions
         if (pawn.Policy.TryGetValue(out var policy) && policy.Required.Contains(option.Definition.Value)
             && !input.Worn.Any(w => w.Definition == option.Definition))
             result.Add(new(prefix + "required/" + option.Definition.Value, ProductionNeedPriority.Required, 1));
-        var (low, high) = input.Climate.TemperatureRange(input.Ambient);
-        double Insulation(IEnumerable<GearOption> items, bool cold) => items.Sum(o => (cold ? o.Cold : o.Heat) * GearQualityMultipliers(o.Quality).Insulation);
-        foreach (var cold in new[] { true, false })
-        {
-            var needed = Math.Max(0, cold ? input.ComfortableMin - low : high - input.ComfortableMax);
-            var before = Math.Max(0, needed - Insulation(input.Worn, cold));
-            var later = Math.Max(0, needed - Insulation(after, cold));
-            if (later > before) return null;
-            if (before > later)
-                result.Add(new(prefix + (cold ? "cold" : "heat"), ProductionNeedPriority.Safety, (before - later) / before));
-        }
         return result;
     }
 }

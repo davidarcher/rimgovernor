@@ -320,11 +320,14 @@ public static partial class PolicyFunctions
                     if (finish is null) { findings.Add("construction_outcome_unbound:" + outcome.Id); continue; }
                     exclusive = "construction/" + finish.Target;
                 }
+                // A crafted garment's warmth, timed by its delivery's completion (#3330).
+                var comfort = family.Bindings.Values.FirstOrDefault(b => b.Id == outcome.Completion)?.Clothing?.Comfort;
                 alternatives.Add(new(outcome.Id, [])
                 {
                     ActivityCompletions = outcome.Completion.Length == 0 ? [] : [outcome.Completion],
                     ExclusiveOutcome = exclusive,
-                    Outcome = outcome
+                    Outcome = outcome,
+                    ComfortShifts = comfort is null ? [] : [comfort]
                 });
             }
         }
