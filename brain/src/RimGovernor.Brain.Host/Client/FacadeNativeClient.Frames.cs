@@ -293,7 +293,6 @@ internal sealed partial class FacadeNativeClient : IDisposable
 
     private readonly object _frameGate = new();
     private readonly SemaphoreSlim _frameOpenGate = new(1, 1);
-    private readonly List<string> _frameResources = [];
     private FrameFeed? _frameFeed;
     private bool _frameOpened;
     private bool _frameStale;
@@ -301,26 +300,6 @@ internal sealed partial class FacadeNativeClient : IDisposable
     private string _frameOpenError = "";
     private long _frameExpected;
 
-
-    /// <summary>
-    /// Go's <c>FrameSubscribe</c> side of <c>frameSubscribe</c>: a read of a resource's sources grows the subscription,
-    /// and the next frame read resubscribes so later frames carry it.
-    /// </summary>
-    internal void FrameSubscribeResource(string resource)
-    {
-        if (!BridgeFunctions.IsValidId(resource))
-        {
-            return;
-        }
-        lock (_frameGate)
-        {
-            if (!_frameResources.Contains(resource))
-            {
-                _frameResources.Add(resource);
-                _frameStale = true;
-            }
-        }
-    }
 
     /// <summary>
     /// Go's <c>caller.timeout</c> for one frame read: how long a read waits for a frame that answers it before it is
@@ -374,15 +353,12 @@ internal sealed partial class FacadeNativeClient : IDisposable
         await _frameOpenGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            string[] resources;
             lock (_frameGate)
             {
-                resources = [.. _frameResources];
                 _frameStale = false;
             }
             var request = new PbObservations.SnapshotStreamRequest
             {
-                ResourceSources = [.. resources],
                 RoutePathBudgetMs = RoutePathBudgetMs,
                 HuntRouteBudgetMs = HuntRouteBudgetMs,
                 HuntPredatorMarginCells = P.PolicyFunctions.HuntPredatorMarginCells,
@@ -390,18 +366,7 @@ internal sealed partial class FacadeNativeClient : IDisposable
                 LinesOfFireBudgetMs = LinesOfFireBudgetMs,
             };
             PbObservations.SnapshotStreamReply reply;
-            try
-            {
-                reply = await Facade.OpenFramesAsync(request, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception failure) when (failure is not OperationCanceledException)
-            {
-                lock (_frameGate)
-                {
-                    _frameStale = resources.Length != 0 || _frameStale;
-                }
-                throw;
-            }
+            reply = await Facade.OpenFramesAsync(request, cancellationToken).ConfigureAwait(false);
             var outcome = reply.Outcome;
             if (outcome?.Opened is null)
             {

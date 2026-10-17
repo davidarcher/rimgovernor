@@ -118,7 +118,7 @@ Kept, reason recorded:
 - `TrainingEntry.def_name`: the key of the live learned/wanted/available row, not a copy of a `TrainableDef` property.
 - `AnimalState.tameable`: `TameUtility.CanTame` on the live animal plus its hunting designation; a game-method output.
 - `DevelopmentPower.turret_dps`: `NativeDefenseStats.TurretDps` reads the live gun (its quality-scaled verb), not a row.
-- `DefinitionCatalog.thing_defs`/`terrain_defs`, `CreationDefinitionCatalog.defs` and `ClassChain`: these are the mirror rows (`DefSets` omits ThingDef and TerrainDef by construction), not copies of them; `ClassChain` is the `ClassIsA` index.
+- `DefinitionCatalog.thing_defs`/`terrain_defs`, `ClassChain`: these are the mirror rows (`DefSets` omits ThingDef and TerrainDef by construction), not copies of them; `ClassChain` is the `ClassIsA` index.
 - `NativeColonyObservationTools.Crops`: the `EdibleCrop` row is the live per-map diet and animal nutrition demand of a crop; the `CropDefs` list only enumerates `DefDatabase` and its food filter is `NativeFoodPolicy.IsFood`, the game-method output the `ThingDefFacts` section keeps.
 - `NativeColonyObservationTools` room roles: `room.Role` is the live room's computed role (`NativeUpkeepFacts`), nothing in the file retypes the role table.
 
@@ -825,7 +825,6 @@ Kept, reason recorded:
 | EntityHolderState | message | 2739 | 4 | excluded | Anomaly holder state |  | excluded owner #2631 owner Anomaly |
 | AnomalyDoor | message | 2745 | 5 | excluded | Anomaly holder door state |  | excluded owner #2631 owner Anomaly |
 | DefinitionCatalogRequest | message | 2746 | 2 | state | Request envelope for the catalog read |  |  |
-| CreationDefinitionCatalog | message | 2748 | 2 | static | Def mirror before a world exists | defs,class_chains | already the DefSets mirror itself |
 | DefinitionCatalogReply | message | 2749 | 4 | state | Outcome oneof of catalog read |  |  |
 | SnapshotStreamOpened | message | 2750 | 3 | state | Stream name (in-process) |  |  |
 | SnapshotStreamReply | message | 2755 | 3 | state | Outcome oneof of stream open |  |  |

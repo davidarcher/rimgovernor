@@ -52,10 +52,9 @@ namespace HomeBridge.BridgeTools
                     list.Add(pawn);
                 }
                 var snapshot = new Obs.RoomsSnapshot { Context = context };
-                var filtered = source.Count - physical.Count;
                 foreach (var room in physical.OrderBy(r => r.ID))
                 {
-                    if (!Selected(parsed, Id(room.ID), room.PsychologicallyOutdoors, room.IsDoorway)) { filtered++; continue; }
+                    if (!Selected(parsed, Id(room.ID), room.PsychologicallyOutdoors, room.IsDoorway)) continue;
                     var cells = new List<IntVec3>();
                     foreach (var cell in room.Cells)
                     {
@@ -63,10 +62,9 @@ namespace HomeBridge.BridgeTools
                         cells.Add(cell);
                     }
                     if (cells.Count == 0 || cells.Count != room.CellCount || cells.Distinct().Count() != cells.Count) throw new InvalidOperationException("Incomplete room footprint.");
-                    if (parsed.Region != null && !cells.Any(c => Inside(parsed.Region, c))) { filtered++; continue; }
+                    if (parsed.Region != null && !cells.Any(c => Inside(parsed.Region, c))) continue;
                     snapshot = snapshot with { Rooms = [.. snapshot.Rooms, Project(room, map, cells, pawnRooms.TryGetValue(room, out var members) ? members : new List<Pawn>(), parsed, context)] };
                 }
-                snapshot = snapshot with { Completeness = Complete(snapshot.Rooms.Count, filtered) };
                 return new Obs.ListRoomsReply { Outcome = snapshot };
             }
             catch (Exception readError) { return new Obs.ListRoomsReply { Outcome = Missing(Common.UnavailableReason.ReadFailed,
@@ -122,30 +120,12 @@ namespace HomeBridge.BridgeTools
             row = row with { Center = Cell(Center(cells)) };
             var held = cells.Where(c => !c.Fogged(map)).ToList();
             if (held.Count > 0) row = row with { GridRoom = held.Min(c => c.z * map.Size.x + c.x) };
-            var stockpiles = new List<Zone_Stockpile>();
-            foreach (var cell in cells) if (map.zoneManager.ZoneAt(cell) is Zone_Stockpile stockpile && !stockpiles.Contains(stockpile)) stockpiles.Add(stockpile);
-            row = row with { StockpileZones = [.. row.StockpileZones, .. NativeRef.All(stockpiles.Select(z => Name(z.GetUniqueLoadID())).OrderBy(v => v, StringComparer.Ordinal))] };
-            foreach (var stockpile in stockpiles.OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal))
-            {
-                var stockpileContents = stockpile.slotGroup?.HeldThings?.ToList() ?? new List<Thing>();
-                var membership = new Obs.StockpileMembership { Zone = NativeRef.Of(Name(stockpile.GetUniqueLoadID())) };
-                var grouped = stockpileContents.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
-                foreach (var group in grouped) membership = membership with { Contents = [.. membership.Contents, new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = group.Key }, Units = group.Sum(t => (long)t.stackCount) }] };
-                row = row with { StockpileMemberships = [.. row.StockpileMemberships, membership] };
-            }
             foreach (var pawn in pawns.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) row = row with { Pawns = [.. row.Pawns, NativeRef.Thing(pawn)] };
             var buildings = things.OfType<Building>().Where(t => request.IncludeBoundary.GetValueOrDefault() || room.ContainsCell(t.Position)).ToList();
             var beds = buildings.OfType<Building_Bed>().ToList();
-            var colonists = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
             foreach (var bed in beds)
             {
                 row = row with { Beds = [.. row.Beds, NativeBuildingObservationTools.Ref(bed)] };
-                var membership = new Obs.RoomBedMembership { Building = NativeBuildingObservationTools.Ref(bed) };
-                var owners = bed.OwnersForReading.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-                membership = membership with { Owners = [.. membership.Owners, .. owners.Select(NativeRef.Thing)] };
-                membership = membership with { Users = [.. membership.Users, .. colonists.Where(p => p.CurrentBed() == bed).Select(NativeRef.Thing)] };
-                membership = membership with { AccessibleTo = [.. membership.AccessibleTo, .. colonists.Where(p => !bed.IsForbidden(p) && p.CanReach(bed, Verse.AI.PathEndMode.OnCell, Danger.None)).Select(NativeRef.Thing)] };
-                row = row with { BedMemberships = [.. row.BedMemberships, membership] };
             }
             var contents = buildings.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
             foreach (var group in contents) row = row with { Contents = [.. row.Contents, new Obs.Quantity { DefName = group.Key, Units = group.LongCount() }] };
@@ -156,10 +136,8 @@ namespace HomeBridge.BridgeTools
                 try
                 {
                     var value = room.GetStat(definition); stat = stat with { Value = Finite(value) };
-                    var display = definition.ScoreToString(value);
-                    if (display != null) stat = stat with { Display = PlacementPreviewOperation.Diagnostic(display) };
                 }
-                catch (Exception) { stat = stat with { Value = null, Display = null, Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Native room stat unavailable.") }; }
+                catch (Exception) { stat = stat with { Value = null, Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Native room stat unavailable.") }; }
                 row = row with { Stats = [.. row.Stats, stat] };
             }
             // Doors in the boundary: the door cell, the cell across it
@@ -187,8 +165,7 @@ namespace HomeBridge.BridgeTools
                 w.Write(row.Burning.GetValueOrDefault()); w.Write(row.TemperatureControl.GetValueOrDefault()); w.Write(row.PerishableContents.GetValueOrDefault());
                 foreach (var door in row.Doors) { w.Write((door.Cell?.X).GetValueOrDefault()); w.Write((door.Cell?.Z).GetValueOrDefault()); w.Write((door.Outside?.X).GetValueOrDefault()); w.Write((door.Outside?.Z).GetValueOrDefault()); w.Write(door.Outdoors is not null ? (door.Outdoors.GetValueOrDefault() ? 2 : 1) : 0); w.Write((door.Id ?? "")); w.Write(door.PlayerOwned.GetValueOrDefault()); w.Write(door.Open.GetValueOrDefault()); w.Write(door.HoldOpen.GetValueOrDefault()); w.Write(door.BlockedOpen.GetValueOrDefault()); w.Write(door.Forbidden.GetValueOrDefault()); }
                 foreach (var quantity in row.Contents) { w.Write((quantity.DefName ?? "")); w.Write(quantity.Units.GetValueOrDefault()); }
-                foreach (var membership in row.BedMemberships) { w.Write((membership.Building?.Id ?? "")); w.Write(membership.Owners.Count); w.Write(membership.Users.Count); }
-                foreach (var membership in row.StockpileMemberships) { w.Write(membership.Zone?.Id??""); foreach (var stock in membership.Contents) { w.Write(stock.Definition.DefName ?? ""); w.Write(stock.Units); } }
+                foreach (var bed in beds) { w.Write(bed.GetUniqueLoadID()); foreach (var owner in bed.OwnersForReading.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) w.Write(owner.GetUniqueLoadID()); }
             }) };
             return row;
         }
@@ -207,6 +184,5 @@ namespace HomeBridge.BridgeTools
         private static string Name(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid native room identifier.");
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(reason, detail) };
-        private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Filtered = (ulong)filtered };
     }
 }

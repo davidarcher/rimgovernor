@@ -78,7 +78,6 @@ namespace HomeBridge.BridgeTools
             observed = observed with { Emergency = emergency };
             ReadFamilies(map, context, ref observed, request);
             ReadStepFamilies(map, context, ref observed);
-            ReadSubscribed(map, request, context, ref observed);
             var combatBegan = Now();
             Supervisor.EnsureHazardHooks(); Supervisor.EnsureCombatHooks();
             observed = CombatMirror.Capture(map, observed);
@@ -249,7 +248,7 @@ namespace HomeBridge.BridgeTools
             }
             {
                 var began = Now();
-                try { observed = observed with { WorldProgression = NativeWorldProgressionObservation.Build(context, false) }; } catch (System.Exception ex) { ObservationWork.Failed("worldProgression", ex); }
+                try { observed = observed with { WorldProgression = NativeWorldProgressionObservation.Build(context) }; } catch (System.Exception ex) { ObservationWork.Failed("worldProgression", ex); }
                 ObservationWork.Captured("worldProgression", Now() - began);
             }
             {
@@ -267,21 +266,5 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // On the main thread. Adds the subscription's parameterized
-        // families: each named resource's sources.
-        private static void ReadSubscribed(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, ref Obs.BundleSnapshot observed)
-        {
-            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity };
-            var read = new List<Obs.ResourceSourcesSnapshot>(observed.ResourceSources);
-            foreach (var resource in request.ResourceSources)
-            {
-                if (!ProtoBoundary.IsIdentifier(resource)) continue;
-                var began = Now();
-                var sources = NativeResourceSourcesTool.Read(map, new Obs.ResourceSourcesRequest { Scope = Scope(), Resource = resource }, context).Outcome?.Observed;
-                ObservationWork.Captured("resourceSources", Now() - began, sources != null ? sources.Sources.Count : 0);
-                if (sources != null) read.Add(sources);
-            }
-            observed = observed with { ResourceSources = [.. read] };
-        }
     }
 }

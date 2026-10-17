@@ -14,7 +14,7 @@ internal static class QuestLifecycle
             "quest-lifecycle-census",
             "observations_read_world_progression",
             identity,
-            new JsonObject { ["includeStorage"] = false },
+            null,
             cancellationToken).ConfigureAwait(false);
         foreach (var raw in observed["quests"].AsSlice())
         {

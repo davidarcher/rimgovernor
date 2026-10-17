@@ -274,8 +274,6 @@ internal sealed partial class FacadeNativeClient
         var request = new PbObservations.TradeSheetRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
-            IncludeUntradeable = true,
-            OnlyChanged = false,
         };
         var reply = await Facade.ReadTradeSheetAsync(request, cancellationToken).ConfigureAwait(false);
         BuildingUnknown(reply);

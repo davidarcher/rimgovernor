@@ -91,7 +91,6 @@ namespace HomeBridge.BridgeTools
                 var option = options[i];
                 var label = Text(Label(option));
                 var row = new Obs.ChoiceDialogOption { Index = i, Label = label, Selectable = Selectable(option), Resolves = option.resolveTree };
-                if (option.disabled && !string.IsNullOrEmpty(option.disabledReason)) row = row with { DisabledReason = Text(option.disabledReason) };
                 row = row with { Keys = [.. row.Keys, .. ChoiceDialogKeys.ForLabel(label.Trim())] };
                 result = result with { Options = [.. result.Options, row] };
             }

@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>What <see cref="Rounder.SettlementAcquisitionOptions"/> needs of the native source beyond the mission pack source.</summary>
 internal interface ISettlementOptionsSource : ITradeMissionPackSource
 {
-    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
+    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct);
 
     Task<WorldRead> ReadWorldAsync(C.Identity identity, int home, double radius, CancellationToken ct);
 }
@@ -52,7 +52,7 @@ public sealed partial class Rounder
         WorldProgressionRead progress;
         try
         {
-            progress = await source.ReadWorldProgressionAsync(id, false, ct).ConfigureAwait(false);
+            progress = await source.ReadWorldProgressionAsync(id, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

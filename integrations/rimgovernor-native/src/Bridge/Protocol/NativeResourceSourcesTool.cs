@@ -76,8 +76,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var t in eligible) distances[t] = colonists.Min(p => p.Position.DistanceTo(t.Position));
                 var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(t => distances[t]).ThenBy(t => t.thingIDNumber).ToList();
                 var snapshot = new Obs.ResourceSourcesSnapshot { Context = context, Resource = parsed.Resource,
-                    Storage = Storage(map, definition),
-                    Completeness = new Obs.Completeness { Filtered = (ulong)(deposits.Count - eligible.Count) } };
+                    Storage = Storage(map, definition) };
                 var reserved = cheap ? new HashSet<Thing>(map.reservationManager.AllReservedThings()) : null;
                 foreach (var thing in ordered) snapshot = snapshot with { Sources = [.. snapshot.Sources, Project(thing, map, distances[thing], context, buried.Contains(thing), reserved)] };
                 return new Obs.ResourceSourcesReply { Outcome = snapshot };

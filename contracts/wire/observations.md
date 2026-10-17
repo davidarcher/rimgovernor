@@ -174,7 +174,7 @@ a depleted drill for removal from the deep drill step's recorded read.
 - `dialog` section: the topmost open force-pausing
   `Verse.Dialog_NodeTree` (window id, type, title, text, interactive) with its
   current node's options in native order, each carrying its index, label,
-  `selectable`/`disabled_reason` and whether activating it resolves (closes or
+  `selectable` and whether activating it resolves (closes or
   advances) the dialog rather than opening a hyperlink. Absent when no such
   dialog is open. The initial naming dialog is not observed: the mod confirms it itself.
 - Need relief requires current needs, queued/current job identity,
@@ -372,8 +372,7 @@ life stage, race, gene, xenotype, mech kind and work mode defs are read from the
 themselves (`LifeStageDef`, `RaceProperties.lifeStageAges` and
 `lifeStageWorkSettings`, `GeneDef`, `XenotypeDef`, `PawnKindDef`,
 `MechWorkModeDef`). `mech_work_modes` (`MechWorkModeRoles`) names the
-`MechWorkModeDef` the game picks as `MechWorkModeDefOf.Work`, `.Escort` and
-`.Recharge`. `gene_tuning` (`GeneTuningFacts`) is a singleton of the game's own
+`MechWorkModeDef` the game picks as `MechWorkModeDefOf.Work` and `.Escort`. `gene_tuning` (`GeneTuningFacts`) is a singleton of the game's own
 `GeneTuning` constants: the biostat (metabolism) range, base max complexity, the
 complexity to assembler hours curve, the extractor regrow days range, and the
 extractor's private `TicksToExtract` and power-cut eject limit (absent when
@@ -422,8 +421,7 @@ carries no Odyssey block.
 locked-out and autohack state (`CompHackable`) and a portal's pocket map
 existence and id, plus an ancient hatch's stockpile type and layout. An absent
 scalar is unknown; a failed sub-read leaves its block absent and adds a
-`ReadIssue` named `hackable` or `portal`. `ColonyFactsSnapshot.tile_mutators`
-lists the colony map tile's mutators next to `biome`. The brain lifts the blocks into
+`ReadIssue` named `hackable` or `portal`. The brain lifts the blocks into
 `policy.Hack` and `policy.Portal` (`bridge.BuildingHack`, `BuildingPortal`);
 all of it is derived state held in memory (persistence-contracts.md) and
 adds no store.

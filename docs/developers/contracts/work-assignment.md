@@ -294,7 +294,7 @@ recharge band (`recharge_below`/`recharge_above`, the private
 `MechanitorControlGroup.mechRechargeThresholds` the game recharges within), so
 no threshold is a bot number. With a charger ready (`MechChargerReady`: powered,
 not full of waste) a group with any mech under its band's lower bound runs the
-catalog's recharge mode (`MechWorkModeRoles.recharge`, native
+game's recharge mode (native
 `def == MechWorkModeDefOf.Recharge`), stays there until every mech is at the
 band's upper bound, then returns to the role mode; with no charger ready it
 does not enter, and a charging group leaves. Unread energy never counts as low.

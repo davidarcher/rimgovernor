@@ -24,34 +24,8 @@ namespace HomeBridge.BridgeTools
             if (!ModsConfig.BiotechActive) return null;
             return new Obs.BiotechCatalog
             {
-                GeneTuning = GeneTuningRow(),
-                MechWorkModes = new Obs.MechWorkModeRoles { Work = MechWorkModeDefOf.Work.defName, Escort = MechWorkModeDefOf.Escort.defName, Recharge = MechWorkModeDefOf.Recharge.defName },
+                MechWorkModes = new Obs.MechWorkModeRoles { Work = MechWorkModeDefOf.Work.defName, Escort = MechWorkModeDefOf.Escort.defName },
             };
-        }
-
-        // The game's own GeneTuning constants and the extractor's private
-        // ones; an unreadable private constant stays absent.
-        private static Obs.GeneTuningFacts GeneTuningRow()
-        {
-            var row = new Obs.GeneTuningFacts { BiostatMin = GeneTuning.BiostatRange.min, BiostatMax = GeneTuning.BiostatRange.max,
-                BaseMaxComplexity = GeneTuning.BaseMaxComplexity };
-            foreach (var p in GeneTuning.ComplexityToCreationHoursCurve.Points)
-                if (Finite(p.x) && Finite(p.y)) row = row with { CreationHoursCurve = [.. row.CreationHoursCurve, new Obs.CurvePointRow { X = p.x, Y = p.y }] };
-            var regrow = GeneTuning.GeneExtractorRegrowingDurationDaysRange;
-            if (Finite(regrow.min) && Finite(regrow.max)) { row = row with { RegrowDaysMin = regrow.min }; row = row with { RegrowDaysMax = regrow.max }; }
-            if (ExtractorConstant("TicksToExtract") is int extract) row = row with { ExtractTicks = extract };
-            if (ExtractorConstant("NoPowerEjectCumulativeTicks") is int eject) row = row with { NoPowerEjectTicks = eject };
-            return row;
-        }
-
-        private static int? ExtractorConstant(string name)
-        {
-            try
-            {
-                var field = typeof(Building_GeneExtractor).GetField(name, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-                return field != null && field.IsLiteral ? field.GetRawConstantValue() as int? : null;
-            }
-            catch (Exception) { return null; }
         }
 
         private static Obs.ReadIssue Failed(string field, Exception ex) => new Obs.ReadIssue { Field = field,

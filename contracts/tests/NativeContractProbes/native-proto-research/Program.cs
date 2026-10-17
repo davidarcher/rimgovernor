@@ -123,17 +123,13 @@ internal static class NativeProtoResearchProbe
             Identity = new RimGovernor.Contracts.Wire.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 } };
         object Snapshot(string json) => Wire("ResearchSnapshot", json);
         string TokenOf(object snapshot) => (string)Get(Call("Token", context, snapshot), "Token");
-        const string baseline = "{\"anomalyActive\":false,\"playerTechLevel\":\"Neolithic\"," +
+        const string baseline = "{" +
             "\"slots\":[{},{\"category\":\"Basic\",\"currentProject\":\"Alpha\"}]," +
             "\"projects\":[{\"project\":{\"defName\":\"Alpha\"},\"progress\":1,\"finished\":false,\"current\":true}]}";
         var baselineToken = TokenOf(Snapshot(baseline));
         Check(baselineToken == TokenOf(Snapshot(baseline)), "Identical research snapshot content yields identical CAS token");
         // A version token: a variant moves it from a fresh baseline read exactly when a documented field differs.
         bool Moves(string json) { var before = TokenOf(Snapshot(baseline)); return before != TokenOf(Snapshot(json)); }
-        Check(Moves(baseline.Replace("\"anomalyActive\":false", "\"anomalyActive\":true")),
-            "AnomalyActive change invalidates research CAS token");
-        Check(Moves(baseline.Replace("Neolithic", "Industrial")),
-            "PlayerTechLevel change invalidates research CAS token");
         Check(Moves(baseline.Replace("\"currentProject\":\"Alpha\"", "\"currentProject\":\"Beta\"")),
             "Selected slot project change invalidates research CAS token");
         Check(Moves(baseline.Replace("\"progress\":1", "\"progress\":2")),
@@ -143,8 +139,6 @@ internal static class NativeProtoResearchProbe
         Check(Moves(baseline.Replace("\"current\":true", "\"current\":false")),
             "Project current-selection change invalidates research CAS token");
         Check(baselineToken != TokenOf(Snapshot(baseline)), "A token read before a change never matches again once the facts move back");
-        var withCompleteness = baseline.TrimEnd('}') + ",\"completeness\":{\"filtered\":9}}";
-        Check(!Moves(withCompleteness), "Token is scoped to documented fields only, not the whole reply");
         var tokenRef = Call("Token", context, Snapshot(baseline));
         Check((string)Get(tokenRef, "EntityId") == "research-manager", "Research CAS token is scoped to the research manager entity");
         var returnedContext = Get(tokenRef, "Context");

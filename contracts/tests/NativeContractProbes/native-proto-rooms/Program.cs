@@ -118,7 +118,6 @@ internal static class NativeProtoRoomsProbe
             object WireCommon(string name, string json) => WireOf("RimGovernor.Contracts.Wire.Common." + name, json);
             var cell2Type = Ty("Verse.IntVec2");
             object cell2(int x, int z) => Activator.CreateInstance(cell2Type, x, z)!;
-            string LoadId(object o) => (string)o.GetType().GetMethod("GetUniqueLoadID")!.Invoke(o, null)!;
             object GetField(object o, string declaringType, string field) => Ty(declaringType).GetField(field, NF)!.GetValue(o)!;
 
             // This headless host has no real Unity player loop. Several native methods
@@ -475,24 +474,6 @@ internal static class NativeProtoRoomsProbe
             object ProjectRow() => tools.GetMethod("Project", Flags)!.Invoke(null, new[] { fixRoom, fixMap, cellsListTyped, roomPawns, projectRequest, context })!;
 
             var rowFirst = ProjectRow();
-            var bedMemberships = (IList)Get(rowFirst, "BedMemberships");
-            Check(bedMemberships.Count == 1, "Bed membership recorded for the room's single bed");
-            var membership = bedMemberships[0]!;
-            var owners = (IList)Get(membership, "Owners"); var users = (IList)Get(membership, "Users"); var accessible = (IList)Get(membership, "AccessibleTo");
-            Check(owners.Count == 1 && (string)Get(owners[0]!, "Id") == LoadId(ownerPawn), "Bed owner reflects OwnersForReading");
-            Check(users.Count == 1 && (string)Get(users[0]!, "Id") == LoadId(userPawn), "Only the pawn actually resting in the bed counts as a user");
-            Check(accessible.Count == 1 && (string)Get(accessible[0]!, "Id") == LoadId(userPawn), "Only the reachable (same-cell) colonist counts as accessible; unspawned colonist excluded");
-
-            var stockpileMemberships = (IList)Get(rowFirst, "StockpileMemberships");
-            Check(stockpileMemberships.Count == 1, "Stockpile membership recorded for the room's single zone");
-            var stockMembership = stockpileMemberships[0]!;
-            Check((string)Get(Get(stockMembership, "Zone"), "Id") == "Zone_42", "Stockpile membership carries the zone's unique load ID");
-            var contents = (IList)Get(stockMembership, "Contents");
-            Check(contents.Count == 2, "Stockpile contents grouped by def: steel and wood");
-            var steelStock = contents[0]!; var woodStock = contents[1]!;
-            Check((string)Get(Get(steelStock, "Definition"), "DefName") == "N0103TestSteel" && (long)Get(steelStock, "Units") == 50, "Multiple steel stacks in a stockpile sum into one grouped total");
-            Check((string)Get(Get(woodStock, "Definition"), "DefName") == "N0103TestWood" && (long)Get(woodStock, "Units") == 10, "Distinct def stacked separately in the same stockpile");
-
             // CAS token: identical inputs must be deterministic, and a change that
             // affects bed ownership must invalidate the room's token.
             var rowSecond = ProjectRow();

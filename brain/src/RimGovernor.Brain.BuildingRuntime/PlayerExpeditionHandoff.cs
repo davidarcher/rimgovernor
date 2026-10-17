@@ -32,7 +32,7 @@ public sealed partial class Player
             return false;
         }
         // The census is read only once the cheap identity, control and map checks pass: a step on the same map never pays for it.
-        var world = await native.ReadWorldProgressionAsync(identity, false, call).ConfigureAwait(false);
+        var world = await native.ReadWorldProgressionAsync(identity, call).ConfigureAwait(false);
         var plans = await Task.Run(() => _journal.PlanHistoryWithMethods(256, ["quest-expedition-*", "quest-site-*-return-*"], call), call).ConfigureAwait(false);
         if (!ExpeditionHandoffTarget(state.Snapshot, world, plans).TryGetValue(out var target) || target.Map != new MapId(identity.MapId))
         {

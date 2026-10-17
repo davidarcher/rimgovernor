@@ -41,14 +41,14 @@ internal sealed partial class FacadeNativeClient
     Task<ObservationsPb.TradeAcquisition> ITradeMissionPackSource.ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct) =>
         ReadTradeAcquisitionAsync(identity, intent, ct);
 
-    Task<WorldProgressionRead> IExportSource.ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct) =>
-        ReadWorldProgressionAsync(identity, full, ct);
+    Task<WorldProgressionRead> IExportSource.ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct) =>
+        ReadWorldProgressionAsync(identity, ct);
 
-    Task<WorldProgressionRead> ITradeMissionNative.ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct) =>
-        ReadWorldProgressionAsync(identity, full, ct);
+    Task<WorldProgressionRead> ITradeMissionNative.ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct) =>
+        ReadWorldProgressionAsync(identity, ct);
 
-    Task<WorldProgressionRead> ISettlementOptionsSource.ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct) =>
-        ReadWorldProgressionAsync(identity, full, ct);
+    Task<WorldProgressionRead> ISettlementOptionsSource.ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct) =>
+        ReadWorldProgressionAsync(identity, ct);
 
     Task<WorldRead> IExportSource.ReadWorldAsync(C.Identity identity, int tile, double radius, CancellationToken ct) =>
         ReadWorldAsync(identity, tile, radius, ct);

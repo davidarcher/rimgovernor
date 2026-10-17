@@ -24,25 +24,8 @@ namespace HomeBridge.BridgeTools
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Obs.DefinitionCatalogReply HandleReadDefinitionCatalog(Obs.DefinitionCatalogRequest parsed)
         {
-            if (!parsed.Creation.GetValueOrDefault() && parsed.Scope?.ExpectedIdentity == null)
+            if (parsed.Scope?.ExpectedIdentity == null)
                 return new Obs.DefinitionCatalogReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity required.") };
-            if (parsed.Creation.GetValueOrDefault())
-            {
-                if (parsed.Scope != null || Current.ProgramState != ProgramState.Entry || Current.Game != null || LongEventHandler.AnyEventNowOrWaiting)
-                    return new Obs.DefinitionCatalogReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Creation catalog requires a fresh main menu and no map scope.") };
-                try
-                {
-                    // The creation reply carries no def sets or game constants (#3100); the governor's starting
-                    // ideoligion reads the Defs directly (NativeCatalogFactory.StartingIdeoligion).
-                    var creation = new Obs.CreationDefinitionCatalog { ClassChains = DefMirrorFill.ClassChains(DefClasses()) };
-                    return new Obs.DefinitionCatalogReply { Outcome = creation };
-                }
-                catch (Exception ex)
-                {
-                    ObservationWork.Failed("definitionCatalog", ex);
-                    return new Obs.DefinitionCatalogReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("Creation defs could not be read completely: " + ex.GetType().Name + ": " + ex.Message) } };
-                }
-            }
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope!.ExpectedIdentity, out _, out var context, out var error))
                 return new Obs.DefinitionCatalogReply { Outcome = error };
             var player = Faction.OfPlayerSilentFail;
@@ -96,7 +79,6 @@ namespace HomeBridge.BridgeTools
         private static Obs.StatEnv StatEnv()
         {
             var mods = ModsConfig.ActiveModsInLoadOrder.Select(mod => mod.PackageId.ToLowerInvariant()).ToList();
-            var classic = Find.IdeoManager?.classicMode ?? false;
             var scenario = Find.Scenario ?? throw new InvalidOperationException("Find.Scenario is unavailable.");
             var factors = new List<Obs.StatFactor>();
             foreach (var stat in DefDatabase<StatDef>.AllDefsListForReading.OrderBy(s => Named(s.defName, "StatDef"), StringComparer.Ordinal))
@@ -110,10 +92,7 @@ namespace HomeBridge.BridgeTools
             return new Obs.StatEnv
             {
                 ActiveMods = EquatableArray.From(mods),
-                ClassicMode = classic,
                 ScenarioFactors = EquatableArray.From(factors),
-                ButcherYieldFactor = difficulty.butcherYieldFactor,
-                FishingYieldFactor = difficulty.fishingYieldFactor,
                 DifficultyFlags = EquatableArray.From(flags),
             };
         }

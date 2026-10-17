@@ -279,13 +279,6 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.SnapshotStreamReply> OpenFramesAsync(Obs.SnapshotStreamRequest request, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(request);
-            foreach (var resource in request.ResourceSources)
-            {
-                if (!ProtoBoundary.IsIdentifier(resource))
-                {
-                    return Task.FromResult(new Obs.SnapshotStreamReply { Outcome = ProtoBoundary.Fail(RimGovernor.Contracts.Wire.Common.FailureCode.InvalidRequest, "Resource sources must be identifiers.") });
-                }
-            }
             return Read(NativeOps.OpenFrames, request, () => SnapshotStream.Open(request), cancellationToken);
         }
 

@@ -121,7 +121,6 @@ namespace HomeBridge.BridgeTools
             result = result with { Royalty = NativeRoyaltyColony.Read(map) };
             result = result with { Odyssey = NativeOdysseyColony.Read(map) };
             result = result with { Anomaly = NativeAnomalyColony.Read(map) };
-            result = result with { TileMutators = [.. result.TileMutators, .. NativeOdysseyFacts.MapMutators(map)] };
             Span("cf.deep");
             if (demand > 0) result = result with { FoodRunwayDays = Finite(nutrition / demand) };
             else result = result with { Issues = [.. result.Issues, Issue("food_runway_days", Common.UnavailableReason.NotApplicable, "No observed nutrition demand.")] };
@@ -466,27 +465,10 @@ namespace HomeBridge.BridgeTools
         {
             var result = new Obs.ForecastFacts { CombinedFoodSupply = Food(source.combinedFoodSupply),
                 };
-            result = result with { AnimalIds = [.. result.AnimalIds, .. source.animalIds] };
-            foreach (var crop in source.crops) {
-                var row = new Obs.CropForecast { Zone = NativeRef.Of(crop.id.ToString(System.Globalization.CultureInfo.InvariantCulture)) };
-                if (crop.crop != null) row = row with { Crop = crop.crop };
-                if (crop.sowWork.HasValue) row = row with { SowWork = Finite(crop.sowWork.Value) };
-                if (crop.harvestWork.HasValue) row = row with { HarvestWork = Finite(crop.harvestWork.Value) };
-                if (crop.maturePlants.HasValue) row = row with { MaturePlants = checked((uint)crop.maturePlants.Value) };
-                if (crop.stalledPlants.HasValue) row = row with { StalledPlants = checked((uint)crop.stalledPlants.Value) };
-                if (crop.standingYield.HasValue) row = row with { StandingYield = Finite(crop.standingYield.Value) };
-                if (crop.product != null) row = row with { Product = crop.product };
-                result = result with { Crops = [.. result.Crops, row] };
-            }
             foreach (var patient in source.patients) {
                 var row = new Obs.PatientForecast { PawnId = patient.id };
-                if (patient.bleedRatePerDay.HasValue) row = row with { BleedRatePerDay = Finite(patient.bleedRatePerDay.Value) };
-                if (patient.hoursUntilDeathFromBloodLoss.HasValue) row = row with { HoursUntilDeathFromBloodLoss = Finite(patient.hoursUntilDeathFromBloodLoss.Value) };
                 if (patient.mood.HasValue) row = row with { Mood = Finite(patient.mood.Value) };
                 if (patient.moodTarget.HasValue) row = row with { MoodTarget = Finite(patient.moodTarget.Value) };
-                if (patient.minorBreakThreshold.HasValue) row = row with { MinorBreakThreshold = Finite(patient.minorBreakThreshold.Value) };
-                if (patient.majorBreakThreshold.HasValue) row = row with { MajorBreakThreshold = Finite(patient.majorBreakThreshold.Value) };
-                if (patient.extremeBreakThreshold.HasValue) row = row with { ExtremeBreakThreshold = Finite(patient.extremeBreakThreshold.Value) };
                 result = result with { Patients = [.. result.Patients, row] };
             }
             return result;

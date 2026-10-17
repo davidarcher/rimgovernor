@@ -24,10 +24,7 @@ namespace HomeBridge.BridgeTools
     {
 
 
-        private static Obs.ResourceStock StoredItemRow(IGrouping<ThingDef, Thing> group) => new Obs.ResourceStock
-        { Definition = new Obs.DefinitionRef { DefName = group.Key.defName }, Units = group.Sum(t => (long)t.stackCount) };
-
-        private static List<Obs.WorldMap> Maps(Common.ObservationContext context, bool includeStorage)
+        private static List<Obs.WorldMap> Maps(Common.ObservationContext context)
         {
             var rows = new List<Obs.WorldMap>();
             foreach (var m in Find.Maps)
@@ -35,12 +32,6 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.WorldMap { Id = m.uniqueID, Tile = m.Tile.tileId, Home = m.IsPlayerHome, Label = m.Parent?.Label ?? "" };
                 row = row with { Pawns = [.. row.Pawns, .. m.mapPawns.FreeColonistsSpawned.Select(p => NativeObservationTools.PawnRow(p, context))] };
                 row = row with { QuestWorkers = [.. row.QuestWorkers, .. NativeQuestWorkers.Read(m)] };
-                if (includeStorage)
-                {
-                    var stored = m.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item && t.IsInValidStorage())
-                        .GroupBy(t => t.def).Select(StoredItemRow);
-                    row = row with { StoredItems = [.. row.StoredItems, .. stored] };
-                }
                 rows.Add(row);
             }
             return rows;
@@ -52,7 +43,6 @@ namespace HomeBridge.BridgeTools
             foreach (var f in Find.FactionManager.AllFactionsVisible)
             {
                 var row = new Obs.FactionState { Id = f.GetUniqueLoadID(), Label = f.Name ?? "", Player = f.IsPlayer, Hostile = f.HostileTo(Faction.OfPlayer) };
-                row = row with { Relation = f.IsPlayer ? "Player" : f.PlayerRelationKind.ToString() };
                 if (!f.IsPlayer) row = row with { Goodwill = f.PlayerGoodwill };
                 rows.Add(row);
             }
@@ -110,7 +100,7 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.CaravanState
                 {
                     Caravan = new Obs.EntityRef { Id = c.GetUniqueLoadID(), DefName = c.def.defName, Label = c.Label ?? "" },
-                    Tile = c.Tile.tileId, Moving = c.pather.Moving, MovingNow = c.pather.MovingNow, Resting = c.NightResting,
+                    Tile = c.Tile.tileId, Moving = c.pather.Moving,
                     MassUsage = c.MassUsage, MassCapacity = c.MassCapacity,
                     FoodDays = c.DaysWorthOfFood.days, FoodRotDays = c.DaysWorthOfFood.tillRot,
                 };
@@ -132,7 +122,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var l in m.lordManager.lords.Where(l => l.LordJob is LordJob_FormAndSendCaravan))
                 {
                     var job = (LordJob_FormAndSendCaravan)l.LordJob;
-                    var row = new Obs.CaravanAssembly { Id = l.GetUniqueLoadID(), MapId = m.uniqueID, Status = job.Status.ToString(), GatheringItems = job.GatheringItemsNow };
+                    var row = new Obs.CaravanAssembly { Id = l.GetUniqueLoadID(), MapId = m.uniqueID, Status = job.Status.ToString() };
                     row = row with { Pawns = [.. row.Pawns, .. l.ownedPawns.Select(NativeRef.Thing)] };
                     rows.Add(row);
                 }
@@ -302,7 +292,7 @@ namespace HomeBridge.BridgeTools
             {
                 var row = new Obs.QuestState
                 {
-                    Id = q.GetUniqueLoadID(), Label = q.name ?? "", Description = q.description.ToString() ?? "",
+                    Id = q.GetUniqueLoadID(), Label = q.name ?? "",
                     State = NativeEnums.Quest(q.State), AcceptedTick = q.acceptanceTick, ExpiresInTicks = q.TicksUntilExpiry,
                     RequiresAccepter = q.RequiresAccepter, ScriptDef = q.root?.defName ?? "",
                     CanAccept = q.State == QuestState.NotYetAccepted && QuestUtility.CanAcceptQuest(q).Accepted,
@@ -337,9 +327,9 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        internal static Obs.WorldProgressionSnapshot Build(Common.ObservationContext context, bool includeStorage)
+        internal static Obs.WorldProgressionSnapshot Build(Common.ObservationContext context)
         {
-            var maps = Maps(context, includeStorage);
+            var maps = Maps(context);
             var factions = Factions();
             var caravans = Caravans(context);
             var assemblies = Assemblies();
@@ -368,7 +358,7 @@ namespace HomeBridge.BridgeTools
                 return new Obs.WorldProgressionReply { Outcome = new Obs.WorldProgressionReplyOutcome.FailureCase(failure) };
             try
             {
-                var snapshot = NativeWorldProgressionObservation.Build(context, request.IncludeStorage.GetValueOrDefault());
+                var snapshot = NativeWorldProgressionObservation.Build(context);
                 var reply = new Obs.WorldProgressionReply { Outcome = snapshot };
                 return reply;
             }

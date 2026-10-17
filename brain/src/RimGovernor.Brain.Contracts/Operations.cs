@@ -840,10 +840,6 @@ public abstract record BillStoreDestination
 {
     private protected BillStoreDestination() { }
 
-    /// <summary>The <c>Mode</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public StoreMode? Mode => (this as ModeCase)?.Value;
-
     public sealed record ModeCase(StoreMode Value) : BillStoreDestination;
 
     /// <summary>The <c>ZoneId</c> case's payload, null when another case is set.</summary>

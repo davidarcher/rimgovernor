@@ -203,8 +203,6 @@ namespace HomeBridge.BridgeTools
                 QualityMin = filter.AllowedQualityLevels.min.ToString(), QualityMax = filter.AllowedQualityLevels.max.ToString() };
             var allowed = StockpileFilter.AllowedSet(filter).Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal).ToList();
             row = row with { AllowedDefNames = [.. row.AllowedDefNames, .. allowed] };
-            foreach (var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(d => d.configurable).OrderBy(d => d.defName, StringComparer.Ordinal))
-                row = row with { SpecialRules = [.. row.SpecialRules, new Obs.FilterSpecialRule { DefName = special.defName, Allowed = filter.Allows(special) }] };
             var fresh = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowFresh");
             var rotten = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowRotten");
             if (fresh != null) row = row with { AllowFresh = filter.Allows(fresh) };

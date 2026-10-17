@@ -118,11 +118,11 @@ internal sealed partial class FacadeNativeClient
 
     /// <summary>
     /// Go <c>Client.ReadWorldProgression</c>: the world progression census (maps, caravans, quests, factions, sites),
-    /// validated against the identity. <paramref name="includeStorage"/> asks for the storage census too.
+    /// validated against the identity.
     /// </summary>
-    internal async Task<WorldProgressionRead> ReadWorldProgressionAsync(PbCommon.Identity identity, bool includeStorage, CancellationToken cancellationToken)
+    internal async Task<WorldProgressionRead> ReadWorldProgressionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        var request = new PbObservations.WorldProgressionRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, IncludeStorage = includeStorage };
+        var request = new PbObservations.WorldProgressionRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
         var reply = await Facade.ReadWorldProgressionAsync(request, cancellationToken).ConfigureAwait(false);
         BuildingUnknown(reply);
         var outcome = reply.Outcome;

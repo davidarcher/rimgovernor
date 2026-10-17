@@ -118,7 +118,7 @@ public interface IExportSource : Observation.IDefinitionSource
 {
     Task<ObservationsPb.TradeAcquisition> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
 
-    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
+    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct);
 
     Task<WorldRead> ReadWorldAsync(C.Identity identity, int tile, double radius, CancellationToken ct);
 }
@@ -372,7 +372,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         WorldProgressionRead progress;
         try
         {
-            progress = await native.ReadWorldProgressionAsync(identity, false, ct).ConfigureAwait(false);
+            progress = await native.ReadWorldProgressionAsync(identity, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

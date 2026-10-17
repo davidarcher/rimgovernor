@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
         internal static string SettlementToken(Settlement settlement) => NativeSnapshotVersions.Token("settlement", null, settlement.GetUniqueLoadID(), string.Join("|",
             settlement.Tile.tileId.ToString(), settlement.Faction != null ? settlement.Faction.GetUniqueLoadID() : "", settlement.CanTradeNow.ToString()));
 
-        internal static Obs.Settlement SettlementRow(Common.ObservationContext context, Settlement settlement, PlanetTile? from)
+        internal static Obs.Settlement SettlementRow(Common.ObservationContext context, Settlement settlement)
         {
             var faction = settlement.Faction;
             var row = new Obs.Settlement
@@ -51,7 +51,6 @@ namespace HomeBridge.BridgeTools
                 Snapshot = new Obs.SnapshotRef { Context = context, EntityId = settlement.GetUniqueLoadID(), Token = SettlementToken(settlement) },
             };
             if (settlement.TraderKind != null) row = row with { TraderKind = settlement.TraderKind.defName };
-            if (from.HasValue) { try { row = row with { DistanceTiles = Find.WorldGrid.ApproxDistanceInTiles(from.Value, settlement.Tile) }; } catch (Exception) { } }
             if (faction != null)
             {
                 row = row with { Faction = NativeRef.Of(faction) };
@@ -82,7 +81,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var rows = Find.WorldObjects.Settlements
                         .Where(s => Find.WorldGrid.ApproxDistanceInTiles(tile.Value, s.Tile) <= radius)
-                        .Select(s => NativeWorldObservation.SettlementRow(context, s, tile)).ToList();
+                        .Select(s => NativeWorldObservation.SettlementRow(context, s)).ToList();
                     snapshot = snapshot with { Settlements = [.. snapshot.Settlements, .. rows] };
                 }
                 var reply = new Obs.WorldReply { Outcome = snapshot };

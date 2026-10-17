@@ -129,7 +129,6 @@ internal static class CaravanDeparture
                         new JsonObject
                         {
                             ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                            ["includeStorage"] = false,
                         },
                         ct).ConfigureAwait(false);
                     var (_, world) = Harness.Outcome(read, "observed");

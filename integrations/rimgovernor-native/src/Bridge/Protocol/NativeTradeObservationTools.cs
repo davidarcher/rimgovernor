@@ -26,7 +26,6 @@ namespace HomeBridge.BridgeTools
         private static int SafeInt(Func<int> f) { try { return f(); } catch { return 0; } }
         private static float SafeFloat(Func<float> f) { try { return f(); } catch { return 0f; } }
         private static string SafeText(Func<string?> f) { try { return f() ?? ""; } catch { return ""; } }
-        private static Defs.PriceType SafePrice(Func<RimWorld.PriceType> f) { try { return (Defs.PriceType)(int)f(); } catch { return Defs.PriceType.Undefined; } }
 
 
         // A trader pawn's row head; its token is the row's trader_snapshot.
@@ -115,7 +114,6 @@ namespace HomeBridge.BridgeTools
                 // session's own scratch state, the same write the vanilla dialog
                 // makes every frame it draws.
                 BuyPrice = SafeFloat(() => t.GetPriceFor(TradeAction.PlayerBuys)), SellPrice = SafeFloat(() => t.GetPriceFor(TradeAction.PlayerSells)),
-                BuyPriceType = SafePrice(() => t.PriceTypeFor(TradeAction.PlayerBuys)), SellPriceType = SafePrice(() => t.PriceTypeFor(TradeAction.PlayerSells)),
                 MarketValue = SafeFloat(() => t.BaseMarketValue),
                 TraderWillTrade = SafeBool(() => t.TraderWillTrade), Currency = SafeBool(() => t.IsCurrency), Pawn = pawn, Favor = favor,
                 TransferCount = SafeInt(() => t.CountToTransfer), MinimumCount = SafeInt(() => t.GetMinimumToTransfer()), MaximumCount = SafeInt(() => t.GetMaximumToTransfer()),
@@ -144,7 +142,6 @@ namespace HomeBridge.BridgeTools
             }
             if (pawn)
             {
-                line = line with { PawnDescription = SafeText(() => t.Label) };
                 // The purchase choice reads the pawn's skills, passions
                 // and violence capability; an unreadable pawn leaves them absent.
                 Pawn? p; try { p = t.AnyThing as Pawn; } catch { p = null; }
@@ -204,7 +201,6 @@ namespace HomeBridge.BridgeTools
                 Target = session.Target,
                 Negotiator = NativeRef.Thing(session.Negotiator),
                 GiftMode = session.GiftMode,
-                NegotiatorAdjacent = session.Trader is Pawn seller && Math.Max(Math.Abs(seller.Position.x - session.Negotiator.Position.x), Math.Abs(seller.Position.z - session.Negotiator.Position.z)) <= 1,
                 CanTradeNow = SafeBool(() => session.Trader.CanTradeNow),
                 TraderHasEnoughSilver = SafeBool(() => deal.DoesTraderHaveEnoughSilver()),
                 DealSignature = session.DealSignature,

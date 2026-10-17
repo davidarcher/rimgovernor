@@ -163,7 +163,7 @@ namespace HomeBridge.BridgeTools
                             Reachable = fishers.Any(p => cells.Any(c => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None))),
                             YieldCurveValue = Finite(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population)) };
                         foreach (var z in zones)
-                            row = row with { Zones = [.. row.Zones, new Obs.FishingZoneFacts { Allowed = z.Allowed, DoForever = z.repeatMode == FishRepeatMode.DoForever, TargetPopulationPct = Finite(z.targetPopulationPct), HasFishableCells = z.HasAnyFishableCells }] };
+                            row = row with { Zones = [.. row.Zones, new Obs.FishingZoneFacts { Allowed = z.Allowed, DoForever = z.repeatMode == FishRepeatMode.DoForever, HasFishableCells = z.HasAnyFishableCells }] };
                         var fish = body.CommonFishIncludingExtras.Concat(body.UncommonFish).Distinct().ToList();
                         if (fish.Count > 0 && fish.All(humanFood)) row = row with { NutritionPerFish = Finite(fish.Min(d => d.GetStatValueAbstract(StatDefOf.Nutrition))) };
                         row = row with { NearestDistanceSquared = cells.Min(c => c.DistanceToSquared(center)) };

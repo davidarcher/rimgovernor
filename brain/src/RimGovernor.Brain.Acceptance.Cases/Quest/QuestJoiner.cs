@@ -157,7 +157,7 @@ internal static class QuestJoiner
 
         // The census the service's own review will read must already carry the offer with its root script name,
         // exactly as the quest offer decodes it (observations_read_world_progression's quests page).
-        var observed = await TradeKit.ObserveAsync(h, "census-before", "observations_read_world_progression", identity, new JsonObject { ["includeStorage"] = false }, cancellationToken).ConfigureAwait(false);
+        var observed = await TradeKit.ObserveAsync(h, "census-before", "observations_read_world_progression", identity, null, cancellationToken).ConfigureAwait(false);
         JsonObject? row = null;
         foreach (var raw in observed["quests"].AsSlice())
         {

@@ -152,7 +152,7 @@ internal sealed partial class FacadeNativeClient
 
     /// <summary>Go <c>zonesListRequest</c>: the zone list request shared with the bundle's step families.</summary>
     internal static PbObservations.ListZonesRequest ZonesListRequest(PbCommon.Identity identity) =>
-        new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, IncludeContents = false, IncludeFilter = false };
+        new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, IncludeFilter = false };
 
     /// <summary>Go <c>buildingsListRequest</c>.</summary>
     internal static PbObservations.ListBuildingsRequest BuildingsListRequest(PbCommon.Identity identity) =>

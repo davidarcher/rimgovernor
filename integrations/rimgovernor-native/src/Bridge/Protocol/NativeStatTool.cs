@@ -81,8 +81,6 @@ namespace HomeBridge.BridgeTools
             if (float.IsNaN(value) || float.IsInfinity(value))
                 return new Obs.EvaluateStatReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = $"Stat {stat.defName} is {value}." } };
             var observed = new Obs.StatEvaluation { Context = context, Stat = stat.defName, Value = value, Shown = stat.Worker.ShouldShowFor(req) };
-            var text = stat.Worker.GetExplanationUnfinalized(req, stat.toStringNumberSense) ?? "";
-            observed = observed with { ExplanationLines = [.. observed.ExplanationLines, .. text.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(l => l.TrimEnd('\r'))] };
             return new Obs.EvaluateStatReply { Outcome = observed };
         }
     }

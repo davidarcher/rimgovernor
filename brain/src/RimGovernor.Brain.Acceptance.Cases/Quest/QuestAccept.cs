@@ -53,7 +53,7 @@ internal static class QuestAccept
         async Task<JsonObject> Target(string label)
         {
             var observed = await TradeKit.ObserveAsync(
-                h, label, "observations_read_world_progression", identity, new JsonObject { ["includeStorage"] = false }, cancellationToken).ConfigureAwait(false);
+                h, label, "observations_read_world_progression", identity, null, cancellationToken).ConfigureAwait(false);
             return Rows(observed["quests"]).LastOrDefault(row => row["id"].AsString() == questId)
                 ?? throw new AcceptanceException($"{label}: fixture quest not found in world progression: {observed.ToJson()}");
         }

@@ -29,7 +29,7 @@ public interface IClockStepNative : IZonesNative, IPlanningWindowNative, IEntity
     Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeApi.StepRequest request, CancellationToken ct);
 
     /// <summary>The world progression census, read on demand by the incoming expedition handoff.</summary>
-    Task<WorldProgressionRead> ReadWorldProgressionAsync(PbCommon.Identity identity, bool full, CancellationToken ct);
+    Task<WorldProgressionRead> ReadWorldProgressionAsync(PbCommon.Identity identity, CancellationToken ct);
 }
 
 /// <summary>

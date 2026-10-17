@@ -60,7 +60,7 @@ namespace HomeBridge.BridgeTools
                     incident.def == IncidentDefOf.OrbitalTraderArrival ? Common.TradeRequestKind.Orbital : Common.TradeRequestKind.Unspecified;
                 if (kind == Common.TradeRequestKind.Unspecified) continue;
                 result = result with { Arrivals = [.. result.Arrivals, new Obs.TradeRequestArrival { FactionId = incident.parms.faction.GetUniqueLoadID(), Kind = kind,
-                    TraderKind = incident.parms.traderKind.defName, ArrivalTick = queued.FireTick, RetryTicks = queued.RetryDurationTicks, TriedToFire = queued.TriedToFire }] };
+                    TraderKind = incident.parms.traderKind.defName, ArrivalTick = queued.FireTick, RetryTicks = queued.RetryDurationTicks }] };
             }
             foreach (var pawn in map.mapPawns.FreeColonistsSpawned)
             {

@@ -2115,8 +2115,6 @@ public sealed record IngredientRequirement
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
-    public EquatableArray<Quantity> Alternatives { get; init; }
 }
 
 public sealed record FilterSpecialRule
@@ -2130,9 +2128,6 @@ public sealed record StockpileFilter
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> AllowedDefNames { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<FilterSpecialRule>))]
-    public EquatableArray<FilterSpecialRule> SpecialRules { get; init; }
 
     public double? HitPointsMin { get; init; }
 
@@ -2176,10 +2171,6 @@ public sealed record BillState
 
     public int? TargetCount { get; init; }
 
-    public int? UnpauseBelow { get; init; }
-
-    public bool? PauseWhenSatisfied { get; init; }
-
     public bool? Paused { get; init; }
 
     public bool? Suspended { get; init; }
@@ -2188,25 +2179,10 @@ public sealed record BillState
 
     public Common.Ref? Worker { get; init; }
 
-    public int? SkillMin { get; init; }
-
-    public int? SkillMax { get; init; }
-
-    public double? IngredientRadius { get; init; }
-
     public StockpileFilter? IngredientFilter { get; init; }
-
-    public Operations.StoreMode? StoreMode { get; init; }
-
-    public Common.Ref? StoreZone { get; init; }
-
-    public bool? CanRunNow { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Blockers { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<IngredientRequirement>))]
-    public EquatableArray<IngredientRequirement> Ingredients { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
@@ -2250,8 +2226,6 @@ public sealed record BillStackRow
     public Common.Ref? Bench { get; init; }
 
     public bool? Usable { get; init; }
-
-    public BenchUnusableReason? UnusableReason { get; init; }
 
     public uint? Capacity { get; init; }
 
@@ -2527,10 +2501,6 @@ public sealed record RoomStat
 
     public double? Value { get; init; }
 
-    public string? Display { get; init; }
-
-    public string? Unit { get; init; }
-
     public string? Cost { get; init; }
 
     public Common.Unavailable? Unavailable { get; init; }
@@ -2543,11 +2513,6 @@ public sealed record RoomBedMembership
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Owners { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Users { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> AccessibleTo { get; init; }
 }
 
 public sealed record StockpileMembership
@@ -2597,9 +2562,6 @@ public sealed record RoomState
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Beds { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> StockpileZones { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
     public EquatableArray<Quantity> Contents { get; init; }
 
@@ -2607,12 +2569,6 @@ public sealed record RoomState
     public EquatableArray<ReadIssue> Issues { get; init; }
 
     public SnapshotRef? Snapshot { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<RoomBedMembership>))]
-    public EquatableArray<RoomBedMembership> BedMemberships { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<StockpileMembership>))]
-    public EquatableArray<StockpileMembership> StockpileMemberships { get; init; }
 
     /// <summary>
     /// Doors in the room's boundary: door cell, the cell it opens onto, and whether that side is outdoors.
@@ -2668,7 +2624,6 @@ public sealed record RoomsSnapshot
     [JsonConverter(typeof(EquatableArrayJsonConverter<RoomState>))]
     public EquatableArray<RoomState> Rooms { get; init; }
 
-    public Completeness? Completeness { get; init; }
 }
 
 public sealed record ListRoomsRequest
@@ -2738,12 +2693,6 @@ public sealed record ZoneState
 
     public string? CropDefName { get; init; }
 
-    public bool? ExplicitlySetCrop { get; init; }
-
-    public bool? AllowSow { get; init; }
-
-    public bool? AllowCut { get; init; }
-
     public StockpileFilter? Filter { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
@@ -2764,7 +2713,6 @@ public sealed record ZonesSnapshot
     [JsonConverter(typeof(EquatableArrayJsonConverter<ZoneState>))]
     public EquatableArray<ZoneState> Zones { get; init; }
 
-    public Completeness? Completeness { get; init; }
 }
 
 public sealed record ListZonesRequest
@@ -2777,8 +2725,6 @@ public sealed record ListZonesRequest
     public string? NameContains { get; init; }
 
     public Rectangle? Region { get; init; }
-
-    public bool? IncludeContents { get; init; }
 
     public bool? IncludeFilter { get; init; }
 }
@@ -3401,10 +3347,6 @@ public sealed record RoofSupportCell
 {
     public Common.Cell? Cell { get; init; }
 
-    public string? RoofDefName { get; init; }
-
-    public bool? SupportedWithoutTarget { get; init; }
-
     public string? Blocker { get; init; }
 }
 
@@ -3414,8 +3356,6 @@ public sealed record RoofSupportSnapshot
 
     public Common.Ref? Target { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<RoofSupportCell>))]
-    public EquatableArray<RoofSupportCell> Roofs { get; init; }
 }
 
 public sealed record RoofSupportRequest
@@ -3662,8 +3602,6 @@ public sealed record ResourceSource
 
     public bool? Designated { get; init; }
 
-    public string? Risk { get; init; }
-
     public string? Safety { get; init; }
 
     public string? Blocker { get; init; }
@@ -3673,8 +3611,6 @@ public sealed record ResourceSource
     public bool? Depleted { get; init; }
 
     public long? Remaining { get; init; }
-
-    public long? PendingYield { get; init; }
 
     public long? DesignatedTick { get; init; }
 
@@ -3729,7 +3665,6 @@ public sealed record ResourceSourcesSnapshot
 
     public StorageCapacity? Storage { get; init; }
 
-    public Completeness? Completeness { get; init; }
 }
 
 public sealed record ResourceSourcesRequest
@@ -3943,8 +3878,6 @@ public sealed record HandlerState
 {
     public Common.Ref? Pawn { get; init; }
 
-    public int? Skill { get; init; }
-
     public int? Priority { get; init; }
 
     public bool? Eligible { get; init; }
@@ -3958,8 +3891,6 @@ public sealed record HusbandryAnimal
 
     public AnimalState? Animal { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HandlerState>))]
-    public EquatableArray<HandlerState> Handlers { get; init; }
 }
 
 public sealed record HusbandrySnapshot
@@ -4084,9 +4015,6 @@ public sealed record RecoveryRestriction
 
     public string? AreaId { get; init; }
 
-    public bool? Leased { get; init; }
-
-    public long? UntilTick { get; init; }
 }
 
 public sealed record RecoverySnapshot
@@ -4334,8 +4262,6 @@ public sealed record Settlement
 
     public int? Tile { get; init; }
 
-    public double? DistanceTiles { get; init; }
-
     public bool? Player { get; init; }
 
     public SnapshotRef? Snapshot { get; init; }
@@ -4355,30 +4281,9 @@ public sealed record WorldTile
 
     public string? Hilliness { get; init; }
 
-    public double? Elevation { get; init; }
-
-    public double? Latitude { get; init; }
-
     public double? Longitude { get; init; }
 
-    public double? Rainfall { get; init; }
-
-    public double? Swampiness { get; init; }
-
-    public double? Pollution { get; init; }
-
-    public bool? Coastal { get; init; }
-
     public double? TemperatureC { get; init; }
-
-    public double? MinTemperatureC { get; init; }
-
-    public double? MaxTemperatureC { get; init; }
-
-    public double? AverageTemperatureC { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<uint>))]
-    public EquatableArray<uint> GrowingTwelfths { get; init; }
 
     public double? GrowingDays { get; init; }
 
@@ -4474,10 +4379,6 @@ public sealed record CaravanState
     public int? Destination { get; init; }
 
     public bool? Moving { get; init; }
-
-    public bool? MovingNow { get; init; }
-
-    public bool? Resting { get; init; }
 
     public double? MassUsage { get; init; }
 
@@ -4958,8 +4859,6 @@ public sealed record QuestState
 
     public string? Label { get; init; }
 
-    public string? Description { get; init; }
-
     public Receipts.QuestStatus? State { get; init; }
 
     public long? AcceptedTick { get; init; }
@@ -5022,8 +4921,6 @@ public sealed record FactionState
 
     public int? Goodwill { get; init; }
 
-    public string? Relation { get; init; }
-
     public SnapshotRef? Snapshot { get; init; }
 }
 
@@ -5040,9 +4937,6 @@ public sealed record WorldMap
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnState>))]
     public EquatableArray<PawnState> Pawns { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ResourceStock>))]
-    public EquatableArray<ResourceStock> StoredItems { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestWorker>))]
     public EquatableArray<QuestWorker> QuestWorkers { get; init; }
 }
@@ -5054,8 +4948,6 @@ public sealed record CaravanAssembly
     public int? MapId { get; init; }
 
     public string? Status { get; init; }
-
-    public bool? GatheringItems { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Pawns { get; init; }
@@ -5087,8 +4979,6 @@ public sealed record WorldProgressionSnapshot
 public sealed record WorldProgressionRequest
 {
     public ReadScope? Scope { get; init; }
-
-    public bool? IncludeStorage { get; init; }
 }
 
 public sealed record WorldProgressionReply
@@ -5306,7 +5196,6 @@ public sealed record ResolveTargetSnapshot
     [JsonConverter(typeof(EquatableArrayJsonConverter<TargetRef>))]
     public EquatableArray<TargetRef> Candidates { get; init; }
 
-    public bool? Unique { get; init; }
 }
 
 public sealed record ResolveTargetRequest
@@ -5319,7 +5208,6 @@ public sealed record ResolveTargetRequest
 /// <summary>The <c>query</c> choice of <see cref="ResolveTargetRequest"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(ResolveTargetRequestQuery.EntityIdCase), "entityId")]
-[JsonDerivedType(typeof(ResolveTargetRequestQuery.ExactNameCase), "exactName")]
 [JsonDerivedType(typeof(ResolveTargetRequestQuery.CellCase), "cell")]
 public abstract record ResolveTargetRequestQuery
 {
@@ -5330,12 +5218,6 @@ public abstract record ResolveTargetRequestQuery
     public string? EntityId => (this as EntityIdCase)?.Value;
 
     public sealed record EntityIdCase(string Value) : ResolveTargetRequestQuery;
-
-    /// <summary>The <c>ExactName</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public string? ExactName => (this as ExactNameCase)?.Value;
-
-    public sealed record ExactNameCase(string Value) : ResolveTargetRequestQuery;
 
     /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -5445,9 +5327,6 @@ public sealed record StatEvaluation
     public string Stat { get; init; } = "";
 
     public double Value { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> ExplanationLines { get; init; }
 
     public bool Shown { get; init; }
 }
@@ -5717,8 +5596,6 @@ public sealed record Trader
 
     public Common.Ref? Faction { get; init; }
 
-    public long? TicksUntilDeparture { get; init; }
-
     public bool? CanTrade { get; init; }
 
     public string? Reason { get; init; }
@@ -5803,10 +5680,6 @@ public sealed record TradeLine
 
     public double? SellPrice { get; init; }
 
-    public Defs.PriceType? BuyPriceType { get; init; }
-
-    public Defs.PriceType? SellPriceType { get; init; }
-
     public double? MarketValue { get; init; }
 
     public bool? TraderWillTrade { get; init; }
@@ -5815,16 +5688,11 @@ public sealed record TradeLine
 
     public bool? Pawn { get; init; }
 
-    public string? PawnDescription { get; init; }
-
     public long? TransferCount { get; init; }
 
     public long? MinimumCount { get; init; }
 
     public long? MaximumCount { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> CannotSellReasons { get; init; }
 
     public string? LineId { get; init; }
 
@@ -5937,8 +5805,6 @@ public sealed record TradeSheet
 
     public bool? GiftMode { get; init; }
 
-    public bool? NegotiatorAdjacent { get; init; }
-
     public bool? CanTradeNow { get; init; }
 
     public double? Balance { get; init; }
@@ -5961,9 +5827,6 @@ public sealed record TradeSheetRequest
 
     public string? SessionId { get; init; }
 
-    public bool? IncludeUntradeable { get; init; }
-
-    public bool? OnlyChanged { get; init; }
 }
 
 public sealed record TradeSheetReply
@@ -6104,7 +5967,6 @@ public sealed record TradeRequestArrival
 
     public long? RetryTicks { get; init; }
 
-    public bool? TriedToFire { get; init; }
 }
 
 public sealed record TradeCommsWork
@@ -6241,45 +6103,13 @@ public sealed record FoodSupplyFacts
     public FoodLarderFacts? Larder { get; init; }
 }
 
-public sealed record CropForecast
-{
-    public Common.Ref? Zone { get; init; }
-
-    public string? Crop { get; init; }
-
-    public double? SowWork { get; init; }
-
-    public double? HarvestWork { get; init; }
-
-    public uint? MaturePlants { get; init; }
-
-    public uint? StalledPlants { get; init; }
-
-    public double? StandingYield { get; init; }
-
-    public string? Product { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-}
-
 public sealed record PatientForecast
 {
     public string? PawnId { get; init; }
 
-    public double? BleedRatePerDay { get; init; }
-
-    public double? HoursUntilDeathFromBloodLoss { get; init; }
-
     public double? Mood { get; init; }
 
     public double? MoodTarget { get; init; }
-
-    public double? MinorBreakThreshold { get; init; }
-
-    public double? MajorBreakThreshold { get; init; }
-
-    public double? ExtremeBreakThreshold { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
@@ -6290,13 +6120,7 @@ public sealed record ForecastFacts
     public NeedsForecastRead? Needs { get; init; }
     public CoupledForecastRead? Coupled { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> AnimalIds { get; init; }
-
     public FoodSupplyFacts? CombinedFoodSupply { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<CropForecast>))]
-    public EquatableArray<CropForecast> Crops { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PatientForecast>))]
     public EquatableArray<PatientForecast> Patients { get; init; }
@@ -7053,14 +6877,9 @@ public sealed record HunterFacts
 
     public bool? HuntingActive { get; init; }
 
-    public bool? CookingActive { get; init; }
-
     public string? WeaponDef { get; init; }
 
     public bool? RangedBlockingShield { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> ReachableBenches { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<HuntRoute>))]
     public EquatableArray<HuntRoute> Routes { get; init; }
@@ -7152,8 +6971,6 @@ public sealed record ChoiceDialogOption
     public bool? Selectable { get; init; }
 
     public bool? Resolves { get; init; }
-
-    public string? DisabledReason { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Keys { get; init; }
@@ -7335,8 +7152,6 @@ public sealed record WallRemovalRecord
     public string? TargetId { get; init; }
 
     public bool? Complete { get; init; }
-
-    public long? CompletedTick { get; init; }
 
     public string? Blocker { get; init; }
 
@@ -7742,8 +7557,6 @@ public sealed record UpkeepFacts
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
 
-    public WallRemovalSection? WallRemoval { get; init; }
-
     public HomeCoverageSection? HomeCoverage { get; init; }
 
     public LightingSection? Lighting { get; init; }
@@ -7971,8 +7784,6 @@ public sealed record FishingZoneFacts
     public bool? Allowed { get; init; }
 
     public bool? DoForever { get; init; }
-
-    public double? TargetPopulationPct { get; init; }
 
     public bool? HasFishableCells { get; init; }
 }
@@ -8475,9 +8286,6 @@ public sealed record ColonyFactsSnapshot
 
     public FoodClimate? FoodClimate { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<FarmFacts>))]
-    public EquatableArray<FarmFacts> Farms { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<CookingFacts>))]
     public EquatableArray<CookingFacts> Cooking { get; init; }
 
@@ -8545,12 +8353,6 @@ public sealed record ColonyFactsSnapshot
     /// Biotech pollution sources, wastepacks, gestators, chargers and baby care; absent without Biotech.
     /// </summary>
     public BiotechSection? Biotech { get; init; }
-
-    /// <summary>
-    /// TileMutatorDef defNames of the colony map's world tile (Tile.Mutators), e.g. caves or ancient vents. Empty without Odyssey or with none.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> TileMutators { get; init; }
 
     /// <summary>
     /// Odyssey eruption, contamination and underground-site state; absent without Odyssey.
@@ -9732,9 +9534,6 @@ public sealed record BundleSnapshot
 
     public WorldProgressionSnapshot? WorldProgression { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ResourceSourcesSnapshot>))]
-    public EquatableArray<ResourceSourcesSnapshot> ResourceSources { get; init; }
-
     /// <summary>
     /// The planning window band (17) is cut from grid.
     /// Combat state, while the map has an active hostile or a combat
@@ -9789,18 +9588,6 @@ public sealed record BundleSnapshot
     /// with the combat inputs: an infestation's heat-stroke hold and entry check.
     /// </summary>
     public float? CombatHiveTemperatureC { get; init; }
-
-    /// <summary>
-    /// The watermark of every omittable section, carried or not:
-    /// emergency, colony_facts, population, research, traders,
-    /// world_progression and ideology. Native omits such a section while its content,
-    /// nested context ticks aside, matches the last one published, and the
-    /// reader keeps that one, current at this frame's tick. A section absent
-    /// with a seq other than the one the reader holds was published in a
-    /// frame the reader missed: it asks for a keyframe.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<SectionWatermark>))]
-    public EquatableArray<SectionWatermark> Watermarks { get; init; }
 
     /// <summary>
     /// The pawn table: every spawned pawn on the map, the rows every
@@ -9863,24 +9650,13 @@ public sealed record SectionWatermark
 
     public ulong? Seq { get; init; }
 
-    public long? CapturedTick { get; init; }
-
     public bool? Delta { get; init; }
 
-    public ulong? BaseSeq { get; init; }
 }
 
 public sealed record ObservationBatchSnapshot
 {
-    public Common.ObservationContext? StartContext { get; init; }
-
-    public Common.ObservationContext? EndContext { get; init; }
-
-    public StatusReply? StatusBefore { get; init; }
-
     public ListPawnsReply? Pawns { get; init; }
-
-    public ListSuppliesReply? Supplies { get; init; }
 
     public ListBuildingsReply? Buildings { get; init; }
 
@@ -9888,7 +9664,6 @@ public sealed record ObservationBatchSnapshot
 
     public ListZonesReply? Zones { get; init; }
 
-    public StatusReply? StatusAfter { get; init; }
 }
 
 public sealed record ObservationBatchRequest
@@ -9898,8 +9673,6 @@ public sealed record ObservationBatchRequest
     public StatusRequest? Status { get; init; }
 
     public ListPawnsRequest? Pawns { get; init; }
-
-    public ListSuppliesRequest? Supplies { get; init; }
 
     public ListBuildingsRequest? Buildings { get; init; }
 
@@ -9956,12 +9729,6 @@ public abstract record ObservationBatchReplyOutcome
 /// </summary>
 public sealed record SnapshotStreamRequest
 {
-    /// <summary>
-    /// list_resource_sources per named resource, no development
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> ResourceSources { get; init; }
-
     /// <summary>
     /// Main-thread milliseconds one frame may spend measuring route path costs
     /// (FindPathNow per reachable facility x colonist pair, ~0.4 ms each). Pairs
@@ -10100,14 +9867,8 @@ public sealed record StatEnv
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> ActiveMods { get; init; }
 
-    public bool ClassicMode { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<StatFactor>))]
     public EquatableArray<StatFactor> ScenarioFactors { get; init; }
-
-    public float ButcherYieldFactor { get; init; }
-
-    public float FishingYieldFactor { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<DifficultyFlag>))]
     public EquatableArray<DifficultyFlag> DifficultyFlags { get; init; }
@@ -10269,7 +10030,6 @@ public sealed record CurvePointRow
 {
     public double? X { get; init; }
 
-    public double? Y { get; init; }
 }
 
 /// <summary>
@@ -10286,22 +10046,6 @@ public sealed record CurvePointRow
 /// </summary>
 public sealed record GeneTuningFacts
 {
-    public int? BiostatMin { get; init; }
-
-    public int? BiostatMax { get; init; }
-
-    public int? BaseMaxComplexity { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<CurvePointRow>))]
-    public EquatableArray<CurvePointRow> CreationHoursCurve { get; init; }
-
-    public double? RegrowDaysMin { get; init; }
-
-    public double? RegrowDaysMax { get; init; }
-
-    public int? ExtractTicks { get; init; }
-
-    public int? NoPowerEjectTicks { get; init; }
 }
 
 /// <summary>
@@ -10314,7 +10058,6 @@ public sealed record MechWorkModeRoles
 
     public string? Escort { get; init; }
 
-    public string? Recharge { get; init; }
 }
 
 /// <summary>
@@ -10324,8 +10067,6 @@ public sealed record MechWorkModeRoles
 /// </summary>
 public sealed record BiotechCatalog
 {
-    public GeneTuningFacts? GeneTuning { get; init; }
-
     public MechWorkModeRoles? MechWorkModes { get; init; }
 }
 
@@ -10499,17 +10240,6 @@ public sealed record AnomalyDoor
 public sealed record DefinitionCatalogRequest
 {
     public ReadScope? Scope { get; init; }
-
-    public bool? Creation { get; init; }
-}
-
-/// <summary>
-/// The same static def mirror before a world exists; no invented map/load identity.
-/// </summary>
-public sealed record CreationDefinitionCatalog
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ClassChain>))]
-    public EquatableArray<ClassChain> ClassChains { get; init; }
 }
 
 public sealed record DefinitionCatalogReply
@@ -10522,7 +10252,6 @@ public sealed record DefinitionCatalogReply
 [JsonDerivedType(typeof(DefinitionCatalogReplyOutcome.ObservedCase), "observed")]
 [JsonDerivedType(typeof(DefinitionCatalogReplyOutcome.UnavailableCase), "unavailable")]
 [JsonDerivedType(typeof(DefinitionCatalogReplyOutcome.FailureCase), "failure")]
-[JsonDerivedType(typeof(DefinitionCatalogReplyOutcome.CreationCase), "creation")]
 public abstract record DefinitionCatalogReplyOutcome
 {
     private protected DefinitionCatalogReplyOutcome() { }
@@ -10550,14 +10279,6 @@ public abstract record DefinitionCatalogReplyOutcome
     public sealed record FailureCase(Common.Failure Value) : DefinitionCatalogReplyOutcome;
 
     public static implicit operator DefinitionCatalogReplyOutcome(Common.Failure value) => new FailureCase(value);
-
-    /// <summary>The <c>Creation</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CreationDefinitionCatalog? Creation => (this as CreationCase)?.Value;
-
-    public sealed record CreationCase(CreationDefinitionCatalog Value) : DefinitionCatalogReplyOutcome;
-
-    public static implicit operator DefinitionCatalogReplyOutcome(CreationDefinitionCatalog value) => new CreationCase(value);
 }
 
 public sealed record SnapshotStreamOpened

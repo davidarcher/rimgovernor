@@ -35,8 +35,7 @@ namespace HomeBridge.BridgeTools
             {
                 var source = map.zoneManager.AllZones.Where(z => z != null && z.Cells.Count != 0).ToList();
                 var matched = source.Where(z => Matches(z, parsed)).OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-                var filtered = source.Count - matched.Count;
-                var snapshot = new Obs.ZonesSnapshot { Context = context, Completeness = Complete(matched.Count, filtered) };
+                var snapshot = new Obs.ZonesSnapshot { Context = context };
                 foreach (var zone in matched) snapshot = snapshot with { Zones = [.. snapshot.Zones, Project(zone, map, context, parsed)] };
                 return new Obs.ListZonesReply { Outcome = snapshot };
             }
@@ -101,7 +100,6 @@ namespace HomeBridge.BridgeTools
                         FertilityFactorMin = plants.Min(p => p.GrowthRateFactor_Fertility), FertilityFactorMean = plants.Average(p => p.GrowthRateFactor_Fertility),
                         LightFactorMean = plants.Average(p => p.GrowthRateFactor_Light) };
                 row = row with { Farm = farm };
-                row = row with { ExplicitlySetCrop = crop != null }; row = row with { AllowSow = growing.allowSow }; row = row with { AllowCut = growing.allowCut };
                 row = row with { Issues = [.. row.Issues, Issue("priority", Common.UnavailableReason.NotApplicable, "Growing zones have no storage priority.")] };
             }
             else if (zone is Zone_Stockpile stockpile)
@@ -123,6 +121,5 @@ namespace HomeBridge.BridgeTools
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native ID unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
-        private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Filtered = (ulong)filtered };
     }
 }

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface ITradeMissionNative
 {
-    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
+    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct);
 
     Task<IReadOnlyDictionary<string, long>> ReadPawnCargoAsync(C.Identity identity, IReadOnlyList<string> pawns, CancellationToken ct);
 }
@@ -141,7 +141,7 @@ public sealed partial class RoundsTradePlanner
         }
         var step = new MissionStep(work.Owner, record, record.Missions[0].Id);
         var m = record.Missions[0].Mission;
-        var world = await source.ReadWorldProgressionAsync(Boundary.Identity(state.Snapshot), false, call).ConfigureAwait(false);
+        var world = await source.ReadWorldProgressionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         if (!TradeMissionCurrentRead(state.Snapshot, world))
         {
             throw new ControlException("mission: world progression read is not current");
