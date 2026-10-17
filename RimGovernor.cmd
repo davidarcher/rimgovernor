@@ -83,17 +83,48 @@ call "%~f0" --check-stale || goto :fail
 set "CUR="
 if exist "%~dp0.rimgovernor\tools\current" set /p CUR=<"%~dp0.rimgovernor\tools\current"
 if not defined CUR goto :fail
-"%~dp0.rimgovernor\tools\%CUR%\repo.exe" launcher-stale
+set "REPO=%~dp0.rimgovernor\tools\%CUR%\repo.exe"
+"%REPO%" launcher-stale
 if "%ERRORLEVEL%"=="0" goto :startlauncher
 if not "%ERRORLEVEL%"=="75" goto :fail
-rem Published single-file into a staging directory, then copied over the root exe (tools\launcher, #3098). The stamp
-rem is written only after both succeed, so a failed publish stays stale.
-dotnet publish "%~dp0tools\launcher\launcher.csproj" -c Release -r win-x64 --no-self-contained -p:NodeReuse=false --nologo -v q -o "%LBUILD%" || goto :fail
-copy /y "%LBUILD%\RimGovernorLauncher.exe" "%~dp0RimGovernorLauncher.exe" >nul || goto :fail
->"%LBUILD%\current" echo %DATE% %TIME%
+if not exist "%LBUILD%" mkdir "%LBUILD%"
+:launcherlock
+set "LOCKED="
+set "LFAIL="
+rem The same lock as the front door's build: a second double-click waits here instead of publishing alongside.
+(9>"%LBUILD%.lock" call :publishlocked) 3>&2 2>nul
+if not defined LOCKED (
+    ping -n 2 127.0.0.1 >nul
+    goto :launcherlock
+)
+if defined LFAIL goto :fail
 :startlauncher
+tasklist /fi "imagename eq RimGovernorLauncher.exe" | find /i "RimGovernorLauncher.exe" >nul && exit /b 0
 start "" "%~dp0RimGovernorLauncher.exe"
 exit /b 0
+
+:publishlocked
+set "LOCKED=1"
+rem Another double-click may have published, or opened the launcher, while this one waited for the lock.
+tasklist /fi "imagename eq RimGovernorLauncher.exe" | find /i "RimGovernorLauncher.exe" >nul && goto :eof
+"%REPO%" launcher-stale
+if "%ERRORLEVEL%"=="0" goto :eof
+echo RimGovernor.cmd: building the launcher (tools\launcher) ... 1>&3
+rem Published single-file into a staging directory, then copied over the root exe (tools\launcher, #3098). The stamp
+rem is written only after both succeed, so a failed publish stays stale. Its own artifacts root: the brain projects it
+rem references are also built in their bin\obj by the test gate and an editor's background builds (#3346).
+dotnet publish "%~dp0tools\launcher\launcher.csproj" -c Release -r win-x64 --no-self-contained -p:NodeReuse=false -p:UseArtifactsOutput=true "-p:ArtifactsPath=%LBUILD%\artifacts" --nologo -v q -o "%LBUILD%" >"%LBUILD%\publish.log" 2>&1
+if errorlevel 1 (
+    type "%LBUILD%\publish.log" 1>&3
+    set "LFAIL=1"
+    goto :eof
+)
+copy /y "%LBUILD%\RimGovernorLauncher.exe" "%~dp0RimGovernorLauncher.exe" >nul || (
+    set "LFAIL=1"
+    goto :eof
+)
+>"%LBUILD%\current" echo %DATE% %TIME%
+goto :eof
 
 :fail
 echo.
