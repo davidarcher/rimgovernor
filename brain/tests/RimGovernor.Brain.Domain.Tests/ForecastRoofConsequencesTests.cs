@@ -94,6 +94,7 @@ public sealed class ForecastRoofConsequencesTests
     /// <summary>The pawn's mood targets at the horizon over the feasible schedules of the full sleep and the given sites' roots.</summary>
     private static double[] MoodAtHorizon(RoundsFacts facts, params string[] sites)
     {
+        facts = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { MoodTrajectory = true } } };
         var candidates = facts.CoupledAlternatives!;
         var full = candidates.Context.NeedTasks.Where(n => n.Kind == "rest").OrderByDescending(n => n.Gain.Value).First();
         var roots = candidates.Alternatives.Where(c => c.ActivityCompletions.SequenceEqual([full.Task])

@@ -694,3 +694,27 @@ Both embedded baselines were re-recorded deliberately (`RIMGOVERNOR_PORTFOLIO_OU
 Wall time and allocation vary with machine load. The screen bound of 64 was chosen on these
 two fixtures; where first complete plans need many more expansions per activity the screen
 could rank poorly, which costs incumbent quality, not determinism or boundedness.
+
+## Wasted needs work removed (#3467)
+
+`MeasureWarmedAllocationMatrix` also writes `<fixture>.one-day.measurements.json`: generation
+and default-budget selection at the production one-day horizon, with the same quality row.
+
+Stage 1 of the [forecast value search engine](../architecture/forecast-value.md#search-engine)
+stops three kinds of wasted work:
+
+- The physiology timeline computes no mood. Its capacity was the only part read.
+- The search builds no per-point mood trajectory. `ForecastCoupledContext.MoodTrajectory` keeps it
+  for tests that inspect it.
+- Each pawn's needs result is cached per search, keyed by that pawn's own inputs.
+
+Every quality row, at all six budgets and at one day, is identical before and after. Best of
+three samples, same machine:
+
+| Fixture | Horizon | Budget | MB before / after | ms before / after |
+|---|---|---|---|---|
+| Original | 700 | 16,384 | 576 / 409 | 217 / 195 |
+| Original | 60,000 | 16,384 | 2,426 / 613 | 890 / 235 |
+| Four-worker | 700 | 16,384 | 1,267 / 781 | 494 / 343 |
+| Four-worker | 700 | 262,144 | 26,830 / 14,800 | 10,403 / 6,434 |
+| Four-worker | 60,000 | 16,384 | 6,497 / 1,330 | 2,383 / 540 |

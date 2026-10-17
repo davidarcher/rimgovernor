@@ -58,13 +58,14 @@ public static class ForecastMood
     /// memories (a commitment's MoodMemories) start at their tick like a completed meal's thoughts. A situational
     /// change adds its offset delta from its tick. A banded thought (#3327) adds its delta inside each of its spans and
     /// stays at the observed constant outside them, naming itself in a finding when they do not cover the horizon.
-    /// Every other situational thought stays inside MoodUnclampedTarget.</summary>
+    /// Every other situational thought stays inside MoodUnclampedTarget. Without trajectory the per-point mood is left
+    /// empty: the search reads only the integrated results (#3467).</summary>
     public static ForecastMoodResult ForecastMoodTimeline(NeedsForecastPawn pawn, double horizon,
         IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
         IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
         IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null,
         IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null,
-        IReadOnlyList<ForecastMemoryRenewal>? renewals = null)
+        IReadOnlyList<ForecastMemoryRenewal>? renewals = null, bool trajectory = true)
     {
         ForecastNeeds.NeedHorizon(horizon);
         situational ??= [];
@@ -77,7 +78,7 @@ public static class ForecastMood
         var unknown = new SortedSet<string>(StringComparer.Ordinal) { "unmodeled_situational_thoughts_constant" };
         foreach (var thought in banded.Where(b => b.Spans.Sum(s => s.End - s.Start) < horizon))
             unknown.Add("situational_thought_constant_outside_exposure:" + thought.Thought);
-        var trajectory = new List<ForecastMoodPoint>();
+        var points = new List<ForecastMoodPoint>();
         var events = new SortedSet<double> { 0, horizon };
         var intervals = selected.Select(c => (Choice: c, End: interruptedAt is not null && interruptedAt.TryGetValue(c.Id, out var at)
             ? Math.Clamp(at, c.Depart, c.End) : c.End)).ToArray();
@@ -136,7 +137,7 @@ public static class ForecastMood
         }
         else { actualKnown = false; unknown.Add("unknown_mood_response_interval"); }
         if (events.Count > 4096) return new([], default, default, default, default, default, ["mood_event_budget_truncated"]);
-        var points = events.Where(t => t >= 0 && t <= horizon).ToArray();
+        var ticks = events.Where(t => t >= 0 && t <= horizon).ToArray();
         double Memory(NeedMemory m, double elapsed) => m.Permanent ? m.Offset : elapsed >= m.RemainingTicks.Value ? 0
             : m.Fades ? m.Offset * (1 - elapsed / m.RemainingTicks.Value) : m.Offset;
         bool Asleep(double time)
@@ -162,13 +163,13 @@ public static class ForecastMood
             foreach (var span in banded.SelectMany(b => b.Spans)) if (span.Start <= time && time < span.End) changedMemories += span.OffsetDelta;
             return Math.Clamp(pawn.MoodUnclampedTarget.Value + (conditional - currentConditionalOffset + changedMemories) / 100, 0, 1);
         }
-        for (var i = 0; i < points.Length; i++)
+        for (var i = 0; i < ticks.Length; i++)
         {
-            var from = points[i]; var asleep = Asleep(from); var target = Target(from, asleep);
-            trajectory.Add(new(from, Known(target), actualKnown ? Known(actual) : default, asleep));
-            if (i == points.Length - 1) break;
-            var duration = points[i + 1] - from;
-            var endTarget = Target(Math.BitDecrement(points[i + 1]), asleep);
+            var from = ticks[i]; var asleep = Asleep(from); var target = Target(from, asleep);
+            if (trajectory) points.Add(new(from, Known(target), actualKnown ? Known(actual) : default, asleep));
+            if (i == ticks.Length - 1) break;
+            var duration = ticks[i + 1] - from;
+            var endTarget = Target(Math.BitDecrement(ticks[i + 1]), asleep);
             pressure += (1 - (target + endTarget) / 2) * duration;
             if (thresholdKnown) Integrate(threshold - target, threshold - endTarget, duration, ref targetExposure, ref targetDepth);
             if (breakKnown) breakModel.AddTierTicks(target, endTarget, duration, tierTicks);
@@ -185,7 +186,7 @@ public static class ForecastMood
             }
         }
         unknown.Add("mood_response_interval_phase_unassessed");
-        return new(EquatableArray.From(trajectory), thresholdKnown ? Known(targetExposure) : default,
+        return new(EquatableArray.From(points), thresholdKnown ? Known(targetExposure) : default,
             thresholdKnown ? Known(targetDepth) : default, actualKnown && thresholdKnown ? Known(actualExposure) : default,
             actualKnown && thresholdKnown ? Known(actualDepth) : default, actualKnown ? Known(actual) : default, EquatableArray.From(unknown))
         { PressureTicks = Known(pressure), BreakRisk = breakKnown ? Known(MoodBreakModel.Breaks(tierTicks)) : default };

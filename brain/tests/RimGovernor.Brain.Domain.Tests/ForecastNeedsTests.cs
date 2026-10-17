@@ -70,6 +70,23 @@ public sealed class ForecastNeedsTests
         Assert.Equal(Assert.Single(rested.Needs, n => n.Kind == "rest"), Assert.Single(combined.Needs, n => n.Kind == "rest"));
     }
 
+    [Fact]
+    public void ATimelineWithoutMoodHasTheSameNeedsAndCapacity()
+    {
+        // #3467: the search's physiology timeline reads only capacity, so it skips the mood timeline.
+        var pawn = Pawn() with { ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]), MoodUnclampedTarget = Known(.5), MoodIntervalTicks = Known(150d), LocalHour = Known(12.0) };
+        var choices = new[] { Sleep(), new ForecastNeedChoice("meal", "pawn", "food", "rice", "Rice", 1, 500, 520, 600, .2, []) };
+        var full = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), choices);
+        var physical = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), choices, mood: false);
+        Assert.NotNull(full.Mood);
+        Assert.NotEmpty(full.Mood.Trajectory);
+        Assert.Null(physical.Mood);
+        Assert.Equal(full.Needs, physical.Needs);
+        Assert.Equal(full.Capacity.Capacity, physical.Capacity.Capacity);
+        Assert.Equal(full.UsefulFoodGain, physical.UsefulFoodGain);
+        Assert.Empty(ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), choices, moodTrajectory: false).Mood!.Trajectory);
+    }
+
     [Theory]
     [InlineData(0, 0, 0)]
     [InlineData(.5, 65, 14.75)]

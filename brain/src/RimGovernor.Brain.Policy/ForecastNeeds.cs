@@ -170,13 +170,14 @@ public static class ForecastNeeds
     }
 
     /// <summary>Event/interval projection. Productive work and needs share one occupancy union. Food is credited
-    /// only at completed eating; interrupted rest/joy credit elapsed service. Break risk is the mood timeline's; no mood currency.</summary>
+    /// only at completed eating; interrupted rest/joy credit elapsed service. Break risk is the mood timeline's; no mood currency.
+    /// Without mood the result carries no mood timeline (Mood null), for callers that read only needs and capacity (#3467).</summary>
     public static ForecastNeedsResult ForecastNeedsTimeline(NeedsForecastPawn pawn, ForecastCapacityInput input,
         IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
         IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
         IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null,
         IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null,
-        IReadOnlyList<ForecastMemoryRenewal>? renewals = null)
+        IReadOnlyList<ForecastMemoryRenewal>? renewals = null, bool mood = true, bool moodTrajectory = true)
     {
         NeedHorizon(input.HorizonTicks);
         if (input.Pawn.Id.Value != pawn.Pawn || selected.Any(c => c.Pawn != pawn.Pawn)
@@ -312,10 +313,10 @@ public static class ForecastNeeds
         findings.UnionWith(capacity.Findings);
         findings.Add("need_rates_constant_current_conditions");
         findings.Add("need_category_and_room_mood_changes_unassessed");
-        var mood = ForecastMood.ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted, situational, banded, renewals);
-        if (!mood.BreakRisk.IsKnown) findings.Add("mental_break_probability_unassessed");
+        var timeline = mood ? ForecastMood.ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted, situational, banded, renewals, moodTrajectory) : null;
+        if (timeline is { BreakRisk.IsKnown: false }) findings.Add("mental_break_probability_unassessed");
         return new(EquatableArray.From(metrics), thoughtDelta, target, capacity, EquatableArray.From(findings))
-        { Mood = mood, UsefulFoodGain = usefulFood };
+        { Mood = timeline, UsefulFoodGain = usefulFood };
     }
     /// <summary>One physiological sleep-service projection shared by rest recovery and conditional mood.
     /// Remaining assigned bed time after native waking stays occupied, but is not counted as sleep.</summary>

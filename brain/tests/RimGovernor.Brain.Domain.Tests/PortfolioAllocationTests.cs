@@ -54,8 +54,8 @@ public sealed class PortfolioAllocationTests
         return WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
     }
 
-    internal static ColonyForecastRequest Request(RoundsFacts facts, ForecastCoupledCandidates generated) =>
-        ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
+    internal static ColonyForecastRequest Request(RoundsFacts facts, ForecastCoupledCandidates generated, double horizon = 700) =>
+        ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
 
     private static object Quality(ForecastCoupledCandidates generated, ForecastCoupledSelection selection) => new
@@ -111,6 +111,15 @@ public sealed class PortfolioAllocationTests
             {
                 DemandedMeals = larger ? 4 : 2,
                 GenerationBytes = generation.Bytes, GenerationMilliseconds = generation.Milliseconds, Rows = rows
+            }, Json));
+            // One-day horizon (#3467): the production review horizon, at the default budget only.
+            var day = Measure(() => ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)!);
+            var dayRequest = Request(facts, day.Result, GameTime.TicksPerDay);
+            var daySelection = Measure(() => ForecastCoupledSelection.CompareActivityOutcomes(dayRequest, day.Result));
+            File.WriteAllText(Path.Combine(output, name + ".one-day.measurements.json"), JsonSerializer.Serialize(new
+            {
+                GenerationBytes = day.Bytes, GenerationMilliseconds = day.Milliseconds,
+                daySelection.Bytes, daySelection.Milliseconds, Quality = Quality(day.Result, daySelection.Result)
             }, Json));
         }
     }

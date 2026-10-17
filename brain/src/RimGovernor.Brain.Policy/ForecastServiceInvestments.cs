@@ -34,7 +34,7 @@ public static class ForecastServiceInvestments
                 Location = "current", LocalHour = observed.LocalHour, HorizonTicks = horizon, ProtectTimetable = false,
                 CurrentWork = new(new(eater.Key), Known(false), default, Known(0d)),
                 Occupancy = Known<EquatableArray<ForecastOccupancy>>([]), OpportunityCostPerTick = Known(1d)
-            }, []);
+            }, [], mood: false);
             var food = trajectory.Needs.SingleOrDefault(n => n.Kind == "food");
             if (food?.ThresholdExposureTicks != Known(0d)) return false;
         }

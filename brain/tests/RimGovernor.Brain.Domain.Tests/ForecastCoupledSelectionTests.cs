@@ -269,7 +269,7 @@ public sealed class ForecastCoupledSelectionTests
         facts = facts with { CoupledAlternatives = candidates with
         {
             Alternatives = [harvest with { Id = "mood", MoodMemories = [new("pawn", memory)] }, harvest],
-            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] } }
+            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] }, MoodTrajectory = true }
         } };
         var result = Select(facts);
         Assert.Equal(Known(true), result.Selected.Feasible);
@@ -303,7 +303,7 @@ public sealed class ForecastCoupledSelectionTests
         facts = facts with { CoupledAlternatives = candidates with
         {
             Alternatives = [change],
-            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] } }
+            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] }, MoodTrajectory = true }
         } };
         var result = Select(facts);
         var vector = wins ? result.SelectedVector : result.Rejected.First(r => r.Commitments.SequenceEqual(["gear"])).Consequences!;
@@ -333,7 +333,7 @@ public sealed class ForecastCoupledSelectionTests
         facts = facts with { CoupledAlternatives = candidates with
         {
             Alternatives = [new ForecastCommitment("memory", []) { MoodMemories = [new("pawn", memory)] }],
-            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] } }
+            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] }, MoodTrajectory = true }
         } };
         var result = Select(facts);
         Assert.Equal(["memory"], result.Selection.Selected);
@@ -468,7 +468,8 @@ public sealed class ForecastCoupledSelectionTests
     }
 
     private static ForecastCoupledOutcome Outcome(RoundsFacts facts, params ForecastCommitment[] add) =>
-        ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
+        ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { MoodTrajectory = true } } },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             [], new() { Add = EquatableArray.From(add) })).Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
 
     [Fact]

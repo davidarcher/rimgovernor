@@ -69,6 +69,8 @@ public sealed record ForecastCoupledContext
     public IReadOnlyDictionary<string, Fact<EquatableArray<MoodThought>>> ObservedThoughts { get; init; } = new Dictionary<string, Fact<EquatableArray<MoodThought>>>();
     /// <summary>The mechanic cards; null is the shipped catalog. Only Live cards price.</summary>
     public IReadOnlyDictionary<string, MechanicCard>? Cards { get; init; }
+    /// <summary>Diagnostic only: keep each needs result's per-point mood. The search never reads it (#3467).</summary>
+    public bool MoodTrajectory { get; init; }
 }
 public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool> Feasible,
     EquatableArray<ForecastStockTrajectory> Stocks,
@@ -193,7 +195,8 @@ public static class ForecastCoupled
             if (compared.Alternatives.Length == 0) findings.Add("unassessed_no_schedule_within_horizon");
         }
         var alternatives = compared?.Alternatives ?? [new ForecastActivityPlan([], 0, 0)];
-        var results = alternatives.Select(plan => EvaluateCoupledSchedule(request, commitments, problem, plan)).ToArray();
+        var cache = new NeedsCache();
+        var results = alternatives.Select(plan => EvaluateCoupledSchedule(request, commitments, problem, plan, cache)).ToArray();
         // The assignment search is bounded and tries pawns in id order, so every plan it reaches can hand the same work to a pawn the
         // needs timeline then shows cannot do it. When that leaves nothing feasible, search again without those pawn choices.
         var retried = problem;
@@ -207,7 +210,7 @@ public static class ForecastCoupled
             retried = retried with { Options = options };
             var again = ForecastActivities.CompareActivityPlans(retried);
             findings.UnionWith(again.Findings);
-            results = [.. results, .. again.Alternatives.Select(plan => EvaluateCoupledSchedule(request, commitments, retried, plan))];
+            results = [.. results, .. again.Alternatives.Select(plan => EvaluateCoupledSchedule(request, commitments, retried, plan, cache))];
         }
         // Inventory-only clients keep their conditional diagnostics; migrated consumers inspect each coupled alternative.
         return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
@@ -218,7 +221,8 @@ public static class ForecastCoupled
     }
 
     private static ForecastCoupledOutcome EvaluateCoupledSchedule(ColonyForecastRequest request,
-        IReadOnlyDictionary<string, ForecastCommitment> commitments, ForecastActivityProblem problem, ForecastActivityPlan plan, HashSet<string>? unavailableWork = null)
+        IReadOnlyDictionary<string, ForecastCommitment> commitments, ForecastActivityProblem problem, ForecastActivityPlan plan, NeedsCache cache,
+        HashSet<string>? unavailableWork = null)
     {
         var context = request.Coupled!;
         unavailableWork ??= new(StringComparer.Ordinal);
@@ -488,7 +492,9 @@ public static class ForecastCoupled
                 Occupancy = context.Resources.Claims.Truncated ? default : Known(EquatableArray.From(protectedTime))
             };
             // Needs recovery is assessed without masking physiological unavailability beneath planned work.
-            var physiology = ForecastNeeds.ForecastNeedsTimeline(pawn, input with { Occupancy = Known<EquatableArray<ForecastOccupancy>>([]) }, choices);
+            var physical = input with { Occupancy = Known<EquatableArray<ForecastOccupancy>>([]) };
+            var physiology = cache.Get(pawn.Pawn, false, physical.Occupancy, choices, null, null, [], null,
+                () => ForecastNeeds.ForecastNeedsTimeline(pawn, physical, choices, mood: false));
             if (!physiology.Capacity.Capacity.Windows.TryGetValue(out var able))
             { if (productive.Length != 0 || choices.Count != 0) Uncertain("unknown_future_capacity", pawn.Pawn, 0); }
             else foreach (var work in productive)
@@ -497,11 +503,13 @@ public static class ForecastCoupled
             var spans = exposure.Single(t => t.Pawn == pawn.Pawn).Spans;
             // Room and roof thoughts (#3339): bed thoughts at the wake, weather, the outdoors need and undergrounder thoughts.
             var roof = ForecastRoofConsequences.RoofMoodOf(pawn, context.Needs, choices, closedRooms, context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), horizon);
-            var projected = ForecastNeeds.ForecastNeedsTimeline(pawn, input, choices, granted: granted.GetValueOrDefault(pawn.Pawn),
-                situational: situational.GetValueOrDefault(pawn.Pawn),
-                banded: temperatureCards.Select(card => ForecastMood.TemperatureThought(card, context.CardPawns.GetValueOrDefault(pawn.Pawn),
-                    context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), spans)).Concat(roof.Banded).ToArray(),
-                renewals: roof.Renewals);
+            var pawnGranted = granted.GetValueOrDefault(pawn.Pawn);
+            var pawnSituational = situational.GetValueOrDefault(pawn.Pawn);
+            var banded = temperatureCards.Select(card => ForecastMood.TemperatureThought(card, context.CardPawns.GetValueOrDefault(pawn.Pawn),
+                context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), spans)).Concat(roof.Banded).ToArray();
+            var projected = cache.Get(pawn.Pawn, true, input.Occupancy, choices, pawnGranted, pawnSituational, banded, roof.Renewals,
+                () => ForecastNeeds.ForecastNeedsTimeline(pawn, input, choices, granted: pawnGranted, situational: pawnSituational, banded: banded,
+                    renewals: roof.Renewals, moodTrajectory: context.MoodTrajectory));
             if (roof.Findings.Count > 0) projected = projected with { Findings = EquatableArray.From(projected.Findings.Concat(roof.Findings).Distinct().Order(StringComparer.Ordinal)) };
             var mealsUnknown = context.NeedTasks.Any(n => n.Pawn == pawn.Pawn && !n.ThoughtsComplete && allocations.ContainsKey(n.Task));
             if (mealsUnknown || grantUnknown.Contains(pawn.Pawn) || roof.Unassessed.Length != 0)
@@ -517,7 +525,7 @@ public static class ForecastCoupled
         }
         // Removing impossible work may invalidate its meals and therefore later work. Each pass removes at least one task.
         if (rejectedWork.Count > unavailableWork.Count)
-            return EvaluateCoupledSchedule(request, commitments, problem, plan, rejectedWork);
+            return EvaluateCoupledSchedule(request, commitments, problem, plan, cache, rejectedWork);
         // Ordinary production needs no training mandate. Only a claimed learning-dependent later
         // speedup requires evidence that its prerequisite practice produced useful food in this slice.
         // A terminal native batch can retain remainder; XP itself never improves the consequence vector.
@@ -588,5 +596,27 @@ public static class ForecastCoupled
                 .Select(b => b!.Job == "BuildRoof" ? "roof/" + b.Location.X + "/" + b.Location.Z : "site/" + b.Target)
                 .Distinct().Order(StringComparer.Ordinal))
         };
+    }
+
+    /// <summary>One search's needs results (#3467). A pawn's timelines depend only on that pawn's own inputs, which most
+    /// schedules repeat; everything else they read is the search's fixed context.</summary>
+    internal sealed class NeedsCache
+    {
+        private readonly Dictionary<(string Pawn, bool Mood, Fact<EquatableArray<ForecastOccupancy>> Occupancy,
+            EquatableArray<ForecastNeedChoice> Choices, EquatableArray<(NeedMemory Thought, double Start)> Granted,
+            EquatableArray<(string Thought, double OffsetDelta, double Start)> Situational,
+            EquatableArray<(string Thought, EquatableArray<(double Start, double End, double OffsetDelta)> Spans)> Banded,
+            EquatableArray<ForecastMemoryRenewal> Renewals), ForecastNeedsResult> results = [];
+        internal ForecastNeedsResult Get(string pawn, bool mood, Fact<EquatableArray<ForecastOccupancy>> occupancy,
+            IReadOnlyList<ForecastNeedChoice> choices, IReadOnlyList<(NeedMemory Thought, double Start)>? granted,
+            IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational,
+            IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)> banded,
+            IReadOnlyList<ForecastMemoryRenewal>? renewals, Func<ForecastNeedsResult> timeline)
+        {
+            var key = (pawn, mood, occupancy, EquatableArray.From(choices), EquatableArray.From(granted ?? []), EquatableArray.From(situational ?? []),
+                EquatableArray.From(banded.Select(b => (b.Thought, EquatableArray.From(b.Spans)))), EquatableArray.From(renewals ?? []));
+            if (!results.TryGetValue(key, out var result)) results.Add(key, result = timeline());
+            return result;
+        }
     }
 }
