@@ -17,7 +17,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsResult? Rounds { get; set; }
 
-    public RoundsWorkResult? Work { get; set; }
 
 
 
@@ -69,7 +68,6 @@ public sealed class ClockSchedulerResult
     /// <summary>Copies every planner result <paramref name="other"/> holds into this one, leaving the ones it does not.</summary>
     internal void MergeFrom(ClockSchedulerResult other)
     {
-        Work = other.Work ?? Work;
         Routes = other.Routes ?? Routes;
         Defense = other.Defense ?? Defense;
         Recovery = other.Recovery ?? Recovery;

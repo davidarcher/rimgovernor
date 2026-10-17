@@ -35,7 +35,7 @@ public static class OperationIntent
         [RoomsFamily.PartySpot.FilingKey] = "Party spot",
         [RoomsFamily.Gatherings.FilingKey] = "Gatherings",
         [EconomyFamily.Research.FilingKey] = "Research",
-        [EnsureWorkAssignments] = "Work",
+        [AdminFamily.WorkAssignments.FilingKey] = "Work",
         [AdminFamily.SupplySafety.FilingKey] = "Supply safety",
         [AdminFamily.Burial.FilingKey] = "Burial",
         [HomeUpkeepFamily.Repairs.FilingKey] = "Repairs",

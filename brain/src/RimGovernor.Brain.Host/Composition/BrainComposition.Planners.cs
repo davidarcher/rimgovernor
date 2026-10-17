@@ -43,7 +43,6 @@ public sealed partial class BrainComposition
         RoundsBuildingPlanner? cfgRoutes = null;
         FactStore? cfgStore = null;
         RoundsTradePlanner? cfgTrade = null;
-        RoundsWorkPlanner? cfgWork = null;
         RoundsBuildingPlanner? cfgWorkshop = null;
 
         // Acceptance fault injection: a failing or hanging planner. Off unless the environment names one.
@@ -61,7 +60,6 @@ public sealed partial class BrainComposition
         var bills = sc.Bill;
         var fields = sc.Field;
         var acquisition = sc.Acquisition;
-        var work = sc.Work;
         var supplies = sc.Supply;
         var sleeping = sc.Sleeping;
         var cooking = sc.Cooking;
@@ -105,7 +103,7 @@ public sealed partial class BrainComposition
         var training = sc.Training;
         var envelope = sc.Envelope;
 
-        if (!routine && (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || blight || pollution || mechCharger || geneBank || armory || clearance || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets))
+        if (!routine && (bills || fields || acquisition || sc.Work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || blight || pollution || mechCharger || geneBank || armory || clearance || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets))
         {
             throw new InvalidOperationException("building plans require rounds");
         }
@@ -154,10 +152,6 @@ public sealed partial class BrainComposition
         {
             foodAcquisition = new RoundsAcquisitionPlanner(reviewer, FoodSupplyNeed.FilingKey);
             cfgResourceAcquisition = new RoundsAcquisitionPlanner(reviewer, EconomyFamily.Resource.FilingKey);
-        }
-        if (work)
-        {
-            cfgWork = new RoundsWorkPlanner(reviewer);
         }
         if (defense)
         {
@@ -265,10 +259,11 @@ public sealed partial class BrainComposition
             // The role, ritual and reform toggles compose the ideology family's three Needs (#3260).
             families.Add(IdeologyReader.Runner(reviewer, sc.IdeoRoles, sc.Rituals, sc.Ideoligion));
         }
-        var admin = new AdminNeeds { CreepJoiners = sc.CreepJoiner, SupplySafety = supplies, Burial = burial, WorkLedger = workLedger, Stockpiles = stockpiles };
-        if (admin.CreepJoiners || admin.SupplySafety || admin.Burial || admin.WorkLedger || admin.Stockpiles)
+        var admin = new AdminNeeds { CreepJoiners = sc.CreepJoiner, SupplySafety = supplies, Burial = burial, WorkLedger = workLedger, Stockpiles = stockpiles, WorkAssignments = sc.Work };
+        if (admin.CreepJoiners || admin.SupplySafety || admin.Burial || admin.WorkLedger || admin.Stockpiles || admin.WorkAssignments)
         {
-            // The colony admin family (#3264, #3304): creep joiners, supply safety, burial, the work ledger and stockpiles.
+            // The colony admin family (#3264, #3304): creep joiners, supply safety, burial, the work ledger, stockpiles
+            // and work assignments.
             families.Add(new AdminRounds(reviewer, admin, supplies ? client : null, stockpiles ? client : null).Runner());
         }
         if (sleeping || shelter || expansion || temperature || sc.Sheltering)
@@ -372,7 +367,6 @@ public sealed partial class BrainComposition
             Rounds = cfgRounds,
             Routes = cfgRoutes,
             Store = cfgStore,
-            Work = cfgWork,
         };
         var scheduler = new ClockScheduler(context.Player, client, config, SystemClock.Instance);
         var clock = CreateClock(context, client, scheduler, new FacadeClockWriter(client.Facade));
@@ -439,7 +433,6 @@ public sealed partial class BrainComposition
             }
         }
 
-        Add(sc.Work, EnsureWorkAssignments);
         Add(sc.Routes, MaintainRoutes);
         Add(sc.Recovery, RecoverDisasterServices);
         if (sc.DefensiveLayout)
@@ -515,6 +508,11 @@ public sealed partial class BrainComposition
         {
             // The stockpile review's zones, rooms and shelves (#3304).
             needs.Add(AdminFamily.Stockpiles);
+        }
+        if (sc.Work)
+        {
+            // The work-assignments Need's coupled activities and coverage (#3304).
+            needs.Add(AdminFamily.WorkAssignments);
         }
         if (sc.Psylink)
         {

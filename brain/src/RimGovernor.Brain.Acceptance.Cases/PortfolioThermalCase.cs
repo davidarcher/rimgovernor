@@ -60,9 +60,8 @@ internal static class PortfolioThermalCase
                 await wait.WaitProgressAsync(async token =>
                 {
                     var read = await s.Harness.CallAsync("thermal-observe", "test/portfolio_thermal_read", [], token).ConfigureAwait(false);
-                    foreach (var owner in await journal.OpenStandardsAsync(PolicyFunctions.EnsureWorkAssignments, token).ConfigureAwait(false))
-                        foreach (var method in await journal.LoadMethodsAsync(owner.Standard.Id, owner.Standard.Episode, token).ConfigureAwait(false))
-                            witnessed.Add(method.MethodId.Value);
+                    foreach (var method in await ServiceJournal.NeedMethodsAsync(journal, Policy.AdminFamily.WorkAssignments, token).ConfigureAwait(false))
+                        witnessed.Add(method);
                     var applied = read["methods"]!.AsArray().Select(n => n.AsString()).ToArray();
                     var journaled = applied.Length > 0 && applied.All(witnessed.Contains);
                     s.Report["thermal"] = read; s.Report["journaledRoofWork"] = journaled;

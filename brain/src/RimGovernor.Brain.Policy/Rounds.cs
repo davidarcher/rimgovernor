@@ -543,7 +543,7 @@ public sealed record RoundsFacts
 
     public Fact<bool> CleanupPawns { get; init; }
 
-    /// <summary>A colonist whose hostility response differs from the one it should hold; EnsureWorkAssignments writes it.</summary>
+    /// <summary>A colonist whose hostility response differs from the one it should hold; the admin/work-assignments Need writes it.</summary>
     public Fact<bool> HostilityOwed { get; init; }
 
     /// <summary>A pawn whose medical care differs from its cap.</summary>
@@ -552,10 +552,10 @@ public sealed record RoundsFacts
     /// <summary>The colony's guests' cap inputs.</summary>
     public Fact<EquatableArray<CarePatient>> Guests { get; init; }
 
-    /// <summary>A colonist whose medicine carry count differs from the planned one; EnsureWorkAssignments writes it.</summary>
+    /// <summary>A colonist whose medicine carry count differs from the planned one; the admin/work-assignments Need writes it.</summary>
     public Fact<bool> MedicineCarryOwed { get; init; }
 
-    /// <summary>An owned pawn whose short name an older owned pawn holds; EnsureWorkAssignments renames it.</summary>
+    /// <summary>An owned pawn whose short name an older owned pawn holds; the admin/work-assignments Need renames it.</summary>
     public Fact<bool> NamesOwed { get; init; }
 
     /// <summary>The standing butcher benches and the room each stands in; the food/supply Need's butcher facility is met once a table stands outside the kitchen.</summary>
@@ -622,6 +622,10 @@ public sealed record RoundsFindings
     /// <summary>The review's trade facts (the silver gap, the caravans' standing) the economy family's trade Needs read; derived, not saved.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public TradeReview Trade { get; set; } = new();
+
+    /// <summary>Whether the review owes work assignments, settings or coupled activities (WorkAssignmentsOwed), which the admin/work-assignments Need reads; derived, not saved.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Fact<bool> WorkAssignments { get; set; }
     public EssentialServiceReview? EssentialServices { get; set; }
 
     /// <summary>Every assessment, goal needs then incident kinds.</summary>
@@ -650,7 +654,6 @@ public sealed record RoundsAssessment
 
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId EnsureWorkAssignments = new("EnsureWorkAssignments");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
     /// <summary>Supplies the routine inspection targets and budgets. Individual planners bound their orders; vanilla priorities schedule pawn work.</summary>
     public static RoundsPolicy DefaultRoundsPolicy() => new()
@@ -934,6 +937,7 @@ public static partial class PolicyFunctions
             }
         }
         r.Trade = TradeReviewOf(c);
+        r.WorkAssignments = WorkAssignmentsOwed(f, r.CoupledSelection);
         r.EssentialServices = ReviewEssentialServices(f, p, c.Demand, r.All(), medicineActive: c.L.MedicalReserve);
         return r;
     }

@@ -48,6 +48,9 @@ public sealed record AdminFacts
 
     /// <summary>Whether the stockpile review proposes a zone edit, a storage room or a shelf; unknown while the zone claims or the site cells are unread.</summary>
     public Fact<bool>? Stockpiles { get; init; }
+
+    /// <summary>Whether the review owes a work assignment, pawn setting or coupled activity (WorkAssignmentsOwed); unknown while the coverage or cleanup census is unread.</summary>
+    public Fact<bool>? WorkAssignments { get; init; }
 }
 
 /// <summary>Which of the colony admin family's Needs the runtime composes.</summary>
@@ -62,6 +65,8 @@ public sealed record AdminNeeds
     public bool WorkLedger { get; init; }
 
     public bool Stockpiles { get; init; }
+
+    public bool WorkAssignments { get; init; }
 }
 
 /// <summary>
@@ -84,6 +89,11 @@ public sealed record AdminNeeds
 /// declare, so the stockpile review proposes no zone edit, storage room or shelf. It replaced the MaintainStockpiles
 /// Concern; the runtime step raises a planned storage room, commits the standing zones' edits, creates the missing
 /// zones or builds the next shelf, and the zones it creates are Need-linked (decision 20).</item>
+/// <item><c>admin/work-assignments</c> (Wellbeing): every work type is covered, no cleanup pawn is idle, no coupled
+/// activity is selected or running and no hostility, nickname, medicine carry or medical care setting is owed
+/// (<see cref="PolicyFunctions.WorkAssignmentsOwed"/>). It replaced the EnsureWorkAssignments Concern; the runtime
+/// step commits the colony's work priorities, pawn settings, reading and food policies and finishing-skill choices as
+/// one Method, and the review's coupled activities are admitted and continued under it (decision 13).</item>
 /// </list>
 /// </summary>
 public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
@@ -99,6 +109,8 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     public static readonly NeedId WorkLedger = NeedId.Of(FamilyId, "work-ledger");
 
     public static readonly NeedId Stockpiles = NeedId.Of(FamilyId, "stockpiles");
+
+    public static readonly NeedId WorkAssignments = NeedId.Of(FamilyId, "work-assignments");
 
     /// <summary>The stable refusal subject of a creepjoiner weapon drop.</summary>
     public const string UnsupportedDisarm = "unsupported_forecast_precautionary_disarm";
@@ -119,7 +131,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
 
     public IReadOnlyList<Need> Derive(AdminFacts facts)
     {
-        var needs = new List<Need>(5);
+        var needs = new List<Need>(6);
         if (composed.CreepJoiners)
         {
             needs.Add(CreepJoinersNeed(facts.CreepJoiners ?? new CreepJoinerWork()));
@@ -139,6 +151,10 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         if (composed.Stockpiles)
         {
             needs.Add(StockpilesNeed(facts.Stockpiles ?? Fact.Unknown<bool>()));
+        }
+        if (composed.WorkAssignments)
+        {
+            needs.Add(WorkAssignmentsNeed(facts.WorkAssignments ?? Fact.Unknown<bool>()));
         }
         return needs;
     }
@@ -246,6 +262,23 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known(owed ? 1.0 : 0.0),
             Evidence = [new("stockpile_work", Fact.Known(owed ? "true" : "false"))],
+        };
+    }
+
+    /// <summary>Unmet while the review owes work assignments, settings or coupled activities, unknown while it cannot say, met otherwise.</summary>
+    public static Need WorkAssignmentsNeed(Fact<bool> owed)
+    {
+        if (!owed.TryGetValue(out var due))
+        {
+            return new Need { Id = WorkAssignments, Tier = NeedTier.Wellbeing, Evidence = [new("work_assignments_owed", default)] };
+        }
+        return new Need
+        {
+            Id = WorkAssignments,
+            Tier = NeedTier.Wellbeing,
+            Satisfaction = due ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Fact.Known(due ? 1.0 : 0.0),
+            Evidence = [new("work_assignments_owed", Fact.Known(due ? "true" : "false"))],
         };
     }
 

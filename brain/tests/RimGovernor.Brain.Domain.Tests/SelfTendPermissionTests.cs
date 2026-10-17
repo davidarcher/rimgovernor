@@ -20,15 +20,14 @@ public sealed class SelfTendPermissionTests
         var facts = WorkResourceTestFacts.Create("patient");
         facts = facts with { WorkCoverage = Fact.Known(false), ForecastObserved = facts.ForecastObserved with
         { WorkPawns = Fact.Known<EquatableArray<WorkPawn>>([new() { Id = new("patient"), SelfTend = Fact.Known(true), Available = Fact.Known(true) }]) } };
-        var review = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
+        _ = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == EnsureWorkAssignments);
         var plan = new PlanSpec(new("obsolete-setting"), new(1),
             [DomainAction.NewPawnSettingsAction(new("setting"), PawnSettings.NewSelfTendSetting(new("patient"), proposed))]);
-        var error = Assert.Throws<NotAdmittedException>(() => journal.CommitMethod(owner.Standard.Id,
-            owner.Revision, new("obsolete-self-tend-selector"), plan, ct));
+        // The admin/work-assignments Need's Method is refused: self-treatment is an observed permission (#3304).
+        var error = Assert.Throws<NotAdmittedException>(() => journal.CommitClaimedMethod(AdminFamily.WorkAssignments, world,
+            new("obsolete-self-tend-selector"), "", plan, ct));
         Assert.Contains("unsupported_assignment_self_tend_policy", error.Message);
-        Assert.Empty(journal.LoadOwnerMethods(owner, ct));
-        Assert.Equal(owner.Revision, journal.LoadStandard(owner.Standard.Id, ct).Revision);
+        Assert.Empty(journal.LoadNeed(AdminFamily.WorkAssignments, world, ct).Methods);
     }
 }

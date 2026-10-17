@@ -8,7 +8,7 @@ internal static class PawnMedicineCarry
     internal static AcceptanceCase Case() => new()
     {
         Name = "pawn/medicine-carry",
-        Scope = "A fixture doctor on NormalOrWorse care carrying no medicine, beside ample stock, is given a positive Medicine carry count by EnsureWorkAssignments through a PawnSettingsIntent (#1307), and the native policy-inputs read shows it. Native contract: the medicine_carry write and the inventory-stock read; the counts are policy/medicine_carry_test.go.",
+        Scope = "A fixture doctor on NormalOrWorse care carrying no medicine, beside ample stock, is given a positive Medicine carry count by the admin/work-assignments Need through a PawnSettingsIntent (#1307), and the native policy-inputs read shows it. Native contract: the medicine_carry write and the inventory-stock read; the counts are policy/medicine_carry_test.go.",
         Start = new FixtureStart { Op = "test/doctor_medicine", On = new LabStart() },
         Serve = PawnSupport.WorkSpec,
         Budget = TimeSpan.FromMinutes(4),

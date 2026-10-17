@@ -119,7 +119,6 @@ public sealed partial class ClockScheduler
     {
         (object? Planner, Rounder? Reviewer, ConcernId? Concern, ConcernId? Expected)[] planners =
         [
-            (c.Work, c.Work?.Reviewer, null, null),
             (c.Routes, c.Routes?.Reviewer, c.Routes?.Concern, MaintainRoutes),
         ];
         foreach (var (planner, reviewer, concern, expected) in planners)

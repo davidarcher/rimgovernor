@@ -2,8 +2,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
 {
-    /// <summary>Normal review sequencing only. Policy selected the graph; the existing assignment
-    /// Concern, Method journal and Hands retain admission, claims, execution and observed continuation.</summary>
+    /// <summary>Normal review sequencing only. Policy selected the graph; the admin/work-assignments Need's
+    /// claimed commit, the Method journal and Hands retain admission, claims, execution and observed continuation.</summary>
     private void AdmitCoupledSelection(RoundsResult review, RoundsFacts facts, EquatableArray<ForecastObservedIncumbent> incumbents, GenerationSnapshot snapshot,
         CancellationToken call, CancellationToken epoch)
     {
@@ -28,8 +28,8 @@ public sealed partial class Rounder
         selection = dispatch;
         if (selection.Selection.Selected.Length == 0 && selection.Deferred.Count == 0)
         { RecordCoupledSelection(selection, facts.Tick.Value, "continue", facts.CoupledWorkActive); return; }
-        var (owner, workable) = Player.Journal.Workable(review.Review, PolicyApi.EnsureWorkAssignments, call);
-        if (owner is null || !workable) return;
+        // The activity is the admin/work-assignments Need's Method (#3304); a runtime without the Need starts none.
+        if (!Needs.Contains(AdminFamily.WorkAssignments)) return;
         var id = PlanIds.MintPlanId();
         var method = new MethodId($"coupled-{id}");
         var activity = PolicyFunctions.StartCoupledActivity(selection, candidates, snapshot.Native.Value, method.Value, facts.Tick.Value);
@@ -43,9 +43,9 @@ public sealed partial class Rounder
         if (Player.Session.State().Snapshot != snapshot) throw new ControlException("coupled activity scope changed");
         try
         {
-            Player.Journal.CommitMethodReason(owner.Standard.Id, owner.Revision, method, "shared colony consequence portfolio",
+            var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "shared colony consequence portfolio",
                 new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), activity)]), call);
-            RecordCoupledSelection(selection, facts.Tick.Value, method.Value);
+            RecordCoupledSelection(selection, facts.Tick.Value, method.Value, admissionFailure: commit.Conflict?.Reason);
         }
         catch (NotAdmittedException refusal)
         {

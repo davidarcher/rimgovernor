@@ -24,7 +24,6 @@ public sealed class ClockSchedulerConfig
 
     public Rounder? Rounds { get; init; }
 
-    public RoundsWorkPlanner? Work { get; init; }
 
 
 

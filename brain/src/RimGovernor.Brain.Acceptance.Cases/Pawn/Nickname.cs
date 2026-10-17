@@ -8,7 +8,7 @@ internal static class PawnNickname
     internal static AcceptanceCase Case() => new()
     {
         Name = "pawn/nickname",
-        Scope = "The newest fixture colonist given the oldest one's nickname is renamed by EnsureWorkAssignments through a PawnSettingsIntent nickname (#1310), and the population read's owned names show two distinct, unnumbered short names. Native contract: the owned-name census and the name-bank draw; the collision rule is policy/pawn_names_test.go.",
+        Scope = "The newest fixture colonist given the oldest one's nickname is renamed by the admin/work-assignments Need through a PawnSettingsIntent nickname (#1310), and the population read's owned names show two distinct, unnumbered short names. Native contract: the owned-name census and the name-bank draw; the collision rule is policy/pawn_names_test.go.",
         Start = new FixtureStart { Op = "test/duplicate_nickname", On = new LabStart() },
         Serve = PawnSupport.WorkSpec,
         Budget = TimeSpan.FromMinutes(4),

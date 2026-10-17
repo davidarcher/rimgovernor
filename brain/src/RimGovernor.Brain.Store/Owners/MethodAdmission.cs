@@ -34,7 +34,7 @@ public sealed partial class Store
                     || action.QuestShuttle is { Loading: ShuttleLoading.ExplicitPawns } or { Loading: ShuttleLoading.Autoload, Autoload: true })
                     throw new NotAdmittedException("unsupported_voluntary_method:" + Wire.Name(action.Kind));
         // Self-treatment is an observed permission, not a local assignment winner.
-        if (owner is StandardState assignments && assignments.Standard.Kind == EnsureWorkAssignments
+        if (owner is NeedOwner { Need: var assigning } && assigning == AdminFamily.WorkAssignments
             && plan.Actions.Any(a => a.PawnSettings is { Kind: SettingKind.SelfTend }))
             throw new NotAdmittedException("unsupported_assignment_self_tend_policy");
         // A visiting trader's session draws a negotiator off the shared forecast; only a mission's settlement trade is ours.
@@ -270,21 +270,20 @@ public sealed partial class Store
         var areaOnly = false;
         // A creepjoiner's isolation (the admin/creep-joiners Need) is an area move: each assignment is area-only.
         var isolation = false;
-        var need = EnsureWorkAssignments;
         if (owner is NeedOwner { Need: var held })
         {
+            bound = held == AdminFamily.WorkAssignments;
             isolation = held == AdminFamily.CreepJoiners;
         }
         else if (owner.OwnerNeed(review, out var served))
         {
-            bound = served == need;
             areaOnly = served == RecoverDisasterServices;
         }
         if (!bound && !areaOnly && !isolation)
         {
             throw new ConflictException();
         }
-        // The EnsureWorkAssignments plan also carries the pawn settings and per-pawn policies that ride its goal; the
+        // The admin/work-assignments plan also carries the pawn settings and per-pawn policies that ride its goal; the
         // eight-pawn cap and one-assignment-per-pawn rule bind only the work assignments. A disaster area plan
         // carries assignments alone.
         var pawns = new HashSet<PawnId>();

@@ -4,7 +4,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// The runtime half of the colony admin family (#3264, #3304): its full read (the owned rounds census, or the rooms
 /// census when burial is composed, the stored creepjoiner record and the review's event-loot cohort) and the work
 /// steps of its Needs, each committing under the Need owner and admitted by claims: the creepjoiner orders, the
-/// supply-safety batches, the burial rooms and graves and the work ledger's bill reconcile.
+/// supply-safety batches, the burial rooms and graves, the work ledger's bill reconcile and the colony's work
+/// assignments.
 /// </summary>
 public sealed partial class AdminRounds
 {
@@ -13,6 +14,7 @@ public sealed partial class AdminRounds
     private readonly IRoundsSupplySource? _supplies;
     private readonly RoundsBuildingPlanner? _building;
     private readonly RoundsStockpilePlanner? _stockpiles;
+    private readonly RoundsWorkPlanner? _work;
 
     public AdminRounds(Rounder reviewer, bool creepJoiners) : this(reviewer, new AdminNeeds { CreepJoiners = creepJoiners }, null)
     {
@@ -35,6 +37,10 @@ public sealed partial class AdminRounds
         {
             _stockpiles = new RoundsStockpilePlanner(reviewer, stockpiles ?? throw new ControlException("AdminRounds: stockpiles need a stockpile source"));
         }
+        if (needs.WorkAssignments)
+        {
+            _work = new RoundsWorkPlanner(reviewer);
+        }
         if (needs.Burial && reviewer.Native is IRoundsBuildingSource source)
         {
             _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source };
@@ -44,14 +50,16 @@ public sealed partial class AdminRounds
     }
 
     /// <summary>
-    /// An optional entry woken by the outcomes of its surgeries, area moves, supply batches, burial buildings and zone edits.
+    /// An optional entry woken by the outcomes of its surgeries, area moves, supply batches, burial buildings, zone edits,
+    /// work assignments, pawn settings and policies.
     /// The runner is critical while supply safety is composed, as its own planner was.
     /// </summary>
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Optional,
         Kinds = [ActionKind.Surgery, ActionKind.WorkAssignment, ActionKind.SupplyAllow, ActionKind.SupplyForbid, ActionKind.Building,
-            ActionKind.ProductionBill, ActionKind.RemoveProductionBill, ActionKind.ZoneCreate, ActionKind.ZoneCellEdit, ActionKind.ZoneDelete, ActionKind.StockpilePatch],
+            ActionKind.ProductionBill, ActionKind.RemoveProductionBill, ActionKind.ZoneCreate, ActionKind.ZoneCellEdit, ActionKind.ZoneDelete, ActionKind.StockpilePatch,
+            ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy, ActionKind.PawnActivities],
     };
 
     /// <summary>The family's scheduler entry; with the work ledger composed it also files the ledger's purpose verdicts.</summary>
@@ -110,6 +118,11 @@ public sealed partial class AdminRounds
             // Whether the review's stockpile proposal is active in this world; unknown until it reviewed this world.
             facts = facts with { Stockpiles = _reviewer.Stockpiles.Active(scope.World) };
         }
+        if (_needs.WorkAssignments)
+        {
+            // Whether the review owed work assignments in this world; unknown until it reviewed this world.
+            facts = facts with { WorkAssignments = _reviewer.WorkAssignments.Get(scope.World) };
+        }
         return facts;
     }
 
@@ -135,6 +148,10 @@ public sealed partial class AdminRounds
         if (work.Need.Id == AdminFamily.Stockpiles && _stockpiles is not null)
         {
             return await _stockpiles.StepAsync(work, ct).ConfigureAwait(false);
+        }
+        if (work.Need.Id == AdminFamily.WorkAssignments && _work is not null)
+        {
+            return await _work.StepAsync(work, ct).ConfigureAwait(false);
         }
         return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
     }

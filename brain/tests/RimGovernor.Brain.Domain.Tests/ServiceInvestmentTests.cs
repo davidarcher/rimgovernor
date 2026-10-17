@@ -86,7 +86,7 @@ public sealed class ServiceInvestmentTests
     public void DisabledShelterControlCannotGenerateRoofOrFinishWork()
     {
         var facts = ForecastThermalPortfolioTests.Review(-10) with
-        { AvailableMethods = Known<EquatableArray<ConcernId>>([EnsureWorkAssignments]), AvailableNeeds = Known<EquatableArray<NeedId>>([FoodSupplyNeed]) };
+        { AvailableMethods = Known<EquatableArray<ConcernId>>([]), AvailableNeeds = Known<EquatableArray<NeedId>>([AdminFamily.WorkAssignments, FoodSupplyNeed]) };
         var generated = GenerateCoupledActivities(facts, 1000)!;
         Assert.DoesNotContain(generated.Alternatives, c => c.ExclusiveOutcome.StartsWith("shelter/", StringComparison.Ordinal)
             || c.ExclusiveOutcome.StartsWith("construction/", StringComparison.Ordinal));

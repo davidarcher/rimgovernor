@@ -26,8 +26,8 @@ internal static class MaintenancePracticeCase
                 {
                     var read = await s.Harness.CallAsync("maintenance", "test/maintenance_read", [], token).ConfigureAwait(false);
                     s.Report["observed"] = read;
-                    foreach (var owner in await store.OpenStandardsAsync(PolicyFunctions.EnsureWorkAssignments, token).ConfigureAwait(false))
-                        foreach (var method in await store.LoadMethodsAsync(owner.Standard.Id, owner.Standard.Episode, token).ConfigureAwait(false)) journaled.Add(method.MethodId.Value);
+                    foreach (var method in await ServiceJournal.NeedMethodsAsync(store, Policy.AdminFamily.WorkAssignments, token).ConfigureAwait(false))
+                        journaled.Add(method);
                     var methods = read["methods"]!.AsArray().Select(n => n.AsString()).ToArray();
                     var normal = methods.Length > 0 && methods.All(journaled.Contains);
                     if (stage == 0 && normal && read["earned"].Flag() && read["activity"].AsString() != "running")

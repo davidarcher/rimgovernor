@@ -119,8 +119,6 @@ internal static class ClockPlannerCatalog
     private static readonly FactSection[] SectionsPawns = [FactSection.Pawns];
     private static readonly FactSection[] SectionsMedical = [FactSection.Pawns, FactSection.Colony];
     private static readonly FactSection[] SectionsThreat = [FactSection.Pawns, FactSection.Emergency];
-    // Adds the population census for the owned-pawn names and the colony facts for the reading, drug and food policies.
-    private static readonly FactSection[] SectionsWork = [FactSection.Pawns, FactSection.Population, FactSection.Emergency, FactSection.Colony, FactSection.Buildings];
     private static readonly FactSection[] SectionsRecovery = [FactSection.Pawns, FactSection.Emergency, FactSection.Colony];
     // The sectionless families planners declare beside their sections.
     private static readonly FactFamily[] FamiliesEmergency = [FactFamily.Emergency];
@@ -162,8 +160,6 @@ internal static class ClockPlannerCatalog
     /// <summary>Lists every routine planner in queue order. Planners start in this order.</summary>
     public static readonly IReadOnlyList<PlannerEntry> Entries =
     [
-        E("work", O, [ActionKind.WorkAssignment, ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy, ActionKind.Building], SectionsWork,
-            c => c.Work is not null, (s, ct, e, a) => s.Config.Work!.StepAsync(a, ct, e), (o, m) => o.Work = m, EnsureWorkAssignments),
         E("routes", O, [ActionKind.Building, ActionKind.DoorControl, ActionKind.OwnedDraft, ActionKind.Movement], SectionsBuilding,
             c => c.Routes is not null, (s, ct, e, a) => s.Config.Routes!.StepAsync(a, ct, e), (o, m) => o.Routes = m, MaintainRoutes),
         E(DefensePlanner, C, [ActionKind.OwnedDraft, ActionKind.Subdue, ActionKind.Ability], SectionsThreat,

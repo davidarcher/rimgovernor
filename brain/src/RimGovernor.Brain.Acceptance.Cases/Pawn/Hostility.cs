@@ -8,7 +8,7 @@ internal static class PawnHostility
     internal static AcceptanceCase Case() => new()
     {
         Name = "pawn/hostility",
-        Scope = "A fixture pawn made violence-incapable and set to Ignore is set to Flee by EnsureWorkAssignments through a PawnSettingsIntent (#1299), and the native pawn read shows Flee. Native contract: the intent's write, the care read's hostility_response and the violence tag; the mapping itself is policy/hostility_test.go.",
+        Scope = "A fixture pawn made violence-incapable and set to Ignore is set to Flee by the admin/work-assignments Need through a PawnSettingsIntent (#1299), and the native pawn read shows Flee. Native contract: the intent's write, the care read's hostility_response and the violence tag; the mapping itself is policy/hostility_test.go.",
         Start = new FixtureStart { Op = "test/pacifist_ignore", On = new LabStart() },
         Serve = PawnSupport.WorkSpec,
         Budget = TimeSpan.FromMinutes(4),

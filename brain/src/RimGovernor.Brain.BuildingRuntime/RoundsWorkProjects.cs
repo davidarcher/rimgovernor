@@ -256,7 +256,7 @@ internal static partial class BuildingRuntimePackage
     /// The bench-hosted work the review and the work planner both fold into the construction requirement: open
     /// bills (RoundsBillWork) and, while a resource target is in deficit, the standing benches that could
     /// produce it (RoundsDeficitWork). One census read serves both; no bill and no deficit reads nothing. The
-    /// review needs the same rows so EnsureWorkAssignments assesses a deficit the planner will then cover.
+    /// review needs the same rows so the admin/work-assignments Need is owed for a deficit the planner will then cover.
     /// </summary>
     internal static async Task<Fact<IReadOnlyList<Pol.WorkRequirement>>> RoundsBenchWorkAsync(IRoundsWorkBenchSource? benches, GenerationSnapshot snapshot, IReadOnlyList<Sto.PlanState> plans, IReadOnlyDictionary<PlanId, ulong> player, IReadOnlyDictionary<Pol.Resource, long> targets, bool deficit, Pol.Resource wort, CancellationToken ct)
     {

@@ -9,53 +9,38 @@ public interface IRoundsWorkBenchSource
     Task<(IReadOnlyList<GearBenchRead> Reads, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 }
 
-public sealed class RoundsWorkResult : IPlannerMethod
-{
-    public Verdict Verdict { get; init; }
-
-    public PlanId Plan { get; init; }
-}
-
+/// <summary>
+/// The admin/work-assignments Need's step (#3304): the colony's work priorities, pawn settings, reading and food
+/// policies and construction finishing-skill choices, committed as one Method under the Need. The MethodId names the
+/// changes it writes, so the same changes are committed once; an open plan whose actions the fresh review no longer
+/// wants has them cancelled first.
+/// </summary>
 public sealed class RoundsWorkPlanner
 {
     private readonly Rounder _reviewer;
-    internal Rounder Reviewer => _reviewer;
     private readonly IRoundsWorkBenchSource _benches;
 
     public RoundsWorkPlanner(Rounder reviewer)
     {
         if (reviewer is null)
         {
-            throw new ControlException("NewRoundsWorkPlanner: reviewer == nil");
+            throw new ControlException("RoundsWorkPlanner: reviewer is missing");
         }
         _reviewer = reviewer;
         _benches = (IRoundsWorkBenchSource)reviewer.Native;
     }
 
-    internal async Task<RoundsWorkResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    internal async Task<Verdict> StepAsync(NeedWork need, CancellationToken call)
     {
         var p = _reviewer.Player;
-        var state = p.Session.State();
-        if (!state.Enabled)
-        {
-            return new RoundsWorkResult { Verdict = BuildingReasonDisabled };
-        }
-        if (!state.ObservationKnown)
-        {
-            throw new ControlException("step: !state.ObservationKnown");
-        }
+        var state = need.State;
         var review = p.Journal.LoadRounds(call);
         if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
-            return new RoundsWorkResult { Verdict = BuildingReasonNoReview };
-        }
-        var (goal, deficitProject) = p.Journal.Workable(review, PolicyApi.EnsureWorkAssignments, call);
-        if (goal is null || !deficitProject)
-        {
-            return new RoundsWorkResult { Verdict = BuildingReasonNoDeficit };
+            return BuildingReasonNoReview;
         }
         var open = new List<PlanState>();
-        foreach (var method in goal.Methods)
+        foreach (var method in need.Owner.Methods)
         {
             var plan = p.Journal.LoadPlan(method.Plan, call);
             if (StorePackage.PlanOpen(plan))
@@ -63,7 +48,7 @@ public sealed class RoundsWorkPlanner
                 open.Add(plan);
             }
         }
-        RoundsWorkResult Existing(RoundsWorkResult unknown) => open.Count > 0 ? new RoundsWorkResult { Verdict = BuildingReasonExistingWork } : unknown;
+        Verdict Existing(Verdict unknown) => open.Count > 0 ? BuildingReasonExistingWork : unknown;
 
         var plans = p.Journal.LoadPlans(call);
         var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(state.Snapshot), call);
@@ -77,7 +62,7 @@ public sealed class RoundsWorkPlanner
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
         if (!read.Projection.WorkPawns.TryGetValue(out var pawns))
         {
-            return Existing(new RoundsWorkResult { Verdict = FieldUnavailable("work_pawns") });
+            return Existing(FieldUnavailable("work_pawns"));
         }
         var construction = PolicyApi.ConstructionSkillChoices(read.Projection.Facts.CurrentConstruction, read.Projection.WorkPawns).ToList();
         if (construction.Count > 8)
@@ -86,7 +71,7 @@ public sealed class RoundsWorkPlanner
         }
         if (!RoundsProjectWork(definitions, read.Projection.Definitions).TryGetValue(out var required))
         {
-            return Existing(new RoundsWorkResult { Verdict = FieldUnavailable("project_work") });
+            return Existing(FieldUnavailable("project_work"));
         }
         var resourceTargets = _reviewer.ResourceTargets(state.Snapshot);
         // The resource targets are in deficit when the economy/resource Need's threshold reads short now.
@@ -95,7 +80,7 @@ public sealed class RoundsWorkPlanner
         var benchWork = await RoundsBenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, playerPlans, targets, targets.Count > 0, read.Projection.Facts.Items.Wort, call).ConfigureAwait(false);
         if (!benchWork.TryGetValue(out var benchRows))
         {
-            return Existing(new RoundsWorkResult { Verdict = FieldUnavailable("bench_work") });
+            return Existing(FieldUnavailable("bench_work"));
         }
         required = MergeWorkRequirements([.. required], benchRows);
         var needs = RoundsResearchNeeds(p.Journal, _reviewer.Policy, read.Projection.Facts.Items, state.Snapshot, _reviewer.EquipmentOwed(state.Snapshot), call);
@@ -104,7 +89,7 @@ public sealed class RoundsWorkPlanner
         required = MergeWorkRequirements([.. required], FishingWork(read.Projection));
         if (!StudyWork(read.Projection, call).TryGetValue(out var study))
         {
-            return Existing(new RoundsWorkResult { Verdict = FieldUnavailable("study_work") });
+            return Existing(FieldUnavailable("study_work"));
         }
         required = MergeWorkRequirements([.. required], study);
         var demand = RoundsDiseaseDemand(read.Projection, definitions, review, state.Snapshot);
@@ -113,7 +98,7 @@ public sealed class RoundsWorkPlanner
         var decision = PolicyApi.PlanWork(pawns, required, demand);
         if (!decision.Capacity.IsKnown)
         {
-            return Existing(new RoundsWorkResult { Verdict = FieldUnavailable("work_capacity") });
+            return Existing(FieldUnavailable("work_capacity"));
         }
         var byId = pawns.ToDictionary(pawn => pawn.Id);
         var work = new List<WorkAssignment>();
@@ -181,15 +166,15 @@ public sealed class RoundsWorkPlanner
         }
         foreach (var openPlan in open)
         {
-            CancelStaleWorkActions(p.Journal, goal, openPlan, work, settings, call);
+            CancelStaleWorkActions(p.Journal, openPlan, work, settings, call);
             if (StorePackage.PlanOpen(p.Journal.LoadPlan(openPlan.Spec.Id, call)))
             {
-                return new RoundsWorkResult { Verdict = BuildingReasonExistingWork };
+                return BuildingReasonExistingWork;
             }
         }
         if (work.Count == 0 && settings.Count == 0 && reading.Count == 0 && food.Count == 0 && construction.Count == 0)
         {
-            return new RoundsWorkResult { Verdict = FieldUnavailable("work_assignments") };
+            return FieldUnavailable("work_assignments");
         }
         if (work.Count > 8)
         {
@@ -206,30 +191,22 @@ public sealed class RoundsWorkPlanner
             hash.Append(inv, $"{w.Pawn}/{string.Join(',', w.Settings.Select(s => $"{s.Definition}:{s.Priority}"))}\n");
             if (w.Schedule.Count > 0)
             {
-                hash.Append(inv, $"schedule/{GoQuoteList(w.Schedule)}/{goal.Methods.Count}\n");
+                hash.Append(inv, $"schedule/{GoQuoteList(w.Schedule)}\n");
             }
         }
         foreach (var s in settings)
         {
-            hash.Append(inv, $"{s.Kind}/{s.Pawn}/{s.Hostility}/{s.SelfTend}/{GoQuote(s.LeaveName)}/{s.MedicineCarry ?? 0}/{s.MedicalCare}/{GoQuote(s.ReadingPolicy ?? "")}/{GoQuote(s.DrugPolicy ?? "")}/{GoQuote(s.FoodPolicy ?? "")}/{GoQuote(s.MechWorkMode ?? "")}/{s.MechControlGroup ?? 0}/{goal.Methods.Count}\n");
+            hash.Append(inv, $"{s.Kind}/{s.Pawn}/{s.Hostility}/{s.SelfTend}/{GoQuote(s.LeaveName)}/{s.MedicineCarry ?? 0}/{s.MedicalCare}/{GoQuote(s.ReadingPolicy ?? "")}/{GoQuote(s.DrugPolicy ?? "")}/{GoQuote(s.FoodPolicy ?? "")}/{GoQuote(s.MechWorkMode ?? "")}/{s.MechControlGroup ?? 0}\n");
         }
         foreach (var r in reading)
         {
-            hash.Append(inv, $"reading/{GoQuote(r.Name)}/{GoQuoteList(r.Definitions)}/{goal.Methods.Count}\n");
+            hash.Append(inv, $"reading/{GoQuote(r.Name)}/{GoQuoteList(r.Definitions)}\n");
         }
         foreach (var f in food)
         {
-            hash.Append(inv, $"food/{GoQuote(f.Name)}/{GoQuoteList(f.Definitions)}/{goal.Methods.Count}\n");
+            hash.Append(inv, $"food/{GoQuote(f.Name)}/{GoQuoteList(f.Definitions)}\n");
         }
         var methodId = new MethodId("work-" + HashHex16(hash.ToString()));
-        try
-        {
-            p.Journal.LoadOwnerMethod(goal, methodId, call);
-            return new RoundsWorkResult { Verdict = WaitFor(Cause.MethodUsed, "work_method") };
-        }
-        catch (NotFoundException)
-        {
-        }
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>();
         for (var i = 0; i < work.Count; i++)
@@ -254,23 +231,28 @@ public sealed class RoundsWorkPlanner
             actions.Add(action.WithFinishingSkill(choice.Minimum, choice.Site.Id));
         }
         var spec = new PlanSpec(id, new PlanRevision(1), actions);
-        p.Current(call, epoch);
+        p.Current(call, need.Epoch);
         if (p.Session.State() != state)
         {
-            throw new ControlException("step: p.session.State() != state");
+            throw new ControlException("work assignments: the session moved");
         }
-        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, methodId, "", spec, call);
-        return new RoundsWorkResult { Verdict = BuildingReasonAdmitted, Plan = id };
+        var commit = p.Journal.CommitClaimedMethod(need.Need.Id, need.Owner.Snapshot, methodId, "", spec, call);
+        if (commit.Outcome == ClaimOutcome.Continued)
+        {
+            return WaitFor(Cause.MethodUsed, "work_method");
+        }
+        return AdminRounds.OutcomeVerdict([(commit.Outcome, commit.Conflict)]) ?? BuildingReasonAdmitted;
     }
 }
 
 internal static partial class BuildingRuntimePackage
 {
-    /// <summary>Cancels the not-yet-dispatched work and settings actions of an open plan that the fresh review no longer wants.</summary>
-    internal static void CancelStaleWorkActions(StoreJournal journal, RimGovernor.Brain.Store.StandardState owner, PlanState plan, IReadOnlyList<WorkAssignment> fresh, IReadOnlyList<PawnSettings> settings, CancellationToken ct)
+    /// <summary>
+    /// Cancels the not-yet-dispatched work and settings actions of an open plan of the admin/work-assignments Need that
+    /// the fresh review no longer wants; a drug policy write is never wanted again.
+    /// </summary>
+    internal static void CancelStaleWorkActions(StoreJournal journal, PlanState plan, IReadOnlyList<WorkAssignment> fresh, IReadOnlyList<PawnSettings> settings, CancellationToken ct)
     {
-        var routineOwned = owner.Standard.Kind == PolicyApi.EnsureWorkAssignments
-            && owner.Methods.Any(m => m.Plan == plan.Spec.Id && m.MethodId == plan.Method);
         var wantedSettings = new HashSet<PawnSettings>(settings);
         var wanted = new Dictionary<Domain.PawnId, WorkAssignment>();
         foreach (var w in fresh)
@@ -289,7 +271,7 @@ internal static partial class BuildingRuntimePackage
             {
                 staleSettings[action.Id] = !wantedSettings.Contains(s);
             }
-            if (routineOwned && action.DrugPolicy is not null) staleSettings[action.Id] = true;
+            if (action.DrugPolicy is not null) staleSettings[action.Id] = true;
         }
         foreach (var progress in plan.Progress)
         {

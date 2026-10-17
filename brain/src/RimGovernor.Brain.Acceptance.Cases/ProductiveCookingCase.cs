@@ -27,9 +27,8 @@ internal static class ProductiveCookingCase
                 await new Wait { Stall = TimeSpan.FromSeconds(45), Terminal = run.Service.Exited }.WaitProgressAsync(async token =>
                 {
                     var read = await s.Harness.CallAsync("productive-cooking", "test/productive_cooking_read", [], token).ConfigureAwait(false);
-                    foreach (var owner in await store.OpenStandardsAsync(PolicyFunctions.EnsureWorkAssignments, token).ConfigureAwait(false))
-                        foreach (var method in await store.LoadMethodsAsync(owner.Standard.Id, owner.Standard.Episode, token).ConfigureAwait(false))
-                            journaled.Add(method.MethodId.Value);
+                    foreach (var method in await ServiceJournal.NeedMethodsAsync(store, Policy.AdminFamily.WorkAssignments, token).ConfigureAwait(false))
+                        journaled.Add(method);
                     var methods = read["methods"]!.AsArray().Select(n => n.AsString()).ToArray();
                     var logs = Path.Combine(GameSessions.EndpointDirectory(s.Config.Configuration, s.Config.GameId), "logs.jsonl");
                     var evidence = OtlpTimeline.Read(logs).Any(row => row.WallTime >= started && row.Kind == "coupled_selection"

@@ -45,8 +45,8 @@ internal static class ServiceInvestmentCase
                 await new Wait { Stall = TimeSpan.FromSeconds(45), Terminal = run.Service.Exited }.WaitProgressAsync(async token =>
                 {
                     var read = await s.Harness.CallAsync("service-investment-observe", "test/service_shelter_read", [], token).ConfigureAwait(false);
-                    foreach (var owner in await journal.OpenStandardsAsync(EnsureWorkAssignments, token).ConfigureAwait(false))
-                        foreach (var method in await journal.LoadMethodsAsync(owner.Standard.Id, owner.Standard.Episode, token).ConfigureAwait(false)) witnessed.Add(method.MethodId.Value);
+                    foreach (var method in await ServiceJournal.NeedMethodsAsync(journal, Policy.AdminFamily.WorkAssignments, token).ConfigureAwait(false))
+                        witnessed.Add(method);
                     var methods = read["methods"]!.AsArray().Select(n => n.AsString()).ToArray();
                     var logs = Path.Combine(GameSessions.EndpointDirectory(s.Config.Configuration, s.Config.GameId), "logs.jsonl");
                     var explained = OtlpTimeline.Read(logs).Any(row => row.WallTime >= started && row.Kind == "coupled_selection"

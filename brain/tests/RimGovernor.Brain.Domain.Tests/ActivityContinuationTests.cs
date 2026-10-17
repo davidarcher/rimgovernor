@@ -175,6 +175,60 @@ public sealed class ActivityContinuationTests
         Assert.Throws<ConflictException>(() => uncertain.ContinueActivityMethod(initial.Id, Root, new(110), [Row("completed")], next, ct));
     }
 
+    /// <summary>
+    /// A coupled activity committed under the admin/work-assignments Need (#3304, decision 13) continues under the same
+    /// MethodId: its need_methods row moves to the next plan. It is needed while the Need's progress row says it is
+    /// unmet, unknown without a row (never a release on absence), and a met Need permits release only.
+    /// </summary>
+    [Fact]
+    public void NeedOwnedActivityContinuesUnderItsMethodWhileTheNeedIsUnmet()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Open(ct);
+        BridgeFunctions.RegisterIntentKinds();
+        _ = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
+            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
+        var need = AdminFamily.WorkAssignments;
+        var initial = Plan("need-initial", Batch);
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(need, Root, new("method"), "", initial, ct).Outcome);
+        var scope = Root with { Plan = initial.Id };
+        journal.Prepare(initial.Id, initial.Actions[0].Id, scope, new(100), ct);
+        var dispatched = journal.Dispatch(initial.Id, initial.Actions[0].Id, scope, new(100), ct);
+        journal.RecordReceipt(initial.Id, initial.Actions[0].Id, dispatched.View.Attempt, Receipt.Accepted, ct);
+
+        // No progress row yet: unknown, so the activity is neither released nor productively continued.
+        Assert.False(Assert.Single(journal.ActivityMethods(Root, ct)).Needed.IsKnown);
+        var next = Plan("need-next", Batch with { Orders = [Order with { ExpectedRevision = 1, Revision = 2,
+            Steps = [new(PawnActivityKind.Deliver, "fresh-observed-stack", "", "", 2, 600) { Destination = new Cell(3, 4) }] }] });
+        Assert.Throws<ConflictException>(() => journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row("completed")], next, ct));
+
+        void File(bool met) => journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(),
+            [new FamilyProgress(AdminFamily.FamilyId, true, met ? [] : [new NeedProgress(need, false, default, new("method"))])], ct);
+        File(met: false);
+        Assert.True(Assert.Single(journal.ActivityMethods(Root, ct)).Needed.Value);
+        Assert.Equal(ActivityContinuationAdmission.Admitted,
+            journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row("completed")], next, ct));
+        var bound = Assert.Single(journal.LoadNeed(need, Root, ct).Methods);
+        Assert.Equal(new MethodId("method"), bound.Method);
+        Assert.Equal(next.Id, bound.Plan);
+        Assert.Equal(next.Id, journal.LoadPlan(initial.Id, ct).SupersededBy);
+
+        // Met: the row is pruned, so a productive step is refused while a release still goes through.
+        File(met: true);
+        var nextScope = Root with { Plan = next.Id };
+        journal.Prepare(next.Id, next.Actions[0].Id, nextScope, new(110), ct);
+        var sent = journal.Dispatch(next.Id, next.Actions[0].Id, nextScope, new(110), ct);
+        journal.RecordReceipt(next.Id, next.Actions[0].Id, sent.View.Attempt, Receipt.Accepted, ct);
+        var running = new ActivityOwnership("pawn", "assignment", "method", 2, "completed");
+        var further = Plan("need-further", Batch with { Orders = [Order with { ExpectedRevision = 2, Revision = 3,
+            Steps = [new(PawnActivityKind.Hold, "", "", "", 0, 900)] }] });
+        Assert.Throws<ConflictException>(() => journal.ContinueActivityMethod(next.Id, Root, new(120), [running], further, ct));
+        var release = Plan("need-release", Batch with { Orders = [Order with { ExpectedRevision = 2, Revision = 3, Release = true, Steps = [] }] });
+        Assert.Equal(ActivityContinuationAdmission.Admitted,
+            journal.ContinueActivityMethod(next.Id, Root, new(120), [running], release, ct));
+        Assert.Equal(release.Id, Assert.Single(journal.LoadNeed(need, Root, ct).Methods).Plan);
+    }
+
     [Fact]
     public void KnownOwnershipEndRetiresIntentWithoutTouchingAnotherAssignment()
     {

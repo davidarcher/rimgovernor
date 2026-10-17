@@ -28,9 +28,8 @@ internal static class PortfolioNeedsCase
                 await wait.WaitProgressAsync(async token =>
                 {
                     var read = await s.Harness.CallAsync("portfolio-observe", "test/portfolio_needs_read", [], token).ConfigureAwait(false);
-                    foreach (var owner in await store.OpenStandardsAsync(PolicyFunctions.EnsureWorkAssignments, token).ConfigureAwait(false))
-                        foreach (var method in await store.LoadMethodsAsync(owner.Standard.Id, owner.Standard.Episode, token).ConfigureAwait(false))
-                            if (method.MethodId.Value.StartsWith("coupled-", StringComparison.Ordinal)) witnessedMethods.Add(method.MethodId.Value);
+                    foreach (var method in await ServiceJournal.NeedMethodsAsync(store, Policy.AdminFamily.WorkAssignments, token).ConfigureAwait(false))
+                        if (method.StartsWith("coupled-", StringComparison.Ordinal)) witnessedMethods.Add(method);
                     var applied = read["methods"]!.AsArray().Select(n => n.AsString()).ToArray();
                     var journaled = applied.Length > 0 && applied.All(witnessedMethods.Contains);
                     s.Report["portfolio"] = read;

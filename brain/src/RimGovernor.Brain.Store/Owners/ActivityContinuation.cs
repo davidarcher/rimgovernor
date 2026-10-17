@@ -16,10 +16,16 @@ public sealed partial class Store
     private static bool ActivityReleasePlan(PlanSpec plan) => plan.Actions.Count > 0
         && plan.Actions.All(a => a.PawnActivities is { } batch && batch.Orders.All(o => o.Release));
 
+    /// <summary>
+    /// The installed activity Methods in <paramref name="current"/>'s world, Standard- or Need-owned (#3304, decision 13).
+    /// A Standard's Method is needed while the Standard is in deficit; a Need's while the Need's progress row in the
+    /// current review says it is unmet or working a Method (decision 18), and unknown without a row.
+    /// </summary>
     public IReadOnlyList<ActivityMethod> ActivityMethods(GenerationSnapshot current, CancellationToken ct) => Run(tx =>
     {
         var result = new List<ActivityMethod>();
-        foreach (var id in tx.Query("SELECT plan_id FROM plan_methods WHERE kind='standard' ORDER BY plan_id", [], r => new PlanId(r.GetString(0))))
+        foreach (var (id, kind, ownerId) in tx.Query("SELECT plan_id,kind,owner_id FROM plan_methods WHERE kind IN ('standard','need') ORDER BY plan_id", [],
+            r => (new PlanId(r.GetString(0)), r.GetString(1), r.GetString(2))))
         {
             var plan = LoadIn(tx, id);
             if (plan.Retired || plan.Progress.Count != 1) continue;
@@ -29,16 +35,39 @@ public sealed partial class Store
             if (progress.Action.PawnActivities is not { } batch || batch.Orders.All(o => o.Release)
                 || !InstalledActivity(progress.View)
                 || !progress.View.Snapshot.SameWorld(current) || progress.View.Snapshot.Native != current.Native) continue;
-            var ownerId = tx.ScalarText("SELECT owner_id FROM plan_methods WHERE plan_id=$plan", ("$plan", id));
-            var owner = LoadStandard(tx, new StandardId(ownerId!));
-            result.Add(new(id, plan.Method, progress.View.Snapshot,
-                installed.Spec.Id != id ? Fact.Known(false) : owner.Standard.Finding == Finding.Unclear ? default : Fact.Known(owner.Deficit), batch));
+            Fact<bool> needed;
+            if (installed.Spec.Id != id)
+            {
+                needed = Fact.Known(false);
+            }
+            else if (kind == "need")
+            {
+                needed = NeedOwedIn(tx, new NeedId(ownerId), current) ? Fact.Known(true) : default;
+            }
+            else
+            {
+                var owner = LoadStandard(tx, new StandardId(ownerId));
+                needed = owner.Standard.Finding == Finding.Unclear ? default : Fact.Known(owner.Deficit);
+            }
+            result.Add(new(id, plan.Method, progress.View.Snapshot, needed, batch));
         }
         return (IReadOnlyList<ActivityMethod>)result;
     }, ct);
 
-    /// <summary>Replace one installed activity batch under the same Method. The prior plan is retained as
-    /// superseded history. Productive continuation still requires an unmet Concern; release does not.</summary>
+    /// <summary>
+    /// Whether <paramref name="need"/> has a progress row in the current enabled review of <paramref name="current"/>'s
+    /// world: the family's last run found it unmet or unknown, or working a Method (decision 18). A met Need without
+    /// work has no row.
+    /// </summary>
+    private static bool NeedOwedIn(StoreTransaction tx, NeedId need, GenerationSnapshot current)
+    {
+        var review = LoadRounds(tx);
+        return review.Enabled && review.Snapshot.SameWorld(current) && review.Progress.Any(p => p.Concern == need.FilingKey);
+    }
+
+    /// <summary>Replace one installed activity batch under the same Method (a Standard's or a Need's). The prior plan
+    /// is retained as superseded history. Productive continuation still requires an unmet Concern or a Need with a
+    /// progress row; release does not.</summary>
     public ActivityContinuationAdmission ContinueActivityMethod(PlanId previous, GenerationSnapshot current, Tick observedTick,
         IReadOnlyList<ActivityOwnership> observed, PlanSpec next, CancellationToken ct) => Run(tx =>
     {
@@ -52,10 +81,25 @@ public sealed partial class Store
         if (!InstalledActivity(progress) || !progress.Snapshot.SameWorld(current)
             || progress.Snapshot.Native != current.Native || batch.AuthorityGeneration != current.Native.Value)
             throw new ConflictException("activity installation or authority is unresolved/stale");
-        var ownerId = tx.ScalarText("SELECT owner_id FROM plan_methods WHERE plan_id=$plan AND kind='standard'", ("$plan", previous));
-        if (ownerId is null) throw new ConflictException("activity continuation has no Standard Method");
-        var owner = LoadStandard(tx, new StandardId(ownerId));
-        if (!owner.Standard.Snapshot.SameWorld(current) || observedTick < progress.Tick
+        var (link, linked) = tx.QueryFirst("SELECT kind,owner_id FROM plan_methods WHERE plan_id=$plan AND kind IN ('standard','need')",
+            [("$plan", previous)], r => (Kind: r.GetString(0), Owner: r.GetString(1)));
+        if (!linked) throw new ConflictException("activity continuation has no Standard or Need Method");
+        StandardState? standard = null;
+        NeedOwner? needOwner = null;
+        bool sameWorld;
+        if (link.Kind == "need")
+        {
+            var (world, found) = tx.QueryFirst("SELECT colony,load_token,map_id FROM need_methods WHERE plan_id=$plan", [("$plan", previous)],
+                r => (Colony: r.GetString(0), Load: r.GetString(1), Map: r.GetInt64(2)));
+            sameWorld = found && world.Colony == current.Colony.Value && world.Load == current.Load.Value && world.Map == current.Map.Value;
+            needOwner = LoadNeedIn(tx, new NeedId(link.Owner), current);
+        }
+        else
+        {
+            standard = LoadStandard(tx, new StandardId(link.Owner));
+            sameWorld = standard.Standard.Snapshot.SameWorld(current);
+        }
+        if (!sameWorld || observedTick < progress.Tick
             || observed.Select(r => r.Pawn).Distinct(StringComparer.Ordinal).Count() != observed.Count
             || old.Orders.Any(o => !observed.Any(r => r.Pawn == o.Pawn)))
             throw new ConflictException("activity continuation has stale or incomplete ownership evidence");
@@ -84,21 +128,35 @@ public sealed partial class Store
         if (!release && !ActivityCleanupDelta(old, batch))
         {
             if (installed.Spec.Id != prior.Spec.Id) throw new ConflictException("refused continuation permits cleanup only");
-            if (!owner.Deficit) throw new ConflictException("recovered Concern permits release only");
-            AdmitRoundsSafeguards(tx, owner);
-            AdmitRoundsReview(tx, SummarizeOwner(owner));
+            if (standard is not null)
+            {
+                if (!standard.Deficit) throw new ConflictException("recovered Concern permits release only");
+                AdmitRoundsSafeguards(tx, standard);
+                AdmitRoundsReview(tx, SummarizeOwner(standard));
+            }
+            else
+            {
+                if (!NeedOwedIn(tx, needOwner!.Need, current)) throw new ConflictException("met Need permits release only");
+                AdmitRoundsSafeguards(tx, needOwner);
+            }
             var retained = batch.Orders.Where(o => old.Orders.Any(p => PawnActivities.SameOrder(p, o)))
                 .Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
             if (!WorkResourcesFit(WorkResourcesIn(tx, current, previous, observed), next, retained))
                 return ActivityContinuationAdmission.ResourcesUnavailable;
         }
         CreatePlanIn(tx, next);
-        InsertPlanOwner(tx, next.Id, "standard");
-        if (tx.Execute("UPDATE standard_methods SET plan_id=$next WHERE plan_id=$previous", ("$next", next.Id), ("$previous", previous)) != 1)
+        InsertPlanOwner(tx, next.Id, link.Kind);
+        var moved = standard is not null
+            ? tx.Execute("UPDATE standard_methods SET plan_id=$next WHERE plan_id=$previous", ("$next", next.Id), ("$previous", previous))
+            : tx.Execute("UPDATE need_methods SET plan_id=$next WHERE plan_id=$previous", ("$next", next.Id), ("$previous", previous));
+        if (moved != 1)
             throw new ConflictException("activity Method changed");
         _ = tx.Execute("UPDATE plans SET method_id=$method WHERE id=$next", ("$method", prior.Method), ("$next", next.Id));
         _ = tx.Execute("UPDATE plans SET retired=1,superseded_by=$next WHERE id=$previous", ("$next", next.Id), ("$previous", previous));
-        BumpRevision(tx, owner);
+        if (standard is not null)
+        {
+            BumpRevision(tx, standard);
+        }
         return ActivityContinuationAdmission.Admitted;
     }, ct);
 

@@ -40,6 +40,21 @@ public static class ServiceJournal
         return Task.Run(() => journal.PlanHistoryWithMethods(256, [pattern], cancellationToken), cancellationToken);
     }
 
+    /// <summary>
+    /// Every MethodId <paramref name="need"/> bound in the persisted review's world, retired plans included (the
+    /// latest attempt of each); none while no review was persisted yet.
+    /// </summary>
+    public static async Task<IReadOnlyList<string>> NeedMethodsAsync(Journal journal, Policy.NeedId need, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(journal);
+        if (await TryRoundsAsync(journal, cancellationToken).ConfigureAwait(false) is not { } review)
+        {
+            return [];
+        }
+        var history = await Task.Run(() => journal.OwnerMethodHistory(journal.LoadNeed(need, review.Snapshot, cancellationToken), cancellationToken), cancellationToken).ConfigureAwait(false);
+        return [.. history.Select(m => m.Method.Value)];
+    }
+
     /// <summary>The persisted review (Go <c>st.LoadRounds</c>), or null while none was persisted yet.</summary>
     public static async Task<ReviewRecord?> TryRoundsAsync(Journal journal, CancellationToken cancellationToken)
     {

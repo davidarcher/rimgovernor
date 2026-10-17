@@ -516,6 +516,19 @@ owner, writing the record with each inspection it admits; surgery bills claim
 `surgery/<patient>/<recipe>/<part>`. A weapon drop stays held as an unsupported
 forecast outcome.
 
+**Colony admin, work assignments (#3304).** EnsureWorkAssignments is now the
+`admin/work-assignments` Need, a Wellbeing Need of the `admin` entry. It is unmet
+while a coupled activity runs, is selected or is deferred, while a hostility
+response, nickname, medicine carry or medical care cap is owed, or while a work
+type is uncovered or a cleanup pawn idles; unknown while coverage is unread. Its
+step (`RoundsWorkPlanner`) commits the work priorities, pawn settings and the
+reading, food and drug policies as one Method under the Need owner; each pawn's
+settings claim `settings/<pawn>` and each written policy
+`policy/{reading,food,drug}/<name>`. Coupled activities commit under the same
+Need, and their productive continuation is admitted only while the Need's latest
+progress row is unmet; a met Need permits release only. Only this Need may set
+work priorities: other Needs' assignments are area-only.
+
 **Prisoners (#3262).** The prisoner half of the old population Concern is the `prisoners`
 family (`Prisoners.cs`, runtime `PrisonersRounds`), an Optional entry woken by
 PrisonerInteraction, Building and BedUse outcomes. `prisoners/recruit`
@@ -678,7 +691,7 @@ anomaly).
 | Joiners and quests | `joiners`: Needs `offers`, `letters`, `ceremony`, `quests`, `decrees`, `monuments`, `departures`, `grav-inspection` (#3302) |
 | Anomaly | `anomaly`: Needs `doors`, `capture`, `tend`, `lance`, `bioferrite`, `monolith` (#3302) |
 | Economy | `economy`: Needs `research` (#3263; EnsureResearch deleted) and `resource` (#3303; MaintainResource deleted), `trade`, `caravan` and `trade-mission` (#3316; the trade Concern, caravan Incident and trade-mission Standard deleted) |
-| Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial`, `work-ledger`, `stockpiles` (#3304); EnsureWorkAssignments |
+| Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial`, `work-ledger`, `stockpiles`, `work-assignments` (#3304) |
 | People | `people`: Need `dialog` (#3304; AnswerDialog and its planner deleted); EnsureMood |
 | Disaster | RecoverDisasterServices |
 

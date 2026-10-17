@@ -62,20 +62,22 @@ public static partial class PolicyFunctions
 {
     internal static Fact<bool> NotFact(Fact<bool> f) => Measured(f, v => !v);
 
-    internal static void InspectWorkAssignments(RoundsRun c)
+    /// <summary>
+    /// The admin/work-assignments Need's measure (#3304): owed while a coupled activity runs or is selected or deferred,
+    /// a hostility, nickname, medicine carry or medical care setting is owed, a work type is uncovered or a cleanup pawn
+    /// is idle; unknown while the coverage or cleanup census is unread.
+    /// </summary>
+    public static Fact<bool> WorkAssignmentsOwed(RoundsFacts f, ForecastCoupledSelection? coupled)
     {
-        var f = c.F;
-        var workMet = AllFacts(f.WorkCoverage, Measured(f.CleanupPawns, v => !v));
-        if (f.CoupledWorkActive || c.R.CoupledSelection is { Selection.Selected.Length: > 0 } or { Deferred.Count: > 0 }) workMet = Known(false);
+        if (f.CoupledWorkActive || coupled is { Selection.Selected.Length: > 0 } or { Deferred.Count: > 0 })
+        {
+            return Known(true);
+        }
         if (Positive(f.HostilityOwed) || Positive(f.NamesOwed) || Positive(f.MedicineCarryOwed) || Positive(f.MedicalCareOwed))
         {
-            workMet = Known(false);
+            return Known(true);
         }
-        if (!Positive(workMet))
-        {
-            c.Raise(EnsureWorkAssignments);
-        }
-        c.Assess(EnsureWorkAssignments, workMet);
+        return NotFact(AllFacts(f.WorkCoverage, Measured(f.CleanupPawns, v => !v)));
     }
 
     /// <summary>

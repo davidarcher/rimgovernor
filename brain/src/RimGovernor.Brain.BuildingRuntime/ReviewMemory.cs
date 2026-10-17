@@ -67,6 +67,9 @@ public sealed partial class Rounder
     /// <summary>The latest review's trade measures, read by the economy family's trade and caravan Needs (#3316).</summary>
     internal TradeReviewMemory TradeMemory { get; } = new();
 
+    /// <summary>Whether the latest review owed work assignments (WorkAssignmentsOwed), read by the admin/work-assignments Need (#3304); unknown for another world.</summary>
+    internal ReviewMemory<Fact<bool>> WorkAssignments { get; } = new(Unknown<bool>());
+
     /// <summary>The stock targets every resource planner dispatches on: the review's demand.</summary>
     internal IReadOnlyDictionary<Resource, long> ResourceTargets(GenerationSnapshot snapshot) => Demand.Get(snapshot).Needs;
 

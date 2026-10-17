@@ -18,7 +18,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.True(new RimGovernor.Brain.Host.BrainFamilies().Work);
         var (_, capabilities) = RimGovernor.Brain.Host.BrainComposition.RoundsCapabilitiesFor(
             new() { Work = work }, false);
-        var facts = Review() with { AvailableMethods = Known(EquatableArray.From(capabilities.Methods)) };
+        var facts = Review() with { AvailableNeeds = Known(EquatableArray.From(capabilities.Needs)) };
         var generated = GenerateCoupledActivities(facts, Horizon);
         if (work) Assert.NotEmpty(Assert.IsType<ForecastCoupledCandidates>(generated).Alternatives);
         else Assert.Null(generated);
@@ -420,7 +420,7 @@ public sealed class ForecastCoupledSelectionTests
         };
         var root = Assert.Single(GenerateCoupledActivities(facts, Horizon)!.Alternatives, a => a.ExclusiveOutcome == "gear-filter/pawn");
         Assert.Equal("gear-filter/pawn/disallow-DeadMansApparel", root.Id);
-        var disabled = facts with { AvailableNeeds = Known<EquatableArray<NeedId>>([]) };
+        var disabled = facts with { AvailableNeeds = Known<EquatableArray<NeedId>>([AdminFamily.WorkAssignments]) };
         Assert.DoesNotContain(GenerateCoupledActivities(disabled, Horizon)!.Alternatives, a => a.ExclusiveOutcome.StartsWith("gear-filter/", StringComparison.Ordinal));
     }
 

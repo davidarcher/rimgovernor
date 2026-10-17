@@ -12,7 +12,7 @@ public sealed record CarePatient
 
 /// <summary>
 /// Ports <c>medical_care_cap.go</c>. Every pawn the colony cares for holds a standing MedicalCareCategory by what
-/// it is worth, raised one tier while a serious condition lasts. EnsureWorkAssignments writes the caps through
+/// it is worth, raised one tier while a serious condition lasts. The admin/work-assignments Need writes the caps through
 /// PawnSettingsIntent. Colonists: NormalOrWorse while the usable industrial medicine stock meets
 /// MedicalReservePolicy.TargetPerColonist per colonist, else HerbalOrWorse; never Best as a standing cap.
 /// Prisoners being recruited, broken, converted or enslaved: NormalOrWorse; maintain-only, release, execution and
