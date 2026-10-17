@@ -228,7 +228,7 @@ public static partial class ObservationPackage
                 QuestSites = FrameWorldSites(frame.Quests),
                 QuestExpeditionTrips = FrameExpeditionTrips(frame.Quests, expected.Map),
                 QuestWorkers = p.WorkPawns,
-                ForecastObserved = p.Facts.ForecastObserved with { WorkPawns = p.WorkPawns, Needs = colony.Forecast?.Outcome?.Observed?.Needs, Coupled = colony.Forecast?.Outcome?.Observed?.Coupled },
+                ForecastObserved = p.Facts.ForecastObserved with { WorkPawns = p.WorkPawns, Needs = colony.Forecast?.Outcome?.Needs, Coupled = colony.Forecast?.Outcome?.Coupled },
                 EssentialInputs = new() { Benches = p.ProductionBenches, Power = p.PowerPlanning },
             },
         };

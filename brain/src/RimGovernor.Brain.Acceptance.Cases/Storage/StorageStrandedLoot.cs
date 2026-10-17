@@ -52,7 +52,7 @@ internal static class StorageStrandedLoot
 
         var reply = await s.CallAsync("stranded-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed("stranded-facts", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
-        var census = facts.EventLoot?.Outcome?.Observed ?? throw new AcceptanceException($"colony facts carry no eventLoot census: {facts.EventLoot?.Outcome}");
+        var census = facts.EventLoot?.Outcome ?? throw new AcceptanceException($"colony facts carry no eventLoot census: {facts.EventLoot?.Outcome}");
         var row = census.Items.FirstOrDefault(i => i.Item?.Id == wood)
             ?? throw new AcceptanceException($"the loot census lists no row for the WoodLog stack {wood}: {string.Join("; ", census.Items)}");
         s.RecordWire("wood-row", row);

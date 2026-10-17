@@ -191,7 +191,7 @@ public static partial class ObservationPackage
         {
             f = f with { PenGrazing = Known(channels.Grazing), Pasture = Known(channels.Pasture) };
         }
-        if (v.Development?.Outcome?.Observed is { } development && Resolved(buildings, development.Power, row => row.Building))
+        if (v.Development?.Outcome is { } development && Resolved(buildings, development.Power, row => row.Building))
         {
             var power = new List<PowerBuilding>(development.Power.Count);
             var topology = new PowerTopology();
@@ -437,7 +437,7 @@ public static partial class ObservationPackage
             r = r with { CookingBenches = Known(EquatableArray.From(benches)) };
         }
         // A food supply whose stock the things table misses stays unknown until a later frame.
-        if (v.FoodSupply?.Outcome?.Observed is { } food)
+        if (v.FoodSupply?.Outcome is { } food)
         {
             if (DecodeFoodSupply(food, tables.Things, catalog) is { } supply)
             {
@@ -445,7 +445,7 @@ public static partial class ObservationPackage
                 f = f with { FoodStorageUpkeep = PolicyFunctions.FoodStorageStocks(supply, RequireCatalog(catalog).Derived.FullRotRateC) };
             }
         }
-        if (v.Forecast?.Outcome?.Observed is { } forecast)
+        if (v.Forecast?.Outcome is { } forecast)
         {
             var combined = DecodeFoodSupply(forecast.CombinedFoodSupply, tables.Things, catalog);
             if (combined is not null)
@@ -499,7 +499,7 @@ public static partial class ObservationPackage
             }
             r = r with { Resources = Known<IReadOnlyDictionary<Resource, long>>(stock) };
         }
-        if (v.EventLoot?.Outcome?.Observed is { } loot && Headed(tables, loot.Items, row => row.Item))
+        if (v.EventLoot?.Outcome is { } loot && Headed(tables, loot.Items, row => row.Item))
         {
             var rows = new List<LootItem>(loot.Items.Count);
             var spawnForbidden = RequireCatalog(catalog).SpawnForbiddenProducts();

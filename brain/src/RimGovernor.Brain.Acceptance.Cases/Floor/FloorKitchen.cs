@@ -52,7 +52,7 @@ internal static class FloorKitchen
         async Task<List<Observations.FloorCell>> ReadAsync(string label)
         {
             var upkeep = await TypedApply.UpkeepAsync(s, label, cancellationToken).ConfigureAwait(false);
-            var flooring = upkeep.Flooring?.Outcome?.Observed ?? throw new AcceptanceException($"{label}: flooring section unavailable: {upkeep.Flooring?.Outcome}");
+            var flooring = upkeep.Flooring?.Outcome ?? throw new AcceptanceException($"{label}: flooring section unavailable: {upkeep.Flooring?.Outcome}");
             var room = flooring.Rooms.FirstOrDefault(r => r.Cells.Any(c => interior.Contains(Of(c))))
                 ?? throw new AcceptanceException($"{label}: no flooring row holds the staged kitchen");
             s.RecordWire(label, room);

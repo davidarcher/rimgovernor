@@ -113,10 +113,6 @@ public sealed partial class FacadeNativeClient
     {
         var tick = await TickAsync(cancellationToken).ConfigureAwait(false);
         var outcome = tick.Outcome;
-        if (outcome.Failure is { } tickFailure)
-        {
-            throw Failure(tickFailure);
-        }
         if (outcome.Unavailable is { } tickUnavailable)
         {
             throw Unavailable(tickUnavailable);

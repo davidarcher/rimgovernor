@@ -138,7 +138,7 @@ internal static class PawnPolicies
             throw new AcceptanceException($"policy \"{Label}\" reads entries [{string.Join("; ", policy.DrugEntries)}]");
         }
 
-        var forecast = (await FactsAsync(s, "drug-forecast", true, cancellationToken).ConfigureAwait(false)).Forecast?.Outcome?.Observed?.Needs
+        var forecast = (await FactsAsync(s, "drug-forecast", true, cancellationToken).ConfigureAwait(false)).Forecast?.Outcome?.Needs
             ?? throw new AcceptanceException("drug-forecast: needs forecast unavailable");
         var row = forecast.Pawns.SingleOrDefault(p => p.Pawn == colonist) ?? throw new AcceptanceException($"drug-forecast: no needs row for {colonist}");
         s.RecordWire("needs_row_blockers", row.VoluntaryControlBlockers);

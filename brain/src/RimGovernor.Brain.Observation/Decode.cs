@@ -33,8 +33,6 @@ public static partial class ObservationPackage
             }
             case IdentityReplyOutcome.UnavailableCase:
                 throw new BridgeUnavailableException();
-            case IdentityReplyOutcome.FailureCase:
-                throw new BridgeRefusedException();
             default:
                 throw new ObservationContractException("identity outcome");
         }
@@ -60,8 +58,6 @@ public static partial class ObservationPackage
                 throw unavailable.Reason == C.UnavailableReason.NotLoaded
                     ? new NotLoadedException("native observation unavailable: no colony map is loaded")
                     : new BridgeUnavailableException();
-            case TickReplyOutcome.FailureCase:
-                throw new BridgeRefusedException();
             default:
                 throw new ObservationContractException("tick outcome");
         }

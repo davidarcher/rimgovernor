@@ -53,7 +53,7 @@ internal static class TypedApply
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
-        return facts.Upkeep?.Outcome?.Observed ?? throw new AcceptanceException($"{label}: upkeep facts unavailable: {facts.Upkeep?.Outcome}");
+        return facts.Upkeep?.Outcome ?? throw new AcceptanceException($"{label}: upkeep facts unavailable: {facts.Upkeep?.Outcome}");
     }
 
     /// <summary>The observations_get_cells grid over the inclusive staged-site rectangle <paramref name="rect"/> (absolute cells).</summary>

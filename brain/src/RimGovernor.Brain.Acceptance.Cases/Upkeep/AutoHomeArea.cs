@@ -26,7 +26,7 @@ internal static class UpkeepAutoHomeArea
         {
             var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
             var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
-            var upkeep = facts.Upkeep?.Outcome?.Observed ?? throw new AcceptanceException($"{label}: upkeep facts unavailable");
+            var upkeep = facts.Upkeep?.Outcome ?? throw new AcceptanceException($"{label}: upkeep facts unavailable");
 
             // A set optional is emitted even when false.
             return upkeep.AutoHomeArea ?? throw new AcceptanceException($"{label}: auto_home_area absent");

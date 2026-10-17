@@ -74,12 +74,7 @@ internal static class ApplyDeferredSnapshot
         }
 
         var flushed = await s.CallAsync("flush", NativeOps.FlushFrames, new Observations.FlushSnapshotRequest(), cancellationToken).ConfigureAwait(false);
-        if (flushed.Outcome?.Flushed is not { } uncaptured)
-        {
-            throw new AcceptanceException($"flush: {flushed.Outcome}");
-        }
-
-        s.Record("flush_found_uncaptured", uncaptured);
+        s.Record("flush_found_uncaptured", flushed.Flushed);
         var ticks = await s.RunUntilAsync("flushed-frame", FrameTicks, async ct =>
         {
             var read = await ReadAsync(s, "flushed-frame-read", 0, ct).ConfigureAwait(false);

@@ -373,11 +373,7 @@ public sealed partial class FacadeNativeClient : IDisposable
                 {
                     _frameStale = true;
                 }
-                if (outcome.Unavailable is { } unavailable)
-                {
-                    throw Unavailable(unavailable);
-                }
-                throw Failure(outcome.Failure!);
+                throw Unavailable(outcome.Unavailable!);
             }
             await Feed.ResetAsync(cancellationToken).ConfigureAwait(false);
             lock (_frameGate)
@@ -399,11 +395,7 @@ public sealed partial class FacadeNativeClient : IDisposable
     /// </summary>
     internal async Task FlushSnapshotAsync(CancellationToken cancellationToken)
     {
-        var reply = await Facade.FlushFramesAsync(new PbObservations.FlushSnapshotRequest(), cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
+        await Facade.FlushFramesAsync(new PbObservations.FlushSnapshotRequest(), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

@@ -4,12 +4,12 @@ public static partial class ObservationPackage
 {
     internal static Fact<HomeCoverageObservation> ColonyHomeCoverage(O.ColonyFactsSnapshot v)
     {
-        var u = v.Upkeep?.Outcome?.Observed;
+        var u = v.Upkeep?.Outcome;
         if (u is null || HasIssue(u.Issues, "home_coverage"))
         {
             return Unknown<HomeCoverageObservation>();
         }
-        var h = u.HomeCoverage?.Outcome?.Observed;
+        var h = u.HomeCoverage?.Outcome;
         if (h is null)
         {
             return Unknown<HomeCoverageObservation>();
@@ -60,7 +60,7 @@ public static partial class ObservationPackage
 
     internal static Fact<EquatableArray<StoneStructure>> ColonyStoneStructures(O.ColonyFactsSnapshot v, Buildings buildings, DefinitionCatalog? catalog)
     {
-        var u = v.Upkeep?.Outcome?.Observed;
+        var u = v.Upkeep?.Outcome;
         if (u is null || HasIssue(u.Issues, "structures"))
         {
             return Unknown<EquatableArray<StoneStructure>>();

@@ -24,11 +24,6 @@ public sealed partial class FacadeNativeClient
             throw Unavailable(unavailable);
         }
 
-        if (outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-
         var snapshot = outcome.Observed!;
         var hours = new List<Policy.ConsumptionHour>();
         foreach (var hour in snapshot.Hours)
@@ -62,11 +57,6 @@ public sealed partial class FacadeNativeClient
         if (outcome.Unavailable is { } unavailable)
         {
             throw Unavailable(unavailable);
-        }
-
-        if (outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
         }
 
         var snapshot = outcome.Observed!;

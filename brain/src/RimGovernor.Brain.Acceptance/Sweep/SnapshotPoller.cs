@@ -59,6 +59,6 @@ public sealed class SnapshotPoller
     {
         var reply = await _harness.CallAsync("snapshot-read", NativeOps.ReadSnapshot, new Obs.SnapshotReadRequest { AfterNumber = after }, cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Read
-            ?? throw new AcceptanceException($"observations_read_snapshot: {(reply.Outcome?.Unavailable is { } unavailable ? "unavailable: " + unavailable.Detail : reply.Outcome?.Failure is { } failure ? "failure: " + failure.Detail : "no outcome")}");
+            ?? throw new AcceptanceException($"observations_read_snapshot: {(reply.Outcome?.Unavailable is { } unavailable ? "unavailable: " + unavailable.Detail : "no outcome")}");
     }
 }

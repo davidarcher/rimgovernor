@@ -10,7 +10,7 @@ public static partial class ObservationPackage
     {
         var buildings = tables.Buildings;
         var r = new UpkeepObservation();
-        var u = v.Upkeep?.Outcome?.Observed;
+        var u = v.Upkeep?.Outcome;
         if (u is null)
         {
             return r;
@@ -90,7 +90,7 @@ public static partial class ObservationPackage
     /// </summary>
     private static Fact<FlooringObservation> ColonyFlooring(O.FlooringSection? section, O.RoutesSection? routes, DefinitionCatalog? catalog)
     {
-        var f = section?.Outcome?.Observed;
+        var f = section?.Outcome;
         if (f is null)
         {
             return default;
@@ -152,7 +152,7 @@ public static partial class ObservationPackage
     /// </summary>
     private static Fact<RoutesObservation> ColonyRoutes(O.RoutesSection? section)
     {
-        var f = section?.Outcome?.Observed;
+        var f = section?.Outcome;
         if (f is null)
         {
             return default;
@@ -238,7 +238,7 @@ public static partial class ObservationPackage
     /// </summary>
     private static Fact<LightingObservation> ColonyLighting(O.LightingSection? section, Buildings buildings, DefinitionCatalog? catalog)
     {
-        var l = section?.Outcome?.Observed;
+        var l = section?.Outcome;
         if (l is null)
         {
             return default;

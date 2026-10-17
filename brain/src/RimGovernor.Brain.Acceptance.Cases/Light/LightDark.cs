@@ -130,6 +130,6 @@ internal static class LightDark
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
-        return facts.Upkeep?.Outcome?.Observed?.Lighting?.Outcome?.Observed ?? throw new AcceptanceException($"{label}: the lighting facts are unavailable");
+        return facts.Upkeep?.Outcome?.Lighting?.Outcome ?? throw new AcceptanceException($"{label}: the lighting facts are unavailable");
     }
 }

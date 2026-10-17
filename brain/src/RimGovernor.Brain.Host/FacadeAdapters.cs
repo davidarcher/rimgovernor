@@ -62,8 +62,6 @@ internal sealed class FacadeWorldSource(INativeFacade facade) : IWorldSource
                 return context!;
             case PbLifecycle.TickReplyOutcome.UnavailableCase unavailable:
                 throw FacadeReplies.Unavailable("ReadTick", unavailable.Value);
-            case PbLifecycle.TickReplyOutcome.FailureCase failure:
-                throw FacadeReplies.Refused("ReadTick", failure.Value);
             default:
                 throw new BridgeContractException("ReadTick reply carried no outcome");
         }

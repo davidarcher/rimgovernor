@@ -159,7 +159,7 @@ public static partial class ObservationPackage
             byId[(p.Pawn.Id ?? "")] = p;
         }
         var forecasts = new Dictionary<string, O.PatientForecast>(StringComparer.Ordinal);
-        if (colony.Forecast?.Outcome?.Observed is { } observed)
+        if (colony.Forecast?.Outcome is { } observed)
         {
             foreach (var f in observed.Patients)
             {

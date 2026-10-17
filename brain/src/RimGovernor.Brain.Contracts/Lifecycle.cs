@@ -105,7 +105,6 @@ public sealed record IdentityReply
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(IdentityReplyOutcome.LoadedCase), "loaded")]
 [JsonDerivedType(typeof(IdentityReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(IdentityReplyOutcome.FailureCase), "failure")]
 public abstract record IdentityReplyOutcome
 {
     private protected IdentityReplyOutcome() { }
@@ -125,14 +124,6 @@ public abstract record IdentityReplyOutcome
     public sealed record UnavailableCase(Common.Unavailable Value) : IdentityReplyOutcome;
 
     public static implicit operator IdentityReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : IdentityReplyOutcome;
-
-    public static implicit operator IdentityReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>
@@ -180,7 +171,6 @@ public sealed record TickReply
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(TickReplyOutcome.LoadedCase), "loaded")]
 [JsonDerivedType(typeof(TickReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(TickReplyOutcome.FailureCase), "failure")]
 public abstract record TickReplyOutcome
 {
     private protected TickReplyOutcome() { }
@@ -200,14 +190,6 @@ public abstract record TickReplyOutcome
     public sealed record UnavailableCase(Common.Unavailable Value) : TickReplyOutcome;
 
     public static implicit operator TickReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : TickReplyOutcome;
-
-    public static implicit operator TickReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>

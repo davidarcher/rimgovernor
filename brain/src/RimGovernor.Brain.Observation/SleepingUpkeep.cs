@@ -4,7 +4,7 @@ public static partial class ObservationPackage
 {
     internal static Fact<SleepingObservation> ColonySleeping(O.ColonyFactsSnapshot v, Buildings buildings, DefinitionCatalog? catalog)
     {
-        var u = v.Upkeep?.Outcome?.Observed;
+        var u = v.Upkeep?.Outcome;
         if (u is null || HasIssue(u.Issues, "people") || HasIssue(u.Issues, "beds"))
         {
             return Unknown<SleepingObservation>();

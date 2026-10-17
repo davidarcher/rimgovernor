@@ -292,7 +292,7 @@ namespace HomeBridge.BridgeTools
         {
             ArgumentNullException.ThrowIfNull(request);
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(new Obs.FlushSnapshotReply { Outcome = new Obs.FlushSnapshotReplyOutcome.FlushedCase(SnapshotStream.Flush()) });
+            return Task.FromResult(new Obs.FlushSnapshotReply { Flushed = SnapshotStream.Flush() });
         }
     }
 

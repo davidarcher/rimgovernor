@@ -131,7 +131,7 @@ public static partial class ObservationPackage
     /// </summary>
     internal static Fact<ComfortObservation> ColonyComfort(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
     {
-        var value = v.Upkeep?.Outcome?.Observed?.Comfort?.Outcome?.Observed;
+        var value = v.Upkeep?.Outcome?.Comfort?.Outcome?.Observed;
         if (value is null)
         {
             return Unknown<ComfortObservation>();
@@ -210,7 +210,7 @@ public static partial class ObservationPackage
     /// </summary>
     internal static Fact<EquatableArray<WasteItem>> ColonyWaste(O.ColonyFactsSnapshot v, Tables tables)
     {
-        var snapshot = v.Waste?.Outcome?.Observed;
+        var snapshot = v.Waste?.Outcome;
         if (snapshot is null || !Headed(tables, snapshot.Items, row => row.Thing))
         {
             return Unknown<EquatableArray<WasteItem>>();
@@ -290,7 +290,7 @@ public static partial class ObservationPackage
                 r = r with { Resources = Known(EquatableArray.From(rows)) };
             }
         }
-        var u = v.Upkeep?.Outcome?.Observed;
+        var u = v.Upkeep?.Outcome;
         if (u is null || HasIssue(u.Issues, "items") || !Headed(tables, u.Items, item => item.Item))
         {
             return r;
