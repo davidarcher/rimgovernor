@@ -19,7 +19,7 @@ internal static class MoodProbe
         {
             _ = await s.AdvanceAsync(Settle, null, cancellationToken).ConfigureAwait(false);
             advanced += Settle;
-            var row = await PawnSupport.ReadPawnAsync(s.Harness, s, $"read-{label}-{CaseSupport.Tag(advanced)}", pawn, true, cancellationToken).ConfigureAwait(false);
+            var row = await ReadRowAsync(s, $"read-{label}-{CaseSupport.Tag(advanced)}", pawn, cancellationToken).ConfigureAwait(false);
             NativeAssert.RequireSocial(row);
             var social = row["social"].AsMap()!;
             if (social["situationalCacheStale"].AsBool() == true)
@@ -41,6 +41,32 @@ internal static class MoodProbe
             var raw = social["situational"].AsSlice().Select(r => r.AsMap()).FirstOrDefault(r => r?["defName"].AsString() == thought);
             return (thoughts.FirstOrDefault(t => t.Def == thought)?.Offset ?? 0, raw, advanced, state);
         }
+    }
+
+    /// <summary>The one row of <paramref name="pawn"/> with every detail family a mood read joins.</summary>
+    private static async Task<JsonObject> ReadRowAsync(ISession s, string label, string pawn, CancellationToken cancellationToken)
+    {
+        var details = new JsonObject
+        {
+            ["needs"] = true,
+            ["health"] = true,
+            ["equipment"] = true,
+            ["biography"] = true,
+            ["settings"] = true,
+            ["social"] = true,
+            ["animals"] = true,
+            ["work"] = true,
+            ["schedule"] = true,
+        };
+        var request = new JsonObject
+        {
+            ["scope"] = new JsonObject { ["expectedIdentity"] = s.Identity.DeepClone() },
+            ["filter"] = new JsonObject { ["ids"] = new JsonArray(pawn), ["includeDead"] = true },
+            ["details"] = details,
+        };
+        var reply = await s.Harness.WireAsync(label, "observations_list_pawns", request, cancellationToken).ConfigureAwait(false);
+        var rows = WallCensus.Observed(label, reply)["pawns"].AsSlice().Select(row => row.AsMap() ?? []).ToList();
+        return rows is [{ } only] && only["pawn"].Member("id").AsString() == pawn ? only : throw new AcceptanceException($"{label}: pawn {pawn} missing from the pawn read");
     }
 
     /// <summary>The card stage whose baseMoodEffect is <paramref name="offset"/>, -1 for none.</summary>

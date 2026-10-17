@@ -89,7 +89,6 @@ namespace HomeBridge.BridgeTools
                     if (p.playerSettings != null) person = person with { MedicalCare = NativeEnums.Care(p.playerSettings.medCare) };
                     // Peg-leg control: an addiction a prisoner cannot feed.
                     person = person with { Withdrawal = p.health?.hediffSet?.hediffs?.Any(h => h is Hediff_Addiction) == true };
-                    person = person with { PolicyInputs = NativePolicyFacts.Inputs(p) };
                     var home = p.Faction == null ? null : p.HomeFaction;
                     person = person with { HarvestGoodwillChange = 0 };
                     if (home != null && !home.IsPlayer)

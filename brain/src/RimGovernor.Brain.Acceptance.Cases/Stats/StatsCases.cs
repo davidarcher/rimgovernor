@@ -8,6 +8,5 @@ public static class StatsCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(StatsEvaluateStat.Case());
-        registry.Register(StatsEvaluatorParity.Case());
     }
 }

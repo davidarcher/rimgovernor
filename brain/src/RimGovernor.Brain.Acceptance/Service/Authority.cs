@@ -85,18 +85,6 @@ public static class Authority
         return await OutcomeAsync(wire, label, "authority_control", request, "revoked", cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Asserts an authority_read_status body is Inactive with exactly <paramref name="reason"/> and returns its inactive case.</summary>
-    public static JsonObject RequireInactive(JsonObject status, string reason)
-    {
-        ArgumentNullException.ThrowIfNull(status);
-        if (status["inactive"].AsMap() is not { } inactive || inactive["reason"].AsString() != reason)
-        {
-            throw new AcceptanceException($"expected inactive authority {reason}, got {status.ToJson()}");
-        }
-
-        return inactive;
-    }
-
     /// <summary>
     /// Revokes an active authority grant at the generation the game reports now (a keep-alive may have re-acquired
     /// since the first grant). Returns null when nothing was active. A harness that kills its service rather than

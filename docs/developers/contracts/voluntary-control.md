@@ -156,8 +156,7 @@ not satisfy #3135's actual-gameplay gate.
 | `observations/pawn-activity`, `observations/planned-room-prediction` | Keep native schema, coherent observations and explicit unknowns; none proves dispatch. |
 | `needs/freeze` | Keep fixture control mechanics; production outcome cases must explicitly leave the needs they exercise live. |
 | `medical/tend-gates` | Keep native doctor/patient eligibility and care protection. |
-| `pawn/drug-policy` | Rewrite as explicit native policy creation/assignment and adult/child permission readback, followed by scheduled-prevention unsupported-state evidence. No automatic policy generator. |
-| `pawn/drug-addiction` | Rewrite as explicit luciferium policy operation/readback and unsupported-state evidence on the prepared addicted pawn; no claim of successful autonomous treatment. |
+| `pawn/drug-policy` | Rewrite as explicit native policy creation/assignment and readback on a luciferium-addicted colonist, followed by scheduled-drug unsupported-state evidence (absorbs `pawn/drug-addiction`). No automatic policy generator. |
 | `mood/relief` | Delete the obsolete `relieve_need`/JobGiver choice contract. Preserve recreation completion and player/mental-state protection in the exact activity and normal-needs cases. |
 
 Pure portfolio tests own distance/skill/capacity/obligation reversals, no-change,

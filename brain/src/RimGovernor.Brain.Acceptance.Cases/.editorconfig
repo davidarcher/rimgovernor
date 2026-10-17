@@ -150,15 +150,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Dialog/DialogPause.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Draft/DraftCases.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Draft/DraftIntent.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Draft/DraftTakeover.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Environment/TemperatureProbe.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -360,52 +351,7 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Movement/MovementArrival.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Needs/NeedsFreeze.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Odyssey/OdysseyLavaField.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/AnimalFoodPolicy.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/DrugAddiction.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/DrugPolicy.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/ExplicitDrugPolicy.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/FoodPolicy.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/Hostility.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/Inspiration.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/MedicineCarry.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/MentalState.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/Nickname.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/PawnSupport.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/ReadingPolicy.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/Reads.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Pawn/SelfTend.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Quest/QuestAccept.cs]
@@ -510,9 +456,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/SpeedMatrix/Observations.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Stats/StatsEvaluateStat.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Storage/StorageOccupancyRing.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -544,9 +487,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Sustained/Stockpiles.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Takeover/TakeoverAudit.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Temperature/BuildingTemperature.cs]

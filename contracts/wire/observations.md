@@ -286,7 +286,7 @@ stat the game hides for the def and a non-finite value are errors, never a
 default. `DeteriorationRate`, which a planner
 reads of every `ThingDef` and the game hides for a def that does not set it,
 is read whether shown or not. The `EvaluateStat` read stays as the parity oracle: the
-`stats/evaluate-stat` and `stats/evaluator-parity` acceptance cases compare the catalog's answer with the
+`stats/evaluate-stat` acceptance case compares the catalog's answer with the
 game's own.
 ### Game-computed ThingDef flags
 

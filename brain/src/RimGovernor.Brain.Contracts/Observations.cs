@@ -4048,12 +4048,6 @@ public sealed record PopulationPerson
     /// </summary>
     public PawnConditions? Conditions { get; init; }
 
-    /// <summary>
-    /// Policy inputs, for a prisoner of the colony only: its current
-    /// drug policy id and chemical state, as on the work census settings row.
-    /// </summary>
-    public PawnPolicyInputs? PolicyInputs { get; init; }
-
     public bool? WillJoinIfRescued { get; init; }
 }
 

@@ -36,6 +36,7 @@ public static class FixtureJson
 [JsonSerializable(typeof(ProductiveCookingRead))]
 [JsonSerializable(typeof(PortfolioNeedsRead))]
 [JsonSerializable(typeof(ThermalRead))]
+[JsonSerializable(typeof(FrozenNeedsRead))]
 [JsonSerializable(typeof(SleepingPrepared))]
 [JsonSerializable(typeof(ControlRead))]
 [JsonSerializable(typeof(CookingRead))]
