@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -28,7 +29,7 @@ internal static class UpkeepHomeCoverage
     {
         var report = s.Report;
         var identity = s.Identity;
-        foreach (var fixture in new[] { "test/sleeping_setup", "test/home_coverage_setup", "test/home_coverage_read", "test/home_remove_cell", "test/home_cell_read" })
+        foreach (var fixture in new[] { "test/sleeping_setup", "test/home_coverage_setup", "test/home_remove_cell" })
         {
             if (!Dyn.Contains(s.Names, fixture))
             {
@@ -95,7 +96,7 @@ internal static class UpkeepHomeCoverage
             throw new AcceptanceException($"connected geometry omitted chambers or corridor: {staged.ToJson()}");
         }
 
-        await AuditHomeCellsAsync(h, cx, cz, outside, false, cancellationToken).ConfigureAwait(false);
+        await AuditHomeCellsAsync(h, identity, cx, cz, outside, false, cancellationToken).ConfigureAwait(false);
         for (var stage = 0; stage < 2; stage++)
         {
             var stageReport = new Report();
@@ -121,7 +122,7 @@ internal static class UpkeepHomeCoverage
             h = await UpkeepCampaign.ReattachPausedAsync(s, cancellationToken).ConfigureAwait(false);
             foreach (var bed in built)
             {
-                var covered = await ReadHomeCoverageAsync(h, bed, string.Create(CultureInfo.InvariantCulture, $"home-{stage}-{bed}"), cancellationToken).ConfigureAwait(false);
+                var covered = await ReadHomeCoverageAsync(h, identity, bed, string.Create(CultureInfo.InvariantCulture, $"home-{stage}-{bed}"), cancellationToken).ConfigureAwait(false);
                 stageReport[bed] = new JsonObject { ["covered"] = covered.Covered, ["total"] = covered.Total, ["revision"] = covered.Revision };
                 if (covered.Covered != total || covered.Total != total)
                 {
@@ -129,7 +130,7 @@ internal static class UpkeepHomeCoverage
                 }
             }
 
-            await AuditHomeCellsAsync(h, cx, cz, outside, true, cancellationToken).ConfigureAwait(false);
+            await AuditHomeCellsAsync(h, identity, cx, cz, outside, true, cancellationToken).ConfigureAwait(false);
         }
 
         // Controller restarts above exercise durable routine ownership. Reload the final native save and
@@ -144,7 +145,8 @@ internal static class UpkeepHomeCoverage
             ["ignoreModCompatibility"] = false,
         }, cancellationToken).ConfigureAwait(false);
         _ = await h.CallAsync("pause-home", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
-        await AuditHomeCellsAsync(h, cx, cz, outside, true, cancellationToken).ConfigureAwait(false);
+        var reloaded = await Session.ReadIdentityAsync(h, "reloaded-identity", cancellationToken).ConfigureAwait(false);
+        await AuditHomeCellsAsync(h, reloaded, cx, cz, outside, true, cancellationToken).ConfigureAwait(false);
         report["save_recovery_home"] = true;
     }
 
@@ -181,29 +183,18 @@ internal static class UpkeepHomeCoverage
     }
 
     /// <summary>Audits the three corridor cells and the first cell beyond the margin against the native Home mask.</summary>
-    internal static async Task AuditHomeCellsAsync(Harness h, int cx, int cz, JsonObject outside, bool want, CancellationToken cancellationToken)
+    internal static async Task AuditHomeCellsAsync(Harness h, JsonObject identity, int cx, int cz, JsonObject outside, bool want, CancellationToken cancellationToken)
     {
-        for (var i = 0; i < 4; i++)
+        var beyond = new Cell((int)outside["x"].AsNumber(), (int)outside["z"].AsNumber());
+        List<Cell> cells = [new(cx, cz), new(cx + 1, cz), new(cx + 2, cz), beyond];
+        var grid = await h.BoundingCellsAsync("home-cells-" + (want ? "true" : "false"), identity, cells, cancellationToken).ConfigureAwait(false);
+        foreach (var c in cells)
         {
-            int x = cx + i;
-            int z = cz;
-            var expected = want;
-            if (i == 3)
+            var expected = c != beyond && want;
+            var actual = grid.At(c)?.InHome;
+            if (actual != expected)
             {
-                x = (int)outside["x"].AsNumber();
-                z = (int)outside["z"].AsNumber();
-                expected = false;
-            }
-
-            var row = await h.CallAsync(
-                string.Create(CultureInfo.InvariantCulture, $"home-cell-{i}-{(want ? "true" : "false")}"),
-                "test/home_cell_read",
-                new JsonObject { ["x"] = x, ["z"] = z },
-                cancellationToken).ConfigureAwait(false);
-            var actual = row["home"].AsBool();
-            if (row["success"].AsBool() != true || actual is null || actual != expected)
-            {
-                throw new AcceptanceException($"home at {x},{z}: {row.ToJson()}, want {(expected ? "true" : "false")}");
+                throw new AcceptanceException($"home at {c.X},{c.Z}: {(actual is null ? "not held" : actual.Value ? "true" : "false")}, want {(expected ? "true" : "false")}");
             }
         }
     }
@@ -260,15 +251,26 @@ internal static class UpkeepHomeCoverage
 
     internal sealed record HomeCoverageRead(int Covered, int Total, long Revision);
 
-    /// <summary>The independent native Home read for one facility.</summary>
-    internal static async Task<HomeCoverageRead> ReadHomeCoverageAsync(Harness h, string target, string label, CancellationToken cancellationToken)
+    /// <summary>
+    /// One facility's Home coverage: its scope from the colony facts' home-coverage target (the cell batch and the extent
+    /// geometry), with each scope cell's Home membership read back through the cells read.
+    /// </summary>
+    internal static async Task<HomeCoverageRead> ReadHomeCoverageAsync(Harness h, JsonObject identity, string target, string label, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync(label, "test/home_coverage_read", new JsonObject { ["target"] = target }, cancellationToken).ConfigureAwait(false);
-        if (reply["success"].AsBool() != true)
+        var facts = await h.ObservedAsync<Observations.ColonyFactsSnapshot>(label, "observations_read_colony_facts", identity, new JsonObject { ["planning"] = false }, cancellationToken).ConfigureAwait(false);
+        var home = facts.Upkeep?.Outcome?.Observed?.HomeCoverage?.Outcome?.Observed
+            ?? throw new AcceptanceException($"{label}: home coverage facts unavailable");
+        var row = home.Targets.FirstOrDefault(t => t.Id == target);
+        if (row is null || row.Blocker is { Length: > 0 })
         {
-            throw new AcceptanceException($"{label}: no bounded native scope for {target}: {reply.ToJson()}");
+            throw new AcceptanceException($"{label}: no bounded native scope for {target}: {row?.Blocker ?? "no target row"}");
         }
 
-        return new HomeCoverageRead((int)reply["covered"].AsNumber(), (int)reply["total"].AsNumber(), (long)reply["revision"].AsNumber());
+        var geometry = row.ExtentGeometry;
+        var scope = row.Cells.Concat(geometry?.Corridor ?? []).Concat(geometry?.EnclosedInterior ?? []).Concat(geometry?.Zone ?? [])
+            .Select(c => TypedReads.CellOf(c, label)).Distinct().ToList();
+        var grid = await h.BoundingCellsAsync(label + "-cells", identity, scope, cancellationToken).ConfigureAwait(false);
+        var covered = scope.Count(c => grid.At(c)?.InHome == true);
+        return new HomeCoverageRead(covered, scope.Count, home.Revision ?? 0);
     }
 }

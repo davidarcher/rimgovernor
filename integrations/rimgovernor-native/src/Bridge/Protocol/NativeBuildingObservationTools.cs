@@ -198,7 +198,8 @@ namespace HomeBridge.BridgeTools
         }
 
         // Service is a building's power, switch, breakdown and fuel state:
-        // a power trader's network and output, a battery's network, the
+        // a power trader's network, output and whether it produces, a
+        // battery's network, a wind turbine's blocked wind path cells, the
         // flick switch (on without one) and a refuelable's fuel, else a
         // not-applicable "fuel" issue.
         private static Obs.BuildingServiceState Service(Thing thing)
@@ -211,6 +212,9 @@ namespace HomeBridge.BridgeTools
             if (power != null) { service = service with { Connected = net != null }; service = service with { PowerOn = power.PowerOn }; service = service with { PowerOutputW = Finite(power.PowerOutput) ? power.PowerOutput : throw new InvalidOperationException("Invalid power output.") }; }
             else if (battery != null) { service = service with { Connected = net != null }; service = service with { PowerOn = net != null }; service = service with { PowerOutputW = 0 }; }
             if (net != null) service = service with { PowerNetId = NetId(net) };
+            if (power != null) service = service with { Producer = power.Props.PowerConsumption < 0f };
+            if (thing.TryGetComp<CompPowerPlantWind>() != null)
+                service = service with { WindPathBlockedCells = checked((uint)PlacementPreviewOperation.WindBlockedCells(thing.Map, thing.Position, thing.Rotation, thing.def.size)) };
             var fuel = thing.TryGetComp<CompRefuelable>();
             if (fuel != null)
             {

@@ -37,7 +37,7 @@ internal static class ShelterRetirement
             Args = new JsonObject { ["sleepingSpots"] = 8, ["builders"] = true, ["expansion"] = true },
             On = new SaveStart { Name = Baselines.BaselineName },
         },
-        RequiredOps = [LayoutFixture.GridPrepare, LayoutFixture.GridAudit, ShelterStage.RoomsOp, DebugGame.LabSpawnTool],
+        RequiredOps = [LayoutFixture.GridPrepare, ShelterStage.RoomsOp, DebugGame.LabSpawnTool],
         Keep = [NeedDef.Food.Value],
         Serve = new ServeSpec
         {
@@ -201,12 +201,10 @@ internal static class ShelterRetirement
             }
         }
 
-        var audit = await h.CallAsync("hut-audit", LayoutFixture.GridAudit, new JsonObject(), cancellationToken).ConfigureAwait(false);
+        var shells = await LayoutFixture.ShellsAsync(h, s.Identity, "hut-audit", cancellationToken).ConfigureAwait(false);
         var remaining = new List<Cell>();
-        foreach (var raw in audit["walls"].AsSlice())
+        foreach (var c in shells.Where(w => w.Built).Select(w => w.Cell))
         {
-            var w = raw.AsMap() ?? [];
-            var c = new Cell((int)w["x"].AsNumber(), (int)w["z"].AsNumber());
             foreach (var g in ground)
             {
                 if (g.Contains(c) && !KeptByRoom(final!, c))

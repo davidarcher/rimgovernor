@@ -78,31 +78,13 @@ namespace HomeBridge.BridgeTools
                 var identity = Current.Game.GetComponent<ColonyIdentity>();
                 return new {
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
-                    tick = Find.TickManager.TicksGame, zoneId = zone.ID, cutter = cutter.GetUniqueLoadID(),
+                    tick = Find.TickManager.TicksGame, zoneId = zone.GetUniqueLoadID(), cutter = cutter.GetUniqueLoadID(),
                     plants = infected.Select(p => new { id = p.GetUniqueLoadID(),
                         cell = new { x = p.Position.x, z = p.Position.z } }).ToList(),
                     healthy = plants.Count - infected.Count,
                     zoneCells = zone.Cells.Select(c => new { x = c.x, z = c.z }).ToList(),
                     setup = "Test-only sown rice zone with blighted plants; no designation, cut or condition injected.",
                 };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool("test/blight_census", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: report every blighted plant on the map with its CutPlant designation state.")]
-        public async Task<object> Census(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null) return Refuse("No current map.");
-                var rows = map.listerThings.AllThings.OfType<Plant>().Where(p => p.Spawned && p.Blighted).OrderBy(p => p.thingIDNumber)
-                    .Select(p => new { id = p.GetUniqueLoadID(), designated = NativeCutPlant.Designated(p),
-                        cell = new { x = p.Position.x, z = p.Position.z } }).ToList();
-                var zones = map.zoneManager.AllZones.OfType<Zone_Growing>().Select(zone => new {
-                    id = zone.ID,
-                    cells = zone.Cells.Select(c => new { x = c.x, z = c.z }).ToList(),
-                    planted = zone.Cells.Count(c => c.GetPlant(map)?.def == zone.GetPlantDefToGrow())
-                }).ToList();
-                return new { success = true, tick = Find.TickManager.TicksGame, blighted = rows, zones };
             }, cancellationToken).ConfigureAwait(false);
         }
 

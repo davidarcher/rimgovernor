@@ -15,7 +15,7 @@ internal static class WallDoorSwap
             "took (wall blueprint over the door in one apply, or deconstruct then place). A Go snapshot test cannot " +
             "see GenConstruct's placement rule, the ordered jobs or the built wall.",
         Start = new LabStart(),
-        RequiredOps = [DebugGame.LabSpawnTool, "test/roof_cells", "test/cell_things"],
+        RequiredOps = [DebugGame.LabSpawnTool, CombatFixtures.StageTool],
         QuietWorld = true,
         Budget = TimeSpan.FromMinutes(5),
         Crew = new Crew { Size = 3 },
@@ -41,7 +41,8 @@ internal static class WallDoorSwap
             }
         }
 
-        var roofed = await WallGeometry.RoofedAsync(h, "roof", interior, true, cancellationToken).ConfigureAwait(false);
+        await WallGeometry.RoofAsync(h, "roof", interior, cancellationToken).ConfigureAwait(false);
+        var roofed = await WallGeometry.RoofedAsync(s, "roofed", interior, cancellationToken).ConfigureAwait(false);
         if (roofed != interior.Count)
         {
             throw new AcceptanceException($"roof the room: {roofed} roofed");
@@ -63,30 +64,20 @@ internal static class WallDoorSwap
         for (var advanced = 0; advanced < 12000; advanced += 300)
         {
             _ = await s.AdvanceAsync(300, null, cancellationToken).ConfigureAwait(false);
-            var n = await WallGeometry.RoofedAsync(h, "roof-read-" + CaseSupport.Tag(advanced), interior, false, cancellationToken).ConfigureAwait(false);
+            var n = await WallGeometry.RoofedAsync(s, "roof-read-" + CaseSupport.Tag(advanced), interior, cancellationToken).ConfigureAwait(false);
             if (n != interior.Count)
             {
                 throw new AcceptanceException($"the room lost roof during the swap at +{advanced + 300} ticks: {n} of {interior.Count} roofed");
             }
 
-            var things = await h.CallAsync("cell-" + CaseSupport.Tag(advanced), "test/cell_things", new JsonObject { ["cell"] = where }, cancellationToken).ConfigureAwait(false);
-            var wall = false;
-            var doorStands = false;
-            foreach (var t in things["things"].AsSlice())
-            {
-                var row = t.AsMap();
-                switch (row?["def"].AsString())
-                {
-                    case "Wall":
-                        wall = row["stuff"].AsString() == "WoodLog";
-                        break;
-                    case "Door":
-                        doorStands = true;
-                        break;
-                    default:
-                        break;
-                }
-            }
+            var built = await h.BuildingsAsync(
+                "cell-" + CaseSupport.Tag(advanced),
+                s.Identity,
+                new JsonObject { ["defNames"] = new JsonArray("Wall", "Door"), ["statuses"] = new JsonArray("built") },
+                cancellationToken).ConfigureAwait(false);
+            var here = built.Where(b => b.Building?.Position is { } p && p.X == door.X && p.Z == door.Z).ToList();
+            var wall = here.Any(b => b.Building?.DefName == "Wall" && b.Stuff == "WoodLog");
+            var doorStands = here.Any(b => b.Building?.DefName == "Door");
 
             if (wall && !doorStands)
             {

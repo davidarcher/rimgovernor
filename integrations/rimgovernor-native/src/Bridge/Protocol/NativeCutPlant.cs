@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
         internal const string Kind = "Cut plant";
         internal const string DesignationDef = "CutPlant";
 
-        internal static bool Designated(Plant plant) => plant.Map.designationManager.DesignationOn(plant, DesignationDefOf.CutPlant) != null
+        private static bool Designated(Plant plant) => plant.Map.designationManager.DesignationOn(plant, DesignationDefOf.CutPlant) != null
             || plant.Map.designationManager.DesignationOn(plant, DesignationDefOf.HarvestPlant) != null;
 
         // The apply-time precondition list for CutPlant (action-contracts.md),

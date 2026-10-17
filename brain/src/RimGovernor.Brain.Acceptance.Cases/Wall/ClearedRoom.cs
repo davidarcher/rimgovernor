@@ -14,7 +14,7 @@ internal static class WallClearedRoom
             "a wall of a room straddling the ground's edge is admitted and held by the roof-support wait. A Go snapshot test cannot see vanilla room " +
             "geometry, the NoRoof area work or the native job guard.",
         Start = new LabStart(),
-        RequiredOps = [DebugGame.LabSpawnTool, "test/roof_cells", "test/deconstruct_target"],
+        RequiredOps = [DebugGame.LabSpawnTool, CombatFixtures.StageTool, "test/deconstruct_target"],
         QuietWorld = true,
         Budget = TimeSpan.FromMinutes(5),
         Crew = new Crew { Size = 3 },
@@ -46,13 +46,15 @@ internal static class WallClearedRoom
 
         var aIds = await Spawn(aWalls, aDoor).ConfigureAwait(false);
         var bIds = await Spawn(bWalls, bDoor).ConfigureAwait(false);
-        var roofA = await WallGeometry.RoofedAsync(h, "roof-a", aInterior, true, cancellationToken).ConfigureAwait(false);
+        await WallGeometry.RoofAsync(h, "roof-a", aInterior, cancellationToken).ConfigureAwait(false);
+        var roofA = await WallGeometry.RoofedAsync(s, "roofed-a", aInterior, cancellationToken).ConfigureAwait(false);
         if (roofA != aInterior.Count)
         {
             throw new AcceptanceException($"roof room A: {roofA} roofed");
         }
 
-        var roofB = await WallGeometry.RoofedAsync(h, "roof-b", bInterior, true, cancellationToken).ConfigureAwait(false);
+        await WallGeometry.RoofAsync(h, "roof-b", bInterior, cancellationToken).ConfigureAwait(false);
+        var roofB = await WallGeometry.RoofedAsync(s, "roofed-b", bInterior, cancellationToken).ConfigureAwait(false);
         if (roofB != bInterior.Count)
         {
             throw new AcceptanceException($"roof room B: {roofB} roofed");
@@ -103,7 +105,7 @@ internal static class WallClearedRoom
         for (var advanced = 0; advanced < 12000; advanced += 300)
         {
             _ = await s.AdvanceAsync(300, null, cancellationToken).ConfigureAwait(false);
-            var n = await WallGeometry.RoofedAsync(h, "roof-read-" + CaseSupport.Tag(advanced), aFootprint, false, cancellationToken).ConfigureAwait(false);
+            var n = await WallGeometry.RoofedAsync(s, "roof-read-" + CaseSupport.Tag(advanced), aFootprint, cancellationToken).ConfigureAwait(false);
             if (n == 0 && unroofedAt < 0)
             {
                 unroofedAt = advanced + 300;
@@ -128,7 +130,7 @@ internal static class WallClearedRoom
             {
                 report["unroofed_after_ticks"] = unroofedAt;
                 report["cleared_after_ticks"] = advanced + 300;
-                var kept = await WallGeometry.RoofedAsync(h, "roof-b-kept", bInterior, false, cancellationToken).ConfigureAwait(false);
+                var kept = await WallGeometry.RoofedAsync(s, "roof-b-kept", bInterior, cancellationToken).ConfigureAwait(false);
                 if (kept != bInterior.Count)
                 {
                     throw new AcceptanceException($"straddling room lost its roof: {kept} roofed");

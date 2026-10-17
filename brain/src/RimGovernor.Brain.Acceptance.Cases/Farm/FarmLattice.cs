@@ -13,7 +13,6 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal static class FarmLattice
 {
     private const string Prepare = "test/lattice_sow_prepare";
-    private const string Census = "test/lattice_sow_census";
     private const int Width = 5;
     private const int Height = 4;
 
@@ -28,7 +27,7 @@ internal static class FarmLattice
             + "A Go snapshot cannot cover it: the rule is a Harmony patch on vanilla WorkGiver_GrowerSow.JobOnCell and the sow-blocking is vanilla's own (PlantUtility.AdjacentSowBlocker).",
         Start = new FixtureStart { Op = Prepare, On = new LabStart(), Args = new JsonObject { ["width"] = Width, ["height"] = Height } },
         NoKeep = true,
-        RequiredOps = [Prepare, Census],
+        RequiredOps = [Prepare],
         Budget = TimeSpan.FromMinutes(10),
         Crew = new Crew { Size = 3 },
         Run = RunAsync,
@@ -36,24 +35,19 @@ internal static class FarmLattice
 
     private sealed record Zone(string Plant, int Cells, int MinX, int MinZ, IReadOnlyList<(int X, int Z)> Planted);
 
-    private static async Task<Dictionary<string, Zone>> ReadZonesAsync(Harness h, string label, CancellationToken cancellationToken)
+    // Each growing zone by load id, from the zones read joined to the cells read.
+    private static async Task<Dictionary<string, Zone>> ReadZonesAsync(ISession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync(label, Census, new JsonObject(), cancellationToken).ConfigureAwait(false);
         var zones = new Dictionary<string, Zone>(StringComparer.Ordinal);
-        foreach (var raw in reply["zones"].AsSlice())
+        foreach (var zone in await s.Harness.GrowingZonesAsync(label, s.Identity, cancellationToken).ConfigureAwait(false))
         {
-            var row = raw.AsMap() ?? [];
-            var planted = row["planted"].AsSlice()
-                .Select(c => c.AsMap() ?? [])
-                .Select(cell => ((int)cell["x"].AsNumber(), (int)cell["z"].AsNumber()))
-                .ToList();
-            zones[Id(row["id"])] = new Zone(row["plant"].AsString(), (int)row["cells"].AsNumber(), (int)row["minX"].AsNumber(), (int)row["minZ"].AsNumber(), planted);
+            var minX = zone.Cells.Count == 0 ? 0 : zone.Cells.Min(c => c.X);
+            var minZ = zone.Cells.Count == 0 ? 0 : zone.Cells.Min(c => c.Z);
+            zones[zone.Id] = new Zone(zone.Crop, zone.Cells.Count, minX, minZ, [.. zone.Planted.Select(c => (c.X, c.Z))]);
         }
 
         return zones;
     }
-
-    private static string Id(JsonNode? value) => ((int)value.AsNumber()).ToString(CultureInfo.InvariantCulture);
 
     private static JsonObject Evidence(IReadOnlyDictionary<string, Zone> zones)
     {
@@ -78,11 +72,10 @@ internal static class FarmLattice
         var report = s.Report;
         var prepared = s.Prepared ?? [];
         var h = s.Harness;
-        var oakId = Id(prepared["oakZone"]);
-        var riceId = Id(prepared["riceZone"]);
-        if (!prepared.ContainsKey("oakZone") || oakId == riceId)
+        var oakId = prepared["oakZone"].AsString();
+        var riceId = prepared["riceZone"].AsString();
+        if (oakId.Length == 0 || oakId == riceId)
         {
-            // Zone ids start at 0.
             throw new AcceptanceException($"fixture: unexpected lattice staging: {prepared.ToJson()}");
         }
 
@@ -102,7 +95,7 @@ internal static class FarmLattice
                 new Wait { Stall = Wait.StallBudget() },
                 async ct =>
                 {
-                    zones = await ReadZonesAsync(h, "lattice-census", ct).ConfigureAwait(false);
+                    zones = await ReadZonesAsync(s, "lattice-census", ct).ConfigureAwait(false);
                     var oakNow = zones.GetValueOrDefault(oakId);
                     var riceNow = zones.GetValueOrDefault(riceId);
                     var oakCount = oakNow?.Planted.Count ?? 0;

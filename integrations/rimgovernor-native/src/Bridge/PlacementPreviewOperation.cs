@@ -137,6 +137,13 @@ namespace HomeBridge.BridgeTools
             }
             return text.ToString();
         }
+
+        // The wind path cells of a turbine at center that are off the map, roofed
+        // or hold a wind-blocking thing (CompPowerPlantWind.RecalculateBlockages):
+        // the preview's and the building read's one count.
+        internal static int WindBlockedCells(Map map, IntVec3 center, Rot4 rotation, IntVec2 size) =>
+            WindTurbineUtility.CalculateWindCells(center, rotation, size)
+                .Count(cell => !cell.InBounds(map) || map.roofGrid.Roofed(cell) || map.thingGrid.ThingsListAtFast(cell).Any(t => t.def.blockWind));
         private static string DefinitionName(string value)
         {
             if (string.IsNullOrWhiteSpace(value) || value.IndexOf('\0') >= 0
@@ -232,8 +239,7 @@ namespace HomeBridge.BridgeTools
             if (definition is ThingDef thingDef && thingDef.hasInteractionCell)
                 result.interactionCells.Add(new PlacementCell(ThingUtility.InteractionCellWhenAt(thingDef, center, rotation, map)));
             if (definition is ThingDef windDef && windDef.comps != null && windDef.comps.Any(c => c.compClass == typeof(CompPowerPlantWind)))
-                result.windBlockedCells = WindTurbineUtility.CalculateWindCells(center, rotation, windDef.size)
-                    .Count(cell => !cell.InBounds(map) || map.roofGrid.Roofed(cell) || map.thingGrid.ThingsListAtFast(cell).Any(t => t.def.blockWind));
+                result.windBlockedCells = WindBlockedCells(map, center, rotation, windDef.size);
             var seen = new HashSet<int>();
             foreach (var cell in result.Rect)
             {

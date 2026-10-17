@@ -315,35 +315,6 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/power_observe", Description = "Read each comma-separated building id's native power, fuel and battery state, plus every colonist generator and battery, the sky glow and wind. Test-only; changes nothing.")]
-        public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken cancellationToken, string ids = "")
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null) return Refuse("A disposable colony map is required.");
-                var rows = new List<object>();
-                foreach (var id in (ids ?? "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries))
-                {
-                    var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id);
-                    if (thing == null) { rows.Add(new { id, missing = true }); continue; }
-                    rows.Add(Row(thing));
-                }
-                var generators = map.listerBuildings.allBuildingsColonist.Where(b => b.TryGetComp<CompPowerTrader>()?.Props.PowerConsumption < 0).OrderBy(b => b.thingIDNumber).Select(b => b.GetUniqueLoadID()).ToList();
-                var batteries = map.listerBuildings.allBuildingsColonist.Where(b => b.TryGetComp<CompPowerBattery>() != null).OrderBy(b => b.thingIDNumber).Select(b => b.GetUniqueLoadID()).ToList();
-                var label = "LetterLabelShortCircuit".Translate().CapitalizeFirst().ToString();
-                var shortCircuits = Find.Archive.ArchivablesListForReading.OfType<Letter>()
-                    .Concat(Find.LetterStack.LettersListForReading).Where(l => l.Label.ToString() == label
-                        && l.lookTargets != null && l.lookTargets.targets.Any(t => t.Map == map))
-                    .Select(l => l.GetUniqueLoadID()).Distinct().ToList();
-                return new { success = true, tick = Find.TickManager.TicksGame, buildings = rows, generators, batteries,
-                    skyGlow = map.skyManager.CurSkyGlow, hour = GenLocalDate.HourOfDay(map), windSpeed = map.windManager.WindSpeed,
-                    shortCircuits, fires = map.listerThings.ThingsOfDef(ThingDefOf.Fire).Count,
-                    eligibleConduits = ShortCircuitUtility.GetShortCircuitablePowerConduits(map).Count(),
-                    ordinaryConduits = map.listerThings.ThingsOfDef(ThingDefOf.PowerConduit).Count,
-                    rainRate = map.weatherManager.RainRate };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
         private static GameCondition_ForceWeather MakeWeather(int duration)
         {
             const string name = "RimGovernorPowerFixtureWeather";
@@ -354,39 +325,6 @@ namespace HomeBridge.BridgeTools
                 DefDatabase<GameConditionDef>.Add(def);
             }
             return (GameCondition_ForceWeather)GameConditionMaker.MakeCondition(def, duration);
-        }
-
-        private static object Row(Thing thing)
-        {
-            var trader = thing.TryGetComp<CompPowerTrader>();
-            var power = thing.TryGetComp<CompPower>();
-            var refuelable = thing.TryGetComp<CompRefuelable>();
-            var stored = thing.TryGetComp<CompPowerBattery>();
-            int? windBlocked = null;
-            var wind = thing.TryGetComp<CompPowerPlantWind>();
-            if (wind != null)
-            {
-                var field = typeof(CompPowerPlantWind).GetField("windPathBlockedCells", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                windBlocked = (field?.GetValue(wind) as List<IntVec3>)?.Count;
-            }
-            // The wind path read independently of the native preview: roofed
-            // cells and cells holding a wind-blocking thing (natural rock).
-            int? windRoofed = null, windBlockers = null;
-            if (wind != null)
-            {
-                var path = WindTurbineUtility.CalculateWindCells(thing.Position, thing.Rotation, thing.def.size).ToList();
-                windRoofed = path.Count(c => c.InBounds(thing.Map) && thing.Map.roofGrid.Roofed(c));
-                windBlockers = path.Count(c => c.InBounds(thing.Map) && thing.Map.thingGrid.ThingsListAtFast(c).Any(t => t.def.blockWind));
-            }
-            return new {
-                id = thing.GetUniqueLoadID(), defName = thing.def.defName, windPathRoofed = windRoofed, windPathBlockers = windBlockers,
-                x = thing.Position.x, z = thing.Position.z,
-                connected = power?.PowerNet != null, powerNetId = power?.PowerNet?.GetHashCode().ToString(),
-                powerOn = trader?.PowerOn, powerOutputW = trader?.PowerOutput,
-                fuel = refuelable?.Fuel, outOfFuel = refuelable != null ? (bool?)!refuelable.HasFuel : null,
-                storedWattDays = stored?.StoredEnergy, windBlockedCells = windBlocked,
-                roofed = thing.OccupiedRect().Cells.All(c => c.Roofed(thing.Map)), hitPoints = thing.HitPoints,
-            };
         }
 
         private static void Finish(ResearchProjectDef project)

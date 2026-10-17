@@ -361,6 +361,13 @@ namespace HomeBridge.BridgeTools
                     foreach (var cell in CellRect.FromLimits((int)roof["minX"], (int)roof["minZ"], (int)roof["maxX"], (int)roof["maxZ"]))
                         if (cell.InBounds(map)) map.roofGrid.SetRoof(cell, roofDef);
                 }
+                // terrain: a TerrainDef laid over a rectangle, e.g. a constructed floor or a hazard patch.
+                if (spec["terrain"] is JObject terrain)
+                {
+                    var terrainDef = DefDatabase<TerrainDef>.GetNamedSilentFail((string)terrain["def"]) ?? throw new ArgumentException($"No TerrainDef {terrain["def"]}.");
+                    foreach (var cell in CellRect.FromLimits((int)terrain["minX"], (int)terrain["minZ"], (int)terrain["maxX"], (int)terrain["maxZ"]))
+                        if (cell.InBounds(map)) map.terrainGrid.SetTerrain(cell, terrainDef);
+                }
                 var colonists = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
                 // An arrival mode drops the hostiles in by the game's
                 // own PawnsArrivalModeWorker, landing around the first
@@ -731,7 +738,7 @@ namespace HomeBridge.BridgeTools
         static LabStageFixture() { LabDamageLedger.EnsurePatched(); LabShotLedger.EnsurePatched(); }
         public LabStageFixture() { LabDamageLedger.EnsurePatched(); LabShotLedger.EnsurePatched(); }
 
-        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile,hitPoints}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef], inventory:[ThingDef]}], roof:{def,minX,minZ,maxX,maxZ}, prisonBreak, sappers, seed (non-zero varies hostile skills and jitters hostiles that declare jitter, then reseeds Rand after staging; 0 or absent is the pinned staging; the reply echoes it), pawns also take jitter (cells)}. Hostiles get fixed skills, only the named apparel and an assault lord (a sapper one with sappers, #1149). Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
+        [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): stage a combat lab fixture on a wiped lab in one call, or run synchronous ticks on it. spec is JSON {things:[{def,stuff,x,z,rotation,hostile,hitPoints}], pawns:[{side:colonist|hostile|animal|manhunter|prisoner|insect, index (colonist), kind (PawnKindDef), x, z, weapon, weaponStuff, downed, injured, trained (animal TrainableDefs), apparel, hediffs:[HediffDef], inventory:[ThingDef]}], roof:{def,minX,minZ,maxX,maxZ}, terrain:{def,minX,minZ,maxX,maxZ}, prisonBreak, sappers, seed (non-zero varies hostile skills and jitters hostiles that declare jitter, then reseeds Rand after staging; 0 or absent is the pinned staging; the reply echoes it), pawns also take jitter (cells)}. Hostiles get fixed skills, only the named apparel and an assault lord (a sapper one with sappers, #1149). Replies each staged pawn read back from the map (with worn apparel ids) and a name-free digest. action read instead replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture spec JSON (action stage).")] string spec = "{}",
             [ToolParameter(Description = "stage (default), read, reseed (spec {seed: non-zero}: set the game Rand seed the way a seeded staging ends, reply the next four draws; #2849), orphan-animal (spec animal and mode: despawn, dead or foreign), shots (the shot tap since the last staging: launches, impacts, jobs, stances, draft changes and each pawn's first think ticks, #2917), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "stage",

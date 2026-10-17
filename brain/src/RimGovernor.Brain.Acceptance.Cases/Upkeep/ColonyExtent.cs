@@ -10,7 +10,7 @@ internal static class UpkeepColonyExtent
     internal static AcceptanceCase Case() => new()
     {
         Name = "upkeep/colony-extent",
-        Scope = "Runtime extent producer leaves the complete native Home mask byte-identical; Home maintenance covers the ready corridor and base margin, leaving cells beyond the margin outside Home.",
+        Scope = "Runtime extent producer leaves the complete native Home mask (every held cell's Home bit) unchanged; Home maintenance covers the ready corridor and base margin, leaving cells beyond the margin outside Home.",
         Start = new LabStart(),
         Keep = UpkeepSupport.SleepingKeep,
         Serve = new ServeSpec { Families = ["home-coverage", "work"], Prefix = UpkeepSupport.Prefix },
@@ -35,19 +35,22 @@ internal static class UpkeepColonyExtent
         var cx = (int)corridor["x"].AsNumber();
         var cz = (int)corridor["z"].AsNumber();
 
+        var outsideCell = new Cell((int)outside["x"].AsNumber(), (int)outside["z"].AsNumber());
+        var marginAt = new Cell((int)margin["x"].AsNumber(), (int)margin["z"].AsNumber());
+
+        // The held cells in Home over the whole map, read through the cells read.
+        async Task<HashSet<Cell>> HomeMaskAsync(string label) =>
+            [.. (await h.MapCellsAsync(label, s.Identity, cancellationToken).ConfigureAwait(false)).Where(c => c.InHome)];
+
         async Task RecordHomeAsync(string stage, bool wantMargin)
         {
-            var mask = await h.CallAsync(stage + "-mask", "test/home_mask", null, cancellationToken).ConfigureAwait(false);
-            var cell = await h.CallAsync(stage + "-outside", "test/home_cell_read", outside.DeepClone().AsObject(), cancellationToken).ConfigureAwait(false);
-            var marginCell = await h.CallAsync(stage + "-margin", "test/home_cell_read", margin.DeepClone().AsObject(), cancellationToken).ConfigureAwait(false);
-            s.Report[stage] = new JsonObject { ["mask"] = mask["mask"]?.DeepClone(), ["outside"] = cell, ["margin"] = marginCell };
-            var outsideHome = cell["home"].AsBool();
-            var marginHome = marginCell["home"].AsBool();
-            var outsideOk = cell["success"].AsBool() == true;
-            var marginOk = marginCell["success"].AsBool() == true;
-            if (!outsideOk || !marginOk || outsideHome is null || marginHome is null || outsideHome == true || marginHome != wantMargin)
+            var grid = await h.MapCellsAsync(stage + "-cells", s.Identity, cancellationToken).ConfigureAwait(false);
+            var outsideHome = grid.At(outsideCell)?.InHome;
+            var marginHome = grid.At(marginAt)?.InHome;
+            s.Report[stage] = new JsonObject { ["home_cells"] = grid.Where(c => c.InHome).Count, ["outside"] = outsideHome, ["margin"] = marginHome };
+            if (outsideHome is null || marginHome is null || outsideHome == true || marginHome != wantMargin)
             {
-                throw new AcceptanceException($"{stage}: outside Home={cell.ToJson()}, margin Home={marginCell.ToJson()} (want {(wantMargin ? "true" : "false")})");
+                throw new AcceptanceException($"{stage}: outside Home={outsideHome}, margin Home={marginHome} (want {(wantMargin ? "true" : "false")})");
             }
         }
 
@@ -70,8 +73,8 @@ internal static class UpkeepColonyExtent
 
         h = await UpkeepCampaign.ReattachPausedAsync(s, cancellationToken).ConfigureAwait(false);
         await RecordHomeAsync("home_after_maintenance", true).ConfigureAwait(false);
-        await UpkeepHomeCoverage.AuditHomeCellsAsync(h, cx, cz, outside, true, cancellationToken).ConfigureAwait(false);
-        var before = await h.CallAsync("extent-home-before", "test/home_mask", null, cancellationToken).ConfigureAwait(false);
+        await UpkeepHomeCoverage.AuditHomeCellsAsync(h, s.Identity, cx, cz, outside, true, cancellationToken).ConfigureAwait(false);
+        var before = await HomeMaskAsync("extent-home-before").ConfigureAwait(false);
         service = await s.ServeAsync(s.Spec, cancellationToken).ConfigureAwait(false);
         try
         {
@@ -106,14 +109,14 @@ internal static class UpkeepColonyExtent
         }
 
         h = await UpkeepCampaign.ReattachPausedAsync(s, cancellationToken).ConfigureAwait(false);
-        var after = await h.CallAsync("extent-home-after", "test/home_mask", null, cancellationToken).ConfigureAwait(false);
-        var mask = before["mask"].AsString();
-        if (mask.Length == 0 || mask != after["mask"].AsString())
+        var after = await HomeMaskAsync("extent-home-after").ConfigureAwait(false);
+        if (before.Count == 0 || !before.SetEquals(after))
         {
-            throw new AcceptanceException("extent changes mutated the native Home mask");
+            throw new AcceptanceException($"extent changes mutated the native Home mask: {before.Count} Home cells before, {after.Count} after, {before.Count(after.Contains)} shared");
         }
 
-        s.Report["home_mask_byte_identical"] = true;
-        await UpkeepHomeCoverage.AuditHomeCellsAsync(h, cx, cz, outside, true, cancellationToken).ConfigureAwait(false);
+        s.Report["home_mask_identical"] = true;
+        s.Report["home_mask_cells"] = before.Count;
+        await UpkeepHomeCoverage.AuditHomeCellsAsync(h, s.Identity, cx, cz, outside, true, cancellationToken).ConfigureAwait(false);
     }
 }

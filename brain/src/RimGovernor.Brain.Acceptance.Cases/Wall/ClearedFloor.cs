@@ -14,7 +14,7 @@ internal static class WallClearedFloor
             "remove_floor once the cells are clear. A Go snapshot test cannot see vanilla's deconstruct and " +
             "RemoveFloor jobs, the roof guard or the terrain left behind.",
         Start = new LabStart(),
-        RequiredOps = [DebugGame.LabSpawnTool, "test/roof_cells", "test/floor_cells", "test/deconstruct_target"],
+        RequiredOps = [DebugGame.LabSpawnTool, CombatFixtures.StageTool, "test/deconstruct_target"],
         QuietWorld = true,
         Budget = TimeSpan.FromMinutes(6),
         Crew = new Crew { Size = 3 },
@@ -30,13 +30,8 @@ internal static class WallClearedFloor
         var door = new WallCell(cx + 3, cz);
         var stoolAt = new WallCell(cx + 5, cz);
 
-        async Task<int> Floors(string label, string def)
-        {
-            var reply = await h.CallAsync(label, "test/floor_cells", new JsonObject { ["cells"] = WallGeometry.CellList(interior), ["def"] = def }, cancellationToken).ConfigureAwait(false);
-            return reply["success"].AsBool() == true ? (int)reply["floored"].AsNumber() : throw new AcceptanceException($"{label}: {reply.ToJson()}");
-        }
-
-        var laid = await Floors("lay-floor", "WoodPlankFloor").ConfigureAwait(false);
+        await WallGeometry.LayTerrainAsync(h, "lay-floor", interior, "WoodPlankFloor", cancellationToken).ConfigureAwait(false);
+        var laid = await WallGeometry.FlooredAsync(s, "floor-laid", interior, cancellationToken).ConfigureAwait(false);
         if (laid != interior.Count)
         {
             throw new AcceptanceException($"lay the floor: {laid} floored");
@@ -52,7 +47,8 @@ internal static class WallClearedFloor
 
         // Vanilla roofs the walls too (auto-roof), so clearance unroofs and reads the room's whole footprint; the fixture roofs its interior.
         List<WallCell> footprint = [.. walls, .. interior];
-        var roofedInterior = await WallGeometry.RoofedAsync(h, "roof", interior, true, cancellationToken).ConfigureAwait(false);
+        await WallGeometry.RoofAsync(h, "roof", interior, cancellationToken).ConfigureAwait(false);
+        var roofedInterior = await WallGeometry.RoofedAsync(s, "roofed", interior, cancellationToken).ConfigureAwait(false);
         if (roofedInterior != interior.Count)
         {
             throw new AcceptanceException($"roof the room: {roofedInterior} roofed");
@@ -83,7 +79,7 @@ internal static class WallClearedFloor
         {
             _ = await s.AdvanceAsync(300, null, cancellationToken).ConfigureAwait(false);
             var tag = CaseSupport.Tag(advanced);
-            var roof = await WallGeometry.RoofedAsync(h, "roof-read-" + tag, footprint, false, cancellationToken).ConfigureAwait(false);
+            var roof = await WallGeometry.RoofedAsync(s, "roof-read-" + tag, footprint, cancellationToken).ConfigureAwait(false);
             var standing = 0;
             var all = new List<string> { stoolId };
             all.AddRange(wallIds);
@@ -116,7 +112,7 @@ internal static class WallClearedFloor
                 continue;
             }
 
-            if (floorsIssued && await Floors("floor-read-" + tag, string.Empty).ConfigureAwait(false) == 0)
+            if (floorsIssued && await WallGeometry.FlooredAsync(s, "floor-read-" + tag, interior, cancellationToken).ConfigureAwait(false) == 0)
             {
                 report["floors_cleared_after_ticks"] = advanced + 300;
                 return;

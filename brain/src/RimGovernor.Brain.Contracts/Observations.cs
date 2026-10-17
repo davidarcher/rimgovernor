@@ -2538,6 +2538,18 @@ public sealed record BuildingServiceState
 
     public string? PowerNetId { get; init; }
 
+    /// <summary>
+    /// The building is a power producer (a power trader whose base consumption is negative: a generator); absent
+    /// without a power trader.
+    /// </summary>
+    public bool? Producer { get; init; }
+
+    /// <summary>
+    /// A wind turbine's wind path cells that are off the map, roofed or hold a wind-blocking thing (the cells
+    /// CompPowerPlantWind.RecalculateBlockages counts); absent on any other building.
+    /// </summary>
+    public uint? WindPathBlockedCells { get; init; }
+
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
 }

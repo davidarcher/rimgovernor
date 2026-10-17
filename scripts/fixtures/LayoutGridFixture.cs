@@ -372,33 +372,6 @@ namespace HomeBridge.BridgeTools
                 if (!room.UsesOutdoorTemperature) room.Temperature = 21f;
         }
 
-        [Tool("test/layout_grid_audit", Description = "Private read-only fixture: every finished player wall, door, autodoor or embrasure cell with its stuff, every such blueprint and frame with the stuff it is to be built from, and every growing zone with its cells and crop.")]
-        public async Task<object> Audit(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null) return new { success = false, reason = "A disposable colony map is required." };
-                var walls = map.listerBuildings.allBuildingsColonist
-                    .Where(b => Shell(b.def.defName))
-                    .Select(b => new { x = b.Position.x, z = b.Position.z, def = b.def.defName, stuff = b.Stuff?.defName }).ToList();
-                // A ring still under construction reads back the same way: the
-                // stuff a blueprint or frame carries is the stuff the wall
-                // becomes, so the tier's style is visible before the last wall
-                // is finished.
-                var planned = map.listerThings.AllThings
-                    .Where(t => t.Spawned && (t.Faction == null || t.Faction.IsPlayer) && (t is Blueprint_Build || t is Frame))
-                    .Select(t => new { thing = t, built = ((t as Blueprint_Build)?.def.entityDefToBuild ?? (t as Frame)?.def.entityDefToBuild) as ThingDef })
-                    .Where(row => row.built != null && Shell(row.built.defName))
-                    .Select(row => new { x = row.thing.Position.x, z = row.thing.Position.z, def = row.built.defName,
-                        stuff = ((row.thing as Blueprint_Build)?.stuffToUse ?? (row.thing as Frame)?.Stuff)?.defName,
-                        frame = row.thing is Frame }).ToList();
-                var zones = map.zoneManager.AllZones.OfType<Zone_Growing>()
-                    .Select(z => new { id = z.ID, loadId = z.GetUniqueLoadID(), label = z.label, crop = z.GetPlantDefToGrow()?.defName,
-                        cells = z.Cells.Select(c => new { x = c.x, z = c.z }).ToList() }).ToList();
-                return new { success = true, tick = Find.TickManager.TicksGame, walls, planned, zones };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
         // Shell names the definitions a room boundary is built from.
         private static bool Shell(string defName) =>
             defName == "Wall" || defName == "Door" || defName == "Autodoor" || defName == "Embrasure";

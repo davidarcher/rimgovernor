@@ -1,12 +1,12 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>A map cell of a wall case (Go <c>wall.cell</c>).</summary>
 internal readonly record struct WallCell(int X, int Z);
 
-/// <summary>Room geometry and the roof/floor fixture calls the room cases of the <c>wall/*</c> family share (Go <c>cleared_room.go</c>).</summary>
+/// <summary>Room geometry and the roof/floor staging and reads the room cases of the <c>wall/*</c> family share (Go <c>cleared_room.go</c>).</summary>
 internal static class WallGeometry
 {
     /// <summary>The wall ring of the square room whose interior spans [x0+1,x1-1] x [z0+1,z1-1], and that interior.</summary>
@@ -32,10 +32,6 @@ internal static class WallGeometry
         return (walls, interior);
     }
 
-    /// <summary>The fixture's <c>x,z;x,z</c> cell list text.</summary>
-    internal static string CellList(IEnumerable<WallCell> cells) =>
-        string.Join(';', cells.Select(c => string.Create(CultureInfo.InvariantCulture, $"{c.X},{c.Z}")));
-
     /// <summary>A JSON array of <c>{x, z}</c> cells.</summary>
     internal static JsonArray CellArray(IEnumerable<WallCell> cells)
     {
@@ -48,11 +44,50 @@ internal static class WallGeometry
         return array;
     }
 
-    /// <summary>Roofs (<paramref name="set"/>) or reads (not set) the roofed count of <paramref name="cells"/> through test/roof_cells.</summary>
-    internal static async Task<int> RoofedAsync(Harness h, string label, IEnumerable<WallCell> cells, bool set, CancellationToken cancellationToken)
+    /// <summary>Stages a constructed roof over the rectangle <paramref name="cells"/> span through test/lab_stage.</summary>
+    internal static Task RoofAsync(Harness h, string label, IReadOnlyCollection<WallCell> cells, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync(label, "test/roof_cells", new JsonObject { ["cells"] = CellList(cells), ["set"] = set }, cancellationToken).ConfigureAwait(false);
-        return reply["success"].AsBool() == true ? (int)reply["roofed"].AsNumber() : throw new AcceptanceException($"{label}: {reply.ToJson()}");
+        var (min, max) = Bounds(cells);
+        return StageAsync(h, label, new LabFixture { Roof = new LabRoof("RoofConstructed", min.X, min.Z, max.X, max.Z) }.ToJson(), cancellationToken);
+    }
+
+    /// <summary>Lays the terrain <paramref name="def"/> over the rectangle <paramref name="cells"/> span through test/lab_stage.</summary>
+    internal static Task LayTerrainAsync(Harness h, string label, IReadOnlyCollection<WallCell> cells, string def, CancellationToken cancellationToken)
+    {
+        var (min, max) = Bounds(cells);
+        var spec = new JsonObject { ["terrain"] = new JsonObject { ["def"] = def, ["minX"] = min.X, ["minZ"] = min.Z, ["maxX"] = max.X, ["maxZ"] = max.Z } };
+        return StageAsync(h, label, spec, cancellationToken);
+    }
+
+    /// <summary>How many of <paramref name="cells"/> the cells read shows roofed.</summary>
+    internal static async Task<int> RoofedAsync(ISession s, string label, IReadOnlyCollection<WallCell> cells, CancellationToken cancellationToken) =>
+        Count(await ReadAsync(s, label, cells, cancellationToken).ConfigureAwait(false), cells, c => c.Roofed);
+
+    /// <summary>How many of <paramref name="cells"/> the cells read shows carrying a removable constructed floor.</summary>
+    internal static async Task<int> FlooredAsync(ISession s, string label, IReadOnlyCollection<WallCell> cells, CancellationToken cancellationToken) =>
+        Count(await ReadAsync(s, label, cells, cancellationToken).ConfigureAwait(false), cells, c => c.TopLayerRemovable);
+
+    private static Task<MapCellGrid> ReadAsync(ISession s, string label, IReadOnlyCollection<WallCell> cells, CancellationToken cancellationToken)
+    {
+        var (min, max) = Bounds(cells);
+        return s.Harness.RectCellsAsync(label, s.Identity, min, max, cancellationToken);
+    }
+
+    private static int Count(MapCellGrid grid, IEnumerable<WallCell> cells, Func<GridCell, bool> match) =>
+        cells.Count(c => grid.At(new Cell(c.X, c.Z)) is { } cell && match(cell));
+
+    private static (Cell Min, Cell Max) Bounds(IReadOnlyCollection<WallCell> cells) =>
+        cells.Count == 0
+            ? throw new AcceptanceException("no cells")
+            : (new Cell(cells.Min(c => c.X), cells.Min(c => c.Z)), new Cell(cells.Max(c => c.X), cells.Max(c => c.Z)));
+
+    private static async Task StageAsync(Harness h, string label, JsonObject spec, CancellationToken cancellationToken)
+    {
+        var reply = await h.CallAsync(label, CombatFixtures.StageTool, new JsonObject { ["spec"] = spec.ToJsonString() }, cancellationToken).ConfigureAwait(false);
+        if (reply["success"].AsBool() != true)
+        {
+            throw new AcceptanceException($"{label}: {reply.ToJson()}");
+        }
     }
 
     /// <summary>Sends one operations_apply action under <paramref name="key"/> and returns its single ActionResult (applied or refused).</summary>

@@ -35,11 +35,6 @@ internal static class PowerFuel
         var h = s.Harness;
         var identity = s.Identity;
         var prepared = s.Prepared ?? [];
-        if (!Dyn.Contains(s.Names, "test/power_observe"))
-        {
-            throw new AcceptanceException("missing test/power_observe in discovery; rebuild the native mod with -Fixture PowerFixture");
-        }
-
         var generatorId = prepared["generator"].AsString();
         var ids = new List<string>();
         if (generatorId.Length > 0)
@@ -50,23 +45,20 @@ internal static class PowerFuel
         var consumers = prepared["consumers"].AsSlice().Select(raw => raw.AsString()).ToList();
         ids.AddRange(consumers);
 
-        Task<JsonObject> Observe(Harness on, string label) => PowerKit.ObserveAsync(on, ids, label, cancellationToken);
+        Task<PowerRead> Observe(Harness on, string label) => PowerKit.ObserveAsync(on, identity, ids, label, cancellationToken);
 
         var before = await Observe(h, "power-before").ConfigureAwait(false);
-        report["power_before"] = before.DeepClone();
-        var rows = PowerKit.IndexRows(before);
-        var generatorBefore = rows.GetValueOrDefault(generatorId) ?? [];
-        if (generatorBefore["outOfFuel"].AsBool() != true)
+        report["power_before"] = before.ToReport();
+        if (before.Rows.GetValueOrDefault(generatorId)?.Service?.OutOfFuel != true)
         {
-            throw new AcceptanceException($"power-before: fixture generator is not out of fuel: {generatorBefore.ToJson()}");
+            throw new AcceptanceException($"power-before: fixture generator {generatorId} is not out of fuel");
         }
 
         foreach (var id in consumers)
         {
-            var row = rows.GetValueOrDefault(id) ?? [];
-            if (row["powerOn"].AsBool() == true)
+            if (before.Rows.GetValueOrDefault(id)?.Service?.PowerOn == true)
             {
-                throw new AcceptanceException($"power-before: consumer {id} already powered: {row.ToJson()}");
+                throw new AcceptanceException($"power-before: consumer {id} already powered");
             }
         }
 
@@ -106,38 +98,33 @@ internal static class PowerFuel
 
         h = await run.ReleaseAsync(s, cancellationToken).ConfigureAwait(false);
         var after = await Observe(h, "power-after").ConfigureAwait(false);
-        report["power_after"] = after.DeepClone();
-        rows = PowerKit.IndexRows(after);
-        var generators = after["generators"].AsSlice();
-        if ((rows.GetValueOrDefault(generatorId) ?? [])["outOfFuel"].AsBool() == true)
+        report["power_after"] = after.ToReport();
+        if (after.Rows.GetValueOrDefault(generatorId)?.Service?.OutOfFuel == true)
         {
-            throw new AcceptanceException($"power-after: generator still out of fuel after the hold window; colonists never refuelled it: {rows[generatorId].ToJson()}");
+            throw new AcceptanceException($"power-after: generator {generatorId} still out of fuel after the hold window; colonists never refuelled it");
         }
 
         // A refuel landing just before the pause leaves the generator fuelled while the power net has not ticked its
         // consumers back on; let the game run a few seconds and read again before judging.
-        for (var attempt = 1; attempt <= 3 && !PowerKit.AllPowered(rows, consumers); attempt++)
+        for (var attempt = 1; attempt <= 3 && !PowerKit.AllPowered(after, consumers); attempt++)
         {
             var label = string.Create(CultureInfo.InvariantCulture, $"after-{attempt}");
             await PowerKit.RunBrieflyAsync(h, label, cancellationToken).ConfigureAwait(false);
             after = await Observe(h, "power-" + label).ConfigureAwait(false);
-            report["power_after"] = after.DeepClone();
-            rows = PowerKit.IndexRows(after);
-            generators = after["generators"].AsSlice();
+            report["power_after"] = after.ToReport();
         }
 
         foreach (var id in consumers)
         {
-            var row = rows.GetValueOrDefault(id) ?? [];
-            if (row["powerOn"].AsBool() != true)
+            if (after.Rows.GetValueOrDefault(id)?.Service?.PowerOn != true)
             {
-                throw new AcceptanceException($"power-after: consumer {id} still unpowered after refuelling: {row.ToJson()}");
+                throw new AcceptanceException($"power-after: consumer {id} still unpowered after refuelling");
             }
         }
 
-        if (generators.Count != 1)
+        if (after.Generators.Count != 1)
         {
-            throw new AcceptanceException($"power-after: expected the single fixture generator, observed {generators.Count}: {new JsonArray([.. generators.Select(g => g?.DeepClone())]).ToJsonString()}");
+            throw new AcceptanceException($"power-after: expected the single fixture generator, observed {after.Generators.Count}: [{string.Join(' ', after.Generators.Select(PowerKit.Id))}]");
         }
 
         report["colony_power_after"] = await ReadPowerFactsAsync(h, identity, "colony-facts-after", cancellationToken).ConfigureAwait(false);

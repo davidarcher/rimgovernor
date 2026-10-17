@@ -246,7 +246,6 @@ Contracts|Observations.WorldTile.Rainfall
 Contracts|Observations.WorldTile.Swampiness
 Contracts|Observations.ZoneState.AllowCut
 Contracts|Observations.ZoneState.AllowSow
-Contracts|Observations.ZoneState.CropDefName
 Contracts|Observations.ZoneState.ExplicitlySetCrop
 Contracts|Observations.ZonesSnapshot.Completeness
 Contracts|Operations.AbilityIntentTarget.NoTarget

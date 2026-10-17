@@ -47,11 +47,6 @@ internal static class PowerWindThinRoof
         var report = s.Report;
         var h = s.Harness;
         var prepared = s.Prepared ?? [];
-        if (!Dyn.Contains(s.Names, "test/power_observe"))
-        {
-            throw new AcceptanceException("missing test/power_observe in discovery; rebuild the native mod with -Fixture PowerFixture");
-        }
-
         var rock = prepared["rockCells"].AsNumber();
         if (rock < 5000)
         {
@@ -60,23 +55,18 @@ internal static class PowerWindThinRoof
 
         var consumers = prepared["consumers"].AsSlice().Select(raw => raw.AsString()).ToList();
         var ids = new List<string>(consumers);
-        Task<JsonObject> Observe(string label) => PowerKit.ObserveAsync(h, ids, label, cancellationToken);
-
-        var before = await Observe("power-before").ConfigureAwait(false);
-        report["power_before"] = before.DeepClone();
-        var rows = PowerKit.IndexRows(before);
-        var generatorsBefore = before["generators"].AsSlice();
-        if (generatorsBefore.Count != 0)
+        var before = await PowerKit.ObserveAsync(h, s.Identity, ids, "power-before", cancellationToken).ConfigureAwait(false);
+        report["power_before"] = before.ToReport();
+        if (before.Generators.Count != 0)
         {
-            throw new AcceptanceException($"power-before: the mountain fixture spawned {generatorsBefore.Count} generators: {before["generators"].ToJson()}");
+            throw new AcceptanceException($"power-before: the mountain fixture spawned {before.Generators.Count} generators: [{string.Join(' ', before.Generators.Select(PowerKit.Id))}]");
         }
 
         foreach (var id in consumers)
         {
-            var row = rows.GetValueOrDefault(id) ?? [];
-            if (row["powerOn"].AsBool() == true)
+            if (before.Rows.GetValueOrDefault(id)?.Service?.PowerOn == true)
             {
-                throw new AcceptanceException($"power-before: consumer {id} powered with no generator: {row.ToJson()}");
+                throw new AcceptanceException($"power-before: consumer {id} powered with no generator");
             }
         }
 
@@ -144,71 +134,60 @@ internal static class PowerWindThinRoof
         await Rounds.AssertRoundsRunningAsync(run.Service.GetAsync, cancellationToken).ConfigureAwait(false);
 
         h = await run.ReleaseAsync(s, cancellationToken).ConfigureAwait(false);
-        var after = await PowerKit.ObserveAsync(h, ids, "power-after", cancellationToken).ConfigureAwait(false);
-        var generators = after["generators"].AsSlice();
-        foreach (var raw in generators)
+        var after = await PowerKit.ObserveAsync(h, s.Identity, ids, "power-after", cancellationToken).ConfigureAwait(false);
+        report["power_after"] = after.ToReport();
+        if (after.Generators.Count != 1)
         {
-            var id = raw.AsString();
-            if (!ids.Contains(id))
-            {
-                ids.Add(id);
-            }
+            throw new AcceptanceException($"power-after: expected exactly the turbine the controller built, observed {after.Generators.Count}: [{string.Join(' ', after.Generators.Select(PowerKit.Id))}]");
         }
 
-        after = await PowerKit.ObserveAsync(h, ids, "power-after-built", cancellationToken).ConfigureAwait(false);
-        report["power_after"] = after.DeepClone();
-        rows = PowerKit.IndexRows(after);
-        if (generators.Count != 1)
-        {
-            throw new AcceptanceException($"power-after: expected exactly the turbine the controller built, observed {generators.Count}: {new JsonArray([.. generators.Select(g => g?.DeepClone())]).ToJsonString()}");
-        }
-
-        var builtId = generators[0].AsString();
-        var built = rows.GetValueOrDefault(builtId) ?? [];
-        var definition = built["defName"].AsString();
+        var built = after.Generators[0];
+        var builtId = PowerKit.Id(built);
+        ids.Add(builtId);
+        var definition = built.Building?.DefName;
         if (definition != PolicyConstants.WindTurbineDefinition)
         {
-            throw new AcceptanceException($"power-after: the controller's generator is a {definition}, expected {PolicyConstants.WindTurbineDefinition}: {built.ToJson()}");
+            throw new AcceptanceException($"power-after: the controller's generator {builtId} is a {definition}, expected {PolicyConstants.WindTurbineDefinition}");
         }
 
-        if (built["connected"].AsBool() != true)
+        if (built.Service?.Connected != true)
         {
-            throw new AcceptanceException($"power-after: the turbine is not connected to a power net: {built.ToJson()}");
+            throw new AcceptanceException($"power-after: the turbine {builtId} is not connected to a power net");
         }
 
-        var at = string.Create(CultureInfo.InvariantCulture, $"{(int)built["x"].AsNumber()},{(int)built["z"].AsNumber()}");
+        var position = TypedReads.CellOf(built.Building?.Position, builtId);
+        var at = string.Create(CultureInfo.InvariantCulture, $"{position.X},{position.Z}");
         if (!sites.Contains(at))
         {
-            throw new AcceptanceException($"power-after: the turbine at ({built["x"].ToJson()},{built["z"].ToJson()}) is on none of the planned sites [{string.Join(' ', sites)}]");
+            throw new AcceptanceException($"power-after: the turbine at ({at}) is on none of the planned sites [{string.Join(' ', sites)}]");
         }
 
-        foreach (var field in new[] { "windBlockedCells", "windPathRoofed", "windPathBlockers" })
+        // The wind path cells vanilla counts as blocking: off the map, roofed or holding a wind-blocking thing.
+        if (built.Service?.WindPathBlockedCells is not 0)
         {
-            var n = built[field].AsNumber();
-            if (n != 0)
-            {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"power-after: the turbine's wind path has {field}={n}: {built.ToJson()}"));
-            }
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"power-after: the turbine's wind path has {built.Service?.WindPathBlockedCells} blocked cells"));
         }
 
-        if (built["roofed"].AsBool() == true)
+        var footprint = TypedReads.CellsOf(built.Occupied, builtId);
+        var footprintCells = await h.BoundingCellsAsync("turbine-footprint", s.Identity, footprint, cancellationToken).ConfigureAwait(false);
+        if (footprint.All(c => footprintCells.At(c)?.Roofed == true))
         {
-            throw new AcceptanceException($"power-after: the turbine's footprint is still roofed: {built.ToJson()}");
+            throw new AcceptanceException($"power-after: the turbine's footprint is still roofed");
         }
 
         // A turbine powers the lamp only while the wind blows: read again while the game runs a few seconds at a time,
         // and accept a calm read.
-        for (var attempt = 1; attempt <= 12 && !PowerKit.AllPowered(rows, consumers); attempt++)
+        after = await PowerKit.ObserveAsync(h, s.Identity, ids, "power-after-built", cancellationToken).ConfigureAwait(false);
+        for (var attempt = 1; attempt <= 12 && !PowerKit.AllPowered(after, consumers); attempt++)
         {
             var label = string.Create(CultureInfo.InvariantCulture, $"after-{attempt}");
             await PowerKit.RunBrieflyAsync(h, label, cancellationToken).ConfigureAwait(false);
-            after = await PowerKit.ObserveAsync(h, ids, "power-" + label, cancellationToken).ConfigureAwait(false);
-            report["power_after"] = after.DeepClone();
-            rows = PowerKit.IndexRows(after);
+            after = await PowerKit.ObserveAsync(h, s.Identity, ids, "power-" + label, cancellationToken).ConfigureAwait(false);
+            report["power_after"] = after.ToReport();
         }
 
-        built = rows.GetValueOrDefault(builtId) ?? [];
-        if (built["powerOutputW"].AsNumber() == 0)
+        var output = after.Rows.GetValueOrDefault(builtId)?.Service?.PowerOutputW ?? 0;
+        if (output == 0)
         {
             report["wind_calm_at_read"] = true;
         }
@@ -216,10 +195,9 @@ internal static class PowerWindThinRoof
         {
             foreach (var id in consumers)
             {
-                var row = rows.GetValueOrDefault(id) ?? [];
-                if (row["powerOn"].AsBool() != true)
+                if (after.Rows.GetValueOrDefault(id)?.Service?.PowerOn != true)
                 {
-                    throw new AcceptanceException($"power-after: consumer {id} unpowered while the turbine outputs {built["powerOutputW"].ToJson()}W: {row.ToJson()}");
+                    throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"power-after: consumer {id} unpowered while the turbine outputs {output}W"));
                 }
             }
         }

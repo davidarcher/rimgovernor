@@ -25,7 +25,6 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal static class FarmBlight
 {
     private const string PrepareOp = "test/blight_prepare";
-    private const string CensusOp = "test/blight_census";
 
     internal static AcceptanceCase Case() => new()
     {
@@ -56,7 +55,7 @@ internal static class FarmBlight
 
         try
         {
-            s.Report["blight_postmortem"] = await s.Harness.CallAsync("blight-postmortem", CensusOp, new JsonObject(), cancellationToken).ConfigureAwait(false);
+            s.Report["blight_postmortem"] = (await NativeCensusAsync(s, "blight-postmortem", cancellationToken).ConfigureAwait(false)).Evidence();
         }
         catch (AcceptanceException e)
         {
@@ -274,13 +273,12 @@ internal static class FarmBlight
             _ = await s.AdvanceAsync(3000, null, cancellationToken).ConfigureAwait(false);
         }
 
-        var native = await h.CallAsync("blight-after-native", CensusOp, new JsonObject(), cancellationToken).ConfigureAwait(false);
-        report["blight_after_native"] = native;
-        SeparatedPlantedField(native, prepared);
-        var standing = native["blighted"].AsSlice();
-        if (standing.Count != 0)
+        var native = await NativeCensusAsync(s, "blight-after-native", cancellationToken).ConfigureAwait(false);
+        report["blight_after_native"] = native.Evidence();
+        SeparatedPlantedField(native.Zones, prepared);
+        if (native.Blighted.Count != 0)
         {
-            throw new AcceptanceException($"blight-after: {standing.Count} blighted plants still stand natively: {native["blighted"].ToJson()}");
+            throw new AcceptanceException($"blight-after: {native.Blighted.Count} blighted plants still stand natively: {native.Evidence()["blighted"].ToJson()}");
         }
 
         var after = await ReadCensusAsync(h, "blight-after", cancellationToken).ConfigureAwait(false);
@@ -297,8 +295,33 @@ internal static class FarmBlight
         return new Cell((int)c["x"].AsNumber(), (int)c["z"].AsNumber());
     }
 
+    /// <summary>The independent native census: every blighted plant on the map and each growing zone, from the cells and zones reads.</summary>
+    private sealed record NativeCensus(IReadOnlyList<(string Id, Cell Cell)> Blighted, IReadOnlyList<GrowingZone> Zones)
+    {
+        public JsonObject Evidence() => new()
+        {
+            ["blighted"] = new JsonArray([.. Blighted.Select(p => (JsonNode?)new JsonObject { ["id"] = p.Id, ["x"] = p.Cell.X, ["z"] = p.Cell.Z })]),
+            ["zones"] = new JsonArray([.. Zones.Select(z => (JsonNode?)new JsonObject { ["id"] = z.Id, ["crop"] = z.Crop, ["cells"] = z.Cells.Count, ["planted"] = z.Planted.Count })]),
+        };
+    }
+
+    private static async Task<NativeCensus> NativeCensusAsync(ISession s, string label, CancellationToken cancellationToken)
+    {
+        var zones = await s.Harness.ZonesAsync(label + "-zones", s.Identity, cancellationToken).ConfigureAwait(false);
+        var grid = await s.Harness.MapCellsAsync(label + "-cells", s.Identity, cancellationToken).ConfigureAwait(false);
+        var cells = grid.Cells();
+        var things = grid.Things();
+        var blighted = new List<(string Id, Cell Cell)>();
+        for (var i = 0; i < cells.Count; i++)
+        {
+            blighted.AddRange(things[i].Where(t => t.Plant.Blighted).Select(t => (t.LoadId(), cells[i].Cell)));
+        }
+
+        return new NativeCensus(blighted, TypedReads.GrowingZones(zones, grid));
+    }
+
     /// <summary>The new field is a separate zone (no shared edge with the original) and holds a natively sown crop.</summary>
-    private static void SeparatedPlantedField(JsonObject native, JsonObject prepared)
+    private static void SeparatedPlantedField(IReadOnlyList<GrowingZone> zones, JsonObject prepared)
     {
         var old = new HashSet<Cell>(prepared["zoneCells"].AsSlice().Select(CellOf));
         if (old.Count == 0)
@@ -307,15 +330,14 @@ internal static class FarmBlight
         }
 
         var planted = false;
-        foreach (var raw in native["zones"].AsSlice())
+        foreach (var zone in zones)
         {
-            var zone = raw.AsMap() ?? [];
-            if (zone["id"].AsNumber() == prepared["zoneId"].AsNumber())
+            if (zone.Id == prepared["zoneId"].AsString())
             {
                 continue;
             }
 
-            foreach (var cell in zone["cells"].AsSlice().Select(CellOf))
+            foreach (var cell in zone.Cells)
             {
                 foreach (var n in new[] { new Cell(cell.X - 1, cell.Z), new Cell(cell.X + 1, cell.Z), new Cell(cell.X, cell.Z - 1), new Cell(cell.X, cell.Z + 1) })
                 {
@@ -326,7 +348,7 @@ internal static class FarmBlight
                 }
             }
 
-            planted = planted || zone["planted"].AsNumber() > 0;
+            planted = planted || zone.Planted.Count > 0;
         }
 
         if (!planted)

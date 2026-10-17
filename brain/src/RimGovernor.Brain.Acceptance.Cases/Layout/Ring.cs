@@ -36,7 +36,6 @@ internal static class LayoutRing
             },
             On = new SaveStart { Name = Baselines.BaselineName },
         },
-        RequiredOps = [LayoutFixture.GridAudit],
         Keep = [NeedDef.Food.Value],
 
         // The start builds no food economy: the food plan's gap is pinned to zero so the expansion gate opens.
@@ -72,8 +71,8 @@ internal static class LayoutRing
                 },
                 Audit = async (h, rep, ct) =>
                 {
-                    var audit = await h.CallAsync("ring-audit", LayoutFixture.GridAudit, [], ct).ConfigureAwait(false);
-                    var (doors, walls) = StoneRing(audit);
+                    var shells = await LayoutFixture.ShellsAsync(h, s.Identity, "ring-audit", ct).ConfigureAwait(false);
+                    var (doors, walls) = StoneRing(shells);
                     rep["ring"] = new JsonObject { ["stoneDoors"] = doors, ["stoneWalls"] = walls };
                     if (doors == 0 || walls == 0)
                     {
@@ -85,22 +84,21 @@ internal static class LayoutRing
     }
 
     /// <summary>
-    /// Counts the audit's stone-block Doors and Walls, standing or planned: the watch ends once the step is planned, so
-    /// the ring may still be blueprints and frames, whose planned rows carry the stuff each becomes.
+    /// Counts the stone-block Doors and Walls, standing or planned: the watch ends once the step is planned, so the ring
+    /// may still be blueprints and frames, whose rows carry the stuff each becomes.
     /// </summary>
-    private static (int Doors, int Walls) StoneRing(JsonObject audit)
+    private static (int Doors, int Walls) StoneRing(IReadOnlyList<LayoutFixture.Shell> shells)
     {
         var categories = PolicyFunctions.CoreItemFacts().Categories;
         int doors = 0, walls = 0;
-        foreach (var item in audit["walls"].AsSlice().Concat(audit["planned"].AsSlice()))
+        foreach (var row in shells)
         {
-            var row = item.AsMap() ?? [];
-            if (!categories.TryGetValue(new Resource(row["stuff"].AsString()), out var held) || !held.Contains("StoneBlocks"))
+            if (!categories.TryGetValue(new Resource(row.Stuff), out var held) || !held.Contains("StoneBlocks"))
             {
                 continue;
             }
 
-            switch (row["def"].AsString())
+            switch (row.Def)
             {
                 case "Door":
                     doors++;

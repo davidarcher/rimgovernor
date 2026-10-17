@@ -114,6 +114,26 @@ public sealed class MapCellGrid
         return things;
     }
 
+    /// <summary>The held cell at <paramref name="cell"/>; null outside the grid's rect or where the cell is not held (fogged).</summary>
+    public GridCell? At(Cell cell) => Index(cell) is int j && _grid.Held[j] ? CellAt(j) : null;
+
+    /// <summary>The things on <paramref name="cell"/>; empty outside the rect, on a cell not held, or for none.</summary>
+    public IReadOnlyList<RimGovernor.Brain.Policy.Thing> ThingsAt(Cell cell) => Index(cell) is int j && _grid.Held[j] ? _grid.Things[j] ?? [] : [];
+
+    /// <summary>The held cells for which <paramref name="match"/> holds, row-major.</summary>
+    public IReadOnlyList<Cell> Where(Func<GridCell, bool> match)
+    {
+        ArgumentNullException.ThrowIfNull(match);
+        return [.. Cells().Where(match).Select(c => c.Cell)];
+    }
+
+    private int? Index(Cell cell)
+    {
+        var dx = cell.X - X;
+        var dz = cell.Z - Z;
+        return dx < 0 || dz < 0 || dx >= Width || dz >= Height ? null : (dz * Width) + dx;
+    }
+
     /// <summary>The held cells by room key (a room row's gridRoom), row-major (Go <c>RoomCells</c>).</summary>
     public IReadOnlyDictionary<int, IReadOnlyList<Cell>> RoomCells() => GroupBy(j => (_grid.Room[j] is not null, _grid.Room[j].GetValueOrDefault()));
 
@@ -193,33 +213,51 @@ public static class CellReads
     /// <summary>The whole map's cell grid, read through <c>observations_get_cells</c>: an anchor read for the map's size, then the map.</summary>
     public static async Task<MapCellGrid> MapCellsAsync(this Harness harness, string label, JsonNode identity, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(harness);
-        ArgumentNullException.ThrowIfNull(identity);
+        var (anchor, _) = await harness.ReadCellsAsync(label + "-size", identity, new Cell(0, 0), new Cell(0, 0), cancellationToken).ConfigureAwait(false);
+        var width = checked((int)(anchor.MapSize?.Width ?? 0));
+        var height = checked((int)(anchor.MapSize?.Height ?? 0));
+        var (_, grid) = await harness.ReadCellsAsync(label, identity, new Cell(0, 0), new Cell(width - 1, height - 1), cancellationToken).ConfigureAwait(false);
+        return grid;
+    }
 
-        async Task<(Observations.CellsSnapshot Snapshot, MapCellGrid Grid)> Read(string suffix, long maxX, long maxZ)
+    /// <summary>The cell grid over the inclusive rectangle <paramref name="min"/>..<paramref name="max"/>, read through <c>observations_get_cells</c>.</summary>
+    public static async Task<MapCellGrid> RectCellsAsync(this Harness harness, string label, JsonNode identity, Cell min, Cell max, CancellationToken cancellationToken)
+    {
+        var (_, grid) = await harness.ReadCellsAsync(label, identity, min, max, cancellationToken).ConfigureAwait(false);
+        return grid;
+    }
+
+    /// <summary>The cell grid over the bounding rectangle of <paramref name="cells"/>.</summary>
+    public static Task<MapCellGrid> BoundingCellsAsync(this Harness harness, string label, JsonNode identity, IReadOnlyCollection<Cell> cells, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(cells);
+        if (cells.Count == 0)
         {
-            var reply = await harness.WireAsync(
-                label + suffix,
-                "observations_get_cells",
-                new JsonObject
-                {
-                    ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                    ["rectangle"] = new JsonObject
-                    {
-                        ["minimum"] = new JsonObject { ["x"] = 0, ["z"] = 0 },
-                        ["maximum"] = new JsonObject { ["x"] = maxX, ["z"] = maxZ },
-                    },
-                },
-                cancellationToken).ConfigureAwait(false);
-            var (_, observed) = Harness.Outcome(reply, "observed");
-            return DecodeCells(observed);
+            throw new AcceptanceException($"{label}: no cells to read");
         }
 
-        var (anchor, _) = await Read("-size", 0, 0).ConfigureAwait(false);
-        var width = (long)(anchor.MapSize?.Width ?? 0);
-        var height = (long)(anchor.MapSize?.Height ?? 0);
-        var (_, grid) = await Read(string.Empty, width - 1, height - 1).ConfigureAwait(false);
-        return grid;
+        return harness.RectCellsAsync(label, identity, new Cell(cells.Min(c => c.X), cells.Min(c => c.Z)), new Cell(cells.Max(c => c.X), cells.Max(c => c.Z)), cancellationToken);
+    }
+
+    private static async Task<(Observations.CellsSnapshot Snapshot, MapCellGrid Grid)> ReadCellsAsync(this Harness harness, string label, JsonNode identity, Cell min, Cell max, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(harness);
+        ArgumentNullException.ThrowIfNull(identity);
+        var reply = await harness.WireAsync(
+            label,
+            "observations_get_cells",
+            new JsonObject
+            {
+                ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
+                ["rectangle"] = new JsonObject
+                {
+                    ["minimum"] = new JsonObject { ["x"] = min.X, ["z"] = min.Z },
+                    ["maximum"] = new JsonObject { ["x"] = max.X, ["z"] = max.Z },
+                },
+            },
+            cancellationToken).ConfigureAwait(false);
+        var (_, observed) = Harness.Outcome(reply, "observed");
+        return DecodeCells(observed);
     }
 
     /// <summary>A ProtoJSON inclusive rectangle's cells, row-major; empty when the rectangle lacks a corner.</summary>

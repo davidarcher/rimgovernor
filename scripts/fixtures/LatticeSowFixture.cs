@@ -12,10 +12,10 @@ namespace HomeBridge.BridgeTools
     // Private disposable acceptance only. Stages two empty
     // growing zones on bare soil: a tree zone (Plant_TreeOak) and, a gap away,
     // a rice zone of the same size. The colonists' Growing priority is raised
-    // so they sow both; nothing here sows. The census reports each zone's
-    // cells and planted cells so the case can check that trees stand only on
+    // so they sow both; nothing here sows. The prepare names each
+    // zone (by load id) so the case can check that trees stand only on
     // the 2x2 lattice anchored on the zone's minimum corner and that rice
-    // still fills every cell.
+    // still fills every cell; the case reads them through the zones and cells reads.
     public sealed class LatticeSowFixture
     {
         [Tool("test/lattice_sow_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: create an empty `width` x `height` oak growing zone and an equal empty rice zone on bare soil near the colonists and enable Growing for the colonists.")]
@@ -60,28 +60,10 @@ namespace HomeBridge.BridgeTools
                 return new {
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
                     tick = Find.TickManager.TicksGame, width, height,
-                    oakZone = oakZone.ID, riceZone = riceZone.ID,
+                    oakZone = oakZone.GetUniqueLoadID(), riceZone = riceZone.GetUniqueLoadID(),
                     oakMin = new { x = origin.x, z = origin.z },
                     setup = "Test-only empty oak and rice growing zones; nothing sown.",
                 };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        [Tool("test/lattice_sow_census", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: report each growing zone's plant def, zone cells and the cells carrying a sown plant of that def.")]
-        public async Task<object> Census(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null) return Refuse("No current map.");
-                var zones = map.zoneManager.AllZones.OfType<Zone_Growing>().Select(zone => {
-                    var def = zone.GetPlantDefToGrow();
-                    return new {
-                        id = zone.ID, plant = def?.defName, cells = zone.Cells.Count,
-                        minX = zone.Cells.Min(c => c.x), minZ = zone.Cells.Min(c => c.z),
-                        planted = zone.Cells.Where(c => c.GetPlant(map)?.def == def).Select(c => new { x = c.x, z = c.z }).ToList(),
-                    };
-                }).ToList();
-                return new { success = true, tick = Find.TickManager.TicksGame, zones };
             }, cancellationToken).ConfigureAwait(false);
         }
 

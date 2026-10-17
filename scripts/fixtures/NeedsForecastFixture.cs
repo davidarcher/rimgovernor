@@ -51,10 +51,4 @@ public sealed partial class PawnControlFixture
                 gain = selected.GainPerTick.IsKnown ? selected.GainPerTick.Value : selected.GainPerUnit.Value,
                 travel = selected.TravelTicks.Value, target = selected.Id };
         }, ct).ConfigureAwait(false);
-
-    [Tool("test/needs_forecast_read", Description="UNSAFE FOR MODEL EXECUTION. Read needs and terminal execution for the prepared forecast residual scene.")]
-    public async Task<object> NeedsRead(IRimBridgeContext ctx, CancellationToken ct)
-        => await ctx.MainThread.InvokeAsync<object>(() => new { success = true, tick = Find.TickManager.TicksGame,
-            food = worker!.needs.food.CurLevelPercentage, rest = worker.needs.rest.CurLevelPercentage,
-            joy = worker.needs.joy.CurLevelPercentage, execution = NativePawnActivities.Read(worker) }, ct).ConfigureAwait(false);
 }

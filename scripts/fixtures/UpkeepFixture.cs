@@ -90,43 +90,6 @@ namespace HomeBridge.BridgeTools
                     frameId = frame.thingIDNumber, wallId = wall.thingIDNumber, steelId = steel.thingIDNumber, readMs };
             }, cancellationToken);
 
-        [Tool("test/roof_cells", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#1366): with set, put a constructed roof over exact cells (\"x,z;x,z\"); always reply how many of them are roofed. Test builds only.")]
-        public async Task<object> RoofCells(IRimBridgeContext ctx, CancellationToken cancellationToken, string cells, bool set = false)
-            => await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                var parsed = (cells ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(pair => pair.Split(','))
-                    .Where(p => p.Length == 2).Select(p => new IntVec3(int.Parse(p[0]), 0, int.Parse(p[1]))).ToList();
-                if (map == null || parsed.Count == 0 || parsed.Count > 256 || parsed.Any(c => !c.InBounds(map))) return new { success = false, error = "Expected 1..256 in-bounds x,z cells on the current map" };
-                if (set) foreach (var c in parsed) map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
-                return new { success = true, roofed = parsed.Count(c => c.Roofed(map)) };
-            }, cancellationToken);
-
-        [Tool("test/floor_cells", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#1245): with def, lay that constructed floor on exact cells (\"x,z;x,z\"); always reply how many of them carry a removable constructed floor. Test builds only.")]
-        public async Task<object> FloorCells(IRimBridgeContext ctx, CancellationToken cancellationToken, string cells, string def = "")
-            => await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                var parsed = (cells ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(pair => pair.Split(','))
-                    .Where(p => p.Length == 2).Select(p => new IntVec3(int.Parse(p[0]), 0, int.Parse(p[1]))).ToList();
-                if (map == null || parsed.Count == 0 || parsed.Count > 256 || parsed.Any(c => !c.InBounds(map))) return new { success = false, error = "Expected 1..256 in-bounds x,z cells on the current map" };
-                if (!string.IsNullOrEmpty(def)) {
-                    var terrain = DefDatabase<TerrainDef>.GetNamedSilentFail(def);
-                    if (terrain == null) return new { success = false, error = "Unknown terrain " + def };
-                    foreach (var c in parsed) map.terrainGrid.SetTerrain(c, terrain);
-                }
-                return new { success = true, floored = parsed.Count(c => map.terrainGrid.CanRemoveTopLayerAt(c)) };
-            }, cancellationToken);
-
-        [Tool("test/cell_things", Description = "Disposable fixture (#1245): the things standing on one cell (\"x,z\") with their def, stuff and id. Test builds only.")]
-        public async Task<object> CellThings(IRimBridgeContext ctx, CancellationToken cancellationToken, string cell)
-            => await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                var p = (cell ?? "").Split(',');
-                if (map == null || p.Length != 2 || !int.TryParse(p[0], out var x) || !int.TryParse(p[1], out var z) || !new IntVec3(x, 0, z).InBounds(map))
-                    return new { success = false, error = "Expected one in-bounds x,z cell on the current map" };
-                var things = new IntVec3(x, 0, z).GetThingList(map).Select(t => new { id = t.GetUniqueLoadID(), def = t.def.defName, stuff = t.Stuff?.defName ?? "" }).ToList();
-                return new { success = true, things };
-            }, cancellationToken);
-
         [Tool("test/deconstruct_target", Description = "Inspect or mutate one staged deconstruction target. Test builds only.")]
         public async Task<object> DeconstructionTarget(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Exact target id.")] string target,
