@@ -1,63 +1,65 @@
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>lab/spawn</c> (Go <c>spawn.go</c>).</summary>
+/// <summary><c>lab/spawn</c> (Go <c>spawn.go</c>): what the fixture layer stages on the lab, the production reads see.</summary>
 internal static class LabSpawn
 {
-    internal static AcceptanceCase Case() => new()
+    // A wall and an unowned muffalo on a clear 6x6 site beside the lab centre.
+    private static readonly Fx.StageSpec Spec = new()
+    {
+        Paused = true,
+        Site = new Fx.StageSite
+        {
+            Width = 6,
+            Height = 6,
+            OffsetX = 4,
+            Radius = 10,
+            Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Heavy],
+        },
+        Buildings = [new Fx.StageBuilding { Name = "wall", Def = "Wall", Stuff = "WoodLog", Cells = [new(0, 4)] }],
+        Pawns = [new Fx.StagePawn { Name = "muffalo", Kind = "Muffalo", Faction = Fx.StageFaction.None, Cell = new(4, 0) }],
+    };
+
+    internal static TypedCase Case() => new()
     {
         Name = "lab/spawn",
-        Scope = "Lab runner: test/lab_start hands the case a blank lab with its colonists, and a building and a pawn spawned by test/lab_spawn read back through the typed observations.",
+        Scope = "Lab runner: a wall and an unowned muffalo staged by test/stage on the blank lab read back through the typed "
+            + "observations_list_buildings and observations_list_pawns.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 2 },
-        RequiredOps = [DebugGame.LabSpawnTool],
+        Stage = Spec,
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var prepared = s.Prepared ?? [];
-        var n = prepared["colonists"].AsSlice().Count;
-        if (n != 2)
+        var staged = s.Staged!;
+        var wall = staged.Buildings["wall"].Ids.Single();
+        var animal = staged.Pawns["muffalo"].Id;
+        var walls = await s.BuildingsAsync("wall", new Observations.ListBuildingsRequest { Ids = [wall] }, cancellationToken).ConfigureAwait(false);
+        if (walls is not [{ Stuff: "WoodLog" } row])
         {
-            throw new AcceptanceException($"lab start: want 2 colonists, got {n}: {prepared.ToJson()}");
+            throw new AcceptanceException($"list_buildings {wall}: want one WoodLog wall, got {walls.Count} rows: {string.Join("; ", walls)}");
         }
 
-        var (cx, cz) = CaseSupport.Center(s);
-        var h = s.Harness;
-        var (wall, _) = await DebugGame.LabSpawnAsync(h, new LabThing { Def = "Wall", Stuff = "WoodLog", X = cx, Z = cz + 4 }, cancellationToken).ConfigureAwait(false);
-        var (animal, pawn) = await DebugGame.LabSpawnAsync(h, new LabThing { Def = "Muffalo", X = cx + 4, Z = cz, Unowned = true }, cancellationToken).ConfigureAwait(false);
-        if (pawn["kind"].AsString() != "pawn")
-        {
-            throw new AcceptanceException($"lab_spawn Muffalo: kind {pawn["kind"].ToJson()}, not a pawn: {pawn.ToJson()}");
-        }
-
-        s.Report["spawned"] = new JsonObject { ["wall"] = wall, ["animal"] = animal };
-        var reply = await h.WireAsync(
-            "wall",
-            "observations_list_buildings",
-            new JsonObject
-            {
-                ["scope"] = new JsonObject { ["expectedIdentity"] = s.Identity.DeepClone() },
-                ["ids"] = new JsonArray(wall),
-            },
+        var pawns = await s.CallAsync(
+            "animal",
+            NativeOps.ListPawns,
+            new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [animal] } },
             cancellationToken).ConfigureAwait(false);
-        var (_, observed) = Harness.Outcome(reply, "observed");
-        var rows = observed["buildings"].AsSlice();
-        if (rows.Count != 1)
+        var observed = TypedReads.Observed("animal", NativeOps.ListPawns, pawns, pawns.Outcome?.Observed);
+        var rows = observed.Pawns.ToList();
+        if (rows is not [{ KindDefName: "Muffalo" } pawn] || pawn.Pawn?.Id != animal)
         {
-            throw new AcceptanceException($"list_buildings {wall}: want one row, got {observed.ToJson()}");
+            throw new AcceptanceException($"list_pawns {animal}: want the staged Muffalo, got {string.Join("; ", rows)}");
         }
 
-        var row = rows[0].AsMap() ?? [];
-        if (row["stuff"].AsString() != "WoodLog")
-        {
-            throw new AcceptanceException($"wall {wall}: want WoodLog stuff, got {row.ToJson()}");
-        }
-
-        s.Report["wall"] = row;
+        s.RecordWire("wall", row);
+        s.RecordWire("animal", pawn);
     }
 }

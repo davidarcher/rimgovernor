@@ -9,6 +9,7 @@ internal static class CombatLabNativeHold
     internal static AcceptanceCase Case() => new()
     {
         Name = "combatlab/native-hold",
+        Tier = CaseTier.Nightly,
         Scope = "Go assigns one ranged firing cell; vanilla native execution acquires and retargets without Go micro orders (#2477, #1857). "
             + "A Go snapshot cannot prove vanilla target acquisition, autonomous retargeting, shots or position retention. "
             + "On a pinned lab one defender moves to the cell, holds fire for 600 ticks with live reachable hostiles, then receives hold-position and fire-at-will once. "

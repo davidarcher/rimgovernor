@@ -43,6 +43,7 @@ internal static class LayoutSeaIceEnvelope
     internal static AcceptanceCase Case() => new()
     {
         Name = "layout/sea-ice-envelope",
+        Tier = CaseTier.Nightly,
         Scope = "Issue #2892 (epic #2855): on a three-colonist IceSheet start the built base is one roofed envelope. The plan's roofed set holds every " +
             "non-outdoor room and carries a built roof on every cell, each airlock child opens its parent's exterior door with both doors and walls standing, the " +
             "door graph joins the roofed rooms without stepping outside the roofed set, and no colonist's Hypothermia passes serious at a five-day probe. Nightly only.",

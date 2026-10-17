@@ -30,6 +30,7 @@ internal static class LifecycleHeadlessSoak
     internal static AcceptanceCase Case() => new()
     {
         Name = "lifecycle/headless-soak",
+        Tier = CaseTier.Off,
         Scope = "Diagnostic soak: fresh debug game driven by the soak mode (poll by default) while recording game status, process memory and tick.",
         Start = new OwnedStart(),
         Reason = "the diagnostic opens its own bridge session and stops the game it soaked",

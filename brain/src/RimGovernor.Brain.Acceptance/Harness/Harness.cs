@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Contracts.Wire;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -48,6 +50,32 @@ public sealed partial class Harness : IAsyncDisposable
     {
         var (message, _) = await WireBytesAsync(label, method, request, cancellationToken).ConfigureAwait(false);
         return message;
+    }
+
+    /// <summary>
+    /// Calls the native op <paramref name="op"/> with its Contracts request record and returns its Contracts reply record:
+    /// the typed edge (<see cref="WireJson"/> both ways, no flat view), recorded as evidence like every call.
+    /// </summary>
+    public async Task<TReply> CallAsync<TRequest, TReply>(string label, NativeOp<TRequest, TReply> op, TRequest request, CancellationToken cancellationToken)
+        where TRequest : class
+        where TReply : class
+    {
+        ArgumentNullException.ThrowIfNull(op);
+        ArgumentNullException.ThrowIfNull(request);
+        var envelope = await CallAsync(label, op.Tool, new JsonObject { ["request"] = WireJson.Serialize(request) }, cancellationToken).ConfigureAwait(false);
+        if (envelope["payload"] is not JsonValue value || !value.TryGetValue<string>(out var payload))
+        {
+            throw new AcceptanceException($"{label}: {op.Name}: reply did not preserve the JSON string envelope");
+        }
+
+        try
+        {
+            return WireJson.Deserialize<TReply>(payload);
+        }
+        catch (JsonException e)
+        {
+            throw new AcceptanceException($"{label}: {op.Name}: invalid reply: {e.Message}", e);
+        }
     }
 
     /// <summary>Wire returning the reply payload's ProtoJSON byte count beside the decoded message.</summary>

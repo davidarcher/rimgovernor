@@ -28,6 +28,7 @@ internal static class SustainedStableCase
             "Fifteen game days on tribal8 with every routine family and live needs: no colonist lost or dead, no Malnutrition above 0.3, every immunity disease immune or tended, and food days at least FoodTargetDays.");
         return c with
         {
+            Tier = CaseTier.Nightly,
             Budget = Watch + TimeSpan.FromMinutes(7),
             Reason = "nightly fifteen-day colony stability gate with live needs and every routine family",
             Run = RunAsync,

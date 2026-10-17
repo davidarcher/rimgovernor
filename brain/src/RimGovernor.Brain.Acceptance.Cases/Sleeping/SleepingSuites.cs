@@ -36,6 +36,7 @@ internal static partial class SleepingSuites
     internal static AcceptanceCase Case() => new()
     {
         Name = "sleeping/suites",
+        Tier = CaseTier.Nightly,
         Scope = "Issue #1221: on the tribal " + SustainedFoodCase.BaselineSave + " colony at Masonry with a fixture hut and a Greedy colonist, "
             + "the sleeping planner builds a standard bedroom wing, gives the Greedy colonist a suite and moves them into it; "
             + "once a Baron title raises their target a second, larger suite is planned and shelled and the first suite "

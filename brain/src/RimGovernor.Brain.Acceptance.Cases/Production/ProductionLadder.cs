@@ -60,6 +60,7 @@ internal static class ProductionLadder
     internal static AcceptanceCase Case() => new()
     {
         Name = "production/ladder",
+        Tier = CaseTier.Nightly,
         Scope = string.Create(CultureInfo.InvariantCulture, $"economy/resource {PolicyFunctions.ComponentResource.Value}:{Target} walks research ({Project}) -> fabrication bench -> ingredient stockpile -> bill; the live item count must rise above the pre-service baseline (issue #4, M4)."),
         Start = new FixtureStart
         {

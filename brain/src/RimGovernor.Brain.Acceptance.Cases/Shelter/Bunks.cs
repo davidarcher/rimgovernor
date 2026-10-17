@@ -27,6 +27,7 @@ internal static class ShelterBunks
     internal static AcceptanceCase Case() => new()
     {
         Name = "shelter/bunks-first",
+        Tier = CaseTier.Nightly,
         Scope = "Issues #612, #615 and #2278: the one complete-construction path. From the tribal " + Baselines.BaselineName +
             " baseline, which houses nobody indoors at the start (asserted), the initial shelter places sleeping spots at " +
             "the first review on the planned shelter interior, admits the wooden beds next on the same slots and raises the ring (the planned room's waves) around them without waiting for the beds " +

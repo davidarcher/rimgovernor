@@ -14,6 +14,7 @@ internal static class Gathering
     internal static AcceptanceCase Case() => new()
     {
         Name = "mood/gathering",
+        Tier = CaseTier.Nightly,
         Scope = "Normal review explicitly leaves gathering labor unsupported and admits no gathering action. An explicit native gathering intent starts exactly one Party at the prepared spot with a legal organizer; this proves native mechanics, not automatic participant choice.",
         Start = new LabStart { Colonists = 5 },
         Serve = new ServeSpec { Families = [.. MoodDrive.EpicFamilies("gathering")], Prefix = "mood-gathering" },

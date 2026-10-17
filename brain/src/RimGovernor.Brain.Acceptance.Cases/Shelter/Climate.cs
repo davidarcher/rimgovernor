@@ -80,6 +80,7 @@ internal static class ShelterClimate
             yield return new AcceptanceCase
             {
                 Name = c.Name,
+                Tier = CaseTier.Nightly,
                 Scope = "Issues #2076 and #2278: from a " + c.Name["shelter/climate-".Length..] + " map, " + c.Scope + "; a refused furniture cell reports its blocker.",
                 Start = c.Start,
                 Serve = new ServeSpec { Families = c.Families, NativeTimeout = TimeSpan.FromSeconds(30), Prefix = "shelter-climate" },

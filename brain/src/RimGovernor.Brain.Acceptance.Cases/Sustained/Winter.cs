@@ -41,6 +41,7 @@ internal static class SustainedWinterCase
     internal static AcceptanceCase Case() => new()
     {
         Name = "sustained/winter",
+        Tier = CaseTier.Nightly,
         Scope = "Winter survival (#251, the acceptance #229 named): on the " + SustainedFoodCase.BaselineSave + " save moved to the last hours of its growing " +
             "season (test/winter_prepare) with a larder stocked to the seasonal food target the calendar derives (test/winter_stock), " +
             "the food/supply Need's families run without a player target and every rounds through the window reads a food " +

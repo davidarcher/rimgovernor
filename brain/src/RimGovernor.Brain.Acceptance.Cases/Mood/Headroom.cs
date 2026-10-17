@@ -16,6 +16,7 @@ internal static class Headroom
     internal static AcceptanceCase Case() => new()
     {
         Name = "mood/headroom",
+        Tier = CaseTier.Nightly,
         Scope = "A pawn's people/mood Need is unmet and met on the one headroom margin (#2535, #2549, #3304, #3265): with one colonist's mood held natively 0.07 above "
             + "its native minor-break threshold (inside the 0.15 margin, above the old entry at the threshold), the review files its "
             + "people/mood/<pawn> progress row (unmet); lifted natively to 0.22 (past the 0.15 margin) and the service restarted, the same row goes (met). "

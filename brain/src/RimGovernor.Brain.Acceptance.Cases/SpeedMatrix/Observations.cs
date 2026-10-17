@@ -29,6 +29,7 @@ internal sealed partial class SpeedmatrixRun
     internal static AcceptanceCase ObservationsCase() => new()
     {
         Name = "speedmatrix/observations",
+        Tier = CaseTier.Off,
         Scope = "Observation baseline (#642): the committed tribal8 colony with the throughput stage applied, played rendered "
             + "governor-off, governed and governed under observation load at one clock speed and one tick budget; each row reports the "
             + "companion's observation capture/format split, its per-section costs and its update-interval account beside the "

@@ -18,6 +18,7 @@ internal static class ToolsVariantSaveGen
             yield return new AcceptanceCase
             {
                 Name = "tools/variantsavegen-" + SustainedMatrix.Short(v.Save),
+                Tier = CaseTier.Off,
                 Scope = string.Create(CultureInfo.InvariantCulture, $"Fixture generation: scenario start {v.Scenario} seed {v.Seed} saved as {v.Save} for the sustained matrix (issue #1)."),
                 Start = new ScenarioStart { Spec = v.Start().Spec },
                 Budget = TimeSpan.FromMinutes(8),

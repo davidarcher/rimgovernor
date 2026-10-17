@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Policy;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
@@ -257,7 +258,8 @@ internal static class UpkeepHomeCoverage
     /// </summary>
     internal static async Task<HomeCoverageRead> ReadHomeCoverageAsync(Harness h, JsonObject identity, string target, string label, CancellationToken cancellationToken)
     {
-        var facts = await h.ObservedAsync<Observations.ColonyFactsSnapshot>(label, "observations_read_colony_facts", identity, new JsonObject { ["planning"] = false }, cancellationToken).ConfigureAwait(false);
+        var reply = await h.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = TypedReads.Scope(identity), Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
         var home = facts.Upkeep?.Outcome?.Observed?.HomeCoverage?.Outcome?.Observed
             ?? throw new AcceptanceException($"{label}: home coverage facts unavailable");
         var row = home.Targets.FirstOrDefault(t => t.Id == target);

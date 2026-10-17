@@ -14,6 +14,7 @@ internal static class ShelterSolo
     internal static AcceptanceCase Case() => new()
     {
         Name = "shelter/solo-cold",
+        Tier = CaseTier.Nightly,
         Scope = "Issue #2762: from a one-colonist sea-ice start the plan latches Cold, plans the shelter and no laboratory " +
             "(research is the shelter's capability), and the shelter's campfire stands on its planned interior. " +
             "A snapshot test covers the capability logic; only a real cold world reads the temperature curve and accepts the placement.",

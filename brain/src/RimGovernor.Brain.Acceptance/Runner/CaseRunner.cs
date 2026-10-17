@@ -129,7 +129,17 @@ public sealed class CaseRunner
             budget = opts.Budget;
         }
 
-        report.SetBudget(budget);
+        if (c.Typed is { } typed)
+        {
+            // A typed case is held to its ticks, not the wall clock: its hang guard cuts a hung body (RunOpenedAsync), and
+            // a passing claim never fails on time, so the report carries no budget.
+            report["ticks"] = typed.Ticks;
+            report["hang_guard_ms"] = (long)(opts.Budget > TimeSpan.Zero ? opts.Budget : typed.HangGuard).TotalMilliseconds;
+        }
+        else
+        {
+            report.SetBudget(budget);
+        }
 
         // The shared waits read the stall budget from the environment; a flag override or the case's own Stall is set
         // for this case and the process's original value put back for the next.
@@ -564,7 +574,12 @@ public sealed class CaseRunner
             // The budget cuts the Run body where Finalize would fail it anyway: the -timeout safety net sits minutes past
             // it, long enough for a hung serve loop to run on unseen.
             using var body = CancellationTokenSource.CreateLinkedTokenSource(runScope.Token);
-            if (report.BudgetDeadline() is { } deadline)
+            if (c.Typed is { } typed)
+            {
+                // The hang guard runs from the body's start: boot and staging are the runner's, not the claim's.
+                body.CancelAfter(opts.Budget > TimeSpan.Zero ? opts.Budget : typed.HangGuard);
+            }
+            else if (report.BudgetDeadline() is { } deadline)
             {
                 var remaining = deadline - DateTimeOffset.UtcNow;
                 body.CancelAfter(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
@@ -582,7 +597,9 @@ public sealed class CaseRunner
 
             if (runError is not null && body.IsCancellationRequested && !runScope.IsCancellationRequested)
             {
-                runError = new AcceptanceException("run cut at its wall-clock budget: " + ErrorText(runError), runError);
+                runError = new AcceptanceException(
+                    (c.Typed is null ? "run cut at its wall-clock budget: " : "run cut at its hang guard (ticks / 300 per second + 1 min): ") + ErrorText(runError),
+                    runError);
             }
 
             if (c.Stages.Count > 0)

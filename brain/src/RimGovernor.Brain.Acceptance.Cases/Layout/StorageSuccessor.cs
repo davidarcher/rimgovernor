@@ -53,6 +53,7 @@ internal static class LayoutStorageSuccessor
     internal static AcceptanceCase Case() => new()
     {
         Name = "layout/storage-successor",
+        Tier = CaseTier.Nightly,
         Scope = "Issue #2893 (epic #2855): a staged storage room holding Steel is outgrown (the stock fault raises the station chain's stock target) and the tiled replan " +
             "plans a successor (Replaces = the old id); at every two-game-hour probe a stockpile zone holds the stock, the successor's zone carries the old " +
             "filter and priority, and at the end the stock sits in the new zone, the old zone is gone and the old room has left the plan. Nightly only.",

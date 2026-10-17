@@ -15,6 +15,7 @@ internal static class FoodStarvingRecovery
     internal static AcceptanceCase Case() => new()
     {
         Name = "food/starving-tribal-recovery",
+        Tier = CaseTier.Nightly,
         Scope = "Native postconditions and end-to-end signal (#2173; a Go snapshot test cannot cover the vanilla physics): the starving tribal colony of food/starving-tribal (tribal8, no food, no weapons, no butcher bill, six wild deer, Core only) under the autonomous controller "
             + "crafts a bow that a colonist wields, designates and kills prey, the killer's job after a kill is Hunt on the next live designated prey and not a haul of its own corpse, "
             + "the meat is butchered (delivery ledger) and eaten (native ingest counter), malnutrition has recovered to 0.3 or below and the food runway is positive, all within eight game days.",

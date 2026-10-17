@@ -19,6 +19,7 @@ internal static class Ledger
     internal static AcceptanceCase Case() => new()
     {
         Name = "mood/ledger",
+        Tier = CaseTier.Nightly,
         Scope = "The mood ledger routes thoughts by owner (#2549, #2538): a colonist carrying SleptOutside (owner shelter/sleeping, -4) "
             + "and MyOrganHarvested (no owner, -6) shows both in the moodLedger of GET /api/player/colony, the first with its owner and "
             + "the second alone in the unowned bucket, each with its pawn count and mood lost. Nightly tier. The native side proves only "

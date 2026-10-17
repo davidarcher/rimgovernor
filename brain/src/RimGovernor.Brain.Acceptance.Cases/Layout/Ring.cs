@@ -18,6 +18,7 @@ internal static class LayoutRing
     internal static AcceptanceCase Case() => new()
     {
         Name = "layout/ring",
+        Tier = CaseTier.Nightly,
         Scope = "Issue #1271: on the tribal " + Baselines.BaselineName + " colony at Masonry, staged one review short of " +
             "the shelter family's expansion Need (a bedroom per single colonist and per couple, a used bed each, no spare place, Foothold's exits met, the food gap pinned to zero), " +
             "the expansion planner raises the capacity ring: the native audit reads a stone Door and stone-block walls. " +

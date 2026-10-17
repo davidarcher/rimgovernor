@@ -92,6 +92,7 @@ internal sealed partial class SpeedmatrixRun
     internal static AcceptanceCase PlainCase() => new()
     {
         Name = "speedmatrix/plain",
+        Tier = CaseTier.Off,
         Scope = "Speed matrix (#111): one staged colony reloaded per clock speed under rimgovernor serve with an "
             + "identical tick target; wall TPS, paused fraction, steps, reads/step, parent hits, hold counts by reason, resume latency and "
             + "effective speed per speed; pawn outcomes equal within a tolerance.",

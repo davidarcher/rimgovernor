@@ -16,6 +16,7 @@ internal static class ExplainEveryConcern
     internal static AcceptanceCase Case() => new()
     {
         Name = "explain/every-concern",
+        Tier = CaseTier.Nightly,
         Scope = "Epic #2690 (#2702): on a running baseline colony every concern or planner that reports a refusal or wait has at least one row "
             + "in the session store's need_transitions table whose cause the shared wording table (policy.Wording, the one the launcher renders) names in plain language, and no row carries "
             + "free text. A concern first seen clear writes no row by design and is reported as silent, not failed. Nightly tier. The launcher's timeline model "

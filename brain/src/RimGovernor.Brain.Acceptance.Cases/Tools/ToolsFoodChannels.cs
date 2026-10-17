@@ -8,6 +8,7 @@ internal static class ToolsFoodChannels
     internal static AcceptanceCase Case() => new()
     {
         Name = "tools/foodchannels",
+        Tier = CaseTier.Off,
         Scope = "Core-only food source census on the lab: spawned berry-bush forage and absent Odyssey water; a fixture cow reports native milk fullness (#421).",
         Start = new LabStart(),
         Budget = TimeSpan.FromMinutes(3),

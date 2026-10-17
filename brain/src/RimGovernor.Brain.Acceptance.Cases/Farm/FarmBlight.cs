@@ -307,7 +307,7 @@ internal static class FarmBlight
 
     private static async Task<NativeCensus> NativeCensusAsync(ISession s, string label, CancellationToken cancellationToken)
     {
-        var zones = await s.Harness.ZonesAsync(label + "-zones", s.Identity, cancellationToken).ConfigureAwait(false);
+        var zones = await s.Harness.ZonesAsync(label + "-zones", TypedReads.Scope(s.Identity), cancellationToken).ConfigureAwait(false);
         var grid = await s.Harness.MapCellsAsync(label + "-cells", s.Identity, cancellationToken).ConfigureAwait(false);
         var cells = grid.Cells();
         var things = grid.Things();

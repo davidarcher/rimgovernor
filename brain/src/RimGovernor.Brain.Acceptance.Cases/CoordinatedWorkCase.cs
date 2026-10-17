@@ -7,6 +7,7 @@ internal static class CoordinatedWorkCase
     internal static AcceptanceCase Case(string mode, bool interrupted = false) => new()
     {
         Name = "coordination/" + mode + (interrupted ? "-carried-recovery" : "-delegated"),
+        Tier = CaseTier.Nightly,
         Scope = "Prepared specialist/helper facts enter ordinary Rounds generation, shared comparison, Method admission and Hands. "
             + "Observe a multi-participant task graph, physical " + (mode == "food" ? "harvested food at selected storage" : "material delivery and a finished building")
             + (interrupted ? ", including one interrupted carried input and a later exact revision" : "")

@@ -25,6 +25,7 @@ internal static class LightDark
     internal static AcceptanceCase Case() => new()
     {
         Name = "light/dark",
+        Tier = CaseTier.Smoke,
         Scope = "Native rooms/lighting Need vertical on the lab: a measured-dark stove interaction cell in an enclosed room "
             + "drives the live Go rounder/planner to admit one affordable lamp beside it; "
             + "the measured glow, not the receipt, releases the latch, confirmed by an independent native read.",

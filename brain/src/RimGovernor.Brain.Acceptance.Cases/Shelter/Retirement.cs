@@ -24,6 +24,7 @@ internal static class ShelterRetirement
     internal static AcceptanceCase Case() => new()
     {
         Name = "shelter/retirement",
+        Tier = CaseTier.Nightly,
         Scope = "Issue #2076: from the tribal " + Baselines.BaselineName + " baseline with every colonist asleep in a built bedroom, the planned " +
             "workshop and laboratory staged standing and a research table, sleeping spot, crafting spot and butcher spot left in the " +
             "shelter hut, the shelter retires: the plan drops it with its footprint as RetiredGround, and the table (packed, then installed " +

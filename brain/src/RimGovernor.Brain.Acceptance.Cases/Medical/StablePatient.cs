@@ -20,6 +20,7 @@ internal static class StablePatient
     internal static AcceptanceCase Case() => new()
     {
         Name = "medical/stable-patient",
+        Tier = CaseTier.Off,
         Scope = "Diagnostic: medical/critical (two Flu patients plus a forced GoJuiceAddiction "
             + "withdrawal patient) and food/supply (concurrent pre-seeded growing zone/campfire bill) standard-state "
             + "timelines under the live rounder/field planner, evidence for issue #1's stable-patient feeding "

@@ -56,6 +56,7 @@ internal static class SustainedColonyCase
     internal static AcceptanceCase Colony(string name, QuietMode quiet, string scope) => new()
     {
         Name = name,
+        Tier = CaseTier.Off,
         Scope = scope,
         Start = new SaveStart { Name = SustainedFoodCase.BaselineSave },
         Keep = [NeedDef.LiveNeeds.Value],

@@ -10,6 +10,14 @@ public sealed class CaseRegistry
     private readonly Lock _gate = new();
     private readonly Dictionary<string, AcceptanceCase> _cases = new(StringComparer.Ordinal);
 
+    /// <summary>Adds a typed case after its shape check (<see cref="TypedCase.Validate"/>): a case over its tick cap fails here.</summary>
+    public void Register(TypedCase c)
+    {
+        ArgumentNullException.ThrowIfNull(c);
+        c.Validate();
+        Register(c.ToCase());
+    }
+
     /// <summary>Adds <paramref name="c"/>; throws on an invalid case or a duplicate name.</summary>
     public void Register(AcceptanceCase c)
     {

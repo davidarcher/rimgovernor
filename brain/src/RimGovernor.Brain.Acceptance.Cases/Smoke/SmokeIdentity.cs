@@ -15,6 +15,7 @@ internal static class SmokeIdentity
     internal static AcceptanceCase Case() => new()
     {
         Name = "smoke/identity",
+        Tier = CaseTier.Smoke,
         Scope = "Runner smoke: the shared runner opens the blank lab (#731), freezes needs and hands the case a loaded identity.",
         Start = new LabStart(),
 

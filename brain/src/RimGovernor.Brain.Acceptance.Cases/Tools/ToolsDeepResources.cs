@@ -8,6 +8,7 @@ internal static class ToolsDeepResources
     internal static AcceptanceCase Case() => new()
     {
         Name = "tools/deepresources",
+        Tier = CaseTier.Off,
         Scope = "Seeded deep resource lumps aggregate by connected definition, both scanner types expose native state, and drills report exact deposit, depletion and controller ownership (#482, #538).",
         Start = new FixtureStart { Op = "test/deep_resources_seed", On = new LabStart() },
         Budget = TimeSpan.FromMinutes(3),

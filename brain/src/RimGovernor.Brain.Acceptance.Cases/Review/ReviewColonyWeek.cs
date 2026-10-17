@@ -74,6 +74,7 @@ internal static class ReviewColonyWeek
         return new AcceptanceCase
         {
             Name = "review/colony-week",
+            Tier = CaseTier.Off,
             Scope = "Review run, not a gate: the governor plays a " + v.Scenario + " map (seed " + seed + ", " + v.Biome + ") for "
                 + days.ToString(CultureInfo.InvariantCulture) + " in-game days under the storyteller while " + RecorderTool
                 + " records an hourly colony screenshot into <output>/review beside the run timeline (colony census and standard states each in-game hour) for cmd/colonyreview. A "

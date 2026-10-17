@@ -35,6 +35,7 @@ internal static class StartupLaborCase
     internal static AcceptanceCase Case() => new()
     {
         Name = "startup/labor",
+        Tier = CaseTier.Nightly,
         Scope = "Issue #639: the eight-colonist startup fixture (no shelter, mixed construction skill, reachable wood, an animal-feed deficit and scattered supplies) "
             + "comes up on its declared preconditions, and the startup-labor diagnosis classifies every reviewed standard from evidence the run already holds.",
         Start = new FixtureStart

@@ -97,6 +97,7 @@ internal static class DefensePerimeter
     internal static AcceptanceCase Case() => new()
     {
         Name = "defense/perimeter",
+        Tier = CaseTier.Nightly,
         Scope = "Layout v2 perimeter (#789) and the defensive layout vertical (#5 M4): the routine planner anchors the corridor on the layout plan's killbox "
             + "opening and builds every tier and the 3-thick stone wall with its 3-door gates natively; independent spatial-access and trap-cell reads "
             + "prove colonists pass the gates; a real RaidEnemy edge assault walks to the opening and is answered with hold-the-line, and afterwards "

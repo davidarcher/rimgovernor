@@ -18,11 +18,12 @@ internal static class LayoutFixture
     /// <summary>Every player room-boundary piece, standing or planned, from <c>observations_list_buildings</c>.</summary>
     internal static async Task<IReadOnlyList<Shell>> ShellsAsync(Harness h, JsonObject identity, string label, CancellationToken cancellationToken)
     {
-        var rows = await h.BuildingsAsync(label, identity, new JsonObject
+        var rows = await h.BuildingsAsync(label, new Observations.ListBuildingsRequest
         {
-            ["defNames"] = new JsonArray("Wall", "Door", "Autodoor", "Embrasure"),
-            ["statuses"] = new JsonArray("all"),
-            ["playerOnly"] = true,
+            Scope = TypedReads.Scope(identity),
+            DefNames = ["Wall", "Door", "Autodoor", "Embrasure"],
+            Statuses = ["all"],
+            PlayerOnly = true,
         }, cancellationToken).ConfigureAwait(false);
         return [.. rows.Select(row => new Shell(
             row.BuildDefName ?? row.Building?.DefName ?? "",

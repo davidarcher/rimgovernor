@@ -93,6 +93,7 @@ internal static class SustainedFoodCase
     internal static AcceptanceCase Case(string name, string save, string prefix, ulong ticks) => new()
     {
         Name = name,
+        Tier = CaseTier.Off,
         Scope = "Diagnostic: food/supply timeline against the " + save +
             " save under the live rounder/field planner, evidence for issue #1's eight-colonist crop labor / interim food deficit. Not a pass/fail acceptance gate.",
         Start = new SaveStart { Name = save },

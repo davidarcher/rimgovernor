@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -72,8 +73,7 @@ internal static class WallDoorSwap
 
             var built = await h.BuildingsAsync(
                 "cell-" + CaseSupport.Tag(advanced),
-                s.Identity,
-                new JsonObject { ["defNames"] = new JsonArray("Wall", "Door"), ["statuses"] = new JsonArray("built") },
+                new Observations.ListBuildingsRequest { Scope = TypedReads.Scope(s.Identity), DefNames = ["Wall", "Door"], Statuses = ["built"] },
                 cancellationToken).ConfigureAwait(false);
             var here = built.Where(b => b.Building?.Position is { } p && p.X == door.X && p.Z == door.Z).ToList();
             var wall = here.Any(b => b.Building?.DefName == "Wall" && b.Stuff == "WoodLog");

@@ -25,7 +25,7 @@ public sealed record AcceptanceCase
     public static readonly TimeSpan LabBudget = TimeSpan.FromMinutes(3);
 
     // "<area>/<case>": lowercase words joined by hyphens on each side of one slash (case names also accept underscores).
-    private static readonly Regex NameShape = new(
+    internal static readonly Regex NameShape = new(
         "^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+([-_][a-z0-9]+)*$",
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(1));
@@ -106,6 +106,12 @@ public sealed record AcceptanceCase
 
     /// <summary>Opts the case out of the runner's checkpoint ring.</summary>
     public bool NoCheckpoint { get; init; }
+
+    /// <summary>The pass that runs the case (charter rule 8); on demand unless declared.</summary>
+    public CaseTier Tier { get; init; }
+
+    /// <summary>The typed case this record adapts for the runner (<see cref="TypedCase.ToCase"/>), null for a legacy case.</summary>
+    public TypedCase? Typed { get; init; }
 
     /// <summary>Puts the case in the matrix class: a throughput or scheduler measurement, or a DLC-save case, run on demand, never by a tier.</summary>
     public bool Matrix { get; init; }

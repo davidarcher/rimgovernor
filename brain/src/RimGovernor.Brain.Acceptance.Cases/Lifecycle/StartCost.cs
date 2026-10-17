@@ -13,6 +13,7 @@ internal static class ToolsStartCost
     internal static AcceptanceCase Case() => new()
     {
         Name = "tools/startcost",
+        Tier = CaseTier.Off,
         Scope = "Diagnostic (#2029): start time by planet coverage and map size, team-policy reroll cost by colonist count and seed, "
             + "and the tribal-8 spec started twice giving the same colonists, tile and map digest. Reported under start_cost; gates nothing.",
         Start = new OwnedStart(),

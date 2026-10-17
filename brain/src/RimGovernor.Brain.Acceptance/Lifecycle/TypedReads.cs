@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Contracts.Wire;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Observations = RimGovernor.Contracts.Wire.Observations;
@@ -8,48 +9,55 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// Production observation reads decoded into their wire records: the reads a case checks game state through instead of
-/// a private test probe.
+/// Production observation reads over typed requests and replies: the reads a case checks game state through instead of
+/// a private test probe. The typed session (<see cref="ITypedSession"/>) reads through these; a legacy case pins its
+/// scope with <see cref="Scope(JsonNode)"/>.
 /// </summary>
 public static class TypedReads
 {
+    /// <summary>A read scope pinned to the legacy session's flat-view <paramref name="identity"/>.</summary>
+    public static Observations.ReadScope Scope(JsonNode identity) => Scope(Identity(identity));
+
     /// <summary>A read scope pinned to <paramref name="identity"/>.</summary>
-    public static JsonObject Scope(JsonNode identity)
+    public static Observations.ReadScope Scope(Common.Identity identity) => new() { ExpectedIdentity = identity };
+
+    /// <summary>The Contracts identity of the legacy session's flat-view <paramref name="identity"/>.</summary>
+    public static Common.Identity Identity(JsonNode identity)
     {
         ArgumentNullException.ThrowIfNull(identity);
-        return new JsonObject { ["expectedIdentity"] = identity.DeepClone() };
-    }
-
-    /// <summary>One read under <paramref name="identity"/> (its request's <c>scope</c>), its <c>observed</c> arm decoded as <typeparamref name="T"/>.</summary>
-    public static async Task<T> ObservedAsync<T>(this Harness harness, string label, string method, JsonNode identity, JsonObject request, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(harness);
-        ArgumentNullException.ThrowIfNull(request);
-        request["scope"] = Scope(identity);
-        var reply = await harness.WireAsync(label, method, request, cancellationToken).ConfigureAwait(false);
         try
         {
-            var (_, observed) = Harness.Outcome(reply, "observed");
-            return WireCodec.ToRecord<T>(observed);
+            return WireCodec.ToRecord<Common.Identity>(identity);
         }
-        catch (Exception e) when (e is AcceptanceException or JsonException)
+        catch (JsonException e)
         {
-            throw new AcceptanceException($"{label}: {method}: {e.Message}", e);
+            throw new AcceptanceException($"identity {identity.ToJsonString()} is not a wire identity: {e.Message}", e);
         }
     }
 
-    /// <summary>The <c>observations_list_buildings</c> rows <paramref name="filter"/> selects (its ids, defNames, statuses, playerOnly).</summary>
-    public static async Task<IReadOnlyList<Observations.BuildingState>> BuildingsAsync(this Harness harness, string label, JsonNode identity, JsonObject filter, CancellationToken cancellationToken)
+    /// <summary>A read reply's <c>observed</c> arm; any other arm fails <paramref name="label"/> with the reply.</summary>
+    public static T Observed<TReply, T>(string label, NativeOp op, TReply reply, T? observed)
+        where TReply : class
+        where T : class
     {
-        var snapshot = await harness.ObservedAsync<Observations.BuildingsSnapshot>(label, "observations_list_buildings", identity, filter, cancellationToken).ConfigureAwait(false);
-        return snapshot.Buildings.ToList();
+        ArgumentNullException.ThrowIfNull(op);
+        return observed ?? throw new AcceptanceException($"{label}: {op.Name} did not observe: {WireJson.Serialize(reply)}");
     }
 
-    /// <summary>Every zone row <c>observations_list_zones</c> answers.</summary>
-    public static async Task<IReadOnlyList<Observations.ZoneState>> ZonesAsync(this Harness harness, string label, JsonNode identity, CancellationToken cancellationToken)
+    /// <summary>The <c>observations_list_buildings</c> rows <paramref name="request"/> selects (its scope, ids, defNames, statuses, playerOnly).</summary>
+    public static async Task<IReadOnlyList<Observations.BuildingState>> BuildingsAsync(this Harness harness, string label, Observations.ListBuildingsRequest request, CancellationToken cancellationToken)
     {
-        var snapshot = await harness.ObservedAsync<Observations.ZonesSnapshot>(label, "observations_list_zones", identity, [], cancellationToken).ConfigureAwait(false);
-        return snapshot.Zones.ToList();
+        ArgumentNullException.ThrowIfNull(harness);
+        var reply = await harness.CallAsync(label, NativeOps.ListBuildings, request, cancellationToken).ConfigureAwait(false);
+        return Observed(label, NativeOps.ListBuildings, reply, reply.Outcome?.Observed).Buildings.ToList();
+    }
+
+    /// <summary>Every zone row <c>observations_list_zones</c> answers under <paramref name="scope"/>.</summary>
+    public static async Task<IReadOnlyList<Observations.ZoneState>> ZonesAsync(this Harness harness, string label, Observations.ReadScope scope, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(harness);
+        var reply = await harness.CallAsync(label, NativeOps.ListZones, new Observations.ListZonesRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
+        return Observed(label, NativeOps.ListZones, reply, reply.Outcome?.Observed).Zones.ToList();
     }
 
     /// <summary>
@@ -58,7 +66,7 @@ public static class TypedReads
     /// </summary>
     public static async Task<IReadOnlyList<GrowingZone>> GrowingZonesAsync(this Harness harness, string label, JsonNode identity, CancellationToken cancellationToken)
     {
-        var zones = await harness.ZonesAsync(label + "-zones", identity, cancellationToken).ConfigureAwait(false);
+        var zones = await harness.ZonesAsync(label + "-zones", Scope(identity), cancellationToken).ConfigureAwait(false);
         var grid = await harness.MapCellsAsync(label + "-cells", identity, cancellationToken).ConfigureAwait(false);
         return GrowingZones(zones, grid);
     }

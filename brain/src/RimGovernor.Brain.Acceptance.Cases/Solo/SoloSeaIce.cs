@@ -120,6 +120,7 @@ internal static class SoloSeaIce
     private static AcceptanceCase Variant(string name, string variant, ScenarioStart start) => new()
     {
         Name = name,
+        Tier = CaseTier.Nightly,
         Scope = "Issue #2777 (epic #2745): the " + variant + " survives the RimWorld year, 60 game days (" + SoloDaysEnv + " sets another length). At each ten-day segment boundary the colonist is alive, "
             + "has no Hypothermia past serious and no Malnutrition past hungry; after the first segment the sleeping temperature is within the policy's band; "
             + "the census food runway never reaches zero; at the end the colonist lives and power is on. Nightly only.",

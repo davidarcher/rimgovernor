@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Telemetry;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
@@ -26,11 +27,13 @@ internal static class NeedsForecastCase
                 {
                     _ = await s.AdvanceAsync(30, null, ct).ConfigureAwait(false);
                     var label = $"needs-{stage}-{tick}";
-                    var read = await s.Harness.ObservedAsync<Observations.PawnSnapshot>(label, "observations_list_pawns", s.Identity, new JsonObject
+                    var reply = await s.Harness.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest
                     {
-                        ["filter"] = new JsonObject { ["ids"] = new JsonArray(pawnId) },
-                        ["details"] = new JsonObject { ["needs"] = true },
+                        Scope = TypedReads.Scope(s.Identity),
+                        Filter = new() { Ids = [pawnId] },
+                        Details = new() { Needs = true },
                     }, ct).ConfigureAwait(false);
+                    var read = TypedReads.Observed(label, NativeOps.ListPawns, reply, reply.Outcome?.Observed);
                     worker = read.Pawns.SingleOrDefault(p => p.Pawn?.Id == pawnId) ?? throw new AcceptanceException($"{label}: prepared pawn {pawnId} missing from the pawn read");
                     to = read.Context?.Tick ?? throw new AcceptanceException($"{label}: pawn read carries no tick");
                     if (worker.ActivityExecution?.State == "failed")

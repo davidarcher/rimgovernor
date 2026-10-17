@@ -22,6 +22,7 @@ internal static class LayoutRichSoil
     internal static AcceptanceCase Case() => new()
     {
         Name = "layout/rich-soil",
+        Tier = CaseTier.Nightly,
         Scope = "Issue #1291: on the tribal " + Baselines.BaselineName + " world (rich soil near the centre) a fresh colony's own layout plan " +
             "puts no room or hallway on rich soil, keeps each fertile patch one field zone wholly inside or outside the traced ring " +
             "(split only where the ring runs along the edge margin line), zones adjacent crop blocks with no gap, and grows the plan " +

@@ -74,6 +74,7 @@ internal sealed class CampaignRun
     internal static AcceptanceCase CampaignCase(string name, string scope, string reason, TimeSpan budget, Func<ISession, CancellationToken, Task> run) => new()
     {
         Name = name,
+        Tier = CaseTier.Nightly,
         Scope = scope,
         Start = new SaveStart { Name = FixtureSave },
         Keep = [NeedDef.LiveNeeds.Value],

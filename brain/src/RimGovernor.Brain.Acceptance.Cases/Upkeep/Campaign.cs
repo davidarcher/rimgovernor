@@ -98,6 +98,7 @@ internal static class UpkeepCampaign
         return new AcceptanceCase
         {
             Name = "upkeep/campaign",
+            Tier = CaseTier.Nightly,
             Scope = "Sustained colony upkeep (issue #99): on one kept " + Baselines.BaselineName + " colony and one durable journal the deficits "
                 + "[" + string.Join(' ', names) + "] are staged in turn over the live map, each recovered by the routine families composed so far and audited natively, "
                 + "and no Need an earlier stage recovered stays in deficit again while the later ones are handled.",

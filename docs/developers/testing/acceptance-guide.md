@@ -35,22 +35,39 @@ New cases use the typed case API. It runs on the existing runner beside the lega
 compiler enforces the charter. The legacy `AcceptanceCase`/`ISession` path is frozen: add no cases to it. Port or
 delete a legacy case when you touch it. The legacy path is deleted once no cases remain on it.
 
-<!-- #3396: replace the shape below with the typed API's type and member names. -->
-
-The typed case has this shape (type names land with #3396):
+A typed case is a `TypedCase` record (`brain/src/RimGovernor.Brain.Acceptance/Cases/TypedCase.cs`), registered
+with `registry.Register(...)` like a legacy case:
 
 | Member | Contract |
 | --- | --- |
-| Name | Stable `<area>/<case>` identifier. |
-| Scope claim | Required. The one native claim (rule 1) and why a unit test cannot prove it. |
-| Tick budget | Required. Within the cap for the start (rule 3); the runner derives the hang guard from it. |
-| Tier | Required. Smoke, nightly or on demand (rule 8). |
-| Start | Lab, fixture, prepared save or scenario. Lab is the default. |
-| Stage | A typed stage spec over `Fixtures.Contracts` primitives (rule 2). |
-| Body | Production ops and reads. Replies come back as typed records (rule 5). Waits are on ticks, signatures or events (rule 4), and telemetry queries take a kind constant (rule 6). |
-| Variants | A table of variants run by one data-driven case. A variant that duplicates another's claim is deleted. |
+| `Name` | Required. Stable `<area>/<case>` identifier. |
+| `Scope` | Required. The one native claim (rule 1) and why a unit test cannot prove it. It also justifies any departure from a default (rule 7). |
+| `Ticks` | Required. At most `StagedTickCap` (30,000) on a lab start or with a `Stage`, `TickCap` (60,000) otherwise (rule 3). Registration fails past the cap. `HangGuard` is `Ticks` ÷ 300 + 1 minute, measured from the body's start. It cuts a hung body, and wall time never fails a passing claim. |
+| `Tier` | Required. A `CaseTier`: `Smoke`, `Nightly`, `OnDemand` or `Off` (rule 8). |
+| `Start` | `LabStart` (the default), `DebugStart`, `SaveStart` or `ScenarioStart`. |
+| `Stage` | A `Fixtures.Contracts` `StageSpec` applied by `test/stage` on the opened start (rule 2). Its reply is `ITypedSession.Staged`. |
+| `Ops` | The fixture ops the body calls. |
+| `Crew`, `Keep`, `QuietWorld`, `Expansions`, `Serve` | The defaults' departures (rule 7). |
+| `Run`, `Postmortem` | The body, over an `ITypedSession` (rules 4–6). |
+| Variants | There is no member for variants. A data-driven case registers one `TypedCase` per row. A variant that duplicates another's claim is deleted. |
 
-<!-- #3396: name the session's typed read, wait and telemetry-query members here. -->
+The body's `ITypedSession` (`Cases/ITypedSession.cs`) carries `Identity`, `Scope` (a read scope pinned to the
+identity), `Staged` and `TicksLeft`. Its members:
+
+- **Calls:** `CallAsync(label, NativeOps.<Op>, request)` takes a Contracts request record and returns the reply
+  record. `FixtureAsync(label, FixtureOp<,>, request)` calls a bespoke op declared in `Ops`, and `StageAsync(label,
+  spec)` re-stages mid-case.
+- **Reads:** `BuildingsAsync`, `ZonesAsync` and `GrowingZonesAsync` run over `TypedReads`, and
+  `TypedReads.Observed` unwraps a read's `observed` arm.
+- **Waits:** `RunTicksAsync`, `RunUntilAsync` (a `Probe` signature) and `RunUntilEventAsync` (a telemetry row).
+  Each spends from `Ticks`, and a wait past what is left fails before the game runs.
+- **Telemetry:** `Telemetry(TelemetryKinds.<Kind>)` returns the game log ring's rows of that kind as `LogRow`s.
+  A kind is added to `TelemetryKinds` (`brain/src/RimGovernor.Brain.Telemetry/TelemetryKinds.cs`) with its row in
+  the kinds table.
+- **Evidence:** `Record(key, value)` and `RecordWire(key, record)`.
+- **Service:** `ServeAsync` starts the declared `Serve`.
+
+`lab/stage`, `lab/spawn` and `upkeep/auto-home-area` are the reference ports.
 
 A new area adds its registration to `CaseCatalog.Register`. The gate's catalog test checks the cap, claim and tier
 of every case without a game (#3397).
@@ -133,9 +150,10 @@ cache instead of generating a start.
 - **nightly**: whole-colony proofs, run against main every night. It is a signal, not a landing gate.
 - **on demand**: every other case, run by name or by the remote workflow's cases tier.
 
-`acceptance list -tier <name>` prints a tier's cases. Legacy cases take their tier from the name lists in
-`brain/src/RimGovernor.Brain.Acceptance/Cost/Tiers.cs`.
-<!-- #3396: say where the typed case declares its tier. -->
+`acceptance list -tier <name>` prints a tier's cases. Every case declares its tier as `Tier = CaseTier.<Tier>`: a
+`TypedCase` must declare one, and a legacy `AcceptanceCase` defaults to `OnDemand`. `Off` covers fixture
+generators and diagnostics. Tiers never run them, and neither does `acceptance suite -all`.
+`brain/src/RimGovernor.Brain.Acceptance/Cost/Tiers.cs` builds each tier from these declarations.
 
 ## Run and diagnose
 

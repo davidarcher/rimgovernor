@@ -17,21 +17,6 @@ internal static class CaseSupport
     internal static JsonObject Cell(int x, int z) => new() { ["x"] = x, ["z"] = z };
 
     /// <summary>
-    /// The single result of an operations_apply reply that carried one action (a missing or extra result is the case's
-    /// failure, with the reply in the message).
-    /// </summary>
-    internal static JsonObject OneResult(string label, JsonObject reply)
-    {
-        var results = reply["results"].AsSlice();
-        if (results.Count != 1)
-        {
-            throw new AcceptanceException($"{label}: expected one result, got {reply.ToJson()}");
-        }
-
-        return results[0].AsMap() ?? [];
-    }
-
-    /// <summary>
     /// The effect an applied action's receipt observed under <paramref name="effectKey"/>
     /// (<c>result.applied.applied.observed.&lt;effectKey&gt;</c>); null when the result is not an applied one.
     /// </summary>

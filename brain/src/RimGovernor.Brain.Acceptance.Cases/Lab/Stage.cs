@@ -76,24 +76,24 @@ internal static class LabStage
         ],
     };
 
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "lab/stage",
         Scope = "Fixture layer (#3393): test/stage stages one spec using every core primitive (site search, clear, set cells, room, "
             + "complete, frame and blueprint buildings, items placed near and forbidden, an existing colonist with work, timetable and "
             + "needs set, a generated armed raider and a player animal, a stockpile and a growing zone) and its typed StageReply keys "
             + "each entry's ids and cells by the spec's names at the found site.",
-        Start = FixtureStage.Start(Spec, new LabStart { Colonists = 2 }),
-        RequiredOps = [FixtureStage.Tool],
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = 2 },
+        Stage = Spec,
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var reply = FixtureStage.Prepared(s);
+        var reply = s.Staged!;
         var site = reply.Site ?? throw new AcceptanceException("test/stage replied no site");
         Fx.StageCell At(int x, int z) => new(site.X + x, site.Z + z);
         var problems = new List<string>();
@@ -125,8 +125,8 @@ internal static class LabStage
         var field = reply.Zones.GetValueOrDefault("field") ?? "";
         Want(store.Length > 0 && field.Length > 0 && store != field, $"zones store \"{store}\" and field \"{field}\", want two zone ids");
         Want(reply.Digest.Length > 0 && reply.DigestRows.Count > 0, "no digest");
-        s.Report["site"] = $"{site.X},{site.Z}";
-        s.Report["digest"] = reply.Digest;
+        s.Record("site", $"{site.X},{site.Z}");
+        s.Record("digest", reply.Digest);
         return problems.Count == 0 ? Task.CompletedTask : throw new AcceptanceException(string.Join("; ", problems));
     }
 

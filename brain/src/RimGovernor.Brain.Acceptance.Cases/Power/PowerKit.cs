@@ -46,14 +46,14 @@ internal static class PowerKit
         var rows = new Dictionary<string, Observations.BuildingState>(StringComparer.Ordinal);
         if (ids.Count > 0)
         {
-            var listed = await h.BuildingsAsync(label, identity, new JsonObject { ["ids"] = new JsonArray([.. ids.Select(id => (JsonNode?)id)]) }, cancellationToken).ConfigureAwait(false);
+            var listed = await h.BuildingsAsync(label, new Observations.ListBuildingsRequest { Scope = TypedReads.Scope(identity), Ids = [.. ids] }, cancellationToken).ConfigureAwait(false);
             foreach (var row in listed)
             {
                 rows[Id(row)] = row;
             }
         }
 
-        var built = await h.BuildingsAsync(label + "-generators", identity, new JsonObject { ["statuses"] = new JsonArray("built"), ["playerOnly"] = true }, cancellationToken).ConfigureAwait(false);
+        var built = await h.BuildingsAsync(label + "-generators", new Observations.ListBuildingsRequest { Scope = TypedReads.Scope(identity), Statuses = ["built"], PlayerOnly = true }, cancellationToken).ConfigureAwait(false);
         return new PowerRead(rows, [.. built.Where(b => b.Service?.Producer == true)]);
     }
 

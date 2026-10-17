@@ -8,6 +8,7 @@ internal static class ToolsBaselineGen
     internal static AcceptanceCase Case() => new()
     {
         Name = "tools/baselinegen",
+        Tier = CaseTier.Off,
         Scope = "Fixture generation: scenario start " + Baselines.BaselineStart.Scenario + " seed " + Baselines.BaselineStart.Seed
             + " saved as " + Baselines.BaselineName + " for the shared baseline fixture (issue #1).",
         Start = new ScenarioStart { Spec = Baselines.BaselineStart },
