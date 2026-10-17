@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>Adds the fresh bench and recipe-catalog reads the workshop planner needs on top of the building source.</summary>
 public interface IRoundsWorkshopSource : IRoundsBuildingSource
 {
-    Task<(IReadOnlyList<GearBenchRead> Benches, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
+    Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 }
 
 /// <summary>One product the workshop ladder considers, with the bench kinds that host a recipe for it.</summary>
@@ -92,7 +92,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("prepareWorkshop: !ok");
         }
         var identity = Boundary.Identity(state.Snapshot);
-        var (reply, _) = await source.ReadColonyFactsAsync(identity, GearLadder(), call).ConfigureAwait(false);
+        var reply = await source.ReadColonyFactsAsync(identity, GearLadder(), call).ConfigureAwait(false);
         var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
@@ -165,7 +165,7 @@ public sealed partial class RoundsBuildingPlanner
             resource = picked;
         }
         // The Go source holds the read error until after the Beer branch; a failed census read surfaces there.
-        var census = (await source.ReadGearBenchesAsync(identity, call).ConfigureAwait(false)).Benches;
+        var census = (await source.ReadGearBenchesAsync(identity, call).ConfigureAwait(false));
         if (resource.ToString() == "Beer")
         {
             if (observed.FermentingBarrels is null)

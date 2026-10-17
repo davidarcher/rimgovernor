@@ -420,13 +420,13 @@ public sealed partial class RoundsBuildingPlanner
         var previews = new List<BuildingPreview>();
         if (Native is IShellBatchPreviewer batch)
         {
-            previews = [.. (await batch.PreviewBuildingsAsync(actions, snapshot, call).ConfigureAwait(false)).Previews];
+            previews = [.. (await batch.PreviewBuildingsAsync(actions, snapshot, call).ConfigureAwait(false))];
         }
         else
         {
             foreach (var action in actions)
             {
-                var (preview, _) = await ((IRoundsBuildingSource)Native).PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
+                var preview = await ((IRoundsBuildingSource)Native).PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
                 previews.Add(preview);
             }
         }

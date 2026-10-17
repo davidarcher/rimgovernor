@@ -18,7 +18,7 @@ internal sealed partial class FacadeNativeClient
     private const string CombatFrameMethod = "rimgovernor/snapshot_frame_combat";
 
     /// <summary>Go <c>Client.Identity</c>: the loaded identity with its validated capability list.</summary>
-    internal async Task<(PbLifecycle.IdentityReply Reply, BridgeResult Receipt)> IdentityAsync(CancellationToken cancellationToken)
+    internal async Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken cancellationToken)
     {
         var reply = await Facade.ReadIdentityAsync(new PbLifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
         var outcome = reply.Outcome;
@@ -47,14 +47,14 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract(outcome is null ? "identity outcome missing" : "missing loaded identity");
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
     /// Go <c>Client.Tick</c>: the bare observation scope, the identity's context and pause state without the
     /// capability list.
     /// </summary>
-    internal async Task<(PbLifecycle.TickReply Reply, BridgeResult Receipt)> TickAsync(CancellationToken cancellationToken)
+    internal async Task<PbLifecycle.TickReply> TickAsync(CancellationToken cancellationToken)
     {
         var reply = await Facade.ReadTickAsync(new PbLifecycle.TickRequest(), cancellationToken).ConfigureAwait(false);
         var outcome = reply.Outcome;
@@ -70,7 +70,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("tick outcome missing");
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ internal sealed partial class FacadeNativeClient
     /// the read first waits for a frame past this client's last write, then reads live: the frame's status section is
     /// the emergency census, a different shape.
     /// </summary>
-    internal async Task<(PbObservations.StatusReply Reply, BridgeResult Receipt)> StatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<PbObservations.StatusReply> StatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var request = new PbObservations.StatusRequest
         {
@@ -150,14 +150,14 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("status outcome missing");
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
     /// Go <c>Client.ReadColonyFacts</c>: the colony census, from the newest frame when it carries the planning form
     /// (the form the stream seeds the section under), else read live. Validated against the expected identity.
     /// </summary>
-    internal async Task<(PbObservations.ColonyFactsReply Reply, BridgeResult Receipt)> ReadColonyFactsAsync(PbCommon.Identity identity, bool planning, CancellationToken cancellationToken)
+    internal async Task<PbObservations.ColonyFactsReply> ReadColonyFactsAsync(PbCommon.Identity identity, bool planning, CancellationToken cancellationToken)
     {
         var request = ColonyFactsRequest(identity, planning);
         PbObservations.ColonyFactsReply? reply = null;
@@ -201,7 +201,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("missing colony outcome");
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
@@ -225,7 +225,7 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken cancellationToken)
     {
-        var (tick, _) = await TickAsync(cancellationToken).ConfigureAwait(false);
+        var tick = await TickAsync(cancellationToken).ConfigureAwait(false);
         var outcome = tick.Outcome;
         if (outcome?.Failure is { } tickFailure)
         {

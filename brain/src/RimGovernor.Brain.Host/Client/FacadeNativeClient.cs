@@ -14,9 +14,8 @@ namespace RimGovernor.Brain.Host;
 /// Conventions every core method follows:
 /// </para>
 /// <list type="bullet">
-/// <item>A Go method returning <c>(T, Result, error)</c> is <c>Task&lt;(T Value, BridgeResult Receipt)&gt;</c>; the receipt is
-/// <see cref="NoReceipt"/> because nothing crosses a transport in this process. A Go method with no <c>Result</c>
-/// is <c>Task&lt;T&gt;</c>.</item>
+/// <item>A Go method returning <c>(T, Result, error)</c> is <c>Task&lt;T&gt;</c>: nothing crosses a transport in this
+/// process, so there is no receipt to return.</item>
 /// <item>A failure arm throws what <see cref="Failure"/> builds, an unavailable arm what <see cref="Unavailable"/>
 /// builds, a malformed reply what <see cref="BridgeFunctions.Contract"/> builds (Go <c>failure</c>, <c>unavailable</c>
 /// and <c>contract</c>). Cancellation is the token's <see cref="OperationCanceledException"/>.</item>
@@ -31,7 +30,7 @@ internal sealed partial class FacadeNativeClient(INativeFacade facade)
     /// <summary>The facade every core method calls.</summary>
     internal INativeFacade Facade { get; } = facade ?? throw new ArgumentNullException(nameof(facade));
 
-    /// <summary>The receipt of every call: no transport envelope exists in process (Go <c>Result{}</c>).</summary>
+    /// <summary>The receipt the typed native exceptions carry: no transport envelope exists in process (Go <c>Result{}</c>).</summary>
     internal static BridgeResult NoReceipt => BridgeResult.Empty;
 
     /// <summary>Go <c>failure(v, raw)</c>: the typed refusal of a failure arm, after checking the failure itself is well formed.</summary>

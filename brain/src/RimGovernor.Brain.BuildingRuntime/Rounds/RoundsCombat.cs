@@ -214,7 +214,7 @@ public sealed partial class RoundsDefensePlanner
     /// <summary>Answers the policy's geometry question from the native; see <see cref="BuildingRuntimePackage.AnswerGeometry"/>.</summary>
     internal GeometryReply AnswerGeometry(C.Identity identity, GeometryRequest? ask, CancellationToken ct) =>
         BuildingRuntimePackage.AnswerGeometry(
-            request => _native.CombatGeometry(request, ct).Geometry,
+            request => _native.CombatGeometry(request, ct),
             (what, target, ex) => DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", what, target, new Dictionary<string, object?> { ["error"] = ex }, ct),
             identity,
             ask);

@@ -7,9 +7,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native reads of the defense planner: the geometry question and the combat read.</summary>
 public interface IRoundsDefenseSource
 {
-    Task<(BridgeDefenseSite Site, BridgeResult Result)> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct);
+    Task<BridgeDefenseSite> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct);
 
-    (M.CombatGeometry Geometry, BridgeResult Result) CombatGeometry(M.CombatGeometryRequest request, CancellationToken ct);
+    M.CombatGeometry CombatGeometry(M.CombatGeometryRequest request, CancellationToken ct);
 
     Task<BridgeCombat> ReadCombatAsync(C.Identity identity, CancellationToken ct);
 }

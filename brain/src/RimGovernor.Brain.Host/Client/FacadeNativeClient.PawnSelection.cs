@@ -10,7 +10,7 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>Client.ReadClockStatus</c> as <c>ReadStep</c> uses it: the owned clock status.</summary>
     private async Task<PbClock.Status> ReadOwnedClockStatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        var (reply, _) = await ReadClockStatusAsync(identity, cancellationToken).ConfigureAwait(false);
+        var reply = await ReadClockStatusAsync(identity, cancellationToken).ConfigureAwait(false);
         return FacadeWriteChecks.ClockStatusReply(reply, identity);
     }
 

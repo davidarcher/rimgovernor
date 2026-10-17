@@ -18,7 +18,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, [], call).ConfigureAwait(false);
-        var (site, _) = await _native.ReadDefenseSiteAsync(Boundary.Identity(state.Snapshot), region, call).ConfigureAwait(false);
+        var site = await _native.ReadDefenseSiteAsync(Boundary.Identity(state.Snapshot), region, call).ConfigureAwait(false);
         SameTick(site.Context, state, read.Projection.Identity.Tick);
         return (read, DefenseFightCensus(site));
     }

@@ -16,34 +16,34 @@ internal sealed partial class FacadeNativeClient
     /// Go <c>ReadPawns</c>: observes exact ids including dead pawns. Missing rows, CAS tokens and drafted state never
     /// imply death, write permission or controller ownership.
     /// </summary>
-    internal Task<(PbObservations.ListPawnsReply Value, BridgeResult Receipt)> ReadPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
+    internal Task<PbObservations.ListPawnsReply> ReadPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(), cancellationToken);
 
     /// <summary>
     /// Go <c>ReadCombatPawns</c>: retains optional detailed facts and issues for exact ids. A complete query is not
     /// proof that absent health, gear or capability is known.
     /// </summary>
-    internal Task<(PbObservations.ListPawnsReply Value, BridgeResult Receipt)> ReadCombatPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
+    internal Task<PbObservations.ListPawnsReply> ReadCombatPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(Combat: true), cancellationToken);
 
     /// <summary>
     /// Go <c>ReadRoundsPawns</c>: combat, work, care, schedule and social detail: the shared routine census feeds every
     /// routine planner from this one read.
     /// </summary>
-    internal Task<(PbObservations.ListPawnsReply Value, BridgeResult Receipt)> ReadRoundsPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
+    internal Task<PbObservations.ListPawnsReply> ReadRoundsPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadPawnDetailsAsync(identity, ids, RoundsPawnDetails, cancellationToken);
 
     /// <summary>
     /// Go <c>ReadTendPawns</c>: combat facts, work settings and care policy for exact doctor and patient ids, plus the
     /// tend detail: the doctor-side native gates and reachability between the requested pawns.
     /// </summary>
-    internal Task<(PbObservations.ListPawnsReply Value, BridgeResult Receipt)> ReadTendPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
+    internal Task<PbObservations.ListPawnsReply> ReadTendPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(Combat: true, Work: true, Care: true, Tend: true), cancellationToken);
 
     private static PawnDetailSelection RoundsPawnDetails { get; } = new(Combat: true, Work: true, Care: true, Schedule: true, Social: true);
 
     /// <summary>Go <c>readPawnDetails</c>.</summary>
-    internal async Task<(PbObservations.ListPawnsReply Value, BridgeResult Receipt)> ReadPawnDetailsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, PawnDetailSelection want, CancellationToken cancellationToken)
+    internal async Task<PbObservations.ListPawnsReply> ReadPawnDetailsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, PawnDetailSelection want, CancellationToken cancellationToken)
     {
         if (ids.Count < 1 || ids.Count > 256)
         {
@@ -71,7 +71,7 @@ internal sealed partial class FacadeNativeClient
             throw Contract("pawn read outcome missing");
         }
         SameWorld(observed, identity);
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
@@ -116,7 +116,7 @@ internal sealed partial class FacadeNativeClient
     /// enablement: who is home. Unlike the id-scoped reads this one is not: the family must first learn who stays home
     /// before it can ask about their facts.
     /// </summary>
-    internal async Task<(PbObservations.ListPawnsReply Value, BridgeResult Receipt)> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<PbObservations.ListPawnsReply> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
 
         // Native defaults every unset detail family to requested, and the home-colonist check refuses any family
@@ -153,7 +153,7 @@ internal sealed partial class FacadeNativeClient
             throw Contract("home colonist read outcome missing");
         }
         HomeColonistsSelected(observed, identity);
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>Go <c>homeColonistsSelected</c>: the roster names itself as the requested set.</summary>
@@ -170,7 +170,7 @@ internal sealed partial class FacadeNativeClient
         {
             return [];
         }
-        var (reply, _) = await ReadPawnsAsync(identity, ids, cancellationToken).ConfigureAwait(false);
+        var reply = await ReadPawnsAsync(identity, ids, cancellationToken).ConfigureAwait(false);
         return MechInputs(reply.Outcome?.Observed);
     }
 

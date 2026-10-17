@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IResourceRunwaySource
 {
-    Task<(IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage, BridgeResult Result)> ReadResourceSourcesAsync(C.Identity identity, string resource, CancellationToken ct);
+    Task<(IReadOnlyList<ResourceSource> Sources, ResourceStorage Storage)> ReadResourceSourcesAsync(C.Identity identity, string resource, CancellationToken ct);
 }
 
 public interface IConsumptionSource
@@ -72,7 +72,7 @@ public sealed partial class Rounder : IDisposable
         {
             try
             {
-                var (rows, _, _) = await reader.ReadResourceSourcesAsync(Boundary.Identity(snapshot), resource.Value, ct).ConfigureAwait(false);
+                var (rows, _) = await reader.ReadResourceSourcesAsync(Boundary.Identity(snapshot), resource.Value, ct).ConfigureAwait(false);
                 output[resource] = PolicyFunctions.SurfaceOre(rows);
             }
             catch (Exception e) when (e is not OperationCanceledException)

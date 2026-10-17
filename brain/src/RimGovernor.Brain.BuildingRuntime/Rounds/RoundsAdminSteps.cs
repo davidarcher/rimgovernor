@@ -4,13 +4,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IRoundsSupplySource
 {
-    Task<(SupplyRead Read, BridgeResult Result)> ReadAllowSuppliesAsync(C.Identity identity, Cell cell, CancellationToken ct);
+    Task<SupplyRead> ReadAllowSuppliesAsync(C.Identity identity, Cell cell, CancellationToken ct);
 }
 
 /// <summary>The forbid variant of the supply read, offered by a source that can forbid as well as allow.</summary>
 public interface IRoundsSupplyForbidSource
 {
-    Task<(SupplyRead Read, BridgeResult Result)> ReadForbidSuppliesAsync(C.Identity identity, Cell cell, CancellationToken ct);
+    Task<SupplyRead> ReadForbidSuppliesAsync(C.Identity identity, Cell cell, CancellationToken ct);
 }
 
 public sealed partial class AdminRounds
@@ -59,7 +59,7 @@ public sealed partial class AdminRounds
         var cells = cohort.Select(row => row.Cell).Distinct().OrderBy(c => c.Z).ThenBy(c => c.X).ToList();
         // Forbid unsafe items before releasing safe items.
         var forbidBatch = cohort.Any(row => row.Forbid);
-        Func<C.Identity, Cell, CancellationToken, Task<(SupplyRead Read, BridgeResult Result)>> readSupply = _supplies!.ReadAllowSuppliesAsync;
+        Func<C.Identity, Cell, CancellationToken, Task<SupplyRead>> readSupply = _supplies!.ReadAllowSuppliesAsync;
         if (forbidBatch)
         {
             if (_supplies is not IRoundsSupplyForbidSource forbidSource)
@@ -71,7 +71,7 @@ public sealed partial class AdminRounds
         var targets = new List<SupplyAllow>();
         foreach (var cell in cells)
         {
-            var (read, _) = await readSupply(Boundary.Identity(state.Snapshot), cell, call).ConfigureAwait(false);
+            var read = await readSupply(Boundary.Identity(state.Snapshot), cell, call).ConfigureAwait(false);
             try
             {
                 Boundary.Context(read.Context, state.Snapshot);
@@ -197,7 +197,7 @@ public sealed partial class AdminRounds
         {
             var building = new Building(PolicyApi.GraveDefinition, PolicyApi.AnchorForRect(site, size, Rotation.North), Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTier.Expand);
-            var (got, _) = await _building!.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
+            var got = await _building!.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var pv = got.Preview;
             if (!pv.Footprint.TryGetValue(out var footprint) || !pv.MadeFromStuff.TryGetValue(out var made) || !pv.CanPlace.TryGetValue(out var legal)
                 || !pv.SafeToPlace.TryGetValue(out var safe) || !pv.WatchCellsAccessible.TryGetValue(out var reachable))

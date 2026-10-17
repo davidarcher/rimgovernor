@@ -234,12 +234,12 @@ internal sealed class MirroredBenches : IRoundsWorkBenchSource
         _fresh = fresh;
     }
 
-    public async Task<(IReadOnlyList<GearBenchRead> Reads, BridgeResult Result)> ReadGearBenchesAsync(C.Identity id, CancellationToken ct)
+    public async Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(C.Identity id, CancellationToken ct)
     {
         var r = _reviewer;
         if (!_fresh && r.Census.BenchTable(r.Store!, _scope, _expected, out var cached))
         {
-            return (BenchRows(cached.Rows), new BridgeResult());
+            return BenchRows(cached.Rows);
         }
         var tick = _expected.Tick.Value;
         var table = await PublishBenchesAsync(r.Store!, _scope, _native, id, tick, ct).ConfigureAwait(false);
@@ -247,7 +247,7 @@ internal sealed class MirroredBenches : IRoundsWorkBenchSource
         {
             r.Census.RememberBenches(table.Version);
         }
-        return (BenchRows(table.Rows), new BridgeResult());
+        return BenchRows(table.Rows);
     }
 
     private static List<GearBenchRead> BenchRows(IReadOnlyDictionary<string, GearBenchRead> rows) => ClockMirror.BenchRows(rows);

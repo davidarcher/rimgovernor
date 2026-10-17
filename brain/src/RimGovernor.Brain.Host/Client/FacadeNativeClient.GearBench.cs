@@ -50,7 +50,7 @@ internal sealed partial class FacadeNativeClient
     /// its recipe catalog. <paramref name="catalog"/> is Go's <c>client.DefinitionCatalog(ctx, identity)</c>; it is
     /// awaited after the bills reply validates, the order the Go read made the calls in.
     /// </summary>
-    internal async Task<(IReadOnlyList<GearBenchRead> Value, BridgeResult Receipt)> ReadGearBenchesAsync(
+    internal async Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(
         PbCommon.Identity identity,
         Func<CancellationToken, Task<IGearRecipeCatalog>> catalog,
         CancellationToken cancellationToken
@@ -105,18 +105,18 @@ internal sealed partial class FacadeNativeClient
             reads.Add(new GearBenchRead { Token = stack.Snapshot.Token ?? "", Bench = bench });
         }
         reads.Sort((a, b) => string.CompareOrdinal(a.Bench.Id, b.Bench.Id));
-        return (reads, NoReceipt);
+        return reads;
     }
 
     /// <summary>
     /// Go <c>Client.ReadSupplyStock</c>: reads the currently available, unforbidden owned quantity for a bounded set
     /// of resource definitions. A requested definition the census has no row for is a known zero.
     /// </summary>
-    internal async Task<(IReadOnlyList<P.Stock> Value, BridgeResult Receipt)> ReadSupplyStockAsync(PbCommon.Identity identity, IReadOnlyList<string> defNames, CancellationToken cancellationToken)
+    internal async Task<IReadOnlyList<P.Stock>> ReadSupplyStockAsync(PbCommon.Identity identity, IReadOnlyList<string> defNames, CancellationToken cancellationToken)
     {
         if (defNames.Count == 0)
         {
-            return ([], NoReceipt);
+            return [];
         }
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var name in defNames)
@@ -142,7 +142,7 @@ internal sealed partial class FacadeNativeClient
                 stocks.Add(new P.Stock(new P.Resource(name), Fact.Known(0L)));
             }
         }
-        return (stocks, NoReceipt);
+        return stocks;
     }
 
     /// <summary>Go <c>readSupplyStockChunk</c>.</summary>

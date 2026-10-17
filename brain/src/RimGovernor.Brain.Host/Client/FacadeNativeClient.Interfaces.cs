@@ -112,58 +112,58 @@ internal sealed partial class FacadeNativeClient :
         return client;
     }
 
-    /// <summary>The value half of a core method's (Value, Receipt) result: what Go callers got when they dropped the Result.</summary>
+    /// <summary>The value half of a cell-grid read's (Value, Receipt) result: what Go callers got when they dropped the Result.</summary>
     private static async Task<T> Only<T>(Task<(T Value, BridgeResult Receipt)> call) =>
         (await call.ConfigureAwait(false)).Value;
 
     // ---- Observation ----------------------------------------------------------------------------------------
 
-    Task<(LifecyclePb.IdentityReply Reply, BridgeResult Receipt)> IColonySource.IdentityAsync(CancellationToken cancellationToken) =>
+    Task<LifecyclePb.IdentityReply> IColonySource.IdentityAsync(CancellationToken cancellationToken) =>
         IdentityAsync(cancellationToken);
 
-    Task<(O.ColonyFactsReply Reply, BridgeResult Receipt)> IColonySource.ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
+    Task<O.ColonyFactsReply> IColonySource.ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
         ReadColonyFactsAsync(identity, planning, cancellationToken);
 
     Task<Tables> IColonySource.FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken) =>
         FrameTablesAsync(identity, cancellationToken);
 
-    Task<(LifecyclePb.TickReply Reply, BridgeResult Receipt)> ISource.TickAsync(CancellationToken cancellationToken) =>
+    Task<LifecyclePb.TickReply> ISource.TickAsync(CancellationToken cancellationToken) =>
         TickAsync(cancellationToken);
 
     async Task<BridgeCatalog?> IDefinitionSource.DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) =>
         await DefinitionCatalogAsync(id, cancellationToken).ConfigureAwait(false);
 
-    Task<(ResearchRead Read, BridgeResult Receipt)> IResearchSource.ReadResearchAsync(C.Identity id, CancellationToken cancellationToken) =>
+    Task<ResearchRead> IResearchSource.ReadResearchAsync(C.Identity id, CancellationToken cancellationToken) =>
         ReadResearchAsync(id, cancellationToken);
 
     Task<RoundsFrame> IRoundsSource.ReadRoundsFrameAsync(C.Identity identity, CancellationToken cancellationToken) =>
         ReadRoundsFrameAsync(identity, cancellationToken);
 
-    Task<(O.ClearanceTargetsReply Reply, BridgeResult Receipt)> IClearanceSource.ReadClearanceTargetsAsync(C.Identity identity, bool includeSalvage, CancellationToken cancellationToken) =>
+    Task<O.ClearanceTargetsReply> IClearanceSource.ReadClearanceTargetsAsync(C.Identity identity, bool includeSalvage, CancellationToken cancellationToken) =>
         ReadClearanceTargetsAsync(identity, includeSalvage, cancellationToken);
 
-    Task<(O.ClearanceTargetsReply Reply, BridgeResult Receipt)> IGroundClearanceSource.ReadClearanceTargetsOnGroundAsync(C.Identity identity, bool includeSalvage, IReadOnlyList<O.Rectangle> ground, CancellationToken cancellationToken) =>
+    Task<O.ClearanceTargetsReply> IGroundClearanceSource.ReadClearanceTargetsOnGroundAsync(C.Identity identity, bool includeSalvage, IReadOnlyList<O.Rectangle> ground, CancellationToken cancellationToken) =>
         ReadClearanceTargetsOnGroundAsync(identity, includeSalvage, ground, cancellationToken);
 
-    Task<(O.ListBuildingsReply Reply, BridgeResult Receipt)> IRefrigerationSource.ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
+    Task<O.ListBuildingsReply> IRefrigerationSource.ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadConstructionBuildingsAsync(identity, ids, cancellationToken);
 
-    Task<(ZonesRead Read, BridgeResult Receipt)> IZonesNative.ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken) =>
+    Task<ZonesRead> IZonesNative.ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken) =>
         ReadZoneSectionAsync(identity, cancellationToken);
 
     // ---- Clock ----------------------------------------------------------------------------------------------
 
     Task<LifecyclePb.IdentityReply> IClockNative.IdentityAsync(CancellationToken ct) =>
-        Only(IdentityAsync(ct));
+        IdentityAsync(ct);
 
     Task<PbClock.StatusReply> IClockNative.ReadClockStatusAsync(C.Identity identity, CancellationToken ct) =>
-        Only(ReadClockStatusAsync(identity, ct));
+        ReadClockStatusAsync(identity, ct);
 
     Task<EntityRows<O.BuildingState>> IEntityNative.ReadBuildingsAsync(C.Identity identity, CancellationToken ct) =>
-        Only(ReadBuildingsAsync(identity, ct));
+        ReadBuildingsAsync(identity, ct);
 
     Task<EntityRows<O.BillStackRow>> IEntityNative.ReadBillStacksAsync(C.Identity identity, CancellationToken ct) =>
-        Only(ReadBillStacksAsync(identity, ct));
+        ReadBillStacksAsync(identity, ct);
 
     Task<O.BundleSnapshot?> IClockEventNative.ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct) =>
         ReadStepAsync(request, ct);
@@ -172,56 +172,56 @@ internal sealed partial class FacadeNativeClient :
         ReadStepAsync(request, ct);
 
     Task<PbClock.EventsReply> IClockEventNative.ReadClockEventsAsync(PbClock.EventsRequest request, CancellationToken ct) =>
-        Only(ReadClockEventsAsync(request, ct));
+        ReadClockEventsAsync(request, ct);
 
     Task<Bridge.Contracts.PlanningWindow> IPlanningWindowNative.ReadPlanningWindowAsync(C.Identity identity, Policy.Rectangle region, CancellationToken ct) =>
         Only(ReadPlanningWindowAsync(identity, region, ct));
 
     Task<EmergencyObservation> IClockDriverNative.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
-        Only(ReadEmergencyAsync(identity, FramePawnsAsync, ct));
+        ReadEmergencyAsync(identity, FramePawnsAsync, ct);
 
     // ---- Colony and presentation ----------------------------------------------------------------------------
 
     Task<O.ColonyFactsReply> IColonyFactsReader.ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken ct) =>
-        Only(ReadColonyFactsAsync(identity, planning, ct));
+        ReadColonyFactsAsync(identity, planning, ct);
 
     Task<LifecyclePb.IdentityReply> IColonyStatusNative.IdentityAsync(CancellationToken ct) =>
-        Only(IdentityAsync(ct));
+        IdentityAsync(ct);
 
     Task<O.ColonyFactsReply> IColonyStatusNative.ReadColonyFactsAsync(C.Identity identity, bool full, CancellationToken ct) =>
-        Only(ReadColonyFactsAsync(identity, full, ct));
+        ReadColonyFactsAsync(identity, full, ct);
 
     Task<O.ListPawnsReply> IColonyStatusNative.ReadHomeColonistsAsync(C.Identity identity, CancellationToken ct) =>
-        Only(ReadHomeColonistsAsync(identity, ct));
+        ReadHomeColonistsAsync(identity, ct);
 
     Task<PbPresentation.OverlayApplied> ILayoutOverlayNative.DrawOverlayAsync(C.Identity identity, string layer, Policy.LayoutOverlay overlay, bool visible, CancellationToken ct) =>
-        Only(DrawOverlayAsync(identity, layer, overlay, visible, ct));
+        DrawOverlayAsync(identity, layer, overlay, visible, ct);
 
     Task<PbAuthority.ControlReply> IMapFocusNative.FocusMapAsync(PbAuthority.FocusMap request, CancellationToken ct) =>
-        Only(FocusMapAsync(request, ct));
+        FocusMapAsync(request, ct);
 
     Task<IReadOnlyList<PackedItem>> IPackedSource.ReadPackedItemsAsync(C.Identity identity, string packedDef, CancellationToken ct) =>
-        Only(ReadPackedItemsAsync(identity, packedDef, ct));
+        ReadPackedItemsAsync(identity, packedDef, ct);
 
     // ---- Pawn reads of the boundary, haul and break paths ---------------------------------------------------
 
     Task<O.ListPawnsReply> IArrivalPawns.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct) =>
-        Only(ReadCombatPawnsAsync(identity, pawnIds, ct));
+        ReadCombatPawnsAsync(identity, pawnIds, ct);
 
     Task<O.ListPawnsReply> IHaulNative.ReadPawnsAsync(C.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct) =>
-        Only(ReadPawnsAsync(identity, pawnIds, ct));
+        ReadPawnsAsync(identity, pawnIds, ct);
 
     Task<EmergencyObservation> IBreakResponseSource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
-        Only(ReadEmergencyAsync(identity, FramePawnsAsync, ct));
+        ReadEmergencyAsync(identity, FramePawnsAsync, ct);
 
     Task<O.ListPawnsReply> IBreakResponseSource.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct) =>
-        Only(ReadCombatPawnsAsync(identity, pawnIds, ct));
+        ReadCombatPawnsAsync(identity, pawnIds, ct);
 
     Task<EmergencyObservation> IBoundaryNative.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
-        Only(ReadEmergencyAsync(identity, FramePawnsAsync, ct));
+        ReadEmergencyAsync(identity, FramePawnsAsync, ct);
 
     Task<BuildingPreview> IBoundaryNative.PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct) =>
-        Only(PreviewBuildingAsync(action, snapshot, ct));
+        PreviewBuildingAsync(action, snapshot, ct);
 
     Task<MapBounds> IBoundaryNative.ReadMapBoundsAsync(C.Identity identity, Cell anchor, CancellationToken ct) =>
         Only(ReadMapBoundsAsync(identity, anchor, ct));

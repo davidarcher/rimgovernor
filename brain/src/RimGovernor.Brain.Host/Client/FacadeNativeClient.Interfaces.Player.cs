@@ -24,27 +24,27 @@ internal sealed partial class FacadeNativeClient : IPresentationReader, IPresent
     Task<PbPresentation.NotificationsReply> INotificationReader.ReadNotificationsAsync(PbPresentation.NotificationsRequest request, CancellationToken cancellationToken) =>
         ReadNotificationsAsync(request, cancellationToken);
 
-    async Task<PbLifecycle.SaveReply> ILifecycleWriter.SaveAsync(PbLifecycle.SaveRequest request, CancellationToken cancellationToken) =>
-        (await SaveAsync(request, cancellationToken).ConfigureAwait(false)).Reply;
+    Task<PbLifecycle.SaveReply> ILifecycleWriter.SaveAsync(PbLifecycle.SaveRequest request, CancellationToken cancellationToken) =>
+        SaveAsync(request, cancellationToken);
 
-    async Task<PbLifecycle.SaveReply> ILifecycleWriter.ReadSaveAsync(string requestId, CancellationToken cancellationToken) =>
-        (await ReadSaveAsync(requestId, cancellationToken).ConfigureAwait(false)).Reply;
+    Task<PbLifecycle.SaveReply> ILifecycleWriter.ReadSaveAsync(string requestId, CancellationToken cancellationToken) =>
+        ReadSaveAsync(requestId, cancellationToken);
 
-    async Task<PbLifecycle.LoadReply> ILifecycleWriter.LoadAsync(PbLifecycle.LoadRequest request, CancellationToken cancellationToken) =>
-        (await LoadAsync(request, cancellationToken).ConfigureAwait(false)).Reply;
+    Task<PbLifecycle.LoadReply> ILifecycleWriter.LoadAsync(PbLifecycle.LoadRequest request, CancellationToken cancellationToken) =>
+        LoadAsync(request, cancellationToken);
 
-    async Task<PbLifecycle.LoadReply> ILifecycleWriter.ReadLoadAsync(string requestId, CancellationToken cancellationToken) =>
-        (await ReadLoadAsync(requestId, cancellationToken).ConfigureAwait(false)).Reply;
+    Task<PbLifecycle.LoadReply> ILifecycleWriter.ReadLoadAsync(string requestId, CancellationToken cancellationToken) =>
+        ReadLoadAsync(requestId, cancellationToken);
 
-    async Task<PbLifecycle.NewColonyReply> ILifecycleWriter.NewColonyAsync(PbLifecycle.NewColonyRequest request, CancellationToken cancellationToken) =>
-        (await NewColonyAsync(request, cancellationToken).ConfigureAwait(false)).Reply;
+    Task<PbLifecycle.NewColonyReply> ILifecycleWriter.NewColonyAsync(PbLifecycle.NewColonyRequest request, CancellationToken cancellationToken) =>
+        NewColonyAsync(request, cancellationToken);
 
-    async Task<PbLifecycle.NewColonyReply> ILifecycleWriter.ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) =>
-        (await ReadNewColonyAsync(requestId, cancellationToken).ConfigureAwait(false)).Reply;
+    Task<PbLifecycle.NewColonyReply> ILifecycleWriter.ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) =>
+        ReadNewColonyAsync(requestId, cancellationToken);
 
-    async Task<PbLifecycle.MenuReply> ILifecycleWriter.MenuAsync(PbLifecycle.MenuRequest request, CancellationToken cancellationToken) =>
-        (await MenuAsync(request, cancellationToken).ConfigureAwait(false)).Reply;
+    Task<PbLifecycle.MenuReply> ILifecycleWriter.MenuAsync(PbLifecycle.MenuRequest request, CancellationToken cancellationToken) =>
+        MenuAsync(request, cancellationToken);
 
-    async Task<PbLifecycle.MenuReply> ILifecycleWriter.ReadMenuAsync(string requestId, CancellationToken cancellationToken) =>
-        (await ReadMenuAsync(requestId, cancellationToken).ConfigureAwait(false)).Reply;
+    Task<PbLifecycle.MenuReply> ILifecycleWriter.ReadMenuAsync(string requestId, CancellationToken cancellationToken) =>
+        ReadMenuAsync(requestId, cancellationToken);
 }

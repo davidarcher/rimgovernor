@@ -65,7 +65,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     {
         var p = Reviewer.Player;
         var started = Reviewer.Clock.Now();
-        var (identity, _) = await Native.IdentityAsync(call).ConfigureAwait(false);
+        var identity = await Native.IdentityAsync(call).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {

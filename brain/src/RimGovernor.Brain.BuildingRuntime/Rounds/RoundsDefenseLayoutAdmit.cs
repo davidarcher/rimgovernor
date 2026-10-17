@@ -28,7 +28,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         IReadOnlyList<BridgeBuildingPreview> evaluated = [];
         if (candidates.Count > 0)
         {
-            (evaluated, _) = await _native.PreviewBuildingsAsync(candidates, snapshot, call).ConfigureAwait(false);
+            evaluated = await _native.PreviewBuildingsAsync(candidates, snapshot, call).ConfigureAwait(false);
         }
         for (var i = 0; i < buildings.Count; i++)
         {
@@ -102,7 +102,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             BridgeSpatialAccess access;
             try
             {
-                (access, _) = await _native.ReadSpatialAccessAsync(Boundary.Identity(state.Snapshot), blockedCells, targets, [], call).ConfigureAwait(false);
+                access = await _native.ReadSpatialAccessAsync(Boundary.Identity(state.Snapshot), blockedCells, targets, [], call).ConfigureAwait(false);
             }
             catch (NativeUnavailableException)
             {
@@ -215,7 +215,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal async Task<(BridgeBuildingPreview Preview, bool Ok)> PreviewAsync(DomainAction action, GenerationSnapshot snapshot, Tick _, Cell cell, CancellationToken ct)
     {
-        var (previews, _) = await _native.PreviewBuildingsAsync([action], snapshot, ct).ConfigureAwait(false);
+        var previews = await _native.PreviewBuildingsAsync([action], snapshot, ct).ConfigureAwait(false);
         return ClassifyDefensePreview(previews[0], cell);
     }
 

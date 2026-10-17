@@ -227,7 +227,7 @@ public sealed class AcceptanceReads
 
     private async Task<RimGovernor.Brain.Observation.Identity> ReadIdentityAsync(CancellationToken cancellationToken)
     {
-        var (reply, _) = await ((IColonySource)_client).IdentityAsync(cancellationToken).ConfigureAwait(false);
+        var reply = await ((IColonySource)_client).IdentityAsync(cancellationToken).ConfigureAwait(false);
         return ObservationPackage.DecodeIdentity(reply);
     }
 

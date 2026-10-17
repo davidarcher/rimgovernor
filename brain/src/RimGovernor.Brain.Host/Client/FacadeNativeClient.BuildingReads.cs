@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Host;
 internal sealed partial class FacadeNativeClient
 {
     /// <summary>Go's <c>ReadZoneSection</c>: reads the whole zone census. A failure never silently replaces a held census.</summary>
-    internal async Task<(ZonesRead Read, BridgeResult Receipt)> ReadZoneSectionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<ZonesRead> ReadZoneSectionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var reply = await Facade.ListZonesAsync(PlacementReads.ZoneSectionRequest(identity), cancellationToken).ConfigureAwait(false);
         BridgeFunctions.BuildingUnknown(reply);
@@ -21,14 +21,14 @@ internal sealed partial class FacadeNativeClient
         {
             throw Unavailable(unavailable);
         }
-        return (PlacementReads.DecodeZones(reply.Outcome?.Observed, identity), NoReceipt);
+        return PlacementReads.DecodeZones(reply.Outcome?.Observed, identity);
     }
 
     /// <summary>
     /// Go's <c>ReadZoneDeleteTarget</c>: observes one exact zone's presence via the zone listing; an absent zone reads
     /// back as not present rather than as an error, so a deletion's observer can tell success from a stale read.
     /// </summary>
-    internal async Task<(ZoneDeleteTarget Target, BridgeResult Receipt)> ReadZoneDeleteTargetAsync(PbCommon.Identity identity, string zone, CancellationToken cancellationToken)
+    internal async Task<ZoneDeleteTarget> ReadZoneDeleteTargetAsync(PbCommon.Identity identity, string zone, CancellationToken cancellationToken)
     {
         if (!BridgeFunctions.IsValidId(zone))
         {
@@ -57,7 +57,7 @@ internal sealed partial class FacadeNativeClient
         var output = new ZoneDeleteTarget { Context = v.Context, Zone = zone };
         if (v.Zones.Count == 0)
         {
-            return (output, NoReceipt);
+            return output;
         }
         var row = v.Zones[0];
         if ((row.Id ?? "") != zone)
@@ -69,7 +69,7 @@ internal sealed partial class FacadeNativeClient
         {
             output = output with { Planted = row.Farm.PlantedCells.GetValueOrDefault() };
         }
-        return (output, NoReceipt);
+        return output;
     }
 
     /// <summary>
@@ -77,7 +77,7 @@ internal sealed partial class FacadeNativeClient
     /// <paramref name="ids"/> requests the complete bounded colony census; nonempty ids refresh exact targets.
     /// Native faction filtering supplies planning ownership, not lineage.
     /// </summary>
-    internal async Task<(PbObservations.ListBuildingsReply Reply, BridgeResult Receipt)> ReadConstructionBuildingsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken)
+    internal async Task<PbObservations.ListBuildingsReply> ReadConstructionBuildingsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken)
     {
         if (ids.Count > 256)
         {
@@ -95,14 +95,14 @@ internal sealed partial class FacadeNativeClient
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
         BridgeFunctions.BuildingUnknown(reply);
         PlacementReads.UnwrapBuildings(reply, identity, request.Ids, "building read outcome missing");
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
     /// Go's <c>ReadStorageBuildingTarget</c>: observes one exact storage building's presence via the building listing;
     /// an absent building reads back as not present rather than as an error.
     /// </summary>
-    internal async Task<(StorageBuildingTarget Target, BridgeResult Receipt)> ReadStorageBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
+    internal async Task<StorageBuildingTarget> ReadStorageBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
         if (!BridgeFunctions.IsValidId(thing))
         {
@@ -120,24 +120,24 @@ internal sealed partial class FacadeNativeClient
         var output = new StorageBuildingTarget { Context = v.Context, Thing = thing };
         if (v.Buildings.Count == 0)
         {
-            return (output, NoReceipt);
+            return output;
         }
         var row = v.Buildings[0];
         if (v.Buildings.Count != 1 || (row.Building?.Id ?? "") != thing || row.Settings is null)
         {
             throw BridgeFunctions.Contract("storage building target missing settings");
         }
-        return (output with { Present = true }, NoReceipt);
+        return output with { Present = true };
     }
 
     /// <summary>Go's <c>ReadBedUseTarget</c>: observes one exact bed's medical flag, owners and CAS token via the existing building lookup.</summary>
-    internal async Task<(BedUseTarget Target, BridgeResult Receipt)> ReadBedUseTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
+    internal async Task<BedUseTarget> ReadBedUseTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
         if (!BridgeFunctions.IsValidId(thing))
         {
             throw BridgeFunctions.Contract("invalid bed medical target identity");
         }
-        var (reply, _) = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
+        var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
         var v = reply.Outcome?.Observed;
         if (v is null || v.Buildings.Count != 1)
         {
@@ -153,23 +153,21 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("building is not a bed");
         }
-        return (
-            new BedUseTarget
-            {
-                Context = v.Context,
-                Thing = thing,
-                Medical = settings.Medical.GetValueOrDefault(),
-                Prisoners = settings.ForPrisoners.GetValueOrDefault(),
-                Owners = BridgeFunctions.RefIds(settings.AssignedPawns),
-            },
-            NoReceipt);
+        return new BedUseTarget
+        {
+            Context = v.Context,
+            Thing = thing,
+            Medical = settings.Medical.GetValueOrDefault(),
+            Prisoners = settings.ForPrisoners.GetValueOrDefault(),
+            Owners = BridgeFunctions.RefIds(settings.AssignedPawns),
+        };
     }
 
     /// <summary>
     /// Go's <c>ReadClaimBuildingTarget</c>: observes one exact claimable building's faction and CAS token via the
     /// building listing, read without the player-only filter: the target is by definition not the player's yet.
     /// </summary>
-    internal async Task<(ClaimBuildingTarget Target, BridgeResult Receipt)> ReadClaimBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
+    internal async Task<ClaimBuildingTarget> ReadClaimBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
         if (!BridgeFunctions.IsValidId(thing))
         {
@@ -206,19 +204,17 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("building is not claimable");
         }
-        return (
-            new ClaimBuildingTarget { Context = v.Context, Thing = thing, Token = settings.Snapshot.Token ?? "", PlayerOwned = settings.PlayerOwned.GetValueOrDefault() },
-            NoReceipt);
+        return new ClaimBuildingTarget { Context = v.Context, Thing = thing, Token = settings.Snapshot.Token ?? "", PlayerOwned = settings.PlayerOwned.GetValueOrDefault() };
     }
 
     /// <summary>Go's <c>ReadGrowerCropTarget</c>: observes one exact grower's crop via the existing building lookup; the crop is empty when the grower has none.</summary>
-    internal async Task<(GrowerCropTarget Target, BridgeResult Receipt)> ReadGrowerCropTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
+    internal async Task<GrowerCropTarget> ReadGrowerCropTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
         if (!BridgeFunctions.IsValidId(thing))
         {
             throw BridgeFunctions.Contract("invalid grower crop target identity");
         }
-        var (reply, _) = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
+        var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
         var v = reply.Outcome?.Observed;
         if (v is null || v.Buildings.Count != 1)
         {
@@ -239,7 +235,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("building is not a plant grower");
         }
-        return (new GrowerCropTarget { Context = v.Context, Thing = thing, Crop = settings.CropDefName ?? "" }, NoReceipt);
+        return new GrowerCropTarget { Context = v.Context, Thing = thing, Crop = settings.CropDefName ?? "" };
     }
 
     /// <summary>
@@ -247,7 +243,7 @@ internal sealed partial class FacadeNativeClient
     /// outstanding material needs by definition. Completeness is a precondition: this read refuses a partially
     /// unreadable census rather than under-reporting a commitment.
     /// </summary>
-    internal async Task<(ConstructionDeficitRead Read, BridgeResult Receipt)> ReadConstructionDeficitsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<ConstructionDeficitRead> ReadConstructionDeficitsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var request = new PbObservations.ListBuildingsRequest
         {
@@ -301,11 +297,11 @@ internal sealed partial class FacadeNativeClient
             }
         }
         cancellationToken.ThrowIfCancellationRequested();
-        return (new ConstructionDeficitRead { Context = observed.Context, StillNeed = stillNeed, Structures = structures }, NoReceipt);
+        return new ConstructionDeficitRead { Context = observed.Context, StillNeed = stillNeed, Structures = structures };
     }
 
     /// <summary>Go's <c>ReadWallUpgradeSites</c>: lists current wall-upgrade candidate sites, optionally scoped to one original wall's identity.</summary>
-    internal async Task<(WallUpgradeSites Sites, BridgeResult Receipt)> ReadWallUpgradeSitesAsync(PbCommon.Identity identity, string targetId, CancellationToken cancellationToken)
+    internal async Task<WallUpgradeSites> ReadWallUpgradeSitesAsync(PbCommon.Identity identity, string targetId, CancellationToken cancellationToken)
     {
         if (targetId.Length != 0 && !BridgeFunctions.IsValidId(targetId))
         {
@@ -332,7 +328,7 @@ internal sealed partial class FacadeNativeClient
         }
         var buildings = await PlacementFrameBuildingsAsync(identity, cancellationToken).ConfigureAwait(false);
         var sites = PlacementReads.ValidateWallUpgradeSites(observed, identity, buildings);
-        return (new WallUpgradeSites { Context = observed.Context, Sites = sites }, NoReceipt);
+        return new WallUpgradeSites { Context = observed.Context, Sites = sites };
     }
 
     // Go FrameBuildings, the no-stream path: the player building table read through the building list. The frame

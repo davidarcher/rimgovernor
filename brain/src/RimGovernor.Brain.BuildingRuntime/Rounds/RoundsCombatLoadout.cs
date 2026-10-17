@@ -5,9 +5,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native reads of the pre-fight loadout: the map bounds and the weapons lying on the map.</summary>
 internal interface ILoadoutWeaponSource
 {
-    Task<(MapBounds Bounds, BridgeResult Result)> ReadMapBoundsAsync(C.Identity identity, Cell origin, CancellationToken ct);
+    Task<MapBounds> ReadMapBoundsAsync(C.Identity identity, Cell origin, CancellationToken ct);
 
-    Task<(EquipRead Read, BridgeResult Result)> ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell to, CancellationToken ct);
+    Task<EquipRead> ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell to, CancellationToken ct);
 }
 
 public sealed partial class RoundsDefensePlanner
@@ -97,7 +97,7 @@ public sealed partial class RoundsDefensePlanner
 
     internal static async Task<List<EquipCandidateWeapon>> LoadoutWeaponsAsync(ILoadoutWeaponSource source, C.Identity identity, ControlState state, DefinitionCatalog catalog, CancellationToken call)
     {
-        var bounds = (await source.ReadMapBoundsAsync(identity, default, call).ConfigureAwait(false)).Bounds;
+        var bounds = (await source.ReadMapBoundsAsync(identity, default, call).ConfigureAwait(false));
         try
         {
             Boundary.Context(bounds.Context, state.Snapshot);
@@ -110,7 +110,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("loadoutWeapons: bounds");
         }
-        var read = (await source.ReadEquipWeaponsAsync(identity, default, new Cell(bounds.Bounds.Width - 1, bounds.Bounds.Height - 1), call).ConfigureAwait(false)).Read;
+        var read = (await source.ReadEquipWeaponsAsync(identity, default, new Cell(bounds.Bounds.Width - 1, bounds.Bounds.Height - 1), call).ConfigureAwait(false));
         try
         {
             Boundary.Context(read.Context, state.Snapshot);

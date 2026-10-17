@@ -128,7 +128,7 @@ public sealed class PrisonersRounds
             return Verdict.WaitFor(Cause.MethodUsed, "jail_bed_method");
         }
 
-        var (target, _) = await native.ReadBedUseTargetAsync(Boundary.Identity(state.Snapshot), bed, call).ConfigureAwait(false);
+        var target = await native.ReadBedUseTargetAsync(Boundary.Identity(state.Snapshot), bed, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(target.Context, state.Snapshot);

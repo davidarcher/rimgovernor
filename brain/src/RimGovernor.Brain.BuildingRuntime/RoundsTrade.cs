@@ -11,13 +11,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public interface IRoundsTradeSource : Observation.IColonySource
 {
-    Task<(ConstructionDeficitRead Read, BridgeResult Result)> ReadConstructionDeficitsAsync(C.Identity identity, CancellationToken ct);
+    Task<ConstructionDeficitRead> ReadConstructionDeficitsAsync(C.Identity identity, CancellationToken ct);
 
-    Task<(TradersRead Read, BridgeResult Result)> ListTradersAsync(C.Identity identity, CancellationToken ct);
+    Task<TradersRead> ListTradersAsync(C.Identity identity, CancellationToken ct);
 
-    Task<(TradeSessionRead Read, BridgeResult Result)> ReadTradeSessionAsync(C.Identity identity, CancellationToken ct);
+    Task<TradeSessionRead> ReadTradeSessionAsync(C.Identity identity, CancellationToken ct);
 
-    Task<(TradeSheetRead Read, BridgeResult Result)> ReadTradeSheetAsync(C.Identity identity, CancellationToken ct);
+    Task<TradeSheetRead> ReadTradeSheetAsync(C.Identity identity, CancellationToken ct);
 }
 
 public sealed class RoundsTradeResult : IPlannerMethod
@@ -163,7 +163,7 @@ public sealed partial class RoundsTradePlanner
         }
         var started = Reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
-        var (census, _) = await Native.ListTradersAsync(identity, call).ConfigureAwait(false);
+        var census = await Native.ListTradersAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(census.Context, state.Snapshot);
@@ -176,7 +176,7 @@ public sealed partial class RoundsTradePlanner
         {
             throw new ControlException("step: err != nil || census.Context.GetTick() < int64(review.Tick)");
         }
-        var (session, _) = await Native.ReadTradeSessionAsync(identity, call).ConfigureAwait(false);
+        var session = await Native.ReadTradeSessionAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(session.Context, state.Snapshot);
@@ -310,7 +310,7 @@ public sealed partial class RoundsTradePlanner
             return await CancelAsync(state, owner, trader, negotiator, started, call, epoch).ConfigureAwait(false);
         }
         var identity = Boundary.Identity(state.Snapshot);
-        var (sheet, _) = await Native.ReadTradeSheetAsync(identity, call).ConfigureAwait(false);
+        var sheet = await Native.ReadTradeSheetAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(sheet.Context, state.Snapshot);
@@ -400,7 +400,7 @@ public sealed partial class RoundsTradePlanner
     private async Task<(TradeEconomicPolicy Economic, Pol.TradeSelectionFacts Facts, bool Capacity)> SelectionAsync(ControlState state, Sto.Rounds review, TradeSheetRead sheet, string trader, IReadOnlyList<Pol.TraderFacts> traders, CancellationToken call)
     {
         var identity = Boundary.Identity(state.Snapshot);
-        var (reply, _) = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
+        var reply = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
         var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
@@ -433,7 +433,7 @@ public sealed partial class RoundsTradePlanner
         projection = projection with { Facts = projection.Facts with { Traders = Known<EquatableArray<Pol.TraderFacts>>([.. traders]) } };
         Reviewer.PlanFood(ref projection);
         var seasonal = Reviewer.Seasonal(projection.Facts);
-        var (construction, _) = await Native.ReadConstructionDeficitsAsync(identity, call).ConfigureAwait(false);
+        var construction = await Native.ReadConstructionDeficitsAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(construction.Context, state.Snapshot);
@@ -565,7 +565,7 @@ public sealed partial class RoundsTradePlanner
         var tradeId = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-trade"));
         if (kind != TradeOperationKind.Open)
         {
-            var (session, _) = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+            var session = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             if (session.Trader == trader && session.Target is not null)
             {
                 value = value.WithParticipant(TradeParticipantOf(session.Target));

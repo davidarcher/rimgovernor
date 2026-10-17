@@ -118,7 +118,7 @@ public sealed partial class RoundsBuildingPlanner
 
             var building = new Building(Lighting.Definition, cell, Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, PolicyFunctions.PlannerTier(Concern, Phase));
-            var (preview, _) = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
+            var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;
             var fk = p.Footprint.TryGetValue(out var footprint);
             var mk = p.MadeFromStuff.TryGetValue(out var made);

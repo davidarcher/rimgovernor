@@ -12,7 +12,7 @@ internal sealed partial class FacadeNativeClient
     /// Go <c>Client.ReadResearch</c>: the native research snapshot translated into the economy family's research shapes. It
     /// reads the definition catalog first (every project's static facts) and merges the progress rows over it.
     /// </summary>
-    internal async Task<(ResearchRead Value, BridgeResult Receipt)> ReadResearchAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<ResearchRead> ReadResearchAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
         var request = new PbObservations.ResearchRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, ProgressOnly = true };
@@ -31,7 +31,7 @@ internal sealed partial class FacadeNativeClient
 
         if (outcome?.Observed is { } observed)
         {
-            return (ResearchReadSnapshot(observed, identity, catalog), NoReceipt);
+            return ResearchReadSnapshot(observed, identity, catalog);
         }
 
         throw Contract("missing research outcome");

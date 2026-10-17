@@ -34,7 +34,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null, BuildingReasonNoDeficit);
         }
 
-        var (coolers, _) = await ObservationPackage.ReadRefrigerationCoolers((IRefrigerationSource)Native, facts.Identity, facts.PowerPlanning, ct).ConfigureAwait(false);
+        var coolers = await ObservationPackage.ReadRefrigerationCoolers((IRefrigerationSource)Native, facts.Identity, facts.PowerPlanning, ct).ConfigureAwait(false);
         var fact = ObservationPackage.RefrigerationFacts(facts, coolers);
         var proposal = PolicyFunctions.SelectRefrigerationMethod(review, fact, Reviewer.Policy.FoodStorage, allowance);
         switch (proposal.Method)
@@ -72,7 +72,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return BuildingReasonNoReview;
         }
-        var (identity, _) = await Native.IdentityAsync(call).ConfigureAwait(false);
+        var identity = await Native.IdentityAsync(call).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
@@ -297,11 +297,11 @@ public sealed partial class RoundsBuildingPlanner
                 return (null!, stock, FieldUnavailable("over_rock_preview"));
             }
 
-            (preview, _) = await source.PreviewBuildingOverRockAsync(action, snapshot, ct).ConfigureAwait(false);
+            preview = await source.PreviewBuildingOverRockAsync(action, snapshot, ct).ConfigureAwait(false);
         }
         else
         {
-            (preview, _) = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
+            preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
         }
 
         var p = preview.Preview;

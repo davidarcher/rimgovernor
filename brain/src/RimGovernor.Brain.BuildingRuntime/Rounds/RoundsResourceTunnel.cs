@@ -65,7 +65,7 @@ public sealed partial class RoundsResourcePlanner
         var p = reviewer.Player;
         var dig = new RoundsBuildingPlanner { Reviewer = reviewer, Concern = EconomyFamily.Resource.FilingKey, Need = EconomyFamily.Resource, Excavation = source };
         var review = p.Journal.LoadRounds(call);
-        var (last, _) = await native.IdentityAsync(call).ConfigureAwait(false);
+        var last = await native.IdentityAsync(call).ConfigureAwait(false);
         Identity expected;
         try
         {
@@ -119,7 +119,7 @@ public sealed partial class RoundsResourcePlanner
         IReadOnlyList<ResourceSource> rows;
         try
         {
-            (rows, _, _) = await native.ReadResourceSourcesAsync(identity, resource.Value, call).ConfigureAwait(false);
+            (rows, _) = await native.ReadResourceSourcesAsync(identity, resource.Value, call).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

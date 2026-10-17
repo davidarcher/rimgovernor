@@ -71,7 +71,7 @@ internal sealed partial class RoundsStockpilePlanner
                 }
             }
             var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-0")), value, ConstructionTier.Sustain);
-            var (preview, _) = await _building.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
+            var preview = await _building.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var v = preview.Preview;
             var ck = v.CanPlace.TryGetValue(out var can);
             var sk = v.SafeToPlace.TryGetValue(out var safe);

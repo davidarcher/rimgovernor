@@ -13,10 +13,10 @@ internal sealed partial class FacadeNativeClient
     /// Go's <c>PreviewBuilding</c>: binds a single native evaluation to the exact immutable action and authority
     /// generation. It neither acquires authority nor reserves resources.
     /// </summary>
-    internal async Task<(BridgeBuildingPreview Preview, BridgeResult Receipt)> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken cancellationToken)
+    internal async Task<BridgeBuildingPreview> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken cancellationToken)
     {
-        var (previews, receipt) = await PreviewBuildingsAsync([action], snapshot, cancellationToken).ConfigureAwait(false);
-        return (previews[0], receipt);
+        var previews = await PreviewBuildingsAsync([action], snapshot, cancellationToken).ConfigureAwait(false);
+        return previews[0];
     }
 
     /// <summary>
@@ -24,7 +24,7 @@ internal sealed partial class FacadeNativeClient
     /// placements. Previews come back in action order, each bound to its own action; a failed row fails the whole read.
     /// Later chunks of an oversized sweep are separate calls, and each must observe the same native generation.
     /// </summary>
-    internal Task<(IReadOnlyList<BridgeBuildingPreview> Previews, BridgeResult Receipt)> PreviewBuildingsAsync(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, CancellationToken cancellationToken) =>
+    internal Task<IReadOnlyList<BridgeBuildingPreview>> PreviewBuildingsAsync(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, CancellationToken cancellationToken) =>
         PlacementPreviewBuildingsAsync(actions, snapshot, false, cancellationToken);
 
     /// <summary>
@@ -32,13 +32,13 @@ internal sealed partial class FacadeNativeClient
     /// mined: a planned building whose excavation the same plan orders first. Dispatch never previews this way; the
     /// executor re-previews plainly once the rock is gone.
     /// </summary>
-    internal async Task<(BridgeBuildingPreview Preview, BridgeResult Receipt)> PreviewBuildingOverRockAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken cancellationToken)
+    internal async Task<BridgeBuildingPreview> PreviewBuildingOverRockAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken cancellationToken)
     {
-        var (previews, receipt) = await PlacementPreviewBuildingsAsync([action], snapshot, true, cancellationToken).ConfigureAwait(false);
-        return (previews[0], receipt);
+        var previews = await PlacementPreviewBuildingsAsync([action], snapshot, true, cancellationToken).ConfigureAwait(false);
+        return previews[0];
     }
 
-    private async Task<(IReadOnlyList<BridgeBuildingPreview> Previews, BridgeResult Receipt)> PlacementPreviewBuildingsAsync(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, bool overRock, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<BridgeBuildingPreview>> PlacementPreviewBuildingsAsync(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, bool overRock, CancellationToken cancellationToken)
     {
         if (!snapshot.IsValid || snapshot.Native.Value == 0)
         {
@@ -83,7 +83,7 @@ internal sealed partial class FacadeNativeClient
                 output.Add(PlacementReads.BuildingPreviewRow(actions[start + index], snapshot, new Tick(batch.Context.Tick), row.Outcome?.Evaluated!));
             }
         }
-        return (output, NoReceipt);
+        return output;
     }
 
     // Go PlacementPreviews: validates the request, makes the call and checks the batch the reply carries.
@@ -104,7 +104,7 @@ internal sealed partial class FacadeNativeClient
     }
 
     /// <summary>Go's <c>PreviewZone</c>: a planner's siting preview of one zone; native checks the ground live, so no map census token rides along.</summary>
-    internal async Task<(PbOperations.ZonePreviewReply Reply, BridgeResult Receipt)> PreviewZoneAsync(PbCommon.Identity identity, ZoneCreate zone, CancellationToken cancellationToken)
+    internal async Task<PbOperations.ZonePreviewReply> PreviewZoneAsync(PbCommon.Identity identity, ZoneCreate zone, CancellationToken cancellationToken)
     {
         if (!PlacementReads.Passes(() => BridgeFunctions.ValidateIdentity(identity)))
         {
@@ -156,14 +156,14 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("unexpected zone preview components");
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
     /// Go's <c>DrawOverlay</c>: replaces the named overlay layer. The native drops the layer's shapes and labels and
     /// draws the overlay's; <paramref name="enabled"/> false only removes the layer. Output only, never read back or persisted.
     /// </summary>
-    internal async Task<(PbPresentation.OverlayApplied Applied, BridgeResult Receipt)> DrawOverlayAsync(PbCommon.Identity identity, string layerId, LayoutOverlay overlay, bool enabled, CancellationToken cancellationToken)
+    internal async Task<PbPresentation.OverlayApplied> DrawOverlayAsync(PbCommon.Identity identity, string layerId, LayoutOverlay overlay, bool enabled, CancellationToken cancellationToken)
     {
         BridgeFunctions.AuthorityIdentity(identity);
         var request = new PbPresentation.OverlayRequest { Identity = identity, LayerId = layerId, Enabled = enabled };
@@ -183,7 +183,7 @@ internal sealed partial class FacadeNativeClient
             {
                 throw BridgeFunctions.Contract("overlay context required");
             }
-            return (applied, NoReceipt);
+            return applied;
         }
         throw BridgeFunctions.Contract("overlay outcome required");
     }

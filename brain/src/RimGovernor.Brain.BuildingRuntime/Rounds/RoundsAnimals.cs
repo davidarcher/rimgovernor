@@ -187,7 +187,7 @@ public sealed class AnimalsReader
         {
             return WaitFor(Cause.MethodUsed, "herd_bed_medical_method");
         }
-        var (target, _) = await _native.ReadBedUseTargetAsync(Boundary.Identity(work.State.Snapshot), bed, call).ConfigureAwait(false);
+        var target = await _native.ReadBedUseTargetAsync(Boundary.Identity(work.State.Snapshot), bed, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(target.Context, work.State.Snapshot);

@@ -73,7 +73,7 @@ public sealed partial class RoundsBuildingPlanner
             var site = Paste[i];
             var building = new Building(site.Definition, site.Cell, site.Rotation, "");
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), building, PolicyFunctions.PlannerTier(Concern, Phase));
-            var (read, _) = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
+            var read = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var v = read.Preview;
             var lk = v.CanPlace.TryGetValue(out var legal);
             var sk = v.SafeToPlace.TryGetValue(out var safe);

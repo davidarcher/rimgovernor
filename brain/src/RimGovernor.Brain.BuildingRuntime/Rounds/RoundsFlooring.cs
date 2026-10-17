@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native defense-site read (Go's anonymous interface on the building source).</summary>
 internal interface IDefenseSiteReader
 {
-    Task<(DefenseSite Site, BridgeResult Result)> ReadDefenseSiteAsync(C.Identity identity, CellRect region, CancellationToken ct);
+    Task<DefenseSite> ReadDefenseSiteAsync(C.Identity identity, CellRect region, CancellationToken ct);
 }
 
 public sealed partial class RoundsBuildingPlanner
@@ -139,7 +139,7 @@ public sealed partial class RoundsBuildingPlanner
 
             var building = new Building(Flooring.Definition, cell, Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{selected.Count}"), building, PolicyFunctions.PlannerTier(Concern, Phase));
-            var (preview, _) = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
+            var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;
             var fk = p.Footprint.TryGetValue(out var footprint);
             var mk = p.MadeFromStuff.TryGetValue(out var made);

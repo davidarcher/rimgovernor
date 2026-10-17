@@ -13,7 +13,7 @@ internal sealed partial class FacadeNativeClient
     /// typed refusal throws <see cref="NativeFailureException"/>; a reply that does not prove the focus throws
     /// <see cref="FacadeAuthorityUncertainException"/>.
     /// </summary>
-    internal async Task<(PbAuthority.ControlReply Value, BridgeResult Receipt)> FocusMapAsync(PbAuthority.FocusMap request, CancellationToken cancellationToken)
+    internal async Task<PbAuthority.ControlReply> FocusMapAsync(PbAuthority.FocusMap request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         FacadeWriteChecks.WriteAuthorityRequest(request.Identity, request.ExpectedGeneration);
@@ -66,7 +66,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw new FacadeAuthorityUncertainException(e, NoReceipt);
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
@@ -74,7 +74,7 @@ internal sealed partial class FacadeNativeClient
     /// identity, direction and request id and a save name; the expected tick is optional but, when set, is asserted
     /// before native persists anything. An uncertain outcome throws <see cref="FacadeSaveUncertainException"/>.
     /// </summary>
-    internal async Task<(PbLifecycle.SaveReply Reply, BridgeResult Result)> SaveAsync(PbLifecycle.SaveRequest request, CancellationToken cancellationToken)
+    internal async Task<PbLifecycle.SaveReply> SaveAsync(PbLifecycle.SaveRequest request, CancellationToken cancellationToken)
     {
         LifecycleSaveValidateRequest(request);
         var reply = await Facade.SaveGameAsync(request, cancellationToken).ConfigureAwait(false);
@@ -83,14 +83,14 @@ internal sealed partial class FacadeNativeClient
         {
             LifecycleSaveValidateCompleted(completed, request);
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
     /// Go <c>LifecycleSave.ReadSave</c>: re-reads a prior save request's exact outcome. It exists only to recover a
     /// reply the caller never received; an unknown or expired request id surfaces as a failure.
     /// </summary>
-    internal async Task<(PbLifecycle.SaveReply Reply, BridgeResult Result)> ReadSaveAsync(string requestId, CancellationToken cancellationToken)
+    internal async Task<PbLifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken)
     {
         if (!BridgeFunctions.IsValidId(requestId ?? ""))
         {
@@ -98,7 +98,7 @@ internal sealed partial class FacadeNativeClient
         }
         var reply = await Facade.PollSaveAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
         LifecycleSaveInterpret(reply, requestId);
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>Go <c>interpretSaveOutcome</c>: validates a SaveReply's shape and throws the typed error for an uncertain or failed one.</summary>

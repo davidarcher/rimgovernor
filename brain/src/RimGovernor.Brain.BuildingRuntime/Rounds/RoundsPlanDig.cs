@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IOverRockPreviewer
 {
-    Task<(BuildingPreview Preview, BridgeResult Result)> PreviewBuildingOverRockAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
+    Task<BuildingPreview> PreviewBuildingOverRockAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
 public sealed partial class RoundsBuildingPlanner

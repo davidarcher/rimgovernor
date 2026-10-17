@@ -11,7 +11,7 @@ internal sealed partial class FacadeNativeClient
     /// Go's <c>ReadExcavationSite</c>: reads the excavation site for the ordered cell set plus its access cell. Reply
     /// rows must echo the request order exactly so callers can index stages positionally.
     /// </summary>
-    internal async Task<(ExcavationSite Site, BridgeResult Receipt)> ReadExcavationSiteAsync(PbCommon.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken cancellationToken)
+    internal async Task<ExcavationSite> ReadExcavationSiteAsync(PbCommon.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken cancellationToken)
     {
         if (cells.Count == 0 || !BridgeFunctions.ExcavationCellValid(access))
         {
@@ -123,31 +123,29 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("inconsistent excavation workers");
         }
-        return (
-            new ExcavationSite
-            {
-                Context = snapshot.Context,
-                Cells = items,
-                Support = support,
-                RoofCellsChecked = snapshot.RoofCellsChecked.GetValueOrDefault(),
-                SupportBlocker = snapshot.SupportBlocker ?? "",
-                CollapsePending = collapsePending,
-                WorkerAvailable = workerAvailable,
-                Workers = workers,
-                AccessReachable = accessReachable,
-            },
-            NoReceipt);
+        return new ExcavationSite
+        {
+            Context = snapshot.Context,
+            Cells = items,
+            Support = support,
+            RoofCellsChecked = snapshot.RoofCellsChecked.GetValueOrDefault(),
+            SupportBlocker = snapshot.SupportBlocker ?? "",
+            CollapsePending = collapsePending,
+            WorkerAvailable = workerAvailable,
+            Workers = workers,
+            AccessReachable = accessReachable,
+        };
     }
 
     /// <summary>Go's <c>ReadClearanceTargets</c>: read-only and requires no authority. An unsupported native stub is unavailable, never a successful empty census.</summary>
-    internal Task<(PbObservations.ClearanceTargetsReply Reply, BridgeResult Receipt)> ReadClearanceTargetsAsync(PbCommon.Identity identity, bool includeSalvage, CancellationToken cancellationToken) =>
+    internal Task<PbObservations.ClearanceTargetsReply> ReadClearanceTargetsAsync(PbCommon.Identity identity, bool includeSalvage, CancellationToken cancellationToken) =>
         ReadClearanceTargetsOnGroundAsync(identity, includeSalvage, [], cancellationToken);
 
     /// <summary>
     /// Go's <c>ReadClearanceTargetsOnGround</c>: widens the census to planned ground: on those rectangles native also
     /// reports the player's own buildings (with encloses_room) and constructed floors, one row per cell.
     /// </summary>
-    internal async Task<(PbObservations.ClearanceTargetsReply Reply, BridgeResult Receipt)> ReadClearanceTargetsOnGroundAsync(PbCommon.Identity identity, bool includeSalvage, IReadOnlyList<PbObservations.Rectangle> planned, CancellationToken cancellationToken)
+    internal async Task<PbObservations.ClearanceTargetsReply> ReadClearanceTargetsOnGroundAsync(PbCommon.Identity identity, bool includeSalvage, IReadOnlyList<PbObservations.Rectangle> planned, CancellationToken cancellationToken)
     {
         foreach (var rect in planned)
         {
@@ -185,7 +183,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("clearance outcome missing");
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 
     internal static partial class PlacementReads

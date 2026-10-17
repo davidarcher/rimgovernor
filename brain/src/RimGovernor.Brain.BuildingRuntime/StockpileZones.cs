@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>Refreshes one zone's presence and CAS token for each edit.</summary>
 public interface IRoundsStockpileSource
 {
-    Task<(ZoneDeleteTarget Target, BridgeResult Result)> ReadZoneDeleteTargetAsync(C.Identity identity, string zone, CancellationToken ct);
+    Task<ZoneDeleteTarget> ReadZoneDeleteTargetAsync(C.Identity identity, string zone, CancellationToken ct);
 }
 
 /// <summary>Reads the saved occupancy ring: each named storage group's hourly stack samples after sinceHour.</summary>
@@ -23,13 +23,13 @@ public interface IStorageOccupancySource
 /// <summary>Reads a shelf's storage settings CAS token.</summary>
 public interface IShelfTargetSource
 {
-    Task<(StorageBuildingTarget Target, BridgeResult Result)> ReadStorageBuildingTargetAsync(C.Identity identity, string building, CancellationToken ct);
+    Task<StorageBuildingTarget> ReadStorageBuildingTargetAsync(C.Identity identity, string building, CancellationToken ct);
 }
 
 /// <summary>Previews a zone creation natively.</summary>
 public interface IZonePreviewSource
 {
-    Task<(OperationsPb.ZonePreviewReply Reply, BridgeResult Result)> PreviewZoneAsync(C.Identity identity, ZoneCreate zone, CancellationToken ct);
+    Task<OperationsPb.ZonePreviewReply> PreviewZoneAsync(C.Identity identity, ZoneCreate zone, CancellationToken ct);
 }
 
 /// <summary>Applies zone edits for the stockpile owner.</summary>
@@ -47,10 +47,10 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
             {
                 return false;
             }
-            var (shelf, _) = await source.ReadStorageBuildingTargetAsync(identity, e.Zone, ct).ConfigureAwait(false);
+            var shelf = await source.ReadStorageBuildingTargetAsync(identity, e.Zone, ct).ConfigureAwait(false);
             return shelf.Present;
         }
-        var (target, _) = await native.ReadZoneDeleteTargetAsync(identity, e.Zone, ct).ConfigureAwait(false);
+        var target = await native.ReadZoneDeleteTargetAsync(identity, e.Zone, ct).ConfigureAwait(false);
         return target.Present && target.Type == "stockpile";
     }
 
@@ -88,7 +88,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
             OperationsPb.ZonePreviewReply reply;
             try
             {
-                (reply, _) = await preview.PreviewZoneAsync(Boundary.Identity(snapshot), value, call).ConfigureAwait(false);
+                reply = await preview.PreviewZoneAsync(Boundary.Identity(snapshot), value, call).ConfigureAwait(false);
             }
             catch (NativeFailureException refused)
             {

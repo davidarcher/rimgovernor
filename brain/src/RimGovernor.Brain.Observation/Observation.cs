@@ -115,14 +115,13 @@ public sealed record Snapshot
 /// <summary>Implemented by the bridge client. Typed observation code never receives arbitrary call names or arguments through this interface.</summary>
 public interface ISource
 {
-    Task<(L.TickReply Reply, Result Receipt)> TickAsync(CancellationToken cancellationToken);
+    Task<L.TickReply> TickAsync(CancellationToken cancellationToken);
 }
 
 public sealed record Reading
 {
     public Snapshot Snapshot { get; init; } = new();
 
-    public Result? Receipt { get; init; }
 }
 
 public static partial class ObservationPackage
@@ -139,7 +138,7 @@ public static partial class ObservationPackage
             throw new ObservationContractException("missing observation dependency");
         }
         var startedAt = clock.Now();
-        var (reply, receipt) = await source.TickAsync(cancellationToken).ConfigureAwait(false);
+        var reply = await source.TickAsync(cancellationToken).ConfigureAwait(false);
         var identity = DecodeTick(reply);
         var observedAt = clock.Now();
         if (startedAt == default || observedAt < startedAt)
@@ -148,7 +147,6 @@ public static partial class ObservationPackage
         }
         return new Reading
         {
-            Receipt = receipt,
             Snapshot = new Snapshot
             {
                 StartedAt = startedAt,

@@ -116,11 +116,11 @@ internal sealed class ExportMemory
 /// <summary>The native surface the export declaration reads beyond the review's projection.</summary>
 public interface IExportSource : Observation.IDefinitionSource
 {
-    Task<(ObservationsPb.TradeAcquisition Acquisition, BridgeResult Result)> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
+    Task<ObservationsPb.TradeAcquisition> ReadTradeAcquisitionAsync(C.Identity identity, OperationsPb.FormCaravanIntent? intent, CancellationToken ct);
 
-    Task<(WorldProgressionRead Read, BridgeResult Result)> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
+    Task<WorldProgressionRead> ReadWorldProgressionAsync(C.Identity identity, bool full, CancellationToken ct);
 
-    Task<(WorldRead Read, BridgeResult Result)> ReadWorldAsync(C.Identity identity, int tile, double radius, CancellationToken ct);
+    Task<WorldRead> ReadWorldAsync(C.Identity identity, int tile, double radius, CancellationToken ct);
 }
 
 public sealed partial class Rounder
@@ -268,7 +268,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             try
             {
-                var (supply, _) = await resource.ReadSupplyStockAsync(identity, strs, ct).ConfigureAwait(false);
+                var supply = await resource.ReadSupplyStockAsync(identity, strs, ct).ConfigureAwait(false);
                 request = request with { Supply = supply };
             }
             catch (Exception e) when (e is not OperationCanceledException)
@@ -283,7 +283,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             IReadOnlyList<Pol.ResourceSource> rows;
             try
             {
-                (rows, _, _) = await resource.ReadResourceSourcesAsync(identity, name.Value, ct).ConfigureAwait(false);
+                (rows, _) = await resource.ReadResourceSourcesAsync(identity, name.Value, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -347,7 +347,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         ObservationsPb.TradeAcquisition? facts;
         try
         {
-            (facts, _) = await native.ReadTradeAcquisitionAsync(identity, null, ct).ConfigureAwait(false);
+            facts = await native.ReadTradeAcquisitionAsync(identity, null, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -372,7 +372,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         WorldProgressionRead progress;
         try
         {
-            (progress, _) = await native.ReadWorldProgressionAsync(identity, false, ct).ConfigureAwait(false);
+            progress = await native.ReadWorldProgressionAsync(identity, false, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -391,7 +391,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             WorldRead world;
             try
             {
-                (world, _) = await native.ReadWorldAsync(identity, home, AllSettlementsRadius, ct).ConfigureAwait(false);
+                world = await native.ReadWorldAsync(identity, home, AllSettlementsRadius, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

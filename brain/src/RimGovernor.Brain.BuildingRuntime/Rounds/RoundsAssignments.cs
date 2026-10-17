@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The native gear-bench read the work planner counts bench work from.</summary>
 public interface IRoundsWorkBenchSource
 {
-    Task<(IReadOnlyList<GearBenchRead> Reads, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
+    Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 }
 
 /// <summary>

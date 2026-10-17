@@ -7,9 +7,9 @@ namespace RimGovernor.Brain.Observation;
 /// </summary>
 public interface IColonySource : ISource
 {
-    Task<(L.IdentityReply Reply, Result Receipt)> IdentityAsync(CancellationToken cancellationToken);
+    Task<L.IdentityReply> IdentityAsync(CancellationToken cancellationToken);
 
-    Task<(O.ColonyFactsReply Reply, Result Receipt)> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken);
+    Task<O.ColonyFactsReply> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken);
 
     /// <summary>The keyed tables the facts' references resolve against.</summary>
     Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken);
@@ -27,7 +27,6 @@ public sealed record ColonyReading
 
     public DateTimeOffset ObservedAt { get; init; }
 
-    public Result? Receipt { get; init; }
 }
 
 public static partial class ObservationPackage
@@ -66,7 +65,7 @@ public static partial class ObservationPackage
         }
         cancellationToken.ThrowIfCancellationRequested();
         var id = new C.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value };
-        var (reply, receipt) = await source.ReadColonyFactsAsync(id, planning, cancellationToken).ConfigureAwait(false);
+        var reply = await source.ReadColonyFactsAsync(id, planning, cancellationToken).ConfigureAwait(false);
         var tables = await source.FrameTablesAsync(id, cancellationToken).ConfigureAwait(false);
         var catalog = source is IDefinitionSource definitionSource
             ? await definitionSource.DefinitionCatalogAsync(id, cancellationToken).ConfigureAwait(false)
@@ -113,6 +112,6 @@ public static partial class ObservationPackage
             throw new ObservationStaleException();
         }
         cancellationToken.ThrowIfCancellationRequested();
-        return new ColonyReading { Projection = projection, StartedAt = startedAt, ObservedAt = observedAt, Receipt = receipt };
+        return new ColonyReading { Projection = projection, StartedAt = startedAt, ObservedAt = observedAt };
     }
 }

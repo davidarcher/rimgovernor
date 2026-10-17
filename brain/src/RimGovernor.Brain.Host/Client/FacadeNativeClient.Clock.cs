@@ -6,12 +6,12 @@ namespace RimGovernor.Brain.Host;
 internal sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>Client.ReadClockStatus</c>: the clock status of the identity's world, validated.</summary>
-    internal async Task<(PbClock.StatusReply Value, BridgeResult Receipt)> ReadClockStatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<PbClock.StatusReply> ReadClockStatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         BridgeFunctions.AuthorityIdentity(identity);
         var reply = await Facade.ReadClockStatusAsync(new PbClock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
         FacadeWriteChecks.ClockStatusReply(reply, identity);
-        return (reply, NoReceipt);
+        return reply;
     }
 
     /// <summary>
@@ -19,7 +19,7 @@ internal sealed partial class FacadeNativeClient
     /// does not acknowledge an interruption or authorize resuming. Unix timestamps are diagnostic wall time and need
     /// not increase with cursors.
     /// </summary>
-    internal async Task<(PbClock.EventsReply Value, BridgeResult Receipt)> ReadClockEventsAsync(PbClock.EventsRequest request, CancellationToken cancellationToken)
+    internal async Task<PbClock.EventsReply> ReadClockEventsAsync(PbClock.EventsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (request.AfterCursor is null
@@ -41,6 +41,6 @@ internal sealed partial class FacadeNativeClient
             default:
                 throw BridgeFunctions.Contract("clock events outcome missing");
         }
-        return (reply, NoReceipt);
+        return reply;
     }
 }

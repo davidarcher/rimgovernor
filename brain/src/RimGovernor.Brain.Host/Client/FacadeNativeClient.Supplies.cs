@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Host;
 internal sealed partial class FacadeNativeClient
 {
     /// <summary>Go's <c>ReadPackedItems</c>: lists the colony's spawned, unheld packed items of one packed definition.</summary>
-    internal async Task<(IReadOnlyList<PackedItem> Items, BridgeResult Receipt)> ReadPackedItemsAsync(PbCommon.Identity identity, string packedDef, CancellationToken cancellationToken)
+    internal async Task<IReadOnlyList<PackedItem>> ReadPackedItemsAsync(PbCommon.Identity identity, string packedDef, CancellationToken cancellationToken)
     {
         if (!PlacementReads.Passes(() => BridgeFunctions.ValidateIdentity(identity)) || !BridgeFunctions.IsValidId(packedDef))
         {
@@ -62,7 +62,7 @@ internal sealed partial class FacadeNativeClient
                 });
             }
         }
-        return (output, NoReceipt);
+        return output;
     }
 
     /// <summary>
@@ -71,7 +71,7 @@ internal sealed partial class FacadeNativeClient
     /// carries only the count and lags this read. A stack with any forbidden unit is left out, since the supplies row
     /// counts forbidden units without naming them.
     /// </summary>
-    internal async Task<(IReadOnlyList<string> Items, BridgeResult Receipt)> ReadNeuroformerItemsAsync(PbCommon.Identity identity, string def, CancellationToken cancellationToken)
+    internal async Task<IReadOnlyList<string>> ReadNeuroformerItemsAsync(PbCommon.Identity identity, string def, CancellationToken cancellationToken)
     {
         if (!PlacementReads.Passes(() => BridgeFunctions.ValidateIdentity(identity)) || !BridgeFunctions.IsValidId(def))
         {
@@ -82,7 +82,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw Failure(failure);
         }
-        return (PlacementReads.DecodeNeuroformerItems(reply, identity, def), NoReceipt);
+        return PlacementReads.DecodeNeuroformerItems(reply, identity, def);
     }
 
     internal static partial class PlacementReads

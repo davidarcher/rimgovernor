@@ -14,7 +14,7 @@ public sealed class CheckpointException : Exception
 /// <summary>The trusted single-save native capability, held separately from ordinary reads the same way INativeAuthority is.</summary>
 public interface ILifecycleSaver
 {
-    Task<(LifecyclePb.SaveReply Reply, BridgeResult Result)> SaveAsync(LifecyclePb.SaveRequest request, CancellationToken ct);
+    Task<LifecyclePb.SaveReply> SaveAsync(LifecyclePb.SaveRequest request, CancellationToken ct);
 }
 
 /// <summary>
@@ -81,7 +81,7 @@ public sealed partial class Control
             {
                 req = req with { ExpectedTick = (long)request.ExpectedTick.Value };
             }
-            var (reply, _) = await save.SaveAsync(req, call).ConfigureAwait(false);
+            var reply = await save.SaveAsync(req, call).ConfigureAwait(false);
             var completed = reply.Outcome?.Completed;
             if (completed is null)
             {

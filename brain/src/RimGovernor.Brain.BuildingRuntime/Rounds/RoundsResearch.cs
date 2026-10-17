@@ -105,7 +105,7 @@ public sealed class EconomyRounds
         var facts = new EconomyFacts { ResearchNeeds = [.. needs] };
         if (needs.Count != 0)
         {
-            var (read, _) = await _native.ReadResearchAsync(Boundary.Identity(scope.World), ct).ConfigureAwait(false);
+            var read = await _native.ReadResearchAsync(Boundary.Identity(scope.World), ct).ConfigureAwait(false);
             try
             {
                 Boundary.Context(read.Context, scope.World);

@@ -14,7 +14,7 @@ public sealed partial class RoundsArmoryPlanner
         }
         var identity = Boundary.Identity(snapshot);
         var things = await FrameThingsOfAsync(_native, identity, ct).ConfigureAwait(false);
-        var reply = (await source.ReadCombatPawnsAsync(identity, ids, ct).ConfigureAwait(false)).Reply;
+        var reply = (await source.ReadCombatPawnsAsync(identity, ids, ct).ConfigureAwait(false));
         var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
@@ -39,12 +39,12 @@ public sealed partial class RoundsArmoryPlanner
                 primaries[new Domain.PawnId(p.Pawn?.Id ?? "")] = primary;
             }
         }
-        var (bounds, _) = await source.ReadMapBoundsAsync(identity, default(Cell), ct).ConfigureAwait(false);
+        var bounds = await source.ReadMapBoundsAsync(identity, default(Cell), ct).ConfigureAwait(false);
         if (!ContextMatches(bounds.Context, snapshot) || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0)
         {
             throw new ControlException("weaponDemand: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0");
         }
-        var (weapons, _) = await source.ReadEquipWeaponsAsync(identity, default(Cell), new Cell((int)bounds.Bounds.Width - 1, (int)bounds.Bounds.Height - 1), ct).ConfigureAwait(false);
+        var weapons = await source.ReadEquipWeaponsAsync(identity, default(Cell), new Cell((int)bounds.Bounds.Width - 1, (int)bounds.Bounds.Height - 1), ct).ConfigureAwait(false);
         if (!ContextMatches(weapons.Context, snapshot))
         {
             throw new ControlException("weaponDemand: err != nil");

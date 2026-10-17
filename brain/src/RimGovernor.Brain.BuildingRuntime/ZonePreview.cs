@@ -13,7 +13,7 @@ internal static partial class BuildingRuntimePackage
         OperationsPb.ZonePreviewReply reply;
         try
         {
-            (reply, _) = await native.PreviewZoneAsync(identity, target, ct).ConfigureAwait(false);
+            reply = await native.PreviewZoneAsync(identity, target, ct).ConfigureAwait(false);
         }
         catch (NativeFailureException refusal)
         {

@@ -14,7 +14,7 @@ public sealed class RoundsFieldResult : IPlannerMethod
 /// <summary>The native zone preview of the field planner.</summary>
 public interface IFieldNative
 {
-    Task<(OP.ZonePreviewReply Reply, BridgeResult Result)> PreviewZoneAsync(C.Identity identity, ZoneCreate zone, CancellationToken ct);
+    Task<OP.ZonePreviewReply> PreviewZoneAsync(C.Identity identity, ZoneCreate zone, CancellationToken ct);
 }
 
 /// <summary>
@@ -259,7 +259,7 @@ public sealed partial class RoundsFieldPlanner
             {
                 var building = new Building(b.Definition, b.Cell, b.Rotation, "");
                 var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), building, ConstructionTier.Sustain);
-                var (preview, _) = await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
+                var preview = await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
                 var v = preview.Preview;
                 var lk = v.CanPlace.TryGetValue(out var legal);
                 var sk = v.SafeToPlace.TryGetValue(out var safe);
@@ -465,7 +465,7 @@ public sealed partial class RoundsFieldPlanner
         {
             return (new RoundsFieldResult { Verdict = WaitFor(Cause.MethodUsed, "recrop_method") }, false);
         }
-        var (target, _) = await native.ReadGrowerCropTargetAsync(Boundary.Identity(state.Snapshot), choice.Grower, call).ConfigureAwait(false);
+        var target = await native.ReadGrowerCropTargetAsync(Boundary.Identity(state.Snapshot), choice.Grower, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(target.Context, state.Snapshot);
@@ -548,13 +548,13 @@ public sealed partial class RoundsFieldPlanner
 /// <summary>A field native that also previews a building.</summary>
 public interface IFieldBuildingPreview
 {
-    Task<(BridgeBuildingPreview Preview, BridgeResult Result)> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
+    Task<BridgeBuildingPreview> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
 /// <summary>A field native that reads a grower's crop target.</summary>
 public interface IFieldGrowerCrop
 {
-    Task<(BridgeGrowerCropTarget Target, BridgeResult Result)> ReadGrowerCropTargetAsync(C.Identity identity, string grower, CancellationToken ct);
+    Task<BridgeGrowerCropTarget> ReadGrowerCropTargetAsync(C.Identity identity, string grower, CancellationToken ct);
 }
 
 internal static partial class BuildingRuntimePackage

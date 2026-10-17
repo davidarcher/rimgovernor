@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The batched preview a native source may offer: one call for every placement of a wave instead of one hop per cell.</summary>
 internal interface IShellBatchPreviewer
 {
-    Task<(IReadOnlyList<BuildingPreview> Previews, BridgeResult Result)> PreviewBuildingsAsync(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, CancellationToken ct);
+    Task<IReadOnlyList<BuildingPreview>> PreviewBuildingsAsync(IReadOnlyList<DomainAction> actions, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
 public sealed partial class RoundsBuildingPlanner

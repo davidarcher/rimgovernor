@@ -847,7 +847,7 @@ public sealed partial class RoundsBuildingPlanner
             Check();
             var building = new Domain.Building(build.Def, build.Cell, build.Rot, build.Stuff);
             var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{selected.Count}")), building, RoomTier(rr.Room.Role));
-            var (preview, _) = await ((IRoundsBuildingSource)Native).PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
+            var preview = await ((IRoundsBuildingSource)Native).PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var v = preview.Preview;
             var ck = v.CanPlace.TryGetValue(out var can);
             var sk = v.SafeToPlace.TryGetValue(out var safe);

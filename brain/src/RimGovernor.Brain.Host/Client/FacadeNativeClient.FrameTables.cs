@@ -74,7 +74,7 @@ internal sealed partial class FacadeNativeClient
     /// complete reply. Go asked the stream first, but the request shape (no contents, no filter) is never the shape the
     /// frame's zone section is seeded under, so the read always went live; it does here.
     /// </summary>
-    internal async Task<(EntityRows<PbObservations.ZoneState> Value, BridgeResult Receipt)> ReadZonesAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<EntityRows<PbObservations.ZoneState>> ReadZonesAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         BridgeFunctions.AuthorityIdentity(identity);
         var reply = await Facade.ListZonesAsync(ZonesListRequest(identity), cancellationToken).ConfigureAwait(false);
@@ -93,20 +93,20 @@ internal sealed partial class FacadeNativeClient
         {
             ids.Add((row ?? throw BridgeFunctions.Contract("invalid zone row")).Id ?? "");
         }
-        return (EntityRowsOf(identity, snapshot.Context, snapshot.Zones, ids), NoReceipt);
+        return EntityRowsOf(identity, snapshot.Context, snapshot.Zones, ids);
     }
 
     /// <summary>
     /// Go <c>Client.ReadBuildings</c>: every built, pending or blueprint player building (artificial) in one complete
     /// reply. With a stream the frame's held building table is the list, with no encode round trip.
     /// </summary>
-    internal async Task<(EntityRows<PbObservations.BuildingState> Value, BridgeResult Receipt)> ReadBuildingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<EntityRows<PbObservations.BuildingState>> ReadBuildingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         BridgeFunctions.AuthorityIdentity(identity);
         if (UseFrames)
         {
             var held = await FrameHeldAsync(FrameBuildingsMethod, identity, view => view.Snapshot.Buildings is not null, cancellationToken).ConfigureAwait(false);
-            return (new EntityRows<PbObservations.BuildingState> { Context = held.BuildMeta?.Context, Rows = held.Buildings.Table }, NoReceipt);
+            return new EntityRows<PbObservations.BuildingState> { Context = held.BuildMeta?.Context, Rows = held.Buildings.Table };
         }
         var snapshot = await ListBuildingsLiveAsync(identity, cancellationToken).ConfigureAwait(false);
         var ids = new List<string>(snapshot.Buildings.Count);
@@ -118,14 +118,14 @@ internal sealed partial class FacadeNativeClient
             }
             ids.Add(row.Building.Id ?? "");
         }
-        return (EntityRowsOf(identity, snapshot.Context, snapshot.Buildings, ids), NoReceipt);
+        return EntityRowsOf(identity, snapshot.Context, snapshot.Buildings, ids);
     }
 
     /// <summary>
     /// Go <c>Client.ReadBillStacks</c>: every player bench's bill stack, keyed by bench id. With a stream the frame's
     /// bills section answers it (it is seeded under exactly this request).
     /// </summary>
-    internal async Task<(EntityRows<PbObservations.BillStackRow> Value, BridgeResult Receipt)> ReadBillStacksAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<EntityRows<PbObservations.BillStackRow>> ReadBillStacksAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         BridgeFunctions.AuthorityIdentity(identity);
         PbObservations.BillsSnapshot snapshot;
@@ -156,7 +156,7 @@ internal sealed partial class FacadeNativeClient
             }
             ids.Add(row.Bench.Id ?? "");
         }
-        return (EntityRowsOf(identity, snapshot.Context, snapshot.Benches, ids), NoReceipt);
+        return EntityRowsOf(identity, snapshot.Context, snapshot.Benches, ids);
     }
 
     /// <summary>Go <c>zonesListRequest</c>: the zone list request shared with the bundle's step families.</summary>
