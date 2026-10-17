@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 public static class HazardCases
 {
-    // Mirror SupervisedPlayHazards.cs; the clock status reports the native declaration and the case checks the two agree.
+    // Mirror SupervisedPlayHazards.cs; the clock accounting read reports the native declaration and the case checks the two agree.
     private const int ProbeIntervalTicks = 30;
     private const int HookedBoundTicks = 1;
 
@@ -279,40 +279,31 @@ public static class HazardCases
             throw new AcceptanceException($"{kind} detect_ticks {detectTicks} (detected {detectedAt}, occurred {occurredAt}), bound {hc.Bound}");
         }
 
-        // The native declaration on the clock status agrees with the bound the case asserts, and the class's own recorded
-        // gap is within it.
-        var status2 = await clock.CallAsync("status", null, cancellationToken).ConfigureAwait(false);
-        var native2 = status2["native"].AsMap();
-        JsonObject? declared = null;
-        foreach (var raw in native2?["hazardGaps"].AsSlice() ?? [])
+        // The native declaration in the clock accounting agrees with the bound the case asserts, and the class's own
+        // recorded gap is within it.
+        var accounting = await ClockAccounting.ReadAsync(s.Harness, "clock-accounting", cancellationToken).ConfigureAwait(false);
+        var declared = accounting.HazardGaps.LastOrDefault(g => g.HazardClass == hc.Class)
+            ?? throw new AcceptanceException($"clock accounting reports no hazard gap for {hc.Class}: {string.Join(", ", accounting.HazardGaps)}");
+        summary["declared"] = new JsonObject
         {
-            if (raw.AsMap() is { } gap && gap["hazardClass"].AsString() == hc.Class)
-            {
-                declared = gap;
-            }
+            ["hazardClass"] = declared.HazardClass,
+            ["boundTicks"] = declared.BoundTicks,
+            ["maxTickGap"] = declared.MaxTickGap,
+            ["hooked"] = declared.Hooked,
+        };
+        if (declared.BoundTicks != hc.Bound)
+        {
+            throw new AcceptanceException($"native declares a {declared.BoundTicks}-tick bound for {hc.Class}, the case asserts {hc.Bound}");
         }
 
-        if (declared is null)
+        if (declared.MaxTickGap > hc.Bound)
         {
-            throw new AcceptanceException($"clock status reports no hazard gap for {hc.Class}: {native2?["hazardGaps"].ToJson()}");
-        }
-
-        summary["declared"] = declared.DeepClone();
-        var bound = (long)declared["boundTicks"].AsNumber();
-        if (bound != hc.Bound)
-        {
-            throw new AcceptanceException($"native declares a {bound}-tick bound for {hc.Class}, the case asserts {hc.Bound}");
-        }
-
-        var maxGap = (long)declared["maxTickGap"].AsNumber();
-        if (maxGap > hc.Bound)
-        {
-            throw new AcceptanceException($"native recorded a {maxGap}-tick gap for {hc.Class}, bound {hc.Bound}");
+            throw new AcceptanceException($"native recorded a {declared.MaxTickGap}-tick gap for {hc.Class}, bound {hc.Bound}");
         }
 
         // A hooked class (the letter, spawn and downed hooks) lands at the next tick boundary whatever its declared bound:
         // the hook must be installed and the measured gap within the hooked bound.
-        if (declared["hooked"].AsBool() == true)
+        if (declared.Hooked)
         {
             if (injectGap > HookedBoundTicks)
             {
@@ -321,7 +312,7 @@ public static class HazardCases
         }
         else if (hc.Class is "notification_batch" or "hostile" or "colonist_downed")
         {
-            throw new AcceptanceException($"{hc.Class} hook is not installed: {declared.ToJson()}");
+            throw new AcceptanceException($"{hc.Class} hook is not installed: {declared}");
         }
     }
 

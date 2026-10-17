@@ -11,8 +11,9 @@ namespace HomeBridge.BridgeTools
 {
     /// <summary>
     /// Read-only decoded reads for the out-of-process acceptance harness (#3117): the colony facts, blight census, first
-    /// layout plan and map survey, and two catalog tables, which only exist decoded inside the game process. Each op
-    /// runs <see cref="AcceptanceReads"/> over the published facade and returns its JSON, which the route sends as
+    /// layout plan and map survey, and two catalog tables, which only exist decoded inside the game process, plus the
+    /// clock's session accounting (#3416), which production never reads. Each op runs <see cref="AcceptanceReads"/> over
+    /// the published facade (the clock accounting and capture profile run their game-thread reads) and returns its JSON, which the route sends as
     /// <c>{"payload": json}</c>; none writes, takes authority or needs the in-process brain to be running. The harness
     /// reaches them through <c>POST /native/acceptance_read_&lt;name&gt;</c> with a JSON object of arguments.
     /// </summary>
@@ -39,6 +40,8 @@ namespace HomeBridge.BridgeTools
                 ["acceptance_read_animal_races"] = (_, ct) => Reads.Value.AnimalRacesAsync(ct),
                 // One row per TerrainDef: cleanliness stat and natural flag.
                 ["acceptance_read_floor_terrains"] = (_, ct) => Reads.Value.FloorTerrainsAsync(ct),
+                // The clock's session accounting: pause/run, probe and digest work, probe and hazard gaps, the frame account.
+                ["acceptance_read_clock_accounting"] = (_, ct) => ProtoBoundary.OnGameThread("rimgovernor/acceptance_read_clock_accounting", Supervisor.ClockAccountingJson, ct),
             };
 
         private static async Task<string> ReadCaptureProfile(int iterations, CancellationToken cancellationToken)

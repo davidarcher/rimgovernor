@@ -53,6 +53,7 @@ internal sealed partial class SpeedmatrixRun
         }
 
         var startTick = (ulong)before["tick"].AsNumber();
+        var accountingStart = await ClockAccounting.ReadAsync(h, "clock-accounting-start", cancellationToken).ConfigureAwait(false);
         _ = await h.CallAsync("play", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = c.Speed, ["ultraSpeedBoost"] = c.TestAcceleration }, cancellationToken).ConfigureAwait(false);
         var resumedAt = DateTimeOffset.UtcNow;
         var lastTick = startTick;
@@ -92,6 +93,9 @@ internal sealed partial class SpeedmatrixRun
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"tick target wait (start {startTick}, last {lastTick}, want +{_profile.Ticks}): {waitErr.Message}"), waitErr);
         }
 
+        // No supervisor runs on this row, so native's pause account holds whatever its own transitions recorded (none).
+        var clock = new ClockSample();
+        clock.Account(accountingStart, await ClockAccounting.ReadAsync(h, "clock-accounting-end", cancellationToken).ConfigureAwait(false));
         var after = await ControlAsync(h, identity, "control-after", cancellationToken).ConfigureAwait(false);
         report["control_after"] = after.DeepClone();
         var pawnsReply = await h.WireAsync(
@@ -114,10 +118,10 @@ internal sealed partial class SpeedmatrixRun
             ["wall_seconds"] = wallSeconds,
             ["wall_tps"] = wallTps,
             ["effective_speed"] = SpeedMatrix.EffectiveSpeed(wallTps, c.Speed),
-            ["paused_ms"] = 0,
-            ["running_ms"] = (ulong)(wallSeconds * 1000),
-            ["paused_fraction_native"] = 0.0,
-            ["native_pause_samples"] = 0,
+            ["paused_ms"] = clock.NativePausedMs,
+            ["running_ms"] = clock.NativeRunningMs,
+            ["paused_fraction_native"] = clock.PausedFractionNative(),
+            ["native_pause_samples"] = clock.NativePauseSamples,
             ["paused_fraction"] = 0.0,
             ["paused_samples"] = 0,
             ["clock_samples"] = 0,

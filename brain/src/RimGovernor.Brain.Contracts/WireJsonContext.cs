@@ -83,8 +83,6 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Clock.Status), TypeInfoPropertyName = "ClockStatus")]
 [JsonSerializable(typeof(EquatableArray<Clock.Alert>), TypeInfoPropertyName = "EquatableArrayClockAlert")]
 [JsonSerializable(typeof(EquatableArray<Clock.Injury>), TypeInfoPropertyName = "EquatableArrayClockInjury")]
-[JsonSerializable(typeof(EquatableArray<Clock.HazardGap>), TypeInfoPropertyName = "EquatableArrayClockHazardGap")]
-[JsonSerializable(typeof(Clock.HazardGap), TypeInfoPropertyName = "ClockHazardGap")]
 [JsonSerializable(typeof(Clock.StatusReply), TypeInfoPropertyName = "ClockStatusReply")]
 [JsonSerializable(typeof(Clock.StatusReplyOutcome), TypeInfoPropertyName = "ClockStatusReplyOutcome")]
 [JsonSerializable(typeof(Clock.StatusReplyOutcome.StatusCase), TypeInfoPropertyName = "ClockStatusReplyOutcomeStatusCase")]

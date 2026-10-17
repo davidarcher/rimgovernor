@@ -11,8 +11,8 @@ namespace HomeBridge.BridgeTools
     /// ClockPauseAccounting: the hazard probe (Probe: letters, messages,
     /// alerts, pawns) and the fact-change digests (PublishFactChanges:
     /// research, world, conditions, zones) are timed apart, so a throughput
-    /// report can take the digest share of the supervisor's cost between its
-    /// first and last status sample. The probe gap is the widest tick
+    /// report can take the digest share of the supervisor's cost between two
+    /// clock accounting reads. The probe gap is the widest tick
     /// distance between consecutive probes any epoch of the session saw; per
     /// hazard class it is the widest window in which that class could have
     /// gone undetected (the probe gap for a polled class, hook to probe for a

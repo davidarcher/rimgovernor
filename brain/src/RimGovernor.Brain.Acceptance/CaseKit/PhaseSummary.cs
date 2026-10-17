@@ -338,6 +338,7 @@ public sealed class ClockSample
 
     public double SampledSecs { get; set; }
 
+    /// <summary>The native accounting below: differences between two <see cref="ClockAccounting"/> reads (NativePauseSamples 2), 0 without them.</summary>
     public ulong NativePausedMs { get; set; }
 
     public ulong NativeRunningMs { get; set; }
@@ -373,6 +374,44 @@ public sealed class ClockSample
     /// <summary>The mean positive effective ticks per second, or 0 without a sample.</summary>
     public double EffectiveTpsMean() => EffectiveTpsSamples == 0 ? 0 : EffectiveTpsSum / EffectiveTpsSamples;
 
+    /// <summary>Sets the native accounting to the difference between two reads; a counter that went backwards (a reload between them) leaves its measure unset.</summary>
+    public void Account(ClockAccounting first, ClockAccounting last)
+    {
+        ArgumentNullException.ThrowIfNull(first);
+        ArgumentNullException.ThrowIfNull(last);
+        NativePauseSamples = 2;
+        if (last.PausedMs >= first.PausedMs && last.RunningMs >= first.RunningMs)
+        {
+            NativePausedMs = last.PausedMs - first.PausedMs;
+            NativeRunningMs = last.RunningMs - first.RunningMs;
+        }
+
+        if (last.ProbeMs >= first.ProbeMs && last.DigestMs >= first.DigestMs)
+        {
+            NativeProbeMs = last.ProbeMs - first.ProbeMs;
+            NativeDigestMs = last.DigestMs - first.DigestMs;
+            if (last.Probes >= first.Probes)
+            {
+                NativeProbes = last.Probes - first.Probes;
+            }
+
+            if (last.Digests >= first.Digests)
+            {
+                NativeDigests = last.Digests - first.Digests;
+            }
+
+            NativeMaxProbeTickGap = last.SessionMaxProbeTickGap;
+            NativeHazardGaps = last.HazardGaps;
+        }
+
+        if (last.PacedFrames >= first.PacedFrames && last.OverBudget >= first.OverBudget)
+        {
+            NativePacedFrames = last.PacedFrames - first.PacedFrames;
+            NativePacedOverBudget = last.OverBudget - first.OverBudget;
+            NativeMaxPacedFrameMs = last.MaxFrameMs;
+        }
+    }
+
     /// <summary>The digests' share of the supervisor's probe-path time, or 0 with nothing accounted.</summary>
     public double DigestShare()
     {
@@ -406,8 +445,11 @@ public sealed class PhaseSummary
 
     public FrameSample Frames { get; private set; } = new();
 
-    /// <summary>Aggregates the rows of a log ring.</summary>
-    public static PhaseSummary Summarize(IReadOnlyList<TimelineRecord> records)
+    /// <summary>
+    /// Aggregates the rows of a log ring; the native clock accounting is the difference between the
+    /// <paramref name="start"/> and <paramref name="end"/> reads of <see cref="ClockAccounting"/>, absent without both.
+    /// </summary>
+    public static PhaseSummary Summarize(IReadOnlyList<TimelineRecord> records, ClockAccounting? start = null, ClockAccounting? end = null)
     {
         ArgumentNullException.ThrowIfNull(records);
         var summary = new PhaseSummary();
@@ -421,9 +463,6 @@ public sealed class PhaseSummary
         double holdWakeMs = 0;
         double maxHoldWakeMs = 0;
         ulong latencySamples = 0;
-        NativePause first = default;
-        NativePause last = default;
-        var havePause = false;
         var observation = new ObservationAccumulator();
         var frames = new FrameAccumulator();
         foreach (var row in records)
@@ -462,22 +501,11 @@ public sealed class PhaseSummary
                         continue;
                     }
 
-                    ReplyClock(reply, out var tick, out var paused, out var hasTick, out var hasPaused, out var pause, out var hasPause);
-                    if (hasPause)
+                    ReplyClock(reply, out var tick, out var paused, out var hasTick, out var hasPaused, out var effectiveTps);
+                    if (effectiveTps > 0)
                     {
-                        clock.NativePauseSamples++;
-                        if (!havePause)
-                        {
-                            first = pause;
-                            havePause = true;
-                        }
-
-                        last = pause;
-                        if (pause.EffectiveTps > 0)
-                        {
-                            clock.EffectiveTpsSamples++;
-                            clock.EffectiveTpsSum += pause.EffectiveTps;
-                        }
+                        clock.EffectiveTpsSamples++;
+                        clock.EffectiveTpsSum += effectiveTps;
                     }
 
                     if (hasPaused)
@@ -573,35 +601,9 @@ public sealed class PhaseSummary
             }
         }
 
-        if (havePause && last.Paused >= first.Paused && last.Running >= first.Running)
+        if (start is not null && end is not null)
         {
-            clock.NativePausedMs = last.Paused - first.Paused;
-            clock.NativeRunningMs = last.Running - first.Running;
-        }
-
-        if (havePause && last.ProbeMs >= first.ProbeMs && last.DigestMs >= first.DigestMs)
-        {
-            clock.NativeProbeMs = last.ProbeMs - first.ProbeMs;
-            clock.NativeDigestMs = last.DigestMs - first.DigestMs;
-            if (last.Probes >= first.Probes)
-            {
-                clock.NativeProbes = last.Probes - first.Probes;
-            }
-
-            if (last.Digests >= first.Digests)
-            {
-                clock.NativeDigests = last.Digests - first.Digests;
-            }
-
-            clock.NativeMaxProbeTickGap = last.MaxProbeTickGap;
-            clock.NativeHazardGaps = last.HazardGaps ?? [];
-        }
-
-        if (havePause && last.PacedFrames >= first.PacedFrames && last.OverBudget >= first.OverBudget)
-        {
-            clock.NativePacedFrames = last.PacedFrames - first.PacedFrames;
-            clock.NativePacedOverBudget = last.OverBudget - first.OverBudget;
-            clock.NativeMaxPacedFrameMs = last.MaxFrameMs;
+            clock.Account(start, end);
         }
 
         summary.Observation = observation.Result();
@@ -735,21 +737,14 @@ public sealed class PhaseSummary
         value is JsonValue v && v.TryGetValue<double>(out var number) ? number : null;
 
     // The observation tick and, for clock status replies (or a bundle's clock status section), the actual-paused flag
-    // and the native pause account out of a recorded reply.
-    private static void ReplyClock(JsonObject reply, out long tick, out bool paused, out bool hasTick, out bool hasPaused, out NativePause pause, out bool hasPause)
+    // and native's effective ticks per second (0 when absent) out of a recorded reply.
+    private static void ReplyClock(JsonObject reply, out long tick, out bool paused, out bool hasTick, out bool hasPaused, out double effectiveTps)
     {
-        tick = 0;
-        paused = false;
-        hasTick = false;
-        hasPaused = false;
-        pause = default;
-        hasPause = false;
         long tickOut = 0;
         var pausedOut = false;
         var hasTickOut = false;
         var hasPausedOut = false;
-        var pauseOut = default(NativePause);
-        var hasPauseOut = false;
+        double tpsOut = 0;
         void Status(JsonObject candidate)
         {
             if (StatusPaused(candidate) is { } value)
@@ -758,10 +753,9 @@ public sealed class PhaseSummary
                 hasPausedOut = true;
             }
 
-            if (StatusPause(candidate) is { } sample)
+            if (JsonNumber(candidate["effectiveTicksPerSecond"]) is { } tps)
             {
-                pauseOut = sample;
-                hasPauseOut = true;
+                tpsOut = tps;
             }
         }
 
@@ -791,8 +785,7 @@ public sealed class PhaseSummary
         paused = pausedOut;
         hasTick = hasTickOut;
         hasPaused = hasPausedOut;
-        pause = pauseOut;
-        hasPause = hasPauseOut;
+        effectiveTps = tpsOut;
     }
 
     // Whether a recorded clock status shows the clock paused: its actual-paused flag when present, else its Run/Held state.
@@ -809,90 +802,6 @@ public sealed class PhaseSummary
             "CLOCK_STATE_HELD" => true,
             _ => null,
         };
-    }
-
-    // A recorded clock status's native pause account (pausedMs / runningMs), absent on a status from a native build without it.
-    private static NativePause? StatusPause(JsonObject status)
-    {
-        if (!TickValue(status["pausedMs"], out var pausedMs))
-        {
-            return null;
-        }
-
-        TickValue(status["runningMs"], out var runningMs);
-        if (pausedMs < 0 || runningMs < 0)
-        {
-            return null;
-        }
-
-        var sample = new NativePause { Paused = (ulong)pausedMs, Running = (ulong)runningMs };
-        sample.ProbeMs = JsonNumber(status["probeElapsedMs"]) ?? 0;
-        sample.DigestMs = JsonNumber(status["digestElapsedMs"]) ?? 0;
-        if (TickValue(status["probeTotal"], out var probes) && probes >= 0)
-        {
-            sample.Probes = (ulong)probes;
-        }
-
-        if (TickValue(status["digestTotal"], out var digests) && digests >= 0)
-        {
-            sample.Digests = (ulong)digests;
-        }
-
-        TickValue(status["sessionMaxProbeTickGap"], out var gapMax);
-        sample.MaxProbeTickGap = gapMax;
-        if (TickValue(status["pacedFrames"], out var frames) && frames >= 0)
-        {
-            sample.PacedFrames = (ulong)frames;
-        }
-
-        if (TickValue(status["pacedFramesOverBudget"], out var over) && over >= 0)
-        {
-            sample.OverBudget = (ulong)over;
-        }
-
-        sample.MaxFrameMs = JsonNumber(status["maxPacedFrameMs"]) ?? 0;
-        sample.EffectiveTps = JsonNumber(status["effectiveTicksPerSecond"]) ?? 0;
-        if (status["hazardGaps"] is JsonArray gaps)
-        {
-            var list = new List<HazardGap>();
-            foreach (var raw in gaps)
-            {
-                if (raw is not JsonObject gapRow)
-                {
-                    continue;
-                }
-
-                TickValue(gapRow["boundTicks"], out var bound);
-                TickValue(gapRow["maxTickGap"], out var maxGap);
-                list.Add(new HazardGap
-                {
-                    HazardClass = gapRow["hazardClass"]?.ToString() ?? "",
-                    BoundTicks = bound,
-                    MaxTickGap = maxGap,
-                    Hooked = gapRow["hooked"] is JsonValue hooked && hooked.TryGetValue<bool>(out var h) && h,
-                });
-            }
-
-            sample.HazardGaps = list;
-        }
-
-        return sample;
-    }
-
-    private struct NativePause
-    {
-        public ulong Paused;
-        public ulong Running;
-        public double ProbeMs;
-        public double DigestMs;
-        public ulong Probes;
-        public ulong Digests;
-        public long MaxProbeTickGap;
-        public IReadOnlyList<HazardGap> HazardGaps;
-        public ulong PacedFrames;
-        public ulong OverBudget;
-        public double MaxFrameMs;
-        public double EffectiveTps;
     }
 
     // ---- the companion's observation and frame accounts ----

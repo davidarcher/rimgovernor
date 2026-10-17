@@ -30,11 +30,12 @@ ticks, at Fast every 18, at Superfast the tick gate fires first. Under the
 acceptance test acceleration (`testAcceleration`) the tick hook calls
 the frame path itself, so the same gates apply.
 
-`max_probe_tick_gap` on the clock status (per run) and
-`session_max_probe_tick_gap` (cumulative for the loaded game) report the
-widest gap observed; `hazard_gaps` reports it per class beside the declared
-bound. The speedmatrix row carries them as `max_probe_tick_gap` and
-`hazard_gaps`.
+The acceptance-only clock accounting read
+(`rimgovernor/acceptance_read_clock_accounting`) reports the widest gap
+observed in the loaded game as `sessionMaxProbeTickGap`, and per class beside
+the declared bound as `hazardGaps`. The speedmatrix row carries them as
+`max_probe_tick_gap` and `hazard_gaps`; the `hazard/*` cases check the class's
+entry.
 
 ## Declared bound per hazard class
 
@@ -128,8 +129,8 @@ re-reads fresh fill on the wake.
 
 The digest pass runs from the frame path after the probe gate, never from
 `Probe`; the contract probe asserts the cadence functions are independent
-and the run timing summary (`probeMs`, `digestMs`) and the clock status
-(`probe_elapsed_ms`, `digest_elapsed_ms`, `probe_total`, `digest_total`)
+and the run timing summary (`probeMs`, `digestMs`) and the clock accounting
+read (`probeElapsedMs`, `digestElapsedMs`, `probeTotal`, `digestTotal`)
 carry the two counters apart. The [throughput
 measure](../testing/measure-throughput.md) reports `digest_share` per
 speedmatrix row.

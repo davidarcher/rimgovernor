@@ -8,9 +8,9 @@ namespace HomeBridge.BridgeTools
     /// Wall time the supervisor's own stop/start transitions account for
     ///: the paused time from each epoch's stop to the next
     /// start, gaps no controller observed included, and the running time of
-    /// each epoch, both on the monotonic Stopwatch clock. Clock.Status
-    /// reports them as paused_ms / running_ms; a throughput report takes the
-    /// difference between its first and last status sample, so a stop the
+    /// each epoch, both on the monotonic Stopwatch clock. The acceptance-only
+    /// clock accounting read reports them as pausedMs / runningMs; a throughput
+    /// report takes the difference between two reads, so a stop the
     /// controller never polled still counts. A changed game session resets
     /// both: the reload between two staged runs is nobody's pause.
     internal static class ClockPauseAccounting

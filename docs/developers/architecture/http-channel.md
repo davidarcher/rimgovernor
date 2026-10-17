@@ -42,7 +42,7 @@ The mod side is `HttpChannelHost.cs` in the Bridge: `NativeOpTable` is an explic
 `NativeOps` entries. A facade op runs its `INativeFacade` method on the in-process facade, the same typed call the brain
 makes; the harness's pull read of the newest frame (`NativeOps.ReadSnapshot`) runs `SnapshotStream.Read` in a game-thread
 hop; the acceptance-only reads (`AcceptanceReadTools.Ops`: colony facts, blight, starter site, Impressiveness,
-capture profile, animal races) take a JSON object of named arguments and answer `{"payload": "<json>"}`; nothing is
+capture profile, animal races, floor terrains, clock accounting) take a JSON object of named arguments and answer `{"payload": "<json>"}`; nothing is
 found by reflection. `HttpChannelBootstrap.Start`, called once by `NativeStartup`, starts the server when
 `RIMGOVERNOR_OTLP_DIR` is set (the directory of the OTLP rings; `RIMGOVERNOR_RUN_ID` optionally names the run). Unset,
 nothing listens. The channel binds only after the host has built its registry (`RimBridgeToolAccess.Published`, on the

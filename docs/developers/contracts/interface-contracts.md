@@ -49,8 +49,9 @@ speed and its clamp relies on.
   bounds stay tick-bounded however many ticks a frame carries.
   - `Status.pacing_reason` (`FIXED`, `FRAME_BUDGET` or `HEARTBEAT`) names the binding input;
     `paced_ticks_per_second`, `ceiling_ticks_per_second` (0 = none) and `effective_ticks_per_second` feed the
-    `clock_step` row and the Observe tab's Now view. `paced_frames`, `paced_frames_over_budget` and
-    `max_paced_frame_ms` are the frame account.
+    `clock_step` row and the Observe tab's Now view. `Status` carries no other accounting: the frame account,
+    the pause/run split, the probe and digest work and the hazard gaps are the acceptance-only
+    `rimgovernor/acceptance_read_clock_accounting` read (`AcceptanceReadTools`), which production never calls.
   - `speedmatrix/observations`' `player` row checks the hazard gaps, the over-budget frame share and the
     queued-command dispatch wait (the manual-command dispatch bound).
 

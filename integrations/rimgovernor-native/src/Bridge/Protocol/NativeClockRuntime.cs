@@ -389,19 +389,34 @@ namespace HomeBridge.BridgeTools
                         if (s.StopAtMs.HasValue && s.PendingKind == null) result = result with { HeldAtUnixMs = s.StopAtMs.Value };
                         if (TypedOf(s).CombatEvent != Clock.CombatEvent.Unspecified) result = result with { CombatEvent = TypedOf(s).CombatEvent };
                     }
-                    result = result with { MaxProbeTickGap = s.MaxProbeTickGap };
                     foreach (var row in s.BaselineAlerts) result = result with { BaselineAlerts = [.. result.BaselineAlerts, NativeClockEventProjection.Alert(row)] };
                     // Existing suppression baselines lack full injury before/after; report incomplete evidence, never fabricate it.
                 }
-                result = result with { PausedMs = ClockPauseAccounting.PausedMs(Current.Game) }; result = result with { RunningMs = ClockPauseAccounting.RunningMs(Current.Game) };
-                result = result with { ProbeElapsedMs = ClockProbeAccounting.ProbeMs(Current.Game) }; result = result with { DigestElapsedMs = ClockProbeAccounting.DigestMs(Current.Game) };
-                result = result with { ProbeTotal = ClockProbeAccounting.Probes(Current.Game) }; result = result with { DigestTotal = ClockProbeAccounting.Digests(Current.Game) };
-                result = result with { SessionMaxProbeTickGap = ClockProbeAccounting.MaxProbeTickGap(Current.Game) };
-                result = result with { EffectiveTicksPerSecond = EffectiveTicksPerSecond() };
-                result = ReportFrames(result);
-                foreach (var gap in ClockProbeAccounting.HazardGapsFor(Current.Game))
-                    result = result with { HazardGaps = [.. result.HazardGaps, new Clock.HazardGap { HazardClass = gap.Key, MaxTickGap = gap.Value, BoundTicks = HazardBoundTicks(gap.Key), Hooked = HazardHooked(gap.Key) && HazardHooksInstalled }] };
-                return result;
+                return result with { EffectiveTicksPerSecond = EffectiveTicksPerSecond() };
+            }
+        }
+
+        /// The acceptance-only clock accounting (#3416), cumulative for the loaded game session: the pause/run split,
+        /// the probe and digest work, the session's widest probe gap, the frame account and, per hazard
+        /// class, the declared bound beside the widest gap observed. The harness reads it through
+        /// acceptance_read_clock_accounting; production reads none of it. Runs on the game thread.
+        internal static string ClockAccountingJson()
+        {
+            lock (Gate)
+            {
+                var game = Current.Game;
+                var gaps = new System.Text.Json.Nodes.JsonArray();
+                foreach (var gap in ClockProbeAccounting.HazardGapsFor(game))
+                    gaps.Add(new System.Text.Json.Nodes.JsonObject { ["hazardClass"] = gap.Key, ["boundTicks"] = HazardBoundTicks(gap.Key),
+                        ["maxTickGap"] = gap.Value, ["hooked"] = HazardHooked(gap.Key) && HazardHooksInstalled });
+                var (frames, overBudget, maxFrameMs) = FrameAccount();
+                return new System.Text.Json.Nodes.JsonObject {
+                    ["pausedMs"] = ClockPauseAccounting.PausedMs(game), ["runningMs"] = ClockPauseAccounting.RunningMs(game),
+                    ["probeElapsedMs"] = ClockProbeAccounting.ProbeMs(game), ["digestElapsedMs"] = ClockProbeAccounting.DigestMs(game),
+                    ["probeTotal"] = ClockProbeAccounting.Probes(game), ["digestTotal"] = ClockProbeAccounting.Digests(game),
+                    ["sessionMaxProbeTickGap"] = ClockProbeAccounting.MaxProbeTickGap(game),
+                    ["pacedFrames"] = frames, ["pacedFramesOverBudget"] = overBudget, ["maxPacedFrameMs"] = maxFrameMs,
+                    ["hazardGaps"] = gaps }.ToJsonString();
             }
         }
 

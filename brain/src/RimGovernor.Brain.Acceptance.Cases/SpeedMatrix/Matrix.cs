@@ -392,6 +392,8 @@ internal sealed partial class SpeedmatrixRun
                 readers = ObservationReaders.Start(new StateSource(service), SpeedMatrix.ObservationLoadReaders, SpeedMatrix.ObservationLoadInterval, cancellationToken);
             }
 
+            // The row's native clock accounting is the difference between this read and the one when the wait ends.
+            var accountingStart = await ClockAccounting.ReadAsync(h, "clock-accounting-start", cancellationToken).ConfigureAwait(false);
             var resumedAt = DateTimeOffset.UtcNow;
             var keepAlive = new AuthorityKeepAlive(service, prefix, identity, token);
             stopKeepAlive = keepAlive.Start(cancellationToken);
@@ -450,6 +452,7 @@ internal sealed partial class SpeedmatrixRun
                 throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"tick target wait (start {startTick}, last {lastTick}, want +{_profile.Ticks}): {waitErr.Message}"), waitErr);
             }
 
+            var accountingEnd = await ClockAccounting.ReadAsync(h, "clock-accounting-end", cancellationToken).ConfigureAwait(false);
             var (unsuccessful, planCount) = await CountUnsuccessfulAsync(journal, planIds, cancellationToken).ConfigureAwait(false);
             report["plans_inspected"] = planCount;
             journal.Dispose();
@@ -466,7 +469,7 @@ internal sealed partial class SpeedmatrixRun
             stopKeepAlive = null;
             _ = await service.StopAsync().ConfigureAwait(false);
             var timeline = OtlpTimeline.Read(ServiceLogs.ServiceLogsPath(output));
-            var phases = PhaseSummary.Summarize(timeline);
+            var phases = PhaseSummary.Summarize(timeline, accountingStart, accountingEnd);
             var holds = StopSummaries.SummarizeHolds(timeline, resumedAt.ToUnixTimeMilliseconds());
             report["holds"] = holds.ToJson();
             var metrics = CaseMetrics(c, phases, holds, startTick, lastTick, wallSeconds);
@@ -799,7 +802,7 @@ internal sealed partial class SpeedmatrixRun
             ["native_pause_samples"] = clock.NativePauseSamples,
 
             // The supervisor's probe path split: hazard probe against the fact-change digests, session-cumulative
-            // between the first and last status samples, and the detection gaps the session reported.
+            // between the row's two clock accounting reads, and the detection gaps the session reported.
             ["probe_ms"] = clock.NativeProbeMs,
             ["digest_ms"] = clock.NativeDigestMs,
             ["digest_share"] = clock.DigestShare(),

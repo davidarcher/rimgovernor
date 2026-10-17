@@ -125,10 +125,6 @@ public static partial class BridgeFunctions
         {
             throw Contract("clock status facts missing");
         }
-        if ((s.MaxProbeTickGap is not null && s.MaxProbeTickGap.GetValueOrDefault() < 0))
-        {
-            throw Contract("clock status diagnostics");
-        }
         switch (s.State)
         {
             case ClockState.Running:

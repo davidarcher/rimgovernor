@@ -428,8 +428,6 @@ public sealed record Status
 
     public long? NewestCursor { get; init; }
 
-    public long? MaxProbeTickGap { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<Alert>))]
     public EquatableArray<Alert> BaselineAlerts { get; init; }
 
@@ -441,75 +439,10 @@ public sealed record Status
     public bool? ActualPaused { get; init; }
 
     /// <summary>
-    /// Wall time the supervisor's own hold/run transitions account for in
-    /// this game session, on a monotonic clock: paused_ms is the time held
-    /// (the open gap included while held), running_ms the time run.
-    /// Both reset when the loaded game changes.
-    /// </summary>
-    public ulong? PausedMs { get; init; }
-
-    public ulong? RunningMs { get; init; }
-
-    /// <summary>
-    /// Supervisor probe accounting, cumulative for the loaded game
-    /// session like paused_ms: wall time the hazard probe (probe_elapsed_ms,
-    /// probe_total passes) and the fact-change digests (digest_elapsed_ms,
-    /// digest_total passes) took on the main thread, and the widest tick gap
-    /// between consecutive probes the session saw.
-    /// </summary>
-    public double? ProbeElapsedMs { get; init; }
-
-    public double? DigestElapsedMs { get; init; }
-
-    public ulong? ProbeTotal { get; init; }
-
-    public ulong? DigestTotal { get; init; }
-
-    public long? SessionMaxProbeTickGap { get; init; }
-
-    /// <summary>
-    /// Per hazard class: the declared maximum detection gap in ticks and the
-    /// widest gap observed this session.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HazardGap>))]
-    public EquatableArray<HazardGap> HazardGaps { get; init; }
-
-    /// <summary>
     /// Game ticks per wall second over the last ten seconds of frames, paused
     /// time included: what the player actually gets.
     /// </summary>
     public double? EffectiveTicksPerSecond { get; init; }
-
-    /// <summary>
-    /// The frame account, cumulative for the loaded game session: frames that
-    /// ticked, those whose tick work exceeded the frame budget, and the
-    /// widest frame's tick work. A command queued for the main thread waits at most one
-    /// frame's tick work.
-    /// </summary>
-    public ulong? PacedFrames { get; init; }
-
-    public ulong? PacedFramesOverBudget { get; init; }
-
-    public double? MaxPacedFrameMs { get; init; }
-}
-
-/// <summary>
-/// One hazard class the supervisor probe covers: its declared detection
-/// bound in ticks (holds at every speed) and the widest gap observed.
-/// </summary>
-public sealed record HazardGap
-{
-    public string HazardClass { get; init; } = "";
-
-    public long BoundTicks { get; init; }
-
-    public long MaxTickGap { get; init; }
-
-    /// <summary>
-    /// The class also has a direct game hook that requests a probe on the
-    /// next tick; max_tick_gap then measures hook to probe.
-    /// </summary>
-    public bool Hooked { get; init; }
 }
 
 /// <summary>The reply of Status, Run and Hold: the clock status or a failure that had no clock effect.</summary>

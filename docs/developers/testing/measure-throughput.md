@@ -139,7 +139,11 @@ brain attached (the simulation ceiling): it reports only `ticks_advanced`,
 `brain/src/RimGovernor.Brain.Acceptance/Scenario/SpeedMatrix.cs`). Key rules:
 
 - `paused_fraction_native` (with `paused_ms`/`running_ms`, reset on reload) is
-  the paused number; `paused_fraction` is the sampling diagnostic.
+  the paused number; `paused_fraction` is the sampling diagnostic. The native
+  accounting (pause/run, `probe_ms`/`digest_ms`, the frame account,
+  `max_probe_tick_gap`, `hazard_gaps`) is the difference between two
+  `rimgovernor/acceptance_read_clock_accounting` reads, one when the row
+  resumes and one when its wait ends (`ClockAccounting`).
 - `holds` counts the clock holds the journal carried, `holds_per_6000_ticks`
   is the rate comparable across speeds and `hold_reasons` splits them by
   reason (`letter_pause`, `review`, `coupled_order`, ...). A healthy run holds

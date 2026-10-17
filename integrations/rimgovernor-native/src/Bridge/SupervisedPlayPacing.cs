@@ -119,11 +119,10 @@ namespace HomeBridge.BridgeTools
             if (frameMs > _maxPacedFrameMs) _maxPacedFrameMs = frameMs;
         }
         // Caller holds Gate.
-        internal static RimGovernor.Contracts.Wire.Clock.Status ReportFrames(RimGovernor.Contracts.Wire.Clock.Status status)
+        private static (ulong Frames, ulong OverBudget, double MaxFrameMs) FrameAccount()
         {
             FramesFor(Current.Game);
-            status = status with { PacedFrames = _pacedFrames }; status = status with { PacedFramesOverBudget = _pacedFramesOverBudget }; status = status with { MaxPacedFrameMs = _maxPacedFrameMs };
-            return status;
+            return (_pacedFrames, _pacedFramesOverBudget, _maxPacedFrameMs);
         }
     }
 }
