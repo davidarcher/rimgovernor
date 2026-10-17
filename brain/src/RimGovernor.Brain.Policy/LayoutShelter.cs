@@ -43,9 +43,9 @@ public static partial class LayoutShelterRules
     public static int ShelterInteriorArea(int colonists, int campfires, int coolers)
     {
         var contents = (ShelterBunkCells * Math.Max(colonists, 1)) + (ShelterCampfireCell * Math.Max(campfires, 0)) + (ShelterCoolerCell * Math.Max(coolers, 0));
-        foreach (var c in ShelterCapabilities)
+        foreach (var c in LayoutCapabilityRules.ShelterCapabilities)
         {
-            contents += CapabilityCells.GetValueOrDefault(c);
+            contents += LayoutCapabilityRules.CapabilityCells.GetValueOrDefault(c);
         }
         return ((contents * 3) + 1) / 2;
     }
@@ -212,7 +212,7 @@ partial record LayoutPlan
                 }
             }
         }
-        foreach (var c in ShelterCapabilities)
+        foreach (var c in LayoutCapabilityRules.ShelterCapabilities)
         {
             if (!LayoutShelterRules.CapabilityHoused(c, plan, rooms, sleeping, built, shelterRooms, bedroomOf))
             {

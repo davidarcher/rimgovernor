@@ -307,7 +307,7 @@ partial class RoundsBuildingPlanner
         }
         foreach (var d in facts.Definitions)
         {
-            if (d.Name != PolicyConstants.ButcherTableDefinition)
+            if (d.Name != KitchenSeparationRules.ButcherTableDefinition)
             {
                 continue;
             }
@@ -348,7 +348,7 @@ partial class RoundsBuildingPlanner
         var table = false;
         foreach (var bench in benches)
         {
-            table = table || bench.Definition == PolicyConstants.ButcherTableDefinition;
+            table = table || bench.Definition == KitchenSeparationRules.ButcherTableDefinition;
         }
         if (!table)
         {
@@ -372,7 +372,7 @@ partial class RoundsBuildingPlanner
     }
 
     internal static bool ButcherBenchDefinition(string definition) =>
-        definition == PolicyConstants.ButcherTableDefinition || definition == RoundsRules.ButcherSpotDefinition;
+        definition == KitchenSeparationRules.ButcherTableDefinition || definition == RoundsRules.ButcherSpotDefinition;
 
     internal static (CurrentBuilding Building, bool Retire) StandingCraftingSpot(ColonyProjection facts)
     {

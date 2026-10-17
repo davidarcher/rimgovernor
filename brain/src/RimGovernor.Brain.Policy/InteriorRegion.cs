@@ -27,7 +27,7 @@ internal delegate (IReadOnlyList<RegionWant> Wants, bool Ok) RegionRole(Interior
 
 public static class InteriorRegionRules
 {
-    private static readonly InteriorTable InteriorTableValue = new(WorkshopShelfDef, StandingLampDef, 2);
+    private static readonly InteriorTable InteriorTableValue = new(InteriorRegionRolesRules.WorkshopShelfDef, InteriorHelpersRules.StandingLampDef, 2);
 
     /// <summary>The region interior's judgment table.</summary>
     public static InteriorTable InteriorDefs() => InteriorTableValue;

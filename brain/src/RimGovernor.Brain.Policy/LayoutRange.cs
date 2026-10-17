@@ -20,7 +20,8 @@ public sealed partial record LayoutPlan
     public List<PlannedRoom> RangeRooms() => RoomsOf(LayoutRangeRules.PlannedTrainingRange);
 }
 
-public static partial class PolicyConstants
+/// <summary>Ports <c>layout_range.go</c>: the training range, a planned Outdoor room with no ring at all.</summary>
+public static partial class LayoutRangeRules
 {
     /// <summary>The roles planned as an Outdoor room (PlannedRoom.Outdoor): no ring, no roof, no floor owed.</summary>
     internal static readonly IReadOnlySet<PlannedRole> OutdoorRoles = new HashSet<PlannedRole>
@@ -30,11 +31,7 @@ public static partial class PolicyConstants
         PlannedRole.TrainingRange,
         PlannedRole.SparringRing,
     };
-}
 
-/// <summary>Ports <c>layout_range.go</c>: the training range, a planned Outdoor room with no ring at all.</summary>
-public static partial class LayoutRangeRules
-{
     /// <summary>Reports whether a room of role is planned as an Outdoor room.</summary>
     public static bool IsOutdoor(this PlannedRole role) => OutdoorRoles.Contains(role);
 

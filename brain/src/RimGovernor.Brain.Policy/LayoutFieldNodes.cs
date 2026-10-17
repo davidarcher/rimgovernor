@@ -7,12 +7,6 @@ namespace RimGovernor.Brain.Policy;
 // mining are not nodes: nothing at runtime reads pasture or wood and ore is fixed by the map, so they stay the
 // zoning masks (Zone). The node names its mask, ZoneField (soil of at least FertilityMin); placement and the
 // tiler's mask are the next stage, and crop choice is the caller's: Crops are the crops already chosen.
-public static partial class PolicyConstants
-{
-    /// <summary>Why the graph holds a field: the crop's capacity target.</summary>
-    public const string ReasonFieldDemand = "field_crop_capacity_target";
-}
-
 /// <summary>The outdoor land one crop needs.</summary>
 public sealed record FieldNode
 {

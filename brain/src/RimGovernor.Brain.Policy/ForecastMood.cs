@@ -127,7 +127,7 @@ public static class ForecastMood
         if (!breakKnown) unknown.Add("mental_break_probability_unassessed");
         // The observed threshold is the pawn's minor-break level, the model's base for every tier.
         var breakModel = new MoodBreakModel { Threshold = threshold };
-        Span<double> tierTicks = stackalloc double[PolicyConstants.MoodTierCount];
+        Span<double> tierTicks = stackalloc double[LayoutMoodRules.MoodTierCount];
         // Bound response interpolation by native update-sized intervals. Phase is not observed.
         if (pawn.MoodIntervalTicks.TryGetValue(out var interval) && double.IsFinite(interval) && interval > 0)
         {

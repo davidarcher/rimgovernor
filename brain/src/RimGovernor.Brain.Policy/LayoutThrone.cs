@@ -35,7 +35,7 @@ public static partial class LayoutThroneRules
     {
         var output = new List<(int W, int D)>();
         var limit = Math.Max(area * 3 / 2, ThroneMinSide * ThroneMinSide);
-        for (var d = ThroneMinSide; d <= CoreMaxDepth; d++)
+        for (var d = ThroneMinSide; d <= BuildGround.CoreMaxDepth; d++)
         {
             var w = Math.Max((area + d - 1) / d, ThroneMinSide);
             if (w * d <= limit)
@@ -45,7 +45,7 @@ public static partial class LayoutThroneRules
         }
         if (output.Count == 0)
         {
-            output.Add(((area + CoreMaxDepth - 1) / CoreMaxDepth, CoreMaxDepth));
+            output.Add(((area + BuildGround.CoreMaxDepth - 1) / BuildGround.CoreMaxDepth, BuildGround.CoreMaxDepth));
         }
         return [.. output.OrderBy(s => s.W * s.D).ThenBy(s => LightingRules.Abs32((2 * s.W) - (3 * s.D)))];
     }

@@ -17,8 +17,8 @@ internal static class LayoutPowerSites
     // A battery facing north spans z..z+1, turned east x..x+1; a solar site's centre is its area's corner plus (1, 1).
     private static readonly (string Def, Fx.StageCell Cell, Placement.Rotation Rotation, Fx.StageRect Area)[] Sites =
     [
-        (PolicyConstants.BatteryDefinition, new(2, 2), Placement.Rotation.North, new(2, 2, 1, 2)),
-        (PolicyConstants.BatteryDefinition, new(2, 6), Placement.Rotation.East, new(2, 6, 2, 1)),
+        (PowerRules.BatteryDefinition, new(2, 2), Placement.Rotation.North, new(2, 2, 1, 2)),
+        (PowerRules.BatteryDefinition, new(2, 6), Placement.Rotation.East, new(2, 6, 2, 1)),
         (LayoutUtilityRules.SolarDefinition, new(7, 3), Placement.Rotation.North, new(6, 2, 4, 4)),
     ];
 

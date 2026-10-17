@@ -6,17 +6,14 @@ namespace RimGovernor.Brain.Policy;
 // who trades, who tames, who holds the line), all from the same PawnProfile the planner scores. Each returns
 // the chosen pawn in a deterministic order (fitness, then ID) and null when no pawn qualifies.
 
-public static partial class PolicyConstants
+public static partial class PawnRules
 {
     /// <summary>The prey one hunter keeps designated at once.</summary>
     public const int HuntsPerHunter = 3;
 
     /// <summary>Bounds the hunt rows of one acquisition method, whatever the roster.</summary>
     public const int MaxHuntRows = 48;
-}
 
-public static partial class PawnRules
-{
     internal readonly record struct RoleCandidate(PawnId Id, double Score);
 
     internal static PawnId? BestRole(List<RoleCandidate> candidates)
@@ -124,7 +121,7 @@ public static partial class PawnRules
     /// HunterFor profiles), less the hunts already designated, at most MaxHuntRows.
     /// </summary>
     public static int HuntBudget(IReadOnlyList<PawnProfile> profiles, int pendingHunts) =>
-        Math.Max(0, Math.Min(PolicyConstants.MaxHuntRows, Hunters(profiles) * PolicyConstants.HuntsPerHunter) - pendingHunts);
+        Math.Max(0, Math.Min(PawnRules.MaxHuntRows, Hunters(profiles) * PawnRules.HuntsPerHunter) - pendingHunts);
 
     /// <summary>Counts the ranged Hunting-capable colonists (HunterFor's profiles).</summary>
     public static int Hunters(IReadOnlyList<PawnProfile> profiles) =>

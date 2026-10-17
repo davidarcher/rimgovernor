@@ -133,7 +133,7 @@ public static class ColonyDecodeReads
                 PowerSources = catalog.PowerSources(),
             };
             var generatorRows = new Dictionary<string, GeneratorRow>(StringComparer.Ordinal);
-            foreach (var name in PolicyConstants.GeneratorDefinitions)
+            foreach (var name in PowerRules.GeneratorDefinitions)
             {
                 if (catalog.FindThing(name) is null)
                 {
@@ -146,9 +146,9 @@ public static class ColonyDecodeReads
                 GeneratorRows = generatorRows,
                 ComponentSteel = catalog.ProductInputCost(TradePolicyRules.ComponentResource.Value, SiteRules.SteelResource.Value),
             };
-            if (catalog.FindThing(PolicyConstants.BatteryDefinition) is not null)
+            if (catalog.FindThing(PowerRules.BatteryDefinition) is not null)
             {
-                r = r with { PowerBattery = catalog.PowerBattery(PolicyConstants.BatteryDefinition) };
+                r = r with { PowerBattery = catalog.PowerBattery(PowerRules.BatteryDefinition) };
             }
         }
         // The biome's permanent darkness is its map conditions', read only where something decides on it
@@ -177,7 +177,7 @@ public static class ColonyDecodeReads
             ShelterArea = PoliciesReads.ShelterArea(r.Policies),
             NoDangerArea = PoliciesReads.AllowedAreaID(r.Policies, ShelterRules.NoDangerAreaLabel),
             AnimalWard = f.AnimalWard with { Area = PoliciesReads.AllowedAreaID(r.Policies, HerdWardRules.HospitalAreaLabel) },
-            IsolationArea = PoliciesReads.AllowedAreaID(r.Policies, PolicyConstants.IsolationAreaLabel),
+            IsolationArea = PoliciesReads.AllowedAreaID(r.Policies, IsolationRoomRules.IsolationAreaLabel),
             RaidPoints = r.Threat.RaidPoints,
             Monolith = AnomalyColonyReads.MonolithFacts(r.Anomaly),
         };

@@ -63,7 +63,7 @@ public sealed partial class RoundsAcquisitionPlanner
         // An outdoor hazard holds chop, hunt and forage like it holds remote work.
         if (OutdoorHazardRules.OutdoorAcquisitionHeld(projection.Facts))
         {
-            return new RoundsAcquisitionResult { Verdict = WaitFor(Cause.RoomTemperature, PolicyConstants.RemoteHoldHazard) };
+            return new RoundsAcquisitionResult { Verdict = WaitFor(Cause.RoomTemperature, OutdoorHazardRules.RemoteHoldHazard) };
         }
         var stockGoal = !food;
         var huntOnly = false;

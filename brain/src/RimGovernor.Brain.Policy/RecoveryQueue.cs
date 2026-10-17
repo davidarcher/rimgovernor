@@ -166,7 +166,7 @@ public static partial class RecoveryRules
         }
         if (OutdoorHazardRules.OutdoorHazardHeldDash(r.Hazard, r.DashOpen))
         {
-            return RemoteHoldHazard;
+            return OutdoorHazardRules.RemoteHoldHazard;
         }
         if (t.Hold.Length != 0)
         {

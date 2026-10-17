@@ -296,7 +296,7 @@ public sealed class MilitaryRounds
         if (facts.HuntingHeld)
         {
             // An outdoor hazard holds chop, hunt and forage like it holds remote work.
-            return WaitFor(Cause.RoomTemperature, PolicyConstants.RemoteHoldHazard);
+            return WaitFor(Cause.RoomTemperature, OutdoorHazardRules.RemoteHoldHazard);
         }
         if (facts.HuntsUnread)
         {

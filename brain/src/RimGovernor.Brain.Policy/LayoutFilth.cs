@@ -1,19 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyConstants
-{
-    /// <summary>The divisor RoomStatWorker_Impressiveness puts under the room's cleanliness (1 + min(cleanliness, 0) / 2.5) before it takes the cleanliness factor of the stat.</summary>
-    internal const double ImpressivenessCleanlinessScale = 2.5;
-
-    private static readonly FilthGame FilthGameValue = new() { UnitsPerRun = 1, SpeedStat = "CleaningSpeed" };
-
-    private static readonly FoodPoisonTable FoodPoisonGameValue = new() { Hediff = "FoodPoisoning", WorkCapacity = "Consciousness", VomitJob = "Vomit", VomitTicks = 600 };
-
-    internal static FilthGame FilthGameJudgment => FilthGameValue;
-
-    internal static FoodPoisonTable FoodPoisonJudgment => FoodPoisonGameValue;
-}
-
 /// <summary>One point of a game SimpleCurve.</summary>
 public readonly record struct CurvePoint(double X, double Y);
 
@@ -68,7 +54,7 @@ public sealed record FilthModel
         var days = 0.0;
         foreach (var r in runs.Values)
         {
-            days += r.Runs * PolicyConstants.FilthGameJudgment.UnitsPerRun * CleaningWork / CleaningSpeed / GameTime.TicksPerDay;
+            days += r.Runs * LayoutFilthRules.FilthGameJudgment.UnitsPerRun * CleaningWork / CleaningSpeed / GameTime.TicksPerDay;
         }
         return days;
     }
@@ -100,7 +86,7 @@ public sealed record FilthModel
         foreach (var node in filthy)
         {
             var r = runs.GetValueOrDefault(node);
-            var (standing, exposure) = LayoutFilthRules.Residual(r.Runs * PolicyConstants.FilthGameJudgment.UnitsPerRun, r.Ticks, StandTicks);
+            var (standing, exposure) = LayoutFilthRules.Residual(r.Runs * LayoutFilthRules.FilthGameJudgment.UnitsPerRun, r.Ticks, StandTicks);
             var standingChance = LayoutFilthRules.EvaluateCurve(FoodPoison, per * standing);
             var poisonings = meals * exposure * standingChance;
             output.Add(new FilthCost
@@ -204,7 +190,7 @@ public sealed record PoisoningModel
             total += days * (1 - stages[i].WorkFactor);
             if (stages[i].VomitMtbDays > 0)
             {
-                total += days / stages[i].VomitMtbDays * PolicyConstants.FoodPoisonJudgment.VomitTicks / GameTime.TicksPerDay;
+                total += days / stages[i].VomitMtbDays * LayoutFilthRules.FoodPoisonJudgment.VomitTicks / GameTime.TicksPerDay;
             }
             top = low;
         }
@@ -242,11 +228,19 @@ public sealed record FilthCost
 
 public static partial class LayoutFilthRules
 {
+    private static readonly FilthGame FilthGameValue = new() { UnitsPerRun = 1, SpeedStat = "CleaningSpeed" };
+
+    private static readonly FoodPoisonTable FoodPoisonGameValue = new() { Hediff = "FoodPoisoning", WorkCapacity = "Consciousness", VomitJob = "Vomit", VomitTicks = 600 };
+
+    internal static FilthGame FilthGameJudgment => FilthGameValue;
+
+    internal static FoodPoisonTable FoodPoisonJudgment => FoodPoisonGameValue;
+
     /// <summary>The table the bridge reads the cleaning model with.</summary>
-    public static FilthGame FilthGameTable() => PolicyConstants.FilthGameJudgment;
+    public static FilthGame FilthGameTable() => LayoutFilthRules.FilthGameJudgment;
 
     /// <summary>The table the bridge reads the poisoning model with.</summary>
-    public static FoodPoisonTable FoodPoisonGame() => PolicyConstants.FoodPoisonJudgment;
+    public static FoodPoisonTable FoodPoisonGame() => LayoutFilthRules.FoodPoisonJudgment;
 
     /// <summary>SimpleCurve.Evaluate: linear between points, the end values outside them.</summary>
     internal static double EvaluateCurve(IReadOnlyList<CurvePoint> points, double x)

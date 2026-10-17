@@ -12,15 +12,6 @@ namespace RimGovernor.Brain.Policy;
 // decision, #2869), and the strictly-better acceptance rule already prevents churn, so no labor-to-score rate
 // exists. Every other built piece is Pinned. Doors are not searched (they stay as given); moving one needs a
 // rate between rebuild labor and the objective's terms, which is a later priced variable.
-public static partial class PolicyConstants
-{
-    /// <summary>
-    /// The move budget when InteriorSearch names none: a compute bound, not a game value. Every fixture of the
-    /// score table reaches its result well inside it.
-    /// </summary>
-    public const int DefaultInteriorSearchIterations = 600;
-}
-
 /// <summary>The search's input beside the RegionPlacement it improves.</summary>
 public sealed record InteriorSearch
 {
@@ -94,6 +85,12 @@ public sealed record InteriorSearchResult
 
 public static class InteriorSearchRules
 {
+    /// <summary>
+    /// The move budget when InteriorSearch names none: a compute bound, not a game value. Every fixture of the
+    /// score table reaches its result well inside it.
+    /// </summary>
+    public const int DefaultInteriorSearchIterations = 600;
+
     /// <summary>
     /// Places req's wants with the greedy placer and improves the layout by seeded local search. It throws when
     /// the greedy seed does, and returns the seed unchanged when the request has no door to measure from.

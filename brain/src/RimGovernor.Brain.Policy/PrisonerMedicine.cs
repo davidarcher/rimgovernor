@@ -8,20 +8,14 @@ namespace RimGovernor.Brain.Policy;
 // reason naming the limit, and asks the economy/resource Need for herbal medicine through ResourceNeeds (healroot
 // growing, trade buys).
 
-public static partial class PolicyConstants
+public static partial class PrisonerMedicineRules
 {
-    /// <summary>The care ceiling a harvest target is held at.</summary>
-    public const string PrisonerMedicalCare = "HerbalOrWorse";
-
     /// <summary>
     /// The herbal stock a care-limited prisoner surgery asks for: vanilla's harvest and removal recipes take
     /// one medicine, and a second covers the tend after a failure.
     /// </summary>
     public const long PrisonerSurgeryHerbal = 2;
-}
 
-public static partial class PrisonerMedicineRules
-{
     private readonly record struct CareOp(PawnId Pawn, string Recipe, int Part);
 
     /// <summary>
@@ -101,6 +95,6 @@ public static partial class PrisonerMedicineRules
         {
             return needs;
         }
-        return ResourceRules.ResourceConcernTargets(needs, new Dictionary<Resource, long> { [herbal] = PolicyConstants.PrisonerSurgeryHerbal });
+        return ResourceRules.ResourceConcernTargets(needs, new Dictionary<Resource, long> { [herbal] = PrisonerMedicineRules.PrisonerSurgeryHerbal });
     }
 }

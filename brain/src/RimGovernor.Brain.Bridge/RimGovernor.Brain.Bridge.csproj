@@ -18,6 +18,5 @@
   <ItemGroup Condition="'$(GameAvailable)' == 'true'">
     <Using Include="RimGovernor.Brain.Domain" />
     <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
-    <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
   </ItemGroup>
 </Project>

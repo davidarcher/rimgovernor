@@ -9,7 +9,7 @@ public sealed class PowerMethodTests
     private static readonly PowerPlanning Planning = new()
     {
         Battery = new PowerBattery(600, 0.5),
-        Sources = new Dictionary<string, PowerSourceProfile> { ["WoodFiredGenerator"] = PolicyConstants.ConstantPowerProfile },
+        Sources = new Dictionary<string, PowerSourceProfile> { ["WoodFiredGenerator"] = PowerRules.ConstantPowerProfile },
     };
 
     private static PowerSite Site(string id, string definition, Cell cell, double watts, double output, bool powered) => new()

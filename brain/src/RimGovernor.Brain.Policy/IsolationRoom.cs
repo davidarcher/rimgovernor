@@ -13,15 +13,6 @@ namespace RimGovernor.Brain.Policy;
 // restricted to an area treats food outside it as forbidden, decompile: ForbidUtility.InAllowedArea).
 //
 // The isolation room's plan role is PlannedRole.IsolationRoom (wire name "isolation-room").
-public static partial class PolicyConstants
-{
-    /// <summary>The bot area key of the Isolation allowed area: the plan's isolation room interior.</summary>
-    public const string IsolationAreaKey = "Isolation";
-
-    /// <summary>The native label of the Isolation area.</summary>
-    public const string IsolationAreaLabel = IsolationAreaKey;
-}
-
 /// <summary>
 /// The projection's isolation inputs: the creepjoiners the colony holds apart and the bed definitions the room
 /// can be furnished from. Pawns is unknown until the pawn rows are read (and without Anomaly).
@@ -35,6 +26,12 @@ public sealed record IsolationPlanning
 
 public static class IsolationRoomRules
 {
+    /// <summary>The bot area key of the Isolation allowed area: the plan's isolation room interior.</summary>
+    public const string IsolationAreaKey = "Isolation";
+
+    /// <summary>The native label of the Isolation area.</summary>
+    public const string IsolationAreaLabel = IsolationAreaKey;
+
     /// <summary>
     /// The room the isolated creepjoiners owe: one bed in its own room (one bed however many creepjoiners; they
     /// are rare). No isolated creepjoiner, an unread census, or a bed that is not buildable yet or has no known

@@ -76,15 +76,15 @@ public sealed class RoyaltyRounds
         var items = Unknown<EquatableArray<string>>();
         if (candidates.TryGetValue(out var first) && levelUps.TryGetValue(out var up) && first.Count + up.Count > 0 && projection.Royalty.TryGetValue(out var royalty))
         {
-            if (royalty.Neuroformers.TryGetValue(PolicyConstants.PsylinkNeuroformer, out var stock) && stock.Held.TryGetValue(out var held) && held == 0)
+            if (royalty.Neuroformers.TryGetValue(PsylinkRules.PsylinkNeuroformer, out var stock) && stock.Held.TryGetValue(out var held) && held == 0)
             {
                 items = Known<EquatableArray<string>>([]);
             }
-            else if (royalty.Neuroformers.ContainsKey(PolicyConstants.PsylinkNeuroformer))
+            else if (royalty.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
             {
                 try
                 {
-                    var read = await native.ReadNeuroformerItemsAsync(identity, PolicyConstants.PsylinkNeuroformer, ct).ConfigureAwait(false);
+                    var read = await native.ReadNeuroformerItemsAsync(identity, PsylinkRules.PsylinkNeuroformer, ct).ConfigureAwait(false);
                     items = Known<EquatableArray<string>>([.. read]);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)

@@ -81,7 +81,7 @@ public static partial class RoomQualityRules
     /// </summary>
     public static IReadOnlyList<string> RoomBeautyDefinitions()
     {
-        var output = new List<string> { StandingLampDef, PlantPotDefinition };
+        var output = new List<string> { InteriorHelpersRules.StandingLampDef, PlantPotDefinition };
         output.AddRange(FlooringRules.DefaultFlooringPolicy().Floors);
         return output;
     }

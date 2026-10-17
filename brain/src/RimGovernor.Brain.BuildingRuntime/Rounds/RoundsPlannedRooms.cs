@@ -85,13 +85,13 @@ public sealed partial class RoundsBuildingPlanner
             return LayoutCapabilityRules.ShelterHosts(Capability.Craft);
         }
 
-        if (Definition == PolicyConstants.ShelterHeatDef)
+        if (Definition == LayoutCapabilityRules.ShelterHeatDef)
         {
             var cooking = Concern == FoodRules.CookingNeed.FilingKey && Paste.Count == 0;
             return known && plan!.Cold && LayoutCapabilityRules.ShelterHosts(Capability.Heat) && (cooking || (Temperature is not null && Temperature.Method == TemperatureMethod.Heat));
         }
 
-        if (Definition == PolicyConstants.ShelterCoolDef)
+        if (Definition == LayoutCapabilityRules.ShelterCoolDef)
         {
             return known && plan!.Hot && Temperature is not null && Temperature.Method == TemperatureMethod.Cool;
         }
@@ -105,7 +105,7 @@ public sealed partial class RoundsBuildingPlanner
 
 partial class RoundsBuildingPlanner
 {
-    internal const string CraftingSpotDefinition = PolicyConstants.CraftingSpotDefinition;
+    internal const string CraftingSpotDefinition = RoundsRules.CraftingSpotDefinition;
 
     internal static (LayoutPlan Plan, RoomObservation Rooms, bool Known) PlannedLayout(ColonyProjection facts)
     {

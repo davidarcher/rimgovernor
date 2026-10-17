@@ -63,7 +63,7 @@ partial class StationGraph
     public PenNode? Pen(string id) => this.Pens.FirstOrDefault(p => p.Id == id);
 
     /// <summary>Whether a node is outside the base: the outside node or a pen.</summary>
-    internal bool Outdoor(string id) => id == OutsideNode || this.Pen(id) is not null;
+    internal bool Outdoor(string id) => id == LayoutGraphRules.OutsideNode || this.Pen(id) is not null;
 }
 
 partial class GraphBuilder

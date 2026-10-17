@@ -55,58 +55,6 @@ public enum EnvRequirement
     OpenSky,
 }
 
-public static partial class PolicyConstants
-{
-    // Verdicts and reasons of clustering decisions.
-    public const string ClusterMerge = "merge";
-    public const string ClusterKeep = "keep";
-    public const string ClusterSplit = "split";
-
-    /// <summary>A station-less room node became a group (#2882).</summary>
-    public const string ClusterRoom = "room";
-
-    /// <summary>A group needs cold and the catalog has no cooling station.</summary>
-    public const string ClusterUnsatisfied = "unsatisfied";
-
-    public const string ReasonClusterAffinity = "cluster_affinity";
-    public const string ReasonClusterLostEffect = "cluster_lost_effect";
-    public const string ReasonClusterEnvConflict = "cluster_env_conflict";
-    public const string ReasonClusterArea = "cluster_area";
-
-    /// <summary>A filth node was kept from a room of other stations because no PairTogether rule joins them; the decision carries the price.</summary>
-    public const string ReasonClusterFilthPriced = "cluster_filth_priced";
-
-    /// <summary>A pair rule (ClusterInput.Pairs) kept two rooms apart.</summary>
-    public const string ReasonClusterApart = "cluster_pair_apart";
-
-    /// <summary>A pair rule (ClusterInput.Pairs) merged two rooms past a refusal.</summary>
-    public const string ReasonClusterTogether = "cluster_pair_together";
-
-    public const string ReasonClusterNoCooler = "cluster_no_cooler";
-
-    /// <summary>A target-sized bedroom (StationNode.Floor) is its own room; no rule merges it with a barracks or another bedroom (#2939).</summary>
-    public const string ReasonClusterSuite = "cluster_suite_own_room";
-
-    /// <summary>The merged room would be one no planned room carries (several beds read as a barracks), which the tiler cannot place (#3017); no pair rule joins them.</summary>
-    public const string ReasonClusterNoRoom = "cluster_no_planned_room";
-
-    /// <summary>
-    /// Recorded on a decision whose two parts are a cold group and a station that works in a temperature band:
-    /// cold is kept below the rot-slowing temperature, under the band, so the room costs one or the other. The
-    /// game gives no exclusion; the search prices it (#2896).
-    /// </summary>
-    public const string ConflictColdBand = "cold_vs_temperature_band";
-
-    /// <summary>The room stat the surgery chain ends in; the catalog's NeedRoomStat names it as Input.</summary>
-    internal const string CleanlinessStat = "Cleanliness";
-
-    /// <summary>Shell bound of the plan's room footprint: at most 3844 interior cells.</summary>
-    internal const int ShellMaxInterior = 3844;
-
-    /// <summary>Shell bound of the plan's room footprint: at most 255 wall cells.</summary>
-    internal const int ShellMaxWalls = 255;
-}
-
 /// <summary>Marks a graph the catalog cannot cluster (ErrCluster).</summary>
 public sealed class ClusterException(string message) : DomainException("cluster stations: " + message);
 
@@ -426,6 +374,55 @@ internal sealed class GroupEval
 
 public static partial class LayoutClusterRules
 {
+    // Verdicts and reasons of clustering decisions.
+    public const string ClusterMerge = "merge";
+    public const string ClusterKeep = "keep";
+    public const string ClusterSplit = "split";
+
+    /// <summary>A station-less room node became a group (#2882).</summary>
+    public const string ClusterRoom = "room";
+
+    /// <summary>A group needs cold and the catalog has no cooling station.</summary>
+    public const string ClusterUnsatisfied = "unsatisfied";
+
+    public const string ReasonClusterAffinity = "cluster_affinity";
+    public const string ReasonClusterLostEffect = "cluster_lost_effect";
+    public const string ReasonClusterEnvConflict = "cluster_env_conflict";
+    public const string ReasonClusterArea = "cluster_area";
+
+    /// <summary>A filth node was kept from a room of other stations because no PairTogether rule joins them; the decision carries the price.</summary>
+    public const string ReasonClusterFilthPriced = "cluster_filth_priced";
+
+    /// <summary>A pair rule (ClusterInput.Pairs) kept two rooms apart.</summary>
+    public const string ReasonClusterApart = "cluster_pair_apart";
+
+    /// <summary>A pair rule (ClusterInput.Pairs) merged two rooms past a refusal.</summary>
+    public const string ReasonClusterTogether = "cluster_pair_together";
+
+    public const string ReasonClusterNoCooler = "cluster_no_cooler";
+
+    /// <summary>A target-sized bedroom (StationNode.Floor) is its own room; no rule merges it with a barracks or another bedroom (#2939).</summary>
+    public const string ReasonClusterSuite = "cluster_suite_own_room";
+
+    /// <summary>The merged room would be one no planned room carries (several beds read as a barracks), which the tiler cannot place (#3017); no pair rule joins them.</summary>
+    public const string ReasonClusterNoRoom = "cluster_no_planned_room";
+
+    /// <summary>
+    /// Recorded on a decision whose two parts are a cold group and a station that works in a temperature band:
+    /// cold is kept below the rot-slowing temperature, under the band, so the room costs one or the other. The
+    /// game gives no exclusion; the search prices it (#2896).
+    /// </summary>
+    public const string ConflictColdBand = "cold_vs_temperature_band";
+
+    /// <summary>The room stat the surgery chain ends in; the catalog's NeedRoomStat names it as Input.</summary>
+    internal const string CleanlinessStat = "Cleanliness";
+
+    /// <summary>Shell bound of the plan's room footprint: at most 3844 interior cells.</summary>
+    internal const int ShellMaxInterior = 3844;
+
+    /// <summary>Shell bound of the plan's room footprint: at most 255 wall cells.</summary>
+    internal const int ShellMaxWalls = 255;
+
     /// <summary>
     /// The largest interior area a roofed room can have. A rectangle is roofed while its centre lies within
     /// roofDistance of a wall, so its depth is bounded and its length is bounded by the shell: a w by h
@@ -1127,12 +1124,12 @@ internal sealed class Clusterer
                         e.OpenSky = true;
                         break;
                     case EnvNeedKind.RoomStat:
-                        e.Clean = e.Clean || need.Input == CleanlinessStat;
-                        if (need.Input == CleanlinessStat && !e.Exposed.Contains(n.Id))
+                        e.Clean = e.Clean || need.Input == LayoutClusterRules.CleanlinessStat;
+                        if (need.Input == LayoutClusterRules.CleanlinessStat && !e.Exposed.Contains(n.Id))
                         {
                             e.Exposed.Add(n.Id);
                         }
-                        if (need.Input == CleanlinessStat && n.Count > 0 && !exposedUnit)
+                        if (need.Input == LayoutClusterRules.CleanlinessStat && n.Count > 0 && !exposedUnit)
                         {
                             exposedUnit = true;
                             e.Meals += n.Meals * u.Count / n.Count;
@@ -1228,17 +1225,17 @@ internal sealed class Clusterer
         var reason = string.Empty;
         if (e.Lost.Count > 0)
         {
-            reason = PolicyConstants.ReasonClusterLostEffect;
+            reason = LayoutClusterRules.ReasonClusterLostEffect;
         }
         else if (e.Area > MaxArea)
         {
-            reason = PolicyConstants.ReasonClusterArea;
+            reason = LayoutClusterRules.ReasonClusterArea;
         }
         if (reason == string.Empty || count < 2)
         {
             return [u];
         }
-        decisions.Add(new ClusterDecision { A = Node(u).Id, Verdict = PolicyConstants.ClusterSplit, Reason = reason, LostEffects = e.Effects });
+        decisions.Add(new ClusterDecision { A = Node(u).Id, Verdict = LayoutClusterRules.ClusterSplit, Reason = reason, LostEffects = e.Effects });
         var left = Split(n, (count + 1) / 2, decisions);
         var right = Split(n, count / 2, decisions);
         return [.. left, .. right];
@@ -1248,7 +1245,7 @@ internal sealed class Clusterer
     public void AddRoom(List<RoomGroup> groups, List<ClusterDecision> decisions, RoomNode node)
     {
         var g = new RoomGroup { Id = groups.Count, Clearance = node.Area, Planned = node.Role, Width = node.Width, Markers = node.Markers, Herd = node.Herd };
-        var d = new ClusterDecision { A = node.Id, Verdict = PolicyConstants.ClusterRoom, Reason = node.Reason };
+        var d = new ClusterDecision { A = node.Id, Verdict = LayoutClusterRules.ClusterRoom, Reason = node.Reason };
         if (node.Cold)
         {
             g.Requires = [EnvRequirement.Cold];
@@ -1260,7 +1257,7 @@ internal sealed class Clusterer
             }
             else
             {
-                d = new ClusterDecision { A = node.Id, Verdict = PolicyConstants.ClusterUnsatisfied, Reason = PolicyConstants.ReasonClusterNoCooler };
+                d = new ClusterDecision { A = node.Id, Verdict = LayoutClusterRules.ClusterUnsatisfied, Reason = LayoutClusterRules.ReasonClusterNoCooler };
             }
         }
         g.Area = g.Footprint + g.Clearance;

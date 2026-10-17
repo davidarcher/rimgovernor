@@ -353,10 +353,10 @@ public sealed class SiteRun
         if (n.Anchor is { } anchor)
         {
             var p = new SitePlacement { Node = n.Id, Replaces = n.Replaces, Rotation = n.Rotation, Origin = anchor, Anchored = true, Footprint = n.Footprint.Translate(anchor.X, anchor.Z) };
-            var (verdict, reason) = (EmbedPlace, LayoutSiteNodesRules.ReasonSiteAnchored);
+            var (verdict, reason) = (LayoutEmbedRules.EmbedPlace, LayoutSiteNodesRules.ReasonSiteAnchored);
             if (!FreeRegion(p.Footprint))
             {
-                (verdict, reason) = (EmbedUnsatisfied, LayoutSiteNodesRules.ReasonSiteAnchorBlocked);
+                (verdict, reason) = (LayoutEmbedRules.EmbedUnsatisfied, LayoutSiteNodesRules.ReasonSiteAnchorBlocked);
             }
             Add(p, n.Lanes, verdict, reason);
             return;
@@ -364,7 +364,7 @@ public sealed class SiteRun
         var q = Quote(n);
         if (q is null)
         {
-            outDecisions.Add(new SiteDecision { Node = n.Id, Verdict = EmbedUnplaceable, Reason = LayoutSiteNodesRules.ReasonSiteNoGround });
+            outDecisions.Add(new SiteDecision { Node = n.Id, Verdict = LayoutEmbedRules.EmbedUnplaceable, Reason = LayoutSiteNodesRules.ReasonSiteNoGround });
             return;
         }
         Take(n, q);
@@ -374,7 +374,7 @@ public sealed class SiteRun
     public void Take(SiteNode n, SiteQuote q)
     {
         var p = new SitePlacement { Node = n.Id, Replaces = n.Replaces, Origin = q.Origin, Rotation = q.Shape.Rotation, Footprint = q.Shape.Footprint.Translate(q.Origin.X, q.Origin.Z) };
-        Add(p, q.Shape.Lanes, EmbedPlace, LayoutSiteNodesRules.ReasonSiteFree);
+        Add(p, q.Shape.Lanes, LayoutEmbedRules.EmbedPlace, LayoutSiteNodesRules.ReasonSiteFree);
     }
 
     private void Add(SitePlacement p, IReadOnlyList<SiteLane> siteLanes, string verdict, string reason)
@@ -430,7 +430,7 @@ public sealed class SiteRun
                 lanesOut.Add(l with { Blocked = blocked });
                 if (blocked > 0)
                 {
-                    decisions.Add(new SiteDecision { Node = p.Node, Verdict = EmbedUnsatisfied, Reason = LayoutSiteNodesRules.ReasonSiteWindBlocked });
+                    decisions.Add(new SiteDecision { Node = p.Node, Verdict = LayoutEmbedRules.EmbedUnsatisfied, Reason = LayoutSiteNodesRules.ReasonSiteWindBlocked });
                 }
             }
             sites.Add(p with { Lanes = lanesOut });

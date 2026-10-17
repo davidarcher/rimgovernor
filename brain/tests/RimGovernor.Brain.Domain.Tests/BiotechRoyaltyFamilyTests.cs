@@ -102,7 +102,7 @@ public sealed class BiotechRoyaltyFamilyTests
         Assert.Equal(BiotechFamily.UnsupportedWastepackAllow, held.Hold!.Subject);
     }
 
-    private static RoyaltyFacts Titled(params string[] holders) => TitledWith("CallAid", PolicyConstants.PermitWorkerCallAid, holders);
+    private static RoyaltyFacts Titled(params string[] holders) => TitledWith("CallAid", PermitChoiceRules.PermitWorkerCallAid, holders);
 
     private static RoyaltyFacts TitledWith(string permit, string worker, params string[] holders) => new()
     {
@@ -199,7 +199,7 @@ public sealed class BiotechRoyaltyFamilyTests
         Assert.Equal(2, colony.Journal.LoadNeed(RoyaltyFamily.Permits, World, ct).Methods.Count);
 
         // A second permit for the first holder overlaps its open Method's settings claim and is refused.
-        colony.Facts = Permit(TitledWith("CallLaborers", PolicyConstants.PermitWorkerCallLaborers, "a"));
+        colony.Facts = Permit(TitledWith("CallLaborers", PermitChoiceRules.PermitWorkerCallLaborers, "a"));
         var held = Assert.Single(colony.Run().Reports, r => r.Need == RoyaltyFamily.Permits).Verdict;
         Assert.True(held.Is(Cause.Claim));
         Assert.Equal("settings/a", held.Refusal.Subject);

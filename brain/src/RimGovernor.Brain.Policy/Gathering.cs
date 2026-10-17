@@ -127,7 +127,7 @@ public static class GatheringRules
         return rows.Any(t => t.Def == PartyThought && t.Offset > 0);
     }
 
-    private static bool HasPartySpot(CurrentConstruction c) => c.Buildings.Any(b => b.Building!.Definition == PartySpotDefinition && b.Cells.Count > 0);
+    private static bool HasPartySpot(CurrentConstruction c) => c.Buildings.Any(b => b.Building!.Definition == PartySpotRules.PartySpotDefinition && b.Cells.Count > 0);
 
     /// <summary>Whether at least GatheringGuestShare of the ledger's colonists lose at least the party's own mood effect. A pawn whose thoughts were unreadable is not counted as under pressure.</summary>
     private static bool GatheringPressure(MoodLedger l, double benefit)

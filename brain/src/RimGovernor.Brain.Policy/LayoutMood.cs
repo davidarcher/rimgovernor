@@ -64,35 +64,6 @@ public sealed record MoodGameTable
     public int PlannedStage { get; init; }
 }
 
-public static partial class PolicyConstants
-{
-    internal const int MoodTierCount = 3;
-
-    private static readonly MoodGameTable MoodGameValue = new()
-    {
-        ThresholdStat = "MentalBreakThreshold",
-        Fractions = [1, 0.5714286, 1.0 / 7],
-        MTBDays = [4, 0.8, 0.5],
-        CooldownDays = 15000.0 / GameTime.TicksPerDay,
-        PointsPerLevel = 100,
-        Unpriced = ["RunWild", "GiveUpExit"],
-        HediffBreaks = new Dictionary<string, string> { ["Catatonic"] = "CatatonicBreakdown" },
-        DarkThought = "EnvironmentDark",
-        // The thought each role's mood effect is: the stage is the room's impressiveness stage. Throne and
-        // worship carry no mood offset.
-        RoleThoughts = new Dictionary<RoomRole, string>
-        {
-            [RoomRole.Bedroom] = "SleptInBedroom",
-            [RoomRole.Barracks] = "SleptInBarracks",
-            [RoomRole.Hospital] = "HospitalPatientRoomStats",
-            [RoomRole.PrisonCell] = "PrisonCell",
-            [RoomRole.PrisonBarracks] = "PrisonBarracks",
-        },
-    };
-
-    internal static MoodGameTable MoodJudgment => MoodGameValue;
-}
-
 /// <summary>One tier's break mix: the sum of its priced breaks' commonalities and their weighted mean duration in days. Weight 0 is a tier with no priced break.</summary>
 public readonly record struct MoodTierModel(double Weight, double Days)
 {
@@ -119,7 +90,7 @@ public sealed record MoodBreakModel
     /// <summary>Reports a model with a threshold and a priced break in every tier.</summary>
     public bool Valid()
     {
-        if (!QuestCapacityForecast.FinitePositive(Threshold) || Tiers.Count != PolicyConstants.MoodTierCount)
+        if (!QuestCapacityForecast.FinitePositive(Threshold) || Tiers.Count != LayoutMoodRules.MoodTierCount)
         {
             return false;
         }
@@ -131,7 +102,7 @@ public sealed record MoodBreakModel
     {
         for (var tier = MoodTier.Extreme; tier >= MoodTier.Minor; tier--)
         {
-            if (level < Threshold * PolicyConstants.MoodJudgment.Fractions[(int)tier])
+            if (level < Threshold * LayoutMoodRules.MoodJudgment.Fractions[(int)tier])
             {
                 return (tier, true);
             }
@@ -148,7 +119,7 @@ public sealed record MoodBreakModel
             return 0;
         }
         var days = Tiers[(int)tier].Days;
-        return days / (PolicyConstants.MoodJudgment.MTBDays[(int)tier] + PolicyConstants.MoodJudgment.CooldownDays + days);
+        return days / (LayoutMoodRules.MoodJudgment.MTBDays[(int)tier] + LayoutMoodRules.MoodJudgment.CooldownDays + days);
     }
 
     /// <summary>
@@ -165,11 +136,11 @@ public sealed record MoodBreakModel
     /// <summary>Adds the ticks a mood level moving linearly from one value to another spends in each tier, cut at the tier thresholds.</summary>
     internal void AddTierTicks(double from, double to, double ticks, Span<double> byTier)
     {
-        Span<double> cuts = stackalloc double[PolicyConstants.MoodTierCount + 2];
+        Span<double> cuts = stackalloc double[LayoutMoodRules.MoodTierCount + 2];
         cuts[0] = 0; cuts[1] = 1;
         var count = 2;
         if (from != to)
-            foreach (var fraction in PolicyConstants.MoodJudgment.Fractions)
+            foreach (var fraction in LayoutMoodRules.MoodJudgment.Fractions)
             {
                 var at = ((Threshold * fraction) - from) / (to - from);
                 if (at > 0 && at < 1) cuts[count++] = at;
@@ -192,7 +163,7 @@ public sealed record MoodBreakModel
     }
 
     private static double BreaksPerDay(MoodTier tier) =>
-        1 / (PolicyConstants.MoodJudgment.MTBDays[(int)tier] + PolicyConstants.MoodJudgment.CooldownDays);
+        1 / (LayoutMoodRules.MoodJudgment.MTBDays[(int)tier] + LayoutMoodRules.MoodJudgment.CooldownDays);
 }
 
 /// <summary>One stage of a ThoughtDef; a null stage (the game keeps unused ones null) is not Present and carries no mood.</summary>
@@ -250,7 +221,7 @@ public sealed record MoodModel
 
     /// <summary>A role's mood at a stage; a role with no mood thought gives 0.</summary>
     private (double Effect, bool Ok) RoleEffectAt(RoomRole role, int stage) =>
-        PolicyConstants.MoodJudgment.RoleThoughts.TryGetValue(role, out var thought) ? StageEffect(thought, stage) : (0, true);
+        LayoutMoodRules.MoodJudgment.RoleThoughts.TryGetValue(role, out var thought) ? StageEffect(thought, stage) : (0, true);
 }
 
 /// <summary>A way to buy mood instead of paying for its loss, priced in sustained watts for the whole group of pawns it serves (a bedroom impressiveness upgrade is one).</summary>
@@ -288,8 +259,34 @@ public sealed record MoodPrice
 
 public static partial class LayoutMoodRules
 {
+    internal const int MoodTierCount = 3;
+
+    private static readonly MoodGameTable MoodGameValue = new()
+    {
+        ThresholdStat = "MentalBreakThreshold",
+        Fractions = [1, 0.5714286, 1.0 / 7],
+        MTBDays = [4, 0.8, 0.5],
+        CooldownDays = 15000.0 / GameTime.TicksPerDay,
+        PointsPerLevel = 100,
+        Unpriced = ["RunWild", "GiveUpExit"],
+        HediffBreaks = new Dictionary<string, string> { ["Catatonic"] = "CatatonicBreakdown" },
+        DarkThought = "EnvironmentDark",
+        // The thought each role's mood effect is: the stage is the room's impressiveness stage. Throne and
+        // worship carry no mood offset.
+        RoleThoughts = new Dictionary<RoomRole, string>
+        {
+            [RoomRole.Bedroom] = "SleptInBedroom",
+            [RoomRole.Barracks] = "SleptInBarracks",
+            [RoomRole.Hospital] = "HospitalPatientRoomStats",
+            [RoomRole.PrisonCell] = "PrisonCell",
+            [RoomRole.PrisonBarracks] = "PrisonBarracks",
+        },
+    };
+
+    internal static MoodGameTable MoodJudgment => MoodGameValue;
+
     /// <summary>The table the bridge reads the break model with.</summary>
-    public static MoodGameTable MoodGame() => PolicyConstants.MoodJudgment;
+    public static MoodGameTable MoodGame() => LayoutMoodRules.MoodJudgment;
 
     /// <summary>
     /// The mean days a mental state lasts: the game ends it at minTicks plus an exponential wait of mean mtbDays
@@ -319,7 +316,7 @@ public static partial class LayoutMoodRules
         {
             return (new MoodPrice(), false);
         }
-        var after = Math.Min(Math.Max(level - (input.Points / PolicyConstants.MoodJudgment.PointsPerLevel), 0), 1);
+        var after = Math.Min(Math.Max(level - (input.Points / LayoutMoodRules.MoodJudgment.PointsPerLevel), 0), 1);
         var days = input.Pawns * (input.Model.CostPerDay(after) - input.Model.CostPerDay(level));
         var price = new MoodPrice { WorkDays = days, W = days * input.WorkDayW };
         if (input.Points > 0)
@@ -343,19 +340,19 @@ public static partial class LayoutMoodRules
     }
 
     /// <summary>Reports a break the game gives no duration for.</summary>
-    public static bool UnpricedBreak(string def) => PolicyConstants.MoodJudgment.Unpriced.Contains(def);
+    public static bool UnpricedBreak(string def) => LayoutMoodRules.MoodJudgment.Unpriced.Contains(def);
 
     internal static List<string> MoodThoughtDefs()
     {
-        var output = new List<string> { PolicyConstants.MoodJudgment.DarkThought };
-        output.AddRange(PolicyConstants.MoodJudgment.RoleThoughts.Values);
+        var output = new List<string> { LayoutMoodRules.MoodJudgment.DarkThought };
+        output.AddRange(LayoutMoodRules.MoodJudgment.RoleThoughts.Values);
         output.Sort(StringComparer.Ordinal);
         return output;
     }
 
     internal static List<string> MoodBreakHediffs()
     {
-        var output = PolicyConstants.MoodJudgment.HediffBreaks.Values.ToList();
+        var output = LayoutMoodRules.MoodJudgment.HediffBreaks.Values.ToList();
         output.Sort(StringComparer.Ordinal);
         return output;
     }

@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // The butcher bill and the butcher spot are owed on the food runway alone
 // (their executors, ButcherFood and the butcher facility, never wait on a hunt
 // row), so they are not repriced here.
-public static partial class PolicyConstants
+public static class HuntPrerequisiteRules
 {
     /// <summary>The work of crafting one hunting weapon.</summary>
     public const double HunterWeaponCraftTicks = 6000.0;
@@ -15,10 +15,7 @@ public static partial class PolicyConstants
 
     /// <summary>Marks a hunt candidate that waits on a hunter's weapon.</summary>
     internal const string TermNeedsWeapon = "needs_weapon";
-}
 
-public static class HuntPrerequisiteRules
-{
     /// <summary>
     /// Reports a no_hunter hold where some colonist is only missing the hunting work or its weapon:
     /// arming one of them opens the row.

@@ -11,7 +11,7 @@ internal sealed record CoupledFoodCandidates(ForecastActivity[] Tasks, ForecastA
     public EquatableArray<string> Findings { get; init; }
 }
 
-internal static partial class FoodMethodCandidates
+internal static class FoodMethodCandidates
 {
     /// <summary>Vanilla JobDriver_Ingest reserves a food stack with maxPawns 10 and the eaten count; a generated delivery stack shares it.</summary>
     private const int IngestMaxPawns = 10;

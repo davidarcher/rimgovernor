@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 // same room (a bench row along the entrance wall, an aisle with a piece each side); the placer seats as many
 // as the floor holds, and a want's minimum is what the role cannot do without. Pieces worked from the floor in
 // front of them (a bench, a stove) stand against a wall, as their template stood them on the back wall.
-public static partial class PolicyConstants
+public static class InteriorRegionRolesRules
 {
     /// <summary>The input shelf beside a bench. It is no facility (no row links it), so the catalog has no rule that names it.</summary>
     internal const string WorkshopShelfDef = "ShelfSmall";
@@ -27,10 +27,7 @@ public static partial class PolicyConstants
 
     /// <summary>The smallest interior that holds the full set; smaller rooms get the bed and end table only.</summary>
     internal const int BedroomFullSetTiles = 16;
-}
 
-public static class InteriorRegionRolesRules
-{
     private static readonly IReadOnlyList<RegionWant> NoWants = [];
 
     /// <summary>
@@ -269,7 +266,7 @@ public static class InteriorRegionRolesRules
         var wants = new List<RegionWant>();
         if (piece.Def != string.Empty && piece.Size.X > 0 && piece.Size.Z > 0)
         {
-            wants.Add(NamedPiece(ThroneSlot, piece, 1) with { AgainstWall = true });
+            wants.Add(NamedPiece(RequiredPiece.ThroneSlot, piece, 1) with { AgainstWall = true });
         }
         foreach (var req in room.Required)
         {
@@ -322,15 +319,15 @@ public static class InteriorRegionRolesRules
         }
         if (Hosts(Capability.Craft))
         {
-            Single("craft", ShelterCraftingDef, 1, _ => "craft");
+            Single("craft", InteriorShelterRules.ShelterCraftingDef, 1, _ => "craft");
         }
         if (Hosts(Capability.Heat))
         {
-            Single("campfire", ShelterHeatDef, room.Campfires, InteriorRegionRules.Numbered("campfire", 1));
+            Single("campfire", LayoutCapabilityRules.ShelterHeatDef, room.Campfires, InteriorRegionRules.Numbered("campfire", 1));
         }
-        Single("cooler", ShelterCoolDef, room.Coolers, InteriorRegionRules.Numbered(ShelterCoolerSlotPrefix[..^1], 1));
+        Single("cooler", LayoutCapabilityRules.ShelterCoolDef, room.Coolers, InteriorRegionRules.Numbered(InteriorShelterRules.ShelterCoolerSlotPrefix[..^1], 1));
         var bunkDef = room.Shapes.Furniture.PrimaryBed();
-        if (piece.Family == RoomRole.Bedroom && piece.Size == ShelterBunkSize)
+        if (piece.Family == RoomRole.Bedroom && piece.Size == InteriorShelterRules.ShelterBunkSize)
         {
             bunkDef = piece.Def;
         }
@@ -343,8 +340,8 @@ public static class InteriorRegionRolesRules
         {
             n = room.Floor().Area() / 2;
         }
-        var bunk = new InteriorPieceDef(bunkDef, ShelterBunkSize, default, null);
-        wants.Add(InteriorRegionRules.ShapeWant("bunk", bunk, n, 0, InteriorRegionRules.Numbered(ShelterBunkSlotPrefix[..^1], 1)));
+        var bunk = new InteriorPieceDef(bunkDef, InteriorShelterRules.ShelterBunkSize, default, null);
+        wants.Add(InteriorRegionRules.ShapeWant("bunk", bunk, n, 0, InteriorRegionRules.Numbered(InteriorShelterRules.ShelterBunkSlotPrefix[..^1], 1)));
         return (wants, true);
     }
 

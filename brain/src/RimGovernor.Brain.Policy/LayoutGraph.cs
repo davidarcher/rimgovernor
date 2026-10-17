@@ -55,40 +55,6 @@ public enum StationPurpose
 /// <summary>A need the catalog has no station for.</summary>
 public sealed class StationGraphException(string message) : DomainException(message);
 
-public static partial class PolicyConstants
-{
-    // Reasons a node or edge exists; the caller journals them as telemetry decision reasons.
-    public const string ReasonBedsPopulationReserve = "beds_population_plus_reserve";
-    public const string ReasonBedsSuite = "beds_suite_of_target";
-    public const string ReasonBedsPatients = "beds_injured";
-    public const string ReasonBedsPrisoners = "beds_prisoners";
-    public const string ReasonBedsBabies = "beds_babies";
-    public const string ReasonWorkNutrition = "work_nutrition_and_orders";
-    public const string ReasonStoreStock = "store_stock_demand";
-    public const string ReasonDineSeats = "dine_seats_of_table";
-
-    /// <summary>The spare place the shelter/expansion Need keeps beyond the population: indoor capacity must exceed the colonist count. The station graph provides the same spare bed.</summary>
-    public const int HousingSparePlaces = 1;
-
-    /// <summary>
-    /// A circulation corridor's width in cells. One: in peace pawns neither block nor slow each other
-    /// (PawnUtility.PawnBlockedBy is false unless a hostile is near or the job collides), the pather has no
-    /// wall-hugging cost and door costs do not depend on width, so width buys nothing before an attack; the
-    /// wider lanes that give bypass under hostile pressure are the defense planner's (#2886). Read from game
-    /// code, recorded on #2911.
-    /// </summary>
-    public const int CirculationWidth = 1;
-
-    /// <summary>Why the graph holds a corridor.</summary>
-    public const string ReasonCirculation = "circulation_joins_private_rooms";
-
-    /// <summary>The id of the PurposeOutside pseudo-node in edges.</summary>
-    public const string OutsideNode = "outside";
-
-    /// <summary>Why the shelter has a flow: the colonists sleeping in it walk to the table for each meal (sleepEat's bed-to-table trips).</summary>
-    public const string ReasonFlowShelterMeal = "flow_shelter_meal";
-}
-
 /// <summary>
 /// Who needs a place. Colonists are the free people who sleep in a regular bed and eat at a table; Injured are
 /// the colonists who need a medical bed now. Prisoners and Babies sleep in their own kind of bed.
@@ -460,10 +426,10 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         var hospital = f.HospitalBeds();
         (StationPurpose Purpose, int People, string Def, string Reason)[] kinds =
         [
-            (StationPurpose.Sleep, p.Colonists + PolicyConstants.HousingSparePlaces, f.PrimaryBed(), PolicyConstants.ReasonBedsPopulationReserve),
-            (StationPurpose.SleepMed, p.Injured, LayoutGraphRules.First(hospital), PolicyConstants.ReasonBedsPatients),
-            (StationPurpose.SleepPrison, p.Prisoners, f.PrimaryBed(), PolicyConstants.ReasonBedsPrisoners),
-            (StationPurpose.SleepBaby, p.Babies, LayoutGraphRules.First(nurseries), PolicyConstants.ReasonBedsBabies),
+            (StationPurpose.Sleep, p.Colonists + LayoutGraphRules.HousingSparePlaces, f.PrimaryBed(), LayoutGraphRules.ReasonBedsPopulationReserve),
+            (StationPurpose.SleepMed, p.Injured, LayoutGraphRules.First(hospital), LayoutGraphRules.ReasonBedsPatients),
+            (StationPurpose.SleepPrison, p.Prisoners, f.PrimaryBed(), LayoutGraphRules.ReasonBedsPrisoners),
+            (StationPurpose.SleepBaby, p.Babies, LayoutGraphRules.First(nurseries), LayoutGraphRules.ReasonBedsBabies),
         ];
         foreach (var k in kinds)
         {
@@ -618,7 +584,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         {
             var s = Station(def);
             var count = Math.Max(1, (int)Math.Ceiling(perStation[def] / (GameTime.TicksPerDay * Math.Max(s.Capacity.Slots, 1))));
-            var node = Nodes[AddNode(def, StationPurpose.Work, count, s.Needs, PolicyConstants.ReasonWorkNutrition)];
+            var node = Nodes[AddNode(def, StationPurpose.Work, count, s.Needs, LayoutGraphRules.ReasonWorkNutrition)];
             node.DailyWork = perStation[def];
             foreach (var l in output)
             {
@@ -723,7 +689,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         }
         var s = Station(table.Def);
         var seats = 2 * (table.Size.X + table.Size.Z);
-        AddNode(table.Def, StationPurpose.Dine, LayoutGraphRules.CeilDiv(eaters, seats), s.Needs, PolicyConstants.ReasonDineSeats);
+        AddNode(table.Def, StationPurpose.Dine, LayoutGraphRules.CeilDiv(eaters, seats), s.Needs, LayoutGraphRules.ReasonDineSeats);
     }
 
     /// <summary>The shelf a stock is stored on: the catalog's item store of the storeroom role holding the most stacks per cell, wanting cold when cold is asked for.</summary>
@@ -788,7 +754,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             var (def, s, ok) = StorageStation(true);
             if (ok)
             {
-                AddNode(def, StationPurpose.StoreCold, LayoutGraphRules.CeilDiv(coldStacks, s!.Capacity.Slots), LayoutGraphRules.ColdNeeds(s), PolicyConstants.ReasonStoreStock);
+                AddNode(def, StationPurpose.StoreCold, LayoutGraphRules.CeilDiv(coldStacks, s!.Capacity.Slots), LayoutGraphRules.ColdNeeds(s), LayoutGraphRules.ReasonStoreStock);
             }
             else
             {
@@ -802,7 +768,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             {
                 throw new StationGraphException("no item store in the catalog");
             }
-            AddNode(def, StationPurpose.Store, LayoutGraphRules.CeilDiv(plainStacks, s!.Capacity.Slots), LayoutGraphRules.WithoutCold(s.Needs), PolicyConstants.ReasonStoreStock);
+            AddNode(def, StationPurpose.Store, LayoutGraphRules.CeilDiv(plainStacks, s!.Capacity.Slots), LayoutGraphRules.WithoutCold(s.Needs), LayoutGraphRules.ReasonStoreStock);
         }
     }
 
@@ -915,7 +881,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         {
             if (n.Purpose == StationPurpose.Sleep)
             {
-                AddEdge(n.Id, PolicyConstants.OutsideNode, HealthySleepers(n), false);
+                AddEdge(n.Id, LayoutGraphRules.OutsideNode, HealthySleepers(n), false);
             }
         }
     }
@@ -981,7 +947,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                 if (n.Purpose == StationPurpose.Dine)
                 {
                     var share = (double)Math.Min(In.Seed.Colonists, colonists) / colonists;
-                    rooms[i] = rooms[i] with { Flows = [.. rooms[i].Flows, new RoomFlow(n.Id, meals * share, PolicyConstants.ReasonFlowShelterMeal)] };
+                    rooms[i] = rooms[i] with { Flows = [.. rooms[i].Flows, new RoomFlow(n.Id, meals * share, LayoutGraphRules.ReasonFlowShelterMeal)] };
                 }
             }
         }
@@ -990,6 +956,36 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
 
 public static partial class LayoutGraphRules
 {
+    // Reasons a node or edge exists; the caller journals them as telemetry decision reasons.
+    public const string ReasonBedsPopulationReserve = "beds_population_plus_reserve";
+    public const string ReasonBedsPatients = "beds_injured";
+    public const string ReasonBedsPrisoners = "beds_prisoners";
+    public const string ReasonBedsBabies = "beds_babies";
+    public const string ReasonWorkNutrition = "work_nutrition_and_orders";
+    public const string ReasonStoreStock = "store_stock_demand";
+    public const string ReasonDineSeats = "dine_seats_of_table";
+
+    /// <summary>The spare place the shelter/expansion Need keeps beyond the population: indoor capacity must exceed the colonist count. The station graph provides the same spare bed.</summary>
+    public const int HousingSparePlaces = 1;
+
+    /// <summary>
+    /// A circulation corridor's width in cells. One: in peace pawns neither block nor slow each other
+    /// (PawnUtility.PawnBlockedBy is false unless a hostile is near or the job collides), the pather has no
+    /// wall-hugging cost and door costs do not depend on width, so width buys nothing before an attack; the
+    /// wider lanes that give bypass under hostile pressure are the defense planner's (#2886). Read from game
+    /// code, recorded on #2911.
+    /// </summary>
+    public const int CirculationWidth = 1;
+
+    /// <summary>Why the graph holds a corridor.</summary>
+    public const string ReasonCirculation = "circulation_joins_private_rooms";
+
+    /// <summary>The id of the PurposeOutside pseudo-node in edges.</summary>
+    public const string OutsideNode = "outside";
+
+    /// <summary>Why the shelter has a flow: the colonists sleeping in it walk to the table for each meal (sleepEat's bed-to-table trips).</summary>
+    public const string ReasonFlowShelterMeal = "flow_shelter_meal";
+
     internal static (string, string) OrderedPair(string a, string b) => string.CompareOrdinal(b, a) < 0 ? (b, a) : (a, b);
 
     internal static string NodeId(string def, StationPurpose purpose) => def + "/" + Wire.Name(purpose);
@@ -1104,7 +1100,7 @@ partial class StationGraph
                 case StationPurpose.SleepMed:
                 case StationPurpose.SleepBaby:
                     // Somebody sleeps in a room nobody may walk through (RoomCrossing.Beds): the colony may need a way to reach it that crosses no other room.
-                    g.Rooms.Add(new RoomNode { Id = Wire.Name(PlannedRole.Circulation), Role = PlannedRole.Circulation, Width = CirculationWidth, Joins = true, Reason = ReasonCirculation });
+                    g.Rooms.Add(new RoomNode { Id = Wire.Name(PlannedRole.Circulation), Role = PlannedRole.Circulation, Width = LayoutGraphRules.CirculationWidth, Joins = true, Reason = LayoutGraphRules.ReasonCirculation });
                     return g;
                 default:
                     break;

@@ -8,17 +8,6 @@ namespace RimGovernor.Brain.Policy;
 // a psycaster). The choice is a pure ranking over the royalty read; the Need's Method commits it as a
 // choose_permit pawn setting.
 
-public static partial class PolicyConstants
-{
-    // The worker classes of the permits that act (RoyalTitlePermitDef.workerClass, carried by the royalty
-    // read): what the permit does for the colony.
-    internal const string PermitWorkerCallAid = "RoyalTitlePermitWorker_CallAid";
-    internal const string PermitWorkerCallLaborers = "RoyalTitlePermitWorker_CallLaborers";
-    internal const string PermitWorkerCallShuttle = "RoyalTitlePermitWorker_CallShuttle";
-    internal const string PermitWorkerDropResources = "RoyalTitlePermitWorker_DropResources";
-    internal const string PermitWorkerOrbitalStrike = "RoyalTitlePermitWorker_OrbitalStrike";
-}
-
 /// <summary>Groups permits by what they give the colony.</summary>
 public enum PermitCategory
 {
@@ -88,6 +77,14 @@ public sealed record PermitIntent
 
 public static partial class PermitChoiceRules
 {
+    // The worker classes of the permits that act (RoyalTitlePermitDef.workerClass, carried by the royalty
+    // read): what the permit does for the colony.
+    internal const string PermitWorkerCallAid = "RoyalTitlePermitWorker_CallAid";
+    internal const string PermitWorkerCallLaborers = "RoyalTitlePermitWorker_CallLaborers";
+    internal const string PermitWorkerCallShuttle = "RoyalTitlePermitWorker_CallShuttle";
+    internal const string PermitWorkerDropResources = "RoyalTitlePermitWorker_DropResources";
+    internal const string PermitWorkerOrbitalStrike = "RoyalTitlePermitWorker_OrbitalStrike";
+
     /// <summary>
     /// Classifies a permit by its worker class. A permit with no worker of its own (the passive trade
     /// permits) or a read that carries none falls back to its def name.
@@ -96,13 +93,13 @@ public static partial class PermitChoiceRules
     {
         switch (p.Worker)
         {
-            case PolicyConstants.PermitWorkerCallAid:
-            case PolicyConstants.PermitWorkerCallLaborers:
+            case PermitChoiceRules.PermitWorkerCallAid:
+            case PermitChoiceRules.PermitWorkerCallLaborers:
                 return PermitCategory.Aid;
-            case PolicyConstants.PermitWorkerCallShuttle:
-            case PolicyConstants.PermitWorkerDropResources:
+            case PermitChoiceRules.PermitWorkerCallShuttle:
+            case PermitChoiceRules.PermitWorkerDropResources:
                 return PermitCategory.DropPod;
-            case PolicyConstants.PermitWorkerOrbitalStrike:
+            case PermitChoiceRules.PermitWorkerOrbitalStrike:
                 return PermitCategory.Other;
         }
         var name = p.Name;

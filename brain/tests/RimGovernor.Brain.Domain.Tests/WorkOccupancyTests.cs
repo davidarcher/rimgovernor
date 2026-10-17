@@ -11,7 +11,7 @@ public sealed class WorkOccupancyTests
     {
         Id = new RimGovernor.Brain.Domain.PawnId(id), Available = Known(true), Applies = Known(true),
         Manual = Known(true), Ranged = Known(false), Job = Known(new PawnJob()),
-        Schedule = Known(EquatableArray.From(Enumerable.Repeat(PolicyConstants.ScheduleAnything, 24))),
+        Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))),
         Skills = Known<EquatableArray<WorkSkill>>([
             new() { Name = "Cooking", Level = cooking }, new() { Name = "Construction", Level = building }]),
         Work = Known<EquatableArray<WorkPriority>>([

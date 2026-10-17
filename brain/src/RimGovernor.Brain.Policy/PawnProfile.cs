@@ -340,13 +340,13 @@ public static class WorkPawnProfileExtensions
         {
             switch (s)
             {
-                case PolicyConstants.ScheduleWork:
-                case PolicyConstants.ScheduleAnything:
+                case PawnRules.ScheduleWork:
+                case PawnRules.ScheduleAnything:
                     n++;
                     break;
-                case PolicyConstants.ScheduleSleep:
-                case PolicyConstants.ScheduleJoy:
-                case PolicyConstants.ScheduleMeditate:
+                case PawnRules.ScheduleSleep:
+                case PawnRules.ScheduleJoy:
+                case PawnRules.ScheduleMeditate:
                     break;
                 default:
                     return Unknown<int>();

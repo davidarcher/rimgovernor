@@ -23,7 +23,7 @@ internal static class ColonyPlanCut
                 {
                     continue;
                 }
-                if (option.Stuff == PolicyConstants.PerimeterLightStuff)
+                if (option.Stuff == LayoutDefenseRules.PerimeterLightStuff)
                 {
                     output = output with { LightHP = Known(hp) };
                 }

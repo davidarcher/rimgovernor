@@ -2,12 +2,6 @@ namespace RimGovernor.Brain.Policy;
 
 // Hunt food channels. A lone animal is offered as a designation channel; a formation hunt is one channel built from the
 // roster the comparison chose (HuntPlanning), so no animal count, gunner count or radius decides whether a hunt forms.
-public static partial class PolicyConstants
-{
-    /// <summary>Scales the work of a sleeping animal: it stands still, so night is a soft preference and never a gate.</summary>
-    internal const double SquadSleepingWork = 0.5;
-}
-
 /// <summary>How a hunt candidate executes: a lone hunter's designation, or a drafted formation (HuntRequest).</summary>
 public enum HuntMode
 {
@@ -17,6 +11,9 @@ public enum HuntMode
 
 public static class HuntSquadRules
 {
+    /// <summary>Scales the work of a sleeping animal: it stands still, so night is a soft preference and never a gate.</summary>
+    internal const double SquadSleepingWork = 0.5;
+
     /// <summary>Counts the colonists with a hunting weapon (WeaponDef.Hunts) who are capable of hunting.</summary>
     public static int ArmedHunters(IReadOnlyList<PawnProfile> profiles)
     {

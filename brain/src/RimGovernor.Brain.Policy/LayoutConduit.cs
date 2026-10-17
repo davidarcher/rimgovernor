@@ -11,21 +11,6 @@ namespace RimGovernor.Brain.Policy;
 // Topology: one net grows. The first power site is the root; every later site, then every consuming room,
 // routes from its own cells to the nearest cell of the net so far (the root's cells and every laid path), so
 // cells are shared and no star forms on any node, the battery room included.
-public static partial class PolicyConstants
-{
-    internal const string ConduitRoomTag = "room:";
-    internal const string ConduitSiteTag = "site:";
-
-    // Conduit decisions; the caller journals them as layout_conduit rows.
-    public const string ReasonConduitRouted = "conduit_routed";
-    public const string ReasonConduitKept = "conduit_kept";
-    public const string ReasonConduitBlocked = "conduit_no_route";
-    public const string ReasonConduitNoSource = "conduit_no_source";
-
-    /// <summary>The reservations that stand on the power net: the geothermal enclosures and the battery room. The turbines and solar plots are stored sites (PowerSiteNodes).</summary>
-    internal static readonly IReadOnlyList<ReservationKind> PowerSiteKinds = [ReservationKind.BatteryRoom, ReservationKind.Geothermal];
-}
-
 /// <summary>
 /// Names one end of a link: "room:&lt;id&gt;" for a planned room or "site:&lt;node id&gt;" for a site: a stored
 /// turbine or solar plot by its node id, a geothermal enclosure or battery-room reservation by
@@ -34,30 +19,30 @@ public static partial class PolicyConstants
 public readonly record struct ConduitRef(string Value)
 {
     /// <summary>The ref of planned room id.</summary>
-    public static ConduitRef ForRoom(int id) => new(PolicyConstants.ConduitRoomTag + id.ToString(CultureInfo.InvariantCulture));
+    public static ConduitRef ForRoom(int id) => new(LayoutConduitRules.ConduitRoomTag + id.ToString(CultureInfo.InvariantCulture));
 
     /// <summary>The ref of the site node with the given id.</summary>
-    public static ConduitRef ForSite(string node) => new(PolicyConstants.ConduitSiteTag + node);
+    public static ConduitRef ForSite(string node) => new(LayoutConduitRules.ConduitSiteTag + node);
 
     /// <summary>The room id of a room ref.</summary>
     public (int Id, bool Ok) Room()
     {
-        if (Value is null || !Value.StartsWith(PolicyConstants.ConduitRoomTag, StringComparison.Ordinal))
+        if (Value is null || !Value.StartsWith(LayoutConduitRules.ConduitRoomTag, StringComparison.Ordinal))
         {
             return (0, false);
         }
-        var parsed = int.TryParse(Value[PolicyConstants.ConduitRoomTag.Length..], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var id);
+        var parsed = int.TryParse(Value[LayoutConduitRules.ConduitRoomTag.Length..], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var id);
         return (id, parsed && id > 0);
     }
 
     /// <summary>The node id of a site ref.</summary>
     public (string Node, bool Ok) Site()
     {
-        if (Value is null || !Value.StartsWith(PolicyConstants.ConduitSiteTag, StringComparison.Ordinal))
+        if (Value is null || !Value.StartsWith(LayoutConduitRules.ConduitSiteTag, StringComparison.Ordinal))
         {
             return (string.Empty, false);
         }
-        var rest = Value[PolicyConstants.ConduitSiteTag.Length..];
+        var rest = Value[LayoutConduitRules.ConduitSiteTag.Length..];
         return (rest, rest != string.Empty);
     }
 }
@@ -114,17 +99,17 @@ internal sealed class ConduitNet(HashSet<Cell> allowed, IReadOnlyDictionary<Cond
     public (ConduitLink? Link, ConduitDecision Decision, bool Ok) Lay(ConduitNode n)
     {
         _held.TryGetValue(n.Ref, out var link);
-        var reason = PolicyConstants.ReasonConduitKept;
+        var reason = LayoutConduitRules.ReasonConduitKept;
         if (!Keeps(n, link))
         {
             var path = ConduitRouterRules.RouteCells(n.Cells, Net, _allowed);
             if (path.Count == 0)
             {
-                return (null, new ConduitDecision(n.Ref, default, LayoutTileRules.TileUnsatisfied, PolicyConstants.ReasonConduitBlocked), false);
+                return (null, new ConduitDecision(n.Ref, default, LayoutTileRules.TileUnsatisfied, LayoutConduitRules.ReasonConduitBlocked), false);
             }
             path = [.. Enumerable.Reverse(path)]; // from the node to the net
             link = new ConduitLink(default, default, EquatableArray.From(path));
-            reason = PolicyConstants.ReasonConduitRouted;
+            reason = LayoutConduitRules.ReasonConduitRouted;
         }
         link = link! with { From = n.Ref, To = Owner[link.Cells[link.Cells.Count - 1]] };
         foreach (var c in link.Cells)
@@ -141,6 +126,18 @@ internal sealed class ConduitNet(HashSet<Cell> allowed, IReadOnlyDictionary<Cond
 
 public static partial class LayoutConduitRules
 {
+    internal const string ConduitRoomTag = "room:";
+    internal const string ConduitSiteTag = "site:";
+
+    // Conduit decisions; the caller journals them as layout_conduit rows.
+    public const string ReasonConduitRouted = "conduit_routed";
+    public const string ReasonConduitKept = "conduit_kept";
+    public const string ReasonConduitBlocked = "conduit_no_route";
+    public const string ReasonConduitNoSource = "conduit_no_source";
+
+    /// <summary>The reservations that stand on the power net: the geothermal enclosures and the battery room. The turbines and solar plots are stored sites (PowerSiteNodes).</summary>
+    internal static readonly IReadOnlyList<ReservationKind> PowerSiteKinds = [ReservationKind.BatteryRoom, ReservationKind.Geothermal];
+
     /// <summary>The ref of the site node with the given id.</summary>
     public static ConduitRef SiteRef(string node) => ConduitRef.ForSite(node);
 
@@ -201,7 +198,7 @@ partial record LayoutPlan
         for (var i = 0; i < this.Reservations.Count; i++)
         {
             var r = this.Reservations[i];
-            if (PowerSiteKinds.Contains(r.Kind))
+            if (LayoutConduitRules.PowerSiteKinds.Contains(r.Kind))
             {
                 output.Add(LayoutConduitRules.ReservationSiteID(r.Kind, i));
             }
@@ -271,7 +268,7 @@ partial record LayoutPlan
         for (var i = 0; i < this.Reservations.Count; i++)
         {
             var r = this.Reservations[i];
-            if (PowerSiteKinds.Contains(r.Kind))
+            if (LayoutConduitRules.PowerSiteKinds.Contains(r.Kind))
             {
                 nodes.Add(new ConduitNode(LayoutConduitRules.SiteRef(LayoutConduitRules.ReservationSiteID(r.Kind, i)), r.Area.Cells().SortedBy(CombatManhunterRules.CellLess)));
             }
@@ -291,7 +288,7 @@ partial record LayoutPlan
         var nodes = plan.SiteNodes();
         if (nodes.Count == 0)
         {
-            var unsourced = consumers.Select(n => new ConduitDecision(n.Ref, default, LayoutTileRules.TileUnsatisfied, ReasonConduitNoSource)).ToList();
+            var unsourced = consumers.Select(n => new ConduitDecision(n.Ref, default, LayoutTileRules.TileUnsatisfied, LayoutConduitRules.ReasonConduitNoSource)).ToList();
             return ([], unsourced);
         }
         nodes.AddRange(consumers);

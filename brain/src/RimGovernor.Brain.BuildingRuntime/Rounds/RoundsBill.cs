@@ -23,20 +23,20 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
 
     public RoundsBillPlanner(Rounder reviewer, BillPurpose purpose)
     {
-        if (reviewer is null || (purpose != PolicyConstants.CookFood && purpose != PolicyConstants.PreserveFood && purpose != PolicyConstants.ButcherFood && purpose != PolicyConstants.CookAheadFood))
+        if (reviewer is null || (purpose != ProductionRules.CookFood && purpose != ProductionRules.PreserveFood && purpose != ProductionRules.ButcherFood && purpose != ProductionRules.CookAheadFood))
         {
             throw new ControlException("NewRoundsBillPlanner: reviewer == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood)");
         }
         var need = FoodRules.FoodSupplyNeed.FilingKey;
-        if (purpose == PolicyConstants.CookFood)
+        if (purpose == ProductionRules.CookFood)
         {
             need = FoodRules.CookingNeed.FilingKey;
         }
-        else if (purpose == PolicyConstants.PreserveFood)
+        else if (purpose == ProductionRules.PreserveFood)
         {
             need = FoodStoresRules.FoodStorageNeed.FilingKey;
         }
-        else if (purpose == PolicyConstants.CookAheadFood)
+        else if (purpose == ProductionRules.CookAheadFood)
         {
             need = FoodStoresRules.RefrigerationNeed.FilingKey;
         }
@@ -51,15 +51,15 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
 
     internal (ConcernId Key, ConcernId Need) ReportTarget()
     {
-        if (_purpose == PolicyConstants.CookFood)
+        if (_purpose == ProductionRules.CookFood)
         {
             return (CookingBillsKey, _need);
         }
-        if (_purpose == PolicyConstants.PreserveFood)
+        if (_purpose == ProductionRules.PreserveFood)
         {
             return (PreservationBillsKey, _need);
         }
-        if (_purpose == PolicyConstants.CookAheadFood)
+        if (_purpose == ProductionRules.CookAheadFood)
         {
             return (CookAheadBillsKey, _need);
         }
@@ -86,11 +86,11 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
     {
         var order = FoodOrdersRules.SelectFoodOrder(request);
         // Every food bill serves a Need: the Need's standing, not an owner's open work, gates the report.
-        var report = _purpose == PolicyConstants.CookFood
+        var report = _purpose == ProductionRules.CookFood
             ? new PurposeReport { Need = FoodRules.CookingNeedOf(FoodRounds.Facts(projection, _reviewer.Policy)) }
-            : _purpose == PolicyConstants.PreserveFood
+            : _purpose == ProductionRules.PreserveFood
                 ? new PurposeReport { Need = FoodStoresRules.FoodStorageNeedOf(FoodStoresFacts.From(projection.Facts), _reviewer.Policy.FoodStorage) }
-            : _purpose == PolicyConstants.CookAheadFood
+            : _purpose == ProductionRules.CookAheadFood
                 ? new PurposeReport { Need = FoodStoresRules.RefrigerationNeedOf(FoodStoresFacts.From(projection.Facts), _reviewer.Policy.FoodStorage) }
                 : new PurposeReport { Need = FoodRules.FoodSupplyNeedOf(FoodRounds.Facts(projection, _reviewer.Policy)) };
         switch (order.Gap)
@@ -127,11 +127,11 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
             TargetDays = seasonal.FoodTargetDays,
             Warm = Unknown<double>(),
         };
-        if (_purpose == PolicyConstants.CookFood)
+        if (_purpose == ProductionRules.CookFood)
         {
             request = request with { Meals = projection.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays) };
         }
-        else if (_purpose == PolicyConstants.CookAheadFood)
+        else if (_purpose == ProductionRules.CookAheadFood)
         {
             var refrigeration = RefrigerationRules.ReviewRefrigeration(projection.Facts.FoodStorageUpkeep, _reviewer.Policy.FoodStorage);
             request = request with { Warm = refrigeration.WarmNutrition };
@@ -178,7 +178,7 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
         {
             return FieldUnavailable("colonists");
         }
-        var butcher = _purpose == PolicyConstants.ButcherFood;
+        var butcher = _purpose == ProductionRules.ButcherFood;
         foreach (var bench in rows)
         {
             if (bench.Usable.TryGetValue(out var usable) && usable && bench.Butcher == butcher)

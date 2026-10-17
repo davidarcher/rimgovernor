@@ -91,10 +91,10 @@ public sealed record PieceShapes
     // cannot lay a template out, which Validate names.
     private static readonly TemplatePiece[] TemplatePieces =
     [
-        new(PolicyConstants.StandingLampDef, RoomRole.None, false),
-        new(PolicyConstants.WorkshopShelfDef, RoomRole.None, false),
-        new(PolicyConstants.ShelterHeatDef, RoomRole.None, false),
-        new(PolicyConstants.ShelterCraftingDef, RoomRole.None, false),
+        new(InteriorHelpersRules.StandingLampDef, RoomRole.None, false),
+        new(InteriorRegionRolesRules.WorkshopShelfDef, RoomRole.None, false),
+        new(LayoutCapabilityRules.ShelterHeatDef, RoomRole.None, false),
+        new(InteriorShelterRules.ShelterCraftingDef, RoomRole.None, false),
     ];
 }
 

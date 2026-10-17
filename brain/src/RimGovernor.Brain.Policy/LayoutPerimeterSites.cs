@@ -182,7 +182,7 @@ public static partial class LayoutPerimeterSitesRules
     /// <summary>The region as the rectangles the wall sections cut: the same decomposition CellRects makes of its cells.</summary>
     internal static List<Rectangle> RegionRects(Region g) => LayoutPerimeterEnclosureRules.CellRects([.. g.Cells()]);
 
-    private static readonly System.Text.RegularExpressions.Regex CorePerimeterTier = new("^" + System.Text.RegularExpressions.Regex.Escape(TierPerimeterPrefix) + "(r[0-9]+-)?[0-9]+$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    private static readonly System.Text.RegularExpressions.Regex CorePerimeterTier = new("^" + System.Text.RegularExpressions.Regex.Escape(LayoutDefenseRules.TierPerimeterPrefix) + "(r[0-9]+-)?[0-9]+$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     /// <summary>Whether a tier is one of the perimeter wall's own sections (perimeter-NN, or perimeter-rN-NN after a re-cut), not a pump, light, fence or removal tier.</summary>
     public static bool IsCorePerimeterTier(DefenseTierName name) => CorePerimeterTier.IsMatch(name.Value);
@@ -198,19 +198,19 @@ partial record LayoutPlan
         {
             return [];
         }
-        var output = new List<SiteDecision> { new() { Node = ring.Node, Verdict = EmbedPlace, Reason = ring.Reason } };
+        var output = new List<SiteDecision> { new() { Node = ring.Node, Verdict = LayoutEmbedRules.EmbedPlace, Reason = ring.Reason } };
         var (k, hasKillbox) = p.Killbox();
         if (hasKillbox)
         {
-            output.Add(new SiteDecision { Node = k.Node, Verdict = EmbedPlace, Reason = k.Reason });
+            output.Add(new SiteDecision { Node = k.Node, Verdict = LayoutEmbedRules.EmbedPlace, Reason = k.Reason });
         }
         else
         {
-            output.Add(new SiteDecision { Node = Wire.Name(LayoutPerimeterSitesRules.NodeKillbox), Verdict = EmbedUnplaceable, Reason = ring.Ring!.Opening });
+            output.Add(new SiteDecision { Node = Wire.Name(LayoutPerimeterSitesRules.NodeKillbox), Verdict = LayoutEmbedRules.EmbedUnplaceable, Reason = ring.Ring!.Opening });
         }
         foreach (var s in p.LiveSites(LayoutPerimeterSitesRules.NodePocketWall))
         {
-            output.Add(new SiteDecision { Node = s.Node, Verdict = EmbedPlace, Reason = s.Reason });
+            output.Add(new SiteDecision { Node = s.Node, Verdict = LayoutEmbedRules.EmbedPlace, Reason = s.Reason });
         }
         return output;
     }

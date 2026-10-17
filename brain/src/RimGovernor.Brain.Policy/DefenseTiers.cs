@@ -171,7 +171,7 @@ public static class DefenseTiersPolicy
         catch (Exception e) when (e is DefenseException or DomainException)
         {
             layout = new DefenseLayout { Toward = kb.Toward, Width = kb.Width, Entry = kb.Entry };
-            decisions.Add(new SiteDecision { Node = id, Verdict = PolicyConstants.EmbedUnplaceable, Reason = ReasonTierLayoutFailed });
+            decisions.Add(new SiteDecision { Node = id, Verdict = LayoutEmbedRules.EmbedUnplaceable, Reason = ReasonTierLayoutFailed });
             refusal = e.Message;
             refused = true;
         }
@@ -215,11 +215,11 @@ public static class DefenseTiersPolicy
         foreach (var n in nodes)
         {
             var reason = n.Tier?.Pinned == true ? ReasonTierPinned : ReasonTierSited;
-            decisions.Add(new SiteDecision { Node = n.Node, Verdict = PolicyConstants.EmbedPlace, Reason = reason });
+            decisions.Add(new SiteDecision { Node = n.Node, Verdict = LayoutEmbedRules.EmbedPlace, Reason = reason });
         }
         foreach (var name in displaced)
         {
-            decisions.Add(new SiteDecision { Node = id + "-" + name.Value, Verdict = PolicyConstants.EmbedPlace, Reason = ReasonTierDisplaced });
+            decisions.Add(new SiteDecision { Node = id + "-" + name.Value, Verdict = LayoutEmbedRules.EmbedPlace, Reason = ReasonTierDisplaced });
         }
         return new DefenseTiers
         {

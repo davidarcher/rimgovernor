@@ -12,24 +12,6 @@ public readonly record struct BillPurpose(string Value)
     public override string ToString() => Value;
 }
 
-public static partial class PolicyConstants
-{
-    public static readonly BillPurpose CookFood = new("cook");
-
-    public static readonly BillPurpose PreserveFood = new("preserve");
-
-    public static readonly BillPurpose ButcherFood = new("butcher");
-
-    /// <summary>
-    /// The food-stores/refrigeration Need's answer to a solar flare: the warm perishable stock the dark coolers cannot save
-    /// is cooked into meals on whichever bench still works (a fuelled stove; native's usable flag already
-    /// excludes the unpowered electric one), so the colony eats it before it rots instead of waiting out the
-    /// outage. The target is the at-risk nutrition beyond what existing bills already reserve, in meals; the
-    /// caller gates it on the flare.
-    /// </summary>
-    public static readonly BillPurpose CookAheadFood = new("cook_ahead");
-}
-
 public sealed record ProductionProduct
 {
     public string Name { get; init; } = "";
@@ -186,6 +168,21 @@ public sealed record ProductionBillContext
 
 public static partial class ProductionRules
 {
+    public static readonly BillPurpose CookFood = new("cook");
+
+    public static readonly BillPurpose PreserveFood = new("preserve");
+
+    public static readonly BillPurpose ButcherFood = new("butcher");
+
+    /// <summary>
+    /// The food-stores/refrigeration Need's answer to a solar flare: the warm perishable stock the dark coolers cannot save
+    /// is cooked into meals on whichever bench still works (a fuelled stove; native's usable flag already
+    /// excludes the unpowered electric one), so the colony eats it before it rots instead of waiting out the
+    /// outage. The target is the at-risk nutrition beyond what existing bills already reserve, in meals; the
+    /// caller gates it on the flare.
+    /// </summary>
+    public static readonly BillPurpose CookAheadFood = new("cook_ahead");
+
     /// <summary>
     /// Preserves unknown fields, but any observed drift is enough to correct a matching bill. Target bills
     /// must cover the planned minimum; finite repeat counts cannot maintain stock. Forever remains adequate.
@@ -266,8 +263,8 @@ public static partial class ProductionRules
         {
             return none;
         }
-        if (purpose != PolicyConstants.CookFood && purpose != PolicyConstants.PreserveFood && purpose != PolicyConstants.ButcherFood
-            && purpose != PolicyConstants.CookAheadFood && purpose != ArtRules.ArtBill && purpose != BabyFeedingRules.BabyFoodBill)
+        if (purpose != ProductionRules.CookFood && purpose != ProductionRules.PreserveFood && purpose != ProductionRules.ButcherFood
+            && purpose != ProductionRules.CookAheadFood && purpose != ArtRules.ArtBill && purpose != BabyFeedingRules.BabyFoodBill)
         {
             return none;
         }
@@ -292,12 +289,12 @@ public static partial class ProductionRules
             var demand = context[0].Art ?? new ArtDemand();
             return ArtRules.SelectArtBill(rows!, context[0].Artists[0], demand, out var art) ? (art, true) : none;
         }
-        if (context.Length == 1 && ((context[0].Meals is not null && purpose != PolicyConstants.CookFood)
-            || (context[0].Reserve is not null && purpose != PolicyConstants.PreserveFood)))
+        if (context.Length == 1 && ((context[0].Meals is not null && purpose != ProductionRules.CookFood)
+            || (context[0].Reserve is not null && purpose != ProductionRules.PreserveFood)))
         {
             return none;
         }
-        if (purpose == PolicyConstants.CookFood && context.Length == 1 && context[0].Meals is not null)
+        if (purpose == ProductionRules.CookFood && context.Length == 1 && context[0].Meals is not null)
         {
             if (context[0].Meals!.TargetDays != targetDays)
             {
@@ -305,7 +302,7 @@ public static partial class ProductionRules
             }
             return MealRules.SelectMealBill(benches, colonists, context[0].Meals!, context[0].Ingredients);
         }
-        if (purpose == PolicyConstants.PreserveFood)
+        if (purpose == ProductionRules.PreserveFood)
         {
             if (context.Length != 1 || context[0].Reserve is null)
             {
@@ -319,7 +316,7 @@ public static partial class ProductionRules
             reserved = 0;
         }
         var ahead = 0.0;
-        if (purpose == PolicyConstants.CookAheadFood)
+        if (purpose == ProductionRules.CookAheadFood)
         {
             var rk = atRisk.TryGetValue(out var risk);
             if (!rk || !FieldCapacityRules.FieldPositive(risk) || risk > 1e6)
@@ -344,7 +341,7 @@ public static partial class ProductionRules
             }
             var uk = bench.Usable.TryGetValue(out var usable);
             var tk = bench.Token.TryGetValue(out var token);
-            if (!uk || !usable || !tk || !FoodForecastRules.FoodId(token!) || bench.Butcher != (purpose == PolicyConstants.ButcherFood))
+            if (!uk || !usable || !tk || !FoodForecastRules.FoodId(token!) || bench.Butcher != (purpose == ProductionRules.ButcherFood))
             {
                 continue;
             }
@@ -371,7 +368,7 @@ public static partial class ProductionRules
                 {
                     selection = selection with { Ingredients = context[0].Ingredients };
                 }
-                if (purpose == PolicyConstants.ButcherFood)
+                if (purpose == ProductionRules.ButcherFood)
                 {
                     if (recipe.Role != RecipeRole.ButcherFlesh)
                     {
@@ -379,7 +376,7 @@ public static partial class ProductionRules
                     }
                     selection = selection with { Mode = BillMode.ButcherForever, Target = 0 };
                 }
-                if (purpose != PolicyConstants.CookAheadFood)
+                if (purpose != ProductionRules.CookAheadFood)
                 {
                     var exists = false;
                     foreach (var bill in bench.Bills)
@@ -400,7 +397,7 @@ public static partial class ProductionRules
                         continue;
                     }
                 }
-                if (purpose != PolicyConstants.ButcherFood)
+                if (purpose != ProductionRules.ButcherFood)
                 {
                     if (recipe.Products.Count != 1)
                     {
@@ -413,7 +410,7 @@ public static partial class ProductionRules
                     {
                         continue;
                     }
-                    if (purpose == PolicyConstants.CookAheadFood)
+                    if (purpose == ProductionRules.CookAheadFood)
                     {
                         var target = Math.Ceiling(ahead / nutrition);
                         if (target < 1 || target > int.MaxValue)
@@ -439,11 +436,11 @@ public static partial class ProductionRules
         // Butchery belongs away from the cooking workspace: a butcher bench standing in no cooking bench's room
         // wins over one that shares.
         IReadOnlyDictionary<string, bool> separated = new Dictionary<string, bool>();
-        if (purpose == PolicyConstants.ButcherFood)
+        if (purpose == ProductionRules.ButcherFood)
         {
             separated = SeparatedButcherBenches(rows!);
         }
-        var cooking = purpose == PolicyConstants.CookFood || purpose == PolicyConstants.CookAheadFood;
+        var cooking = purpose == ProductionRules.CookFood || purpose == ProductionRules.CookAheadFood;
         options.Sort((a, b) =>
         {
             bool first = simple.GetValueOrDefault(a.Recipe), second = simple.GetValueOrDefault(b.Recipe);

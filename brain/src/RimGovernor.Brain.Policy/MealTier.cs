@@ -435,7 +435,7 @@ public static partial class MealRules
         {
             var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench();
             bench = bench with { Recipes = [recipes.GetValueOrDefault((choice.Bench, choice.Recipe)) ?? new ProductionRecipe()] };
-            var (selected, ok) = ProductionRules.SelectProductionBill(CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
+            var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (ok && selected.Replace != "")
             {
                 return (selected, true);
@@ -456,7 +456,7 @@ public static partial class MealRules
         {
             var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench();
             bench = bench with { Recipes = [recipes.GetValueOrDefault((choice.Bench, choice.Recipe)) ?? new ProductionRecipe()] };
-            var (selected, ok) = ProductionRules.SelectProductionBill(CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
+            var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (!ok)
             {
                 if (existing.Contains((choice.Bench, choice.Recipe)))

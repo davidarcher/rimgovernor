@@ -22,23 +22,6 @@ namespace RimGovernor.Brain.Policy;
 // Not modelled, so the outings are a lower bound: joy tolerance, the fall-rate stat, weather and night, and
 // the givers that need a building or an item. An unread NeedDef, giver or job adds no flow: it is unknown,
 // never zero.
-public static partial class PolicyConstants
-{
-    /// <summary>Why the graph holds the recreation node: the joy the colonists need a day.</summary>
-    public const string ReasonRecreation = "recreation_joy_need";
-
-    private static readonly JoyTable JoyGameValue = new()
-    {
-        Need = "Joy",
-        IntervalTicks = 150,
-        FallPerInterval = 0.0015,
-        GainPerTick = 0.36 / 2500,
-        OutdoorGivers = ["GoForWalk"],
-    };
-
-    internal static JoyTable JoyJudgment => JoyGameValue;
-}
-
 /// <summary>
 /// The joy model's game numbers the defs do not carry, registered in DefTables so a renamed def fails the
 /// dangling-reference gate. IntervalTicks is Pawn_NeedsTracker's need interval, FallPerInterval Need_Joy's
@@ -84,7 +67,7 @@ public sealed record JoyModel
                 continue;
             }
             weight += s.Weight;
-            gain += s.Weight * s.Session * PolicyConstants.JoyJudgment.GainPerTick;
+            gain += s.Weight * s.Session * LayoutJoyNodesRules.JoyJudgment.GainPerTick;
             if (s.Outdoor)
             {
                 outdoor += s.Weight;
@@ -94,7 +77,7 @@ public sealed record JoyModel
         {
             return Unknown<RecreationNode>();
         }
-        var game = PolicyConstants.JoyJudgment;
+        var game = LayoutJoyNodesRules.JoyJudgment;
         var need = game.FallPerInterval * GameTime.TicksPerDay / game.IntervalTicks * LayoutJoyNodesRules.AwakeShare();
         var session = gain / weight;
         var sessions = need / session;
@@ -118,14 +101,25 @@ public sealed record RecreationNode
 
 public static partial class LayoutJoyNodesRules
 {
+    private static readonly JoyTable JoyGameValue = new()
+    {
+        Need = "Joy",
+        IntervalTicks = 150,
+        FallPerInterval = 0.0015,
+        GainPerTick = 0.36 / 2500,
+        OutdoorGivers = ["GoForWalk"],
+    };
+
+    internal static JoyTable JoyJudgment => JoyGameValue;
+
     /// <summary>The table the bridge reads the joy givers with.</summary>
-    public static JoyTable JoyGame() => PolicyConstants.JoyJudgment;
+    public static JoyTable JoyGame() => LayoutJoyNodesRules.JoyJudgment;
 
     /// <summary>The share of the day a colonist is not on the Sleep block of the fixed layout occupancy assumption.</summary>
     internal static double AwakeShare()
     {
         var slots = PawnRules.EnvironmentOccupancyBaseline();
-        var awake = slots.Count(s => s != PolicyConstants.ScheduleSleep);
+        var awake = slots.Count(s => s != PawnRules.ScheduleSleep);
         return (double)awake / slots.Length;
     }
 }
@@ -144,7 +138,7 @@ internal sealed partial class GraphBuilder
         {
             if (n.Purpose == StationPurpose.Sleep)
             {
-                AddEdge(n.Id, PolicyConstants.OutsideNode, node.Outdoor * HealthySleepers(n), false);
+                AddEdge(n.Id, LayoutGraphRules.OutsideNode, node.Outdoor * HealthySleepers(n), false);
             }
         }
         return demand;

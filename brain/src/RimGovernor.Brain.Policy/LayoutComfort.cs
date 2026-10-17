@@ -158,7 +158,7 @@ public sealed record SeekerNeed(NeedCurve Curve, SeekerGameDef Game)
             asleep[i] = day[k].Asleep;
         }
         var level = Curve.Base;
-        for (var d = 0; d < PolicyConstants.EnvMaxDays; d++)
+        for (var d = 0; d < LayoutComfortRules.EnvMaxDays; d++)
         {
             var start = level;
             var hours = new double[Game.Bands.MaxStage() + 2];
@@ -227,15 +227,6 @@ public sealed record SeekerNeed(NeedCurve Curve, SeekerGameDef Game)
         }
         return (new EnvChange(ma - mb, -price.W), true);
     }
-}
-
-public static partial class PolicyConstants
-{
-    /// <summary>
-    /// Bounds the steady-state search; a day's start level that has not settled by then leaves the run
-    /// unknown. Rates are at least a few percent an hour, so a settled level takes days.
-    /// </summary>
-    internal const int EnvMaxDays = 200;
 }
 
 /// <summary>Hours a day awake at a spot whose instant level is Target.</summary>
@@ -345,6 +336,12 @@ public sealed record ComfortInput
 
 public static partial class LayoutComfortRules
 {
+    /// <summary>
+    /// Bounds the steady-state search; a day's start level that has not settled by then leaves the run
+    /// unknown. Rates are at least a few percent an hour, so a settled level takes days.
+    /// </summary>
+    internal const int EnvMaxDays = 200;
+
     private static readonly SeekerTable SeekerGameTable = new(
         IntervalTicks: 150,
         BeautyImpact: 0.1,
@@ -372,13 +369,13 @@ public static partial class LayoutComfortRules
         var wake = 0;
         for (var h = 0; h < slots.Length; h++)
         {
-            if (slots[(h + 23) % 24] == PolicyConstants.ScheduleSleep && slots[h] != PolicyConstants.ScheduleSleep)
+            if (slots[(h + 23) % 24] == PawnRules.ScheduleSleep && slots[h] != PawnRules.ScheduleSleep)
             {
                 wake = h;
                 break;
             }
         }
-        var free = slots.Count(s => s == PolicyConstants.ScheduleAnything);
+        var free = slots.Count(s => s == PawnRules.ScheduleAnything);
         var asked = 0.0;
         foreach (var s in spots)
         {
@@ -395,10 +392,10 @@ public static partial class LayoutComfortRules
         {
             switch (slots[(wake + i) % 24])
             {
-                case PolicyConstants.ScheduleSleep:
+                case PawnRules.ScheduleSleep:
                     output.Add(new EnvSegment(1, sleepTarget, true));
                     break;
-                case PolicyConstants.ScheduleAnything:
+                case PawnRules.ScheduleAnything:
                     var room = 1.0;
                     for (var j = 0; j < queue.Length; j++)
                     {

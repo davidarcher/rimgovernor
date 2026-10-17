@@ -32,12 +32,12 @@ public sealed class DenseCore
     /// <summary>BuildGround.Column: the cells (x, z-CoreHalf..z+CoreHalf) all core.</summary>
     public bool Column(int x, int z)
     {
-        if (x < x0 || x >= x0 + w || z - CoreHalf < z0 || z + CoreHalf >= z0 + h)
+        if (x < x0 || x >= x0 + w || z - BuildGround.CoreHalf < z0 || z + BuildGround.CoreHalf >= z0 + h)
         {
             return false;
         }
-        var i = ((z - CoreHalf - z0) * w) + (x - x0);
-        for (var dz = 0; dz <= 2 * CoreHalf; dz++)
+        var i = ((z - BuildGround.CoreHalf - z0) * w) + (x - x0);
+        for (var dz = 0; dz <= 2 * BuildGround.CoreHalf; dz++)
         {
             if (!inCore[i + (dz * w)])
             {
@@ -46,8 +46,6 @@ public sealed class DenseCore
         }
         return true;
     }
-
-    private static int CoreHalf => PolicyConstants.CoreHalf;
 }
 
 /// <summary>The map's size, its impassable cells and every cell's walking distance from the nearest open edge cell, shared by every candidate's wall and edge score.</summary>
@@ -150,14 +148,14 @@ public static partial class LayoutSiteGroundRules
         var dense = new DenseCore(g.Core);
 
         // NearRich is false everywhere when no cell is rich
-        var anyRich = g.Soil.Values.Any(v => v == SoilCostRich);
+        var anyRich = g.Soil.Values.Any(v => v == BuildGround.SoilCostRich);
         foreach (var c in g.Core)
         {
             if (!dense.Column(c.X, c.Z))
             {
                 continue;
             }
-            if (anyRich && g.Soil.GetValueOrDefault(c) != SoilCostRich && g.NearRich(c))
+            if (anyRich && g.Soil.GetValueOrDefault(c) != BuildGround.SoilCostRich && g.NearRich(c))
             {
                 edge.Add(c);
             }
@@ -190,7 +188,7 @@ public static partial class LayoutSiteGroundRules
         {
             for (var k = 1; k <= SiteEdgeGap; k++)
             {
-                if (g.Soil.GetValueOrDefault(new Cell(c.X + (dx * k), c.Z + (dz * k))) == SoilCostRich)
+                if (g.Soil.GetValueOrDefault(new Cell(c.X + (dx * k), c.Z + (dz * k))) == BuildGround.SoilCostRich)
                 {
                     return true;
                 }

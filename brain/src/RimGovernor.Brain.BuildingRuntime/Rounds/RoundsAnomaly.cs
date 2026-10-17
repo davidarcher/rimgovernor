@@ -20,7 +20,7 @@ partial class AnomalyRounds
 
             foreach (var item in row.Equipment?.Apparel ?? [])
             {
-                if (PolicyConstants.LanceDefs.ContainsKey(new Resource(RoundsGear.GearDef(things, item.Thing))) && (item.Thing?.Id ?? "") != "")
+                if (PopulationRules.LanceDefs.ContainsKey(new Resource(RoundsGear.GearDef(things, item.Thing))) && (item.Thing?.Id ?? "") != "")
                 {
                     output.Add(new LanceUser(new PawnId(row.Pawn.Id ?? ""), item.Thing?.Id ?? ""));
                     break;

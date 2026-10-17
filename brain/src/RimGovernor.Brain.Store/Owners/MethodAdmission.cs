@@ -210,7 +210,7 @@ public sealed partial class Store
             return;
         }
         var review = LoadRounds(tx);
-        if (!review.Enabled || review.Snapshot != owner.Snapshot || plan.Actions.Count > AcquisitionCatalogRules.MaxCatalogSelection + PolicyConstants.MaxHuntRows)
+        if (!review.Enabled || review.Snapshot != owner.Snapshot || plan.Actions.Count > AcquisitionCatalogRules.MaxCatalogSelection + PawnRules.MaxHuntRows)
         {
             throw new ConflictException();
         }

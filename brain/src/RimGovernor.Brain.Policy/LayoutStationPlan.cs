@@ -601,7 +601,7 @@ public static partial class LayoutStationPlanRules
         nodes.AddRange(LayoutTripsRules.SeedRoomNodes(new SeedRooms { Shelter = true, Colonists = 1, ThroneArea = 1 }));
         nodes.Add(new RoomNode { Role = PlannedRole.Circulation });
         var output = new HashSet<PlannedRole>(nodes.Select(n => n.Role));
-        foreach (var role in ChildNodeRoles)
+        foreach (var role in LayoutChildRoomsRules.ChildNodeRoles)
         {
             output.Add(role);
         }

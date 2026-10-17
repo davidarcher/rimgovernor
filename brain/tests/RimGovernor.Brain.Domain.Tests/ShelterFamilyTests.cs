@@ -18,7 +18,7 @@ public sealed class ShelterFamilyTests
         Beds = Known(true),
         SleepingRecovered = Known(true),
         Colonists = Known(3L),
-        IndoorCapacity = Known(3L + PolicyConstants.HousingSparePlaces),
+        IndoorCapacity = Known(3L + LayoutGraphRules.HousingSparePlaces),
         SleepingMin = Known(20.0),
         SleepingMax = Known(22.0),
         TemperatureOwed = Known(false),

@@ -7,6 +7,9 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record ItemFacts
 {
+    /// <summary>The thing category the game files every stone block def under.</summary>
+    internal const string StoneBlocksCategory = "StoneBlocks";
+
     /// <summary>The game's MarketValue stat of every item def that shows one.</summary>
     public IReadOnlyDictionary<Resource, double> Market { get; init; } = new Dictionary<Resource, double>();
 
@@ -70,7 +73,7 @@ public sealed record ItemFacts
     private List<Drug> DrugsWhere(Func<Drug, bool> keep) => [.. Drugs.Where(keep)];
 
     /// <summary>Reports whether def is a stone block def: one filed under the StoneBlocks thing category.</summary>
-    public bool IsStoneBlocks(Resource def) => CategoriesOf(def).Contains(PolicyConstants.StoneBlocksCategory);
+    public bool IsStoneBlocks(Resource def) => CategoriesOf(def).Contains(ItemFacts.StoneBlocksCategory);
 
     /// <summary>
     /// The stone block def a stone build uses: the one stock holds most of, ties by name (so the first by name
@@ -94,7 +97,7 @@ public sealed record ItemFacts
                 found = true;
             }
         }
-        DomainException.Require(found, $"the catalog has no def in thing category {PolicyConstants.StoneBlocksCategory}");
+        DomainException.Require(found, $"the catalog has no def in thing category {ItemFacts.StoneBlocksCategory}");
         return best;
     }
 
@@ -196,12 +199,6 @@ public sealed record ItemFacts
         DomainException.Require(found, "the catalog has no raw plant food");
         return best;
     }
-}
-
-public static partial class PolicyConstants
-{
-    /// <summary>The thing category the game files every stone block def under.</summary>
-    internal const string StoneBlocksCategory = "StoneBlocks";
 }
 
 /// <summary>One art recipe: the building it makes, the building's footprint, the stuff it takes and its work (the recipe's workAmount, else the product's WorkToMake).</summary>

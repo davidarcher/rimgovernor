@@ -48,7 +48,7 @@ public sealed record PastureTable(IReadOnlyDictionary<string, double> Values)
     }
 }
 
-public static partial class PolicyConstants
+public static partial class PenFoodRules
 {
     /// <summary>
     /// The fewest cells a pen is sized to, whatever the herd eats. Judgment: a pen of a few cells cannot be
@@ -62,10 +62,7 @@ public static partial class PolicyConstants
     /// wall.
     /// </summary>
     internal const int PenCellsCap = 900;
-}
 
-public static partial class PenFoodRules
-{
     /// <summary>
     /// The nutrition per day the animals of ceilings eat: the adult feed of each race (the figure
     /// PenFoodCalculator's example animals use) times its count. Ok is false when a race's feed is unread.
@@ -102,8 +99,8 @@ public static partial class PenFoodRules
     {
         if (!FoodForecastRules.FoodNumber(demandPerDay) || !FoodForecastRules.FoodNumber(perCell) || perCell <= 0)
         {
-            return PolicyConstants.PenCellsCap;
+            return PenFoodRules.PenCellsCap;
         }
-        return Math.Min(PolicyConstants.PenCellsCap, Math.Max(PolicyConstants.PenCellsFloor, (int)Math.Ceiling(demandPerDay / perCell)));
+        return Math.Min(PenFoodRules.PenCellsCap, Math.Max(PenFoodRules.PenCellsFloor, (int)Math.Ceiling(demandPerDay / perCell)));
     }
 }

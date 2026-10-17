@@ -69,7 +69,7 @@ public static class ForecastCapacity
             var slot = (int)local % 24;
             var end = Math.Min(input.HorizonTicks, (local + 1 - hour) * GameTime.TicksPerHour);
             var assignment = pawn.Schedule.Value[slot];
-            if (assignment is not (PolicyConstants.ScheduleWork or PolicyConstants.ScheduleAnything)) blocked.Add(new(tick, end));
+            if (assignment is not (PawnRules.ScheduleWork or PawnRules.ScheduleAnything)) blocked.Add(new(tick, end));
         }
         var windows = new List<ForecastTimeWindow>();
         double cursor = 0;

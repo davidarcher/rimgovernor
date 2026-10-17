@@ -11,7 +11,7 @@ public sealed class ForecastWorkInputsTests
     {
         Id = new RimGovernor.Brain.Domain.PawnId(id), Available = Known(true), Applies = Known(true),
         Job = Known(new PawnJob()),
-        Schedule = Known(EquatableArray.From(Enumerable.Repeat(PolicyConstants.ScheduleAnything, 24))),
+        Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))),
     };
     private static ForecastCapacityInput Capacity(WorkPawn? pawn = null) => new()
     {
@@ -109,11 +109,11 @@ public sealed class ForecastWorkInputsTests
         Assert.False(ForecastCapacity.ForecastPawnCapacityOf(Capacity() with { Occupancy = default }).FreeTicks.IsKnown);
         Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Available = Known(false) })).FreeTicks.Value);
         Assert.False(ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Available = default })).FreeTicks.IsKnown);
-        var sleeping = Pawn() with { Schedule = Known(EquatableArray.From(Enumerable.Repeat(PolicyConstants.ScheduleSleep, 24))) };
+        var sleeping = Pawn() with { Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24))) };
         Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity(sleeping)).FreeTicks.Value);
         Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Capacity()).FreeTicks.Value);
-        var slots = Enumerable.Repeat(PolicyConstants.ScheduleAnything, 24).ToArray();
-        slots[13] = PolicyConstants.ScheduleSleep;
+        var slots = Enumerable.Repeat(PawnRules.ScheduleAnything, 24).ToArray();
+        slots[13] = PawnRules.ScheduleSleep;
         var shifted = ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Schedule = Known(EquatableArray.From(slots)) }) with
         { LocalHour = Known(12.5), HorizonTicks = GameTime.TicksPerHour });
         Assert.Equal(GameTime.TicksPerHour / 2.0, shifted.FreeTicks.Value);

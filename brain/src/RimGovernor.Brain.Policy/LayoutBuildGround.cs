@@ -1,21 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Soil build costs per cell: rich soil costs more than plain soil, which costs more than anything else (bare
-// ground, rock). Rich soil (fertility above ZoneRichFertility, e.g. 140%) is the best farmland on the map, so a
-// room over it costs 50x plain soil: still a cost, not a ban, but only a site with no other ground pays it.
-public static partial class PolicyConstants
-{
-    /// <summary>The deepest room interior the siting seeds allow for.</summary>
-    internal const int CoreMaxDepth = 7;
-
-    /// <summary>The half height of the cross-section a siting seed must have free about its row: one lane cell, the deepest room and a wall on each side.</summary>
-    internal const int CoreHalf = 1 + CoreMaxDepth + 2;
-
-    internal const int SoilCostRich = 100;
-    internal const int SoilCostNormal = 2;
-    internal const int SoilCostOther = 0;
-}
-
 /// <summary>Names which core cells are obstacles. Obstacles are geometry first and cost second: ObstacleLevels tries the strictest map, then fewer, and the last level keeps no obstacle at all, so the soil cost prices the plan when nothing else places every room.</summary>
 public enum ObstacleLevel
 {
@@ -36,6 +20,20 @@ public enum ObstacleLevel
 /// </summary>
 internal sealed record BuildGround
 {
+    // Soil build costs per cell: rich soil costs more than plain soil, which costs more than anything else (bare
+    // ground, rock). Rich soil (fertility above ZoneRichFertility, e.g. 140%) is the best farmland on the map, so a
+    // room over it costs 50x plain soil: still a cost, not a ban, but only a site with no other ground pays it.
+
+    /// <summary>The deepest room interior the siting seeds allow for.</summary>
+    internal const int CoreMaxDepth = 7;
+
+    /// <summary>The half height of the cross-section a siting seed must have free about its row: one lane cell, the deepest room and a wall on each side.</summary>
+    internal const int CoreHalf = 1 + CoreMaxDepth + 2;
+
+    internal const int SoilCostRich = 100;
+    internal const int SoilCostNormal = 2;
+    internal const int SoilCostOther = 0;
+
     public HashSet<Cell> Core { get; init; } = [];
 
     public HashSet<Cell> Rock { get; init; } = [];

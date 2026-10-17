@@ -18,14 +18,6 @@ namespace RimGovernor.Brain.Policy;
 //
 // No constant is new: the shapes are the squarest rectangle and its turn, as a room's, and a field no rectangle
 // of soil fits is unplaceable (resizing on demand is the next stage).
-public static partial class PolicyConstants
-{
-    // Verdict reasons of field placement.
-    public const string ReasonEmbedFieldPlaced = "embed_field_on_soil";
-    public const string ReasonEmbedFieldNoSoil = "embed_field_no_soil";
-    public const string ReasonTileField = "tile_field_zone";
-}
-
 /// <summary>A field node with its links to the room groups: the weights of its crop-flow edges, split over the groups holding the station at the other end.</summary>
 public sealed record EmbedField(FieldNode Node, IReadOnlyList<GroupLink> Links);
 
@@ -134,12 +126,12 @@ internal sealed partial class EmbedRun
     {
         if (b.Width == 0)
         {
-            output.Decisions.Add(new EmbedDecision { Group = -1, Other = -1, Field = id, Verdict = PolicyConstants.EmbedUnplaceable, Reason = PolicyConstants.ReasonEmbedFieldNoSoil });
+            output.Decisions.Add(new EmbedDecision { Group = -1, Other = -1, Field = id, Verdict = LayoutEmbedRules.EmbedUnplaceable, Reason = LayoutFieldPlaceRules.ReasonEmbedFieldNoSoil });
             return;
         }
         double cells = Math.Max(b.Width * b.Height, 1);
         output.Fields.Add(new EmbeddedField(id, b));
-        output.Decisions.Add(new EmbedDecision { Group = -1, Other = -1, Field = id, Verdict = PolicyConstants.EmbedPlace, Reason = PolicyConstants.ReasonEmbedFieldPlaced });
+        output.Decisions.Add(new EmbedDecision { Group = -1, Other = -1, Field = id, Verdict = LayoutEmbedRules.EmbedPlace, Reason = LayoutFieldPlaceRules.ReasonEmbedFieldPlaced });
         output.Score.Centre += (int)(E.Centre.Sum(b) / cells);
         output.Score.Edge += (int)(E.Edge.Sum(b) / cells);
     }
@@ -147,6 +139,11 @@ internal sealed partial class EmbedRun
 
 public static partial class LayoutFieldPlaceRules
 {
+    // Verdict reasons of field placement.
+    public const string ReasonEmbedFieldPlaced = "embed_field_on_soil";
+    public const string ReasonEmbedFieldNoSoil = "embed_field_no_soil";
+    public const string ReasonTileField = "tile_field_zone";
+
     /// <summary>
     /// The input with each field appended to the groups as a block of its area, and the reverse of its links
     /// on the groups it links (clustering's links run both ways). The input's groups are not changed.
@@ -297,7 +294,7 @@ partial class Tiler
                 continue;
             }
             this.Plan = this.Plan with { Zones = [.. this.Plan.Zones, z] };
-            this.Out.Decisions.Add(new TileDecision { Group = -1, Verdict = LayoutTileRules.TilePlace, Reason = ReasonTileField });
+            this.Out.Decisions.Add(new TileDecision { Group = -1, Verdict = LayoutTileRules.TilePlace, Reason = LayoutFieldPlaceRules.ReasonTileField });
         }
     }
 }

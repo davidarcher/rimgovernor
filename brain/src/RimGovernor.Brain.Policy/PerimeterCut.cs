@@ -42,41 +42,6 @@ public sealed record PerimeterTable(string WallDef, double DetourBudgetTicks);
 /// </summary>
 public sealed record PerimeterWall(Fact<double> HP, Fact<double> LightHP);
 
-public static partial class PolicyConstants
-{
-    // The cut's reasons; the caller journals them as layout_plan rows with target perimeter_cut
-    // (PerimeterCutDecisions).
-
-    /// <summary>The cut closes every route but the opening.</summary>
-    public const string ReasonCutTraced = "cut_traced";
-
-    /// <summary>The walls cannot close a route (ground nothing can wall, or the opening's lane touches the base), so the cut leaves it.</summary>
-    public const string ReasonCutOpen = "cut_unclosable";
-
-    /// <summary>The thickness follows the stretch's detour to the opening.</summary>
-    public const string ReasonThicknessDetour = "thickness_sapper_detour";
-
-    /// <summary>The detour is past the budget; the thickness is designed for the budget.</summary>
-    public const string ReasonThicknessCapped = "thickness_capped_at_budget";
-
-    /// <summary>
-    /// No walk along the outside reaches the opening, so no raider arrives there (an entry cell must reach
-    /// the colony), and one wall is enough.
-    /// </summary>
-    public const string ReasonThicknessNoDetour = "thickness_no_route_to_opening";
-
-    /// <summary>The wall's hit points are unknown.</summary>
-    public const string ReasonThicknessUnknown = "thickness_hp_unknown";
-
-    /// <summary>
-    /// The cost of a cell nothing can wall: priced so the cut crosses it only when no other cut exists,
-    /// never a hard veto.
-    /// </summary>
-    internal const int CutGap = 1000;
-
-    internal const int FlowInf = 1 << 30;
-}
-
 /// <summary>A run of the cut's cells that share one thickness.</summary>
 public sealed record CutSegment
 {
@@ -279,7 +244,7 @@ internal sealed class FlowNet
             Array.Copy(_head, _it, _head.Length);
             while (true)
             {
-                var pushed = Dfs(s, t, PolicyConstants.FlowInf);
+                var pushed = Dfs(s, t, PerimeterCutRules.FlowInf);
                 if (pushed == 0)
                 {
                     break;
@@ -335,6 +300,38 @@ internal sealed class CutInput(CutGrid grid, double[] hp, bool[] hardToWall, boo
 
 public static partial class PerimeterCutRules
 {
+    // The cut's reasons; the caller journals them as layout_plan rows with target perimeter_cut
+    // (PerimeterCutDecisions).
+
+    /// <summary>The cut closes every route but the opening.</summary>
+    public const string ReasonCutTraced = "cut_traced";
+
+    /// <summary>The walls cannot close a route (ground nothing can wall, or the opening's lane touches the base), so the cut leaves it.</summary>
+    public const string ReasonCutOpen = "cut_unclosable";
+
+    /// <summary>The thickness follows the stretch's detour to the opening.</summary>
+    public const string ReasonThicknessDetour = "thickness_sapper_detour";
+
+    /// <summary>The detour is past the budget; the thickness is designed for the budget.</summary>
+    public const string ReasonThicknessCapped = "thickness_capped_at_budget";
+
+    /// <summary>
+    /// No walk along the outside reaches the opening, so no raider arrives there (an entry cell must reach
+    /// the colony), and one wall is enough.
+    /// </summary>
+    public const string ReasonThicknessNoDetour = "thickness_no_route_to_opening";
+
+    /// <summary>The wall's hit points are unknown.</summary>
+    public const string ReasonThicknessUnknown = "thickness_hp_unknown";
+
+    /// <summary>
+    /// The cost of a cell nothing can wall: priced so the cut crosses it only when no other cut exists,
+    /// never a hard veto.
+    /// </summary>
+    internal const int CutGap = 1000;
+
+    internal const int FlowInf = 1 << 30;
+
     /// <summary>The eight cells around one.</summary>
     private static readonly Cell[] Neighbours8 = [new(-1, -1), new(0, -1), new(1, -1), new(-1, 0), new(1, 0), new(-1, 1), new(0, 1), new(1, 1)];
 
@@ -382,29 +379,29 @@ public static partial class PerimeterCutRules
             var c = g.Cost[i];
             if (c == 0)
             {
-                c = PolicyConstants.FlowInf;
+                c = PerimeterCutRules.FlowInf;
             }
             net.Arc(2 * i, (2 * i) + 1, c);
             if (g.Source[i])
             {
-                net.Arc(s, 2 * i, PolicyConstants.FlowInf);
+                net.Arc(s, 2 * i, PerimeterCutRules.FlowInf);
             }
             if (g.Sink[i])
             {
-                net.Arc((2 * i) + 1, t, PolicyConstants.FlowInf);
+                net.Arc((2 * i) + 1, t, PerimeterCutRules.FlowInf);
             }
             var from = i;
             g.Neighbours4(i, j =>
             {
                 if (!g.Barrier[j])
                 {
-                    net.Arc((2 * from) + 1, 2 * j, PolicyConstants.FlowInf);
+                    net.Arc((2 * from) + 1, 2 * j, PerimeterCutRules.FlowInf);
                 }
             });
         }
         var flow = net.MaxFlow(s, t);
         var cut = new List<int>();
-        if (flow >= PolicyConstants.FlowInf)
+        if (flow >= PerimeterCutRules.FlowInf)
         {
             return (cut, flow);
         }
@@ -432,7 +429,7 @@ public static partial class PerimeterCutRules
     {
         var g = input.Grid;
         var (cut, flow) = RoutingCut(g);
-        if (flow >= PolicyConstants.FlowInf)
+        if (flow >= PerimeterCutRules.FlowInf)
         {
             return new PerimeterCut
             {
@@ -440,8 +437,8 @@ public static partial class PerimeterCutRules
                 [
                     new PerimeterCutDecision
                     {
-                        Verdict = PolicyConstants.EmbedUnplaceable,
-                        Reason = PolicyConstants.ReasonCutOpen,
+                        Verdict = LayoutEmbedRules.EmbedUnplaceable,
+                        Reason = PerimeterCutRules.ReasonCutOpen,
                         Attrs = new Dictionary<string, object> { ["why"] = "source_touches_base" },
                     },
                 ],
@@ -519,20 +516,20 @@ public static partial class PerimeterCutRules
             var d = new CellDesign { N = 1, Hp = hp, Reason = "" };
             if (hp <= 0)
             {
-                d.Reason = PolicyConstants.ReasonThicknessUnknown;
+                d.Reason = PerimeterCutRules.ReasonThicknessUnknown;
             }
             else if (best < 0)
             {
-                d.Reason = PolicyConstants.ReasonThicknessNoDetour;
+                d.Reason = PerimeterCutRules.ReasonThicknessNoDetour;
             }
             else
             {
                 d.Detour = best * DefenseCorridorRoutes.PathMoveCardinal;
                 d.N = SapperThickness(hp, d.Detour);
-                d.Reason = PolicyConstants.ReasonThicknessDetour;
+                d.Reason = PerimeterCutRules.ReasonThicknessDetour;
                 if (d.Detour > PerimeterTableValue.DetourBudgetTicks)
                 {
-                    d.Reason = PolicyConstants.ReasonThicknessCapped;
+                    d.Reason = PerimeterCutRules.ReasonThicknessCapped;
                 }
             }
             design[i] = d;
@@ -598,11 +595,11 @@ public static partial class PerimeterCutRules
         var wallCells = PlannedRules.SortedCells(walls);
 
         var decisions = new List<PerimeterCutDecision>();
-        var verdict = PolicyConstants.EmbedPlace;
-        var why = PolicyConstants.ReasonCutTraced;
+        var verdict = LayoutEmbedRules.EmbedPlace;
+        var why = PerimeterCutRules.ReasonCutTraced;
         if (unclosable.Count > 0)
         {
-            (verdict, why) = (PolicyConstants.EmbedUnplaceable, PolicyConstants.ReasonCutOpen);
+            (verdict, why) = (LayoutEmbedRules.EmbedUnplaceable, PerimeterCutRules.ReasonCutOpen);
         }
         decisions.Add(new PerimeterCutDecision
         {
@@ -621,7 +618,7 @@ public static partial class PerimeterCutRules
             var seg = segments[k];
             decisions.Add(new PerimeterCutDecision
             {
-                Verdict = PolicyConstants.EmbedPlace,
+                Verdict = LayoutEmbedRules.EmbedPlace,
                 Reason = seg.Reason,
                 Attrs = new Dictionary<string, object>
                 {
@@ -702,7 +699,7 @@ public static partial class PerimeterCutRules
             }
             else
             {
-                g.Cost[i] = PolicyConstants.CutGap;
+                g.Cost[i] = PerimeterCutRules.CutGap;
                 input.HardToWall[i] = true;
             }
             int x = i % w, z = i / w;

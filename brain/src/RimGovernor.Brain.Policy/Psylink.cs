@@ -3,7 +3,7 @@ using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyConstants
+public static partial class PsylinkRules
 {
     // The royalty/psylink Need observes unmet psylink and level-up requirements for willing colonists below
     // MaxPsylinkLevel (PsylinkLevelUps; Deserter route excluded). Ordinary item use remains unsupported until shared
@@ -23,10 +23,7 @@ public static partial class PolicyConstants
     /// CompUseEffect_InstallImplant.CanBeUsedBy refuses at.
     /// </summary>
     public const int MaxPsylinkLevel = 6;
-}
 
-public static partial class PsylinkRules
-{
     /// <summary>
     /// The colonists willing to take a psylink: available (alive, standing, undrafted, out of a mental
     /// state), read with a needs block, and with no psylink. A colonist's psylink facts are known only for a
@@ -43,7 +40,7 @@ public static partial class PsylinkRules
             return Unknown<EquatableArray<PawnId>>();
         }
         var output = new List<PawnId>();
-        if (!facts!.Neuroformers.ContainsKey(PolicyConstants.PsylinkNeuroformer))
+        if (!facts!.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
         {
             return Known(EquatableArray.From(output));
         }
@@ -78,7 +75,7 @@ public static partial class PsylinkRules
             return Unknown<EquatableArray<PawnId>>();
         }
         var output = new List<PawnId>();
-        if (!facts!.Neuroformers.ContainsKey(PolicyConstants.PsylinkNeuroformer))
+        if (!facts!.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
         {
             return Known(EquatableArray.From(output));
         }
@@ -87,7 +84,7 @@ public static partial class PsylinkRules
             var ak = pawn.Available.TryGetValue(out var available);
             var nk = pawn.Rest.TryGetValue(out _);
             var lk = pawn.PsylinkLevel.TryGetValue(out var level);
-            if (ak && available && nk && lk && level < PolicyConstants.MaxPsylinkLevel && !Titled(facts, pawn.Id))
+            if (ak && available && nk && lk && level < PsylinkRules.MaxPsylinkLevel && !Titled(facts, pawn.Id))
             {
                 output.Add(pawn.Id);
             }
@@ -114,7 +111,7 @@ public static partial class PsylinkRules
         {
             return needs;
         }
-        var ok = facts!.Neuroformers.TryGetValue(PolicyConstants.PsylinkNeuroformer, out var stock);
+        var ok = facts!.Neuroformers.TryGetValue(PsylinkRules.PsylinkNeuroformer, out var stock);
         if (!ok)
         {
             return needs;
@@ -126,7 +123,7 @@ public static partial class PsylinkRules
         {
             return needs;
         }
-        return ResourceRules.ResourceConcernTargets(needs, new Dictionary<Resource, long> { [new Resource(PolicyConstants.PsylinkNeuroformer)] = 1 });
+        return ResourceRules.ResourceConcernTargets(needs, new Dictionary<Resource, long> { [new Resource(PsylinkRules.PsylinkNeuroformer)] = 1 });
     }
 
     /// <summary>

@@ -148,7 +148,7 @@ public static class AcquisitionRules
         DomainException.Require(huntSlots.Length <= 1, "multiple hunting budgets");
         if (huntSlots.Length == 1 && huntSlots[0].TryGetValue(out var n))
         {
-            DomainException.Require(n >= 0 && n <= MaxHuntRows, "invalid hunting budget");
+            DomainException.Require(n >= 0 && n <= PawnRules.MaxHuntRows, "invalid hunting budget");
             slots = n;
         }
 

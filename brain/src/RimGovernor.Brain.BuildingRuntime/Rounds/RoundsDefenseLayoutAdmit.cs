@@ -239,11 +239,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static string DefensePerimeterBridge(ColonyProjection projection)
     {
-        if (projection.Facts.Research.TryGetValue(out var research) && research.Finished.Contains(new ResearchProjectId(PolicyConstants.PerimeterHeavyResearch)))
+        if (projection.Facts.Research.TryGetValue(out var research) && research.Finished.Contains(new ResearchProjectId(LayoutDefenseRules.PerimeterHeavyResearch)))
         {
-            return PolicyConstants.PerimeterHeavyBridge;
+            return LayoutDefenseRules.PerimeterHeavyBridge;
         }
-        return PolicyConstants.PerimeterBridge;
+        return LayoutDefenseRules.PerimeterBridge;
     }
 
     internal static bool DefenseStoneBuilding(Building b) =>
@@ -262,7 +262,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
 
     internal static bool DefenseTerrain(string definition) =>
-        definition == DefenseDefinitionNames.Floor || definition == PolicyConstants.PerimeterBridge || definition == PolicyConstants.PerimeterHeavyBridge;
+        definition == DefenseDefinitionNames.Floor || definition == LayoutDefenseRules.PerimeterBridge || definition == LayoutDefenseRules.PerimeterHeavyBridge;
 
     /// <summary>The stone block resource with the most stock, when it covers the stone the buildings need.</summary>
     internal static (string Stuff, bool Ok) DefensePerimeterStone(ColonyProjection projection, IReadOnlyList<Building> buildings)

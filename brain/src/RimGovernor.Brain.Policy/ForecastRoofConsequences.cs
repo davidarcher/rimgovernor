@@ -22,9 +22,9 @@ internal sealed record ForecastRoofMood(IReadOnlyList<ForecastMemoryRenewal> Ren
     IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)> Banded,
     IReadOnlyList<string> Findings, string Unassessed);
 
-/// <summary>Mirrored 1.7 literals the roof and room consequences use (#3339); each cites its member. See docs/developers/contracts/kept-constants.md, "Mirrored game literals".</summary>
-public static partial class PolicyConstants
+public static class ForecastRoofConsequences
 {
+    // Mirrored 1.7 literals the roof and room consequences use (#3339); each cites its member. See docs/developers/contracts/kept-constants.md, "Mirrored game literals".
     /// <summary>Room.PsychologicallyOutdoors: OpenRoofCountStopAt(300) &gt;= 300.</summary>
     public const int PsychologicallyOutdoorsOpenRoofCells = 300;
     /// <summary>Room.PsychologicallyOutdoors: TouchesMapEdge and OpenRoofCount / CellCount &gt;= 0.5.</summary>
@@ -54,10 +54,7 @@ public static partial class PolicyConstants
     public const double DeteriorationRainLow = 1, DeteriorationRainHigh = 5;
     /// <summary>StatPart_WorkTableOutdoors.WorkRateFactor: a bench in a psychologically outdoors room works at 0.8.</summary>
     public const double WorkTableOutdoorsFactor = 0.8;
-}
 
-public static class ForecastRoofConsequences
-{
     private const string BedroomRole = "Bedroom", BarracksRole = "Barracks";
 
     /// <summary>
@@ -133,13 +130,13 @@ public static class ForecastRoofConsequences
         {
             PsychologicallyOutdoors = Known(ClosedPsychologicallyOutdoors(prediction, open)),
             OutdoorTemperature = Known(prediction.TouchesMapEdge
-                || open >= Math.Ceiling(prediction.Cells * PolicyConstants.OutdoorTemperatureOpenFraction)),
+                || open >= Math.Ceiling(prediction.Cells * ForecastRoofConsequences.OutdoorTemperatureOpenFraction)),
         };
     }
 
     private static bool ClosedPsychologicallyOutdoors(PlannedRoomPrediction prediction, int open)
-        => open >= PolicyConstants.PsychologicallyOutdoorsOpenRoofCells || prediction.TouchesMapEdge && prediction.Cells > 0
-            && open / (double)prediction.Cells >= PolicyConstants.PsychologicallyOutdoorsEdgeOpenFraction;
+        => open >= ForecastRoofConsequences.PsychologicallyOutdoorsOpenRoofCells || prediction.TouchesMapEdge && prediction.Cells > 0
+            && open / (double)prediction.Cells >= ForecastRoofConsequences.PsychologicallyOutdoorsEdgeOpenFraction;
 
     /// <summary>
     /// One pawn's roof and room thoughts along a schedule (#3339):
@@ -172,8 +169,8 @@ public static class ForecastRoofConsequences
             { findings.Add("sleep_room_thoughts_unread:" + rest.Target); continue; }
             var continuing = rest.Start == 0 && pawn.Awake == Known(false);
             var slept = wake - rest.Start;
-            if (!continuing && slept < PolicyConstants.BedThoughtsEarliestTicks) continue;
-            if (slept < PolicyConstants.BedThoughtsLatestTicks) { Unknown("sleep_bed_thoughts_onset_unassessed:" + rest.Id); continue; }
+            if (!continuing && slept < ForecastRoofConsequences.BedThoughtsEarliestTicks) continue;
+            if (slept < ForecastRoofConsequences.BedThoughtsLatestTicks) { Unknown("sleep_bed_thoughts_onset_unassessed:" + rest.Id); continue; }
             var closed = rooms.FirstOrDefault(r => r.ClosedAt <= wake && r.Prediction.Beds.Contains(bed.Id));
             var (role, stage) = closed is null ? (bed.Bed.Role, bed.Bed.Stage) : (closed.Prediction.Role, closed.Prediction.Stage);
             var outside = CellStateAt(bed.Cell, bed.Location, wake, rooms).PsychologicallyOutdoors;
@@ -247,18 +244,18 @@ public static class ForecastRoofConsequences
                 if (!state.OutdoorTemperature.TryGetValue(out var outdoors) || !state.Roofed.TryGetValue(out var roofed)
                     || roofed && !state.ThickRoof.IsKnown) { Unknown("outdoors_need_cell_unknown"); break; }
                 var thick = roofed && state.ThickRoof.Value;
-                var delta = outdoors ? !roofed ? PolicyConstants.OutdoorsOutdoorsNoRoof : thick ? PolicyConstants.OutdoorsOutdoorsThickRoof : PolicyConstants.OutdoorsOutdoorsThinRoof
-                    : !roofed ? PolicyConstants.OutdoorsIndoorsNoRoof : thick ? PolicyConstants.OutdoorsIndoorsThickRoof : PolicyConstants.OutdoorsIndoorsThinRoof;
-                var floor = !outdoors && thick ? 0 : PolicyConstants.OutdoorsFallFloor;
-                if (span.InBed && delta < 0) delta *= PolicyConstants.OutdoorsInBedFactor;
-                var rate = delta * PolicyConstants.OutdoorsDeltaScale / PolicyConstants.NeedIntervalTicks;
+                var delta = outdoors ? !roofed ? ForecastRoofConsequences.OutdoorsOutdoorsNoRoof : thick ? ForecastRoofConsequences.OutdoorsOutdoorsThickRoof : ForecastRoofConsequences.OutdoorsOutdoorsThinRoof
+                    : !roofed ? ForecastRoofConsequences.OutdoorsIndoorsNoRoof : thick ? ForecastRoofConsequences.OutdoorsIndoorsThickRoof : ForecastRoofConsequences.OutdoorsIndoorsThinRoof;
+                var floor = !outdoors && thick ? 0 : ForecastRoofConsequences.OutdoorsFallFloor;
+                if (span.InBed && delta < 0) delta *= ForecastRoofConsequences.OutdoorsInBedFactor;
+                var rate = delta * ForecastRoofConsequences.OutdoorsDeltaScale / ForecastRoofConsequences.NeedIntervalTicks;
                 var from = level;
                 double LevelAt(double t) => rate < 0 ? (from < floor ? from : Math.Max(floor, from + rate * (t - span.Start))) : Math.Min(1, from + rate * (t - span.Start));
                 // The stage changes where the level crosses a category threshold inside the span, each piece read at its midpoint.
                 var cuts = new SortedSet<double> { span.Start, span.End };
                 if (rate != 0)
-                    foreach (var bound in new[] { PolicyConstants.OutdoorsFree, PolicyConstants.OutdoorsFreshAir, PolicyConstants.OutdoorsLight,
-                        PolicyConstants.OutdoorsSevere, PolicyConstants.OutdoorsTrapped })
+                    foreach (var bound in new[] { ForecastRoofConsequences.OutdoorsFree, ForecastRoofConsequences.OutdoorsFreshAir, ForecastRoofConsequences.OutdoorsLight,
+                        ForecastRoofConsequences.OutdoorsSevere, ForecastRoofConsequences.OutdoorsTrapped })
                         if (span.Start + (bound - from) / rate is var t && t > span.Start && t < span.End) cuts.Add(t);
                 var points = cuts.ToArray();
                 for (var i = 0; i < points.Length - 1; i++)
@@ -315,8 +312,8 @@ public static class ForecastRoofConsequences
     }
 
     /// <summary>ThoughtWorker_NeedOutdoors' stage of an outdoors level (Need_Outdoors.CurCategory): -1 when Free (inactive).</summary>
-    private static int OutdoorsStage(double level) => level > PolicyConstants.OutdoorsFree ? -1 : level > PolicyConstants.OutdoorsFreshAir ? 4
-        : level > PolicyConstants.OutdoorsLight ? 3 : level >= PolicyConstants.OutdoorsSevere ? 2 : level > PolicyConstants.OutdoorsTrapped ? 1 : 0;
+    private static int OutdoorsStage(double level) => level > ForecastRoofConsequences.OutdoorsFree ? -1 : level > ForecastRoofConsequences.OutdoorsFreshAir ? 4
+        : level > ForecastRoofConsequences.OutdoorsLight ? 3 : level >= ForecastRoofConsequences.OutdoorsSevere ? 2 : level > ForecastRoofConsequences.OutdoorsTrapped ? 1 : 0;
 
     /// <summary>
     /// The tick a food stack is destroyed by expected deterioration before <paramref name="until"/> (#3339), or infinity.
@@ -330,7 +327,7 @@ public static class ForecastRoofConsequences
         if (stack.Deterioration is not { } d || stack.Location is not { } cell) return double.PositiveInfinity;
         if (!d.RatePerDay.TryGetValue(out var observedRate) || !double.IsFinite(observedRate) || !read.MapArea.TryGetValue(out var area) || area <= 0) return null;
         if (observedRate <= 0) return double.PositiveInfinity;
-        var visits = Math.Ceiling(area * PolicyConstants.SteadyCellsFractionPerTick) / area;
+        var visits = Math.Ceiling(area * ForecastRoofConsequences.SteadyCellsFractionPerTick) / area;
         var room = rooms.FirstOrDefault(r => r.Interior.Contains(cell));
         var times = new SortedSet<double> { 0 };
         if (room is not null)
@@ -342,7 +339,7 @@ public static class ForecastRoofConsequences
             if (read.Deterioration is not { } part || !read.RainRate.TryGetValue(out var rain)
                 || !state.Roofed.TryGetValue(out var roofed) || !state.OutdoorTemperature.TryGetValue(out var outdoors)) return null;
             var factor = (roofed ? 0 : part.UnroofedOffset) + (outdoors ? part.OutdoorsOffset : 0) + d.TerrainFactor;
-            if (!roofed) factor *= PolicyConstants.DeteriorationRainLow + (PolicyConstants.DeteriorationRainHigh - PolicyConstants.DeteriorationRainLow) * Math.Clamp(rain, 0, 1);
+            if (!roofed) factor *= ForecastRoofConsequences.DeteriorationRainLow + (ForecastRoofConsequences.DeteriorationRainHigh - ForecastRoofConsequences.DeteriorationRainLow) * Math.Clamp(rain, 0, 1);
             if (d.Protected) factor *= part.ProtectedFactor;
             return factor;
         }
@@ -357,8 +354,8 @@ public static class ForecastRoofConsequences
                 if (Factor(points[i]) is not { } factor) return null;
                 rate = now.Value > 0 ? observedRate * factor / now.Value : 0;
             }
-            if (rate < PolicyConstants.DeteriorationMinimumRate) continue;
-            var perTick = rate / PolicyConstants.DeteriorationChanceDivisor * visits;
+            if (rate < ForecastRoofConsequences.DeteriorationMinimumRate) continue;
+            var perTick = rate / ForecastRoofConsequences.DeteriorationChanceDivisor * visits;
             var span = points[i + 1] - points[i];
             if (lost + perTick * span >= d.HitPoints) return points[i] + (d.HitPoints - lost) / perTick;
             lost += perTick * span;
@@ -405,7 +402,7 @@ public static class ForecastRoofConsequences
                         {
                             Activity = id,
                             WorkTicks = option.Equipment.Any(benches.Contains) && option.WorkTicks.TryGetValue(out var ticks)
-                                ? Known(ticks * PolicyConstants.WorkTableOutdoorsFactor) : option.WorkTicks,
+                                ? Known(ticks * ForecastRoofConsequences.WorkTableOutdoorsFactor) : option.WorkTicks,
                         });
                         if (bindings.TryGetValue((original.Id, option.Pawn), out var binding))
                             bindings[(id, option.Pawn)] = binding with { Id = id, Prerequisites = EquatableArray.From(original.Prerequisites.Concat(finishes)) };

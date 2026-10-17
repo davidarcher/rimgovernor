@@ -122,7 +122,7 @@ public static class FoodOrdersRules
         FoodOrder Gap(FoodOrderGap g, string subject) => new() { Gap = g, Subject = subject };
         switch (r.Purpose)
         {
-            case var purpose when purpose == PolicyConstants.CookFood:
+            case var purpose when purpose == ProductionRules.CookFood:
             {
                 if (!FoodPlanSupport(f.FoodPlan, CandidateKind.Cook, "cooking-capacity"))
                 {
@@ -133,14 +133,14 @@ public static class FoodOrdersRules
                 {
                     context = context with { Ingredients = HumanFoodPlanRules.HumanCookingIngredients(supply, humans.Consumers, f.FoodPlan, HumanMeatRoute.Meals) };
                 }
-                var (selected, known) = ProductionRules.SelectProductionBill(PolicyConstants.CookFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, context);
+                var (selected, known) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, context);
                 if (known)
                 {
                     selections.Add(selected);
                 }
                 break;
             }
-            case var purpose when purpose == PolicyConstants.PreserveFood:
+            case var purpose when purpose == ProductionRules.PreserveFood:
             {
                 if (!FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"))
                 {
@@ -150,7 +150,7 @@ public static class FoodOrdersRules
                 {
                     return Gap(FoodOrderGap.Field, "food_reserve");
                 }
-                var (selected, known) = ProductionRules.SelectProductionBill(PolicyConstants.PreserveFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, new ProductionBillContext { Reserve = reserve });
+                var (selected, known) = ProductionRules.SelectProductionBill(ProductionRules.PreserveFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, new ProductionBillContext { Reserve = reserve });
                 if (known)
                 {
                     selections.Add(selected);
@@ -165,7 +165,7 @@ public static class FoodOrdersRules
                 }
                 break;
             }
-            case var purpose when purpose == PolicyConstants.ButcherFood:
+            case var purpose when purpose == ProductionRules.ButcherFood:
             {
                 // Owed on the food runway alone: native offers no hunt row until a usable bench carries this bill.
                 var dk = f.FoodDays.TryGetValue(out var days);
@@ -173,7 +173,7 @@ public static class FoodOrdersRules
                 {
                     return dk ? Gap(FoodOrderGap.NoDeficit, "") : Gap(FoodOrderGap.Field, "food_days");
                 }
-                var (selected, known) = ProductionRules.SelectProductionBill(PolicyConstants.ButcherFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays);
+                var (selected, known) = ProductionRules.SelectProductionBill(ProductionRules.ButcherFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays);
                 if (known)
                 {
                     selections.Add(selected);
@@ -189,7 +189,7 @@ public static class FoodOrdersRules
                 }
                 break;
             }
-            case var purpose when purpose == PolicyConstants.CookAheadFood:
+            case var purpose when purpose == ProductionRules.CookAheadFood:
             {
                 // Only under a solar flare with a known remaining duration: the coolers are dark for the outage,
                 // so the warm at-risk stock is cooked instead.
@@ -197,7 +197,7 @@ public static class FoodOrdersRules
                 {
                     return Gap(FoodOrderGap.NoDeficit, "");
                 }
-                var (selected, known) = ProductionRules.SelectProductionBill(PolicyConstants.CookAheadFood, census, f.Colonists, f.FoodDays, r.Warm, r.TargetDays);
+                var (selected, known) = ProductionRules.SelectProductionBill(ProductionRules.CookAheadFood, census, f.Colonists, f.FoodDays, r.Warm, r.TargetDays);
                 if (known)
                 {
                     selections.Add(selected);
@@ -252,7 +252,7 @@ public static class FoodOrdersRules
             }
             orders.Add(spec);
         }
-        if (orders.Count > 0 || r.Purpose == PolicyConstants.CookAheadFood)
+        if (orders.Count > 0 || r.Purpose == ProductionRules.CookAheadFood)
         {
             return new Declared { Orders = orders };
         }
@@ -262,9 +262,9 @@ public static class FoodOrdersRules
 
     /// <summary>Whether a bill belongs to a purpose's family.</summary>
     private static Func<GearBill, bool> FoodFamily(BillPurpose purpose) =>
-        purpose == PolicyConstants.CookFood ? (b => b.Role == RecipeRole.OrdinaryMeal)
-        : purpose == PolicyConstants.ButcherFood ? (b => b.Role == RecipeRole.ButcherFlesh)
-        : purpose == PolicyConstants.PreserveFood ? (b => b.Products.Any(FoodReserveRules.ReserveFoodDefinition))
+        purpose == ProductionRules.CookFood ? (b => b.Role == RecipeRole.OrdinaryMeal)
+        : purpose == ProductionRules.ButcherFood ? (b => b.Role == RecipeRole.ButcherFlesh)
+        : purpose == ProductionRules.PreserveFood ? (b => b.Products.Any(FoodReserveRules.ReserveFoodDefinition))
         : (_ => false);
 
     /// <summary>The specs of the unspent production bills of a family, as they stand; known is false while one's readback is unread.</summary>

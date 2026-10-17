@@ -51,7 +51,7 @@ The roof and room consequences use game literals that RimWorld 1.7 keeps in meth
 bodies or private fields, where no read can reach them. Each is mirrored once, and
 its code comment cites the 1.7 member; no fixture check compares them. A game update
 that changes one changes the forecast silently until the comment's member is
-re-read. The brain's are `PolicyConstants` in `ForecastRoofConsequences.cs`, the
+re-read. The brain's are in `ForecastRoofConsequences.cs`, the
 native ones `NativeRoomPrediction.cs`.
 
 | Constant | Value | 1.7 member |

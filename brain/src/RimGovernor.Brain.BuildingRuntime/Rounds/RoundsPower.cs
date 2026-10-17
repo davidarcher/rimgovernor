@@ -33,8 +33,8 @@ public sealed partial class RoundsBuildingPlanner
             Sources = facts.PowerSources,
             Battery = facts.PowerBattery,
             Light = facts.LightTerrains,
-            BatteryAvailable = facts.DefinitionAvailable(PolicyConstants.BatteryDefinition),
-            GeothermalAvailable = facts.DefinitionAvailable(PolicyConstants.GeothermalDefinition),
+            BatteryAvailable = facts.DefinitionAvailable(PowerRules.BatteryDefinition),
+            GeothermalAvailable = facts.DefinitionAvailable(PowerRules.GeothermalDefinition),
             PendingDemandW = RoundsBuildingPlanner.PendingDemand(facts, pendingConsumers),
         };
         if (facts.LayoutPlan.TryGetValue(out var plan))
@@ -287,7 +287,7 @@ async
                 return (default!, false);
             }
 
-            if (name == PolicyConstants.WindTurbineDefinition && (!v.WindBlockedCells.TryGetValue(out var w) || w > 0))
+            if (name == PowerRules.WindTurbineDefinition && (!v.WindBlockedCells.TryGetValue(out var w) || w > 0))
             {
                 return (default!, false);
             }
@@ -310,7 +310,7 @@ async
             var free = true;
             foreach (var c in cells)
             {
-                free = free && !blocked.Contains(c) && !built.Contains(c) && (Definition != PolicyConstants.BatteryDefinition || roofed.Contains(c));
+                free = free && !blocked.Contains(c) && !built.Contains(c) && (Definition != PowerRules.BatteryDefinition || roofed.Contains(c));
             }
 
             if (!free)
@@ -447,7 +447,7 @@ partial class RoundsBuildingPlanner
 
         var seen = new HashSet<string>();
         var required = new List<string>();
-        foreach (var name in PolicyConstants.GeneratorDefinitions)
+        foreach (var name in PowerRules.GeneratorDefinitions)
         {
             if (!definitions.TryGetValue(name, out var d))
             {
@@ -499,7 +499,7 @@ partial class RoundsBuildingPlanner
         var onPorch = false;
         foreach (var v in a.Selected)
         {
-            if (v.Action.Building is { } b && b.Definition == PolicyConstants.BatteryDefinition && porch.Contains(b.Cell))
+            if (v.Action.Building is { } b && b.Definition == PowerRules.BatteryDefinition && porch.Contains(b.Cell))
             {
                 onPorch = true;
             }

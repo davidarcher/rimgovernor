@@ -66,7 +66,7 @@ public sealed record StationCatalog
     /// </summary>
     public List<string> Hosting(Capability capability)
     {
-        if (!PolicyConstants.CapabilityHomes.TryGetValue(capability, out var home))
+        if (!LayoutCapabilityRules.CapabilityHomes.TryGetValue(capability, out var home))
         {
             return [];
         }

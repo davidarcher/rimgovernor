@@ -33,7 +33,7 @@ partial class RoundsBuildingPlanner
             Levels = facts.Impressiveness,
             Census = facts.Facts.CurrentConstruction,
             Cells = facts.Cells,
-            Placeable = ComfortBuilderAvailable(facts, PolicyConstants.PartySpotDefinition),
+            Placeable = ComfortBuilderAvailable(facts, PartySpotRules.PartySpotDefinition),
             Spent = spent,
         });
     }

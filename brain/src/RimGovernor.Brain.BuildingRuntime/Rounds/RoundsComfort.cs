@@ -33,7 +33,7 @@ public sealed partial class RoundsBuildingPlanner
         return new RoundsBuildingPlanner
         {
             Reviewer = reviewer, Native = native, Concern = RoomsFamily.PartySpot.FilingKey, Need = RoomsFamily.PartySpot, Phase = Pol.Phase.ComfortSpot,
-            Definition = PartySpotDefinition, Environment = Pol.PlacementEnvironment.Indoors,
+            Definition = PartySpotRules.PartySpotDefinition, Environment = Pol.PlacementEnvironment.Indoors,
         };
     }
 

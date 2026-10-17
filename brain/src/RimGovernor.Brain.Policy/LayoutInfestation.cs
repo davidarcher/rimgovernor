@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 //
 // Each pocket is a NodeKind.PocketWall site node produced after the ring node (#2925): a fill of open
 // overhead-mountain cells near the base the perimeter tier walls solid. It has no room, only the cells.
-public static partial class PolicyConstants
+public static partial class LayoutInfestationRules
 {
     /// <summary>A small dark pocket touching the ring or within PocketReach of it, that nothing else uses.</summary>
     public const string ReasonPocketBesideBase = "pocket_beside_base";
@@ -20,14 +20,11 @@ public static partial class PolicyConstants
     internal const int PocketReach = 6;
 
     /// <summary>Names of the pocket-wall sections under the perimeter's prefix, so the perimeter recut builds and removes them with the wall.</summary>
-    public const string TierPocketPrefix = TierPerimeterPrefix + "pocket-";
+    public const string TierPocketPrefix = LayoutDefenseRules.TierPerimeterPrefix + "pocket-";
 
     /// <summary>Names of the room-lamp sections under the perimeter's prefix.</summary>
-    public const string TierLightPrefix = TierPerimeterPrefix + "light-";
-}
+    public const string TierLightPrefix = LayoutDefenseRules.TierPerimeterPrefix + "light-";
 
-public static partial class LayoutInfestationRules
-{
     /// <summary>
     /// Lights a non-rectangular region (an L, a ring): one lamp on the floor cell nearest the middle of each
     /// span-square of the bounds that holds floor, then a lamp on every floor cell still farther than reach from
@@ -106,8 +103,8 @@ partial record LayoutPlan
                 used.Add(c);
             }
         }
-        var wi = PlanInterior(plan, PocketReach) ?? new WallInterior();
-        var near = wi.Near(PocketReach);
+        var wi = PlanInterior(plan, LayoutInfestationRules.PocketReach) ?? new WallInterior();
+        var near = wi.Near(LayoutInfestationRules.PocketReach);
         var open = new HashSet<Cell>();
         foreach (var c in s.Cells)
         {
@@ -138,7 +135,7 @@ partial record LayoutPlan
                     }
                 }
             }
-            if (patch.Count > PocketMaxCells)
+            if (patch.Count > LayoutInfestationRules.PocketMaxCells)
             {
                 continue;
             }
@@ -154,7 +151,7 @@ partial record LayoutPlan
             }
             var live = (plan with { Sites = sites }).LiveSites(NodeKind.PocketWall).Count;
             var id = string.Create(CultureInfo.InvariantCulture, $"{Wire.Name(NodeKind.PocketWall)}-{live:D2}");
-            sites.Add(LayoutPerimeterSitesRules.NewSite(id, NodeKind.PocketWall, RegionRules.RegionOfRuns(LayoutOverlayRules.CellRuns(patch)), ReasonPocketBesideBase));
+            sites.Add(LayoutPerimeterSitesRules.NewSite(id, NodeKind.PocketWall, RegionRules.RegionOfRuns(LayoutOverlayRules.CellRuns(patch)), LayoutInfestationRules.ReasonPocketBesideBase));
         }
         return plan with { Sites = sites };
     }
@@ -168,7 +165,7 @@ partial record LayoutPlan
             var buildings = r.Footprint.Cells().Select(c => new Building(wall, c, Rotation.North, string.Empty)).ToList();
             output.Add(new PerimeterSection
             {
-                Name = new DefenseTierName(string.Create(CultureInfo.InvariantCulture, $"{TierPocketPrefix}{output.Count:D2}")),
+                Name = new DefenseTierName(string.Create(CultureInfo.InvariantCulture, $"{LayoutInfestationRules.TierPocketPrefix}{output.Count:D2}")),
                 Buildings = buildings,
             });
         }
@@ -225,7 +222,7 @@ partial record LayoutPlan
         [
             new PerimeterSection
             {
-                Name = new DefenseTierName(TierLightPrefix + "00"),
+                Name = new DefenseTierName(LayoutInfestationRules.TierLightPrefix + "00"),
                 Buildings = cells.Select(c => new Building(lamp, c, Rotation.North, string.Empty)).ToList(),
             },
         ];

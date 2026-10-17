@@ -7,7 +7,22 @@ namespace RimGovernor.Brain.Policy;
 
 // The defense layout builds on the layout plan: the corridor, firing line and turrets stand in the plan's
 // killbox, and the perimeter tier raises the plan's 3-thick wall with its gates in staged sections.
-public static partial class PolicyConstants
+/// <summary>
+/// One staged piece of the wall. Nodes are the plan's site nodes it is cut from (the ring and the gates in it,
+/// a pump, the fence, the geothermal enclosure): the defense record stores them instead of the buildings, and
+/// the buildings are resolved from the plan again by the section's name. A section cut from no node (lights,
+/// pockets, prison turrets) names none.
+/// </summary>
+public sealed record PerimeterSection
+{
+    public DefenseTierName Name { get; init; }
+
+    public List<string> Nodes { get; init; } = [];
+
+    public List<Building> Buildings { get; init; } = [];
+}
+
+public static partial class LayoutDefenseRules
 {
     /// <summary>Names the perimeter's sections: this prefix plus a two-digit order, or TierGeothermal for the geyser's enclosure.</summary>
     public const string TierPerimeterPrefix = "perimeter-";
@@ -29,25 +44,7 @@ public static partial class PolicyConstants
 
     /// <summary>Names the killbox opening's fence section under the perimeter's prefix.</summary>
     public const string TierFencePrefix = TierPerimeterPrefix + "fence-";
-}
 
-/// <summary>
-/// One staged piece of the wall. Nodes are the plan's site nodes it is cut from (the ring and the gates in it,
-/// a pump, the fence, the geothermal enclosure): the defense record stores them instead of the buildings, and
-/// the buildings are resolved from the plan again by the section's name. A section cut from no node (lights,
-/// pockets, prison turrets) names none.
-/// </summary>
-public sealed record PerimeterSection
-{
-    public DefenseTierName Name { get; init; }
-
-    public List<string> Nodes { get; init; } = [];
-
-    public List<Building> Buildings { get; init; } = [];
-}
-
-public static partial class LayoutDefenseRules
-{
     private static readonly Regex PerimeterRevision = new(@"^r\d+-", RegexOptions.CultureInvariant);
 
     /// <summary>Reports whether a tier is a perimeter section.</summary>
@@ -333,9 +330,9 @@ partial record LayoutPlan
             ringRect = LayoutDefenseRules.UnionRect(ringRect, r);
             var horizontal = r.Width >= r.Height;
             var length = horizontal ? r.Width : r.Height;
-            for (var off = 0; off < length; off += PerimeterSectionRun)
+            for (var off = 0; off < length; off += LayoutDefenseRules.PerimeterSectionRun)
             {
-                var n = Math.Min(PerimeterSectionRun, length - off);
+                var n = Math.Min(LayoutDefenseRules.PerimeterSectionRun, length - off);
                 var a = horizontal ? new Rectangle(r.X + off, r.Z, n, r.Height) : new Rectangle(r.X, r.Z + off, r.Width, n);
                 var mid = new Cell(a.X + (a.Width / 2), a.Z + (a.Height / 2));
                 pieces.Add((a, PlannedRules.SquaredDistance(mid, centre)));
@@ -344,7 +341,7 @@ partial record LayoutPlan
         pieces = pieces.SortedBy((a, b) => a.Dist < b.Dist || (a.Dist == b.Dist && (a.Area.X < b.Area.X || (a.Area.X == b.Area.X && a.Area.Z < b.Area.Z))));
         var output = new List<PerimeterSection>();
         PerimeterSection Next() =>
-            new() { Name = new DefenseTierName(string.Create(CultureInfo.InvariantCulture, $"{TierPerimeterPrefix}{output.Count:D2}")), Nodes = [ringID] };
+            new() { Name = new DefenseTierName(string.Create(CultureInfo.InvariantCulture, $"{LayoutDefenseRules.TierPerimeterPrefix}{output.Count:D2}")), Nodes = [ringID] };
         foreach (var p in pieces)
         {
             var under = Next();
@@ -373,9 +370,9 @@ partial record LayoutPlan
                 {
                     def = door;
                 }
-                if (light.Contains(c) || (woodInner.Contains(c) && !gates.Contains(c)) || (bridged.Contains(c) && bridge == PerimeterBridge))
+                if (light.Contains(c) || (woodInner.Contains(c) && !gates.Contains(c)) || (bridged.Contains(c) && bridge == LayoutDefenseRules.PerimeterBridge))
                 {
-                    stuff = PerimeterLightStuff;
+                    stuff = LayoutDefenseRules.PerimeterLightStuff;
                 }
                 section.Buildings.Add(new Building(def, c, Rotation.North, stuff));
                 if (gateNode.TryGetValue(c, out var id) && id != string.Empty && !section.Nodes.Contains(id))
@@ -417,7 +414,7 @@ partial record LayoutPlan
                 }
                 doorway.Add(c);
             }
-            var s = new PerimeterSection { Name = TierGeothermal, Nodes = [geothermalID] };
+            var s = new PerimeterSection { Name = LayoutDefenseRules.TierGeothermal, Nodes = [geothermalID] };
             foreach (var c in PlannedRules.RectCells(geothermal))
             {
                 if (LayoutPerimeterRules.Contains(gen, c))
@@ -480,7 +477,7 @@ partial record LayoutPlan
             {
                 continue;
             }
-            var s = new PerimeterSection { Name = new DefenseTierName(string.Create(CultureInfo.InvariantCulture, $"{TierPumpPrefix}{output.Count:D2}")), Nodes = [ids[i]] };
+            var s = new PerimeterSection { Name = new DefenseTierName(string.Create(CultureInfo.InvariantCulture, $"{LayoutDefenseRules.TierPumpPrefix}{output.Count:D2}")), Nodes = [ids[i]] };
             s.Buildings.Add(new Building(pump, site, Rotation.North, string.Empty));
             foreach (var c in chain)
             {
@@ -501,7 +498,7 @@ partial record LayoutPlan
         var output = new List<PerimeterSection>();
         foreach (var f in plan.LiveSites(NodeKind.Fence))
         {
-            var s = new PerimeterSection { Name = new DefenseTierName(string.Create(CultureInfo.InvariantCulture, $"{TierFencePrefix}{output.Count:D2}")), Nodes = [f.Node] };
+            var s = new PerimeterSection { Name = new DefenseTierName(string.Create(CultureInfo.InvariantCulture, $"{LayoutDefenseRules.TierFencePrefix}{output.Count:D2}")), Nodes = [f.Node] };
             foreach (var c in f.Footprint.Cells())
             {
                 s.Buildings.Add(new Building(fence, c, Rotation.North, stuff));

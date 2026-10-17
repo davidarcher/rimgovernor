@@ -137,7 +137,7 @@ public static partial class RemoteRules
         }
         if (OutdoorHazardRules.OutdoorHazardHeldDash(r.Hazard, r.DashOpen))
         {
-            return RemoteHoldHazard;
+            return OutdoorHazardRules.RemoteHoldHazard;
         }
         return "";
     }

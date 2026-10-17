@@ -63,8 +63,8 @@ public static class DefTablesRules
     /// </summary>
     public static IReadOnlyList<DefTable> DefTables() =>
     [
-        DefTable.Of("unrecoveredParts", "Verse.HediffDef", SortedKeys(UnrecoveredParts)),
-        DefTable.Of("keptBodyParts", "Verse.BodyPartDef", SortedKeys(KeptBodyParts)),
+        DefTable.Of("unrecoveredParts", "Verse.HediffDef", SortedKeys(OrganHarvestRules.UnrecoveredParts)),
+        DefTable.Of("keptBodyParts", "Verse.BodyPartDef", SortedKeys(OrganHarvestRules.KeptBodyParts)),
         DefTable.Of("herdTrainables", "RimWorld.TrainableDef", SortedKeys(HerdSurplusRules.HerdTrainables)),
         DefTable.Of("threatKinds", "Verse.PawnKindDef", SortedKeys(CombatThreatRules.ThreatKinds)),
         DefTable.Of("threatWeapons", "Verse.ThingDef", SortedKeys(CombatThreatRules.ThreatWeapons)),
@@ -81,8 +81,8 @@ public static class DefTablesRules
         DefTable.Of("MortarProbeShells", "Verse.ThingDef", MortarProbeShells),
         DefTable.Of("QuestGiftDefs", "Verse.ThingDef", QuestGiftDefs),
         DefTable.Of("roomSizeTable", "Verse.ThingDef", LayoutTripsRules.RoomSizes.Holds),
-        DefTable.Of("ShelterHeatDef", "Verse.ThingDef", [ShelterHeatDef]),
-        DefTable.Of("ShelterCoolDef", "Verse.ThingDef", [ShelterCoolDef]),
+        DefTable.Of("ShelterHeatDef", "Verse.ThingDef", [LayoutCapabilityRules.ShelterHeatDef]),
+        DefTable.Of("ShelterCoolDef", "Verse.ThingDef", [LayoutCapabilityRules.ShelterCoolDef]),
         DefTable.Of("ScenarioThingChoices", "Verse.ThingDef", ScenarioThingChoices),
         DefTable.Of("RhadamantThings", "Verse.ThingDef", RhadamantThingDefs()),
         DefTable.Of("climateTable", "Verse.ThingDef", [ClimateRules.ClimateDefs().VentDef, ClimateRules.ClimateDefs().DoorDef, ClimateRules.ClimateDefs().WallDef, ClimateRules.ClimateDefs().RaceDef]),
@@ -93,7 +93,7 @@ public static class DefTablesRules
         // FalloffBlend and DiagonalCost are the game's glow grid constants, read with ilspycmd). The research
         // behind the lamp pricing (every effect of darkness, which are priced and which deferred) is the
         // first comment of issue #2945.
-        DefTable.Of("lightTable", "Verse.ThingDef", [LightJudgment.LampDef, LightJudgment.WallLampDef]),
+        DefTable.Of("lightTable", "Verse.ThingDef", [LayoutLightRules.LightJudgment.LampDef, LayoutLightRules.LightJudgment.WallLampDef]),
         // moodGame (#2954): the stat the break thresholds scale, the thoughts the planner prices, and the
         // breaks the game gives no duration for or gives as a hediff; the numbers beside them are
         // MentalBreaker's literals.
@@ -113,17 +113,17 @@ public static class DefTablesRules
         DefTable.Of("foodPoisonVomit", "Verse.JobDef", [LayoutFilthRules.FoodPoisonGame().VomitJob]),
         // filthGame (#2988): the stat a colonist's cleaning speed is; UnitsPerRun is TryMakeFilth's default
         // count (ilspycmd), and the unpriced floor and tracked dirt are explained on FilthGameJudgment.
-        DefTable.Of("filthGame", "RimWorld.StatDef", [FilthGameJudgment.SpeedStat]),
+        DefTable.Of("filthGame", "RimWorld.StatDef", [LayoutFilthRules.FilthGameJudgment.SpeedStat]),
         DefTable.Of("seekerNeeds", "RimWorld.NeedDef", LayoutComfortRules.SeekerNeedDefs()),
         // fieldCrops (#2961): the crop a field is planned for while none is sown.
-        DefTable.Of("fieldCrops", "Verse.ThingDef", FieldCrops),
+        DefTable.Of("fieldCrops", "Verse.ThingDef", LayoutFieldReplanRules.FieldCrops),
         DefTable.Of("seekerThoughts", "RimWorld.ThoughtDef", LayoutComfortRules.SeekerThoughts()),
         // The wind path constants (windPathWidth ... windBlockedLoss) are CompPowerPlantWind's and
         // WindTurbineUtility.CalculateWindCells's, read with ilspycmd; keyed by the turbine def so a rename
         // fails the gate. perimeterTable: DetourBudgetTicks is the one judgment of the perimeter cut's
         // sapper-derived thickness (perimeter_cut.go); the wall def is the building the cut is walled with.
         DefTable.Of("perimeterTable", "Verse.ThingDef", [PerimeterCutRules.PerimeterDefs().WallDef]),
-        DefTable.Of("windPath", "Verse.ThingDef", [WindTurbineDefinition]),
+        DefTable.Of("windPath", "Verse.ThingDef", [PowerRules.WindTurbineDefinition]),
         // interiorTable (#2956): the shelf and lamp the region interior wants beside benches and beds;
         // KitchenStoves is the judgment explained on InteriorDefs().
         DefTable.Of("interiorTable", "Verse.ThingDef", [InteriorRegionRules.InteriorDefs().ShelfDef, InteriorRegionRules.InteriorDefs().LampDef]),

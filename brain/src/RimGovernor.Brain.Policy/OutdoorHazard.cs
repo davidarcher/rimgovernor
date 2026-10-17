@@ -19,17 +19,14 @@ public enum HazardKind
 /// <summary>One active hazard on the map.</summary>
 public sealed record OutdoorHazard(HazardKind Kind);
 
-public static partial class PolicyConstants
+public static partial class OutdoorHazardRules
 {
     /// <summary>
     /// An outdoor hazard (extreme cold or heat, toxic fallout) is active; outdoor work waits and indoor work
     /// is untouched.
     /// </summary>
     public const string RemoteHoldHazard = "outdoor_hazard";
-}
 
-public static partial class OutdoorHazardRules
-{
     /// <summary>
     /// Derives the active hazards: toxic fallout from the condition census, cold and heat from the outdoor
     /// temperature at or past the extreme bounds. Unknown while either read is missing, so a map without the

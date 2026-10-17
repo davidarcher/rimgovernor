@@ -213,7 +213,7 @@ public static class HuntCreditRules
         }
         foreach (var t in c.Terms)
         {
-            if (t.Name == TermNeedsWeapon)
+            if (t.Name == HuntPrerequisiteRules.TermNeedsWeapon)
             {
                 return false;
             }

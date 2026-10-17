@@ -132,30 +132,6 @@ public sealed record GeneratorRow
     public long FuelCapacity { get; init; }
 }
 
-public static partial class PolicyConstants
-{
-    /// <summary>
-    /// Every generator definition RankGenerators may choose, in the order that breaks ties among equal tiers
-    /// and yields. Planners request these planning definitions and Hands correlate completed work against
-    /// them. The wind turbine follows the solar generator: both are fuel-free, but a turbine needs an
-    /// unobstructed catch zone the placement preview reports, so a site that has none falls back to the next
-    /// ranked definition.
-    /// </summary>
-    public static readonly IReadOnlyList<string> GeneratorDefinitions = ["SolarGenerator", WindTurbineDefinition, "WoodFiredGenerator", "ChemfuelPoweredGenerator"];
-
-    /// <summary>The ranked generator whose placement preview must report a clear catch zone.</summary>
-    public const string WindTurbineDefinition = "WindTurbine";
-
-    /// <summary>
-    /// The generator a free steam geyser hosts. It is not ranked: SelectPowerMethod proposes it ahead of every
-    /// other generator when a free geyser is in reach of the draining consumer.
-    /// </summary>
-    public const string GeothermalDefinition = "GeothermalGenerator";
-
-    /// <summary>Bounds the conduit route from a draining consumer to a geyser the family will build on: longer routes are left to a nearer generator.</summary>
-    public const int GeothermalReachCells = 48;
-}
-
 /// <summary>
 /// The planner-side choices SelectPowerMethod needs beyond the observed topology: which generators are
 /// compilable, whether a battery is (and its storage, from the catalog), how many days of stored reserve a
@@ -243,14 +219,35 @@ public sealed record PowerProposal
     /// Reports whether the proposal names its exact placement: a geothermal generator is anchored on its
     /// geyser (Center) rather than searched for near the consumer.
     /// </summary>
-    public bool FixedSite() => Method == PowerMethod.Generate && Definition == PolicyConstants.GeothermalDefinition;
+    public bool FixedSite() => Method == PowerMethod.Generate && Definition == PowerRules.GeothermalDefinition;
 }
 
 public static partial class PowerRules
 {
+    /// <summary>
+    /// Every generator definition RankGenerators may choose, in the order that breaks ties among equal tiers
+    /// and yields. Planners request these planning definitions and Hands correlate completed work against
+    /// them. The wind turbine follows the solar generator: both are fuel-free, but a turbine needs an
+    /// unobstructed catch zone the placement preview reports, so a site that has none falls back to the next
+    /// ranked definition.
+    /// </summary>
+    public static readonly IReadOnlyList<string> GeneratorDefinitions = ["SolarGenerator", WindTurbineDefinition, "WoodFiredGenerator", "ChemfuelPoweredGenerator"];
+
+    /// <summary>The ranked generator whose placement preview must report a clear catch zone.</summary>
+    public const string WindTurbineDefinition = "WindTurbine";
+
+    /// <summary>
+    /// The generator a free steam geyser hosts. It is not ranked: SelectPowerMethod proposes it ahead of every
+    /// other generator when a free geyser is in reach of the draining consumer.
+    /// </summary>
+    public const string GeothermalDefinition = "GeothermalGenerator";
+
+    /// <summary>Bounds the conduit route from a draining consumer to a geyser the family will build on: longer routes are left to a nearer generator.</summary>
+    public const int GeothermalReachCells = 48;
+
     /// <summary>Every definition the power family compiles: the conduit, each generator, the geothermal generator and the battery.</summary>
     public static IReadOnlyList<string> PowerFamilyDefinitions() =>
-        [Wire.Name(PowerMethod.Connect), .. PolicyConstants.GeneratorDefinitions, PolicyConstants.GeothermalDefinition, PolicyConstants.BatteryDefinition];
+        [Wire.Name(PowerMethod.Connect), .. PowerRules.GeneratorDefinitions, PowerRules.GeothermalDefinition, PowerRules.BatteryDefinition];
 
     public static PowerPlanning DefaultPowerPlanning() => new() { ReserveMinDays = 1, StorageMargin = 0.25 };
 
@@ -266,8 +263,8 @@ public static partial class PowerRules
         IReadOnlyDictionary<string, PowerSourceProfile> sources,
         IReadOnlyDictionary<string, GeneratorRow> rows)
     {
-        var options = new List<GeneratorOption>(PolicyConstants.GeneratorDefinitions.Count);
-        foreach (var name in PolicyConstants.GeneratorDefinitions)
+        var options = new List<GeneratorOption>(PowerRules.GeneratorDefinitions.Count);
+        foreach (var name in PowerRules.GeneratorDefinitions)
         {
             if (!sources.TryGetValue(name, out var profile))
             {
@@ -836,7 +833,7 @@ public static partial class PowerRules
         var ids = producers.Select(b => b.Id).ToList();
         ids.Sort(StringComparer.Ordinal);
         var identity = $"{target.Id}/{string.Join("/", ids)}/{(int)(p.Budget.StorageNeededWD - p.Budget.StorageShortfallWD)}";
-        return p with { Method = PowerMethod.Store, Definition = PolicyConstants.BatteryDefinition, Key = PowerMethodKey("store", identity) };
+        return p with { Method = PowerMethod.Store, Definition = PowerRules.BatteryDefinition, Key = PowerMethodKey("store", identity) };
     }
 
     /// <summary>
@@ -853,7 +850,7 @@ public static partial class PowerRules
         var geyser = ReachableGeyser(target.Cell, geysers, planning, route);
         if (geyser is not null)
         {
-            return p with { Method = PowerMethod.Generate, Definition = PolicyConstants.GeothermalDefinition, Center = geyser.Cell, Cells = [.. geyser.Cells] };
+            return p with { Method = PowerMethod.Generate, Definition = PowerRules.GeothermalDefinition, Center = geyser.Cell, Cells = [.. geyser.Cells] };
         }
         // A shortfall the day already covers is night-only: no solar answers it.
         var ranking = new GeneratorRanking
@@ -900,7 +897,7 @@ public static partial class PowerRules
         // it regardless.
         allowed.Add(start);
         var path = ConduitRouterRules.PowerRoute(start, targets, allowed);
-        if (path.Count == 0 || path.Count - 1 > PolicyConstants.GeothermalReachCells)
+        if (path.Count == 0 || path.Count - 1 > PowerRules.GeothermalReachCells)
         {
             return null;
         }

@@ -10,9 +10,9 @@ public sealed class LayoutConduitRowsTests
     public void EachConduitDecisionBecomesALayoutConduitRowWithItsVerdictReasonAndLink()
     {
         var tiled = new TileResult();
-        tiled.ConduitDecisions.Add(new ConduitDecision(ConduitRef.ForRoom(2), ConduitRef.ForSite("turbine-1"), LayoutTileRules.TilePlace, PolicyConstants.ReasonConduitKept));
-        tiled.ConduitDecisions.Add(new ConduitDecision(ConduitRef.ForRoom(3), ConduitRef.ForRoom(2), LayoutTileRules.TilePlace, PolicyConstants.ReasonConduitRouted));
-        tiled.ConduitDecisions.Add(new ConduitDecision(ConduitRef.ForRoom(4), default, LayoutTileRules.TileUnsatisfied, PolicyConstants.ReasonConduitBlocked));
+        tiled.ConduitDecisions.Add(new ConduitDecision(ConduitRef.ForRoom(2), ConduitRef.ForSite("turbine-1"), LayoutTileRules.TilePlace, LayoutConduitRules.ReasonConduitKept));
+        tiled.ConduitDecisions.Add(new ConduitDecision(ConduitRef.ForRoom(3), ConduitRef.ForRoom(2), LayoutTileRules.TilePlace, LayoutConduitRules.ReasonConduitRouted));
+        tiled.ConduitDecisions.Add(new ConduitDecision(ConduitRef.ForRoom(4), default, LayoutTileRules.TileUnsatisfied, LayoutConduitRules.ReasonConduitBlocked));
 
         var rows = LayoutPlanning.ConduitRows(new StationAdvice { Tiled = tiled }).ToList();
 

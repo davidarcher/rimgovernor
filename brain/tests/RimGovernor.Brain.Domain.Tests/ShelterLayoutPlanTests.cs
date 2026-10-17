@@ -76,8 +76,8 @@ public sealed class ShelterLayoutPlanTests
     {
         Defs = new Dictionary<string, InteriorPieceDef>
         {
-            [PolicyConstants.ShelterHeatDef] = new(PolicyConstants.ShelterHeatDef, new Cell(1, 1), RoomRole.None, null),
-            [PolicyConstants.ShelterCoolDef] = new(PolicyConstants.ShelterCoolDef, new Cell(1, 1), RoomRole.None, null),
+            [LayoutCapabilityRules.ShelterHeatDef] = new(LayoutCapabilityRules.ShelterHeatDef, new Cell(1, 1), RoomRole.None, null),
+            [LayoutCapabilityRules.ShelterCoolDef] = new(LayoutCapabilityRules.ShelterCoolDef, new Cell(1, 1), RoomRole.None, null),
         },
     };
 
@@ -104,8 +104,8 @@ public sealed class ShelterLayoutPlanTests
         Assert.True(ok);
         var (pieces, planned) = InteriorRegionRules.PlanRoomInterior(room, new InteriorPieceDef());
         Assert.True(planned);
-        var campfires = pieces.Pieces.Where(p => p.Def == PolicyConstants.ShelterHeatDef).ToList();
-        var coolers = pieces.Pieces.Where(p => p.Def == PolicyConstants.ShelterCoolDef).ToList();
+        var campfires = pieces.Pieces.Where(p => p.Def == LayoutCapabilityRules.ShelterHeatDef).ToList();
+        var coolers = pieces.Pieces.Where(p => p.Def == LayoutCapabilityRules.ShelterCoolDef).ToList();
         Assert.Equal(climate == "cold" ? 2 : 0, campfires.Count);
         Assert.Equal(climate == "hot" ? 1 : 0, coolers.Count);
         Assert.All(campfires.Concat(coolers), p => Assert.True(Inside(bounds, p.Rect), $"{p.Def} at {p.Rect} outside the shelter {bounds}"));
@@ -116,14 +116,14 @@ public sealed class ShelterLayoutPlanTests
     public void TheClimateBuildingGoesToTheRoomThatOwnsIt(string climate)
     {
         var facts = new ColonyProjection { LayoutPlan = Fact.Known(FirstPlan(climate, 3)) };
-        var cooking = new RoundsBuildingPlanner { Concern = FoodRules.CookingNeed.FilingKey, Definition = PolicyConstants.ShelterHeatDef };
+        var cooking = new RoundsBuildingPlanner { Concern = FoodRules.CookingNeed.FilingKey, Definition = LayoutCapabilityRules.ShelterHeatDef };
         // A cold map's cooking campfire takes the shelter's slot; elsewhere it stands in the planned kitchen.
         Assert.Equal(climate == "cold", cooking.TakesShelterSlot(facts));
         Assert.Equal(climate != "cold", cooking.HostsInPlannedRoom(PlannedRole.Kitchen, facts));
         var cooler = new RoundsBuildingPlanner
         {
             Concern = ShelterFamily.Temperature.FilingKey,
-            Definition = PolicyConstants.ShelterCoolDef,
+            Definition = LayoutCapabilityRules.ShelterCoolDef,
             Temperature = new TemperatureProposal { Method = TemperatureMethod.Cool },
         };
         Assert.Equal(climate == "hot", cooler.TakesShelterSlot(facts));

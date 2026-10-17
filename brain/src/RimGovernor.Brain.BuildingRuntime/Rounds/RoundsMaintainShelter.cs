@@ -78,7 +78,7 @@ public sealed partial class SafeAreaMemory
 
             if (isolation.Count > 0)
             {
-                Plan(PolicyConstants.IsolationAreaKey, isolation);
+                Plan(IsolationRoomRules.IsolationAreaKey, isolation);
             }
 
             if (projection.Facts.HomeCoverage.TryGetValue(out var census) && census.Home.TryGetValue(out var home) && home.Count > 0)

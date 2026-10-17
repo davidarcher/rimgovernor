@@ -74,7 +74,7 @@ partial class DefensePipeline
             {
                 continue;
             }
-            if (!method.Method.Value.StartsWith("defense-" + PolicyConstants.TierPerimeterPrefix, StringComparison.Ordinal))
+            if (!method.Method.Value.StartsWith("defense-" + LayoutDefenseRules.TierPerimeterPrefix, StringComparison.Ordinal))
             {
                 return (new DefensePipeline(), false);
             }

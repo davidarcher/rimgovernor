@@ -314,7 +314,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         record.PerimeterKey = key;
         record.PerimeterBridge = cut.Bridge;
         record.PerimeterRevision++;
-        var prefix = string.Create(CultureInfo.InvariantCulture, $"{PolicyConstants.TierPerimeterPrefix}r{record.PerimeterRevision}-");
+        var prefix = string.Create(CultureInfo.InvariantCulture, $"{LayoutDefenseRules.TierPerimeterPrefix}r{record.PerimeterRevision}-");
         var wanted = new HashSet<string>(StringComparer.Ordinal);
         var building = new HashSet<Cell>();
         foreach (var t in fresh)
@@ -416,7 +416,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         foreach (var f in fresh)
         {
             var fresh0 = f.Name.Value;
-            f.Name = new DefenseTierName(prefix + (fresh0.StartsWith(PolicyConstants.TierPerimeterPrefix, StringComparison.Ordinal) ? fresh0[PolicyConstants.TierPerimeterPrefix.Length..] : fresh0));
+            f.Name = new DefenseTierName(prefix + (fresh0.StartsWith(LayoutDefenseRules.TierPerimeterPrefix, StringComparison.Ordinal) ? fresh0[LayoutDefenseRules.TierPerimeterPrefix.Length..] : fresh0));
         }
         var tiers = new List<DefenseTierRecord>(kept);
         tiers.AddRange(removals[0, 0]);
@@ -433,7 +433,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
 
     internal static bool DefenseFoundation(string definition) =>
-        definition == PolicyConstants.PerimeterBridge || definition == PolicyConstants.PerimeterHeavyBridge;
+        definition == LayoutDefenseRules.PerimeterBridge || definition == LayoutDefenseRules.PerimeterHeavyBridge;
 
     internal static bool DefenseRemovalGone(DefenseTierRecord tier, DefenseCensus census)
     {

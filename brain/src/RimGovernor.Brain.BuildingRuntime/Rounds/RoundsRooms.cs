@@ -110,7 +110,7 @@ public sealed class RoomsRounds
         }
         if (ComfortComposed)
         {
-            definitions.Add(PolicyConstants.PartySpotDefinition);
+            definitions.Add(PartySpotRules.PartySpotDefinition);
         }
         return [.. definitions.Distinct(StringComparer.Ordinal)];
     }

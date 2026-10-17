@@ -45,7 +45,7 @@ internal static class WorkResourceTestFacts
         WorkResources = Known(EquatableArray.From(pawns.Select(p => new WorkResourcePawn(p, "", 0, "", "", "", 0) { LocalHour = 12 }))),
         ForecastObserved = new() { WorkPawns = Known(EquatableArray.From(pawns.Select(p => new WorkPawn
         { Id = new(p), Available = Known(true), Applies = Known(true), Job = Known(new PawnJob()),
-            Schedule = Known(EquatableArray.From(Enumerable.Repeat(PolicyConstants.ScheduleAnything, 24))) }))) },
+            Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))) }))) },
         WorkAdmission = new()
         {
             Buildings = Known<EquatableArray<WorkBuildingCost>>([new("TestWall", "Rice", Known<EquatableArray<Amount>>([new(new("Rice"), 6)]))]),

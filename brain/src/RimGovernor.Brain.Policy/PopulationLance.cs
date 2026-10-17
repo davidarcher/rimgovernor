@@ -8,7 +8,7 @@ public sealed record LanceUser(PawnId Pawn, string Item);
 /// <summary>One lance use: the colonist, the worn lance and the hostile it downs.</summary>
 public sealed record LanceChoice(PawnId User, PawnId Target, string Item);
 
-public static partial class PolicyConstants
+public static partial class PopulationRules
 {
     /// <summary>
     /// The worn items whose target verb downs a pawn with a hediff rather than violent damage: the psychic
@@ -19,10 +19,7 @@ public static partial class PolicyConstants
     {
         [new Resource("Apparel_PsychicShockLance")] = true,
     };
-}
 
-public static partial class PopulationRules
-{
     /// <summary>Ranks a standing target by its skills: the sum of its non-disabled skill levels.</summary>
     internal static int LanceScore(PrisonerProspect p)
     {
@@ -89,7 +86,7 @@ public static partial class PopulationRules
             {
                 continue;
             }
-            if (apparel.Any(a => PolicyConstants.LanceDefs.GetValueOrDefault(a.Definition)))
+            if (apparel.Any(a => PopulationRules.LanceDefs.GetValueOrDefault(a.Definition)))
             {
                 return true;
             }

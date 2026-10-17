@@ -291,7 +291,7 @@ partial record LayoutPlan
     public static List<PlannedPowerSite> PlannedPowerSites(LayoutPlan plan, string definition)
     {
         var output = new List<PlannedPowerSite>();
-        if (definition == BatteryDefinition)
+        if (definition == PowerRules.BatteryDefinition)
         {
             // The shelter's porch holds the batteries until the battery room is planned.
             if (plan.RoomsOf(LayoutUtilityRules.PlannedBattery).Count == 0)
@@ -326,7 +326,7 @@ partial record LayoutPlan
                 }
             }
         }
-        else if (definition == WindTurbineDefinition)
+        else if (definition == PowerRules.WindTurbineDefinition)
         {
             foreach (var s in plan.LiveSites(LayoutPowerNodesRules.NodeTurbine))
             {
@@ -348,7 +348,7 @@ partial record LayoutPlan
                 output.Add(new PlannedPowerSite { Cell = new Cell(a.X + 1, a.Z + 1), Rotation = Rotation.North, Area = a });
             }
         }
-        else if (definition == GeothermalDefinition)
+        else if (definition == PowerRules.GeothermalDefinition)
         {
             // The 6x6 generator inside the shell, on the geyser's position: a 6-wide footprint spans its centre -2..+3.
             foreach (var r in plan.Reservations)
@@ -389,7 +389,7 @@ partial record LayoutPlan
     /// <summary>The cells the turbine standing on area must keep clear: its own wind path, not the pair's whole lane area. Empty for a site that is not a turbine (a solar plot).</summary>
     public static List<Cell> TurbineCatchZone(LayoutPlan plan, Rectangle area)
     {
-        foreach (var site in PlannedPowerSites(plan, WindTurbineDefinition))
+        foreach (var site in PlannedPowerSites(plan, PowerRules.WindTurbineDefinition))
         {
             if (site.Area == area)
             {

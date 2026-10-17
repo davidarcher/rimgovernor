@@ -166,7 +166,7 @@ partial record LayoutPlan
     public static List<SiteNode> PowerNodesOf(LayoutPlan plan)
     {
         var nodes = new List<SiteNode>();
-        for (var i = 0; i < PlannedPowerSites(plan, WindTurbineDefinition).Count; i++)
+        for (var i = 0; i < PlannedPowerSites(plan, PowerRules.WindTurbineDefinition).Count; i++)
         {
             nodes.Add(LayoutPowerNodesRules.TurbineNode(LayoutPowerNodesRules.WindNodeId(i + 1)));
         }

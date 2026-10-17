@@ -19,17 +19,14 @@ namespace RimGovernor.Brain.Policy;
 //
 // The corridor is walked by everyone, so its crossing facts are empty; the tiler joins sealed rooms to it first
 // (ThroughRank) and opens no flow door from a sleeper's room to a hub while it stands (SleepersUseCirculation).
-public static partial class PolicyConstants
+public static partial class LayoutCirculationRules
 {
     /// <summary>Verdict of the circulation decision.</summary>
     public const string ClusterCirculate = "circulate";
 
     public const string ReasonClusterCirculation = "cluster_circulation";
     public const string ReasonClusterNoCirculation = "cluster_circulation_not_needed";
-}
 
-public static partial class LayoutCirculationRules
-{
     /// <summary>Reports a room nobody may walk through that is not cold: it has crossing costs to price (RoomCrossing.Mechanisms).</summary>
     private static bool PrivateGroup(RoomGroup g)
     {
@@ -67,7 +64,7 @@ public static partial class LayoutCirculationRules
                 publicCount++;
             }
         }
-        var d = new ClusterDecision { A = node.Id, Verdict = ClusterKeep, Reason = ReasonClusterNoCirculation };
+        var d = new ClusterDecision { A = node.Id, Verdict = LayoutClusterRules.ClusterKeep, Reason = ReasonClusterNoCirculation };
         if (privateCount <= publicCount)
         {
             return (groups, d);
@@ -92,7 +89,7 @@ public static partial class LayoutCirculationRules
         }
 
         // A strip's longest run: the shell's wall ring is 2(w+h)+4 cells.
-        var longest = ((ShellMaxWalls - 4) / 2) - node.Width;
+        var longest = ((LayoutClusterRules.ShellMaxWalls - 4) / 2) - node.Width;
         const int Sides = 2;
         var runs = new List<List<int>>(); // the joined groups on each corridor
         var cur = new List<int>();

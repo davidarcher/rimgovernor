@@ -23,7 +23,7 @@ public sealed class HomeFireTests
         {
             Id = new PawnId(id), Available = Known(true), Applies = Known(true),
             Manual = Known(true), Ranged = Known(false), Job = Known(new PawnJob()),
-            Schedule = Known(EquatableArray.From(Enumerable.Repeat(PolicyConstants.ScheduleAnything, 24))),
+            Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))),
             Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Construction", Level = 8 }]),
             Work = Known<EquatableArray<WorkPriority>>([
                 new() { Work = WorkType.Firefighter, Order = 1, Priority = 0, Disabled = pyromaniac },

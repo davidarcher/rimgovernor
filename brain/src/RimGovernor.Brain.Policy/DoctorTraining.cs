@@ -179,7 +179,7 @@ public static class DoctorTrainingRules
         var trainable = eligible && !planned && intent != PrisonerInteractionMode.Release;
         row.Withdrawal.TryGetValue(out var withdrawal);
         var controlled = !planned && (trainable || withdrawal);
-        var goodwillCost = SilverPerGoodwillPoint * Math.Max(0, -goodwill);
+        var goodwillCost = OrganHarvestRules.SilverPerGoodwillPoint * Math.Max(0, -goodwill);
         var legsMissing = CountMissing(missing!, "Leg");
 
         var removals = new List<SurgeryOperation>();

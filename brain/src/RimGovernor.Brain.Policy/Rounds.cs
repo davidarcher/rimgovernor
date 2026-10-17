@@ -857,8 +857,3 @@ public sealed record ButcherBench
     public Fact<string> Room { get; init; }
 }
 
-public static partial class PolicyConstants
-{
-    /// <summary>The crafting spot def, as the constants class names it for the building runtime (the value lives with the rounds that stand it).</summary>
-    public const string CraftingSpotDefinition = RoundsRules.CraftingSpotDefinition;
-}

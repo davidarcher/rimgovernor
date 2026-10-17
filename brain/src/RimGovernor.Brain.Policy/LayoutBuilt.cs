@@ -18,24 +18,6 @@ namespace RimGovernor.Brain.Policy;
 // (EmbedInput.RetiredGround) is closed to new blocks. A moved room's block carries Replaces, the successor
 // path's id of the room it supersedes; the old room is not in the embedding, it stands until the new one does.
 // Conflict pricing (merge, split, lost room effects) is #2878.
-public static partial class PolicyConstants
-{
-    // Verdicts and reasons of built-room decisions.
-    public const string EmbedKeep = "keep";
-    public const string EmbedMove = "move";
-
-    public const string ReasonEmbedBuiltKept = "embed_built_kept";
-    public const string ReasonEmbedBuiltPinned = "embed_built_pinned";
-    public const string ReasonEmbedBuiltInFlight = "embed_built_in_flight";
-    public const string ReasonEmbedBuiltBelow = "embed_built_below_threshold";
-    public const string ReasonEmbedBuiltDeferred = "embed_built_one_rebuild_at_a_time";
-    public const string ReasonEmbedBuiltBadGround = "embed_built_moved_bad_ground";
-    public const string ReasonEmbedBuiltGrown = "embed_built_grown_by_replacement";
-    public const string ReasonEmbedBuiltMovedGain = "embed_built_moved_score_gain";
-    public const string ReasonEmbedBuiltOffMap = "embed_built_off_map";
-    public const string ReasonEmbedBuiltNotRect = "embed_built_not_a_block";
-}
-
 /// <summary>What the relocation pass decided for one run.</summary>
 internal sealed class BuiltRun
 {
@@ -88,12 +70,12 @@ internal sealed partial class Embedder
             {
                 if (!reported)
                 {
-                    _builtReport.Add(new EmbedDecision { Group = -1, Other = -1, Verdict = PolicyConstants.EmbedKeep, Reason = PolicyConstants.ReasonEmbedBuiltNotRect, Room = b.Room });
+                    _builtReport.Add(new EmbedDecision { Group = -1, Other = -1, Verdict = LayoutBuiltRules.EmbedKeep, Reason = LayoutBuiltRules.ReasonEmbedBuiltNotRect, Room = b.Room });
                 }
             }
             else if (!Base.Inside(LayoutPerimeterRules.Pad(b.Region.Bounds(), 1)))
             {
-                _builtReport.Add(new EmbedDecision { Group = -1, Other = -1, Verdict = PolicyConstants.EmbedKeep, Reason = PolicyConstants.ReasonEmbedBuiltOffMap, Room = b.Room });
+                _builtReport.Add(new EmbedDecision { Group = -1, Other = -1, Verdict = LayoutBuiltRules.EmbedKeep, Reason = LayoutBuiltRules.ReasonEmbedBuiltOffMap, Room = b.Room });
             }
             else
             {
@@ -213,25 +195,25 @@ internal sealed partial class Embedder
             {
                 continue;
             }
-            var d = new EmbedDecision { Group = i, Other = -1, Verdict = PolicyConstants.EmbedKeep, Reason = PolicyConstants.ReasonEmbedBuiltKept, Room = _homeRoom[i] };
+            var d = new EmbedDecision { Group = i, Other = -1, Verdict = LayoutBuiltRules.EmbedKeep, Reason = LayoutBuiltRules.ReasonEmbedBuiltKept, Room = _homeRoom[i] };
             if (_pinned[i])
             {
-                d = d with { Reason = PolicyConstants.ReasonEmbedBuiltPinned };
+                d = d with { Reason = LayoutBuiltRules.ReasonEmbedBuiltPinned };
             }
             else if (_inFlight)
             {
-                d = d with { Reason = PolicyConstants.ReasonEmbedBuiltInFlight };
+                d = d with { Reason = LayoutBuiltRules.ReasonEmbedBuiltInFlight };
             }
             else if (best is not null && best.Group == i)
             {
-                d = d with { Verdict = PolicyConstants.EmbedMove, Reason = PolicyConstants.ReasonEmbedBuiltMovedGain };
+                d = d with { Verdict = LayoutBuiltRules.EmbedMove, Reason = LayoutBuiltRules.ReasonEmbedBuiltMovedGain };
                 if (best.Grown)
                 {
-                    d = d with { Reason = PolicyConstants.ReasonEmbedBuiltGrown };
+                    d = d with { Reason = LayoutBuiltRules.ReasonEmbedBuiltGrown };
                 }
                 else if (best.Hard)
                 {
-                    d = d with { Reason = PolicyConstants.ReasonEmbedBuiltBadGround };
+                    d = d with { Reason = LayoutBuiltRules.ReasonEmbedBuiltBadGround };
                 }
                 else
                 {
@@ -240,11 +222,11 @@ internal sealed partial class Embedder
             }
             else if (trigger.TryGetValue(i, out var tr) && tr.Group == i && tr.Rect.Width > 0)
             {
-                d = d with { Reason = PolicyConstants.ReasonEmbedBuiltDeferred };
+                d = d with { Reason = LayoutBuiltRules.ReasonEmbedBuiltDeferred };
             }
             else if (below.Contains(i))
             {
-                d = d with { Reason = PolicyConstants.ReasonEmbedBuiltBelow };
+                d = d with { Reason = LayoutBuiltRules.ReasonEmbedBuiltBelow };
             }
             output.Decisions.Add(d);
         }
@@ -259,6 +241,21 @@ internal sealed partial class Embedder
 
 public static partial class LayoutBuiltRules
 {
+    // Verdicts and reasons of built-room decisions.
+    public const string EmbedKeep = "keep";
+    public const string EmbedMove = "move";
+
+    public const string ReasonEmbedBuiltKept = "embed_built_kept";
+    public const string ReasonEmbedBuiltPinned = "embed_built_pinned";
+    public const string ReasonEmbedBuiltInFlight = "embed_built_in_flight";
+    public const string ReasonEmbedBuiltBelow = "embed_built_below_threshold";
+    public const string ReasonEmbedBuiltDeferred = "embed_built_one_rebuild_at_a_time";
+    public const string ReasonEmbedBuiltBadGround = "embed_built_moved_bad_ground";
+    public const string ReasonEmbedBuiltGrown = "embed_built_grown_by_replacement";
+    public const string ReasonEmbedBuiltMovedGain = "embed_built_moved_score_gain";
+    public const string ReasonEmbedBuiltOffMap = "embed_built_off_map";
+    public const string ReasonEmbedBuiltNotRect = "embed_built_not_a_block";
+
     /// <summary>
     /// Picks, for each room group, the standing room that is its block: the largest rectangular room
     /// MatchGroupRooms gave it (ties to the lower id). Rooms matched to a group beyond that one are not

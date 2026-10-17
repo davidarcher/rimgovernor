@@ -31,7 +31,7 @@ public sealed record RecipeFacts
     /// Reports whether an added part on the body part stays on a prisoner: its removal kills (VitalParts) or
     /// is a KeptBodyParts judgment.
     /// </summary>
-    internal bool KeptPart(string body) => VitalParts.GetValueOrDefault(body) || PolicyConstants.KeptBodyParts.Contains(body);
+    internal bool KeptPart(string body) => VitalParts.GetValueOrDefault(body) || OrganHarvestRules.KeptBodyParts.Contains(body);
 
     /// <summary>The work type of a bill on the recipe, false when no bench the catalog knows hosts the recipe.</summary>
     public (WorkType Work, bool Known) BillWorkOf(string recipe) =>

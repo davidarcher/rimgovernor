@@ -13,7 +13,7 @@ public enum Capability
 
 // The shelter's heat and cooling pieces: the game offers no signal tying a capability to a def, so these two
 // names are judgment tables (DefTables).
-public static partial class PolicyConstants
+public static partial class LayoutCapabilityRules
 {
     /// <summary>The campfire that provides Capability.Heat.</summary>
     public const string ShelterHeatDef = "Campfire";
@@ -46,10 +46,7 @@ public static partial class PolicyConstants
         [Capability.Craft] = 1,
         [Capability.Research] = 6,
     };
-}
 
-public static partial class LayoutCapabilityRules
-{
     /// <summary>
     /// What a room of each planned role can host, derived from FacilityCatalog's Compatible lists through
     /// ModuleRoomRoles. Every planned role has an entry, possibly empty.

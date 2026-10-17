@@ -204,7 +204,7 @@ partial record LayoutPlan
         var notBlock = new HashSet<int>();
         foreach (var d in advice.Embedding.Decisions)
         {
-            if (d.Reason == ReasonEmbedBuiltNotRect)
+            if (d.Reason == LayoutBuiltRules.ReasonEmbedBuiltNotRect)
             {
                 notBlock.Add(d.Room);
             }

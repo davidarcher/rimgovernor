@@ -220,11 +220,11 @@ internal static class StationAdviceLog
         }
         foreach (var d in a.Embedding.Decisions)
         {
-            if (d.Verdict is PolicyConstants.EmbedKeep or PolicyConstants.EmbedMove)
+            if (d.Verdict is LayoutBuiltRules.EmbedKeep or LayoutBuiltRules.EmbedMove)
             {
                 built.Add(new Dictionary<string, object?> { ["group"] = d.Group, ["room"] = d.Room, ["verdict"] = d.Verdict, ["reason"] = d.Reason });
             }
-            else if (d.Verdict != PolicyConstants.EmbedPlace)
+            else if (d.Verdict != LayoutEmbedRules.EmbedPlace)
             {
                 issues.Add(new Dictionary<string, object?> { ["group"] = d.Group, ["other"] = d.Other, ["verdict"] = d.Verdict, ["reason"] = d.Reason, ["requirement"] = d.Requirement is { } requirement ? Wire.Name(requirement) : "", ["field"] = d.Field });
             }
@@ -245,7 +245,7 @@ internal static class StationAdviceLog
             sites.Add(row);
         }
         var siteIssues = a.Sites.Decisions
-            .Where(d => d.Verdict != PolicyConstants.EmbedPlace)
+            .Where(d => d.Verdict != LayoutEmbedRules.EmbedPlace)
             .Select(d => new Dictionary<string, object?> { ["node"] = d.Node, ["verdict"] = d.Verdict, ["reason"] = d.Reason })
             .ToList();
         var fields = a.Embedding.Fields.Select(f => new Dictionary<string, object?>
@@ -255,7 +255,7 @@ internal static class StationAdviceLog
             ["z"] = f.Interior.Z,
             ["width"] = f.Interior.Width,
             ["height"] = f.Interior.Height,
-            ["reason"] = PolicyConstants.ReasonEmbedFieldPlaced,
+            ["reason"] = LayoutFieldPlaceRules.ReasonEmbedFieldPlaced,
         }).ToList();
         // The tiled plan's vents and why a room has none.
         var vents = new List<Dictionary<string, object?>>();

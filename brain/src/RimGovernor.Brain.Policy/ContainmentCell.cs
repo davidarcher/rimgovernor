@@ -72,7 +72,7 @@ public static class ContainmentCellRules
     public const string ShellDoorDefinition = "Door";
 
     /// <summary>The lamp the cell is furnished with: the same standing lamp that stands beside a bed or throne.</summary>
-    public static string ContainmentLampDefinition => StandingLampDef;
+    public static string ContainmentLampDefinition => InteriorHelpersRules.StandingLampDef;
 
     /// <summary>
     /// The cell the entities owe: one platform in its own room. No demand, or a standing available platform

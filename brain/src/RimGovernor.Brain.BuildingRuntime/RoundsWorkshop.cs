@@ -209,7 +209,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null, BuildingReasonWorkshopUnavailable);
         }
         selection.Candidates = [.. gated.OrderBy(n => n, StringComparer.Ordinal)];
-        selection.Candidates.AddRange(GeneratorDefinitions);
+        selection.Candidates.AddRange(PowerRules.GeneratorDefinitions);
         return (selection, new Verdict());
     }
 
@@ -340,7 +340,7 @@ partial class RoundsBuildingPlanner
     internal static Fact<bool> GeneratorAvailable(IReadOnlyDictionary<string, Fact<bool>> available)
     {
         var result = Known<bool>(false);
-        foreach (var name in GeneratorDefinitions)
+        foreach (var name in PowerRules.GeneratorDefinitions)
         {
             if (!available.TryGetValue(name, out var fact) || !fact.TryGetValue(out var v))
             {

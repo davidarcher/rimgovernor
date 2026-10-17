@@ -33,20 +33,6 @@ namespace RimGovernor.Brain.Policy;
 // Obstacle levels: every level runs and the one with the fewest failures wins (a room with no block, a
 // required link not adjacent). On equal failures the strictest keeps the plan unless a looser one beats its
 // objective by FieldGain (#2979). The first block avoids rich soil while any fit does.
-public static partial class PolicyConstants
-{
-    // Verdicts and reasons of embedding decisions.
-    public const string EmbedPlace = "place";
-    public const string EmbedUnplaceable = "unplaceable";
-    public const string EmbedUnsatisfied = "unsatisfied";
-
-    public const string ReasonEmbedPlaced = "embed_placed";
-    public const string ReasonEmbedNoGround = "embed_no_ground";
-    public const string ReasonEmbedOpenSkyGround = "embed_open_sky_ground";
-    public const string ReasonEmbedNoSiteSignal = "embed_no_site_signal";
-    public const string ReasonEmbedLinkNotAdjacent = "embed_link_not_adjacent";
-}
-
 /// <summary>Everything the embedding reads.</summary>
 public sealed record EmbedInput
 {
@@ -186,7 +172,7 @@ public sealed partial class Embedding
     }
 
     /// <summary>The groups no position fit, with the reason.</summary>
-    public List<EmbedDecision> Unplaceable() => [.. Decisions.Where(d => d.Verdict == PolicyConstants.EmbedUnplaceable)];
+    public List<EmbedDecision> Unplaceable() => [.. Decisions.Where(d => d.Verdict == LayoutEmbedRules.EmbedUnplaceable)];
 
     /// <summary>The obstacle level the blocks were placed under: 0 is the strictest (every field cell and rich soil avoided), higher is looser.</summary>
     public int ObstacleLevel() => (int)Level;
@@ -246,7 +232,7 @@ internal partial class EmbedFixed
         var clear = scorer.EdgeClear();
         Edge = new Prefix(w, h, c => -PlanScorer.EdgeCellCost(scorer.Ground, c, clear));
         Centre = new Prefix(w, h, c => -scorer.CentreCell(c));
-        Rich = new Prefix(w, h, c => LayoutEmbedRules.B2i(scorer.G.Soil.GetValueOrDefault(c) == PolicyConstants.SoilCostRich));
+        Rich = new Prefix(w, h, c => LayoutEmbedRules.B2i(scorer.G.Soil.GetValueOrDefault(c) == BuildGround.SoilCostRich));
         Solid = new Prefix(w, h, c => LayoutEmbedRules.B2i(scorer.G.Rock.Contains(c) || (cells.TryGetValue(c, out var sc) && sc.ThickRoof)));
         Walkable = new Prefix(w, h, c => LayoutEmbedRules.B2i(LayoutEmbedEnclosureRules.WalkableCell(cells, c)));
         FieldMasks(input, scorer);
@@ -358,7 +344,7 @@ internal sealed partial class Embedder : EmbedFixed
             // A room whose ring is off the map is no block.
             if (_home[i].Width > 0 && !Base.Inside(LayoutPerimeterRules.Pad(_home[i], 1)))
             {
-                _builtReport.Add(new EmbedDecision { Group = i, Other = -1, Verdict = PolicyConstants.EmbedKeep, Reason = PolicyConstants.ReasonEmbedBuiltOffMap, Room = _homeRoom[i] });
+                _builtReport.Add(new EmbedDecision { Group = i, Other = -1, Verdict = LayoutBuiltRules.EmbedKeep, Reason = LayoutBuiltRules.ReasonEmbedBuiltOffMap, Room = _homeRoom[i] });
                 _home[i] = default;
                 _homeRoom[i] = 0;
             }
@@ -868,16 +854,16 @@ internal sealed partial class EmbedRun
             }
             if (b.Width == 0)
             {
-                var reason = PolicyConstants.ReasonEmbedNoGround;
+                var reason = LayoutEmbedRules.ReasonEmbedNoGround;
                 if (e.Sky[i])
                 {
                     var (_, ok) = e.PlaceAnywhere(i, Blocks, false, null);
                     if (ok)
                     {
-                        reason = PolicyConstants.ReasonEmbedOpenSkyGround;
+                        reason = LayoutEmbedRules.ReasonEmbedOpenSkyGround;
                     }
                 }
-                output.Decisions.Add(new EmbedDecision { Group = i, Other = -1, Verdict = PolicyConstants.EmbedUnplaceable, Reason = reason });
+                output.Decisions.Add(new EmbedDecision { Group = i, Other = -1, Verdict = LayoutEmbedRules.EmbedUnplaceable, Reason = reason });
                 continue;
             }
             var built = 0;
@@ -894,7 +880,7 @@ internal sealed partial class EmbedRun
                 }
             }
             output.Blocks.Add(new EmbeddedBlock { Group = i, Interior = b, Built = built, Replaces = replaces });
-            output.Decisions.Add(new EmbedDecision { Group = i, Other = -1, Verdict = PolicyConstants.EmbedPlace, Reason = PolicyConstants.ReasonEmbedPlaced });
+            output.Decisions.Add(new EmbedDecision { Group = i, Other = -1, Verdict = LayoutEmbedRules.EmbedPlace, Reason = LayoutEmbedRules.ReasonEmbedPlaced });
             output.Score.Cells += b.Width * b.Height;
             output.Score.Soil += (int)e.Soil.Sum(b);
             output.Score.Centre += (int)e.Centre.Sum(b);
@@ -903,7 +889,7 @@ internal sealed partial class EmbedRun
             {
                 if (req == EnvRequirement.Clean)
                 {
-                    output.Decisions.Add(new EmbedDecision { Group = i, Other = -1, Verdict = PolicyConstants.EmbedUnsatisfied, Reason = PolicyConstants.ReasonEmbedNoSiteSignal, Requirement = req });
+                    output.Decisions.Add(new EmbedDecision { Group = i, Other = -1, Verdict = LayoutEmbedRules.EmbedUnsatisfied, Reason = LayoutEmbedRules.ReasonEmbedNoSiteSignal, Requirement = req });
                 }
             }
             foreach (var l in g.Links)
@@ -918,7 +904,7 @@ internal sealed partial class EmbedRun
                 if (l.Required && gap != 1)
                 {
                     output.Score.UnmetLinks++;
-                    output.Decisions.Add(new EmbedDecision { Group = i, Other = l.To, Verdict = PolicyConstants.EmbedUnsatisfied, Reason = PolicyConstants.ReasonEmbedLinkNotAdjacent });
+                    output.Decisions.Add(new EmbedDecision { Group = i, Other = l.To, Verdict = LayoutEmbedRules.EmbedUnsatisfied, Reason = LayoutEmbedRules.ReasonEmbedLinkNotAdjacent });
                 }
             }
         }
@@ -928,6 +914,17 @@ internal sealed partial class EmbedRun
 
 public static partial class LayoutEmbedRules
 {
+    // Verdicts and reasons of embedding decisions.
+    public const string EmbedPlace = "place";
+    public const string EmbedUnplaceable = "unplaceable";
+    public const string EmbedUnsatisfied = "unsatisfied";
+
+    public const string ReasonEmbedPlaced = "embed_placed";
+    public const string ReasonEmbedNoGround = "embed_no_ground";
+    public const string ReasonEmbedOpenSkyGround = "embed_open_sky_ground";
+    public const string ReasonEmbedNoSiteSignal = "embed_no_site_signal";
+    public const string ReasonEmbedLinkNotAdjacent = "embed_link_not_adjacent";
+
     internal static int B2i(bool b) => b ? 1 : 0;
 
     /// <summary>The interiors a group of area cells may take: as deep as the roof allows is never needed, so the squarest rectangle within depth, and its turn.</summary>

@@ -51,26 +51,6 @@ public sealed record LightTable
     public double DiagonalCost { get; init; }
 }
 
-public static partial class PolicyConstants
-{
-    private static readonly LightTable LightTableValue = new()
-    {
-        LampDef = "StandingLamp",
-        WallLampDef = "WallLamp",
-        DarkSpeed = 0.8,
-        GroundScale = 3.6,
-        FalloffBlend = 0.4,
-        DiagonalCost = 1.41,
-    };
-
-    internal static LightTable LightJudgment => LightTableValue;
-
-    public const string ReasonTileLamps = "tile_lamps";
-    public const string ReasonTileLampsNotPaid = "tile_lamps_not_paid";
-    public const string ReasonTileLampsSky = "tile_lamps_sky";
-    public const string ReasonTileLampsUnpriced = "tile_lamps_unpriced";
-}
-
 /// <summary>One lamp's catalog numbers: the power it draws, the market value of its cheapest cost list, its glow radius and the brightest channel of its glow colour. The default value is unknown.</summary>
 public readonly record struct LampModel(double PowerW, double Build, double Radius, double Brightness)
 {
@@ -114,7 +94,7 @@ public readonly record struct LightPrice(double WorkDayW, double LampW, double C
         // Locals, because a lambda inside a struct cannot read the struct's members.
         var lampW = LampW;
         var lampReach = LampReach;
-        return spots.Select(s => new LampCand(new PlannedLamp { Def = PolicyConstants.LightJudgment.LampDef, Cell = s }, lampW, lampReach)).ToList();
+        return spots.Select(s => new LampCand(new PlannedLamp { Def = LayoutLightRules.LightJudgment.LampDef, Cell = s }, lampW, lampReach)).ToList();
     }
 
     /// <summary>
@@ -185,6 +165,23 @@ internal readonly record struct LampCand(PlannedLamp Lamp, double W, double Reac
 
 public static partial class LayoutLightRules
 {
+    private static readonly LightTable LightTableValue = new()
+    {
+        LampDef = "StandingLamp",
+        WallLampDef = "WallLamp",
+        DarkSpeed = 0.8,
+        GroundScale = 3.6,
+        FalloffBlend = 0.4,
+        DiagonalCost = 1.41,
+    };
+
+    internal static LightTable LightJudgment => LightTableValue;
+
+    public const string ReasonTileLamps = "tile_lamps";
+    public const string ReasonTileLampsNotPaid = "tile_lamps_not_paid";
+    public const string ReasonTileLampsSky = "tile_lamps_sky";
+    public const string ReasonTileLampsUnpriced = "tile_lamps_unpriced";
+
     /// <summary>
     /// The Euclidean radius (cells) within which a lamp of the given glow radius and brightest colour channel
     /// keeps ground glow above LitGlow; zero when either is unknown or the lamp never lights its own neighbour.
@@ -197,7 +194,7 @@ public static partial class LayoutLightRules
         {
             return 0;
         }
-        var t = PolicyConstants.LightJudgment;
+        var t = LayoutLightRules.LightJudgment;
         // The channel survives int(brightness*falloff), and ground glow must pass LitGlow strictly.
         var need = (Math.Floor(LightingPolicy.Default().LitGlow / t.GroundScale * 255) + 1) / brightness;
         double Falloff(double x) => ((1 - t.FalloffBlend) * (1 - (x / radius))) + (t.FalloffBlend / (x * x));
@@ -226,14 +223,14 @@ public static partial class LayoutLightRules
     }
 
     /// <summary>The buildings the lamp pricing places.</summary>
-    public static LightTable LightDefs() => PolicyConstants.LightJudgment;
+    public static LightTable LightDefs() => LayoutLightRules.LightJudgment;
 
     /// <summary>The speed factor of a pawn on ground of the given glow (StatPart_Glow): linear from DarkSpeed at 0 to 1 at LitGlow.</summary>
     public static double LightSpeed(double glow)
     {
         var lit = LightingPolicy.Default().LitGlow;
         var g = Math.Min(Math.Max(glow, 0), lit) / lit;
-        var dark = PolicyConstants.LightJudgment.DarkSpeed;
+        var dark = LayoutLightRules.LightJudgment.DarkSpeed;
         return dark + ((1 - dark) * g);
     }
 
@@ -408,7 +405,7 @@ public static partial class LayoutLightRules
                 {
                     continue;
                 }
-                output.Add(new LampCand(new PlannedLamp { Def = PolicyConstants.LightJudgment.WallLampDef, Cell = s, Facing = DefenseLayout.RotationOf(dir) }, p.WallLampW, p.WallReach));
+                output.Add(new LampCand(new PlannedLamp { Def = LayoutLightRules.LightJudgment.WallLampDef, Cell = s, Facing = DefenseLayout.RotationOf(dir) }, p.WallLampW, p.WallReach));
                 break;
             }
         }
@@ -513,7 +510,7 @@ partial class Tiler
             var g = this.In.Groups[this.Rooms[i].Group];
             if (!PlannedRoom.LightRoofed(room))
             {
-                this.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsSky, LayoutTileRules.TilePlace);
+                this.NoteLamps(g.Id, LayoutLightRules.ReasonTileLampsSky, LayoutTileRules.TilePlace);
                 continue;
             }
             var work = new HashSet<Cell>();
@@ -543,7 +540,7 @@ partial class Tiler
             {
                 if (work.Count > 0)
                 {
-                    this.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsUnpriced, LayoutTileRules.TileUnsatisfied);
+                    this.NoteLamps(g.Id, LayoutLightRules.ReasonTileLampsUnpriced, LayoutTileRules.TileUnsatisfied);
                 }
                 continue;
             }
@@ -570,7 +567,7 @@ partial class Tiler
             {
                 if (cells.Sum(c => c.W) > 0)
                 {
-                    this.NoteLamps(g.Id, PolicyConstants.ReasonTileLampsNotPaid, LayoutTileRules.TileUnsatisfied);
+                    this.NoteLamps(g.Id, LayoutLightRules.ReasonTileLampsNotPaid, LayoutTileRules.TileUnsatisfied);
                 }
                 continue;
             }
@@ -580,7 +577,7 @@ partial class Tiler
                 this.Out.Lamps[room.Id] = list;
             }
             list.AddRange(lamps.Select(l => l.Lamp));
-            this.NoteLamps(g.Id, PolicyConstants.ReasonTileLamps, LayoutTileRules.TilePlace);
+            this.NoteLamps(g.Id, LayoutLightRules.ReasonTileLamps, LayoutTileRules.TilePlace);
         }
     }
 

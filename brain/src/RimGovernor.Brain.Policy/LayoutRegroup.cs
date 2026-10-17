@@ -21,7 +21,7 @@ public sealed record RegroupPrice
     internal double EffectPoints(LostRoleEffect l)
     {
         var known = Expected.TryGetValue(out var level);
-        var (lost, ok) = Mood.LostPoints(l, MoodJudgment.PlannedStage);
+        var (lost, ok) = Mood.LostPoints(l, LayoutMoodRules.MoodJudgment.PlannedStage);
         if (!known || !ok)
         {
             return 0;
@@ -276,7 +276,7 @@ internal sealed class Regrouper(RegroupInput input)
         // merge: pairs the seed kept for a lost bench speed alone.
         foreach (var d in cur.Clustering.Decisions)
         {
-            if (d.Verdict != ClusterKeep || d.Reason != ReasonClusterLostEffect || d.LostEffects.Count > 0 || d.A == "" || d.B == "" || d.A == d.B || LayoutRegroupRules.RuleOf(cur.Pairs, d.A, d.B) != PairRule.None)
+            if (d.Verdict != LayoutClusterRules.ClusterKeep || d.Reason != LayoutClusterRules.ReasonClusterLostEffect || d.LostEffects.Count > 0 || d.A == "" || d.B == "" || d.A == d.B || LayoutRegroupRules.RuleOf(cur.Pairs, d.A, d.B) != PairRule.None)
             {
                 continue;
             }
@@ -287,7 +287,7 @@ internal sealed class Regrouper(RegroupInput input)
         var priced = In.Cluster.Catalog.Filth.Priced();
         foreach (var d in cur.Clustering.Decisions)
         {
-            if (!priced || d.Verdict != ClusterKeep || d.Reason != ReasonClusterFilthPriced || d.A == "" || d.B == "" || d.A == d.B || LayoutRegroupRules.RuleOf(cur.Pairs, d.A, d.B) != PairRule.None)
+            if (!priced || d.Verdict != LayoutClusterRules.ClusterKeep || d.Reason != LayoutClusterRules.ReasonClusterFilthPriced || d.A == "" || d.B == "" || d.A == d.B || LayoutRegroupRules.RuleOf(cur.Pairs, d.A, d.B) != PairRule.None)
             {
                 continue;
             }

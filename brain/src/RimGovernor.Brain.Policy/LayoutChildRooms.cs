@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 // (ChildRoomShape), sited at the nearest core slot like the throne room. Furniture stands in bands of free
 // floor: a band as high as the piece, a free row between bands, the row inside the entrance free, and the
 // entrance's column free the full depth so every band stays reachable.
-public static partial class PolicyConstants
+public static partial class LayoutChildRoomsRules
 {
     /// <summary>Why the graph holds a child room: a pawn of the matching developmental stage lives in the colony, or the plan already holds the room (#3003).</summary>
     public const string ReasonChildRoom = "child_room_owed";
@@ -15,10 +15,7 @@ public static partial class PolicyConstants
     /// </summary>
     internal static readonly IReadOnlyList<PlannedRole> ChildNodeRoles =
         [PlannedRole.Playroom, PlannedRole.Classroom, PlannedRole.DeathrestChamber, PlannedRole.Worship, PlannedRole.ContainmentCell, PlannedRole.IsolationRoom];
-}
 
-public static partial class LayoutChildRoomsRules
-{
     /// <summary>The shapes of every need whose furniture resolves, planned or not.</summary>
     public static IReadOnlyList<ChildRoomShape> ChildRoomShapes(IReadOnlyList<ChildRoomNeed> needs, IReadOnlyList<FurnitureDefinition> defs)
     {
@@ -84,7 +81,7 @@ public static partial class LayoutChildRoomsRules
     public static IReadOnlyList<(int W, int D)> ChildRoomSizes(ChildRoomShape s)
     {
         var output = new List<(int W, int D)>();
-        for (var d = LayoutThroneRules.ThroneMinSide; d <= CoreMaxDepth; d++)
+        for (var d = LayoutThroneRules.ThroneMinSide; d <= BuildGround.CoreMaxDepth; d++)
         {
             for (var w = LayoutThroneRules.ThroneMinSide; ; w++)
             {
@@ -127,7 +124,7 @@ partial record LayoutPlan
     public static IReadOnlyList<RoomNode> ChildRoomNodes(LayoutPlan plan, IReadOnlyList<ChildRoomShape> shapes)
     {
         var nodes = new List<RoomNode>();
-        foreach (var role in ChildNodeRoles)
+        foreach (var role in LayoutChildRoomsRules.ChildNodeRoles)
         {
             int w = 0, d = 0;
             foreach (var s in shapes)
@@ -149,7 +146,7 @@ partial record LayoutPlan
             }
             if (w > 0 && d > 0)
             {
-                nodes.Add(new RoomNode { Id = Wire.Name(role), Role = role, Area = w * d, Width = Math.Min(w, d), Reason = ReasonChildRoom });
+                nodes.Add(new RoomNode { Id = Wire.Name(role), Role = role, Area = w * d, Width = Math.Min(w, d), Reason = LayoutChildRoomsRules.ReasonChildRoom });
             }
         }
         return nodes;

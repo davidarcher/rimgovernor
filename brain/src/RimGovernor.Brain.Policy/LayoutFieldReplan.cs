@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 // Fields (#2961, #3005). The survey's whole-map field patches (Zone) no longer make the plan's field zones: the
 // station chain's field nodes do, sized by FieldCapacityTarget, placed by the embedder beside the rooms and
 // written through FieldZone. The tiled plan carries them at every review.
-public static partial class PolicyConstants
+public static partial class LayoutFieldReplanRules
 {
     /// <summary>
     /// The judgment table of the crop a colony's field is planned for while nothing is sown: a new colony sows
@@ -14,12 +14,6 @@ public static partial class PolicyConstants
     /// </summary>
     public static readonly IReadOnlyList<string> FieldCrops = ["Plant_Rice", "Plant_Potato", "Plant_Corn"];
 
-    /// <summary>Why a field is planned for a crop nobody sowed.</summary>
-    public const string ReasonFieldDefaultCrop = "field_crop_unsown_default";
-}
-
-public static partial class LayoutFieldReplanRules
-{
     /// <summary>The crop a field is planned for while none is sown: the first of the FieldCrops table that choices offers as available and edible.</summary>
     public static (CropChoice? Crop, bool Ok) DefaultFieldCrop(IReadOnlyList<CropChoice> choices)
     {

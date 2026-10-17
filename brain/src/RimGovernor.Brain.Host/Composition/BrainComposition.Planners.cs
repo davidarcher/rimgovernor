@@ -3,7 +3,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Policy;
-using static RimGovernor.Brain.Policy.PolicyConstants;
 
 namespace RimGovernor.Brain.Host;
 
@@ -126,7 +125,7 @@ public sealed partial class BrainComposition
         {
             // The food/baby-feeding Need's baby food bill is the ledger's too, filed under the Need (#3254).
             reviewer.AddOrderDeclarer(new BabyFoodDeclarer());
-            foreach (var purpose in new[] { CookFood, PreserveFood, ButcherFood })
+            foreach (var purpose in new[] { ProductionRules.CookFood, ProductionRules.PreserveFood, ProductionRules.ButcherFood })
             {
                 reviewer.AddOrderDeclarer(new RoundsBillPlanner(reviewer, purpose));
             }
@@ -195,7 +194,7 @@ public sealed partial class BrainComposition
             {
                 // The solar-flare cook-ahead bill answers the refrigeration Need, wired with its family rather than
                 // the cooking bills so a refrigeration-only service serves it.
-                reviewer.AddOrderDeclarer(new RoundsBillPlanner(reviewer, CookAheadFood));
+                reviewer.AddOrderDeclarer(new RoundsBillPlanner(reviewer, ProductionRules.CookAheadFood));
             }
             families.Add(foodStores.Runner());
         }

@@ -1222,7 +1222,7 @@ public sealed partial class RoundsBuildingPlanner
         if (Power is not null)
         {
             searchRequest = searchRequest with { Center = Power.Center, Radius = 6 };
-            if (Definition == WindTurbineDefinition)
+            if (Definition == PowerRules.WindTurbineDefinition)
             {
                 // A turbine wants open ground its 7x16 catch zone can lie on, which the cells right beside a consumer rarely offer.
                 searchRequest = searchRequest with { Radius = 12 };
@@ -1283,7 +1283,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (null, false, SiteBlocked(Definition, "stuff_differs_from_native"));
             }
-            if (Definition == WindTurbineDefinition)
+            if (Definition == PowerRules.WindTurbineDefinition)
             {
                 // Only a site whose native catch zone is clear makes the turbine's nominal output; an obstructed one is no site.
                 if (!preview.Preview.WindBlockedCells.TryGetValue(out var blocked) || blocked > 0)

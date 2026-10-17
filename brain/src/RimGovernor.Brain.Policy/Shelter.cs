@@ -173,16 +173,16 @@ public static partial class ShelterRules
 
     /// <summary>
     /// One spare indoor place beyond the population, waiting on the starter shelter and on sleeping when composed: met
-    /// while the indoor capacity reaches the colonists plus <see cref="PolicyConstants.HousingSparePlaces"/>, unmet
+    /// while the indoor capacity reaches the colonists plus <see cref="LayoutGraphRules.HousingSparePlaces"/>, unmet
     /// below, unknown without a colonist or a capacity. Its deficit is the short share of that target.
     /// </summary>
     public static Need ExpansionNeedOf(ShelterFacts f, bool starter, bool sleeping)
     {
         var met = Unknown<bool>();
         var deficit = Unknown<double>();
-        if (f.Colonists.TryGetValue(out var n) && n > 0 && n < long.MaxValue - HousingSparePlaces && f.IndoorCapacity.TryGetValue(out var capacity) && capacity >= 0)
+        if (f.Colonists.TryGetValue(out var n) && n > 0 && n < long.MaxValue - LayoutGraphRules.HousingSparePlaces && f.IndoorCapacity.TryGetValue(out var capacity) && capacity >= 0)
         {
-            var target = n + HousingSparePlaces;
+            var target = n + LayoutGraphRules.HousingSparePlaces;
             met = Known(capacity >= target);
             deficit = Known(Math.Min(1.0, Math.Max(0.0, ((double)target - capacity) / target)));
         }

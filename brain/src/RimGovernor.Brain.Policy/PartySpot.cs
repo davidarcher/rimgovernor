@@ -3,17 +3,6 @@ using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyConstants
-{
-    /// <summary>
-    /// The free, instant-build spot the game's gathering worker picks: RCellFinder.TryFindGatheringSpot takes
-    /// a built colony building whose def is in GatheringDef.gatherSpotDefs (Core Party lists PartySpot) at a
-    /// cell that passes GatheringsUtility.ValidateGatheringSpot (standable, safe, roofed, reservable).
-    /// The rooms/party-spot Need keeps one in the best shared room.
-    /// </summary>
-    public const string PartySpotDefinition = "PartySpot";
-}
-
 /// <summary>What the PartySpot review reads.</summary>
 public sealed record PartySpotInput
 {
@@ -59,6 +48,14 @@ public sealed record PartySpotNeed
 
 public static partial class PartySpotRules
 {
+    /// <summary>
+    /// The free, instant-build spot the game's gathering worker picks: RCellFinder.TryFindGatheringSpot takes
+    /// a built colony building whose def is in GatheringDef.gatherSpotDefs (Core Party lists PartySpot) at a
+    /// cell that passes GatheringsUtility.ValidateGatheringSpot (standable, safe, roofed, reservable).
+    /// The rooms/party-spot Need keeps one in the best shared room.
+    /// </summary>
+    public const string PartySpotDefinition = "PartySpot";
+
     private sealed record PartyCandidate(string Id, int Stage, int Size, IReadOnlyList<Cell> Cells);
 
     /// <summary>
@@ -76,7 +73,7 @@ public static partial class PartySpotRules
         }
         foreach (var site in census.Sites)
         {
-            if (site.Building!.Definition == PolicyConstants.PartySpotDefinition)
+            if (site.Building!.Definition == PartySpotRules.PartySpotDefinition)
             {
                 // A blueprint or frame is the step in flight.
                 return Known(new PartySpotNeed());
@@ -128,7 +125,7 @@ public static partial class PartySpotRules
                 best = c;
             }
         }
-        var spots = census.Buildings.Where(b => b.Building!.Definition == PolicyConstants.PartySpotDefinition && b.Cells.Count > 0).ToList();
+        var spots = census.Buildings.Where(b => b.Building!.Definition == PartySpotRules.PartySpotDefinition && b.Cells.Count > 0).ToList();
         // StageOf is the stage of the room holding a standing spot: -1 outside every shared room; not scored
         // (false) in a shared room with no quality read, which never moves the spot.
         (int Stage, bool Scored) StageOf(CurrentBuilding b)

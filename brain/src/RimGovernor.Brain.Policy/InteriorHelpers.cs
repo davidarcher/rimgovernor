@@ -1,13 +1,10 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyConstants
+public static class InteriorHelpersRules
 {
     /// <summary>The lamp beside a bed or throne. It is no facility (no row links it), so the catalog has no rule that names it.</summary>
     internal const string StandingLampDef = "StandingLamp";
-}
 
-public static class InteriorHelpersRules
-{
     /// <summary>Reports whether id is among ids (Go <c>containsPawn</c>).</summary>
     internal static bool ContainsPawn(EquatableArray<PawnId> ids, PawnId id)
     {

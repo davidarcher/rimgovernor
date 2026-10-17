@@ -1,6 +1,9 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyConstants
+/// <summary>One room holding both a cooking bench and a butcher bench: butchery filth lands in the workspace the game reads for food poisoning.</summary>
+public sealed record SeparationRoom(string Id, EquatableArray<Cell> Cells);
+
+public static class KitchenSeparationRules
 {
     /// <summary>The real butcher bench, built from stuff.</summary>
     public const string ButcherTableDefinition = "TableButcher";
@@ -14,13 +17,7 @@ public static partial class PolicyConstants
 
     internal static readonly IReadOnlySet<Resource> SleepingDefinitions =
         new HashSet<Resource> { new("SleepingSpot"), new("DoubleSleepingSpot"), new("Bed"), new("DoubleBed"), new("RoyalBed") };
-}
 
-/// <summary>One room holding both a cooking bench and a butcher bench: butchery filth lands in the workspace the game reads for food poisoning.</summary>
-public sealed record SeparationRoom(string Id, EquatableArray<Cell> Cells);
-
-public static class KitchenSeparationRules
-{
     private static bool RoomHolds(Room room, IReadOnlySet<Resource> set)
     {
         if (!room.Contents.TryGetValue(out var contents))

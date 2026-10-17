@@ -50,7 +50,7 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>Clears roofs and rock above a wind turbine or solar site; not handled when no planned site needs it.</summary>
     internal async Task<(RoundsBuildingResult Result, bool Handled)> DigSkyAsync(ExcavationStep s, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken call, CancellationToken epoch)
     {
-        if (Power is null || Power.Method != PowerMethod.Generate || (Definition != PolicyConstants.WindTurbineDefinition && Definition != LayoutUtilityRules.SolarDefinition))
+        if (Power is null || Power.Method != PowerMethod.Generate || (Definition != PowerRules.WindTurbineDefinition && Definition != LayoutUtilityRules.SolarDefinition))
         {
             return (new RoundsBuildingResult(), false);
         }

@@ -30,12 +30,12 @@ public sealed partial class DefinitionCatalog
                 continue;
             }
 
-            var profile = ConstantPowerProfile;
+            var profile = PowerRules.ConstantPowerProfile;
             if (comp.compClass is { } kind)
             {
                 if (typeof(CompPowerPlantSolar).IsAssignableFrom(kind))
                 {
-                    profile = SolarPowerProfile;
+                    profile = PowerRules.SolarPowerProfile;
                 }
                 else if (typeof(CompPowerPlantWind).IsAssignableFrom(kind))
                 {
@@ -110,7 +110,7 @@ public sealed partial class DefinitionCatalog
     // power supply.
     internal P.PowerModel PowerModel()
     {
-        string[] needed = [WindTurbineDefinition, P.LayoutUtilityRules.SolarDefinition, BatteryDefinition, P.LayoutPowerDeriveRules.PowerConduitDefinition, ContainmentCellRules.ShellWallDefinition];
+        string[] needed = [PowerRules.WindTurbineDefinition, P.LayoutUtilityRules.SolarDefinition, PowerRules.BatteryDefinition, P.LayoutPowerDeriveRules.PowerConduitDefinition, ContainmentCellRules.ShellWallDefinition];
         if (needed.Any(name => !_thingDefs.ContainsKey(name)))
         {
             return new P.PowerModel();
@@ -126,9 +126,9 @@ public sealed partial class DefinitionCatalog
 
         return new P.PowerModel
         {
-            Wind = Supply(WindTurbineDefinition),
+            Wind = Supply(PowerRules.WindTurbineDefinition),
             Solar = Supply(P.LayoutUtilityRules.SolarDefinition),
-            Battery = PowerBattery(BatteryDefinition),
+            Battery = PowerBattery(PowerRules.BatteryDefinition),
             Conduit = CheapestCostValue(P.LayoutPowerDeriveRules.PowerConduitDefinition),
             Wall = CheapestCostValue(ContainmentCellRules.ShellWallDefinition),
         };

@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Policy;
 public static partial class ShelterRules
 {
     /// <summary>The footprint a bunk anchored at anchor occupies at a rotation.</summary>
-    public static Rectangle BunkRect(Cell anchor, Rotation rot) => InteriorRules.OccupiedRect(anchor, ShelterBunkSize, rot);
+    public static Rectangle BunkRect(Cell anchor, Rotation rot) => InteriorRules.OccupiedRect(anchor, InteriorShelterRules.ShelterBunkSize, rot);
 
     /// <summary>The two cells of BunkRect.</summary>
     public static IReadOnlyList<Cell> BunkCells(Cell anchor, Rotation rot) => PlannedRules.RectCells(BunkRect(anchor, rot));

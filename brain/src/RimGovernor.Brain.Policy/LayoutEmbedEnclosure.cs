@@ -18,15 +18,6 @@ namespace RimGovernor.Brain.Policy;
 //
 // (grow = by perimeterThick). Closing the outline, filling holes and the shoreline detours are left to the
 // plan's real score; fields are outside the ring.
-public static partial class PolicyConstants
-{
-    // A placement that prices more than CoverGridMinCalls candidates, or one a CoverGridCellsPerCall-th of the
-    // map's cells, reads them off coverGrids built once: the grids cost a few passes over the map, a sweep
-    // costs per candidate.
-    internal const int CoverGridMinCalls = 64;
-    internal const int CoverGridCellsPerCall = 1024;
-}
-
 /// <summary>Rectangles sorted by X with Reach[i] the farthest right edge among Rects[0..i], so a scan starts at the first rectangle that can touch k.</summary>
 internal sealed class XRects
 {
@@ -309,7 +300,7 @@ internal sealed partial class Embedder
         const int yard = 1 + LayoutPerimeterRules.PerimeterGap; // the wall cells and the killbox yard
         var onMap = new Rectangle(0, 0, Base.W, Base.H);
         s.Calls++;
-        if (s.Grids is null && s.Calls >= Math.Max(PolicyConstants.CoverGridMinCalls, onMap.Width * onMap.Height / PolicyConstants.CoverGridCellsPerCall))
+        if (s.Grids is null && s.Calls >= Math.Max(LayoutEmbedEnclosureRules.CoverGridMinCalls, onMap.Width * onMap.Height / LayoutEmbedEnclosureRules.CoverGridCellsPerCall))
         {
             s.Grids = [new CoverGrid(onMap, s.Grown, Walkable), new CoverGrid(onMap, s.In, Walkable), new CoverGrid(onMap, s.Walls, null)];
         }
@@ -327,6 +318,12 @@ internal sealed partial class Embedder
 
 public static partial class LayoutEmbedEnclosureRules
 {
+    // A placement that prices more than CoverGridMinCalls candidates, or one a CoverGridCellsPerCall-th of the
+    // map's cells, reads them off coverGrids built once: the grids cost a few passes over the map, a sweep
+    // costs per candidate.
+    internal const int CoverGridMinCalls = 64;
+    internal const int CoverGridCellsPerCall = 1024;
+
     /// <summary>The number of cells of k, weighted by weight (each counts 1 when null), that none of rects covers. k lies on the map.</summary>
     internal static int Uncovered(Rectangle k, IEnumerable<Rectangle> rects, Prefix? weight) =>
         new CoverScratch().Uncovered(k, new XRects(rects), weight);

@@ -20,7 +20,37 @@ namespace RimGovernor.Brain.Policy;
 // unrecognized) precept refuses outright. Only a paired organ with both present is taken: never a heart,
 // liver or last lung or kidney, and never a harvest native reports lethal.
 
-public static partial class PolicyConstants
+/// <summary>
+/// One concrete need a harvest answers: a colonist's install (For set, Gain its capacity in silver) or a sale
+/// (For empty; the gain is the harvested organ's market value).
+/// </summary>
+public sealed record OrganNeed(string Organ, PawnId For, double Gain);
+
+/// <summary>
+/// One prisoner removal to queue as a medical ProductionBillIntent: an organ harvest, or an added part
+/// recovery (Organ names the part item). Violation sets acknowledge_violation. Step is a peg-leg cycling
+/// step (default otherwise); Surgeon restricts a training step's bill to the doctor who needs the XP (empty
+/// keeps vanilla's choice).
+/// </summary>
+public sealed record OrganHarvest(
+    Domain.PawnId Prisoner,
+    string Recipe,
+    int Part,
+    string Organ,
+    PawnId For,
+    double Gain,
+    double Cost,
+    bool Violation,
+    PegCycleStep Step,
+    Domain.PawnId Surgeon)
+{
+    /// <summary>The zero value Go's struct literal starts from.</summary>
+    public OrganHarvest() : this(default, "", 0, "", default, 0, 0, false, default, default)
+    {
+    }
+}
+
+public static partial class OrganHarvestRules
 {
     // Silver prices of the cost model.
     //
@@ -58,40 +88,7 @@ public static partial class PolicyConstants
     // Body parts whose added part stays although no vital tag rides on it (RecipeFacts.VitalParts holds the
     // rest, a heart among them): a spine leaves the prisoner helpless.
     internal static readonly HashSet<string> KeptBodyParts = new(StringComparer.Ordinal) { "Spine" };
-}
 
-/// <summary>
-/// One concrete need a harvest answers: a colonist's install (For set, Gain its capacity in silver) or a sale
-/// (For empty; the gain is the harvested organ's market value).
-/// </summary>
-public sealed record OrganNeed(string Organ, PawnId For, double Gain);
-
-/// <summary>
-/// One prisoner removal to queue as a medical ProductionBillIntent: an organ harvest, or an added part
-/// recovery (Organ names the part item). Violation sets acknowledge_violation. Step is a peg-leg cycling
-/// step (default otherwise); Surgeon restricts a training step's bill to the doctor who needs the XP (empty
-/// keeps vanilla's choice).
-/// </summary>
-public sealed record OrganHarvest(
-    Domain.PawnId Prisoner,
-    string Recipe,
-    int Part,
-    string Organ,
-    PawnId For,
-    double Gain,
-    double Cost,
-    bool Violation,
-    PegCycleStep Step,
-    Domain.PawnId Surgeon)
-{
-    /// <summary>The zero value Go's struct literal starts from.</summary>
-    public OrganHarvest() : this(default, "", 0, "", default, 0, 0, false, default, default)
-    {
-    }
-}
-
-public static partial class OrganHarvestRules
-{
     /// <summary>
     /// The colony mood points a harvest costs: the precept rule's verdict on the HarvestedOrgan event, plus
     /// SoldOrgan when the organ is sold; the doer's cost once, the witnesses' on every colonist. Ok is false
@@ -103,12 +100,12 @@ public static partial class OrganHarvestRules
         var n = (double)Math.Max(0, c.Colonists);
         if (!c.IdeologyActive)
         {
-            return (PolicyConstants.ClassicKnowHarvestMood * n, true);
+            return (OrganHarvestRules.ClassicKnowHarvestMood * n, true);
         }
-        var events = new List<string> { PolicyConstants.HarvestedOrganEvent };
+        var events = new List<string> { OrganHarvestRules.HarvestedOrganEvent };
         if (sale)
         {
-            events.Add(PolicyConstants.SoldOrganEvent);
+            events.Add(OrganHarvestRules.SoldOrganEvent);
         }
         double mood = 0;
         foreach (var evt in events)
@@ -130,7 +127,7 @@ public static partial class OrganHarvestRules
     public static (double Cost, bool Ok) HarvestCost(PrisonerColony c, int goodwill, bool sale)
     {
         var (mood, ok) = HarvestMood(c, sale);
-        return (PolicyConstants.SilverPerMoodPoint * mood + PolicyConstants.SilverPerGoodwillPoint * Math.Max(0, -goodwill), ok);
+        return (OrganHarvestRules.SilverPerMoodPoint * mood + OrganHarvestRules.SilverPerGoodwillPoint * Math.Max(0, -goodwill), ok);
     }
 
     /// <summary>
@@ -172,9 +169,9 @@ public static partial class OrganHarvestRules
                     continue;
                 }
                 var (weight, _) = SurgeryRules.ServedSurgery(pawn, op);
-                if (weight * PolicyConstants.SilverPerCapacity > best.Gain)
+                if (weight * OrganHarvestRules.SilverPerCapacity > best.Gain)
                 {
-                    best = new OrganNeed(organ, pawn.Id, weight * PolicyConstants.SilverPerCapacity);
+                    best = new OrganNeed(organ, pawn.Id, weight * OrganHarvestRules.SilverPerCapacity);
                 }
             }
             if (best.Gain > 0)
@@ -417,7 +414,7 @@ public static partial class OrganHarvestRules
                 var (weight, _) = SurgeryRules.ServedSurgery(pawn, op);
                 if (weight > 0)
                 {
-                    result.Add(new OrganNeed(item.Value, pawn.Id, weight * PolicyConstants.SilverPerCapacity));
+                    result.Add(new OrganNeed(item.Value, pawn.Id, weight * OrganHarvestRules.SilverPerCapacity));
                 }
             }
         }
@@ -468,7 +465,7 @@ public static partial class OrganHarvestRules
                 var vk = op.YieldValue.TryGetValue(out var value);
                 op.PartDefName.TryGetValue(out var body);
                 body ??= "";
-                if (op.Kind != SurgeryKind.Amputate || !hk || !ik || !vk || !TradePolicyRules.Finite(value) || PolicyConstants.UnrecoveredParts.Contains(hediff!)
+                if (op.Kind != SurgeryKind.Amputate || !hk || !ik || !vk || !TradePolicyRules.Finite(value) || OrganHarvestRules.UnrecoveredParts.Contains(hediff!)
                     || facts.KeptPart(body) || (body == "Leg" && legless) || !HarvestAcceptable(op))
                 {
                     continue;

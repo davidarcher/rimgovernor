@@ -5,16 +5,13 @@ namespace RimGovernor.Brain.Policy;
 // remaining stone as demand calls for it. A dug store room (StoreRoom) ranks between ore and the other dug
 // rooms: its zone waits on the dig and no stand-in store holds supplies meanwhile. A cell off the plan, or no
 // plan, is MineTierStone.
-public static partial class PolicyConstants
+public static partial class LayoutMiningRules
 {
     public const int MineTierOre = 0;
     public const int MineTierStore = 1;
     public const int MineTierCore = 2;
     public const int MineTierStone = 3;
-}
 
-public static partial class LayoutMiningRules
-{
     internal static bool InRoomRing(Rectangle interior, Cell cell) =>
         cell.X >= interior.X - 1 && cell.X <= interior.X + interior.Width && cell.Z >= interior.Z - 1 && cell.Z <= interior.Z + interior.Height;
 
@@ -40,14 +37,14 @@ partial record LayoutPlan
         {
             if (z.Kind == ZoneKind.Mining && z.Ore && LayoutMiningRules.ZoneHas(z, cell))
             {
-                return MineTierOre;
+                return LayoutMiningRules.MineTierOre;
             }
         }
         foreach (var r in this.Rooms)
         {
             if (r.Dug && InteriorOpenRules.IsStoreRoom(r.Role) && LayoutMiningRules.InRoomRing(r.Region.Bounds(), cell))
             {
-                return MineTierStore;
+                return LayoutMiningRules.MineTierStore;
             }
         }
         foreach (var r in this.Rooms)
@@ -55,17 +52,17 @@ partial record LayoutPlan
             var interior = r.Region.Bounds();
             if (r.Dug && cell.X >= interior.X - 1 && cell.X <= interior.X + interior.Width && cell.Z >= interior.Z - 1 && cell.Z <= interior.Z + interior.Height)
             {
-                return MineTierCore;
+                return LayoutMiningRules.MineTierCore;
             }
         }
         foreach (var e in this.Reservations)
         {
             if (e.Kind == ReservationKind.Exhaust && e.Area.Contains(cell))
             {
-                return MineTierCore;
+                return LayoutMiningRules.MineTierCore;
             }
         }
-        return MineTierStone;
+        return LayoutMiningRules.MineTierStone;
     }
 
     /// <summary>

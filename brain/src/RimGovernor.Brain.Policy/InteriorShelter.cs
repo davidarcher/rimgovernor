@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // The shelter's slot names and bunk footprint. What the starter room holds is ShelterWants
 // (InteriorRegionRoles.cs): the region placer seats it.
-public static partial class PolicyConstants
+public static class InteriorShelterRules
 {
     internal const string ShelterCraftingDef = "CraftingSpot";
 
@@ -14,10 +14,7 @@ public static partial class PolicyConstants
 
     /// <summary>A bunk's North footprint: the 1x2 of a SleepingSpot, a Bed and a Bedroll.</summary>
     internal static readonly Cell ShelterBunkSize = new(1, 2);
-}
 
-public static class InteriorShelterRules
-{
     /// <summary>Reports whether the piece is one of the shelter's bunk slots.</summary>
     public static bool IsBunk(this InteriorPiece p) => p.Slot.StartsWith(ShelterBunkSlotPrefix, StringComparison.Ordinal) && p.Slot.Length > ShelterBunkSlotPrefix.Length;
 }

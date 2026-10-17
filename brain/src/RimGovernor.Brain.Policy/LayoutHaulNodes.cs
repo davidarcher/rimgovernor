@@ -33,22 +33,6 @@ namespace RimGovernor.Brain.Policy;
 // earlier; the skill, passion and traits of the owners (the stats are read at their default); the walk to the
 // rock, the tree or the prey; the stone chunks, wood and ore a builder or a deep drill (observation: DeepDrill)
 // brings in; trade and loot hauls. An unread yield, work or stack adds no flow: it is unknown, never zero.
-public static partial class PolicyConstants
-{
-    private static readonly HaulTable HaulGameValue = new()
-    {
-        PickTicks = 100,
-        NaturalHit = 80,
-        MiningSpeed = "MiningSpeed",
-        MiningYield = "MiningYield",
-        PlantWorkSpeed = "PlantWorkSpeed",
-        PlantHarvestYield = "PlantHarvestYield",
-        MinerOwners = 1,
-    };
-
-    internal static HaulTable HaulJudgment => HaulGameValue;
-}
-
 /// <summary>
 /// The haul model's game numbers the defs do not carry, registered in DefTables so a renamed stat fails the
 /// dangling-reference gate. PickTicks and NaturalHit are JobDriver_Mine's literals (ticks between pick hits at
@@ -106,7 +90,7 @@ internal sealed partial class GraphBuilder
             return;
         }
         var model = In.Catalog.Haul;
-        HaulSources(model.Mined, PolicyConstants.HaulJudgment.MinerOwners);
+        HaulSources(model.Mined, LayoutHaulNodesRules.HaulJudgment.MinerOwners);
         HaulSources(model.Chopped, WorkRules.BaselineDemand(WorkType.PlantCutting, colonists, new WorkDemand()));
         HaulHunt(WorkRules.BaselineDemand(WorkType.Hunting, colonists, new WorkDemand()));
     }
@@ -131,7 +115,7 @@ internal sealed partial class GraphBuilder
             {
                 continue;
             }
-            AddEdge(store, PolicyConstants.OutsideNode, ticks / s.Work * s.Units / limit, false);
+            AddEdge(store, LayoutGraphRules.OutsideNode, ticks / s.Work * s.Units / limit, false);
         }
     }
 
@@ -150,13 +134,26 @@ internal sealed partial class GraphBuilder
         var (store, ok) = StoreOf(true);
         if (ok)
         {
-            AddEdge(store, PolicyConstants.OutsideNode, hunters * (double)HuntCreditRules.HuntKillsPerHunterDay, false);
+            AddEdge(store, LayoutGraphRules.OutsideNode, hunters * (double)HuntCreditRules.HuntKillsPerHunterDay, false);
         }
     }
 }
 
 public static partial class LayoutHaulNodesRules
 {
+    private static readonly HaulTable HaulGameValue = new()
+    {
+        PickTicks = 100,
+        NaturalHit = 80,
+        MiningSpeed = "MiningSpeed",
+        MiningYield = "MiningYield",
+        PlantWorkSpeed = "PlantWorkSpeed",
+        PlantHarvestYield = "PlantHarvestYield",
+        MinerOwners = 1,
+    };
+
+    internal static HaulTable HaulJudgment => HaulGameValue;
+
     /// <summary>The table the bridge reads the haul sources with.</summary>
-    public static HaulTable HaulGame() => PolicyConstants.HaulJudgment;
+    public static HaulTable HaulGame() => LayoutHaulNodesRules.HaulJudgment;
 }

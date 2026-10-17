@@ -1,6 +1,5 @@
 using System.Globalization;
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Policy.PolicyConstants;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -8,17 +7,14 @@ namespace RimGovernor.Brain.Policy;
 // prison, so an escapee finds neither an open exit nor a weapon. Layout keeps the armory and every prison
 // that far apart (weaponClearance).
 
-public static partial class PolicyConstants
+public static partial class PrisonLayoutRules
 {
     /// <summary>Names the prison turret sections under the perimeter's prefix, each with its conduit run, as the pumps do.</summary>
-    public const string TierPrisonTurretPrefix = TierPerimeterPrefix + "prison-";
+    public const string TierPrisonTurretPrefix = LayoutDefenseRules.TierPerimeterPrefix + "prison-";
 
     /// <summary>The Chebyshev distance a weapon stockpile keeps from every prison cell (walls and door included).</summary>
     internal const int PrisonWeaponClearance = 6;
-}
 
-public static partial class PrisonLayoutRules
-{
     /// <summary>The cell just outside a room's door and the direction out; false when the door does not border the interior.</summary>
     internal static (Cell Front, Cell Out, bool Ok) PrisonDoorOutside(PlannedRoom r)
     {
