@@ -106,6 +106,32 @@ public sealed class WireCodecTests
         Assert.False(Assert.Single(decoded.Clothing.Retained).CompletionTicks.IsKnown);
     }
     [Fact]
+    public void HuntObservationsRoundTripWithUnknownRangeAndProducts()
+    {
+        var hunter = new RimGovernor.Contracts.Wire.Observations.HuntActorRead("pawn", "Colonist", new(3, 4), 30)
+        {
+            Weapon = new("Gun_BoltActionRifle", "", "Normal", 100), WeaponRange = RimGovernor.Brain.Domain.Fact.Known(30.0), Available = true,
+            Skills = [new("Shooting", 8)], Traits = [new("Kind", 0)], Health = [new("Cut", "left arm", 0.5)], MissingParts = ["left eye"],
+        };
+        var prey = new RimGovernor.Contracts.Wire.Observations.HuntActorRead("boar", "Boar", new(9, 9), 3)
+        {
+            Sleeping = true, Herd = "wild-herd", MeatDefinition = "Meat_Pig", Meat = RimGovernor.Brain.Domain.Fact.Known(0.0),
+        };
+        var read = new RimGovernor.Contracts.Wire.Observations.CoupledForecastRead
+        {
+            Hunt = new() { Known = true, Hunters = [hunter], Prey = [prey], Truncated = true, Findings = ["f"],
+                Scene = new("w", "build", "mods", "Clear", "Soil", 0, 0, 40, 40, 21.5, 1.0) { Ground = [new(1, 2, 3, 2, "Sand", "")], Obstacles = [new("Wall", "", 5, 5)] } },
+        };
+        var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.CoupledForecastRead>(WireJson.Serialize(read)).Hunt;
+        Assert.Equal(RimGovernor.Brain.Domain.Fact.Known(30.0), Assert.Single(decoded.Hunters).WeaponRange);
+        Assert.Equal("left eye", Assert.Single(decoded.Hunters[0].MissingParts));
+        Assert.Equal(RimGovernor.Brain.Domain.Fact.Known(0.0), Assert.Single(decoded.Prey).Meat);
+        Assert.False(decoded.Prey[0].Leather.IsKnown);
+        Assert.False(decoded.Prey[0].WeaponRange.IsKnown);
+        Assert.Equal("Sand", Assert.Single(decoded.Scene!.Ground).Terrain);
+        Assert.True(decoded.Truncated);
+    }
+    [Fact]
     public void PlannedSitesRoundTripWithUnknownRouteIllegalAndUnknownVerdicts()
     {
         var request = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest(new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, default)

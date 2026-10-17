@@ -200,6 +200,15 @@ reports its actual native observation tick. Decoding does not relabel an older
 census with the caller's requested tick. Policy requires agreement with needs,
 shared work-resource evidence and demand before constructing a coupled request.
 
+`HuntActivityRead` is the hunting part of that frame (#3130): up to 16 free colonists
+who could hunt and 16 wild edible animals, each stated as the encounter predictor's
+actor (kind, cell, age, xenotype, weapon and range, apparel, skills, traits, health,
+missing parts; for prey also sleeping/downed/mental, herd, and meat, leather and
+nutrition if killed), plus the map window around them (weather, temperature, sky glow,
+terrain/roof runs, impassable obstacles) and a file-manifest mod identity. It holds no
+roster, target or estimate; policy proposes rosters and the runtime asks the
+prediction service. Truncation is reported, never silent.
+
 These are mechanics and current observations, not selected colony policy. Native
 does not spawn hypothetical food to estimate a future meal. Definition-based
 future ingestion facts do not claim ingredient-dependent memories or poisoning

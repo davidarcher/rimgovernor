@@ -30,6 +30,7 @@ internal static class NativeCoupledForecast
         var thermal = NativeCoupledThermal.Read(map, sites.Take(16).ToArray());
         var support = NativeSupportActivities.Read(map);
         var practice = NativePracticeActivities.Read(map);
+        var hunt = NativeHuntActivity.Read(map);
         needs ??= NativeNeedsForecast.Read(map,map.mapPawns.FreeColonistsSpawned.ToList());
         var families = new[] {
             practice.Workers.Select(w => w.Location),
@@ -75,9 +76,9 @@ internal static class NativeCoupledForecast
             using var route = map.pathFinder.FindPathNow(new(from.X, 0, from.Z), new IntVec3(to.X, 0, to.Z),
                 TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.OnCell);
             routes.Add(new(pawn.GetUniqueLoadID(), from, to, route.Found ? Fact.Known((double)route.TotalCost) : default) { FromStart = initial });
-        }        return new() { Tick = context.Tick, Practice = practice, Support = support, Thermal = thermal, Food = food, Construction = construction, Clothing = clothing,
+        }        return new() { Tick = context.Tick, Practice = practice, Hunt = hunt, Support = support, Thermal = thermal, Food = food, Construction = construction, Clothing = clothing,
             FoodSources = EquatableArray.From(future.Sources), FoodConversions = EquatableArray.From(future.Conversions), FoodUses = EquatableArray.From(future.Uses),
-            Routes = EquatableArray.From(routes), Truncated = support.Truncated || future.Truncated || truncated || food.Truncated || construction.Truncated || clothing.Truncated,
+            Routes = EquatableArray.From(routes), Truncated = support.Truncated || future.Truncated || truncated || food.Truncated || construction.Truncated || clothing.Truncated || hunt.Truncated,
             Findings = ["bounded_routes_missing_pairs_unknown"] };
     }
 }
