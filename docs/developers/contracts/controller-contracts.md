@@ -81,7 +81,7 @@ the first raid releases them. An item on a ring cell is never an obstruction (th
 builder hauls it aside when the wall goes over it), so a ring cell waits on no haul. The
 shelter room is one continuous reconcile: the first review admits the spots rung and the ring
 together, and later reviews go on up the ladder (the clearing, then the beds) while the ring's
-wave is open (disjoint cells; `store.shelterOpenWorkExempt`). A ring is not
+wave is open (disjoint cells, admitted by claims). A ring is not
 placed in a stuff with no accessible stock while the start kit is still forbidden
 (`awaiting_plan:start_kit`); the admin/supply-safety Need releases the kit like any safe forbidden
 stack (one plan allows every pending stack), with or without storage, so the

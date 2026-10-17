@@ -142,7 +142,7 @@ public sealed class ProductionPromisesTests
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
         var facts = Facts(Known(default(EquatableArray<ForecastCommitment>))) with
         {
-            Tick = new Tick(100), SafeAreaOwed = Known(true), Resources = Known<EquatableArray<Amount>>([new(Material, 120)]),
+            Tick = new Tick(100), Resources = Known<EquatableArray<Amount>>([new(Material, 120)]),
             ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
             WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Batch.Slots, Known(false))]),

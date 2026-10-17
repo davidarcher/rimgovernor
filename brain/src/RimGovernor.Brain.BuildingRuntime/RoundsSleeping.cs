@@ -169,10 +169,8 @@ public sealed partial class RoundsBuildingPlanner
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit };
         }
-        // A phased Standard walks its phases in order: only the planner for the phase the review left owed runs.
-        // A Need-owned planner (the shelter housing steps, the rooms comfort planners) runs whenever its family
-        // finds the Need ready.
-        if (!r.Need.IsValid && !r.Phase.IsEmpty && review.Latches.Phase(r.Concern) != r.Phase)
+        // A phased planner without a Need has no owner and nothing to walk.
+        if (!r.Need.IsValid && !r.Phase.IsEmpty)
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit };
         }

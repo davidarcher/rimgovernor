@@ -35,14 +35,14 @@ internal sealed class ExplainResult
 
 /// <summary>
 /// Holds a colony's rows to the explainability claim (Go <c>explain/audit.go</c>). Rows are the OTLP log reading and
-/// transitions the session store's concern_transitions; active maps every concern that had a progress record during the
+/// transitions the session store's need_transitions; active maps every concern that had a progress record during the
 /// window to the planner cause filed on it at its last non-clear poll (none when never filed).
 /// <para>
 /// A key is a concern id or, for a planner serving no single concern, the planner's own name (the target its transition
 /// rows use). A key needs an explanation when either independent trail shows a non-clear state for it: a planner_step row
 /// in the OTLP log ring with verdict refused or waiting, a closed cause, that was neither late nor an immediate review
 /// (the planner ran and its verdict was filed); or, for an active concern, a planner cause on its progress record. It is
-/// explained when concern_transitions holds at least one row for the key with a cause: the first row of a key is always
+/// explained when need_transitions holds at least one row for the key with a cause: the first row of a key is always
 /// non-clear, since a key first seen clear writes none. A key with neither trail is silent and passes.
 /// </para>
 /// <para>
@@ -59,7 +59,7 @@ internal static class ExplainAudit
     private static readonly string[] CauseOutcomes = ["refused", "waiting", "disabled", "combat_orders", "hold_fallback"];
     private static readonly string[] ClearOutcomes = ["admitted", "nothing_to_do"];
 
-    internal static ExplainResult Audit(IReadOnlyList<TimelineRecord> rows, IReadOnlyList<ConcernTransition> transitions, IReadOnlyDictionary<string, Cause> active)
+    internal static ExplainResult Audit(IReadOnlyList<TimelineRecord> rows, IReadOnlyList<NeedTransition> transitions, IReadOnlyDictionary<string, Cause> active)
     {
         var problems = new List<string>();
         var result = new ExplainResult { Active = active.Count };
@@ -160,7 +160,7 @@ internal static class ExplainAudit
 
         if (missing.Count > 0)
         {
-            problems.Add(string.Create(CultureInfo.InvariantCulture, $"{missing.Count} key(s) refused or waited with no concern_transitions row naming a cause (a planner stopped emitting): [{string.Join(' ', missing)}]"));
+            problems.Add(string.Create(CultureInfo.InvariantCulture, $"{missing.Count} key(s) refused or waited with no need_transitions row naming a cause (a planner stopped emitting): [{string.Join(' ', missing)}]"));
         }
 
         if (active.Count == 0)
@@ -173,7 +173,7 @@ internal static class ExplainAudit
         }
         else if (result.NonClear == 0)
         {
-            problems.Add("concern_transitions holds no row with a cause");
+            problems.Add("need_transitions holds no row with a cause");
         }
 
         return problems.Count == 0
@@ -182,9 +182,9 @@ internal static class ExplainAudit
     }
 
     /// <summary>Holds one transition row to the closed shape; returns the problem, null when the row is closed typed data.</summary>
-    private static string? CheckRow(ConcernTransition r, out string target, out string cause)
+    private static string? CheckRow(NeedTransition r, out string target, out string cause)
     {
-        target = r.Concern;
+        target = r.Need;
         cause = r.Cause;
         var verdict = r.Verdict;
         if (target.Length == 0)

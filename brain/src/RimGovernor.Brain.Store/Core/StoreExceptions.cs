@@ -30,14 +30,14 @@ public class ConflictException : DomainException
 /// <summary>Go <c>ErrMethodBound</c>: a commit refused because the owner already binds that method id.</summary>
 public sealed class MethodBoundException(string detail) : ConflictException("method already bound: " + detail);
 
-/// <summary>Go <c>core.ErrNotAdmitted</c>: a method without a current enabled review.</summary>
+/// <summary>Go <c>core.ErrNotAdmitted</c>: a Need's method without a current enabled review.</summary>
 public sealed class NotAdmittedException : DomainException
 {
     public NotAdmittedException()
-        : base("standard method not admitted") { }
+        : base("method not admitted") { }
 
     public NotAdmittedException(string detail)
-        : base("standard method not admitted: " + detail) { }
+        : base("method not admitted: " + detail) { }
 }
 
 /// <summary>Go <c>core.ErrNotFound</c>.</summary>

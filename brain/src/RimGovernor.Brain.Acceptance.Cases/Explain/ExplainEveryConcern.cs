@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// <c>explain/every-concern</c> (Go <c>explain/explainable.go</c>): the nightly check that the bot can explain itself
 /// (#2702, epic #2690): every refusal or wait a planner reports on a running colony has a plain-language
-/// concern_transitions row in the session store.
+/// need_transitions row in the session store.
 /// </summary>
 internal static class ExplainEveryConcern
 {
@@ -17,7 +17,7 @@ internal static class ExplainEveryConcern
     {
         Name = "explain/every-concern",
         Scope = "Epic #2690 (#2702): on a running baseline colony every concern or planner that reports a refusal or wait has at least one row "
-            + "in the session store's concern_transitions table whose cause the shared wording table (policy.Wording, the one the launcher renders) names in plain language, and no row carries "
+            + "in the session store's need_transitions table whose cause the shared wording table (policy.Wording, the one the launcher renders) names in plain language, and no row carries "
             + "free text. A concern first seen clear writes no row by design and is reported as silent, not failed. Nightly tier. The launcher's timeline model "
             + "lives in package main and cannot be imported, so the case reads the table through the store; a Go snapshot cannot prove that "
             + "the live planners keep emitting.",
@@ -40,7 +40,7 @@ internal static class ExplainEveryConcern
         var report = s.Report;
         var service = await ObservedSession.Of(s).ServeAsync(s.Spec, cancellationToken).ConfigureAwait(false);
         IReadOnlyList<TimelineRecord> rows;
-        IReadOnlyList<RimGovernor.Brain.Store.ConcernTransition> transitions;
+        IReadOnlyList<RimGovernor.Brain.Store.NeedTransition> transitions;
         var active = new Dictionary<string, Cause>(StringComparer.Ordinal);
         try
         {
@@ -97,7 +97,7 @@ internal static class ExplainEveryConcern
                 throw new AcceptanceException($"read log ring: {e.Message}", e);
             }
 
-            transitions = await store.ConcernTransitionsAsync(cancellationToken).ConfigureAwait(false);
+            transitions = await store.NeedTransitionsAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {

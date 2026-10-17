@@ -17,10 +17,10 @@ public sealed record LayoutPlanRecord(LayoutPlan? Plan, Tick Tick, bool Invalid)
 public sealed record StoredLedgerRow(string Section, int Position, long Tick, IReadOnlyDictionary<string, object?> Cells);
 
 /// <summary>
-/// One change of a concern's winning typed cause, the player-facing explanation history the concern-transitions
-/// dashboard reads. Every text field is a bounded vocabulary value, never free text.
+/// One change of a Need's winning typed cause, the player-facing explanation history explain reads. Every text field
+/// is a bounded vocabulary value, never free text.
 /// </summary>
-public sealed record ConcernTransition
+public sealed record NeedTransition
 {
     /// <summary>Assigned on insert and only read back; it never repeats across restarts of the same database.</summary>
     public long Sequence { get; init; }
@@ -30,11 +30,15 @@ public sealed record ConcernTransition
 
     public long Tick { get; init; }
 
-    public string Concern { get; init; } = "";
+    /// <summary>
+    /// The filing key: a Need's id (<c>family/kind[/subject]</c>), or the own name of a family or planner that files
+    /// beside its Needs, or a ledger purpose's key.
+    /// </summary>
+    public string Need { get; init; } = "";
 
     public string Verdict { get; init; } = "";
 
-    /// <summary>The new <see cref="Policy.Cause"/>, empty when the concern cleared.</summary>
+    /// <summary>The new <see cref="Policy.Cause"/>, empty when the cause cleared.</summary>
     public string Cause { get; init; } = "";
 
     public string Subject { get; init; } = "";
@@ -52,12 +56,12 @@ public sealed record ConcernTransition
 
 public sealed partial class Store
 {
-    /// <summary>How many <c>concern_transitions</c> rows the table keeps: each insert drops the oldest rows beyond it.</summary>
-    public const int ConcernTransitionRetention = 8192;
+    /// <summary>How many <c>need_transitions</c> rows the table keeps: each insert drops the oldest rows beyond it.</summary>
+    public const int NeedTransitionRetention = 8192;
 
     private const int MaxExtentRegions = 4096;
 
-    private const string ConcernTransitionColumns = "sequence,wall_ms,tick,concern,verdict,cause,subject,method,previous_cause,held_ticks";
+    private const string NeedTransitionColumns = "sequence,wall_ms,tick,need,verdict,cause,subject,method,previous_cause,held_ticks";
 
     private static void ExtentScope(GenerationSnapshot s, Tick tick)
     {
@@ -243,10 +247,10 @@ public sealed partial class Store
     public Task<IReadOnlyList<StoredLedgerRow>> LedgerRowsAsync(CancellationToken cancellationToken) => Task.Run(() => LedgerRows(cancellationToken), cancellationToken);
 
     /// <summary>
-    /// Appends rows in one transaction and trims the table to <see cref="ConcernTransitionRetention"/>. A cause outside
+    /// Appends rows in one transaction and trims the table to <see cref="NeedTransitionRetention"/>. A cause outside
     /// the <see cref="Policy.Cause"/> vocabulary is refused before anything is written.
     /// </summary>
-    public void RecordConcernTransitions(IReadOnlyList<ConcernTransition> rows, CancellationToken cancellationToken)
+    public void RecordNeedTransitions(IReadOnlyList<NeedTransition> rows, CancellationToken cancellationToken)
     {
         if (rows.Count == 0)
         {
@@ -254,7 +258,7 @@ public sealed partial class Store
         }
         foreach (var r in rows)
         {
-            DomainException.Require(r.Concern.Length > 0 && r.Tick >= 0 && r.Held is null or >= 0, $"concern transition \"{r.Concern}\": concern and a non-negative tick and hold are required");
+            DomainException.Require(r.Need.Length > 0 && r.Tick >= 0 && r.Held is null or >= 0, $"need transition \"{r.Need}\": a key and a non-negative tick and hold are required");
             foreach (var cause in new[] { r.Cause, r.Previous })
             {
                 if (cause.Length > 0)
@@ -269,10 +273,10 @@ public sealed partial class Store
                 foreach (var r in rows)
                 {
                     _ = tx.Execute(
-                        "INSERT INTO concern_transitions(wall_ms,tick,concern,verdict,cause,subject,method,previous_cause,held_ticks) VALUES($wall,$tick,$concern,$verdict,$cause,$subject,$method,$previous,$held)",
+                        "INSERT INTO need_transitions(wall_ms,tick,need,verdict,cause,subject,method,previous_cause,held_ticks) VALUES($wall,$tick,$need,$verdict,$cause,$subject,$method,$previous,$held)",
                         ("$wall", r.WallMs),
                         ("$tick", r.Tick),
-                        ("$concern", r.Concern),
+                        ("$need", r.Need),
                         ("$verdict", r.Verdict),
                         ("$cause", r.Cause),
                         ("$subject", r.Subject),
@@ -281,29 +285,29 @@ public sealed partial class Store
                         ("$held", r.Held)
                     );
                 }
-                var last = tx.Scalar("SELECT max(sequence) FROM concern_transitions");
-                _ = tx.Execute("DELETE FROM concern_transitions WHERE sequence<=$floor", ("$floor", last - ConcernTransitionRetention));
+                var last = tx.Scalar("SELECT max(sequence) FROM need_transitions");
+                _ = tx.Execute("DELETE FROM need_transitions WHERE sequence<=$floor", ("$floor", last - NeedTransitionRetention));
             },
             cancellationToken
         );
     }
 
-    public Task RecordConcernTransitionsAsync(IReadOnlyList<ConcernTransition> rows, CancellationToken cancellationToken) => Task.Run(() => RecordConcernTransitions(rows, cancellationToken), cancellationToken);
+    public Task RecordNeedTransitionsAsync(IReadOnlyList<NeedTransition> rows, CancellationToken cancellationToken) => Task.Run(() => RecordNeedTransitions(rows, cancellationToken), cancellationToken);
 
-    /// <summary>Every retained concern transition, oldest first.</summary>
-    public IReadOnlyList<ConcernTransition> ConcernTransitions(CancellationToken cancellationToken) =>
+    /// <summary>Every retained Need transition, oldest first.</summary>
+    public IReadOnlyList<NeedTransition> NeedTransitions(CancellationToken cancellationToken) =>
         Run(
             tx =>
-                (IReadOnlyList<ConcernTransition>)
+                (IReadOnlyList<NeedTransition>)
                     tx.Query(
-                        "SELECT " + ConcernTransitionColumns + " FROM concern_transitions ORDER BY sequence",
+                        "SELECT " + NeedTransitionColumns + " FROM need_transitions ORDER BY sequence",
                         [],
-                        r => new ConcernTransition
+                        r => new NeedTransition
                         {
                             Sequence = r.GetInt64(0),
                             WallMs = r.GetInt64(1),
                             Tick = r.GetInt64(2),
-                            Concern = r.GetString(3),
+                            Need = r.GetString(3),
                             Verdict = r.GetString(4),
                             Cause = r.GetString(5),
                             Subject = r.GetString(6),
@@ -316,7 +320,7 @@ public sealed partial class Store
             cancellationToken
         );
 
-    public Task<IReadOnlyList<ConcernTransition>> ConcernTransitionsAsync(CancellationToken cancellationToken) => Task.Run(() => ConcernTransitions(cancellationToken), cancellationToken);
+    public Task<IReadOnlyList<NeedTransition>> NeedTransitionsAsync(CancellationToken cancellationToken) => Task.Run(() => NeedTransitions(cancellationToken), cancellationToken);
 }
 
 /// <summary>The JSON of a loosely typed cell map (a ledger row): strings, numbers, booleans, null, nested objects and arrays.</summary>
@@ -411,13 +415,13 @@ internal static partial class StoreSchema
         """
         CREATE TABLE colony_extent_events(colony TEXT NOT NULL, map_id INTEGER NOT NULL, ordinal INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), native_generation TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(colony,map_id,ordinal)) STRICT;
         CREATE TABLE colony_layout_plans(colony TEXT NOT NULL, map_id INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), plan TEXT NOT NULL, PRIMARY KEY(colony,map_id,tick)) STRICT;
-        CREATE TABLE concern_transitions(sequence INTEGER PRIMARY KEY AUTOINCREMENT, wall_ms INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), concern TEXT NOT NULL CHECK(concern<>''), verdict TEXT NOT NULL, cause TEXT NOT NULL, subject TEXT NOT NULL, method TEXT NOT NULL, previous_cause TEXT, held_ticks INTEGER CHECK(held_ticks IS NULL OR held_ticks>=0)) STRICT;
+        CREATE TABLE need_transitions(sequence INTEGER PRIMARY KEY AUTOINCREMENT, wall_ms INTEGER NOT NULL, tick INTEGER NOT NULL CHECK(tick>=0), need TEXT NOT NULL CHECK(need<>''), verdict TEXT NOT NULL, cause TEXT NOT NULL, subject TEXT NOT NULL, method TEXT NOT NULL, previous_cause TEXT, held_ticks INTEGER CHECK(held_ticks IS NULL OR held_ticks>=0)) STRICT;
         CREATE TABLE ledger_rows(section TEXT NOT NULL CHECK(section<>''), position INTEGER NOT NULL CHECK(position>=0), tick INTEGER NOT NULL CHECK(tick>=0), cells TEXT NOT NULL CHECK(json_valid(cells)), PRIMARY KEY(section,position)) STRICT;
         """,
         [
             "SELECT colony,map_id,ordinal,tick,native_generation,payload FROM colony_extent_events LIMIT 0",
             "SELECT colony,map_id,tick,plan FROM colony_layout_plans LIMIT 0",
-            "SELECT sequence,wall_ms,tick,concern,verdict,cause,subject,method,previous_cause,held_ticks FROM concern_transitions LIMIT 0",
+            "SELECT sequence,wall_ms,tick,need,verdict,cause,subject,method,previous_cause,held_ticks FROM need_transitions LIMIT 0",
             "SELECT section,position,tick,cells FROM ledger_rows LIMIT 0",
         ]
     );

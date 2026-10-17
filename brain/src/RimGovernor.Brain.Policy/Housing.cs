@@ -43,12 +43,3 @@ public readonly record struct Phase(string Value)
 
     public override string ToString() => Value;
 }
-
-public static class RoundsLatchesPhaseExtensions
-{
-    /// <summary>The goal's latched phase; empty for an unphased goal or once the goal recovered.</summary>
-    public static Phase Phase(this RoundsLatches l, ConcernId goal)
-    {
-        return new Phase("");
-    }
-}

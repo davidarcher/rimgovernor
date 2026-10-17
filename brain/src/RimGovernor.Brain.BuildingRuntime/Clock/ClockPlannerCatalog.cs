@@ -48,7 +48,7 @@ internal sealed record PlannerEntry
     public Tick ReviewEvery() => Every.Value > 0 ? Every : ClockPlannerCatalog.ReviewEveryDefault;
 
     /// <summary>
-    /// The key a planner's verdict files its cause under, and so the target of its concern_transitions rows: its
+    /// The key a planner's verdict files its cause under, and so the target of its need_transitions rows: its
     /// concern, or for a planner that serves several concerns (or none) its own name, a subject key beside the
     /// concern ids. A subject key has no progress record, so it never relabels a concern's strip.
     /// </summary>

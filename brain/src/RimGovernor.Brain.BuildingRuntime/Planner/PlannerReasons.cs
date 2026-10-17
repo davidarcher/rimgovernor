@@ -13,7 +13,7 @@ internal readonly record struct PlannerStanding(PlannerNote Note, long Since);
 /// <see cref="Held"/> is null when the ticks the previous cause stood are unknown (the game clock went backwards,
 /// as a save load does).
 /// </summary>
-internal sealed record ConcernTransitionEvent(ConcernId Concern, PlannerFiling Filing, bool HadPrevious = false, Cause? PreviousCause = null, long? Held = null)
+internal sealed record NeedTransitionEvent(ConcernId Concern, PlannerFiling Filing, bool HadPrevious = false, Cause? PreviousCause = null, long? Held = null)
 {
     /// <summary>The cause the concern held before this change; none when it had no previous standing.</summary>
     public Cause Previous => PreviousCause ?? Cause.None;
@@ -36,9 +36,9 @@ internal sealed class PlannerReasonLog
     /// order. A subject change under the same cause files silently, and a goal first seen clear is not a
     /// transition (nothing to explain).
     /// </summary>
-    public IReadOnlyList<ConcernTransitionEvent> Changed(IReadOnlyDictionary<ConcernId, PlannerFiling> filings, long tick)
+    public IReadOnlyList<NeedTransitionEvent> Changed(IReadOnlyDictionary<ConcernId, PlannerFiling> filings, long tick)
     {
-        var output = new List<ConcernTransitionEvent>();
+        var output = new List<NeedTransitionEvent>();
         foreach (var goal in filings.Keys.Order())
         {
             var filing = filings[goal];
@@ -53,12 +53,12 @@ internal sealed class PlannerReasonLog
             {
                 if (filing.Note.Cause != Cause.None)
                 {
-                    output.Add(new ConcernTransitionEvent(goal, filing));
+                    output.Add(new NeedTransitionEvent(goal, filing));
                 }
                 continue;
             }
             var held = tick - prior.Since;
-            output.Add(new ConcernTransitionEvent(goal, filing, true, prior.Note.Cause, held >= 0 ? held : null));
+            output.Add(new NeedTransitionEvent(goal, filing, true, prior.Note.Cause, held >= 0 ? held : null));
         }
         return output;
     }
@@ -152,20 +152,20 @@ internal static class PlannerReasons
     }
 
     /// <summary>
-    /// Turns transitions into concern_transitions rows: concern the goal, verdict the filing verdict's outcome,
+    /// Turns transitions into need_transitions rows: need the filing key, verdict the filing verdict's outcome,
     /// cause the new cause (empty when it cleared), subject, method (the goal's current method on its progress
     /// record), and previous cause and held ticks only when known.
     /// </summary>
-    public static List<ConcernTransition> TransitionRows(IReadOnlyList<ConcernTransitionEvent> transitions, IReadOnlyDictionary<ConcernId, string> methods, long tick, DateTimeOffset now)
+    public static List<NeedTransition> TransitionRows(IReadOnlyList<NeedTransitionEvent> transitions, IReadOnlyDictionary<ConcernId, string> methods, long tick, DateTimeOffset now)
     {
-        var rows = new List<ConcernTransition>(transitions.Count);
+        var rows = new List<NeedTransition>(transitions.Count);
         foreach (var t in transitions)
         {
-            rows.Add(new ConcernTransition
+            rows.Add(new NeedTransition
             {
                 WallMs = now.ToUnixTimeMilliseconds(),
                 Tick = tick,
-                Concern = t.Concern.Value,
+                Need = t.Concern.Value,
                 Verdict = Wire.Name(t.Filing.Outcome),
                 Cause = t.Filing.Note.Cause.Value,
                 Subject = t.Filing.Note.Subject,
@@ -200,7 +200,7 @@ public sealed partial class ClockScheduler
     /// <summary>
     /// Notes each goal's planner refusal or wait and files it on the goal's progress record, so the status strip
     /// says why a goal has no method or what it waits on (the planner_step rows carry the same reasons). A goal
-    /// whose cause changed also files a concern_transitions row.
+    /// whose cause changed also files a need_transitions row.
     /// </summary>
     internal async Task RecordPlannerReasonsAsync(PlannerWave wave, long tick, CancellationToken ct)
     {
@@ -233,11 +233,11 @@ public sealed partial class ClockScheduler
         }
         try
         {
-            await journal.RecordConcernTransitionsAsync(PlannerReasons.TransitionRows(transitions, methods, tick, DateTimeOffset.UtcNow), ct).ConfigureAwait(false);
+            await journal.RecordNeedTransitionsAsync(PlannerReasons.TransitionRows(transitions, methods, tick, DateTimeOffset.UtcNow), ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            PlannerReasons.PlannerBookkeepingFailed("concern_transitions", e);
+            PlannerReasons.PlannerBookkeepingFailed("need_transitions", e);
         }
     }
 }

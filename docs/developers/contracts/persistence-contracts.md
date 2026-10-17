@@ -10,44 +10,42 @@ that observation; dispatch alone cannot release an unobserved cost.
 
 [Documentation](../../README.md)
 
-Vocabulary follows the [glossary](../glossary.md). Stored names: tables
-`standards`, `methods` (`standard_id`, `episode`) and `rounds`; blob keys `standard/<id>`; the
-`standard` and `episode` JSON keys; status words `open`/`settled`/`voided` (Standards, Once included).
-Finding strings are `unclear`/`unmet`/`met` (Incident bindings
-store `unclear`/`active`/`clear`); governor-state blobs version 6. Databases and saves from other versions are refused;
+Vocabulary follows the [glossary](../glossary.md). Stored names: tables `plan_owner`,
+`need_methods` and `rounds`; blob keys `family/*`. Finding strings are `unclear`/`unmet`/`met`
+and situations `unclear`/`active`/`clear`; governor-state blobs version 7, and a version 6 blob
+still loads (its `standard/<id>` blobs are ignored). Databases from other versions are replaced;
 there is no adoption path.
 
 The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
-keeps the same ownership rules in its own file format: `PRAGMA user_version` 13 and the same `application_id`.
-Domain payloads (actions, admissions, transitions, Standards, Incidents, Rounds and the family records) are
+keeps the same ownership rules in its own file format: `PRAGMA user_version` 20 (`Store.SchemaVersion`) and the same `application_id`.
+Domain payloads (actions, admissions, transitions, Rounds and the family records) are
 JSON text written by hand-written codecs under `Codec/` with fixed field names and no reflection
 serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`). The per-kind column checks the brain kept in SQL `CHECK`
 constraints live in the C# domain constructors a payload is rebuilt through. The journal is disposable on
 upgrade: a file of another version is moved aside to `<path>.v<old>.bak` by `Store.OpenOrReplace` and a new one
 is created, so there are no migrations.
 
-Standards, their Episodes, the `standard/<id>` blobs, `standard_methods` and the
-`trade-mission` blobs are legacy. Under the
-[target model](../architecture/control-loop.md#durable-state) the save keeps only
-player intent and `family/*` records; Need-owned Methods live in `need_methods`
-(`plan_owner` kind `need`, journal version 14). Each migrating slice amends the
-rows below when it changes them. Journal version 15 adds the `admin_creep_joiners` table, the
-session cache of the `family/admin/creep_joiners` record (#3264). Journal version 17 adds the
-`economy_trade_missions` table, the session cache of the `family/economy/trade_missions` record (#3316); an
-older save's `trade-mission` Standard blobs are dropped on load (decision 12).
+The save keeps only player intent and `family/*` records
+([durable state](../architecture/control-loop.md#durable-state)); Methods live in `need_methods`
+(`plan_owner` kind `need`). Journal version 15 added the `admin_creep_joiners` table, the
+session cache of the `family/admin/creep_joiners` record (#3264), and version 17 the
+`economy_trade_missions` table, the session cache of the `family/economy/trade_missions` record (#3316).
+Version 19 dropped the Standard and Incident tables and the `plan_methods` view, and version 20 renamed
+`concern_transitions` to `need_transitions` (#3265). An older save's `trade-mission` Standard blobs
+are dropped on load (decision 12).
 
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
 copy of a fact is a bug, not a cache.
 
 | Home | Holds | On reload |
 |---|---|---|
-| Native save, `GovernorState` blobs | Brain intent the world cannot show: Standards (`standard/<id>`; each carries the Concern it serves as `Kind`; a Standard's own intent in its `Record`), family plans (`family/*`; the layout plan, `family/layout_plan`, keys each pen room with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`), original temporary combat settings (`family/combat_restoration`), the creepjoiner inspection record (`family/admin/creep_joiners`: the pawns ordered and done, keyed by colony and map, so it is read back after a reload; #3264), the settlement trade missions under way (`family/economy/trade_missions`: each mission's minted id and intent, keyed by colony and map; a mission leaves it once delivered or ended; #3316) and the ideology family's pending reform (`family/ideology/reform`, #3260); written by the brain at save time, opaque to native | Follows the save's timeline; the brain rebuilds its in-memory views from the blobs |
+| Native save, `GovernorState` blobs | Brain intent the world cannot show: family plans (`family/*`; the layout plan, `family/layout_plan`, keys each pen room with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`), original temporary combat settings (`family/combat_restoration`), the creepjoiner inspection record (`family/admin/creep_joiners`: the pawns ordered and done, keyed by colony and map, so it is read back after a reload; #3264), the settlement trade missions under way (`family/economy/trade_missions`: each mission's minted id and intent, keyed by colony and map; a mission leaves it once delivered or ended; #3316) and the ideology family's pending reform (`family/ideology/reform`, #3260); written by the brain at save time, opaque to native | Follows the save's timeline; the brain rebuilds its in-memory views from the blobs |
 | Native save, other components | Exact non-autonomous `Bill_GovernorRecipe` intents and native unfinished garments (recipe, stuff, ingredients, remaining work and bound bill); only Hands provisions these after selecting a Method, and only owned bills without unfinished work are cleaned up. Colony identity, per-target construction settings, the finishing-skill floor (the brain chooses once; native transfers blueprint to frame and enforces every finishing order) and the mutable [construction tier](construction-tiers.md), and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; home coverage). Native observation rings, each one packed, versioned, append-only string: realized consumption (`ConsumptionState`, hourly spend per definition and reason, 60 days) and storage occupancy (`StorageOccupancyState`, hourly stacks held per player storage group by load id, 15 days); the brain derives rates from them and keeps no copy past the load | Follows the save; construction settings disappear with the exact cancelled/completed target, never transfer by cell |
 | SQLite, one database per launch (`RIMGOVERNOR_STATE`) | The session journal: actions (including selected productive task service-time bounds), transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
-| memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (rows read once per game fingerprint and shared by later loads; context and stat environment read per load token), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`), equipment-owned requirement estimates on transient clothing candidates (derived from the current census, not bill identity or reservations); the `standards`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
-| Refusal budget ledger (`policy.RefusalBudget.Entries`) | A planner's refusals by subject and reason, each with its class and the `GenerationSnapshot` it was met in. A pure value: the store that owns the subject persists it. Every planner that retries a refused write (medical, repair, clean, equip, mood, drill, clearance, husbandry, population, quest, ideology, ritual, permit, defense, firebreak, mine, sleeping, trade and psylink) derives its ledger from the refusals journaled on its plans each step and keeps nothing of its own | With its owner: Standards' records follow the save, a session-scoped planner's ledger is derived and rebuilt |
+| memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (rows read once per game fingerprint and shared by later loads; context and stat environment read per load token), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`), equipment-owned requirement estimates on transient clothing candidates (derived from the current census, not bill identity or reservations); the family tables are such views of the save blobs (`RebuildFamilies`; `RebuildOwners` retires the previous world's owned plans in one orphan pass) | Rebuilt from the save and the live world |
+| Refusal budget ledger (`policy.RefusalBudget.Entries`) | A planner's refusals by subject and reason, each with its class and the `GenerationSnapshot` it was met in. A pure value: the store that owns the subject persists it. Every planner that retries a refused write (medical, repair, clean, equip, mood, drill, clearance, husbandry, population, quest, ideology, ritual, permit, defense, firebreak, mine, sleeping, trade and psylink) derives its ledger from the refusals journaled on its plans each step and keeps nothing of its own | With its owner: a session-scoped planner's ledger is derived and rebuilt |
 | OTLP files `otlp/traces.jsonl`, `logs.jsonl`, `metrics.jsonl` | All brain telemetry, one log record per thing that happened ([OTEL signals](otel-signals.md)), the only log: always on in the host, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
-| SQLite table `concern_transitions` (session journal) | Player-facing explanation history: one row per change of a concern's winning typed cause ([below](#concern_transitions)). Not telemetry, so it is not a telemetry row | Not restored; read by the nightly `explain/every-concern` case |
+| SQLite table `need_transitions` (session journal) | Player-facing explanation history: one row per change of a Need's winning typed cause ([below](#need_transitions)). Not telemetry, so it is not a telemetry row | Not restored; read by the nightly `explain/every-concern` case |
 | SQLite table `ledger_rows` (session journal) | A derived, replaceable copy of the latest work-ledger review (`policy.LedgerView`), one row per row of each Ledger table, the whole set replaced in one transaction after every review ([below](#ledger_rows)). Not a second store: the brain never reads it back as truth and may delete it any time | Not restored; the next review rewrites it |
 | Native memory, pawn activity execution | Exact authorized assignment/revision, current step, native job ownership and dependency references. The same row retains the last explicit release for idempotent receipt retry, without owning a pawn/job. Hands journals installation; typed pawn readback exposes execution. No second saved plan. | Invalidated on authority/world change or despawn; explicit release ends ownership immediately. A fresh assignment replaces the release row. |
 | Native memory, pawn activity open intervals | At most 512 open colonist intervals; no completed history or second save. Completed intervals enter the existing OTLP ring; reports are derived from retained rows | Reset on game/load change or tick rewind; unobserved time stays unknown |
@@ -94,36 +92,36 @@ replan keeps the saved plan. The `StationAdvice` that produced it (graph, groups
 comfort and matched rooms) is not persisted: the Rounder holds it in memory and recomputes it
 at each layout review.
 
-### concern_transitions
+### need_transitions
 
 The player-facing explanation history lives in the session SQLite store, not in
 telemetry (epic #2778, #2788). `recordPlannerReasons`
 (`PlannerReasons.cs`) appends one row per change of a
-concern's winning typed cause, in the same step that files the goal's planner
-note; `store.RecordConcernTransitions` writes them and `store.ConcernTransitions` reads them. The
-The launcher's read-only
-reader was removed in #2803. The table is `concern_transitions` (schema version 216;
-a database of another version is moved aside, never migrated):
+Need's winning typed cause, in the same step that files the Need's planner
+note; `Store.RecordNeedTransitions` writes them and `Store.NeedTransitions` reads them. The
+launcher's read-only reader was removed in #2803. The table is `need_transitions` (journal
+version 20, #3265, which renamed `concern_transitions` and its `concern` column; a database of
+another version is moved aside, never migrated):
 
 | Column | Meaning |
 |---|---|
 | `sequence` | `INTEGER PRIMARY KEY AUTOINCREMENT`; monotonic, never reused, so a reader can follow by sequence |
 | `wall_ms`, `tick` | wall clock (unix ms) and game tick when filed |
-| `concern` | the concern id, or for a planner that serves no single concern (fields, supplies, workshop, hospital, tend, rescue, armory, recovery, husbandry, dialog, trade) the planner's own name (`plannerEntry.filingKey`; no progress record, so `method` is empty), or for a food bill purpose the ledger reports on (`food/cooking/bills`, `food-stores/storage/bills`, `food/supply/bills`, `food-stores/refrigeration/bills`) that purpose's subject key (`RoundsBillPlanner.reportTarget`) |
+| `need` | the Need's filing key (`NeedId.FilingKey`), or the own name of a family or planner that files beside its Needs (no progress record, so `method` is empty), or for a bill purpose the ledger reports on (`food/cooking/bills`, `food-stores/storage/bills`, `food/supply/bills`, `food-stores/refrigeration/bills`) that purpose's subject key |
 | `verdict` | the winning planner verdict's outcome (`refused`, `waiting`, `admitted`, `nothing_to_do`, `disabled`, `combat_orders`, `hold_fallback`) |
 | `cause` | the new `policy.Cause` wire value, `''` when the note cleared (`admitted`, `nothing_to_do`); anything outside the vocabulary is refused on write |
-| `subject`, `method` | bounded subject (may be empty); the concern's current method on its progress record when filed (empty when none) |
+| `subject`, `method` | bounded subject (may be empty); the Need's current method on its progress record when filed (empty when none) |
 | `previous_cause` | the cause replaced; `''` when it was a clear; `NULL` when unknown |
 | `held_ticks` | game ticks the previous cause stood (whole across a subject-only change); `NULL` when unknown |
 
-No row while the cause is unchanged or when only the subject changes; a concern
+No row while the cause is unchanged or when only the subject changes; a key
 first seen clear files no row. The standing state that decides "changed" is in
-memory only, as before: after a restart a concern's first non-clear cause has
+memory only, as before: after a restart a key's first non-clear cause has
 `previous_cause` and `held_ticks` `NULL` (unknown, not zero), and `held_ticks` is
 also `NULL` when the game clock went backwards (a save load). No free text.
 
 Retention is a ring by count: each insert deletes rows more than
-`store.ConcernTransitionRetention` (8192) sequences behind the newest, in the same
+`Store.NeedTransitionRetention` (8192) sequences behind the newest, in the same
 transaction. The history lasts as long as the `state-*.sqlite` file; a launch that
 continues a state keeps it, a fresh state starts empty. Reader: the nightly case
 `explain/every-concern` (#2702, through the case's own store handle). The
@@ -135,14 +133,14 @@ review `Tick`. Immediate reviews update only combat, critical care, worker
 restoration, shelter and protective area needs. Other bindings,
 methods, progress and derived histories retain their original observation times.
 Disaster service history and recovery selections are not refreshed from missing
-ordinary inputs. An active hunt retains its incident and prey until a review has
+ordinary inputs. An active hunt retains its combat standing and prey until a review has
 food-plan evidence or an observed hostile takes over. World changes and rewinds
 discard these derived histories through the same canonical review transaction.
 
-The supply Standard's `Record` holds an outstanding comms request's selected
-faction, kind, console, negotiator and expected request-tick fence. Its Method
-and that intent commit atomically. After a load, native comms work, request tick,
-queue and seller facts reconcile it; the saved record never resends an order.
+An outstanding comms request has no saved record: its Method's actions in the
+session journal carry the selected faction, kind, console and negotiator. After a
+load, native comms work, request tick, queue and seller facts reconcile it, and
+nothing resends an order.
 Goodwill and cooldown remain native facts; action attempts remain the session journal.
 
 The blobs reach the save only when it is made: every vanilla save, whether the player's,
@@ -157,8 +155,8 @@ flusher all call the same once-per-world rebuild.
 
 The `family/ideology/reform` record (#3260) carries pending reform intent: ideoligion id,
 expected and target designs, and expected reform count, scoped to its colony and map. It
-follows the save; an older save's `ImproveIdeoligion` Standard `Record` is read into it once
-at load when the blob is absent, and that Standard is not restored;
+follows the save; an older (schema 6) save's `ImproveIdeoligion` `standard/<id>` blob is read into
+it once at load when the record is absent, and is not kept;
 Methods and action attempts remain in the session journal. Current design,
 eligibility and scores are rebuilt from the keyed ideology section and catalog.
 
@@ -204,8 +202,8 @@ version 216; a database of another version is moved aside, never migrated):
   The existing in-memory action replay retains those creation receipts for the
   load, including every created zone ID and actual footprint. The brain journals the
   receipt and derives ownership from it; no ownership metadata is saved natively.
-- **The Rounds cursor and policy inputs.** Latches, recovery histories, observed Concern progress and the current Standard
-  bindings let the next Rounds continue where the last stopped; population and resource policies and
+- **The Rounds cursor and policy inputs.** Latches, recovery histories and the Needs' progress rows let the
+  next review continue where the last stopped; population and resource policies and
   per-pawn decisions are what the reviewer reads.
 - **Clock inbox and source cursors.** Native clock reads journal fetched events with their source
   cursor before advancing; delivery consumes the inbox atomically with the review. Colony-scoped
@@ -228,20 +226,15 @@ version 216; a database of another version is moved aside, never migrated):
 
 ## What is re-derived
 
-Routine Standards are re-derived from observation every Rounds. A world change (new load token, or a
-tick rewind in the same load) invalidates the previous bindings, cancels their pending work and
-starts fresh Rounds under the new world's root plan; only already dispatched work keeps its recovery
-requirement. A pause in the same world suspends the bindings and leaves their work open; the next
-enabled review reactivates the same Standards. The stores the departments declare (`policy.DeclareStores`, the desired room-bound
-stockpiles) are re-derived on every `admin/stockpiles` review; the standing zones are
-their only record. Durable Standards come back from the save blobs, so nothing needs a restore step.
-
-The save still writes every unretired Standard as `standard/<id>`, but `RebuildStandards` re-inserts only the
-rows that carry state: Standards with a `Record` (an `ImproveIdeoligion` row is never re-inserted: its
-Record is read into `family/ideology/reform`; an older save's trade-mission row is dropped, #3316). Rounds are reset on load and the next review mints load-token-hashed ids, so a routine row was never re-bound;
-re-inserted, it only stayed Open toward the `MaxActiveStandards` cap (#3249, `OrphanStandardTests`). The Record
-readers still find their rows only through the review's bindings, which carry the new ids; moving those records
-to `family/*` is part of #3231.
+Needs are re-derived from observation on every review; nothing about a Need is stored. A world change
+(new load token, or a tick rewind in the same load) retires the previous world's owned plans
+(`RebuildOwners`), cancels their pending work and starts a fresh review under the new world's root
+plan; only already dispatched work keeps its recovery requirement. A pause in the same world leaves the
+Needs' work open; the next enabled review continues it. The stores the families declare
+(`policy.DeclareStores`, the desired room-bound stockpiles) are re-derived on every `admin/stockpiles`
+review; the standing zones are their only record. Family records come back from the save blobs, so
+nothing needs a restore step. Saves no longer write `standard/<id>` blobs; an older save's are ignored
+on load except where a family reads its own legacy record once (the ideoligion reform).
 
 ## Method ownership
 
@@ -255,29 +248,21 @@ Fresh resource/site observations bind dependent work; predicted quantities never
 become inventory. A consuming operation is never replayed after uncertain or failed
 execution. World/load changes discard the disposable execution context.
 
-A Method binds one Plan to one owner in `standard_methods` (keyed by Standard, Episode and MethodID),
-or `incident_methods` (keyed by owner and MethodID). `plan_owner(plan_id PRIMARY
-KEY, kind)` holds one row per bound plan and each method table references it by `(plan_id, kind)` with
-a constant `kind`, so a plan has at most one owner across the tables. Plan-to-owner lookups read
-the `plan_methods` view (plan_id, kind, owner_id, episode, method_id, priority, reason; episode is NULL
-outside Standards). The [target model's](../architecture/control-loop.md#method-journal-claim-admission)
-owner is `need_methods` (kind `need`, journal version 14): keyed by world, NeedId, MethodId and
-`attempt`, with `owner_id` the NeedId in `plan_methods`. A released MethodId admitted again is a new
-attempt row; the rows are history, and a rebuild retires the plans but keeps the rows. A NeedId
-(`family/kind[/subject]`) also stands in the `concern` column of `concern_transitions` and the
+A Method binds one Plan to one owner in `need_methods`, keyed by world, NeedId, MethodId and
+`attempt`. `plan_owner(plan_id PRIMARY KEY, kind)` holds one row per bound plan (kind `need`), and
+`need_methods` references it by `(plan_id, kind)`, so a plan has at most one owner. A released MethodId
+admitted again is a new attempt row; the rows are history, and a rebuild retires the plans but keeps the
+rows. A NeedId (`family/kind[/subject]`) also stands in the `need` column of `need_transitions` and the
 `concern` attr of `planner_step` for a family entry.
 
 ## Bounded working set
 
-Settled autopilot plans and superseded invalidated Standards are marked retired, not deleted. Their
+Settled autopilot plans and superseded plans are marked retired, not deleted. Their
 IDs, methods and receipts stay readable for `inspect`-style reads and duplicate prevention, but they
 leave active capacity and cannot be modified or reused.
 
-- A method that completed in the current Episode is not proposed again. A deficit measured after the
-  Standard's settling, once no plan's effects are open, starts a new Episode so the same Method can
-  repair a regression (a lamp removed behind a lit bench). This Episode rule is legacy: a Need-owned
-  Method instead continues while its MethodId is open and may be admitted again once its Need is unmet
-  ([claim admission](../architecture/control-loop.md#method-journal-claim-admission)).
+- A Need-owned Method continues while its MethodId is open and may be admitted again once its Need is
+  unmet ([claim admission](../architecture/control-loop.md#method-journal-claim-admission)).
 - Retirement records a per-world observation-tick floor so an older observation cannot make retired
   reservations spendable again.
 - The database grows with completed work; each launch opens a fresh database by default, which is the
@@ -286,7 +271,7 @@ leave active capacity and cannot be modified or reused.
 ## Combat batches and restoration
 
 Combat decisions dispatch one immutable typed batch through Hands. Each batch is
-an Incident method beside the fight, linked to its fight plan. Ordered commands,
+a `military/combat` Need method beside the fight, linked to its fight plan. Ordered commands,
 dispatch state and individual native outcomes live only in the session journal.
 An accepted batch may contain individual refusals; an uncertain batch is never
 reported as applied and is never blindly retried. Observable settings and
@@ -299,7 +284,7 @@ of older batches once every temporary setting has a saved restoration obligation
 from active capacity while retaining its original receipt and uncertainty. A
 mere dispatch return does not retire uncertain work. Fight closure requires
 restoration to finish first. Retired combat batch methods stay readable by plan
-identity, outside the active Incident method list.
+identity, outside the Need's active method list.
 
 Before a temporary door or animal restriction changes, the brain records its original
 hold-open/forbidden settings or allowed-area identity. Unknown originals cannot

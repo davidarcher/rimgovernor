@@ -114,7 +114,7 @@ internal sealed class PlannerWave : IDisposable
             var decision = StepDecision(entry, reason, error, took, late);
             decision = Scoped(decision);
             // A family's run files one planner_step row per NeedId, keyed by the NeedId as its concern, so explain
-            // pairs each with the concern_transitions row filed under the same key; the family's own row stands
+            // pairs each with the need_transitions row filed under the same key; the family's own row stands
             // only for a failure or a run that judged no Need.
             var needRows = error is null && priv.Families.TryGetValue(entry.Name, out var family) && family.Reports.Count > 0
                 ? family.Reports.Select(r => Scoped(NeedDecision(entry, r, took, late))).ToList()

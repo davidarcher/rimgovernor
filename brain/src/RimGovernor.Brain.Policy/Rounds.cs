@@ -51,14 +51,6 @@ public sealed record RoundsPolicy
     public long AcquisitionStallTicks { get; init; }
 
     /// <summary>
-    /// Bounds how long a goal's progress record may go without native evidence advancing its expected
-    /// observable before ExpireConcernProgress rotates the method (or keys the failed situation out with a
-    /// cooldown): ConcernProgressContract's default contract and the food ladder's rungs (FoodProgress) both
-    /// use it as their deadline.
-    /// </summary>
-    public long ConcernStallTicks { get; init; }
-
-    /// <summary>
     /// How long prisoners/recruit feeds a prisoner it has no use for (not worth recruiting, not enslavable)
     /// while the food runway holds FoodTargetDays before releasing it (default 15 days); below the target it
     /// releases at once. See PrisonerPolicy.
@@ -106,10 +98,6 @@ public sealed record RoundsPolicy
         if (AcquisitionStallTicks <= 0)
         {
             throw new DomainException("invalid acquisition stall grace");
-        }
-        if (ConcernStallTicks <= 0)
-        {
-            throw new DomainException("invalid standard stall grace");
         }
     }
 }
@@ -623,7 +611,6 @@ public static partial class PolicyFunctions
         HotEnter = 32,
         HuntStallTicks = GameTime.TicksPerDay / 2,
         AcquisitionStallTicks = GameTime.TicksPerDay,
-        ConcernStallTicks = GameTime.TicksPerDay,
     };
 
     // The foothold facts below are read live from one review's facts: the foothold goals open on them

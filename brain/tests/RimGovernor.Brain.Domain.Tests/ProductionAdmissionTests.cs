@@ -17,7 +17,7 @@ public sealed class ProductionAdmissionTests
         new ProgressView { Action = new ActionId(id), Stage = Stage.Pending });
     private static RoundsFacts Facts => new()
     {
-        Tick = new Tick(100), SafeAreaOwed = Known(true),
+        Tick = new Tick(100),
         WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
         ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),

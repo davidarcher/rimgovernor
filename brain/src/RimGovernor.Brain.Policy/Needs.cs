@@ -34,7 +34,7 @@ public readonly record struct NeedId(string Value) : IComparable<NeedId>
     }
 
     /// <summary>
-    /// The key a ConcernId-keyed reader files this Need under (planner reasons, concern_transitions, explain): its
+    /// The key a ConcernId-keyed reader files this Need under (planner reasons, need_transitions, explain): its
     /// value. A NeedId always holds a '/', which no Concern id does, so the two key spaces never collide.
     /// </summary>
     public ConcernId FilingKey => new(Value);

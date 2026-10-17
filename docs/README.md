@@ -49,7 +49,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Judge whether game mechanics can be extracted into cards (Gate 0 spike, #3218) and read the shipped cards | [Mechanic-card spike](developers/mechanic-card-spike.md), [mechanic cards](developers/contracts/mood-control.md#mechanic-cards) |
 | Plan and reconcile trade missions | [Controllable trade](developers/contracts/controllable-trade.md) |
 | Preserve or reconsider issued work | [Method continuation](developers/contracts/method-continuation.md) |
-| Migrate Concerns into a Family with Needs and claimed Methods | [Target model](developers/architecture/control-loop.md#target-model-needs-families-and-claimed-methods), [migration and family map](developers/architecture/control-loop.md#migration) |
+| Add or change a Family with Needs and claimed Methods | [Model](developers/architecture/control-loop.md#target-model-needs-families-and-claimed-methods), [family notes and map](developers/architecture/control-loop.md#migration) |
 | Trace observed harvest through cooking and meal delivery | [Live food Method](developers/contracts/pawn-activities.md#live-one-iteration-cooking) |
 | Trace shared helper coordination through supply and finishing | [Live construction Method](developers/contracts/pawn-activities.md#live-material-delivery-and-building) |
 | Choose cleaning, demand-driven deliveries and useful chunk work | [Support work](developers/contracts/support-work.md), [case disposition](developers/contracts/support-work.md#execution-and-evidence) |

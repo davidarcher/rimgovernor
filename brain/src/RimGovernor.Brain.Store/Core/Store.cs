@@ -22,8 +22,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 18 drops the routes latch from the stored review (#3265): routes is the layout/routes Need.
     /// Version 19 drops Standards and incidents (#3265): the <c>standards</c>, <c>incidents</c>, <c>standard_methods</c>
     /// and <c>incident_methods</c> tables and the <c>plan_methods</c> view; <c>plan_owner</c> holds Needs only.
+    /// Version 20 renames <c>concern_transitions</c> to <c>need_transitions</c>, keyed by the <c>need</c> column (#3265).
     /// </summary>
-    public const int SchemaVersion = 19;
+    public const int SchemaVersion = 20;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

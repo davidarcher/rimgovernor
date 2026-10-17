@@ -154,7 +154,7 @@ public sealed class MaterialChoiceTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-material-options-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
-        var facts = new RoundsFacts { Tick = new Tick(100), SafeAreaOwed = Known(true),
+        var facts = new RoundsFacts { Tick = new Tick(100),
             ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
             Resources = Known<EquatableArray<Amount>>([new(Metal, 10), new(Timber, 10)]),
