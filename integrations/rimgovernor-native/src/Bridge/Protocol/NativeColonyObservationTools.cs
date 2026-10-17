@@ -97,9 +97,15 @@ namespace HomeBridge.BridgeTools
             result = result with { FoodSupply = new Obs.FoodSupplySection { Outcome = Food(FoodSupplyFacts.Read(people,
                     things.Where(FoodSupplyFacts.SharedFood).ToList())) } };
             Span("cf.foodSupply");
+            // The forecast is the cf.fc.* spans: needs, facts, the coupled read's own sub-read spans, then the section wrap.
             var needs = NativeNeedsForecast.Read(map, people);
-            result = result with { Forecast = new Obs.ForecastSection { Outcome = Forecast(ForecastFacts.Read(map, people, things)) with { Needs = needs, Coupled = NativeCoupledForecast.Read(map, context, needs) } } };
-            Span("cf.forecast");
+            Span("cf.fc.needs");
+            var forecastFacts = ForecastFacts.Read(map, people, things);
+            Span("cf.fc.facts");
+            var coupled = NativeCoupledForecast.Read(map, context, needs);
+            mark = System.Diagnostics.Stopwatch.GetTimestamp();
+            result = result with { Forecast = new Obs.ForecastSection { Outcome = Forecast(forecastFacts) with { Needs = needs, Coupled = coupled } } };
+            Span("cf.fc.wrap");
             result = result with { Upkeep = ReadComfort(map, things, routePathBudgetMs) };
             Span("cf.upkeep");
             result = result with { Threat = ReadThreat(map, people.Count) };

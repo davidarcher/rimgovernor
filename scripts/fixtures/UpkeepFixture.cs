@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
-                var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == target);
+                var thing = RefIndex.Thing(map, target);
                 if (thing != null && action == "replace") {
                     var prior = map.designationManager.DesignationOn(thing, DesignationDefOf.Deconstruct);
                     if (prior != null) map.designationManager.RemoveDesignation(prior);

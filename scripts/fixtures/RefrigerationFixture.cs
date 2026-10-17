@@ -287,7 +287,7 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || Current.Game == null) return Refuse("A loaded colony map is required.");
-                var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id);
+                var thing = RefIndex.Thing(map, id);
                 if (thing == null) return new { success = true, tick = Find.TickManager.TicksGame, id, destroyed = true };
                 var rot = thing.TryGetComp<CompRottable>();
                 if (rot == null) return Refuse("Thing " + id + " has no CompRottable.");

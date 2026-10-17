@@ -165,7 +165,7 @@ namespace HomeBridge.BridgeTools
                 var rows = new List<object>();
                 foreach (var id in wanted)
                 {
-                    var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id);
+                    var thing = RefIndex.Thing(map, id);
                     if (thing == null) { rows.Add(new { id, present = false }); continue; }
                     var zone = thing.Spawned ? zones.FirstOrDefault(z => z.ContainsCell(thing.Position)) : null;
                     var settings = zone?.GetStoreSettings();

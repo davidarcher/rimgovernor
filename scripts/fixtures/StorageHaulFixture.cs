@@ -182,7 +182,7 @@ namespace HomeBridge.BridgeTools
                     return new { success = true, spawned = stacks.Count > 0, count = total, forbidden = anyForbidden,
                         inStockpile = zone != null, x = cell.x, z = cell.z };
                 }
-                var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == itemId);
+                var thing = RefIndex.Thing(map, itemId);
                 if (thing == null || !thing.Spawned) return new { success = true, spawned = false };
                 return new { success = true, spawned = true, x = thing.Position.x, z = thing.Position.z,
                     count = thing.stackCount, forbidden = thing.IsForbidden(Faction.OfPlayerSilentFail) };
@@ -198,7 +198,7 @@ namespace HomeBridge.BridgeTools
                 if (Current.Game != preparedGame || map != preparedMap || map == null || identity == null
                     || identity.ColonyId != colonyId || identity.LoadToken != loadToken || map.uniqueID != mapId)
                     return Refuse("Prepared paused colony/load/map identity changed.");
-                var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == itemId);
+                var thing = RefIndex.Thing(map, itemId);
                 if (thing == null || !thing.Spawned || thing.def != ThingDefOf.Steel) return Refuse("Prepared Steel stack is not spawned.");
                 var hauler = preparedHauler;
                 if (hauler == null || !hauler.Spawned || hauler.Dead || hauler.Map != map) return Refuse("Prepared hauler is not spawned on the prepared map.");

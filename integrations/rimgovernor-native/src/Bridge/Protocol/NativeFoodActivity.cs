@@ -38,7 +38,7 @@ internal static class NativeFoodActivity
             result = result with { Execution = NativePawnActivities.Read(pawns[0]), Carrying = pawns[0].carryTracker.CarriedThing != null };
             if (result.Execution?.State is not ("completed" or "failed") && !(existing.Preparing && result.Execution?.State == "holding")) return result with { Known = true };
         }
-        var plants = request.Plants.Select(id => map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id))
+        var plants = request.Plants.Select(id => RefIndex.Thing(map, id))
             .OfType<Plant>().OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_GrowerHarvest);
         foreach (var pawn in pawns)

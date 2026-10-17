@@ -196,7 +196,7 @@ namespace HomeBridge.BridgeTools
             || (job == "BeatFire" && giver.giverClass.FullName == "RimWorld.WorkGiver_FightFires");
         private static bool Equivalent(PawnActivityOrder a, PawnActivityOrder b) => PawnActivities.SameOrder(a, b);
         private static Common.Failure Refuse(string text) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, text);
-        private static Thing? Thing(string id) => Find.CurrentMap.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id);
+        private static Thing? Thing(string id) => RefIndex.Thing(Find.CurrentMap, id);
 
         private static bool DeliveryAllowed(Pawn pawn, Thing target, PawnActivityStep step) => DeliveryRefusal(pawn, target, step) == null;
 

@@ -25,7 +25,7 @@ internal static class NativeCoupledFood
         var sourceRows = new List<Obs.CoupledFoodSource>();
         var benches = map.listerThings.AllThings.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer).OrderBy(b => b.GetUniqueLoadID(),StringComparer.Ordinal).ToArray();
         var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-        var plants = food.Options.Select(o => o.Target).Distinct().Select(id => map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id)).OfType<Plant>().Cast<Thing>().ToArray();
+        var plants = food.Options.Select(o => o.Target).Distinct().Select(id => RefIndex.Thing(map, id)).OfType<Plant>().Cast<Thing>().ToArray();
         var loose = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t => t.Spawned && t.def.IsNutritionGivingIngestible)
             .OrderBy(t => t.GetUniqueLoadID(),StringComparer.Ordinal).ToArray();
         var sources = plants.Concat(loose);

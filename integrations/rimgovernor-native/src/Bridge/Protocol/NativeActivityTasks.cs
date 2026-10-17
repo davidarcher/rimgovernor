@@ -86,11 +86,11 @@ internal static class NativeActivityTasks
                 {
                     // Future output IDs are not Things. Rebind only the selected resource at
                     // its selected use location; observed inputs retain their exact identity.
-                    var targets = map.listerThings.AllThings.Where(t => t.Spawned
-                        && (step.Kind == PawnActivityKind.Eat
-                            ? t.def.defName == task.Resource && t.Position.DistanceToSquared(new(task.Location.X, 0, task.Location.Z)) <= 4
-                                && (!task.Inputs.Any(i => i.Observed) || task.Inputs.Any(i => i.Observed && i.Lot == t.GetUniqueLoadID()))
-                            : t.GetUniqueLoadID() == step.Target))
+                    var targets = (step.Kind == PawnActivityKind.Eat
+                            ? map.listerThings.AllThings.Where(t => t.Spawned
+                                && t.def.defName == task.Resource && t.Position.DistanceToSquared(new(task.Location.X, 0, task.Location.Z)) <= 4
+                                && (!task.Inputs.Any(i => i.Observed) || task.Inputs.Any(i => i.Observed && i.Lot == t.GetUniqueLoadID())))
+                            : RefIndex.Thing(map, step.Target) is { } bound ? new[] { bound } : Enumerable.Empty<Thing>())
                         .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
                     if (targets.Length > 16) truncated = true;
                     foreach (var target in targets.Take(16))
@@ -109,7 +109,7 @@ internal static class NativeActivityTasks
                 else if (step.Practice != null)
                 {
                     if (!NativePracticeActivities.Assigned(pawn, step.Practice)) { satisfied.Add(task.Id); continue; }
-                    var target = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == step.Target);
+                    var target = RefIndex.Thing(map, step.Target);
                     if (target != null && NativePracticeActivities.Legal(pawn, target, step)) bindings.Add(new(task.Id, step));
                 }
                 else if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof" && step.Destination is { } destination)
@@ -125,7 +125,7 @@ internal static class NativeActivityTasks
                 else if (step.Kind == PawnActivityKind.Work)
                 {
                     var target = task.SiteDefinition.Length == 0
-                        ? map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == step.Target)
+                        ? RefIndex.Thing(map, step.Target)
                         : map.thingGrid.ThingsListAt(new(task.Location.X, 0, task.Location.Z))
                             .FirstOrDefault(t => t is Frame && t.def.entityDefToBuild?.defName == task.SiteDefinition);
                     if (step.Job == "TendPatient" && target is Pawn patient && !patient.health.HasHediffsNeedingTend()) { satisfied.Add(task.Id); continue; }
@@ -144,7 +144,7 @@ internal static class NativeActivityTasks
                 }
                 else if (step.Kind == PawnActivityKind.Recipe)
                 {
-                    var bench = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == step.Target);
+                    var bench = RefIndex.Thing(map, step.Target);
                     if (bench == null || step.Recipe is not { } recipe || task.Source is not { } input) continue;
                     if (recipe.Stuff.Length != 0)
                     {

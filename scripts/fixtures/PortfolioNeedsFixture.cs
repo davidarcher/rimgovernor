@@ -81,7 +81,7 @@ public sealed partial class PawnControlFixture
             portfolioMethods.Add(order.Method);
             foreach (var step in order.Steps.Where(s => s.Kind is PawnActivityKind.Deliver or PawnActivityKind.Eat))
             {
-                var actual = Find.CurrentMap.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == step.Target);
+                var actual = RefIndex.Thing(Find.CurrentMap, step.Target);
                 if (actual?.def == ThingDef.Named("RawRice") && (crop!.Destroyed || ((Plant)crop).Growth < 1))
                 { portfolioRebound = true; portfolioOutputIds.Add(actual.GetUniqueLoadID()); }
             }

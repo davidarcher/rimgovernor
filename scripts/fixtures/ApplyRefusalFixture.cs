@@ -278,7 +278,7 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
                 if (map == null || player == null || !Find.TickManager.Paused) return Refuse("A paused disposable colony map is required.");
-                Thing? Locate(string loadId) => map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == loadId)
+                Thing? Locate(string loadId) => RefIndex.Thing(map, loadId)
                     ?? map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == loadId);
                 switch (action)
                 {

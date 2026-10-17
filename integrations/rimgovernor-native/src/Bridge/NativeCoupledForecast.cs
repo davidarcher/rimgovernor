@@ -22,21 +22,25 @@ internal static class NativeCoupledForecast
     internal static Obs.CoupledForecastRead Read(Map map, Common.ObservationContext context, Obs.NeedsForecastRead? needs = null)
     {
         var legs = new NativePathLegs(map);
+        var lap = System.Diagnostics.Stopwatch.GetTimestamp();
+        // Each sub-read as its own cf.fc.* span, with the path searches it added as rows; together they are the coupled forecast.
+        var searched = 0;
+        void Lap(string name) { var now = System.Diagnostics.Stopwatch.GetTimestamp(); ObservationWork.Detail("cf.fc." + name, now - lap, legs.Searches - searched); lap = now; searched = legs.Searches; }
         var plants = map.listerThings.AllThings.OfType<Plant>().Where(p => p.HarvestableNow
             && p.def.plant.harvestedThingDef?.IsNutritionGivingIngestible == true)
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var sites = map.listerThings.AllThings.Where(t => t is IConstructible && t.Faction == Faction.OfPlayer
             && t.def.entityDefToBuild is ThingDef).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-        var food = NativeFoodActivity.Read(new(context.Identity, EquatableArray.From(plants.Select(p => p.GetUniqueLoadID()))), legs);
+        var food = NativeFoodActivity.Read(new(context.Identity, EquatableArray.From(plants.Select(p => p.GetUniqueLoadID()))), legs); Lap("food");
         var construction = NativeConstructionActivity.Read(new(context.Identity, EquatableArray.From(sites.Select(t =>
             new RimGovernor.Brain.Domain.Building(t.def.entityDefToBuild.defName, new(t.Position.x, t.Position.z),
-                (Rotation)t.Rotation.AsInt, t.Stuff?.defName ?? "")))), legs);
-        var clothing = NativeRecipeActivity.Read(new(context.Identity), legs);
-        var future = NativeCoupledFood.Read(map, food, legs);
-        var thermal = NativeCoupledThermal.Read(map, sites, legs);
-        var support = NativeSupportActivities.Read(map, legs);
-        var practice = NativePracticeActivities.Read(map, legs);
-        var hunt = NativeHuntActivity.Read(map);
+                (Rotation)t.Rotation.AsInt, t.Stuff?.defName ?? "")))), legs); Lap("construction");
+        var clothing = NativeRecipeActivity.Read(new(context.Identity), legs); Lap("clothing");
+        var future = NativeCoupledFood.Read(map, food, legs); Lap("future");
+        var thermal = NativeCoupledThermal.Read(map, sites, legs); Lap("thermal");
+        var support = NativeSupportActivities.Read(map, legs); Lap("support");
+        var practice = NativePracticeActivities.Read(map, legs); Lap("practice");
+        var hunt = NativeHuntActivity.Read(map); Lap("hunt");
         needs ??= NativeNeedsForecast.Read(map, map.mapPawns.FreeColonistsSpawned.ToList(), legs);
         var families = new[] {
             practice.Workers.Select(w => w.Location),
@@ -48,7 +52,7 @@ internal static class NativeCoupledForecast
             thermal.Cells.Where(c => c.BuildRoof && c.Roof == "none").Select(c => c.Cell),
             support.Workers.Select(w => w.Location).Concat(support.Deliveries.SelectMany(d => new[] { d.Source, d.Destination }))
         };
-        var locations = families.SelectMany(f => f).Distinct().OrderBy(c => c.X).ThenBy(c => c.Z).ToArray();
+        var locations = families.SelectMany(f => f).Distinct().OrderBy(c => c.X).ThenBy(c => c.Z).ToArray(); Lap("locations");
         var routes = new List<Obs.CoupledRoute>();
         var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var observed = new HashSet<(string Pawn, Cell From, Cell To, bool Initial)>();
@@ -79,6 +83,7 @@ internal static class NativeCoupledForecast
         foreach (var to in locations.Where(c => c != from))
         foreach (var pawn in pawns)
             Probe(pawn, from, to, false);
+        Lap("routes");
         void Probe(Pawn pawn, Cell from, Cell to, bool initial)
         {
             if (!observed.Add((pawn.GetUniqueLoadID(), from, to, initial))) return;

@@ -184,7 +184,7 @@ namespace HomeBridge.BridgeTools {
    target=new Target();
    if(!NativeProductionBills.Valid(intent))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Production bill requires an exact bench, recipe and supported bill settings.");
    var map=ProtoBoundary.LoadedMap(context);var t=target;var settings=intent!.Settings ?? new Operations.BillSettings();
-   var bench=map.listerThings.AllThings.FirstOrDefault(x=>x.GetUniqueLoadID()==(intent!.BenchId ?? ""));var giver=bench as IBillGiver;
+   var bench=RefIndex.Thing(map, intent!.BenchId);var giver=bench as IBillGiver;
    var replaced=intent!.ReplaceOwnedBill!=null&&bench!=null?NativeProductionTracking.ReplaceableBill((intent.ReplaceOwnedBill.Id ?? ""),bench,(intent.RecipeDef ?? "")):null;
    var recipe=DefDatabase<RecipeDef>.GetNamedSilentFail((intent.RecipeDef ?? ""));
    Bill? twin=null;
@@ -262,7 +262,7 @@ namespace HomeBridge.BridgeTools {
    target=new Target();
    if(intent==null||intent.BenchId is null||!ProtoBoundary.IsIdentifier(intent.BenchId)||intent.Bill==null||!ProtoBoundary.IsIdentifier(intent.Bill.Id))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Remove production bill requires an exact bench and bill.");
    var map=ProtoBoundary.LoadedMap(context);var t=target;
-   var bench=map.listerThings.AllThings.FirstOrDefault(x=>x.GetUniqueLoadID()==(intent.BenchId ?? ""));var giver=bench as IBillGiver;
+   var bench=RefIndex.Thing(map, intent!.BenchId);var giver=bench as IBillGiver;
    var bill=giver?.BillStack.Bills.FirstOrDefault(b=>b.GetUniqueLoadID()==(intent.Bill.Id ?? ""));
    var rules=new ApplyPreconditions(Kind)
     .Present(()=>bench!=null&&giver!=null,"bench "+(intent.BenchId ?? "")+" is not a loaded bill giver")

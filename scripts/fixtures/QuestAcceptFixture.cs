@@ -507,7 +507,7 @@ namespace HomeBridge.BridgeTools
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
-                var terminal = map?.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == terminalId);
+                var terminal = RefIndex.Thing(map, terminalId);
                 var hack = terminal?.TryGetComp<CompHackable>();
                 if (hack == null) return Refuse("The exact terminal is unavailable.");
                 var hacker = (Pawn)typeof(CompHackable).GetField("lastUser", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(hack);

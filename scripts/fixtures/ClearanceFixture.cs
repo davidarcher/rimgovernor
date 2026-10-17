@@ -77,7 +77,7 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Audit(IRimBridgeContext ctx, CancellationToken cancellationToken, string target = "", string chunks = "")
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
-                var wall = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == target);
+                var wall = RefIndex.Thing(map, target);
                 var ids = chunks.Split(';');
                 var rows = map.listerThings.AllThings.Where(t => ids.Contains(t.GetUniqueLoadID())).Select(t => new {
                     id = t.GetUniqueLoadID(), stored = t.GetSlotGroup()?.Settings.AllowedToAccept(t) == true,

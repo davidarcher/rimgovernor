@@ -198,7 +198,7 @@ public sealed class SupportPortfolioFixture
             if(order.Release) released=true;
             foreach(var step in order.Steps.Where(s=>s.Kind==PawnActivityKind.Deliver && s.Destination!=null))
             {
-                var target=map.listerThings.AllThings.FirstOrDefault(t=>t.GetUniqueLoadID()==step.Target);
+                var target=RefIndex.Thing(map, step.Target);
                 if(target?.def!=source?.def) continue;
                 var cell=new IntVec3(step.Destination!.Value.X,0,step.Destination.Value.Z);
                 if(!deliveryCells.ContainsKey(cell)) deliveryCells.Add(cell,CountAt(cell));

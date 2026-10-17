@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
             reason = "cooking_ingredient_unavailable";
             foreach (var selected in choice.Ingredients)
             {
-                var thing = pawn.Map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == selected.Thing);
+                var thing = RefIndex.Thing(pawn.Map, selected.Thing);
                 if (thing == null || !thing.Spawned || thing.def.category != ThingCategory.Item || thing.stackCount < selected.Count
                     || thing.IsForbidden(pawn) || thing.IsBurning() || !bill.IsFixedOrAllowedIngredient(thing)
                     || !pawn.CanReserveAndReach(thing, PathEndMode.ClosestTouch, Danger.Some, stackCount: selected.Count)
@@ -114,7 +114,7 @@ namespace HomeBridge.BridgeTools
             reason = "recipe_inputs_changed";
             if (choice.Unfinished.Length != 0)
             {
-                var uft = pawn.Map.listerThings.AllThings.OfType<UnfinishedThing>().FirstOrDefault(t => t.GetUniqueLoadID() == choice.Unfinished);
+                var uft = RefIndex.Thing<UnfinishedThing>(pawn.Map, choice.Unfinished);
                 if (uft == null || uft.Recipe != recipe || uft.Stuff != stuff || uft.Creator != pawn || uft.BoundBill != bill
                     || uft.IsForbidden(pawn) || !pawn.CanReserveAndReach(uft, PathEndMode.ClosestTouch, Danger.None)) return false;
                 ingredients.Add(new(uft, 1));
@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
             {
                 foreach (var selected in choice.Ingredients)
                 {
-                    var thing = pawn.Map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == selected.Thing);
+                    var thing = RefIndex.Thing(pawn.Map, selected.Thing);
                     if (thing == null || !thing.Spawned || thing.def != stuff || thing.stackCount < selected.Count || thing.IsForbidden(pawn) || thing.IsBurning()
                         || bill != null && thing.Position.DistanceTo(bench.Position) > bill.ingredientSearchRadius
                         || !pawn.CanReserveAndReach(thing, PathEndMode.ClosestTouch, Danger.None, stackCount: selected.Count)) return false;

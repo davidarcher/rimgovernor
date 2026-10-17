@@ -27,7 +27,7 @@ internal static class NativeSupportSurgery
         var inputs = new List<ThingCount>(); ThingDef? resource = null;
         foreach (var input in choice.Ingredients)
         {
-            var thing = doctor.Map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == input.Thing);
+            var thing = RefIndex.Thing(doctor.Map, input.Thing);
             if (thing == null || !thing.Spawned || thing.IsForbidden(doctor) || thing.stackCount < input.Count
                 || resource != null && resource != thing.def || choice.Resource != thing.def.defName || !bill.IsFixedOrAllowedIngredient(thing)
                 || thing.Position.DistanceTo(patient.Position) > bill.ingredientSearchRadius

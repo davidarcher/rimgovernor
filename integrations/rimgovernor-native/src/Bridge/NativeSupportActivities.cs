@@ -208,7 +208,7 @@ internal static class NativeSupportActivities
     internal static int Remaining(Map map, PawnActivityStep step, ThingDef resource)
     {
         if (step.SupportDemand.Length == 0) return int.MaxValue;
-        var bench = map.listerThings.AllThings.OfType<Building_WorkTable>().FirstOrDefault(b => b.GetUniqueLoadID() == step.Container);
+        var bench = RefIndex.Thing<Building_WorkTable>(map, step.Container);
         if (bench == null || !bench.Spawned || step.Destination is not { } destination) return 0;
         var bill = bench.BillStack.Bills.OfType<Bill_Production>().FirstOrDefault(b => "bill:" + b.GetUniqueLoadID() + ":" + resource.defName == step.SupportDemand);
         if (bill == null || !bill.ShouldDoNow() || !bill.IsFixedOrAllowedIngredient(resource) || !bill.recipe.ingredients.All(i => i.filter.Allows(resource))) return 0;

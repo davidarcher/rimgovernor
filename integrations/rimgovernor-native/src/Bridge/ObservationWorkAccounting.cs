@@ -30,6 +30,8 @@ namespace HomeBridge.BridgeTools
             internal readonly string Name;
             internal long Ticks;
             internal long Rows, Candidates;
+            // Bytes this thread allocated since the previous span of its kind closed (profiling only).
+            internal long Bytes;
             internal int Failures;
             // A span inside a Captured family (Detail), not a family.
             internal bool Detail;
@@ -45,6 +47,7 @@ namespace HomeBridge.BridgeTools
             internal readonly List<Section> Sections = new List<Section>();
             internal ulong Frame;
             internal long ThreatExamined = -1, ThreatCandidates, ThreatProjections, ThreatProximityChecks;
+            internal long CaptureMark = GC.GetAllocatedBytesForCurrentThread(), AnyMark = GC.GetAllocatedBytesForCurrentThread();
         }
 
         [ThreadStatic] private static Hop? _current;
@@ -110,6 +113,10 @@ namespace HomeBridge.BridgeTools
             var hop = _current;
             if (hop == null) return;
             var ticks = Math.Max(0, stopwatchTicks);
+            var allocated = GC.GetAllocatedBytesForCurrentThread();
+            var bytes = allocated - (capture ? hop.CaptureMark : hop.AnyMark);
+            hop.AnyMark = allocated;
+            if (capture) hop.CaptureMark = allocated;
             if (capture) hop.CaptureTicks += ticks;
             Section entry = null!;
             foreach (var known in hop.Sections) if (string.Equals(known.Name, section, StringComparison.Ordinal)) { entry = known; break; }
@@ -120,6 +127,7 @@ namespace HomeBridge.BridgeTools
                 hop.Sections.Add(entry);
             }
             entry.Ticks += ticks;
+            entry.Bytes += bytes;
             entry.Rows += Math.Max(0, rows);
             entry.Candidates += Math.Max(0, candidates);
         }

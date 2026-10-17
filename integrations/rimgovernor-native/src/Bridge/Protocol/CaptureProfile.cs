@@ -73,7 +73,11 @@ namespace HomeBridge.BridgeTools
                 {
                     var hop = ObservationWork.End();
                     if (hop != null)
-                        foreach (var s in hop.Sections) rec.Add((s.Detail ? "capture.detail." : "capture.section.") + s.Name, Ms(s.Ticks), -1);
+                        foreach (var s in hop.Sections)
+                        {
+                            rec.Add((s.Detail ? "capture.detail." : "capture.section.") + s.Name, Ms(s.Ticks), s.Bytes);
+                            if (s.Rows > 0) rec.Add("rows." + s.Name, s.Rows, -1);
+                        }
                 }
                 side.Frame = frame;
                 rec.Time("grid.read", () => CellGridReader.Read(map));

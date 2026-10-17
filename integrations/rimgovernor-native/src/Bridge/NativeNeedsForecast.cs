@@ -18,6 +18,8 @@ internal static class NativeNeedsForecast
     {
         legs ??= new(map);
         var rows = new List<Obs.NeedsForecastPawn>();
+        // The candidates, read once for every colonist; only each pawn's survivors are sorted, by id then grouped by kind.
+        (Thing Thing, string Kind)[]? possible = null;
         foreach (var pawn in people.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {
             var needs = new List<Obs.NeedRate>();
@@ -44,52 +46,49 @@ internal static class NativeNeedsForecast
             var targets = new List<Obs.NeedTarget>();
             if (state == "eligible")
             {
-                var possible = map.listerThings.AllThings.Where(t => t.Spawned &&
+                possible ??= map.listerThings.AllThings.Where(t => t.Spawned &&
                     (t.def.IsNutritionGivingIngestible && t is not Corpse || t is Building_Bed || t.def.defName == "HorseshoesPin"))
-                    .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-                foreach (var group in possible.GroupBy(t => t is Building_Bed ? "rest" : t.def.defName == "HorseshoesPin" ? "joy" : "food"))
+                    .Select(t => (t, t is Building_Bed ? "rest" : t.def.defName == "HorseshoesPin" ? "joy" : "food")).ToArray();
+                foreach (var (target, group) in possible)
                 {
-                    foreach (var target in group)
+                    if (target.IsForbidden(pawn)) continue;
+                    if (group == "food" && (pawn.needs?.food == null || !target.IngestibleNow
+                        || !pawn.WillEat(target) || !FoodSupplyFacts.PolicyAllows(pawn, target))) continue;
+                    if (group == "rest" && (pawn.needs?.rest == null || !RestUtility.CanUseBedNow(target, pawn, true))) continue;
+                    if (group == "joy" && (pawn.needs?.joy == null || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))) continue;
+                    // Reserve with the claim the service job makes, as bind-time does: a stack or slot another pawn
+                    // holds under the same maxPawns stays observable while its capacity lasts.
+                    var (kind, count) = group == "food" ? (PawnActivityKind.Eat, IngestWantedCount(pawn, target))
+                        : group == "rest" ? (PawnActivityKind.Sleep, 0) : (PawnActivityKind.Recreation, 0);
+                    var (maxPawns, stackCount) = ServiceReservation(kind, target, count);
+                    if (!pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None, maxPawns, stackCount)) continue;
+                    if (legs.Cost(pawn, pawn.Position, target, PathEndMode.Touch) is not { } route) continue;
+                    var travel = K(route);
+                    if (group == "food")
                     {
-                        if (target.IsForbidden(pawn)) continue;
-                        if (group.Key == "food" && (pawn.needs?.food == null || !target.IngestibleNow
-                            || !pawn.WillEat(target) || !FoodSupplyFacts.PolicyAllows(pawn, target))) continue;
-                        if (group.Key == "rest" && (pawn.needs?.rest == null || !RestUtility.CanUseBedNow(target, pawn, true))) continue;
-                        if (group.Key == "joy" && (pawn.needs?.joy == null || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))) continue;
-                        // Reserve with the claim the service job makes, as bind-time does: a stack or slot another pawn
-                        // holds under the same maxPawns stays observable while its capacity lasts.
-                        var (kind, count) = group.Key == "food" ? (PawnActivityKind.Eat, IngestWantedCount(pawn, target))
-                            : group.Key == "rest" ? (PawnActivityKind.Sleep, 0) : (PawnActivityKind.Recreation, 0);
-                        var (maxPawns, stackCount) = ServiceReservation(kind, target, count);
-                        if (!pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None, maxPawns, stackCount)) continue;
-                        if (legs.Cost(pawn, pawn.Position, target, PathEndMode.Touch) is not { } route) continue;
-                        var travel = K(route);
-                        if (group.Key == "food")
-                        {
-                            var nutrition = FoodUtility.NutritionForEater(pawn, target) / pawn.needs!.food.MaxLevel;
-                            var service = target.def.ingestible.baseIngestTicks / (target.def.ingestible.useEatingSpeedStat
-                                ? pawn.GetStatValue(StatDefOf.EatingSpeed) : 1);
-                            var thoughts = FoodUtility.ThoughtsFromIngesting(pawn, target, target.def)
-                                .Select(t => MealMemory(pawn, t)).ToArray();
-                            targets.Add(new(target.GetUniqueLoadID(), "food", target.def.defName, target.def.ingestible.maxNumToIngestAtOnce > 0 ? Math.Min(target.stackCount, target.def.ingestible.maxNumToIngestAtOnce) : target.stackCount,
-                                travel, K(service), K(nutrition), default) { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), StockCount = K(target.stackCount), MaxPawns = Capacity(IngestMaxPawns),
-                                FreshTicks = K(target.TryGetComp<CompRottable>()?.TicksUntilRotAtCurrentTemp ?? RimGovernor.Brain.Domain.GameTime.TicksPerDay),
-                                Cell = CellAt(map, target.Position), Deterioration = DeteriorationOf(map, target),
-                                Unsupported = ["chew_spot_travel", "ingestion_outcomes_and_poisoning", "meal_memory_stacking"] });
-                        }
-                        else if (group.Key == "rest") targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel, default, default,
-                            K(Need_Rest.BaseRestGainPerTick * target.GetStatValue(StatDefOf.BedRestEffectiveness) * pawn.GetStatValue(StatDefOf.RestRateMultiplier))) { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(((Building_Bed)target).SleepingSlotsCount),
-                                Cell = CellAt(map, target.Position), Bed = BedRoomOf((Building_Bed)target) });
-                        else
-                        {
-                            var job = DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes").jobDef;
-                            // Native JoyTickCheckEnd conversion, projected at observed tolerance only; future tolerance is explicit.
-                            var gain = job.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour * target.GetStatValue(StatDefOf.JoyGainFactor)
-                                * pawn.needs!.joy.tolerances.JoyFactorFromTolerance(job.joyKind);
-                            targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, default, default, K(gain))
-                                { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(job.joyMaxParticipants), Cell = CellAt(map, target.Position),
-                                    Unsupported = ["horseshoes_position_travel", "future_tolerance_changes"] });
-                        }
+                        var nutrition = FoodUtility.NutritionForEater(pawn, target) / pawn.needs!.food.MaxLevel;
+                        var service = target.def.ingestible.baseIngestTicks / (target.def.ingestible.useEatingSpeedStat
+                            ? pawn.GetStatValue(StatDefOf.EatingSpeed) : 1);
+                        var thoughts = FoodUtility.ThoughtsFromIngesting(pawn, target, target.def)
+                            .Select(t => MealMemory(pawn, t)).ToArray();
+                        targets.Add(new(target.GetUniqueLoadID(), "food", target.def.defName, target.def.ingestible.maxNumToIngestAtOnce > 0 ? Math.Min(target.stackCount, target.def.ingestible.maxNumToIngestAtOnce) : target.stackCount,
+                            travel, K(service), K(nutrition), default) { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), StockCount = K(target.stackCount), MaxPawns = Capacity(IngestMaxPawns),
+                            FreshTicks = K(target.TryGetComp<CompRottable>()?.TicksUntilRotAtCurrentTemp ?? RimGovernor.Brain.Domain.GameTime.TicksPerDay),
+                            Cell = CellAt(map, target.Position), Deterioration = DeteriorationOf(map, target),
+                            Unsupported = ["chew_spot_travel", "ingestion_outcomes_and_poisoning", "meal_memory_stacking"] });
+                    }
+                    else if (group == "rest") targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel, default, default,
+                        K(Need_Rest.BaseRestGainPerTick * target.GetStatValue(StatDefOf.BedRestEffectiveness) * pawn.GetStatValue(StatDefOf.RestRateMultiplier))) { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(((Building_Bed)target).SleepingSlotsCount),
+                            Cell = CellAt(map, target.Position), Bed = BedRoomOf((Building_Bed)target) });
+                    else
+                    {
+                        var job = DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes").jobDef;
+                        // Native JoyTickCheckEnd conversion, projected at observed tolerance only; future tolerance is explicit.
+                        var gain = job.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour * target.GetStatValue(StatDefOf.JoyGainFactor)
+                            * pawn.needs!.joy.tolerances.JoyFactorFromTolerance(job.joyKind);
+                        targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, default, default, K(gain))
+                            { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(job.joyMaxParticipants), Cell = CellAt(map, target.Position),
+                                Unsupported = ["horseshoes_position_travel", "future_tolerance_changes"] });
                     }
                 }
             }
@@ -107,7 +106,7 @@ internal static class NativeNeedsForecast
                 MoodTarget = pawn.needs?.mood is { } targetMood ? K(targetMood.CurInstantLevel) : default,
                 BreakThreshold = pawn.mindState?.mentalBreaker is { } breaker ? K(breaker.BreakThresholdMinor) : default,
                 Memories = memories is null ? default : Fact.Known(EquatableArray.From(memories)),
-                Targets = EquatableArray.From(targets), Unsupported = EquatableArray.From(unsupported), VoluntaryControlBlockers = blockers,
+                Targets = EquatableArray.From(targets.OrderBy(t => t.Id, StringComparer.Ordinal).GroupBy(t => t.Kind).SelectMany(g => g)), Unsupported = EquatableArray.From(unsupported), VoluntaryControlBlockers = blockers,
                 OutdoorsLevel = pawn.needs?.outdoors is { } outdoors ? K(outdoors.CurLevel) : default,
                 OutdoorsDisabled = pawn.needs?.outdoors != null && pawn.needs.PrefersIndoors,
                 OwnedBed = pawn.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
