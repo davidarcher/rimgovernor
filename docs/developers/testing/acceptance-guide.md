@@ -298,6 +298,10 @@ is a pass, 1 a failed window and 2 a usage error. The fixture factory runs it
 weekly ([remote workflow](remote-workflow.md#fixture-factory)); `acceptance
 profile-capture` and `acceptance fetch-fixture` read its ring by default.
 
+`acceptance colony-review` is the same kind of driver for the nightly
+[colony review](colony-review.md): a season on a fresh pinned-seed scenario start with the storyteller
+on, recording screenshots beside `result.json`. It gates nothing.
+
 ## Combat lab sweeps
 
 `acceptance sweep <fixture>... -root <dir> -output <fresh dir>

@@ -81,7 +81,6 @@ public static class CaseCatalog
         RecoveryCases.Register(registry);
         RefrigerationCases.Register(registry);
         ResearchCases.Register(registry);
-        ReviewCases.Register(registry);
         RoomsCases.Register(registry);
         ShelterCases.Register(registry);
         RouteCases.Register(registry);

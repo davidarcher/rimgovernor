@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// What <c>acceptance colony</c> checks once its window ends, on the reattached game and the service's log ring: the
-/// keep-alive resumes, every colonist's worst malnutrition and the stockpile zones. The colony-week review shares the
+/// keep-alive resumes, every colonist's worst malnutrition and the stockpile zones. The colony review (<c>acceptance colony-review</c>) shares the
 /// Concerns.
 /// </summary>
 public static class ColonyAudits

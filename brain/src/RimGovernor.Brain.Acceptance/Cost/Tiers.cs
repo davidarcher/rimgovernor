@@ -17,7 +17,8 @@ public enum CaseTier
 
     /// <summary>
     /// Never run by a tier or by <c>acceptance suite -all</c>: diagnostics, which gate nothing and stay runnable by hand
-    /// with <c>acceptance run</c>. Generators are their own subcommands (<c>acceptance colony</c>, <c>acceptance baseline</c>).
+    /// with <c>acceptance run</c>. Generators and the colony review are their own subcommands (<c>acceptance colony</c>, <c>acceptance baseline</c>,
+    /// <c>acceptance colony-review</c>).
     /// </summary>
     Off,
 }

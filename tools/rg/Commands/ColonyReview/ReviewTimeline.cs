@@ -9,7 +9,7 @@ namespace RimGovernor.Tools.Commands.ColonyReview;
 internal sealed record CaseResult(string Error, IReadOnlyDictionary<string, string> Review);
 
 /// <summary>
-/// Turns a review/colony-week case output into report rows (Go: <c>Load</c> and <c>Derive</c>). The report reads what the
+/// Turns an acceptance colony-review output into report rows (Go: <c>Load</c> and <c>Derive</c>). The report reads what the
 /// run already records: result.json's timeline (the colony census from /api/player/colony and each sampled concern's
 /// state, every in-game hour) and the recorder's screenshots under review/ (colony-tick.jpg, map-tick.jpg).
 /// </summary>
@@ -28,8 +28,8 @@ internal static partial class ReviewTimeline
     public static string Plain(string s) => RichText().Replace(s, "").Trim();
 
     /// <summary>
-    /// Reads the case output directory: result.json and review/*.jpg. Throws <see cref="FileNotFoundException"/> when there
-    /// is no result.json (the case never wrote one).
+    /// Reads the run's output directory: result.json and review/*.jpg. Throws <see cref="FileNotFoundException"/> when there
+    /// is no result.json (the run never wrote one).
     /// </summary>
     public static (List<Row> Rows, CaseResult Result) Load(string dir)
     {

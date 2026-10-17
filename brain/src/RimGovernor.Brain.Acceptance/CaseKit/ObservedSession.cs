@@ -37,6 +37,19 @@ public sealed class ObservedSession : IObservedSession
     }
 
     /// <summary>
+    /// The watch view of a game a driver outside the case runner opened itself (<see cref="Session.OpenAsync"/>): the
+    /// service it serves is launched on that game, not by a case session.
+    /// </summary>
+    public static IObservedSession Of(Session session, Config config, Report report, ServeSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(report);
+        ArgumentNullException.ThrowIfNull(spec);
+        return new OpenedSession(session, config, report, spec);
+    }
+
+    /// <summary>
     /// The watch view of a service the case launched itself (<see cref="ISession.ServeAsync"/>), for a case that drives
     /// <see cref="SustainedFood.WatchAsync"/> phase by phase and stops the service between them.
     /// </summary>
@@ -84,6 +97,24 @@ public sealed class ObservedSession : IObservedSession
         new WatchedService(await _session.ServeAsync(spec, cancellationToken).ConfigureAwait(false), _session.Config);
 
     public Task<Harness> ReattachAsync(CancellationToken cancellationToken) => Task.FromResult(_session.Reattach());
+
+    private sealed class OpenedSession(Session session, Config config, Report report, ServeSpec spec) : IObservedSession
+    {
+        public Harness Harness => session.Harness;
+
+        public Config Config => config;
+
+        public Report Report => report;
+
+        public ServeSpec Spec => spec;
+
+        public async Task<IWatchedService> ServeAsync(ServeSpec serve, CancellationToken cancellationToken) =>
+            Watched(
+                await ServiceProcess.ServeAsync(config, session.Harness, session.Identity, serve, report, cancellationToken).ConfigureAwait(false),
+                config);
+
+        public Task<Harness> ReattachAsync(CancellationToken cancellationToken) => Task.FromResult(session.Harness);
+    }
 
     private sealed class WatchedService(ServiceProcess process, Config config) : IWatchedService
     {

@@ -4,21 +4,22 @@ A nightly review run, not a gate: the governor plays a pinned-seed map for
 an in-game season (a quadrum, 15 days) and the run publishes an hour-by-hour
 report to GitHub Pages for a person (or a model) to skim for bugs.
 
-- **Case** `review/colony-week` (`brain/src/RimGovernor.Brain.Acceptance.Cases/Review`):
-  Crashlanded, three colonists, a 250 map, storyteller on. The seed is
-  `review.PinnedSeed` (`review-pinned-1`) every night, one run per seed, so
+- **Run** `acceptance colony-review -root <dir> [-output <dir> -seed <s> -days 15 -timeout <d>]`
+  (`brain/src/RimGovernor.Brain.Acceptance/Colony/ColonyReviewCommand.cs`), its own driver outside the
+  case runner and the catalog: Crashlanded, three colonists, a 250 map, storyteller on. The seed is
+  `ColonyReviewCommand.PinnedSeed` (`review-pinned-1`) every night, one run per seed, so
   nights compare; it picks the biome. To add a seed, add it to that
   constant's documentation and dispatch with the `seed` input.
-  `RIMGOVERNOR_REVIEW_SEED` overrides the seed and `RIMGOVERNOR_REVIEW_DAYS`
-  the length (default 15). Watch: 12 wall minutes per in-game day (180 min
-  per season); budget: that plus 10; the workflow job allows 360. The case
-  is off every tier.
+  `-seed` and `-days` (default 15) override them; the workflow passes its
+  `seed` and `days` inputs. Watch: 12 wall minutes per in-game day (180 min
+  per season); default `-timeout`: that plus 10; the workflow job allows 360.
+  `result.json` (`<root>/acceptance/colony-review` unless `-output`) is written whether or not the season played.
 - **Recorder** `test/colony_review` (`scripts/fixtures/ColonyReviewFixture.cs`):
   every in-game hour it renders the colony from above to
-  `<case output>/review/colony-<tick>.jpg`, and once a day the whole map to
+  `<output>/review/colony-<tick>.jpg`, and once a day the whole map to
   `map-<tick>.jpg`. It records no colony facts: the run's timeline already
   samples the colony census and every `ColonyAudits.ColonyConcerns` concern each
-  in-game hour. It needs a graphics device: the case sets `Graphics`, which
+  in-game hour. It needs a graphics device: the run sets `Graphics`, which
   drops `-Headless` from the headless profile (the camera renders on
   demand; on 1.7 the device brings a window, and whether hosted runners
   have a GPU for it is #3031) and always launches a fresh game. With a
@@ -26,7 +27,7 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   (`HeadlessPatches` skips them only when the device is Null); that is why
   other cases keep `-Headless` (a one-day trial took 3m05s against 2m37s
   on 1.6).
-- **Report** `RimGovernor.cmd colonyreview report -in <case output> -out <run dir>`
+- **Report** `RimGovernor.cmd colonyreview report -in <output> -out <run dir>`
   (the C# tool host, `tools/rg/Commands/ColonyReview`)
   reads `result.json`'s timeline and the screenshots and writes `index.html`
   and `run.json`; `site -runs <dir> -out <site>` indexes run dirs. The page is
@@ -39,7 +40,7 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   embedded as JSON (`player.js` reads them), so a run page needs no server.
   A strip per colonist (a cell per hour, colored by that pawn's mood, downed hours marked)
   sits under the charts and seeks too.
-  The game's rich-text tags in pawn labels (`<color=...>`) are stripped. A run whose case
+  The game's rich-text tags in pawn labels (`<color=...>`) are stripped. A run that
   left no `result.json` (bootstrap or launch failed) still gets a page saying so and a
   row in the site index, and the workflow job then fails.
   Flags mark hours worth a

@@ -220,7 +220,7 @@ public static class ColonyCommand
         try
         {
             _ = await SustainedFood.ObserveAsync(
-                new ColonySession(session, cfg, report, spec),
+                ObservedSession.Of(session, cfg, report, spec),
                 new SustainedObservation
                 {
                     Watch = new WatchConfig
@@ -311,24 +311,5 @@ public static class ColonyCommand
         {
             report["checkpoint_errors"] = new JsonArray([.. errors.Select(e => (JsonNode?)JsonValue.Create(e))]);
         }
-    }
-
-    // The watch's view of the generator's opened game: the service it serves is launched here, not by a case session.
-    private sealed class ColonySession(Session session, Config config, Report report, ServeSpec spec) : IObservedSession
-    {
-        public Harness Harness => session.Harness;
-
-        public Config Config => config;
-
-        public Report Report => report;
-
-        public ServeSpec Spec => spec;
-
-        public async Task<IWatchedService> ServeAsync(ServeSpec serve, CancellationToken cancellationToken) =>
-            ObservedSession.Watched(
-                await ServiceProcess.ServeAsync(config, session.Harness, session.Identity, serve, report, cancellationToken).ConfigureAwait(false),
-                config);
-
-        public Task<Harness> ReattachAsync(CancellationToken cancellationToken) => Task.FromResult(session.Harness);
     }
 }

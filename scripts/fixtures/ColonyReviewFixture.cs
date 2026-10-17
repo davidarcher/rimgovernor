@@ -13,7 +13,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Colony review recorder (review/colony-week): once started, every
+    // Colony review recorder (acceptance colony-review): once started, every
     // IntervalTicks of game time it renders the colony from above into
     // colony-<tick>.jpg in Dir, with a whole-map map-<tick>.jpg once a game
     // day. Colony facts are not its business: the run's timeline and

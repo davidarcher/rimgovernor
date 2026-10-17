@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][ValidateSet('authorize','gate','plan','execute','collect','profile','factory')][string]$Phase,
+    [Parameter(Mandatory)][ValidateSet('authorize','gate','plan','execute','collect','profile','factory','review')][string]$Phase,
     [string]$Evidence = 'C:\rg\evidence',
     [string]$Repo = "$env:GITHUB_WORKSPACE\tested",
     [string]$Shard = '',
@@ -86,8 +86,7 @@ function Resolve-Source($Event) {
             $head = (Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$encoded").sha
         }
     }
-    # colony-review.yml pins its own case list; fixture-factory.yml and snapshot-perf.yml run no case (REMOTE_GENERATOR).
-    if ($env:FACTORY_CASES) { $tier = 'cases'; $shards = 1; $cases = @($env:FACTORY_CASES -split ',') }
+    # fixture-factory.yml, snapshot-perf.yml and colony-review.yml run no case (REMOTE_GENERATOR).
     if ($env:REMOTE_GENERATOR) { $tier = 'generator'; $shards = 1; $cases = @() }
     if ($head -cnotmatch '^[0-9a-f]{40}$' -or $head -eq ('0'*40) -or $tier -notin @('smoke','nightly','cases','generator') -or
         $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, tier or shard limit' }
@@ -286,6 +285,22 @@ switch ($Phase) {
             $run = Read-JSON (Join-Path $Evidence 'run.json')
             & $boot.tool acceptance colony -root $boot.root -output C:\rg\fixture\job\out -timeout "$($run.limits.suite_timeout_minutes)m"
             if ($LASTEXITCODE) { throw 'acceptance colony failed; its ring and result.json are still collected' }
+        }
+    }
+    'review' {
+        # colony-review.yml: the colony review season on a fixture-role layout
+        # (the recorder is a fixture op). result.json and the review\ screenshots
+        # stay under C:\rg\fixture\job\out, played or not, for the render step.
+        # RIMGOVERNOR_REVIEW_SEED and RIMGOVERNOR_REVIEW_DAYS are the dispatch
+        # inputs; empty keeps the command's pinned seed and 15 days.
+        Invoke-FixtureRole {
+            param($boot)
+            $run = Read-JSON (Join-Path $Evidence 'run.json')
+            $review = @('-root', $boot.root, '-output', 'C:\rg\fixture\job\out', '-timeout', "$($run.limits.suite_timeout_minutes)m")
+            if ($env:RIMGOVERNOR_REVIEW_SEED) { $review += @('-seed', $env:RIMGOVERNOR_REVIEW_SEED) }
+            if ($env:RIMGOVERNOR_REVIEW_DAYS) { $review += @('-days', $env:RIMGOVERNOR_REVIEW_DAYS) }
+            & $boot.tool acceptance colony-review @review
+            if ($LASTEXITCODE) { throw 'acceptance colony-review failed; its result.json is still rendered' }
         }
     }
     'collect' {

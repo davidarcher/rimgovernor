@@ -3,7 +3,7 @@ using RimGovernor.Tools.Common;
 namespace RimGovernor.Tools.Commands.ColonyReview;
 
 /// <summary>
-/// Turns a review/colony-week recording (the case's result.json and JPEGs) into a static HTML report a player can skim, and
+/// Turns a colony review recording (acceptance colony-review's result.json and JPEGs) into a static HTML report a player can skim, and
 /// indexes reports into a site (Go: <c>cmd/colonyreview</c>).
 /// <code>
 /// RimGovernor.cmd colonyreview report -in dir -out dir [-baselines dir] [-meta key=value ...]

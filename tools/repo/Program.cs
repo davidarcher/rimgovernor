@@ -26,7 +26,7 @@ internal static class Program
           remoteaccept  remote acceptance evidence: export, aggregate, import, index, soak, progress
           remotebundle  encrypted remote-acceptance bundles: pack, publish, verify, extract, bootstrap
           thoughtaudit  regenerate the thought-to-trigger table from the installed game
-          colonyreview  render a colony-week recording into an HTML report or a site index
+          colonyreview  render a colony review recording into an HTML report or a site index
           pawnactivity  report pawn time and gaps from the OTLP ring
           launch-phases  print a run's launch waterfall (or two runs' per-phase delta) from its traces
           native-build  build the native mod package from this checkout

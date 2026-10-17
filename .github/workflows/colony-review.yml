@@ -1,12 +1,12 @@
 name: Colony review
 
-# Plays review/colony-week (a pinned-seed map for an in-game season with the
-# governor in charge, recording an hourly screenshot and colony facts) on
-# the remote-acceptance runner setup, renders the recording with
+# Plays `acceptance colony-review` (a pinned-seed map for an in-game season
+# with the governor in charge, recording an hourly screenshot and colony
+# facts) on the remote-acceptance runner setup, renders the recording with
 # the colonyreview tool and publishes the newest reports to GitHub Pages. A
 # review, not a gate: the report is built from whatever was recorded even
-# when the run fails. Gate, planning and bootstrap are remote_workflow.ps1's,
-# as in remote-acceptance.yml.
+# when the run fails. Gate and bootstrap are remote_workflow.ps1's, as in
+# fixture-factory.yml; no case is planned.
 
 on:
   workflow_dispatch:
@@ -40,7 +40,7 @@ env:
   REMOTE_INVENTORY_ASSET: ${{ vars.REMOTE_INVENTORY_ASSET }}
   REMOTE_BUNDLE_SHA256: ${{ vars.REMOTE_BUNDLE_SHA256 }}
   REMOTE_ARTIFACT_MAX_BYTES: ${{ vars.REMOTE_ARTIFACT_MAX_BYTES || '0' }}
-  FACTORY_CASES: review/colony-week
+  REMOTE_GENERATOR: colony-review
   GOTOOLCHAIN: local
   GOWORK: 'off'
   CGO_ENABLED: '0'
@@ -102,11 +102,6 @@ jobs:
           path: C:\rg\rg.exe
           if-no-files-found: error
           retention-days: 1
-      - name: Plan the review case
-        env:
-          RIMGOVERNOR_REVIEW_SEED: ${{ inputs.seed }}
-          RIMGOVERNOR_REVIEW_DAYS: ${{ inputs.days }}
-        run: ./trusted/scripts/remote_workflow.ps1 -Phase plan
       - name: Audit process exits so a vanished game leaves its exit status
         continue-on-error: true
         run: auditpol /set /subcategory:"Process Termination" /success:enable
@@ -118,7 +113,7 @@ jobs:
           REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
           RIMGOVERNOR_REVIEW_SEED: ${{ inputs.seed }}
           RIMGOVERNOR_REVIEW_DAYS: ${{ inputs.days }}
-        run: ./trusted/scripts/remote_workflow.ps1 -Phase execute -Shard s1
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase review
       - name: Record why governed processes exited (#1358)
         if: always() && steps.gate.outcome == 'success'
         continue-on-error: true
@@ -126,26 +121,22 @@ jobs:
       - name: Stop this job's processes and remove identity
         if: always() && steps.gate.outcome == 'success'
         run: |
-          foreach ($role in @('fixture','production')) {
-            ./trusted/scripts/cleanup_remote.ps1 -Work "C:\rg\$role"
-          }
+          ./trusted/scripts/cleanup_remote.ps1 -Work C:\rg\fixture
           if (Test-Path C:\rg\identity.txt) { Remove-Item -LiteralPath C:\rg\identity.txt }
-      # The same allowlisted diagnostics a remote-acceptance shard publishes
-      # (result, logs, telemetry), whatever the play step's outcome.
-      - name: Export allowlisted diagnostics
+      # Why the governed processes exited and the run's result.json, whatever
+      # the play step's outcome (as fixture-factory.yml publishes them).
+      - name: Collect diagnostics
         if: always() && steps.gate.outcome == 'success'
         continue-on-error: true
         run: |
-          New-Item -ItemType Directory -Force C:\rg\evidence\s1 | Out-Null
-          if (Test-Path C:\rg\export-jobs.json) {
-            & C:\rg\rg.exe remoteaccept export -root C:\rg\evidence -shard s1 -jobs C:\rg\export-jobs.json
-          }
-          if (Test-Path C:\rg\crash\s1) { Copy-Item -LiteralPath C:\rg\crash\s1 -Destination C:\rg\evidence\s1\crash -Recurse }
+          New-Item -ItemType Directory -Force C:\rg\public | Out-Null
+          if (Test-Path C:\rg\crash\s1) { Copy-Item -LiteralPath C:\rg\crash\s1 -Destination C:\rg\public\crash -Recurse }
+          if (Test-Path C:\rg\fixture\job\out\result.json) { Copy-Item -LiteralPath C:\rg\fixture\job\out\result.json -Destination C:\rg\public }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && steps.gate.outcome == 'success'
         with:
           name: colony-review-diagnostics
-          path: C:\rg\evidence\s1
+          path: C:\rg\public
           if-no-files-found: ignore
           retention-days: 7
       # The previous nights' reports are the score baseline store:
@@ -168,13 +159,10 @@ jobs:
           TESTED_COMMIT: ${{ steps.gate.outputs.head }}
           PLAYED: ${{ steps.play.outcome }}
         run: |
-          $result = Get-ChildItem C:\rg -Recurse -File -Force -Filter result.json -ErrorAction SilentlyContinue |
-            Where-Object { (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).case -eq 'review/colony-week' } |
-            Sort-Object { -not (Test-Path (Join-Path $_.DirectoryName 'review')) } |
-            Select-Object -First 1
           # No result.json (bootstrap or launch failed) still renders a page that
           # says the run failed; the last step of this job then fails it.
-          $in = if ($result) { $result.DirectoryName } else { (New-Item -ItemType Directory -Force C:\rg\no-result).FullName }
+          $out = 'C:\rg\fixture\job\out'
+          $in = if (Test-Path (Join-Path $out 'result.json')) { $out } else { (New-Item -ItemType Directory -Force C:\rg\no-result).FullName }
           $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
           $name = "$date-$env:GITHUB_RUN_ID"
           $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"

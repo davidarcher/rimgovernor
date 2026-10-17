@@ -142,6 +142,10 @@ its baseline (at least three samples) opens, or comments on, the issue
 "Snapshot capture regression (nightly snapshot-perf)" with the commit range.
 Tune `-threshold`/`-min-ms` in the workflow for runner noise.
 
+`.github/workflows/colony-review.yml` runs `acceptance colony-review` ([colony review](colony-review.md)) the same
+way: `REMOTE_GENERATOR`, no plan, `remote_workflow.ps1 -Phase review` on a fixture-role layout, then renders
+`C:\rg\fixture\job\out` (its `result.json` and `review/` screenshots) whether the season played or not.
+
 ## Validation and activation evidence
 
 `RimGovernor.cmd test` covers authorization refusals, portable multi-shard export,

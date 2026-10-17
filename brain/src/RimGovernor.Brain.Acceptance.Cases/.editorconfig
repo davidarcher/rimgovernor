@@ -213,9 +213,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Quest/QuestTitle.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Review/ReviewColonyWeek.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Rooms/RoomsReads.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
