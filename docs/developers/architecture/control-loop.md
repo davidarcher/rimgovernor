@@ -521,7 +521,7 @@ watch only on its own SeriousHarm plans.
 
 **Military family, combat (#3311).** `military/combat` replaces the combat incident
 incident: a SeriousHarm Need, one per map, unmet while a hostile stands or the held
-food plan requests a squad hunt (deficit hostiles plus prey), met when neither does,
+food plan requests a roster hunt (deficit hostiles plus prey), met when neither does,
 unknown while the hostile census is unread. One policy function,
 `PolicyFunctions.CombatSituation`, gives Active, Clear or Unclear for the review's
 combat standing (`Rounds.Combat`), the Need's predicate and `CombatCleared`. The

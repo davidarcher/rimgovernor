@@ -194,7 +194,7 @@ expected rate x factor`.
 Hunting is hunter throughput over a finite, live stock of wildlife
 (`HuntCredit.cs`, `HuntSquad.cs`):
 
-- **Stock**: each hunt channel (one per animal or squad group) carries
+- **Stock**: each hunt channel (one per lone animal, plus the chosen roster's formation) carries
   `StockCap`, the nutrition of its animals in reach from the wildlife census,
   rebuilt every Round, so the ranker prices it as a finite source
   (`min(rate, stock / horizon)`). Kills shrink it; regrowth and migration

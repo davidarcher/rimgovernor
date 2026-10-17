@@ -57,7 +57,7 @@ request, never corrected terrain or an alternative engine. The adapter requires
 explicit positive equipment hit points/quality; native unknown definitions reject.
 The supported tactic is native Hunt with timed leave/flee departures. The game reserves a hunted
 animal for one pawn and a forced Hunt order steals that reservation, so two or more hunters naming
-the same prey act as a drafted squad focus-firing it (`AttackStatic`), as the colony squad hunt does; a
+the same prey act as a drafted squad focus-firing it (`AttackStatic`), as a colony roster hunt does; a
 lone hunter keeps the undrafted Hunt job. Later arrivals, colony tactics, custom action sequences and unstated mechanics are
 unsupported. The observed-environment input carries outdoor temperature and sky glow, held constant for the bounded encounter. Current schema does not represent changing weather/light or time of day,
 food/rest/mood, bonds, mental breaks, arbitrary gene/hediff runtime state or dynamic
@@ -118,6 +118,11 @@ world. The latter explicitly substitutes a permanent manhunter because that
 fixture's storyteller disables revenge on damage. These are execution cases,
 not suitable evidence for revenge frequency. Reuse the CombatLab machinery with
 revenge enabled and observed; do not qualify against the substituted threat.
+
+Disposition: both cases stay as execution cases for the roster hunt. A formation now forms only when the
+food plan has an estimate for its roster, so they run with the prediction worker configured
+(`RIMGOVERNOR_ENCOUNTER_WORKER`) and are otherwise expected to see no hunt; neither has been re-run since the
+squad rules were removed.
 
 Even with zero failures, the exact one-sided 95% binomial upper bound is
 `1 - 0.05^(1/n)`. At least 299 independent applicable safe predictions with zero

@@ -436,27 +436,24 @@ eligible hunters from the census, and the animal's leather and butcher products 
 race row. Food selection keeps forage priority, then downed animals, then lower revenge
 chance times herd size.
 
-One Hunt candidate stands per animal or prey group (`policy.HuntCandidates`), with a mode:
-`lone` (a designation; id the animal's) or `formation` (id `squad:<first prey>`, run as a
-`HuntRequest` of drafted gunners). A formation is required for prey that retaliates
-(a predator, or revenge chance above 0.2) and for a group the clustering marks worth a
-squad (12-cell linkage, three or more standing animals); every other animal is lone. The
-formation takes every eligible gunner, at least three; no upper size is enforced.
-A gunner is a colonist whose primary weapon hunts (`WeaponDef.Hunts`: ranged, not
-explosive, not incendiary); the candidate and `huntFormation` share that predicate, and the
-three-gunner minimum applies to formation prey only (a lone bow hunter is never gated).
-A formation candidate is `Designated` once the plan opens its prey (`HuntRequest`, which
-raises the hunt origin; `policy.HuntAdmission`, in memory) and, like every hunt channel,
+One Hunt candidate stands per lone animal, plus at most one formation candidate (`policy.HuntCandidates`), with a
+mode: `lone` (a designation; id the animal's) or `formation` (id `roster:<gunners>><prey>`, run as a `HuntRequest`
+of the selected gunners). The formation is the roster the hunt comparison chose (`policy.PlanHunt`, see
+[forecast-contracts](forecast-contracts.md)): its gunners and prey are named on the channel, with no minimum
+roster, animal count or clustering radius. A gunner is a colonist whose primary weapon hunts (`WeaponDef.Hunts`:
+ranged, not explosive, not incendiary). A formation candidate is `Designated` once the plan opens its prey
+(`HuntRequest`, which raises the hunt origin; `policy.HuntAdmission`, in memory) and, like every hunt channel,
 `Delivering` from the first credited ledger KILL ([hunting](../architecture/supply-model.md#hunting));
 Delivering keeps the hunt open while its fight runs, and stall and timeout handling stay
 on `HuntProgress`. Every hunt channel is a finite source (`StockCap`, the nutrition of the
 animals in reach) whose rate is capped by the hunters' kill throughput.
-Below three gunners a formation is a Hold with a `needs_gunners` term (the gunners it
-lacks, plus the `held_nutrition_per_day` it would deliver) and no yield. A candidate yields
-the meat nutrition and the animal's leather and butcher products; labor is charged once.
-Hunt candidates cap exposure at one for Revenge risk and estimate pursuit as
+A formation candidate yields the roster's estimated meat nutrition (net of the chance the prey is not downed) and
+the products of the prey it downed; its labor is the participants' walk plus the estimated encounter, and its risk
+the share of predicted samples with serious harm to a gunner. A roster without a current prediction is not offered.
+A lone candidate yields the meat nutrition and the animal's leather and butcher products; labor is charged once.
+Hunt candidates cap exposure at one for Revenge risk and a lone hunt estimates pursuit as
 7500 / (1 + range / 25) pawn ticks per animal (2500 for downed prey, halved for sleeping
-prey, scaled up for bad weather on a formation): planning estimates, not proof of a kill.
+prey): planning estimates, not proof of a kill.
 Incendiary weapons are excluded; already-dead fresh corpses stay pending butcher
 material.
 
@@ -653,12 +650,12 @@ assert ingestion. Unavailable inventory produces neither an order nor an attempt
 mark. Policy and runtime tests cover selection; `combatlab/drugs` covers the
 native inventory projection and `combatlab/combat_drug` covers ingestion.
 
-**Squad hunt.** A squad hunt is the `military/combat` Need's hunt origin: while no
-hostile stands and the food plan opens a formation `Hunt` candidate (a group of three or
-more wild animals, or any animal a lone hunter must not designate, with three colonists
-wielding a hunting weapon (`WeaponDef.Hunts`, the one predicate for the candidate's gunner count and the formation) able to form the squad; with fewer it Holds as `needs_gunners`), the review asserts the deficit with the channel's
-prey on the review's combat standing (`RoundsCombat.Prey`). The fight runs through
-`admitFight` with `CombatView.Hunt` set and the prey as its threats; the frame's
+**Roster hunt.** A roster hunt is the `military/combat` Need's hunt origin: while no
+hostile stands and the food plan opens the formation `Hunt` candidate the comparison chose, the review asserts the
+deficit with the channel's prey and selected gunners on the review's combat standing (`RoundsCombat.Prey`,
+`RoundsCombat.Hunters`). The fight runs through
+`admitFight` with `CombatView.Hunt` and `CombatView.HuntHunters` set and the prey as its threats; `huntFormation`
+sends only the selected hunters that are eligible defenders with a hunting weapon, however many that is. The frame's
 detail rows cover the open hunt census rows. A hostile in the frame, or the plan no
 longer opening the hunt, ends the origin. An open hunt fight runs a combat watch
 with the live prey as the watch's acknowledged ids (`ClockWatchFacts.HuntPrey`);
