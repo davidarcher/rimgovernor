@@ -115,7 +115,7 @@ The affected acceptance inventory is:
 | `storage/changed-demand` | Add: withdraw a bill after selected pickup and observe release of the obsolete obligation. |
 | `clearance/chunk-dump` | Rewrite: demanded chunk pickup and bounded delivery while unrelated chunks stay untouched; remove global hauling expectations. Stonecutting output is diagnostic, not proof of a new exact recipe adapter. |
 | `control/pawn-activity-delivery` | Keep exact delivery, destination and storage-filter checks. |
-| `control/pawn-activity-lifecycle` | Keep native refusal, atomicity and player-takeover checks. |
+| `control/activity-*` | Keep native refusal, atomicity and player-takeover checks. |
 
 The old bench-cleaning and care-cleaning probe operations and refill fixture
 are removed. Unrelated clearance scenarios retain their own fixtures and claims.

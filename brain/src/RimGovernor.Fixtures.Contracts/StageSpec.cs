@@ -5,7 +5,7 @@ namespace RimGovernor.Fixtures.Contracts;
 
 /// <summary>
 /// What <c>test/stage</c> builds on the loaded game in one call, primitive by primitive and in this order: research,
-/// world, find the site, clear areas, set cells, build rooms, place buildings, spawn things, spawn plants, spawn or set pawns (with
+/// world, find the site, clear areas, set cells, build rooms, place buildings, add bills, spawn things, spawn plants, spawn or set pawns (with
 /// the raid's arrival mode and lords), zones, fire incidents, then generate quests. Every cell and rect is relative to the found site's south-west corner, or absolute when
 /// there is no site. Def names are the game's; the fixture resolves each by name and refuses an unknown one. A name keys
 /// what an entry made in the <see cref="StageReply"/>.
@@ -40,6 +40,9 @@ public sealed record StageSpec
     public IReadOnlyList<StageRoom> Rooms { get; init; } = [];
 
     public IReadOnlyList<StageBuilding> Buildings { get; init; } = [];
+
+    /// <summary>Bills added to staged work tables, in list order (the order each table's bill stack takes them).</summary>
+    public IReadOnlyList<StageBill> Bills { get; init; } = [];
 
     public IReadOnlyList<StageThing> Things { get; init; } = [];
 
@@ -264,6 +267,24 @@ public sealed record StageBuilding
 
     /// <summary>A finished refuelable building's fuel, at most its capacity; null leaves it as it spawns (a wood-fired generator spawns empty).</summary>
     public float? Fuel { get; init; }
+}
+
+/// <summary>
+/// Add bill: a production bill of the RecipeDef on the work table the <see cref="StageBuilding"/> named Building made
+/// (one building), set to repeat RepeatCount times. A recipe the table does not offer refuses the staging.
+/// </summary>
+public sealed record StageBill
+{
+    public required string Name { get; init; }
+
+    public required string Building { get; init; }
+
+    public required string Recipe { get; init; }
+
+    public int RepeatCount { get; init; } = 1;
+
+    /// <summary>Products drop at the bench instead of going to the best stockpile.</summary>
+    public bool DropOnFloor { get; init; }
 }
 
 public enum StageBuildState

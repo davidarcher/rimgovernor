@@ -6,6 +6,7 @@ using RimGovernor.Brain.Telemetry.Otlp;
 using RimGovernor.Contracts.Wire;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -31,9 +32,13 @@ public sealed class TypedSession : ITypedSession
         Staged = typed.Stage is null ? null : FixtureStage.Prepared(session);
     }
 
-    public Common.Identity Identity { get; }
+    // A reload polls lifecycle_read_load at most this many times, this far apart.
+    private const int LoadPolls = 300;
+    private static readonly TimeSpan LoadPollInterval = TimeSpan.FromMilliseconds(200);
 
-    public Observations.ReadScope Scope { get; }
+    public Common.Identity Identity { get; private set; }
+
+    public Observations.ReadScope Scope { get; private set; }
 
     public Fx.StageReply? Staged { get; }
 
@@ -163,6 +168,49 @@ public sealed class TypedSession : ITypedSession
                 _s.Report[service.Label + "_park_error"] = e.Message;
             }
         }
+    }
+
+    public async Task ReloadAsync(string label, CancellationToken cancellationToken)
+    {
+        var name = label + "-" + Guid.NewGuid().ToString("N");
+        var player = new Lifecycle.PlayerLifecycleContext { Identity = Identity, PlayerDirection = 1, RequestId = name };
+        var saved = await CallAsync(label + "-save", NativeOps.SaveGame, new Lifecycle.SaveRequest { Player = player, SaveName = name }, cancellationToken).ConfigureAwait(false);
+        if (saved.Outcome?.Completed is null)
+        {
+            throw new AcceptanceException($"{label}: lifecycle_save did not complete: {saved.Outcome}");
+        }
+
+        var loadId = name + "-load";
+        var reply = await CallAsync(
+            label + "-load",
+            NativeOps.StartLoad,
+            new Lifecycle.LoadRequest
+            {
+                RequestId = loadId,
+                SaveName = name,
+                Readiness = Lifecycle.Readiness.Map,
+                PlayerDirection = 1,
+                ExpectedPlayer = player with { RequestId = loadId },
+            },
+            cancellationToken).ConfigureAwait(false);
+        for (var poll = 0; reply.Outcome?.Completed is null; poll++)
+        {
+            if (reply.Outcome?.Pending is null || poll >= LoadPolls)
+            {
+                throw new AcceptanceException($"{label}: lifecycle_load did not complete: {reply.Outcome}");
+            }
+
+            await Task.Delay(LoadPollInterval, cancellationToken).ConfigureAwait(false);
+            reply = await CallAsync(
+                string.Create(CultureInfo.InvariantCulture, $"{label}-load-{poll}"),
+                NativeOps.PollLoad,
+                new Lifecycle.RequestStatus { RequestId = loadId },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        Identity = reply.Outcome.Completed.Loaded?.Context?.Identity
+            ?? throw new AcceptanceException($"{label}: the completed load names no identity: {reply.Outcome}");
+        Scope = TypedReads.Scope(Identity);
     }
 
     // A wait must fit what is left of the declared ticks; it fails before the game runs otherwise.

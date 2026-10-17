@@ -435,15 +435,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Pawn/SelfTend.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/PawnControlCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/PawnCookingCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/PawnDeliveryCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Presentation/PresentationRoster.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 

@@ -234,9 +234,13 @@ execution changes in the existing OTLP ring. `pawn_activity_interval` includes
 known assignment/Method attribution; neither job success nor installation is
 physical output evidence. No additional durable history is created.
 
-`control/pawn-activities` uses a prepared hungry/tired producer and helper to
-verify cleaning dependency, harvest, selected meal and selected bed, probe
-idempotency, stale revisions and real save/load invalidation. `control/pawn-activity-lifecycle` covers atomic refusal, deadline expiry, native work refusal, selected recreation, explicit firefighting preemption and player takeover. Pure tests round-trip the
+`control/pawn-activities` uses a staged hungry/tired producer and helper to
+verify cleaning dependency, harvest, selected meal and selected bed. Each
+`control/activity-*` case makes one lifecycle claim over the same installed
+executions: batch atomicity, hold deadline, native work refusal, emergency
+preemption of selected recreation, release, native overrides, idle completion,
+player takeover and real save/load invalidation (`control/activity-reload`).
+`control/work-resources` reads the installed ownership back through colony facts. Pure tests round-trip the
 Hands action through the session codec and intent builder and reject malformed
 batches. Existing `clean/bench` and `clean/care` cases remain: their helpers are
 still used outside explicit ownership. #3128 deletes/replaces those policies and

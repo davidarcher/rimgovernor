@@ -79,4 +79,11 @@ public interface ITypedSession
     /// Returns the ticks the game advanced.
     /// </summary>
     Task<int> ServeUntilAsync(string label, int ticks, Probe probe, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// A real reload: saves the paused game under a fresh name (<c>lifecycle_save</c>) and loads that save back to map
+    /// readiness (<c>lifecycle_load</c>, polled through <c>lifecycle_read_load</c>). <see cref="Identity"/> and
+    /// <see cref="Scope"/> follow the loaded game. Spends no ticks.
+    /// </summary>
+    Task ReloadAsync(string label, CancellationToken cancellationToken);
 }

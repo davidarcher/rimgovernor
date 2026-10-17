@@ -150,7 +150,7 @@ not satisfy #3135's actual-gameplay gate.
 | `storage/changed-demand` | Keep withdrawal during owned carry and release; no obsolete continued delivery. |
 | `clearance/chunk-dump` | Keep useful demanded chunk transfer with unrelated chunks unchanged; no global haulability assumption. |
 | `control/pawn-activities` | Keep exact job execution, supported needs mechanics, preemption and refusal checks. It is an execution contract, not normal-planner economic evidence. |
-| `control/pawn-activity-lifecycle` | Keep save/load, ownership, revision, continuation and release mechanics. |
+| `control/activity-*` | Keep save/load, ownership, revision, continuation and release mechanics. |
 | `control/pawn-activity-cooking` | Keep exact recipe/input execution and unavailable/reserved-target refusal. |
 | `control/pawn-activity-delivery` | Keep exact quantities, blocked destination/filter legality and observed delivery. |
 | `observations/pawn-activity`, `observations/planned-room-prediction` | Keep native schema, coherent observations and explicit unknowns; none proves dispatch. |
@@ -266,7 +266,7 @@ Additional affected-case disposition:
 | trade/open, trade/execute | Keep explicit native session mechanics; these do not prove autonomous negotiator selection. |
 | combatlab/repair | Keep: explicit native combat mechanics, outside ordinary Standard selection. |
 | recovery/service, recovery/area | Keep: separately owned emergency recovery and protection. |
-| control/pawn-activities, control/pawn-activity-lifecycle | Keep: exact native mechanics, continuation stops, physiology and player takeover. |
+| control/pawn-activities, control/activity-* | Keep: exact native mechanics, continuation stops, physiology and player takeover. |
 | ideology/first-ritual | Rewrite: normal review must report unsupported ritual labor with no admitted Ritual action. A separate explicit intent carries native dialog assignments; after authority release the native lord completes and advances the ritual's finished tick. No automatic participant-selection claim. |
 | mood/gathering | Rewrite: normal review must report unsupported gathering labor with no admitted Gathering action. Explicit native Party intent uses an observed legal organizer; assert exactly one native lord at the prepared spot. |
 

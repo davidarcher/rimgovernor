@@ -23,6 +23,9 @@ public sealed record StageReply
 
     public IReadOnlyDictionary<string, StagedThings> Buildings { get; init; } = new Dictionary<string, StagedThings>();
 
+    /// <summary>Bill name to the game's bill load id.</summary>
+    public IReadOnlyDictionary<string, string> Bills { get; init; } = new Dictionary<string, string>();
+
     public IReadOnlyDictionary<string, StagedThings> Things { get; init; } = new Dictionary<string, StagedThings>();
 
     public IReadOnlyDictionary<string, StagedThings> Plants { get; init; } = new Dictionary<string, StagedThings>();

@@ -6,12 +6,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimWorld;
 using Verse;
-using Verse.AI;
 using RimGovernor.Host.Sdk;
 using RimGovernor.Brain.Domain;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools
 {
+    // control/pawn-activity-delivery (#3398): the staged hauler, ripe crop and two stockpile cells bound by load id and
+    // cell; an exact harvest and exact deliveries installed straight into the native execution table, with a blocked
+    // destination and a replaced stack injected after admission.
     public sealed partial class PawnControlFixture
     {
         private static IntVec3 deliveryCell, revisedDeliveryCell;
@@ -21,42 +24,26 @@ namespace HomeBridge.BridgeTools
         private static Thing? deliverySource;
         private static IntVec3 deliverySourceCell;
 
-        [Tool("test/pawn_delivery_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare a ripe edible crop and two empty exact delivery destinations.")]
-        public async Task<object> PrepareDelivery(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
+        [Tool("test/pawn_delivery_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged hauler, ripe crop and the two delivery cells; stand every colonist still.")]
+        public async Task<object> PrepareDelivery(IRimBridgeContext ctx, CancellationToken ct,
+            [ToolParameter(Description="The hauler's load id.")] string hauler = "",
+            [ToolParameter(Description="The ripe crop's load id.")] string crop = "",
+            [ToolParameter(Description="The first delivery cell, \"x,z\".")] string destination = "",
+            [ToolParameter(Description="The revised delivery cell, \"x,z\".")] string revised = "") => await ctx.MainThread.InvokeAsync<object>(() =>
         {
-            var map = Find.CurrentMap;
-            worker = map.mapPawns.FreeColonistsSpawned.First(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Growing)
-                && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) && !p.WorkTagIsDisabled(WorkTags.ManualDumb));
-            foreach (var p in map.mapPawns.FreeColonistsSpawned)
-                p.jobs.StartJob(JobMaker.MakeJob(JobDefOf.Wait, 120000), JobCondition.InterruptForced);
-            var cells = GenRadial.RadialCellsAround(worker.Position, 8, false).Where(c => c.InBounds(map)
-                && c.Standable(map) && c.GetEdifice(map) == null && c.DistanceTo(worker.Position) > 3
-                && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)).Take(3).ToArray();
-            if (cells.Length != 3) throw new InvalidOperationException("No quiet delivery cells.");
-            foreach (var plant in cells[0].GetThingList(map).OfType<Plant>().ToArray()) plant.Destroy();
-            var definition = DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => d.defName, StringComparer.Ordinal)
-                .First(d => d.plant?.Sowable == true && d.plant.harvestedThingDef?.IsNutritionGivingIngestible == true);
-            crop = GenSpawn.Spawn(definition, cells[0], map);
-            map.areaManager.Home[cells[0]] = true;
-            ((Plant)crop).Growth = 1;
-            harvestProduct = definition.plant.harvestedThingDef;
-            foreach (var stack in map.listerThings.AllThings.Where(t => t.def == harvestProduct && t.Position.DistanceTo(cells[0]) < 4).ToArray()) stack.Destroy();
+            var map = FixtureKit.PausedMap();
+            worker = FixtureKit.Spawned<Pawn>(map, hauler);
+            var plant = FixtureKit.Spawned<Plant>(map, crop);
+            PawnControlFixture.crop = plant;
+            harvestProduct = plant.def.plant.harvestedThingDef ?? throw new ArgumentException($"{plant.def.defName} harvests nothing.");
+            deliveryCell = FixtureKit.InBounds(map, FixtureKit.Cells(destination).Single());
+            revisedDeliveryCell = FixtureKit.InBounds(map, FixtureKit.Cells(revised).Single());
+            Still(map);
             precedingFood = new HashSet<string>(map.listerThings.AllThings.Where(t => t.def == harvestProduct).Select(t => t.GetUniqueLoadID()), StringComparer.Ordinal);
-            var destinations = GenRadial.RadialCellsAround(worker.Position, 10, false).Where(c => c.InBounds(map)
-                && c.Standable(map) && c.GetEdifice(map) == null && c.DistanceTo(cells[0]) > 6
-                && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)).Take(2).ToArray();
-            if (destinations.Length != 2) throw new InvalidOperationException("No separate delivery destinations.");
-            deliveryCell = destinations[0]; revisedDeliveryCell = destinations[1]; deliverySource = null;
-            var storage = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
-            map.zoneManager.RegisterZone(storage);
-            storage.GetStoreSettings().filter.SetDisallowAll();
-            storage.GetStoreSettings().filter.SetAllow(harvestProduct, true);
-            storage.AddCell(deliveryCell); storage.AddCell(revisedDeliveryCell);
-            worker.skills.GetSkill(SkillDefOf.Plants).Level = 20;
-            worker.needs.food.CurLevelPercentage = 1; worker.needs.rest.CurLevelPercentage = 1;
+            deliverySource = null;
             deadline = Find.TickManager.TicksGame + 6000;
             harvestedCount = 0;
-            return new { success = true };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
 
         [Tool("test/pawn_delivery_harvest", Description="UNSAFE FOR MODEL EXECUTION. Install an exact harvest in the prepared delivery fixture.")]
@@ -69,7 +56,9 @@ namespace HomeBridge.BridgeTools
             NativePawnActivities.Apply(new PawnActivities(Context().NativeGeneration!.Value,
                 new[] { new PawnActivityOrder(worker!.GetUniqueLoadID(), "food-delivery", "food-method", 0, 1, false,
                     new[] { new PawnActivityStep(PawnActivityKind.Work, crop!.GetUniqueLoadID(), giver, "Harvest", 0, deadline) }) }), Context());
-            return new { success = true };
+            // The scenario clock's standby for the idle colonists, so they do not hold the clock.
+            StandbyColonists.Apply();
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
 
         [Tool("test/pawn_delivery_select", Description="UNSAFE FOR MODEL EXECUTION. Bind observed harvested food to an exact delivery; optionally block the destination after admission.")]
@@ -106,16 +95,16 @@ namespace HomeBridge.BridgeTools
             NativePawnActivities.Apply(batch, Context());
             NativePawnActivities.Apply(batch, Context());
             if (!revised) GenSpawn.Spawn(ThingDefOf.Steel, cell, worker.Map);
-            return new { success = true, source = product.GetUniqueLoadID(), quantity = product.stackCount };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
 
         [Tool("test/pawn_delivery_read", Description="UNSAFE FOR MODEL EXECUTION. Read actual edible food and exact delivery locations, independent of job success.")]
         public async Task<object> ReadDelivery(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             int Count(IntVec3 cell) => cell.GetThingList(worker!.Map).Where(t => t.def == harvestProduct && t.IngestibleNow).Sum(t => t.stackCount);
-            return new { success = true, execution = NativePawnActivities.Read(worker!), source = deliverySource == null ? 0 : Count(deliverySourceCell),
-                destination = Count(deliveryCell), revisedDestination = Count(revisedDeliveryCell), harvestedCount,
-                forced = worker!.CurJob?.playerForced == true };
+            return FixtureKit.Reply(new Fx.DeliveryRead { Execution = Execution(NativePawnActivities.Read(worker!)),
+                Source = deliverySource == null ? 0 : Count(deliverySourceCell), Destination = Count(deliveryCell), RevisedDestination = Count(revisedDeliveryCell),
+                HarvestedCount = harvestedCount, Forced = worker!.CurJob?.playerForced == true });
         }, ct).ConfigureAwait(false);
     }
 }

@@ -32,4 +32,7 @@ public static class FixtureJson
 [JsonSerializable(typeof(ProductiveCookingRead))]
 [JsonSerializable(typeof(PortfolioNeedsRead))]
 [JsonSerializable(typeof(ThermalRead))]
+[JsonSerializable(typeof(ControlRead))]
+[JsonSerializable(typeof(CookingRead))]
+[JsonSerializable(typeof(DeliveryRead))]
 internal sealed partial class FixtureJsonContext : JsonSerializerContext;

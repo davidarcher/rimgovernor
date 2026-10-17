@@ -94,7 +94,7 @@ or a content flow. Read-only probes are not test ops: a missing read is promoted
 The spec is `StageSpec` (`brain/src/RimGovernor.Fixtures.Contracts`). Its primitives are research (`StageResearch`:
 finish a project, or set its progress), world (`StageWorld`: pinned outdoor temperature, clock hour), find site
 (`StageSite`), clear area (`StageClear`), set cells (`StageCells`: terrain, roof, home, fog), build room
-(`StageRoom`), place building (`StageBuilding`: complete, frame or blueprint, a finished one damaged or fuelled), spawn thing (`StageThing`), spawn plant (`StagePlant`: a plant def at a growth), spawn or
+(`StageRoom`), place building (`StageBuilding`: complete, frame or blueprint, a finished one damaged or fuelled), add bill (`StageBill`: a repeat-count production bill on a staged work table), spawn thing (`StageThing`), spawn plant (`StagePlant`: a plant def at a growth), spawn or
 set pawn (`StagePawn`: kind, faction, age, skill level, cleared traits, gear, hediffs, work, timetable, needs, mental
 state, inspiration), zone (`StageZone`), the raid that drives staged hostiles (`StageRaid`), fire incident
 (`StageIncident`: an IncidentDef through its own worker, optionally with a trader kind) and generate quest

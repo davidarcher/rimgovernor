@@ -23,10 +23,13 @@ public static class CaseCatalog
         registry.Register(ProductionMaintenancePractice.Case(false));
         registry.Register(ProductionMaintenancePractice.Case(true));
         registry.Register(ShelterServiceInvestment.Case());
-        registry.Register(PawnControlCase.Case());
-        registry.Register(PawnControlCase.LifecycleCase());
-        registry.Register(PawnDeliveryCase.Case());
-        registry.Register(PawnCookingCase.Case());
+        foreach (var c in ControlActivities.Cases())
+        {
+            registry.Register(c);
+        }
+
+        registry.Register(ControlDelivery.Case());
+        registry.Register(ControlCooking.Case());
         registry.Register(ProductionClothingActivity.Case());
         registry.Register(ProductionClothingActivity.Case(interrupted: true));
         registry.Register(CoordinatedWork.Case("food"));

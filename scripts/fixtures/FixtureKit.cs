@@ -53,6 +53,12 @@ namespace HomeBridge.BridgeTools
         public static Newtonsoft.Json.Linq.JObject Reply<T>(T value) =>
             Newtonsoft.Json.Linq.JObject.Parse(RimGovernor.Fixtures.Contracts.FixtureJson.Serialize(value));
 
+        // The spawned thing (a pawn too) with this load id, as a StageReply names it; none refuses.
+        public static T Spawned<T>(Map map, string id) where T : Thing =>
+            map.listerThings.AllThings.OfType<T>().FirstOrDefault(t => t.GetUniqueLoadID() == id)
+                ?? map.mapPawns.AllPawnsSpawned.OfType<T>().FirstOrDefault(p => p.GetUniqueLoadID() == id)
+                ?? throw new ArgumentException($"No spawned {typeof(T).Name} {id}.");
+
         public static IntVec3 InBounds(Map map, IntVec3 cell) =>
             cell.InBounds(map) ? cell : throw new ArgumentException($"Cell {cell.x},{cell.z} is out of bounds.");
 

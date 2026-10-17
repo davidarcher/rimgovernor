@@ -35,6 +35,8 @@ namespace HomeBridge.BridgeTools
             StageRect? site = null;
             var rooms = new Dictionary<string, StagedRoom>();
             var buildings = new Dictionary<string, StagedThings>();
+            var tables = new Dictionary<string, List<Thing>>();
+            var bills = new Dictionary<string, string>();
             var things = new Dictionary<string, StagedThings>();
             var plants = new Dictionary<string, StagedThings>();
             var pawns = new Dictionary<string, StagedPawn>();
@@ -136,6 +138,21 @@ namespace HomeBridge.BridgeTools
                         made.Add(thing);
                     }
                     Add(buildings, b.Name, new StagedThings(Ids(made), made.Select(t => Out(t.Position)).ToList()));
+                    tables[b.Name] = made;
+                }
+                foreach (var b in spec.Bills)
+                {
+                    var table = tables.TryGetValue(b.Building, out var named) && named.Count == 1 ? named[0] as Building_WorkTable : null;
+                    if (table == null) throw new ArgumentException($"Bill {b.Name}: {b.Building} is not one staged work table.");
+                    var recipe = FixtureKit.Def<RecipeDef>(b.Recipe);
+                    if (!table.def.AllRecipes.Contains(recipe)) throw new ArgumentException($"Bill {b.Name}: {table.def.defName} does not offer {recipe.defName}.");
+                    if (b.RepeatCount < 1) throw new ArgumentException($"Bill {b.Name}: repeat count {b.RepeatCount} is below 1.");
+                    var bill = recipe.MakeNewBill() as Bill_Production ?? throw new ArgumentException($"Bill {b.Name}: {recipe.defName} is not a production recipe.");
+                    bill.repeatMode = BillRepeatModeDefOf.RepeatCount;
+                    bill.repeatCount = b.RepeatCount;
+                    if (b.DropOnFloor) bill.SetStoreMode(BillStoreModeDefOf.DropOnFloor, null);
+                    table.BillStack.AddBill(bill);
+                    Add(bills, b.Name, bill.GetUniqueLoadID());
                 }
                 foreach (var t in spec.Things)
                 {
@@ -239,7 +256,7 @@ namespace HomeBridge.BridgeTools
                 Add(quests, q.Name, new StagedQuest(quest.GetUniqueLoadID(), quest.root.defName, quest.State.ToString()));
             }
             var rows = FixtureKit.DigestRows(map);
-            return new StageReply { Success = true, Seed = spec.Seed, Research = research, Site = site, Rooms = rooms, Buildings = buildings, Things = things, Plants = plants, Pawns = pawns, Zones = zones,
+            return new StageReply { Success = true, Seed = spec.Seed, Research = research, Site = site, Rooms = rooms, Buildings = buildings, Bills = bills, Things = things, Plants = plants, Pawns = pawns, Zones = zones,
                 Incidents = incidents, Quests = quests, OutdoorTemperature = map.mapTemperature.OutdoorTemp, Hour = GenLocalDate.HourOfDay(map),
                 Digest = FixtureKit.Digest(rows), DigestRows = rows };
         }
@@ -411,7 +428,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class StageFixture
     {
-        [Tool("test/stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3393, #3395): stage a StageSpec (RimGovernor.Fixtures.Contracts) on the current game in one call: finish or set research, pin the outdoor temperature and move the clock, find a site, clear areas, set cells, build rooms, place buildings, spawn items, spawn plants at a growth, spawn or set pawns (generated or existing colonists, gear, wounds, work, timetable, needs, mental state, inspiration) with a raid's arrival and lords, lay zones, fire incidents and generate quest offers. Resets the lab damage and shot ledgers. Replies a StageReply: the ids and cells of everything made, keyed by the spec's names, and a name-free digest.")]
+        [Tool("test/stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3393, #3395): stage a StageSpec (RimGovernor.Fixtures.Contracts) on the current game in one call: finish or set research, pin the outdoor temperature and move the clock, find a site, clear areas, set cells, build rooms, place buildings, add production bills to them, spawn items, spawn plants at a growth, spawn or set pawns (generated or existing colonists, gear, wounds, work, timetable, needs, mental state, inspiration) with a raid's arrival and lords, lay zones, fire incidents and generate quest offers. Resets the lab damage and shot ledgers. Replies a StageReply: the ids and cells of everything made, keyed by the spec's names, and a name-free digest.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "The StageSpec as JSON (FixtureJson).")] string spec)
         {
