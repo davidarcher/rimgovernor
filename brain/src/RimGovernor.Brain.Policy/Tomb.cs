@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Policy;
 // Vanilla haulers inter colonist corpses in any empty grave on their own; nothing here hauls.
 //
 // No sarcophagus burial gives a mood memory: vanilla's KnowBuriedInSarcophagus fires only for a body placed by
-// Building_Sarcophagus.TryAcceptThing, which no haul path calls (burial/stranger_sarcophagus, #3242). Strangers
+// Building_Sarcophagus.TryAcceptThing, which no haul path calls (burial/stranger-sarcophagus, #3242). Strangers
 // keep the morgue path; the tomb and the plain grave count colonists only.
 
 /// <summary>The next tomb step.</summary>
@@ -59,7 +59,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>
     /// The memory vanilla gives every colonist when a sarcophagus takes its first body through TryAcceptThing; no haul
-    /// path calls that, so a hauled burial never gives it (burial/stranger_sarcophagus reads it).
+    /// path calls that, so a hauled burial never gives it (burial/stranger-sarcophagus reads it).
     /// </summary>
     public const string KnowBuriedInSarcophagusThought = "KnowBuriedInSarcophagus";
 

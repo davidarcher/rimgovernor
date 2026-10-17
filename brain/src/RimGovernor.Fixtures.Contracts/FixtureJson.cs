@@ -41,4 +41,12 @@ public static class FixtureJson
 [JsonSerializable(typeof(ControlRead))]
 [JsonSerializable(typeof(CookingRead))]
 [JsonSerializable(typeof(DeliveryRead))]
+[JsonSerializable(typeof(BurnableStaged))]
+[JsonSerializable(typeof(BurnableRead))]
+[JsonSerializable(typeof(FactsEquality))]
+[JsonSerializable(typeof(BurialStaged))]
+[JsonSerializable(typeof(BurialRead))]
+[JsonSerializable(typeof(TombStaged))]
+[JsonSerializable(typeof(TombRead))]
+[JsonSerializable(typeof(SupportRead))]
 internal sealed partial class FixtureJsonContext : JsonSerializerContext;

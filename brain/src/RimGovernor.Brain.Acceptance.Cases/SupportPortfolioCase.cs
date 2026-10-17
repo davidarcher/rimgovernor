@@ -1,6 +1,3 @@
-using RimGovernor.Brain.Domain;
-using System.Text.Json.Nodes;
-using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Telemetry.Otlp;
 
@@ -61,12 +58,8 @@ internal static class SupportPortfolioCase
                 session.Report["journaled"] = journaled;
                 session.Report["selectedEvidence"] = selected;
                 session.Report["observedEvidence"] = observed;
-                var criticalCare = scenario != "care" || await CriticalCareEvidenceAsync(store, read, token).ConfigureAwait(false);
-                session.Report["criticalCareJournalEvidence"] = criticalCare;
                 var outcome = scenario switch
                 {
-                    "bench" => read["cleaned"].Flag() && read["produced"].Flag(),
-                    "care" or "routine" => criticalCare && read["tended"].Flag() && read["careWithinServiceBudget"].Flag() && read["cleaned"].Flag(),
                     "delivery" => read["delivered"].Flag() && read["produced"].Flag() && read["quantityBounded"].Flag(),
                     "cancel" => cancelled && read["cancelled"].Flag() && read["released"].Flag(),
                     "chunks" => read["usefulPickedUp"].Flag() && read["delivered"].Flag() && read["quantityBounded"].Flag() && read["required"].AsNumber() > 0 && read["unrelatedUnmoved"].Flag(),
@@ -79,22 +72,5 @@ internal static class SupportPortfolioCase
             }, ct).ConfigureAwait(false);
         }
         finally { await run.StopAsync(ct).ConfigureAwait(false); }
-    }
-    private static async Task<bool> CriticalCareEvidenceAsync(RimGovernor.Brain.Store.Store store, JsonObject read, CancellationToken ct)
-    {
-        var doctors = read["criticalDoctors"]!.AsArray().Select(n => n.AsString()).ToHashSet(StringComparer.Ordinal);
-        if (doctors.Count == 0) return false;
-        var review = await store.LoadRoundsAsync(ct).ConfigureAwait(false);
-        // The patient's critical Need owns its tends (#3258): every attempt in this world, retired ones included.
-        var need = PolicyFunctions.CriticalNeed(new PawnId(read["patient"].AsString()));
-        var history = await Task.Run(() => store.OwnerMethodHistory(store.LoadNeed(need, review.Snapshot, ct), ct), ct).ConfigureAwait(false);
-        foreach (var method in history)
-        {
-            var plan = await store.LoadPlanAsync(method.Plan, ct).ConfigureAwait(false);
-            for (var i = 0; i < plan.Spec.Actions.Count; i++)
-                if (plan.Spec.Actions[i].Tend is { } tend && tend.Patient.Value == read["patient"].AsString()
-                    && doctors.Contains(tend.Doctor.Value) && plan.Progress[i].View.Stage == Stage.Completed) return true;
-        }
-        return false;
     }
 }

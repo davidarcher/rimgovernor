@@ -51,14 +51,6 @@ namespace HomeBridge.BridgeTools
             _ => throw new InvalidOperationException("EntityContainmentMode " + mode + " has no wire value.")
         };
 
-        internal static Common.RotStage Rot(RotStage stage) => stage switch
-        {
-            RotStage.Fresh => Common.RotStage.Fresh,
-            RotStage.Rotting => Common.RotStage.Rotting,
-            RotStage.Dessicated => Common.RotStage.Dessicated,
-            _ => Common.RotStage.Unspecified
-        };
-
         // Holder is the read's holder kind ("container", "corpse",
         // "pawnInventory", "carried") on the wire.
         internal static Obs.HolderKind Holder(string kind) => kind switch

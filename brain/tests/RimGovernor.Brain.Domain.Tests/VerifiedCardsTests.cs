@@ -9,7 +9,7 @@ public sealed class VerifiedCardsTests
     private static readonly HashSet<string> Cards = new(StringComparer.Ordinal) { "KnowBuriedInSarcophagus" };
 
     private static string Table(string drift) =>
-        VerifiedCards.Header + "\nKnowBuriedInSarcophagus\t" + drift + "\tburial/stranger_sarcophagus\t1.7.4979 rev109\trun pass\n";
+        VerifiedCards.Header + "\nKnowBuriedInSarcophagus\t" + drift + "\tburial/stranger-sarcophagus\t1.7.4979 rev109\trun pass\n";
 
     [Fact]
     public void ADriftHashMismatchIsExtractedAndNamesTheStaleRow()
@@ -24,7 +24,7 @@ public sealed class VerifiedCardsTests
         var (verified, stale) = VerifiedCards.Match("KnowBuriedInSarcophagus", changed, rows);
         Assert.False(verified);
         var row = Assert.Single(stale);
-        Assert.Equal((2, probed, "burial/stranger_sarcophagus"), (row.Line, row.DriftHash, row.Probe));
+        Assert.Equal((2, probed, "burial/stranger-sarcophagus"), (row.Line, row.DriftHash, row.Probe));
     }
 
     [Fact]

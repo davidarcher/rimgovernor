@@ -879,12 +879,12 @@ The `admin/burial` Need (People, #2196, #3304) stages the tomb, the graves and t
 (`policy.StoreOwner`); it asks layout for no room. With no grave site the
 preview accepts, the body waits in the morgue. The morgue holds every human corpse, fresh or rotten, at
 `MorguePriority` (Normal), below the graves and sarcophagi that take a colonist
-corpse by vanilla hauling (acceptance case `burial/grave_over_morgue`). A
+corpse by vanilla hauling (acceptance case `burial/grave-over-morgue`). A
 stranger corpse waits in the morgue: neither the tomb nor the plain grave counts
 one. No sarcophagus burial gives a mood memory: vanilla grants
 `KnowBuriedInSarcophagus` only through `Building_Sarcophagus.TryAcceptThing`,
 which no haul path calls, so a native haul into a fresh sarcophagus gives none
-(acceptance probe `burial/stranger_sarcophagus`, #3242). The sarcophagus stays
+(acceptance probe `burial/stranger-sarcophagus`, #3242). The sarcophagus stays
 the colonist tomb once it can be had.
 
 Rotten things and waste have no room of their own (#3232): they store in the materials yard

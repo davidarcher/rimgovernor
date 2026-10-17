@@ -11,12 +11,12 @@ namespace HomeBridge.BridgeTools
     // Disposable setup only; never exposed through the controller gameplay surface.
     public sealed class WasteFixture
     {
-        [Tool("test/waste_fixture", Description = "Prepare disposable waste hauling acceptance inputs.")]
-        public async Task<object> Create(IRimBridgeContext ctx, CancellationToken cancellationToken, bool burial = false)
+        [Tool("test/waste_fixture", Description = "Prepare the ColonyFacts equality inputs: a rotted corpse, a forbidden Steel stack and a dumping stockpile outside Home.")]
+        public async Task<object> Create(IRimBridgeContext ctx, CancellationToken cancellationToken)
             => await ctx.MainThread.InvokeAsync(() =>
             {
                 var map = Find.CurrentMap;
-                var pawn = map.mapPawns.FreeColonistsSpawned.First(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling));
+                var pawn = map.mapPawns.FreeColonistsSpawned.First();
                 // A generous pool of candidate cells, not one fixed cell per
                 // item: ThingPlaceMode.Direct placement of a fresh item was
                 // observed live to fail outright (TryPlaceThing returns
@@ -55,8 +55,8 @@ namespace HomeBridge.BridgeTools
                     && !map.areaManager.Home[c] && c.DistanceToSquared(source) > 225
                     && c.GetRoom(map)?.UsesOutdoorTemperature == true
                     && !map.listerBuildings.allBuildingsColonist.Any(b => b.Position.DistanceToSquared(c) < 196));
-                var kind = burial ? PawnKindDefOf.Colonist : DefDatabase<PawnKindDef>.AllDefsListForReading.First(k => k.race.defName == "Squirrel");
-                var animal = PawnGenerator.GeneratePawn(kind, burial ? Faction.OfPlayer : null);
+                var kind = DefDatabase<PawnKindDef>.AllDefsListForReading.First(k => k.race.defName == "Squirrel");
+                var animal = PawnGenerator.GeneratePawn(kind, null);
                 GenSpawn.Spawn(animal, source, map);
                 animal.Kill(null);
                 var corpse = animal.Corpse;
@@ -69,51 +69,19 @@ namespace HomeBridge.BridgeTools
                 corpse.SetForbidden(false, false);
                 var protectedItem = (Thing)PlaceSomewhere(ThingMaker.MakeThing(ThingDefOf.Steel));
                 protectedItem.SetForbidden(true, false);
-                var protectedCell = protectedItem.Position;
-                if (burial)
-                {
-                    var grave = ThingMaker.MakeThing(ThingDefOf.Grave);
-                    grave.SetFaction(Faction.OfPlayer);
-                    GenSpawn.Spawn(grave, destination, map);
-                    ((Building_Grave)grave).GetStoreSettings().filter.SetAllow(corpse.def, true);
-                }
-                else
-                {
-                    var zone = new Zone_Stockpile(StorageSettingsPreset.DumpingStockpile, map.zoneManager);
-                    map.zoneManager.RegisterZone(zone);
-                    zone.AddCell(destination);
-                    zone.AddCell(destination + IntVec3.East);
-                    zone.GetStoreSettings().filter.SetDisallowAll();
-                    zone.GetStoreSettings().filter.SetAllow(corpse.def, true);
-                    foreach (var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(d => d.configurable))
-                        zone.GetStoreSettings().filter.SetAllow(special, true);
-                    zone.GetStoreSettings().Priority = StoragePriority.Critical;
-                    // Native stockpile creation may expand Home; this fixture
-                    // deliberately models player-selected dirty storage outside it.
-                    foreach (var cell in zone.Cells) map.areaManager.Home[cell] = false;
-                }
-                // Disable Hauling for every colonist (including the returned
-                // pawn), not enable it: the dispatch under
-                // test issues its own forced WorkGiver_Scanner job directly
-                // (TryTakeOrderedJob), bypassing work settings entirely, so
-                // no colonist's own priority needs to be enabled for it. Left
-                // enabled, a live run observed the normal think-tree grab
-                // this exact unforbidden corpse into the dumping
-                // stockpile within the same handful of ticks fixture setup
-                // itself consumes, before the acceptance tool ever issues its
-                // own dispatch -- disabling it here removes that race.
-                foreach (var colonist in map.mapPawns.FreeColonistsSpawned)
-                    colonist.workSettings?.SetPriority(WorkTypeDefOf.Hauling, 0);
-                var identity = Current.Game.GetComponent<ColonyIdentity>();
-                return (object)new { success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken,
-                    mapId = map.uniqueID, tick = Find.TickManager.TicksGame,
-                    pawn = pawn.GetUniqueLoadID(), corpse = corpse.GetUniqueLoadID(),
-                    protectedItem = protectedItem.GetUniqueLoadID(),
-                    source = BridgeCommon.Pos(source), destination = BridgeCommon.Pos(destination),
-                    // The forbidden Steel may land on a different candidate cell
-                    // than "source" (see PlaceSomewhere above); report its actual
-                    // cell so the acceptance tool scans exactly where it is.
-                    protectedCell = BridgeCommon.Pos(protectedCell) };
+                var zone = new Zone_Stockpile(StorageSettingsPreset.DumpingStockpile, map.zoneManager);
+                map.zoneManager.RegisterZone(zone);
+                zone.AddCell(destination);
+                zone.AddCell(destination + IntVec3.East);
+                zone.GetStoreSettings().filter.SetDisallowAll();
+                zone.GetStoreSettings().filter.SetAllow(corpse.def, true);
+                foreach (var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(d => d.configurable))
+                    zone.GetStoreSettings().filter.SetAllow(special, true);
+                zone.GetStoreSettings().Priority = StoragePriority.Critical;
+                // Native stockpile creation may expand Home; this fixture
+                // deliberately models player-selected dirty storage outside it.
+                foreach (var cell in zone.Cells) map.areaManager.Home[cell] = false;
+                return (object)new { success = true };
             }, cancellationToken);
 
         // Burial ranking acceptance: a morgue zone at MorguePriority

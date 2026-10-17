@@ -32,22 +32,6 @@ public enum CorpseClass
 }
 
 /// <summary>
-/// A rotting thing's stage (Verse RotStage).
-/// </summary>
-[JsonConverter(typeof(WireEnumConverter<RotStage>))]
-public enum RotStage
-{
-    [WireName("ROT_STAGE_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("ROT_STAGE_FRESH")]
-    Fresh = 1,
-    [WireName("ROT_STAGE_ROTTING")]
-    Rotting = 2,
-    [WireName("ROT_STAGE_DESSICATED")]
-    Dessicated = 3,
-}
-
-/// <summary>
 /// How RimWorld answers the same request again. Native sets it on a refusal;
 /// a refusal without one is unknown. PERMANENT: the game refuses it until the
 /// world changes materially (or never). TRANSIENT: it may succeed once the

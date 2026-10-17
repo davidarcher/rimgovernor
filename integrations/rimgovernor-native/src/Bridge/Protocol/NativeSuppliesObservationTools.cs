@@ -226,9 +226,6 @@ namespace HomeBridge.BridgeTools
                 {
                     var pawn = corpse.InnerPawn ?? throw new InvalidOperationException("Corpse pawn unavailable.");
                     var detail = new Obs.CorpseState { Corpse = NativeRef.Thing(corpse), Race = Id(pawn.def.defName), Humanlike = pawn.RaceProps.Humanlike };
-                    var rot = corpse.GetComp<CompRottable>();
-                    if (rot != null) detail = detail with { RotStage = NativeEnums.Rot(rot.Stage) };
-                    else row = row with { Issues = [.. row.Issues, Issue("corpses." + Id(corpse.GetUniqueLoadID()) + ".rot_stage", Common.UnavailableReason.NotApplicable, "Corpse has no rot component.")] };
                     row = row with { Corpses = [.. row.Corpses, detail] };
                 }
             }

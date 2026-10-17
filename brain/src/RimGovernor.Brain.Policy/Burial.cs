@@ -9,7 +9,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>
     /// Ranks the morgue below graves and sarcophagi, which take a colonist corpse the morgue holds until one
-    /// has room, and above the Low corpse dump. The native acceptance case burial/grave_over_morgue verifies
+    /// has room, and above the Low corpse dump. The native acceptance case burial/grave-over-morgue verifies
     /// the ranking.
     /// </summary>
     public const StockpilePriority MorguePriority = StockpilePriority.Normal;

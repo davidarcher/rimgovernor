@@ -206,7 +206,7 @@ def's stale rows (a game update changed a method), so the probe is re-run and a 
 no card, or whose card is `unreachable`, fails the tool. To verify a card: run its probe case once, append the row with the printed drift hash and the
 run evidence, and rerun `thoughtaudit -guards`.
 
-The probe for `KnowBuriedInSarcophagus` is `burial/stranger_sarcophagus`. It records the observed vanilla fact: a
+The probe for `KnowBuriedInSarcophagus` is `burial/stranger-sarcophagus`. It records the observed vanilla fact: a
 colonist's native haul of a stranger corpse into a fresh sarcophagus gives no colonist the memory and leaves the
 corpse's `everBuriedInSarcophagus` false, because `Notify_HauledTo` returns unless `thisIsFirstBodyEver`, which only
 `TryAcceptThing` sets and no haul path calls (#3242).

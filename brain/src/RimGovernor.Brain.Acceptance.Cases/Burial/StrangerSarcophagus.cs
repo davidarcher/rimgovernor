@@ -1,128 +1,85 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
 using RimGovernor.Brain.Policy;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>burial/stranger_sarcophagus</c>: the KnowBuriedInSarcophagus probe, a native haul that gives no memory.</summary>
+/// <summary>
+/// <c>burial/stranger-sarcophagus</c> (#3242): the KnowBuriedInSarcophagus probe, a native haul that gives no memory.
+/// test/tomb_stage stays bespoke: the stage primitives cannot spawn a corpse.
+/// </summary>
 internal static class StrangerSarcophagus
 {
-    private const string TombStage = "test/tomb_stage";
-    private const string TombRead = "test/tomb_read";
-
-    // One vanilla haul into the sarcophagus, as the grave case bounds its haul.
-    private const int TombWindow = 2 * Wait.TicksPerDay;
+    private const string StageTool = "test/tomb_stage";
+    private const string ReadTool = "test/tomb_read";
 
     // Ticks the read waits after the haul, so a memory gained a moment late would show.
     private const int Settle = 600;
 
-    internal static AcceptanceCase Case() => new()
+    private static readonly FixtureOp<NoArgs, Fx.TombStaged> Staged = new(
+        StageTool,
+        _ => [],
+        (label, reply) => ServedOps.Reply<Fx.TombStaged>(StageTool)(label, reply) is { Success: true, Sarcophagus.Length: > 0, Corpse.Length: > 0 } staged
+            ? staged
+            : throw new AcceptanceException($"{label}: {StageTool} refused: {reply?.ToJsonString()}"));
+
+    private static readonly FixtureOp<Fx.TombStaged, Fx.TombRead> Read = new(
+        ReadTool,
+        staged => ServedOps.Args(("sarcophagus", staged.Sarcophagus), ("ids", "," + staged.Corpse)),
+        ServedOps.Reply<Fx.TombRead>(ReadTool));
+
+    private static readonly FixtureOp<NoArgs, Fx.FixtureDone> VanillaColonists = ServedOps.Inject(Needs.VanillaColonistsTool);
+
+    internal static TypedCase Case() => new()
     {
-        Name = "burial/stranger_sarcophagus",
-        Scope = "Issue #3242, the KnowBuriedInSarcophagus probe (epic #3217): a colonist natively hauls a stranger corpse into a fresh "
+        Name = "burial/stranger-sarcophagus",
+        Scope = "The KnowBuriedInSarcophagus probe (#3242, epic #3217): a colonist natively hauls a stranger corpse into a fresh "
             + "sarcophagus, and no colonist gains KnowBuriedInSarcophagus and the corpse's everBuriedInSarcophagus stays false. "
-            + "Building_Sarcophagus.Notify_HauledTo returns unless thisIsFirstBodyEver, which only TryAcceptThing sets and no haul path "
-            + "calls, so the memory is unreachable by hauling. Vanilla physics no snapshot test over recorded facts covers; it is the "
-            + "negative benchmark the mechanic-card gate cites.",
-        Start = new FixtureStart { Op = TombStage, On = new LabStart() },
-        RequiredOps = [TombStage, TombRead],
+            + "Building_Sarcophagus.Notify_HauledTo returns unless thisIsFirstBodyEver, which only TryAcceptThing sets and no haul "
+            + "path calls. Mood stays live so a memory could land; colonists haul on their own (test/vanilla_colonists). Vanilla "
+            + "physics no unit test runs; it is the negative benchmark the mechanic-card gate cites.",
+        Ticks = 10000,
+        Tier = CaseTier.OnDemand,
+        Ops = [StageTool, ReadTool, Needs.VanillaColonistsTool],
         QuietWorld = true,
         Keep = ["Mood"],
-        VanillaColonists = true,
-        Reason = "Mood stays live: the assertion reads the memory a burial would give. VanillaColonists: colonists haul the corpse on "
-            + "their own, the vanilla Notify_HauledTo path the probe observes.",
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private sealed class TombState
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        public bool Holds { get; set; }
+        var staged = await s.FixtureAsync("tomb-stage", Staged, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        _ = await s.FixtureAsync("vanilla-colonists", VanillaColonists, NoArgs.Value, cancellationToken).ConfigureAwait(false);
 
-        public List<int> Memories { get; } = [];
+        Fx.TombCorpse? Corpse(Fx.TombRead read) => read.Corpses.FirstOrDefault(c => c.Id == staged.Corpse);
 
-        public List<bool> Moods { get; } = [];
-
-        public Dictionary<string, JsonObject> Corpses { get; } = [];
-
-        public override string ToString() => $"holds={Holds} memories=[{string.Join(',', Memories)}] moods=[{string.Join(',', Moods)}] corpses={new JsonObject(Corpses.Select(c => KeyValuePair.Create(c.Key, (JsonNode?)c.Value.DeepClone()))).ToJsonString()}";
-    }
-
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var h = s.Harness;
-        var prepared = s.Prepared ?? [];
-        var sarcophagus = prepared["sarcophagus"].AsString();
-        var corpse = prepared["corpse"].AsString();
-        if (sarcophagus.Length == 0 || corpse.Length == 0)
+        var ticks = await s.RunUntilAsync("tomb-haul", s.TicksLeft - Settle, async ct =>
         {
-            throw new AcceptanceException($"prepare: missing fixture ids: {prepared.ToJson()}");
+            var read = await s.FixtureAsync("tomb-read", Read, staged, ct).ConfigureAwait(false);
+            var inside = Corpse(read)?.InSarcophagus == true;
+            return (Wait.Signature(string.Create(CultureInfo.InvariantCulture, $"inside={inside} holds={read.Holds}")), inside);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("burial_ticks", ticks);
+
+        await s.RunTicksAsync("settle", Settle, cancellationToken).ConfigureAwait(false);
+        var settled = await s.FixtureAsync("tomb-read-settled", Read, staged, cancellationToken).ConfigureAwait(false);
+        s.Record("settled", ServedOps.Json(settled));
+        if (settled.Colonists.Count == 0)
+        {
+            throw new AcceptanceException("no colonist read");
         }
 
-        async Task<TombState> Read(string label)
+        foreach (var colonist in settled.Colonists)
         {
-            var reply = await h.CallAsync(label, TombRead, new JsonObject { ["sarcophagus"] = sarcophagus, ["ids"] = "," + corpse }, cancellationToken).ConfigureAwait(false);
-            var st = new TombState { Holds = reply["holds"].AsBool() == true };
-            foreach (var raw in reply["colonists"].AsSlice())
+            if (!colonist.Mood || colonist.Memories != 0)
             {
-                var row = raw.AsMap() ?? [];
-                st.Moods.Add(row["mood"].AsBool() == true);
-                st.Memories.Add((int)row["memories"].AsNumber());
-            }
-
-            foreach (var raw in reply["corpses"].AsSlice())
-            {
-                if (raw.AsMap() is { } row)
-                {
-                    st.Corpses[row["id"].AsString()] = row;
-                }
-            }
-
-            return st;
-        }
-
-        bool Flag(TombState st, string key) => st.Corpses.TryGetValue(corpse, out var row) && row[key].AsBool() == true;
-
-        // The native haul: polled every 300 ticks, bounded.
-        TombState buried;
-        for (var advanced = 0; ; advanced += 300)
-        {
-            buried = await Read($"burial-{CaseSupport.Tag(advanced)}").ConfigureAwait(false);
-            if (Flag(buried, "inSarcophagus"))
-            {
-                s.Report["burial_ticks"] = advanced;
-                break;
-            }
-
-            if (advanced >= TombWindow)
-            {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the stranger corpse was not hauled into the sarcophagus within {advanced} ticks: {buried}"));
-            }
-
-            _ = await s.AdvanceAsync(300, null, cancellationToken).ConfigureAwait(false);
-        }
-
-        _ = await s.AdvanceAsync(Settle, null, cancellationToken).ConfigureAwait(false);
-        var settled = await Read("settled").ConfigureAwait(false);
-        if (settled.Memories.Count == 0)
-        {
-            throw new AcceptanceException($"no colonist read: {settled}");
-        }
-
-        s.Report["colonists"] = settled.Memories.Count;
-        s.Report["memories"] = new JsonArray([.. settled.Memories.Select(m => (JsonNode?)m)]);
-        for (var i = 0; i < settled.Memories.Count; i++)
-        {
-            if (!settled.Moods[i] || settled.Memories[i] != 0)
-            {
-                throw new AcceptanceException($"colonist {i} has {settled.Memories[i]} {PolicyFunctions.KnowBuriedInSarcophagusThought} memories (mood need {settled.Moods[i]}), want 0: {settled}");
+                throw new AcceptanceException($"colonist {colonist.Id} has {colonist.Memories} {PolicyFunctions.KnowBuriedInSarcophagusThought} memories (mood need {colonist.Mood}), want 0");
             }
         }
 
-        if (!Flag(settled, "inSarcophagus") || Flag(settled, "everBuried"))
+        if (Corpse(settled) is not { InSarcophagus: true, EverBuried: false })
         {
-            throw new AcceptanceException($"the hauled corpse is not in the sarcophagus with everBuriedInSarcophagus false: {settled}");
+            throw new AcceptanceException($"the hauled corpse is not in the sarcophagus with everBuriedInSarcophagus false: {Corpse(settled)}");
         }
     }
 }

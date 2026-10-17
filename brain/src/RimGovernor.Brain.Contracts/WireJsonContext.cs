@@ -152,7 +152,6 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Clock.EventsReplyOutcome.FailureCase), TypeInfoPropertyName = "ClockEventsReplyOutcomeFailureCase")]
 [JsonSerializable(typeof(Common.TradeRequestKind), TypeInfoPropertyName = "CommonTradeRequestKind")]
 [JsonSerializable(typeof(Common.CorpseClass), TypeInfoPropertyName = "CommonCorpseClass")]
-[JsonSerializable(typeof(Common.RotStage), TypeInfoPropertyName = "CommonRotStage")]
 [JsonSerializable(typeof(Common.RefusalClass), TypeInfoPropertyName = "CommonRefusalClass")]
 [JsonSerializable(typeof(Common.FailureCode), TypeInfoPropertyName = "CommonFailureCode")]
 [JsonSerializable(typeof(Common.UnavailableReason), TypeInfoPropertyName = "CommonUnavailableReason")]

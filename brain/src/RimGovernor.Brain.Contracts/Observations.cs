@@ -1854,8 +1854,7 @@ public sealed record HeldStock
 }
 
 /// <summary>
-/// One corpse a stock row counts: its race, whether that race is humanlike,
-/// and its rot stage (absent for a corpse without a rot component).
+/// One corpse a stock row counts: its race and whether that race is humanlike.
 /// </summary>
 public sealed record CorpseState
 {
@@ -1864,8 +1863,6 @@ public sealed record CorpseState
     public string Race { get; init; } = "";
 
     public bool Humanlike { get; init; }
-
-    public Common.RotStage? RotStage { get; init; }
 }
 
 /// <summary>

@@ -10,7 +10,7 @@
   "authority/warm": 45853,
   "bed/assign": 22814,
   "bills/census": 21642,
-  "burial/grave_over_morgue": 24219,
+  "burial/grave-over-morgue": 24219,
   "caravan/departure": 43909,
   "child/first-child": 59186,
   "child/mech-gestation": 148270,
@@ -151,6 +151,6 @@
   "wall/removal": 23899,
   "wall/upgrade": 16616,
   "waste/burnable-filters": 18237,
-  "waste/colony_facts_equality": 14912,
+  "waste/colony-facts-equality": 14912,
   "zone/delete": 19842
 }

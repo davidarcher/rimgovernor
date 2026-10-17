@@ -1,113 +1,75 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
-using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using DomainWire = RimGovernor.Brain.Domain.Wire;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>burial/grave_over_morgue</c> (Go <c>burial/grave_over_morgue.go</c>).</summary>
+/// <summary>
+/// <c>burial/grave-over-morgue</c> (#2196): a morgue zone at policy.MorguePriority holding a colonist and a stranger
+/// corpse beside a free grave. test/burial_stage stays bespoke: the stage primitives cannot spawn corpses.
+/// </summary>
 internal static class GraveOverMorgue
 {
-    private const string BurialStage = "test/burial_stage";
-    private const string BurialRead = "test/burial_read";
+    private const string StageTool = "test/burial_stage";
+    private const string ReadTool = "test/burial_read";
 
-    // The window bounds the vanilla haul: the grave is a few cells from the morgue and the hauler is idle.
-    private const int BurialWindow = 2 * Wait.TicksPerDay;
+    // Ticks the stranger is watched after the colonist's burial: the hauler had every chance at it too.
+    private const int Settle = 600;
 
-    internal static AcceptanceCase Case() => new()
+    private static readonly FixtureOp<NoArgs, Fx.BurialStaged> Staged = new(
+        StageTool,
+        _ => ServedOps.Args(("priority", DomainWire.Name(PolicyFunctions.MorguePriority))),
+        (label, reply) => ServedOps.Reply<Fx.BurialStaged>(StageTool)(label, reply) is { Success: true, ColonistCorpse.Length: > 0, StrangerCorpse.Length: > 0, Grave.Length: > 0 } staged
+            ? staged
+            : throw new AcceptanceException($"{label}: {StageTool} refused: {reply?.ToJsonString()}"));
+
+    private static readonly FixtureOp<string, Fx.BurialRead> Read = new(ReadTool, ids => ServedOps.Args(("ids", ids)), ServedOps.Reply<Fx.BurialRead>(ReadTool));
+
+    private static readonly FixtureOp<NoArgs, Fx.FixtureDone> VanillaColonists = ServedOps.Inject(Needs.VanillaColonistsTool);
+
+    internal static TypedCase Case() => new()
     {
-        Name = "burial/grave_over_morgue",
-        Scope = "Issue #2196 grave-versus-zone ranking: a morgue zone at policy.MorguePriority holding a colonist and a stranger corpse "
-            + "beside a free grave. Vanilla hauling carries the colonist corpse into the grave, whose storage priority outranks the morgue, "
-            + "and leaves the stranger, whom the grave refuses, in the morgue. A native read of vanilla stockpile ranking and hauling; "
-            + "no snapshot test covers it.",
-        Start = new FixtureStart
-        {
-            Op = BurialStage,
-            Args = new JsonObject { ["priority"] = DomainWire.Name(StockpilePriority.Normal) },
-            On = new LabStart(),
-        },
-        RequiredOps = [BurialStage, BurialRead],
+        Name = "burial/grave-over-morgue",
+        Scope = "Grave-versus-zone ranking (#2196): vanilla hauling carries a colonist corpse from a morgue zone at "
+            + "policy.MorguePriority into a free grave, whose storage priority outranks the morgue, and leaves the stranger, "
+            + "whom the grave refuses, in the morgue. Vanilla stockpile ranking and an idle colonist's own haul "
+            + "(test/vanilla_colonists) are native physics no unit test runs.",
+        Ticks = 10000,
+        Tier = CaseTier.OnDemand,
+        Ops = [StageTool, ReadTool, Needs.VanillaColonistsTool],
         QuietWorld = true,
-        VanillaColonists = true,
-        Reason = "VanillaColonists: an idle colonist's own vanilla haul ranks the grave over the morgue zone.",
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var prepared = s.Prepared ?? [];
-        var colonist = prepared["colonistCorpse"].AsString();
-        var stranger = prepared["strangerCorpse"].AsString();
-        if (colonist.Length == 0 || stranger.Length == 0 || prepared["grave"].AsString().Length == 0)
+        var staged = await s.FixtureAsync("burial-stage", Staged, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        _ = await s.FixtureAsync("vanilla-colonists", VanillaColonists, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        var ids = staged.ColonistCorpse + "," + staged.StrangerCorpse;
+
+        async Task<(bool ColonistInGrave, bool StrangerInMorgue)> ReadAsync(string label, CancellationToken ct)
         {
-            throw new AcceptanceException($"prepare: missing fixture ids: {prepared.ToJson()}");
+            var read = await s.FixtureAsync(label, Read, ids, ct).ConfigureAwait(false);
+            var colonist = read.Things.FirstOrDefault(t => t.Id == staged.ColonistCorpse);
+            var stranger = read.Things.FirstOrDefault(t => t.Id == staged.StrangerCorpse);
+            return stranger is { InGrave: true }
+                ? throw new AcceptanceException($"{label}: the stranger corpse was interred in a colonist grave")
+                : (colonist?.InGrave == true, stranger?.Zone == true);
         }
 
-        var staged = StockpilePriority.Normal;
-        if (PolicyFunctions.MorguePriority != staged)
+        var ticks = await s.RunUntilAsync("grave-haul", s.TicksLeft - Settle, async ct =>
         {
-            throw new AcceptanceException($"the case stages the morgue at {DomainWire.Name(staged)} but policy.MorguePriority is {DomainWire.Name(PolicyFunctions.MorguePriority)}");
-        }
+            var (inGrave, inMorgue) = await ReadAsync("burial-read", ct).ConfigureAwait(false);
+            return (Wait.Signature(string.Create(CultureInfo.InvariantCulture, $"grave={inGrave} morgue={inMorgue}")), inGrave);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("burial_ticks", ticks);
 
-        async Task<(bool ColonistInGrave, bool StrangerInZone)> Read(string label)
-        {
-            var reply = await h.CallAsync(label, BurialRead, new JsonObject { ["ids"] = colonist + "," + stranger }, cancellationToken).ConfigureAwait(false);
-            var colonistInGrave = false;
-            var strangerInZone = false;
-            foreach (var raw in reply["things"].AsSlice())
-            {
-                var row = raw.AsMap();
-                var inGrave = row?["inGrave"].AsBool() == true;
-                var inZone = row?["zone"].AsBool() == true;
-                var id = row?["id"].AsString();
-                if (id == colonist)
-                {
-                    colonistInGrave = inGrave;
-                }
-                else if (id == stranger)
-                {
-                    if (inGrave)
-                    {
-                        throw new AcceptanceException($"{label}: the stranger corpse was interred in a colonist grave: {row.ToJson()}");
-                    }
-
-                    strangerInZone = inZone;
-                }
-            }
-
-            return (colonistInGrave, strangerInZone);
-        }
-
-        for (var advanced = 0; ; advanced += 300)
-        {
-            var (inGrave, _) = await Read("burial-read-" + CaseSupport.Tag(advanced)).ConfigureAwait(false);
-            if (inGrave)
-            {
-                s.Report["burial_ticks"] = advanced;
-                break;
-            }
-
-            if (advanced >= BurialWindow)
-            {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the colonist corpse was not hauled into the grave within {advanced} ticks: the morgue zone outranks the grave"));
-            }
-
-            _ = await s.AdvanceAsync(300, null, cancellationToken).ConfigureAwait(false);
-        }
-
-        // The hauler had every chance at the stranger too: it stays in the morgue.
-        _ = await s.AdvanceAsync(600, null, cancellationToken).ConfigureAwait(false);
-        var (_, strangerInMorgue) = await Read("burial-read-final").ConfigureAwait(false);
+        await s.RunTicksAsync("settle", Settle, cancellationToken).ConfigureAwait(false);
+        var (_, strangerInMorgue) = await ReadAsync("burial-read-settled", cancellationToken).ConfigureAwait(false);
         if (!strangerInMorgue)
         {
             throw new AcceptanceException("the stranger corpse left the morgue zone");
         }
-
-        s.Report["stranger_stays_in_morgue"] = true;
     }
 }

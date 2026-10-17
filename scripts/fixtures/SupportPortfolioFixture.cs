@@ -253,7 +253,7 @@ public sealed class SupportPortfolioFixture
     public async Task<object> Read(IRimBridgeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>new
     {
         success=active,tick=Find.TickManager.TicksGame,elapsed=Find.TickManager.TicksGame-start,scenario,
-        patient=patient.GetUniqueLoadID(),criticalDoctors=criticalJobs.Keys.OrderBy(x=>x).ToArray(),
+        patient=patient.GetUniqueLoadID(),
         methods=methods.OrderBy(x=>x).ToArray(),participants=participantTicks.OrderBy(x=>x.Key).Select(x=>new{pawn=x.Key,occupiedTicks=x.Value,obligation=obligations[x.Key]}).ToArray(),
         unfinished=map.mapPawns.FreeColonistsSpawned.Select(p=>new{pawn=p.GetUniqueLoadID(),execution=NativePawnActivities.Read(p)}).Where(x=>x.execution!=null && methods.Contains(x.execution.Method)).ToArray(),
         participantAccounting=participantTicks.Count>0 && participantTicks.Values.All(v=>v>=0) && participantTicks.Values.Any(v=>v>0),

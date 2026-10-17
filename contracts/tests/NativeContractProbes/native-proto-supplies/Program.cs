@@ -225,7 +225,7 @@ internal static class NativeProtoSuppliesProbe
         Check((string)Get(corpseState, "Race") == "Human_Test" && (bool)Get(corpseState, "Humanlike"), "Corpse race and intelligence facts observed");
         Check(((IList)Get(corpseRow, "Holders")).Count == 1, "Corpse-held ration surfaces as one held-stock row");
         var corpseIssues = (IList)Get(corpseRow, "Issues");
-        Check(corpseIssues.Count == 2 && Enumerable.Range(0, corpseIssues.Count).Any(i => ((string)Get(corpseIssues[i]!, "Field")).EndsWith(".rot_stage")), "Corpse without a rot component reports the documented rot_stage issue, not a crash");
+        Check(corpseIssues.Count == 1, "Corpse without a rot component reads without a rot issue, not a crash");
 
         // ---- Item 2: a live trader caravan pawn's carried goods are held stock, not ours ----
         var traderHolder = MakeThing("Trader_Pawn_Test", 1, 701);

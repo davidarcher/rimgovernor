@@ -30,12 +30,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Bed/BedAssign.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Burial/GraveOverMorgue.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Burial/StrangerSarcophagus.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Caravan/CaravanDeparture.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -559,12 +553,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Wall/WallGeometry.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Waste/Burnable.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Waste/Equality.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Zone/Delete.cs]
