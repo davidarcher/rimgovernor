@@ -8,7 +8,6 @@ namespace RimGovernor.Runtime
     // One rung of the melee practice ladder (#2703), read from the practice
     // weapon's def (Defs/ThingDefs/SparringRing.xml). Damage is flat per damage
     // type and vanilla pays the melee XP, so a tier buys only a higher ceiling.
-    // The brain mirrors the table in Brain.Policy/SparringTier.cs.
     public sealed class SparringTier : DefModExtension
     {
         // Rung number, 0 (padded club) to 3.
@@ -23,8 +22,7 @@ namespace RimGovernor.Runtime
         public List<string> apparel = new List<string>();
     }
 
-    // Melee mirror of RangeTraining's tier selection (UnlockedSparringTier in
-    // Brain.Policy/SparringTier.cs).
+    // Melee mirror of RangeTraining's tier selection: the best tier whose gate research is finished.
     public static class SparringRules
     {
         private static List<ThingDef> tierWeapons;

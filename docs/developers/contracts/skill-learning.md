@@ -117,3 +117,21 @@ fresh-demand retirement and journal/wire preservation. Native execution remains
 separate from registration and compilation.
 
 [Assigned capability maintenance](capability-maintenance.md) combines supported scheduled callbacks with decay against actual held-role requirements. Native practice cycle quotes are conditional execution estimates, not guaranteed completed learning or injury-free work.
+
+## Old writer and heuristic audit (#3167)
+
+Selected Methods are the only autonomous source of development, practice and
+maintenance in a controlled map. Classes: keep, removed, unsupported-owner (no
+selected Method exists yet; documented, not shadowed).
+
+| Path (file:line) | Class | Evidence |
+| --- | --- | --- |
+| Brain `TrainingTier` / `SparringTier` ladders with `UnlockedTrainingTier` / `UnlockedSparringTier`, and the `RangeWeaponDef` constant (Policy) | removed | No consumer; the native `DefModExtension` XML owns the ladders. |
+| Training demand: `ReviewTraining` (`Policy/Training.cs:28`), `RoundsMilitary.TrainingWorkAsync` (`:308`) | keep | Sizes range/ring rooms from forecast shortfalls of actually held role requirements, never a ceiling or role guess. Writes no pawn order. |
+| `RimGovernorTraining` work-matrix row (`Policy/WorkAssignment.cs:94`) | keep | Capable pawns take priority 3 so the player's work tab stays honest; the roster assigns no training slot. |
+| Selected install: `NativePracticeActivities.Job` / `Legal`, `SparringBouts.SelectPair` | keep | Hands-owned exact roster and stand/marker; native drivers keep attacks, budget, stop rules and real-weapon restoration. |
+| Native `WorkGiver_TrainRange` / `WorkGiver_Spar` initiation on a map the brain does not control (`RangeTraining.MigratedScope` `:22`; `TrainRangeWorkGiver.cs:20,38`; `SparringWorkGiver.cs:17,27`; `SparringBouts.PlanFor` `:135`, `Free` `:146`, `Form` `:184`) | unsupported-owner | Skipped for every controlled colonist, so no second writer runs under the brain. Uncontrolled maps keep the mod's own player-enabled work type. The prepared `lab/training-*` and `lab/sparring-*` cases drive native mechanics through it; removal first needs those cases moved to selected installs. |
+| `RangeTraining.TryChoose` (`:131`) via `BelowTarget` (`:151`), uncontrolled branch | unsupported-owner | Higher-level/passion skill heuristic; never reached for a controlled pawn, where `CanTrain` checks legality only. Leaves with the row above. |
+| Doctor training by peg-leg cycling: `SelectPegCycle` (`Policy/DoctorTraining.cs:104`, `RoundsSurgery.cs:118`), `DoctorTrainingFloor` | unsupported-owner | Surgical prisoner program with a local `TrainingValue` winner and a role-free floor. No Method or forecast for surgery learning exists; migration is its own owner. |
+| Productive cooking, food/shelter investment, recipe and bill selection | keep | Selected through `CompareActivityPlans` / `ForecastServiceInvestments`; no local cook or skill winner remains. |
+| Training to a ceiling, saved skill target | none found | Ceilings are native feasibility limits only (`RangeTraining.CeilingFor`); nothing is stored. |

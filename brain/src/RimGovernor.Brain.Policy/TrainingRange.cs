@@ -32,9 +32,6 @@ public static partial class PolicyFunctions
             [RangePieceKind.Dummy] = "RimGovernor_TrainingDummy",
         };
 
-    /// <summary>The lane bow the training job issues; no recipe makes it.</summary>
-    public const string RangeWeaponDef = "Bow_Training";
-
     /// <summary>
     /// Places the range template inside room's Interior: stands side by side on the row at the stand end and a
     /// dummy directly across from each, RangeDistance cells away at the dummy end (the room's Facing). Pieces come

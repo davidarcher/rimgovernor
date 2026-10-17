@@ -76,8 +76,8 @@ namespace RimGovernor.Runtime
             return project != null && project.IsFinished;
         }
 
-        // The best tier whose gate research is finished (UnlockedTrainingTier in
-        // Brain.Policy/TrainingTier.cs): the weapon, XP and ceiling.
+        // The best tier whose gate research is finished:
+        // the weapon, XP and ceiling.
         public static ThingDef UnlockedWeapon()
         {
             ThingDef best = null;

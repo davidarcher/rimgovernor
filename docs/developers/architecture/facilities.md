@@ -999,11 +999,9 @@ ceiling at which the weapon stops teaching. The best unlocked tier applies.
 
 (Multipliers 1, 1.5, 2.5 and 4 against tier 0.) The table is owned by the
 `TrainingTier` `DefModExtension` on each weapon def in `TrainingRange.xml`, read
-natively by [`TrainingTier.cs`](../../../integrations/rimgovernor-native/src/Runtime/Training/TrainingTier.cs)
-and mirrored in the brain as
-[`policy.TrainingTiers`](../../../brain/src/RimGovernor.Brain.Policy/TrainingTier.cs); the XML is the owner. `UnlockedTrainingTier` (the brain, from the
-research census) and `RangeTraining.UnlockedWeapon` (native, from
-`ResearchProjectDef.IsFinished`) apply the same rule. The practice weapons have
+natively by [`TrainingTier.cs`](../../../integrations/rimgovernor-native/src/Runtime/Training/TrainingTier.cs);
+the brain keeps no copy. `RangeTraining.UnlockedWeapon` (from
+`ResearchProjectDef.IsFinished`) picks the best unlocked rung. The practice weapons have
 no recipe, category or trade tag and are never owned: the drill issues and
 restores them. Every projectile does exactly 1 damage (`Thing.TakeDamage` returns
 early at 0, and damage is an integer). The mod depends on Odyssey (`About.xml`
@@ -1114,8 +1112,7 @@ registry (`SparringBouts.LiveFighting`) only: no saved state, action or wire fie
 
 **Melee tiers and practice gear (#2703, #2704, `Runtime/Training/SparringTier.cs`).**
 The ring climbs a four-rung research-gated ladder with the same ceilings as the
-range. The best tier whose gate research is finished applies (`UnlockedSparringTier`
-in the brain, `SparringRules.UnlockedWeapon` natively; an unknown census holds at tier 0).
+range. The best tier whose gate research is finished applies (`SparringRules.UnlockedWeapon`).
 
 | Tier | Weapon | Damage | Ceiling | Gate | Practice apparel |
 |---|---|---|---|---|---|
@@ -1126,9 +1123,8 @@ in the brain, `SparringRules.UnlockedWeapon` natively; an unknown census holds a
 
 Damage is flat per damage type and every Cut weapon shares one power, so a tier buys
 a higher ceiling and nothing else; vanilla pays the XP. The table is owned by the
-`SparringTier` `DefModExtension` on each weapon def in `SparringRing.xml` and
-mirrored in the brain as [`policy.SparringTiers`](../../../brain/src/RimGovernor.Brain.Policy/SparringTier.cs);
-the XML is the owner. A pawn spars only while its Melee is
+`SparringTier` `DefModExtension` on each weapon def in `SparringRing.xml`; the
+brain keeps no copy. A pawn spars only while its Melee is
 under the unlocked tier's ceiling (`SparringRules.Ceiling`), and only if Melee is
 the skill it trains (see `military/training`). The weapons and the
 `Apparel_Practice*` pieces have no recipe, category or trade tag and are never
