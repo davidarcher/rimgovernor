@@ -113,7 +113,7 @@ public sealed partial class Rounder
                     {
                         Definition = name,
                         Prepared = MissionOptional(food?.Prepared ?? false, known),
-                        Nutrition = MissionCatalogStat(catalog, name, Bridge.StatNames.Nutrition),
+                        Nutrition = MissionCatalogStat(catalog, name, Bridge.CatalogStats.Nutrition),
                         CanSupply = catalog.TraderKindCanSupply(settlement.TraderKind, new Pol.ResourceKey { Def = new Pol.Resource(name) }),
                     });
                 }

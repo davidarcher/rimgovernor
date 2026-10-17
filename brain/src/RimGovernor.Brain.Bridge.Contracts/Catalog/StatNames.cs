@@ -12,20 +12,10 @@ public static partial class BridgeConstants
     public const string StatBedRestEffectiveness = "BedRestEffectiveness";
     public const string StatWorkToBuild = "WorkToBuild";
     public const string StatDoorOpenSpeed = "DoorOpenSpeed";
-    public const string StatCleanliness = "Cleanliness";
-    public const string StatBeauty = "Beauty";
     public const string StatFlammability = "Flammability";
-    public const string StatComfort = "Comfort";
     public const string StatWorkTableWorkSpeedFactor = "WorkTableWorkSpeedFactor";
     public const string StatMedicalTendQualityOffset = "MedicalTendQualityOffset";
     public const string StatResearchSpeedFactor = "ResearchSpeedFactor";
-    public const string StatNutrition = "Nutrition";
-    public const string StatDeteriorationRate = "DeteriorationRate";
-    public const string StatMarketValue = "MarketValue";
-    public const string StatCarryingCapacity = "CarryingCapacity";
-    public const string StatWildness = "Wildness";
-    public const string StatMinimumHandlingSkill = "MinimumHandlingSkill";
-    public const string StatLeatherAmount = "LeatherAmount";
     public const string StatMeatAmount = "MeatAmount";
 
     /// <summary>The room stat the layout reads for impressiveness (catalog_room_stats.go).</summary>

@@ -94,7 +94,7 @@ public static partial class ObservationPackage
             }
             try
             {
-                stock = stock with { UnitMass = FiniteFact((float)catalog.StatValue(def, "", "Mass")) };
+                stock = stock with { UnitMass = FiniteFact((float)catalog.StatValue(def, "", CatalogStats.Mass)) };
             }
             catch (DomainException)
             {

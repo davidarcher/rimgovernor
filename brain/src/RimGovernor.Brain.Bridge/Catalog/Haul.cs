@@ -134,7 +134,7 @@ public sealed partial class DefinitionCatalog
             return new P.ClearRow { Work = harvestWork, Yield = yield };
         }
 
-        var (work, shown) = ShownStatValue(def, stuff, StatNames.WorkToBuild);
+        var (work, shown) = ShownStatValue(def, stuff, CatalogStats.WorkToBuild);
         if (!shown)
         {
             return null;

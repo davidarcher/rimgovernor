@@ -32,13 +32,13 @@ public sealed partial class DefinitionCatalog
             var resource = new P.Resource(def.defName);
             if (def.stuffCategories.Seq().Any() is false)
             {
-                var (value, shown) = ShownStatValue(def.defName, string.Empty, StatNames.MarketValue);
+                var (value, shown) = ShownStatValue(def.defName, string.Empty, CatalogStats.MarketValue);
                 if (shown)
                 {
                     market[resource] = value;
                 }
 
-                (value, shown) = ShownStatValue(def.defName, string.Empty, StatNames.Nutrition);
+                (value, shown) = ShownStatValue(def.defName, string.Empty, CatalogStats.Nutrition);
                 if (shown)
                 {
                     nutrition[resource] = value;
@@ -131,12 +131,12 @@ public sealed partial class DefinitionCatalog
         var stuffs = AllowedStuffs(def.defName);
         if (stuffs.Count == 0)
         {
-            return def.MadeFromStuff ? null : ShownStatValue(def.defName, string.Empty, StatNames.DeteriorationRate).Value;
+            return def.MadeFromStuff ? null : ShownStatValue(def.defName, string.Empty, CatalogStats.DeteriorationRate).Value;
         }
         double? rate = null;
         foreach (var stuff in stuffs)
         {
-            var value = ShownStatValue(def.defName, stuff, StatNames.DeteriorationRate).Value;
+            var value = ShownStatValue(def.defName, stuff, CatalogStats.DeteriorationRate).Value;
             if (rate is { } seen && seen != value)
             {
                 return null;

@@ -60,7 +60,12 @@ namespace HomeBridge.BridgeTools
             var player = Faction.OfPlayerSilentFail;
             if (player?.def == null)
                 return new Obs.DefinitionCatalogReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction is unavailable." } };
-            try { return new Obs.DefinitionCatalogReply { Outcome = Read(context, (parsed.HeldFingerprint ?? "")) }; }
+            try
+            {
+                // The brain builds its catalog over the load's def stat table right after this read, off the game thread.
+                NativeStatTable.EnsureForLoad(context.Identity.LoadToken);
+                return new Obs.DefinitionCatalogReply { Outcome = Read(context, (parsed.HeldFingerprint ?? "")) };
+            }
             catch (Exception ex)
             {
                 ObservationWork.Failed("definitionCatalog", ex);

@@ -43,11 +43,7 @@ internal sealed record GearWearer(D.Gender Gender, D.DevelopmentalStage Stage, I
 
 public static partial class ObservationPackage
 {
-    // The game's stats a loadout option takes from the stat table.
-    internal const string StatArmorSharp = "ArmorRating_Sharp";
-    internal const string StatArmorBlunt = "ArmorRating_Blunt";
-    internal const string StatInsulationCold = "Insulation_Cold";
-    internal const string StatInsulationHeat = "Insulation_Heat";
+    // The StatDefs whose equipped offsets a loadout option reads from the apparel def.
     internal const string StatMoveSpeed = "MoveSpeed";
     internal const string StatPsychic = "PsychicSensitivity";
 
@@ -150,7 +146,7 @@ public static partial class ObservationPackage
     /// garment without it. Market value is the exception: the game hides it for gear nobody can trade (mech
     /// apparel), which is zero cost to the planner, not an unknown.
     /// </summary>
-    internal static double OptionStat(DefinitionCatalog catalog, string def, string stuff, string stat, bool tolerateHidden)
+    internal static double OptionStat(DefinitionCatalog catalog, string def, string stuff, CatalogStat stat, bool tolerateHidden)
     {
         var (value, shown) = catalog.ShownStatValue(def, stuff, stat);
         if (!shown)

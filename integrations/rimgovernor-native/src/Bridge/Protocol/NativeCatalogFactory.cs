@@ -26,15 +26,16 @@ namespace HomeBridge.BridgeTools
     /// the host start-up (#3115) installs both.
     /// </summary>
     /// <remarks>
-    /// Both run on a brain thread, never the game thread: the catalog's stat reads go through
-    /// <see cref="GameThreadStatService"/>, which blocks until the game thread drains it. The Def databases are written
-    /// once at boot, so reading them off the game thread after the Defs have loaded is safe.
+    /// Both run on a brain thread, never the game thread. The catalog reads its stats, stuffs and costs from the load's
+    /// <see cref="NativeStatTable"/>, which the definition catalog read built on the game thread; the creation-time
+    /// ideoligion reads none, so its catalog has the empty table. The Def databases are written once at boot, so reading
+    /// them off the game thread after the Defs have loaded is safe.
     /// </remarks>
     internal static class NativeCatalogFactory
     {
         /// <summary>
         /// The catalog of a load: every Def of the game, the derived and race facts of its (validated) wire catalog, and
-        /// the game-thread stat service.
+        /// the def stat table the load's definition catalog read built (<see cref="NativeStatTable"/>).
         /// </summary>
         internal static BrainCatalog Create(Obs.DefinitionCatalog wire, Common.Identity identity)
         {
@@ -47,7 +48,7 @@ namespace HomeBridge.BridgeTools
                 if (row.Race is { } race)
                     races.Add(row.DefName, new BrainRaceFacts([.. race.EdibleDefs], race.TamenessCanDecay, race.TamenessDecayPeriodTicks, race.TameChanceFactor, race.AdultFeedPerDay));
             }
-            return new BrainCatalog(AllDefs(), GameThreadStatService.Instance, new BrainDerived(derived.CurrencyDef, derived.WortDef, derived.FullRotRateC), races);
+            return new BrainCatalog(AllDefs(), NativeStatTable.ForLoad(identity.LoadToken), new BrainDerived(derived.CurrencyDef, derived.WortDef, derived.FullRotRateC), races);
         }
 
         /// <summary>
@@ -65,7 +66,7 @@ namespace HomeBridge.BridgeTools
                 if (string.IsNullOrEmpty(faction))
                     throw new InvalidOperationException("The creation scenario lacks its player faction.");
                 var derived = NativeDefinitionCatalogTool.DerivedFacts();
-                var catalog = new BrainCatalog(AllDefs(), GameThreadStatService.Instance, new BrainDerived(derived.CurrencyDef, derived.WortDef, derived.FullRotRateC));
+                var catalog = new BrainCatalog(AllDefs(), RimGovernor.Brain.Bridge.DefStatTable.Empty, new BrainDerived(derived.CurrencyDef, derived.WortDef, derived.FullRotRateC));
                 var options = catalog.IdeoligionOptions(faction!);
                 if (!PolicyFunctions.ChooseStartingIdeoligion(options).TryGetValue(out var choice))
                     throw new InvalidOperationException("No supported legal ideoligion design can be established.");

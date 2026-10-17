@@ -133,7 +133,7 @@ public sealed partial class DefinitionCatalog
                 continue;
             }
 
-            var price = StatValue(spawned.defName, string.Empty, StatNames.MarketValue);
+            var price = StatValue(spawned.defName, string.Empty, CatalogStats.MarketValue);
             var bodies = recipe.appliedOnFixedBodyParts.Seq().Select(b => b.defName).ToList();
             if (bodies.Count == 0)
             {
@@ -247,7 +247,7 @@ public sealed partial class DefinitionCatalog
             }
 
             var research = RecipeResearch(row).Order(StringComparer.Ordinal).ToList();
-            return (research, Stats.CostListAdjusted(def, stuff));
+            return (research, AdjustedCosts(def, stuff));
         }
 
         return null;

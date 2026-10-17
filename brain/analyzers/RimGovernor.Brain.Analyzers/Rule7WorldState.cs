@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Analyzers;
 /// value types) and nothing that reads or holds live world state: the statics (Find, Current, Rand, GenTicks, GenDate, the
 /// Gen* helpers, StatExtension...), live objects (Thing and its subclasses, Map, Game, World and WorldObjects, Faction,
 /// the Pawn_* trackers, Lord and Job, Hediff, Need, Room...), StatWorker, and UnityEngine's main-thread API. World state
-/// reaches the brain only as facts decoded from the wire; computed stats come from IStatSource.
+/// reaches the brain only as facts decoded from the wire; computed def-level stats come from the load's DefStatTable.
 ///
 /// The allowed side is a default: a game class that is none of the banned kinds is Def-adjacent data (GraphicData,
 /// StatModifier, CompProperties...). Key "file|Type.Member|Namespace.Type" names the banned type that was used; the

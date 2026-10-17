@@ -80,7 +80,7 @@ public static partial class ObservationPackage
             double flammability;
             try
             {
-                flammability = catalog.PlannerStatValue((head.DefName ?? ""), (row.Stuff ?? ""), StatFlammability);
+                flammability = catalog.PlannerStatValue((head.DefName ?? ""), (row.Stuff ?? ""), CatalogStats.Flammability);
             }
             catch (DomainException e)
             {

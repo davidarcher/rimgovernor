@@ -100,8 +100,8 @@ attributes, `typeof(X)` and generic type arguments (class tokens that a Def's
 banned lists (`GraphicData`, `StatModifier`, `CompProperties`), and the
 members in `WorldStateAnalyzer.PureMembers` (`GenCollection.Any`). World state
 reaches the brain only as facts decoded from the wire, and computed stats
-come from `IStatSource`. Baseline (`worldstate.txt`) `file|Type.Member|Namespace.Type[.Member]`;
-`worldstate.txt` starts empty. The game-thread side (the stat service, #3080, and the
+come from the def stat table. Baseline (`worldstate.txt`) `file|Type.Member|Namespace.Type[.Member]`;
+`worldstate.txt` starts empty. The game-thread side (the def stat table pass and the
 native mod) is not brain code and is not analyzed.
 
 Construction tiers (`RGARCH008`, no baseline): every call of

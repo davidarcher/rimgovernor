@@ -89,7 +89,7 @@ internal static partial class BuildingRuntimePackage
 
     internal static Fact<T> MissionOptional<T>(T v, bool known) => known ? Fact.Known(v) : Fact.Unknown<T>();
 
-    internal static Fact<double> MissionCatalogStat(Bridge.DefinitionCatalog? catalog, string def, string stat)
+    internal static Fact<double> MissionCatalogStat(Bridge.DefinitionCatalog? catalog, string def, Bridge.CatalogStat stat)
     {
         if (catalog is null)
         {
@@ -382,7 +382,7 @@ public sealed partial class RoundsTradePlanner
         var nutrition = new Dictionary<string, Fact<double>>(StringComparer.Ordinal);
         foreach (var item in m.Demand)
         {
-            nutrition[item.Definition] = MissionCatalogStat(catalog, item.Definition, "Nutrition");
+            nutrition[item.Definition] = MissionCatalogStat(catalog, item.Definition, CatalogStats.Nutrition);
         }
         var rows = new List<Pol.MissionPurchaseRow>();
         foreach (var row in sheet.Rows)
@@ -396,7 +396,7 @@ public sealed partial class RoundsTradePlanner
                 Currency = row.Currency,
                 BuyPrice = MissionOptional(row.BuyPrice, row.BuyPriceKnown),
                 WillTrade = MissionOptional(row.TraderWillTrade, row.TraderWillTradeKnown),
-                UnitMass = MissionCatalogStat(catalog, row.DefName, "Mass"),
+                UnitMass = MissionCatalogStat(catalog, row.DefName, CatalogStats.Mass),
             });
         }
         var (silver, _, known) = TradeSheetSilver(sheet.Rows);

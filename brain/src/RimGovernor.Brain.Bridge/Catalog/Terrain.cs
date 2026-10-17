@@ -8,11 +8,6 @@ namespace RimGovernor.Brain.Bridge;
 
 public sealed partial class DefinitionCatalog
 {
-    // The StatDefs a floor is judged by.
-    private const string StatCleanliness = "Cleanliness";
-    private const string StatBeauty = "Beauty";
-    private const string StatFlammability = "Flammability";
-
     // The affordance the ground of a light site must support (SiteCell.SupportsLight).
     private const string AffordanceLight = "Light";
 
@@ -32,9 +27,9 @@ public sealed partial class DefinitionCatalog
         var row = FindTerrain(name) ?? throw new CatalogException($"catalog has no def row for terrain {name}");
         return new P.FloorTerrain
         {
-            Cleanliness = TerrainStatValue(name, StatCleanliness),
-            Beauty = TerrainStatValue(name, StatBeauty),
-            Flammability = TerrainStatValue(name, StatFlammability),
+            Cleanliness = TerrainStatValue(name, CatalogStats.Cleanliness),
+            Beauty = TerrainStatValue(name, CatalogStats.Beauty),
+            Flammability = TerrainStatValue(name, CatalogStats.Flammability),
             PathCost = row.pathCost,
             Fertility = row.fertility,
             Natural = row.natural,

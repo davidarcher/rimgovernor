@@ -382,7 +382,7 @@ public static partial class ObservationPackage
             IReadOnlyList<StatCost> costs;
             if (thing is not null)
             {
-                option = option with { Work = (float)catalog.StatValue(def, s, StatWorkToBuild) };
+                option = option with { Work = (float)catalog.StatValue(def, s, CatalogStats.WorkToBuild) };
                 costs = catalog.AdjustedCosts(def, s);
             }
             else

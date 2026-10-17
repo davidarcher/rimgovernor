@@ -160,7 +160,7 @@ public sealed partial class DefinitionCatalog
                 return 0;
             }
 
-            var (value, shown) = ShownStatValue(def, string.Empty, StatNames.Nutrition);
+            var (value, shown) = ShownStatValue(def, string.Empty, CatalogStats.Nutrition);
             return shown ? value : 0;
         }
 
@@ -220,7 +220,7 @@ public sealed partial class DefinitionCatalog
                 return Unknown<double>();
             }
 
-            var (stat, shown) = ShownStatValue(first.defName, string.Empty, StatWorkToMake);
+            var (stat, shown) = ShownStatValue(first.defName, string.Empty, CatalogStats.WorkToMake);
             if (!shown)
             {
                 return Unknown<double>();
@@ -453,7 +453,7 @@ public sealed partial class DefinitionCatalog
             return facts;
         }
 
-        var (value, shown) = ShownStatValue(productDef.defName, string.Empty, StatNames.Nutrition);
+        var (value, shown) = ShownStatValue(productDef.defName, string.Empty, CatalogStats.Nutrition);
         var nutrition = value * product.count;
         if (!shown || !Positive(nutrition))
         {
@@ -472,7 +472,7 @@ public sealed partial class DefinitionCatalog
         var work = row.workAmount;
         if (work < 0)
         {
-            var (stat, workShown) = ShownStatValue(productDef.defName, string.Empty, StatWorkToMake);
+            var (stat, workShown) = ShownStatValue(productDef.defName, string.Empty, CatalogStats.WorkToMake);
             if (workShown)
             {
                 work = stat;

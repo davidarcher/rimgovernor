@@ -67,7 +67,7 @@ public sealed partial class DefinitionCatalog
             return null;
         }
 
-        var (n, shown) = ShownStatValue(meat, string.Empty, StatNames.Nutrition);
+        var (n, shown) = ShownStatValue(meat, string.Empty, CatalogStats.Nutrition);
         return shown && n > 0 ? n : null;
     }
 

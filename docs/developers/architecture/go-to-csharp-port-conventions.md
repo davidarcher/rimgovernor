@@ -142,7 +142,7 @@ The domain package has no I/O. Packages that do: every method that waits takes a
 `Task`s joined with `Task.WhenAll`; ordered results are reduced in the Go-defined
 order, not completion order. Producer/consumer goroutines become a `Channel<T>` plus a
 reader `Task`. The planner worker thread never calls game APIs that touch world state;
-game data comes through `IStatSource` (the Go `stateval` is replaced, not ported).
+game data comes from the snapshot frames and the load's def stat table (the Go `stateval` is replaced, not ported).
 
 ### Unknown and Unclear
 
@@ -215,10 +215,10 @@ mod. They were generated once from `contracts/proto` and are now owned by hand; 
 
 ## Stat reads and the game assemblies (A1b, #3056)
 
-`IStatSource` (`RimGovernor.Brain.Domain`, `Stats/`) is the brain's only way to read computed
-stat values. It replaces Go `internal/bridge/stateval`, which is not ported; `FakeStatSource`
-serves tests and simulation with recorded values, and the production implementation is the
-game-thread stat service (#3080; [native facade](native-facade.md)).
+The load's def stat table (`DefStatTable`, `RimGovernor.Brain.Bridge`) is the brain's only way to read computed
+def-level stat values. It replaces Go `internal/bridge/stateval`, which is not ported; tests build a table from
+recorded values, and the mod computes the production table on the game thread
+([stat evaluation](../contracts/stat-classes.md)).
 
 **Bare-host answer (checked 2026-10-12): yes.** The game ships on .NET 10 with managed
 `Assembly-CSharp.dll` (the isolated copy under `.rimgovernor/native-rimworld/`; the Steam default
@@ -232,11 +232,11 @@ engine started:
 - Anything that reads `Find.*` statics sees null, not a crash at load: `Find.Scenario` is null,
   and `ThingDef.CostListAdjusted` threw `NullReferenceException` from `CostListCalculator` on a
   hand-built def with no cost list or game. Parts that read scenario, difficulty, mods, maps or
-  pawns therefore need real game state, which is exactly what `StatContext` facts and the
-  game-thread service (#3080) supply.
+  pawns therefore need real game state, which is why the mod computes the table on the game
+  thread.
 
 So derivations can read real `Def` objects built from the game's own types without a running
-engine, but stat values that depend on world state must still come through `IStatSource`.
+engine, but stat values that depend on world state must still come from the def stat table.
 
 ## The catalog bridge (`RimGovernor.Brain.Bridge`, #3056)
 
@@ -247,7 +247,7 @@ types; it never mirrors a Def. Conventions that differ from the Go code:
 - Defs are read through `Assembly-CSharp` (`Rows<T>()`, `DefRow<T>`, `ThingRow`), not through a wire row
   type. The `Wire/Defs.cs` mirror is not the Def surface, and the mirror decode, fingerprint reuse and
   `catalog_disk.go` (a disk cache of wire data) have no counterpart. Products are `Lazy<T>` fields.
-- Stat values come from `IStatSource`, never from the Def. Private game members are read through the typed
+- Stat values come from the def stat table, never from the Def. Private game members are read through the typed
   `UnsafeAccessor` declarations in `GameMembers`, and private constants through `GameConstants`, so a rename
   in the game fails at the first call rather than returning nothing.
 - Where Go distinguished "unset" from zero on the wire, the answer is the game's own value (an unset trader

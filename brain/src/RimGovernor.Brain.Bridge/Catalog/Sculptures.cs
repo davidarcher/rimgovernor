@@ -14,7 +14,7 @@ public sealed partial class DefinitionCatalog
     {
         try
         {
-            var (value, shown) = ShownStatValue(def, stuff, StatWorkToMake);
+            var (value, shown) = ShownStatValue(def, stuff, CatalogStats.WorkToMake);
             return ((double)value, shown);
         }
         catch (Exception e) when (e is CatalogException or Domain.DomainException or StatException)

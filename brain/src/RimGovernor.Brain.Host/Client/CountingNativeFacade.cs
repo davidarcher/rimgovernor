@@ -22,8 +22,6 @@ namespace RimGovernor.Brain.Host;
 /// </summary>
 internal sealed class CountingNativeFacade(INativeFacade inner) : INativeFacade
 {
-    public IStatSource Stats => inner.Stats;
-
     public ChannelReader<NativeFrame> Frames => inner.Frames;
 
     public Task<Lifecycle.IdentityReply> ReadIdentityAsync(Lifecycle.IdentityRequest request, CancellationToken cancellationToken) => Count("lifecycle_read_identity", () => inner.ReadIdentityAsync(request, cancellationToken));

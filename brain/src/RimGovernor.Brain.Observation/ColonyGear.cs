@@ -186,12 +186,12 @@ public static partial class ObservationPackage
         }
         option = option with
         {
-            Sharp = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatArmorSharp, false),
-            Blunt = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatArmorBlunt, false),
-            Cold = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatInsulationCold, false),
-            Heat = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatInsulationHeat, false),
-            Cost = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatMarketValue, true),
-            MaxHitPoints = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatMaxHitPoints, true),
+            Sharp = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.ArmorSharp, false),
+            Blunt = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.ArmorBlunt, false),
+            Cold = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.InsulationCold, false),
+            Heat = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.InsulationHeat, false),
+            Cost = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.MarketValue, true),
+            MaxHitPoints = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.MaxHitPoints, true),
         };
         return option;
     }

@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <para>
 /// Dropped from Go: the comparison of each row with the definition catalog's stat table
 /// (<c>catalog.ShownStatValue</c>). The catalog stat table is not on the wire the harness reads and stat values come
-/// from IStatSource in the C# brain, so the value/shown equality against the table cannot be asserted here; each row is
+/// from the def stat table in the C# brain, so the value/shown equality against the table cannot be asserted here; each row is
 /// checked for a well-formed observed reply that echoes the stat and carries a finite value instead.
 /// </para>
 /// </summary>

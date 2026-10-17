@@ -53,7 +53,7 @@ public sealed partial class DefinitionCatalog
         var options = new List<P.ComfortOption>();
         foreach (var stuff in stuffs.Count == 0 ? [string.Empty] : stuffs)
         {
-            var (comfort, shown) = ShownStatValue(def, stuff, StatNames.Comfort);
+            var (comfort, shown) = ShownStatValue(def, stuff, CatalogStats.Comfort);
             if (shown)
             {
                 options.Add(new P.ComfortOption { Def = def, Stuff = stuff, Comfort = comfort, Build = CostValueOf(def, stuff) });

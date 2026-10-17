@@ -266,8 +266,9 @@ condition class cannot be read.
 
 ### Stat values and adjusted costs
 
-Stat reads go through `IStatSource`: in the mod, `GameThreadStatService` asks the game's own StatWorker/StatPart
-code on the game thread, so no stat value, allowed stuff or adjusted cost list travels in the catalog.
+Stat reads go through the load's def stat table (`DefStatTable`, [stat evaluation](../../docs/developers/contracts/stat-classes.md)):
+the mod computes it from the game's own StatWorker/StatPart code in one game-thread pass during this read, so no
+stat value, allowed stuff or adjusted cost list travels in the catalog.
 `DefinitionCatalog.stat_env` (`StatEnv`) carries the game state a stat read needs beyond the rows, once per
 load: the active mod package ids (lower case), classic mode, the scenario's
 stat factors (`Scenario.GetStatFactor` of every StatDef whose factor is not 1)

@@ -10,7 +10,7 @@ namespace RimGovernor.RealCombat.Native;
 
 /// <summary>
 /// The slice of <see cref="INativeFacade"/> a combat read touches, served over the arena: the definition catalog, combat geometry, the defense site census (the burn survey), the
-/// frame stream (frames are published by the controller, one per decision) and the stat service. The facade is 64
+/// frame stream (frames are published by the controller, one per decision). The facade is 64
 /// calls wide; any other is not a combat read and throws by name, so a read that grows past this slice fails loudly.
 /// </summary>
 public class PolicyFacade : DispatchProxy
@@ -30,8 +30,6 @@ public class PolicyFacade : DispatchProxy
     {
         switch (targetMethod!.Name)
         {
-            case "get_Stats":
-                return InlineStatService.Instance;
             case "get_Frames":
                 return _frames.Reader;
             case "ReadDefinitionCatalogAsync":

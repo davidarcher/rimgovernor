@@ -110,7 +110,7 @@ public sealed partial class DefinitionCatalog
         }
 
         var perishable = RotDays(name) is not null;
-        var (nutrition, shown) = ShownStatValue(name, string.Empty, StatNames.Nutrition);
+        var (nutrition, shown) = ShownStatValue(name, string.Empty, CatalogStats.Nutrition);
         if (!shown || nutrition <= 0)
         {
             return null;

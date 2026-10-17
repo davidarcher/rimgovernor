@@ -33,8 +33,6 @@ namespace HomeBridge.BridgeTools
 
         private InProcessNativeFacade() { }
 
-        public RimGovernor.Brain.Domain.IStatSource Stats => GameThreadStatService.Instance;
-
         public ChannelReader<NativeFrame> Frames => SnapshotStream.Handoff.Reader;
 
         public Task<Obs.FoodActivityRead> ReadFoodActivityAsync(Obs.FoodActivityRequest request, CancellationToken cancellationToken)

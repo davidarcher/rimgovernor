@@ -88,7 +88,7 @@ public static partial class ObservationPackage
                     bool shown;
                     try
                     {
-                        (nutrition, shown) = catalog.ShownStatValue((row.Resource ?? ""), "", StatNutrition);
+                        (nutrition, shown) = catalog.ShownStatValue((row.Resource ?? ""), "", CatalogStats.Nutrition);
                     }
                     catch (DomainException)
                     {

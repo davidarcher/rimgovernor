@@ -7,11 +7,11 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// EvaluateStat on a sample of definition requests.
 /// <para>
 /// Dropped from Go: the Go evaluator itself (<c>stateval</c>) and the catalog's stat-def list. The Go evaluator is replaced,
-/// not ported, by IStatSource in the C# brain, so there is no second evaluator to compare with and the "not mirrored"
+/// not ported, by the def stat table in the C# brain, so there is no second evaluator to compare with and the "not mirrored"
 /// skip count is gone. What stays is the native side: every (def, stuff, stat) request over the evaluate-stat sample's
 /// subjects and stats is answered twice, and both reads must agree on the shown flag and the exact float32 value, so the
-/// oracle the C# stat source reads is deterministic on a paused world. A pair the game does not know (NOT_FOUND) is
-/// skipped, never defaulted. Equality against the C# stat source is re-established at the #3085 cutover.
+/// oracle the def stat table is computed from is deterministic on a paused world. A pair the game does not know (NOT_FOUND) is
+/// skipped, never defaulted. Equality against the def stat table is re-established at the #3085 cutover.
 /// </para>
 /// </summary>
 internal static class StatsEvaluatorParity

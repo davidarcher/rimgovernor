@@ -47,10 +47,10 @@ public static partial class ObservationPackage
     }
 
     // The stats a stuff option carries for the stuff criteria and the work read.
-    private static readonly string[] OptionStats =
+    private static readonly CatalogStat[] OptionStats =
     [
-        BridgeConstants.StatMaxHitPoints, BridgeConstants.StatFlammability, BridgeConstants.StatBedRestEffectiveness,
-        BridgeConstants.StatWorkToBuild, BridgeConstants.StatDoorOpenSpeed,
+        CatalogStats.MaxHitPoints, CatalogStats.Flammability, CatalogStats.BedRestEffectiveness,
+        CatalogStats.WorkToBuild, CatalogStats.DoorOpenSpeed,
     ];
 
     private static PlanningDefinition ThingView(DefinitionCatalog catalog, string name, Verse.ThingDef row)
@@ -115,7 +115,7 @@ public static partial class ObservationPackage
         {
             var costs = catalog.AdjustedCosts(name, "");
             v = v with { Costs = Known(EquatableArray.From(Amounts(costs))) };
-            var (work, shown) = catalog.ShownStatValue(name, "", BridgeConstants.StatWorkToBuild);
+            var (work, shown) = catalog.ShownStatValue(name, "", CatalogStats.WorkToBuild);
             if (shown)
             {
                 v = v with { WorkToBuild = NonnegativeFact(work) };
@@ -133,7 +133,7 @@ public static partial class ObservationPackage
                 var (shownValue, ok) = catalog.ShownStatValue(name, stuff, stat);
                 if (ok)
                 {
-                    stats[stat] = shownValue;
+                    stats[stat.Name] = shownValue;
                 }
             }
             options.Add(new StuffOption
@@ -221,7 +221,7 @@ public static partial class ObservationPackage
             v = v with { HarvestRotDays = FiniteFact(days) };
         }
         // A product the game shows no Nutrition stat for gives none.
-        var (nutrition, _) = catalog.ShownStatValue(product, "", BridgeConstants.StatNutrition);
+        var (nutrition, _) = catalog.ShownStatValue(product, "", CatalogStats.Nutrition);
         v = v with { HarvestNutrition = FiniteFact(plant.harvestYield * nutrition) };
     }
 

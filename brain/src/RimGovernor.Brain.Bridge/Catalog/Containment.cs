@@ -49,7 +49,7 @@ public sealed partial class DefinitionCatalog
             double value;
             try
             {
-                value = TerrainStatValue(name, ContainmentStat);
+                value = TerrainStatValue(name, CatalogStats.ContainmentStrength);
             }
             catch (Exception e) when (e is CatalogException or StatException)
             {
@@ -64,7 +64,7 @@ public sealed partial class DefinitionCatalog
 
         double HitPoints(string def, string stuff)
         {
-            var value = StatValue(def, stuff, PlanningStatNames.MaxHitPoints);
+            var value = StatValue(def, stuff, CatalogStats.MaxHitPoints);
             return value > 0 ? value : throw new CatalogException($"{def} has no {PlanningStatNames.MaxHitPoints}");
         }
 
