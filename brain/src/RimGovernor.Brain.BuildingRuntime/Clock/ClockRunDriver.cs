@@ -231,8 +231,8 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
         }
     }
 
-    // Releases the poll's wait on every completed step: the poll reads again at once.
-    private void WakePoll() => _pollWake.Release();
+    // Releases the poll's wait on every completed step (and from a test that has just changed the journal): the poll reads again at once.
+    internal void WakePoll() => _pollWake.Release();
 
     /// <summary>
     /// Stops the poll and heartbeat loops, drops authority and holds the clock (Go <c>ClockWorker.Stop</c>). It can be

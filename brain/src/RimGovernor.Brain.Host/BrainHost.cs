@@ -362,6 +362,7 @@ public sealed class BrainHost : IAsyncDisposable
                 }
             }
         }
+        _plannerParts?.Clock?.Dispose();
         _player?.Dispose();
         _rebuild?.Dispose();
         if (_journal is { } journal)

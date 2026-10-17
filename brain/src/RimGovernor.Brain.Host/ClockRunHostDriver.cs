@@ -15,9 +15,8 @@ public sealed class ClockRunHostDriver(ClockRunDriver driver) : IClockRunDriver
         driver.AfterStepAsync(result, cancellationToken);
 
     /// <inheritdoc />
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
-        await driver.StopAsync(cancellationToken).ConfigureAwait(false);
-        driver.Dispose();
-    }
+    public Task StopAsync(CancellationToken cancellationToken) => driver.StopAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public void Dispose() => driver.Dispose();
 }

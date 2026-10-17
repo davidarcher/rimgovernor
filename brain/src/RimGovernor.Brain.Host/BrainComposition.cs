@@ -137,7 +137,7 @@ public sealed class PlannerParts
 }
 
 /// <summary>The clock's run state machine, driven from the host after each step.</summary>
-public interface IClockRunDriver
+public interface IClockRunDriver : IDisposable
 {
     /// <summary>
     /// Acts on one finished step: runs a held clock, changes its speed or policy in place, or takes a brain hold.
@@ -146,7 +146,11 @@ public interface IClockRunDriver
     /// </summary>
     Task<bool> AfterStepAsync(ClockSchedulerResult result, CancellationToken cancellationToken);
 
-    /// <summary>Stops the poll and heartbeat loops and holds the clock; called on shutdown after the last step.</summary>
+    /// <summary>
+    /// Stops the poll and heartbeat loops and holds the clock; called on shutdown after the last step. The session's
+    /// close stops it again, so it stays usable until <see cref="IDisposable.Dispose"/>, which the host calls once the
+    /// session has drained.
+    /// </summary>
     Task StopAsync(CancellationToken cancellationToken);
 }
 

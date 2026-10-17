@@ -461,10 +461,18 @@ public sealed class ClockRunDriverTests
 
         public Task<ClockReviewState> ReviewAsync() => Journal.ReadClockReviewAsync(Driver.Profile, Ct);
 
-        /// <summary>Waits until the poll has captured and reviewed every journal row the game holds, and has gone on to read past them.</summary>
+        /// <summary>
+        /// Waits until the poll has captured and reviewed every journal row the game holds, and has gone on to read past them.
+        /// The poll sleeps its cadence between a step's wakes, so a row the game took after the last wake is read only when
+        /// the poll is woken here; waiting on a step's wake alone races the poll's read against the row.
+        /// </summary>
         public async Task PolledAsync()
         {
             var newest = Game.Newest;
+            if (Game.ReadsAfter(newest) == 0)
+            {
+                Driver.WakePoll();
+            }
             await UntilAsync(() => Game.ReadsAfter(newest) > 0);
             await UntilAsync(async () => (await ReviewAsync()).ReviewedCursor == newest);
         }
@@ -804,13 +812,14 @@ public sealed class ClockRunDriverTests
         Assert.False(await rig.StepAsync());
         rig.Game.Advance(500);
 
+        // The hazard is not benign: a step that began before the poll reviewed it is refused. The hazard fires inside the
+        // next step, so a time taken before that step is before any review of it, whenever the poll gets to read.
+        var early = rig.Time.Now();
         rig.Game.BeforeHold = rig.Game.HostileHazard;
         Assert.True(await rig.StepAsync());
         Assert.Equal(PbClock.HoldReason.Hostile, rig.Game.Reason);
         Assert.Equal(0, rig.Game.Holds);
 
-        // The hazard is not benign: a step that began before the poll reviewed it is refused.
-        var early = rig.Time.Now();
         await rig.PolledAsync();
         await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { StartedAt = early }, Ct));
         Assert.True(rig.Game.Held);
