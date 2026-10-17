@@ -2,106 +2,73 @@
 
 [Choose tests](choose-tests.md) · [Machine setup](../agent-runbook.md)
 
-The runner is `RimGovernor.cmd acceptance <subcommand>` (`acceptance <subcommand> -h` lists flags). The harness core,
-registry, setup, doctor, postmortem, run, suite and the other subcommands live in
-`brain/src/RimGovernor.Brain.Acceptance`; cases live in `brain/src/RimGovernor.Brain.Acceptance.Cases/<Area>` and
-register through `CaseCatalog.Register`. It is the harness the nightly and the remote workflows run, against the
-in-process C# brain. The harness drives the game over the mod's local HTTP channel; there is no child process and no
-`games_stop`, a stop kills the recorded process tree.
-Every game it launches (headless, rendered, warm) carries `-rimgovernor-inproc` and `RIMGOVERNOR_OBSERVE=1`: the mod
-hosts the brain, and a case starts the brain through the player API instead of the host's auto-resume. There is no
-opt-out. The launcher's Play passes the same flag.
+## Charter
 
-## The nightly-tier subset
+Every case follows these rules. Each one can be checked from the case declaration or its body.
 
-To run the subset by hand on a
-prepared root (`RimGovernor.cmd acceptance setup` once, then one game at a time):
+1. **One native claim.** `Scope` names one native read, operation or simulation outcome, and the case asserts
+   it as observed in the game. An accepted order, a fixture's `success` or a planner choice is not a claim. Those
+   belong in an xUnit test in `brain/tests`, and only when no existing test covers them.
+2. **Stage, don't play.** The precondition comes from the typed stage spec. The behavior under test runs through
+   production ops and production observation reads. No case advances the game to create its precondition.
+3. **Tick budget.** The case declares its budget in game ticks: at most 30,000 for a lab or fixture start and
+   60,000 for any other start. There is no waiver. A case that does not fit is re-staged with an injected
+   precondition or deleted; long-horizon play belongs to the colony review (#2351). Wall time is only a hang
+   guard: budget ÷ 300 ticks/s + 1 minute.
+4. **Wait on the game.** Every wait ends on a tick, a progress signature or an event. No `Task.Delay`,
+   `Thread.Sleep` or wall-clock polling.
+5. **Typed reads.** Replies are read as `RimGovernor.Brain.Contracts` or `Fixtures.Contracts` records, never by
+   string key.
+6. **Telemetry by kind constant.** OTLP rows are selected by a registered kind constant
+   ([OTEL signals](../contracts/otel-signals.md#kinds)). No raw kind strings and no matching on log or message
+   text.
+7. **Shortcuts stop at the precondition.** Staging may spawn, inject and set state. The behavior under test is
+   never shortcut. The defaults stay: needs frozen except the case's kept needs, a superpawn crew and the quiet
+   storyteller. A case that departs from a default declares the departure and the claim that needs it.
+8. **Tier on the case.** The case declares its tier: smoke, nightly or on demand ([tiers](#tiers)).
 
-```text
-RimGovernor.cmd acceptance list -tier smoke
-RimGovernor.cmd acceptance suite -tier smoke   -root <abs root> -output <fresh dir>
-RimGovernor.cmd acceptance suite -tier nightly -root <abs root> -output <fresh dir> -workers 1
-RimGovernor.cmd acceptance run <area>/<case>   -root <abs root> -output <fresh dir>   # one failing case
-RimGovernor.cmd acceptance why <output>/<area>/<case>
-```
+A case that cannot satisfy rules 1–3 is deleted, not given an exception.
 
-The remote workflow's `nightly` tier is the same set (`Tiers.CasesOf("nightly")`, minus rendered cases). Run the smoke
-tier first (`smoke/identity` proves the in-proc launch and fixtures, `light/dark` the first service-driven case), then
-the nightly tier. The nightly-tier subset is `Tiers.EndToEnd` in `brain/src/RimGovernor.Brain.Acceptance/Cost/Tiers.cs`:
+## Writing a case
 
-- combatlab/native-hold
-- coordination/food-delegated, coordination/food-carried-recovery, coordination/construction-delegated
-- campaign/foothold, campaign/recovery
-- defense/perimeter, food/reserve, food/starving-tribal-recovery, production/ladder
-- shelter/bunks-first, shelter/retirement, shelter/climate-mild, shelter/climate-cold, shelter/climate-hot, shelter/solo-cold
-- startup/labor, solo/sea-ice-stock, solo/sea-ice-rhadamant
-- sustained/colony-stable, sustained/winter, upkeep/campaign, sleeping/suites
-- layout/ring, layout/rich-soil, layout/sea-ice-envelope, layout/storage-successor
-- mood/headroom, mood/ledger, mood/gathering
-- explain/every-concern
+New cases use the typed case API. It runs on the existing runner beside the legacy `AcceptanceCase`, and the
+compiler enforces the charter. The legacy `AcceptanceCase`/`ISession` path is frozen: add no cases to it. Port or
+delete a legacy case when you touch it. The legacy path is deleted once no cases remain on it.
 
-Filing failures: one GitHub issue per distinct failure (check for an existing match first), labelled `area:tooling`
-for harness/mod-host faults or the owning area label and `priority:P1`/`P2`, titled with the case name. Include the
-case name, the commit, the `result.json` verdict, the `acceptance why` digest, the game-log slice and whether it
-reproduces alone (`-repeat N`). Say whether the failure is the brain, the in-process host (bootstrap, channel,
-`RIMGOVERNOR_*` environment), or the harness; a case that fails to start or a missing route belongs to the host.
-A load-sensitive failure that passes alone is recorded, not rerun
-as a suite.
+<!-- #3396: replace the shape below with the typed API's type and member names. -->
 
-## Run and diagnose
+The typed case has this shape (type names land with #3396):
 
-```text
-acceptance list
-acceptance run <area>/<case> -root <absolute root> -output <fresh directory>
-acceptance why <output>/<area>/<case>
-acceptance stop -root <absolute root>
-```
-
-The runner owns package checks, profile preparation, game connection, discovery,
-start, pause, frozen needs, reporting and cleanup. A case receives its fixture
-reply through `s.Prepared()`.
-
-Each case writes `result.json`, native-call/service evidence and its game-log
-slice. Failures add `diagnosis.txt`; `acceptance why` reads the same digest.
-The report's `world` records seed, save hash and fixture hash. Large replies
-are capped by default; `-evidence full` retains them. Acknowledging an
-interruption permits progress but does not establish that the fault is harmless.
-
-Use `-repeat N` to reproduce a stochastic failure under one build and
-`-seed <s>` for a recorded debug/scenario seed. A save start uses its saved world
-and rejects a seed override.
-
-## Adding a case
-
-Register an `AcceptanceCase` (`brain/src/RimGovernor.Brain.Acceptance/Cases/AcceptanceCase.cs`) with
-`registry.Register`; a new area adds its `<Area>Cases.Register` to `CaseCatalog.Register`.
-
-| Field | Contract |
+| Member | Contract |
 | --- | --- |
-| `Name` | Stable `<area>/<case>` identifier. |
-| `Scope` | Exact claim, including why a snapshot cannot prove it. |
-| `Budget` | Minute-scale runtime; exceeding `AcceptanceCase.MaxBudget` needs a `Reason`. |
-| `Start` | Prepared save, fixture, lab, scenario, or `Owned` lifecycle. |
-| `RequiredOps` | Fixture operations called by the body or service hooks. |
-| `Run` | Exercise the behavior and watch progress. |
-| `Postmortem` | Read and assert native outcomes after services stop. |
-| `VanillaColonists` | Test-only opt-out from voluntary control for a native-only probe of a vanilla mechanic (a colonist's own hauling); needs a `Reason` ([voluntary control](../contracts/voluntary-control.md)). An idle colonist alone should not need it: the scenario clock installs the brain's standby stand-in (#3322). |
+| Name | Stable `<area>/<case>` identifier. |
+| Scope claim | Required. The one native claim (rule 1) and why a unit test cannot prove it. |
+| Tick budget | Required. Within the cap for the start (rule 3); the runner derives the hang guard from it. |
+| Tier | Required. Smoke, nightly or on demand (rule 8). |
+| Start | Lab, fixture, prepared save or scenario. Lab is the default. |
+| Stage | A typed stage spec over `Fixtures.Contracts` primitives (rule 2). |
+| Body | Production ops and reads. Replies come back as typed records (rule 5). Waits are on ticks, signatures or events (rule 4), and telemetry queries take a kind constant (rule 6). |
+| Variants | A table of variants run by one data-driven case. A variant that duplicates another's claim is deleted. |
 
-For service-driven cases, declare `Serve = new ServeSpec { ... }` (the harness-side session: save, families,
-environment entries). Store assertion inputs with the checkpoint state, `Session.Resumed` or
-`Session.Prior` so postmortem can run independently.
+<!-- #3396: name the session's typed read, wait and telemetry-query members here. -->
 
-### Stage the precondition, do not play into it
+A new area adds its registration to `CaseCatalog.Register`. The gate's catalog test checks the cap, claim and tier
+of every case without a game (#3397).
 
-Start with the state the assertion needs. Native op/read cases normally use
-`LabStart` with a colonist count: a pinned blank 100×100 map.
-Spawn at known offsets from its center. Terrain-dependent cases need an explicit
-`Reason`.
+### Staging
 
-Use one `test/*_prepare` operation to spawn, assign, damage and settle the
-fixture. Use production operations for the behavior under test. A prepared save
-or scenario is appropriate when history, biome or season is the precondition;
-do not grow a colony for twenty minutes to arrange a small assertion.
+<!-- #3393: name the stage spec type and its primitives here. -->
+
+The stage spec is a typed, declarative description of the precondition. It is built from a small set of
+primitives (spawn pawns, items and buildings, clear an area, set priorities and timetables, set needs, research,
+world, incident and quest state). The primitives live in the separate `Fixtures.Contracts` assembly. That assembly
+is compiled into fixture builds only, and production projects never reference it. A bespoke `test/*` op is
+added only for something the primitives cannot express: a fault hook, a recorder, an equality or benchmark check,
+or a content flow. Read-only probes are not test ops: a missing read is promoted into the
+[observations contract](../contracts/README.md) and read through production.
+
+A lab start is a pinned blank 100×100 map with a colonist count. Spawn at known offsets from its center. A
+prepared save or scenario is appropriate when history, biome or season is the precondition.
 
 A paused lab never advances the tick, and RimWorld's pathfinder gathers its map
 data once per tick. A fixture that spawns or changes buildings, rock or terrain
@@ -124,13 +91,11 @@ JSON-looking values decode as JSON; other values are strings.
 
 - Prefer Core-only unless the claim requires DLC. The runner's default activates
   installed expansions; a save start activates its saved `modIds`. Narrow
-  explicitly with `AcceptanceCase.Expansions` or `RIMGOVERNOR_ACCEPT_EXPANSIONS`.
-- Use a quiet storyteller. Needs are frozen except the case's `Keep` list;
-  preserve the needs being tested. Use `QuietWorld` only when wild-map
+  explicitly with the case's expansions or `RIMGOVERNOR_ACCEPT_EXPANSIONS`.
+- Keep needs the case tests unfrozen; freeze the rest. Use `QuietWorld` only when wild-map
   simulation is irrelevant, not for farm, hunting or husbandry claims.
-- Use `WaitProgress` with a progress signature that ends on service exit
-  for service-driven waits. Existing `WaitReview`, `WaitPlan` and `WaitRounds`
-  helpers cover common cases. No sleep loops.
+- Service-driven waits use a progress signature that ends on service exit
+  (`WaitProgress`; `WaitReview`, `WaitPlan` and `WaitRounds` cover common cases).
 - Advance gameplay by ticks with `RunUntil`/tick waits. `AdvanceGame` plays the
   harness as the brain: `clock_run`, a heartbeat about every second, and a
   `REVIEW` hold at the tick target. It guarantees at least N ticks (the clock
@@ -138,11 +103,7 @@ JSON-looking values decode as JSON; other values are strings.
   how many), not exactly N. The speed matrix reports hold counts by reason,
   resume latency and effective speed instead of window counts
   ([measure-throughput](measure-throughput.md#across-clock-speeds)).
-  Wall time is a hang guard. Fail immediately on terminal refusals or service exit.
-- Declare budgets in minutes. The default timeout is 20 minutes and cannot be
-  less than budget plus five; it is separate from the case budget.
-- `AcceptanceCase.Lint` checks the case before execution.
-  Departures requiring `Reason` must explain the tested constraint.
+  Fail immediately on terminal refusals or service exit.
 
 The baseline is generated from `BaselineStart` on first use and stamped
 beside its save; a changed spec regenerates it. A retained seed/save/fixture hash
@@ -154,6 +115,65 @@ activates (all installed ones when nothing narrows them). A lab save carries a
 `.stamp` with the installed package's hash, so a mod rebuild regenerates it.
 Suite and sweep worker roots receive copies of these files, so workers load the
 cache instead of generating a start.
+
+## Tiers
+
+- **smoke**: runner-proving cases over a kept debug game plus one short service-driven case (`smoke/identity`
+  proves the in-proc launch and fixtures, `light/dark` the first service-driven case). Extend it with a case that
+  proves a runner path the others miss, not one per area.
+- **nightly**: whole-colony proofs, run against main every night. It is a signal, not a landing gate.
+- **on demand**: every other case, run by name or by the remote workflow's cases tier.
+
+`acceptance list -tier <name>` prints a tier's cases. Legacy cases take their tier from the name lists in
+`brain/src/RimGovernor.Brain.Acceptance/Cost/Tiers.cs`.
+<!-- #3396: say where the typed case declares its tier. -->
+
+## Run and diagnose
+
+The runner is `RimGovernor.cmd acceptance <subcommand>` (`acceptance <subcommand> -h` lists flags). The harness core,
+registry, setup, doctor, postmortem, run, suite and the other subcommands live in
+`brain/src/RimGovernor.Brain.Acceptance`; cases live in `brain/src/RimGovernor.Brain.Acceptance.Cases/<Area>`. The
+nightly and the remote workflows run this harness against the in-process C# brain. The harness drives the game over
+the mod's local HTTP channel. There is no child process and no `games_stop`: a stop kills the recorded process tree.
+Every game it launches (headless, rendered, warm) carries `-rimgovernor-inproc` and `RIMGOVERNOR_OBSERVE=1`: the mod
+hosts the brain, and a case starts the brain through the player API instead of the host's auto-resume. There is no
+opt-out. The launcher's Play passes the same flag.
+
+On a prepared root (`RimGovernor.cmd acceptance setup` once, then one game at a time):
+
+```text
+RimGovernor.cmd acceptance list -tier smoke
+RimGovernor.cmd acceptance suite -tier smoke   -root <abs root> -output <fresh dir>
+RimGovernor.cmd acceptance suite -tier nightly -root <abs root> -output <fresh dir> -workers 1
+RimGovernor.cmd acceptance run <area>/<case>   -root <abs root> -output <fresh dir>   # one failing case
+RimGovernor.cmd acceptance why <output>/<area>/<case>
+RimGovernor.cmd acceptance stop -root <abs root>
+```
+
+The remote workflow's `nightly` tier is the same set minus rendered cases. Run the smoke tier first, then the
+nightly tier.
+
+The runner owns package checks, profile preparation, game connection, discovery,
+start, pause, frozen needs, reporting and cleanup. A case receives its fixture
+reply from the runner.
+
+Each case writes `result.json`, native-call/service evidence and its game-log
+slice. Failures add `diagnosis.txt`; `acceptance why` reads the same digest.
+The report's `world` records seed, save hash and fixture hash. Large replies
+are capped by default; `-evidence full` retains them. Acknowledging an
+interruption permits progress but does not establish that the fault is harmless.
+
+Use `-repeat N` to reproduce a stochastic failure under one build and
+`-seed <s>` for a recorded debug/scenario seed. A save start uses its saved world
+and rejects a seed override.
+
+Filing failures: one GitHub issue per distinct failure (check for an existing match first), labelled `area:tooling`
+for harness/mod-host faults or the owning area label and `priority:P1`/`P2`, titled with the case name. Include the
+case name, the commit, the `result.json` verdict, the `acceptance why` digest, the game-log slice and whether it
+reproduces alone (`-repeat N`). Say whether the failure is the brain, the in-process host (bootstrap, channel,
+`RIMGOVERNOR_*` environment), or the harness; a case that fails to start or a missing route belongs to the host.
+A load-sensitive failure that passes alone is recorded, not rerun
+as a suite.
 
 ## Reusing one game across acceptance cases
 

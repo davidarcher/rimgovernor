@@ -74,16 +74,9 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
 ## Evidence and diagnostics
 
 - Prove planner decisions with a bug-driven xUnit test in `brain/tests` where one is
-  needed; native cases prove native reads, operations or simulation. An accepted order is not completed pawn work.
-- Cases read wire replies through the typed Contracts records
-  (`WireCodec.ToRecord<T>`), not by string keys on the flat JSON view
-  (`reply["pawns"]`). New cases, and any lines you touch in an existing case,
-  use the typed records, so a renamed or deleted field breaks the build instead
-  of the nightly.
-- New native cases start from a prepared fixture, normally `cases.LabStart()`;
-  state why a unit test cannot prove the claim. Use a small quiet world,
-  bounded progress waits and minute-scale budgets. Do not play for twenty
-  minutes to create a precondition. See [case authoring](docs/developers/testing/acceptance-guide.md).
+  needed. Native acceptance cases follow the
+  [acceptance charter](docs/developers/testing/acceptance-guide.md#charter): one native
+  claim, a staged precondition, a tick budget, typed reads and telemetry by kind constant.
 - Whole-module race/stress runs belong to the nightly. Concurrency fixes use
   focused race tests. Deadlines guard hangs, not latency; use synchronized
   events/game ticks for behavioral assertions. Do not rerun a full suite for a

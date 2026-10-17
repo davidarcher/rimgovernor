@@ -23,6 +23,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Build, test and run the C# brain | [Development workflow](developers/development-process.md), [runbook](developers/agent-runbook.md) |
 | Work safely on the shared machine | [Runbook](developers/agent-runbook.md) |
 | Choose evidence for a change | [Choose tests](developers/testing/choose-tests.md) |
+| Rules every native case follows | [Acceptance charter](developers/testing/acceptance-guide.md#charter) |
 | Write or iterate on a native case | [Acceptance guide](developers/testing/acceptance-guide.md) |
 | Replay planner decisions | [Colony snapshots](developers/testing/colony-snapshots.md) |
 
