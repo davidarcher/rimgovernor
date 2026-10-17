@@ -13,8 +13,8 @@ internal sealed record PlannedRoomCandidatesResult(
 /// <summary>
 /// Planned rooms as construction activities (#3276). Each planned site of a valued alternative is its own comparison
 /// root, named by the site id and shared by the room's alternatives: its delivery, its clearing prerequisites and its
-/// finish, in the placed-site shape (ConstructionMethodCandidates), credited as one requested-development site. An
-/// alternative root requires every site of its alternative and carries no relief of its own. Nothing binds: the
+/// finish, in the placed-site shape (ConstructionMethodCandidates). A completed site is one unit of requested development
+/// whichever root builds it. An alternative root requires every site of its alternative and carries no relief of its own. Nothing binds: the
 /// operations have no action template until placement (#3278).
 /// </summary>
 internal static class PlannedRoomCandidates
@@ -208,8 +208,9 @@ internal static class PlannedRoomCandidates
                 roots.Add(new(site.Site, [])
                 {
                     ActivityCompletions = [site.Finish], ExclusiveOutcome = site.Site,
-                    // One completed planned operation is one requested-development site (#3241): the lowest tier.
-                    Outcome = new(site.Site, "requested-development", site.Finish, Known(horizon), default)
+                    // Its relief marks the site's work as requested development (the thermal-relief gate); the unit itself
+                    // is counted from the evaluated outcome, whichever root completes the site (#3334).
+                    Outcome = new(site.Site, ForecastPlannedSite.DevelopmentNeed, site.Finish, Known(horizon), default)
                     {
                         ProgressUnits = Known(1.0),
                         Requirements = new([new(site.Site, ProductionNeedPriority.Maintenance, 1.0)], default, default),

@@ -73,7 +73,7 @@ internal static class CoupledShelterCandidates
         foreach (var room in geometry.Rooms)
         {
             var notes = new List<string>(); var demands = new List<ForecastCompositionRequirement>();
-            var groups = new List<EquatableArray<string>>();
+            var groups = new List<EquatableArray<string>>(); var roofCells = new List<EquatableArray<string>>();
             var interior = room.Interior; var bounds = room.Bounds;
             if (room.Outdoor || bounds.Width * bounds.Height != interior.Count || interior.Count == 0)
                 notes.Add("unsupported_shelter_geometry");
@@ -160,7 +160,7 @@ internal static class CoupledShelterCandidates
                         // One claim target per cell: a shared "roof" target made two pawns on different cells refuse each other at admission.
                         "roof/" + cell.X + "/" + cell.Z, "BuildRoofs", "BuildRoof", 0, deadline, cell) { Destination = cell };
                 }
-                groups.Add([id]);
+                groups.Add([id]); roofCells.Add([id]);
                 demands.Add(new("roof/" + id, supply.Resource, Known(1), location, ForecastRequirementKind.Reusable,
                     Known<EquatableArray<string>>([supply.Id]), Known(0d), Known(horizon)));
                 notes.Add("roof_per_cell_labor_conservative_native_jobs_may_cover_neighbors");
@@ -184,7 +184,7 @@ internal static class CoupledShelterCandidates
                     + ring.Where(observed.ContainsKey).Sum(c => observed[c].DoorExchangePerTick * .5)) / interior.Count) : default;
             plans.Add(new(room.Id, interior, [], temperature, read?.Outdoors ?? default, exchange, source?.HeatPerTick ?? default,
                 source?.TargetTemperature ?? default, source?.SupplyTicks ?? default, EquatableArray.From(notes.Distinct()))
-                { AlternativePrerequisites = EquatableArray.From(groups), PowerNetwork = source?.PowerNetwork ?? "", Source = source?.Target ?? "",
+                { AlternativePrerequisites = EquatableArray.From(groups), RoofCells = made.Count == 0 ? [] : EquatableArray.From(roofCells), PowerNetwork = source?.PowerNetwork ?? "", Source = source?.Target ?? "",
                     AdditionalWatts = source?.AdditionalWatts ?? default, SurplusWatts = source?.SurplusWatts ?? default });
             if (demands.Count != 0) roots.Add("shelter/" + room.Id, EquatableArray.From(demands));
         }

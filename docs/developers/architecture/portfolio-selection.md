@@ -40,7 +40,10 @@ less total participant labor among new plans. Clothing delivery is development,
 not wearing or thermal protection. Completed construction effects count each
 physical site once, including when a larger prerequisite bundle supplies it.
 A planned site finished inside the horizon is one unit of requested development,
-the lowest tier; a whole planned room carries no value of its own. Work in the
+the lowest tier, whichever root built it: its own site root, a room alternative or a
+shelter. A planned room's per-cell native roof cells are together that room's one
+roof unit, earned when every cell completes. A whole planned room carries no value
+of its own. Work in the
 closure of a commitment that carries requested-development relief is exempt
 from the thermal-relief gate on construction allocations.
 
@@ -89,18 +92,28 @@ quarter of the budget is spent, each evaluated at a screening bound of 64 schedu
 expansions (the depth-first search finds its first complete plans within a few
 expansions per activity). The best portfolio found is then extended with each other
 root in root order, again screened, and the extension repeats from every new leader
-until no root improves it, so a set of any cardinality is built one root at a time. The
+until no root improves it, so a set of any cardinality is built one root at a time. A
+root exclusive with a leader member (another rest choice) swaps that member out, after
+the plain additions are tried. The
 final leader is confirmed at the full 4,096 bound, and the full cardinality sweep
 (singles, pairs, ...) resumes at that bound, skipping every subset already evaluated at
-it. A larger bound on the same subset is a new evaluation. A budget that cannot finish
+it. A schedule search that finished within the screening bound is complete at any bound;
+a truncated one is searched again at the larger bound. A budget that cannot finish
 the single roots still reaches further contributions, and truncation stays explicit
-(`portfolio_search_truncated`). See
+(`portfolio_search_truncated`). A screened search's truncation is reported only when no
+full-bound search of the same schedule follows. See
 [the measured cost](../testing/portfolio-allocations.md#fixpoint-extension-with-screened-evaluation-3215)
 and the [first extension](../testing/portfolio-allocations.md#incumbent-seeded-extension-3197).
 
 Search skips an already visited exact scheduled prefix and omits a redundant
 graph-only root when another selected root already contains its entire task
 closure. Roots with direct consequences or claims retain separate evaluation.
+Subsets with the same task closure and the same such roots (a retained incumbent
+by id) share one schedule search: a shelter, a room alternative and a room's site
+roots that complete the same sites are scheduled once. A planned site root differs
+only in marking its closure as requested development, so the relief gate is applied
+to each subset over the shared schedule; a subset whose marked closure also matches
+is skipped.
 An optimistic physical-lot quantity check rejects impossible bundles before
 assignment search; timed consumption, expiry and reservations still use the
 shared trajectory. These reductions preserve physical choices without a second

@@ -173,10 +173,11 @@ public static partial class PolicyFunctions
                     + (choice.Kind == "food" ? "/use/" + Math.Round(choice.Start, 6).ToString("R", System.Globalization.CultureInfo.InvariantCulture) : "") });
             }
         }
+        EquatableArray<EquatableArray<string>> Realized(EquatableArray<EquatableArray<string>> groups) => EquatableArray.From(groups.Select(group =>
+            EquatableArray.From(group.SelectMany(id => composed.Realizations.GetValueOrDefault(id) ?? []).Distinct().Order(StringComparer.Ordinal))));
         var shelters = shelter.Plans.Select(plan => plan with
         {
-            AlternativePrerequisites = EquatableArray.From(plan.AlternativePrerequisites.Select(group => EquatableArray.From(
-                group.SelectMany(id => composed.Realizations.GetValueOrDefault(id) ?? []).Distinct().Order(StringComparer.Ordinal))))
+            AlternativePrerequisites = Realized(plan.AlternativePrerequisites), RoofCells = Realized(plan.RoofCells),
         }).ToArray();
         // Recovery can unlock productive work which the earliest-only schedule would otherwise try too soon.
         // Propose the dependency, rather than hoping weights invent a missing complementary combination.

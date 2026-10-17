@@ -19,6 +19,10 @@ public sealed record ForecastShelterPlan(ForecastShelterId Room, EquatableArray<
     public Fact<double> SurplusWatts { get; init; }
     /// <summary>Each physical prerequisite needs one selected realization; distinct sites remain additive.</summary>
     public EquatableArray<EquatableArray<string>> AlternativePrerequisites { get; init; }
+    /// <summary>The per-cell native roof work of a planned room generated as planned sites, each cell's realizations (a
+    /// subset of AlternativePrerequisites). Together the cells are the room's one roof development unit (#3334); placed
+    /// construction, like the cells of a room with no generated planned site, is not requested development.</summary>
+    public EquatableArray<EquatableArray<string>> RoofCells { get; init; }
 }
 public sealed record ForecastShelterOutcome(ForecastShelterId Room, Fact<double> CompleteAt,
     Fact<double> TemperatureAtHorizon, EquatableArray<ForecastTemperaturePoint> Trajectory,

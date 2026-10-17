@@ -98,25 +98,49 @@ public static partial class PolicyFunctions
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         var redundantPairs = alternatives.Where(GraphOnly).SelectMany(a => alternatives.Where(b => a.Id != b.Id
             && closures[a.Id].IsSubsetOf(closures[b.Id])).Select(b => (Contained: a.Id, Container: b.Id))).ToHashSet();
-        // The traversal reaches a subset by more than one phase; evaluating it again at a bound it already got
-        // would only repeat its cost. A larger bound is a new evaluation.
+        // The traversal reaches a subset by more than one phase, and different root sets schedule the same work (a
+        // shelter, a room alternative or the room's site roots completing the same sites). Subsets whose task closure
+        // and non-graph roots (direct effects or claims; a retained incumbent by id) are equal share one schedule
+        // (#3334). A planned site root's only non-graph effect is marking its closure as requested development, which
+        // the relief gate below reads per subset; an equal marked closure too is the same evaluation, skipped. A
+        // schedule search that finished within its bound is complete at any larger bound; a truncated one is redone
+        // at a larger bound.
         var evaluated = new Dictionary<string, int>(StringComparer.Ordinal);
+        var schedules = new Dictionary<string, (int Bound, ForecastCoupledScenario Scenario)>(StringComparer.Ordinal);
+        // A screened schedule's truncation and findings stand only while no full-bound schedule of the subset follows.
+        var screened = new Dictionary<string, (string[] Findings, bool Truncated)>(StringComparer.Ordinal);
+        static bool PlannedSiteRoot(ForecastCommitment c) => c.Outcome?.Need == ForecastPlannedSite.DevelopmentNeed && GraphOnly(c with { Outcome = null });
+        string Join(IEnumerable<string> ids) => string.Join('\n', ids.Distinct().Order(StringComparer.Ordinal));
         bool Evaluate(ForecastCommitment[] additions, int bound = PortfolioBound)
         {
-            var key = string.Join('\n', additions.Select(c => c.Id));
+            var schedule = Join(additions.SelectMany(c => closures[c.Id])) + "\n|\n"
+                + Join(additions.Where(c => !GraphOnly(c) && !PlannedSiteRoot(c) || incumbentIds.Contains(c.Id)).Select(c => c.Id));
+            var key = schedule + "\n|\n" + Join(additions.Where(c => c.Outcome?.Requirements is { Relief.Count: > 0 }).SelectMany(c => closures[c.Id]));
             if (evaluated.TryGetValue(key, out var done) && done >= bound) return true;
+            var commitments = request.Commitments.Concat(additions).ToArray();
+            if (!CompatiblePortfolio(commitments)) return true;
             evaluated[key] = bound;
             if (expansions >= budget) { truncated = true; return false; }
             expansions++;
-            var commitments = request.Commitments.Concat(additions).ToArray();
-            if (!CompatiblePortfolio(commitments)) return true;
-            var remaining = budget - expansions;
-            if (remaining == 0) { truncated = true; return false; }
-            var scenario = ForecastCoupledScenarioOf(request with { Coupled = candidates.Context with
-            { Activities = candidates.Context.Activities with { ExpansionBudget = Math.Min(bound, remaining) } } }, ForecastCommitmentsById(commitments)).Coupled!;
-            expansions += scenario.Expansions;
-            findings.UnionWith(scenario.Findings);
-            if (scenario.Truncated) truncated = true;
+            if (!schedules.TryGetValue(schedule, out var known) || known.Bound < bound)
+            {
+                var remaining = budget - expansions;
+                if (remaining == 0) { truncated = true; return false; }
+                var searched = ForecastCoupledScenarioOf(request with { Coupled = candidates.Context with
+                { Activities = candidates.Context.Activities with { ExpansionBudget = Math.Min(bound, remaining) } } }, ForecastCommitmentsById(commitments)).Coupled!;
+                expansions += searched.Expansions;
+                known = (searched.Truncated ? bound : PortfolioBound, searched);
+                schedules[schedule] = known;
+                if (known.Bound < PortfolioBound) screened[schedule] = (searched.Findings.ToArray(), searched.Truncated);
+                else
+                {
+                    screened.Remove(schedule);
+                    findings.UnionWith(searched.Findings);
+                    if (searched.Truncated) truncated = true;
+                }
+            }
+            evaluated[key] = known.Bound;
+            var scenario = known.Scenario;
             var feasible = scenario.Alternatives.Where(a => a.Feasible == Known(true)).ToArray();
             var requested = commitments.Where(c => c.Outcome?.Requirements is { Relief.Count: > 0 })
                 .SelectMany(c => closures.GetValueOrDefault(c.Id) ?? []).ToHashSet(StringComparer.Ordinal);
@@ -182,11 +206,14 @@ public static partial class PolicyFunctions
             var rank = alternatives.Select((c, i) => (c.Id, i)).ToDictionary(p => p.Id, p => p.i, StringComparer.Ordinal);
             var seed = alternatives.Where(c => members.Contains(c.Id)).ToArray();
             // Roots are ordered by id, so the unserved construction a leader would complete sits behind hundreds of service roots and the budget ends first.
-            foreach (var root in alternatives.Where(c => !members.Contains(c.Id)).OrderBy(c => unserved.Any(u => u[0] == c.Id) ? 0 : 1))
+            // A root exclusive with a member swaps it out (another rest choice for the leader's), after every addition.
+            foreach (var root in alternatives.Where(c => !members.Contains(c.Id)).OrderBy(c => unserved.Any(u => u[0] == c.Id) ? 0 : 1)
+                .ThenBy(c => seed.All(m => CompatiblePortfolio([m, c])) ? 0 : 1))
             {
-                var portfolio = seed.Append(root).OrderBy(c => rank[c.Id]).ToArray();
+                var kept = seed.Where(c => CompatiblePortfolio([c, root])).ToArray();
+                var portfolio = kept.Append(root).OrderBy(c => rank[c.Id]).ToArray();
                 if (!CompatiblePortfolio(portfolio)) continue;
-                if (seed.Any(c => redundantPairs.Contains((c.Id, root.Id)) || redundantPairs.Contains((root.Id, c.Id)))) continue;
+                if (kept.Any(c => redundantPairs.Contains((c.Id, root.Id)) || redundantPairs.Contains((root.Id, c.Id)))) continue;
                 if (!Evaluate(portfolio, ScreenBound)) return false;
             }
             return true;
@@ -225,6 +252,7 @@ public static partial class PolicyFunctions
         }
         for (var size = 1; continueSearch && size <= alternatives.Length; size++)
             if (!Search(0, size, [])) { truncated = true; break; }
+        foreach (var (reasons, cut) in screened.Values) { findings.UnionWith(reasons); truncated |= cut; }
         if (truncated) findings.Add("portfolio_search_truncated");
         if (candidates.Truncated) findings.Add("portfolio_generation_truncated");
         findings.Add("beyond_horizon_unassessed");
@@ -271,9 +299,11 @@ public static partial class PolicyFunctions
             Metric("joy", n => n.ThresholdExposureTicks, true), Metric("joy", n => n.ThresholdExposureTicks),
             Metric("food", n => n.FinalLevel.IsKnown ? Known(n.FinalLevel.Value == 0 ? 1.0 : 0.0) : default),
             Metric("rest", n => n.FinalLevel.IsKnown ? Known(n.FinalLevel.Value == 0 ? 1.0 : 0.0) : default) };
-        // Delivered clothing is development, not wearing or physiological thermal protection.
-        var development = commitments.Where(c => c.Outcome?.Requirements is not null)
-            .SelectMany(c => c.Outcome!.Requirements!.Relief).GroupBy(r => r.Need).Sum(g => Math.Min(1, g.Sum(r => r.Fraction)));
+        // Delivered clothing is development, not wearing or physiological thermal protection. Planned development counts
+        // what the schedule completes, whichever root built it, each physical site once (#3334).
+        var development = commitments.Where(c => c.Outcome?.Requirements is not null && c.Outcome.Need != ForecastPlannedSite.DevelopmentNeed)
+            .SelectMany(c => c.Outcome!.Requirements!.Relief).GroupBy(r => r.Need).Sum(g => Math.Min(1, g.Sum(r => r.Fraction)))
+            + outcome.RequestedDevelopment.Count;
         var moods = outcome.Needs.Values.Select(n => n.Mood).ToArray();
         var moodKnown = moods.Length > 0 && moods.All(m => m is not null && m.TargetExposureTicks.IsKnown && m.PressureTicks.IsKnown);
         if (!moodKnown) unknown.Add("unassessed_mood");

@@ -149,14 +149,13 @@ public sealed class PlannedShelterTests
         var heater = candidates.Context.PlannedSites.Single(s => s.Site == HeaterSite);
         Assert.Contains(plan.AlternativePrerequisites, group => group.Any(heater.Finishes.Contains));
 
-        // Valued when evaluated: the shelter root against the pawn's rest choices alone. The full selector's search over
-        // every planned-site root truncates on this small room before reaching it (#3334), so it is not asserted here.
-        var shelterOnly = candidates with { Alternatives = EquatableArray.From(candidates.Alternatives
-            .Where(a => a.Id.StartsWith("shelter/", StringComparison.Ordinal) || a.ExclusiveOutcome.StartsWith("need/", StringComparison.Ordinal))) };
-        var result = CompareActivityOutcomes(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, new(),
-            new() { Work = ForecastWorkInputsOf(facts) }, [], new()), shelterOnly);
+        // The whole-portfolio selection over every planned-site, room and rest root picks the complete shelter (#3334).
+        var result = Select(facts);
+        Assert.DoesNotContain("portfolio_search_truncated", result.Selection.Findings);
         Assert.True(result.Selected.StationaryThermalRelief is { IsKnown: true, Value: > 0 }, Why(facts, result)
             + " | SEL " + string.Join(",", result.Selection.Selected) + " | " + string.Join(",", result.Selected.Plan.Allocations.Select(a => a.Activity + "@" + a.Start + "-" + a.End)));
+        // Each completed site is one unit of requested development, whichever root built it.
+        Assert.Equal(4, result.SelectedVector.Development);
         var shelter = Assert.Single(result.Selected.Shelters);
         Assert.True(shelter.CompleteAt.Value < Horizon, Why(facts, result));
         // Shell, roof and heater are the one builder's work in the same schedule as the pawn's rest.
@@ -254,5 +253,15 @@ public sealed class PlannedShelterTests
         // The native roof cell waits on the planned shell it stands on.
         foreach (var site in new[] { "planned/room1/wall/WoodLog", "planned/room1/door/WoodLog" })
             Assert.Contains(candidates.Context.PlannedSites.Single(s => s.Site == site).Finishes, roof.Prerequisites.Contains);
+
+        // The whole-portfolio selection picks the complete shelter over the shell alone (#3334): the per-cell roof is the
+        // room's one roof unit, so the shelter's wall, door and roof outrank the shell's two sites.
+        var result = Select(facts);
+        Assert.DoesNotContain("portfolio_search_truncated", result.Selection.Findings);
+        Assert.True(result.Selected.StationaryThermalRelief is { IsKnown: true, Value: > 0 }, Why(facts, result)
+            + " | SEL " + string.Join(",", result.Selection.Selected));
+        Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/roof", "planned/room1/wall/WoodLog"], result.Selected.RequestedDevelopment);
+        Assert.True(Assert.Single(result.Selected.Shelters).CompleteAt.Value < Horizon, Why(facts, result));
+        Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity == roof.Id);
     }
 }

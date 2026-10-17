@@ -506,8 +506,11 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    - The roof is worked at its own location, its first interior cell.
    - The planned-site routes of the free pawns join the generated routes, a `FromStart` row as the pawn's start.
 4. Roots. Each site is its own comparison root, named by its site id and shared by every alternative that
-   contains it. A site root carries one requested-development relief entry (the Need is its site id), so one
-   completed site is one unit of development, the lowest tier. Each alternative is also a root,
+   contains it. A site root carries one requested-development relief entry (the Need is its site id), which
+   marks its work for the thermal-relief gate. Development itself is counted from the evaluated outcome
+   (`RequestedDevelopment`): each planned site whose finish completes is one unit, the lowest tier, whichever
+   root built it, and a planned shelter's per-cell native roof cells together are the room's one
+   `planned/room{id}/roof` unit. Each alternative is also a root,
    `planned/room{id}[/{stuff}]/{scope}`, which requires all its sites' finishes and carries no relief of its own;
    alternatives of a room exclude each other. Ring site roots of different stuffs, and the other stuffs'
    alternatives, are excluded from each other (`Outcome.Excludes`). Planned roots get no after-production

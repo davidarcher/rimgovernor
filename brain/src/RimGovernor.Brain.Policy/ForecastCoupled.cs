@@ -26,7 +26,12 @@ public sealed record ForecastMaterialLot(string Lot, string Location, Resource R
 /// finish) and the finish realizations among them. Stuff is a ring site's stuff, empty for any other site. The
 /// activities have no action template until placement (#3278).
 /// </summary>
-public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, EquatableArray<string> Activities, EquatableArray<string> Finishes);
+public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, EquatableArray<string> Activities, EquatableArray<string> Finishes)
+{
+    /// <summary>The Need of a planned site root's outcome. Its relief marks requested development for the thermal-relief gate;
+    /// the units themselves are counted from the evaluated outcome (ForecastCoupledOutcome.RequestedDevelopment).</summary>
+    public const string DevelopmentNeed = "requested-development";
+}
 
 /// <summary>
 /// What one schedule completes of a planned room: the planned sites (ids) whose finish completes inside the horizon,
@@ -74,6 +79,9 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     public EquatableArray<string> CompletedDevelopmentSites { get; init; }
     /// <summary>Per planned room with a site completed inside the horizon: its completed sites and complete alternatives.</summary>
     public EquatableArray<ForecastPlannedRoomOutcome> PlannedRooms { get; init; }
+    /// <summary>The planned development units completed inside the horizon (#3334): each planned site once, and a planned
+    /// room's per-cell roof as its <c>planned/room{R}/roof</c> unit. One unit each of requested development.</summary>
+    public EquatableArray<string> RequestedDevelopment { get; init; }
     /// <summary>Known stationary-location exposure avoided relative to the same occupancy without proposed room changes.
     /// Unobserved transit/idle receive no benefit.</summary>
     public Fact<double> StationaryThermalRelief { get; init; }
@@ -519,6 +527,12 @@ public static partial class PolicyFunctions
             .ToArray();
         foreach (var room in plannedRooms.Where(r => r.Complete.Count == 0))
             Finding("planned_room_effect_unassessed", "planned/room" + room.Room, horizon);
+        // Requested development counts each completed planned site once, whichever root built it, and a planned room's
+        // per-cell native roof as that room's one roof unit once every cell completes (#3334).
+        var development = new SortedSet<string>(builtSites, StringComparer.Ordinal);
+        foreach (var shelter in context.Shelters.Where(s => s.Room.Source == ForecastShelterSource.Planned && s.RoofCells.Count != 0))
+            if (shelter.RoofCells.All(cell => cell.Any(f => completed.GetValueOrDefault(f) == Known(true))))
+                development.Add("planned/room" + shelter.Room.Value + "/roof");
         var thermalRelief = reliefKnown ? Known(unchanged.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)
             - changedUse.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)) : default;
         return new(plan, feasible, inventory.Stocks, needs, EquatableArray.From(findings))
@@ -532,6 +546,7 @@ public static partial class PolicyFunctions
                 .Select(p => FormattableString.Invariant($"{p.Need.Pawn}|{p.Need.Kind}|{tasks[p.Need.Task].Location}|{p.Allocation.Arrive:R}|{p.Allocation.End:R}"))),
             StationaryThermalRelief = thermalRelief,
             PlannedRooms = EquatableArray.From(plannedRooms),
+            RequestedDevelopment = EquatableArray.From(development),
             CompletedDevelopmentSites = EquatableArray.From(plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity) == Known(true))
                 .Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn)))
                 .Where(b => b is { Kind: PawnActivityKind.Work } && b.Job is "FinishFrame" or "BuildRoof")
