@@ -72,7 +72,7 @@ internal sealed partial class FacadeNativeClient
             default:
                 throw BridgeFunctions.Contract("missing bills outcome");
         }
-        if (snapshot is null || !GearContextMatches(snapshot.Context, identity))
+        if (snapshot is null || !BridgeFunctions.SameIdentity(snapshot.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("invalid bills context");
         }
@@ -169,7 +169,7 @@ internal sealed partial class FacadeNativeClient
             default:
                 throw BridgeFunctions.Contract("missing supplies outcome");
         }
-        if (snapshot is null || !GearContextMatches(snapshot.Context, identity))
+        if (snapshot is null || !BridgeFunctions.SameIdentity(snapshot.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("invalid supplies context");
         }
@@ -213,7 +213,7 @@ internal sealed partial class FacadeNativeClient
             default:
                 throw BridgeFunctions.Contract("missing recipes outcome");
         }
-        if (snapshot is null || !GearContextMatches(snapshot.Context, identity))
+        if (snapshot is null || !BridgeFunctions.SameIdentity(snapshot.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("invalid recipes context");
         }
@@ -362,18 +362,5 @@ internal sealed partial class FacadeNativeClient
             Ingredients = bill.DefaultIngredients.GetValueOrDefault() ? default : EquatableArray.From(bill.IngredientFilter?.AllowedDefNames ?? default),
         };
         return Fact.Known(spec);
-    }
-
-    /// <summary>Go <c>ValidateContext(ctx) == nil &amp;&amp; sameIdentity(ctx.Identity, identity)</c>.</summary>
-    private static bool GearContextMatches(PbCommon.ObservationContext? context, PbCommon.Identity identity)
-    {
-        try
-        {
-        }
-        catch (BridgeContractException)
-        {
-            return false;
-        }
-        return BridgeFunctions.SameIdentity(context!.Identity, identity);
     }
 }

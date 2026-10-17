@@ -78,7 +78,7 @@ namespace HomeBridge.BridgeTools
         // Each pawn row's hash as last captured (without its changed mark),
         // by the shared row diff, and the mark of its last change,
         // keyed by load id.
-        private static readonly RowDiff Compared = new RowDiff();
+        private static readonly RowDiff<Mirror.CombatPawn> Compared = new RowDiff<Mirror.CombatPawn>();
         private static readonly Dictionary<string, Mark> ChangedAt = new Dictionary<string, Mark>();
         private static void Stamp(Thing? thing, Mark mark, int rank)
         {

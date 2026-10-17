@@ -259,14 +259,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw Contract("unknown pawn cargo census");
         }
-        try
-        {
-        }
-        catch (BridgeContractException)
-        {
-            throw Contract("unknown pawn cargo census");
-        }
-        if (!SameIdentity(snapshot.Context!.Identity, identity) || snapshot.Completeness is null || snapshot.Completeness.Filtered is null)
+        if (!SameIdentity(snapshot.Context?.Identity, identity) || snapshot.Completeness is null || snapshot.Completeness.Filtered is null)
         {
             throw Contract("unknown pawn cargo census");
         }

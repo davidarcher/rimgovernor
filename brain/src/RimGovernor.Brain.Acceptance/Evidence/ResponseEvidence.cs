@@ -73,7 +73,7 @@ public sealed class ResponseEvidence
         }
     }
 
-    /// <summary>Folds the controller's rows in the log ring at <paramref name="path"/> into the evidence: pause and review times, and the first detection, decision and dispatch ticks at or after the onset.</summary>
+    /// <summary>Folds the controller's rows in the log ring at <paramref name="path"/> into the evidence: review times, and the first detection, decision and dispatch ticks at or after the onset.</summary>
     public void ReadLogs(string path)
     {
         foreach (var row in ServiceLogs.ReadLogs(path))
@@ -86,10 +86,6 @@ public sealed class ResponseEvidence
             var fields = row.Fields();
             if (row.Kind == "clock_step")
             {
-                if (fields.TryGetValue("controller_pause_ms", out var pause))
-                {
-                }
-
                 if (fields.TryGetValue("critical_wave_ms", out var wave))
                 {
                     _reviewInclusiveMs.Add(RowValue.Number(wave));

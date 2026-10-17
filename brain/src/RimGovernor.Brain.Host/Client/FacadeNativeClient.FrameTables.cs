@@ -36,14 +36,6 @@ internal sealed partial class FacadeNativeClient
         return held.Pawns;
     }
 
-    /// <summary>Go <c>Client.framePawnSnapshot</c>: the pawn table as a list snapshot in id order.</summary>
-    internal async Task<PbObservations.PawnSnapshot> FramePawnSnapshotAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
-    {
-        RequireFrames("the pawn table");
-        var held = await FrameHeldAsync(FramePawnsMethod, identity, view => view.Snapshot.Pawns is not null, cancellationToken).ConfigureAwait(false);
-        return held.PawnList() ?? throw BridgeFunctions.Contract("pawn table outcome missing");
-    }
-
     /// <summary>
     /// Go <c>Client.FrameThings</c>: the things table of the newest frame. There is no live read behind it: without a
     /// stream the table is empty and every food stock reference waits.
@@ -70,14 +62,7 @@ internal sealed partial class FacadeNativeClient
             return held.Buildings;
         }
         var observed = await ListBuildingsLiveAsync(identity, cancellationToken).ConfigureAwait(false);
-        try
-        {
-        }
-        catch (BridgeContractException)
-        {
-            throw BridgeFunctions.Contract("building table without the expected context");
-        }
-        if (!BridgeFunctions.SameIdentity(observed.Context!.Identity, identity))
+        if (!BridgeFunctions.SameIdentity(observed.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("building table without the expected context");
         }
@@ -185,34 +170,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>billsListRequest</c>.</summary>
     internal static PbObservations.BillsRequest BillsListRequest(PbCommon.Identity identity) =>
         new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
-
-    /// <summary>
-    /// Go <c>ThingTable</c>: validates a things snapshot against the identity and indexes its rows by id; a null
-    /// snapshot is an empty table.
-    /// </summary>
-    internal static Things ThingTable(PbObservations.ThingsSnapshot? snapshot, PbCommon.Identity identity)
-    {
-        if (snapshot is null)
-        {
-            return default;
-        }
-        if (!BridgeFunctions.SameIdentity(snapshot.Context!.Identity, identity))
-        {
-            throw BridgeFunctions.Contract("things table world mismatch");
-        }
-        var table = default(Table<PbObservations.Thing>);
-        foreach (var row in snapshot.Things)
-        {
-            var id = row.Entity?.Id ?? "";
-            if (table.Has(id))
-            {
-                throw BridgeFunctions.Contract("duplicate thing row");
-            }
-            table = table.Set(id, row);
-        }
-        return new Things(table);
-    }
-
 
     /// <summary>
     /// Go <c>Client.frameHeld</c>: the held keyed tables as of the newest frame past this client's last write that

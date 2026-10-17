@@ -15,7 +15,7 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(EquipRead Value, BridgeResult Receipt)> ReadEquipWeaponsAsync(PbCommon.Identity identity, DomainCell minimum, DomainCell maximum, CancellationToken cancellationToken)
     {
-        if (!SupplyIdentityValid(identity) || minimum.X < 0 || minimum.Z < 0 || maximum.X < minimum.X || maximum.Z < minimum.Z)
+        if (minimum.X < 0 || minimum.Z < 0 || maximum.X < minimum.X || maximum.Z < minimum.Z)
         {
             throw BridgeFunctions.Contract("invalid equip scope");
         }
@@ -83,7 +83,7 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>Client.readSupplyAccess</c>.</summary>
     private async Task<(SupplyRead Value, BridgeResult Receipt)> SupplyReadAccessAsync(PbCommon.Identity identity, DomainCell cell, bool forbid, CancellationToken cancellationToken)
     {
-        if (!SupplyIdentityValid(identity) || cell.X < 0 || cell.Z < 0)
+        if (cell.X < 0 || cell.Z < 0)
         {
             throw BridgeFunctions.Contract("invalid supply scope");
         }
@@ -111,32 +111,6 @@ internal sealed partial class FacadeNativeClient
         return (SupplyDecodeAccessAt(reply, identity, cell, forbid), NoReceipt);
     }
 
-    /// <summary>Go <c>ValidateIdentity(identity) == nil</c>.</summary>
-    private static bool SupplyIdentityValid(PbCommon.Identity? identity)
-    {
-        try
-        {
-            return true;
-        }
-        catch (BridgeContractException)
-        {
-            return false;
-        }
-    }
-
-    /// <summary>Go <c>buildingContext(value, identity, 0, false) == nil</c>: a valid context of the same identity.</summary>
-    private static bool SupplyContextMatches(PbCommon.ObservationContext? context, PbCommon.Identity identity)
-    {
-        try
-        {
-        }
-        catch (BridgeContractException)
-        {
-            return false;
-        }
-        return BridgeFunctions.SameIdentity(context!.Identity, identity);
-    }
-
     /// <summary>Go <c>refSnapshot</c>: whether <paramref name="snapshot"/> is the CAS token of <paramref name="reference"/> read under <paramref name="context"/>.</summary>
     private static bool SupplyRefSnapshot(PbObservations.SnapshotRef? snapshot, PbCommon.Ref? reference, PbCommon.ObservationContext? context) =>
         snapshot is not null
@@ -157,7 +131,7 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("invalid equip reply");
         }
         var v = reply.Outcome?.Observed;
-        if (v is null || !SupplyContextMatches(v.Context, identity))
+        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("equip census unavailable");
         }
@@ -243,7 +217,7 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("invalid supply reply");
         }
         var v = reply.Outcome?.Observed;
-        if (v is null || !SupplyContextMatches(v.Context, identity))
+        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("supply census unavailable");
         }

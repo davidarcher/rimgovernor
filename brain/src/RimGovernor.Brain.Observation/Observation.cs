@@ -80,15 +80,12 @@ public sealed record Status
 }
 
 /// <summary>
-/// One tick observation. Before and After are the identity the reply's ObservationContext reported; Observe
-/// issues a single native call, so they are equal and SameTick holds. Native generation is an optional
-/// observed fact; Manual and player direction are not inferred.
+/// One tick observation: the identity the reply's ObservationContext reported (Observe issues a single native
+/// call). Native generation is an optional observed fact; Manual and player direction are not inferred.
 /// </summary>
 public sealed record Snapshot
 {
-    public Identity Before { get; init; } = new();
-
-    public Identity After { get; init; } = new();
+    public Identity Identity { get; init; } = new();
 
     public Status Status { get; init; } = new();
 
@@ -96,14 +93,11 @@ public sealed record Snapshot
 
     public DateTimeOffset ObservedAt { get; init; }
 
-    public bool SameTick() => Before.Tick == After.Tick;
-
     public void CheckFresh(DateTimeOffset now, TimeSpan maxAge, Identity current)
     {
-        Before.Validate();
-        After.Validate();
+        Identity.Validate();
         current.Validate();
-        if (!Before.SameContext(After) || !After.SameContext(current) || After.Tick < Before.Tick || current.Tick < After.Tick)
+        if (!Identity.SameContext(current) || current.Tick < Identity.Tick)
         {
             throw new ObservationChangedException();
         }
@@ -146,7 +140,7 @@ public static partial class ObservationPackage
         }
         var startedAt = clock.Now();
         var (reply, receipt) = await source.TickAsync(cancellationToken).ConfigureAwait(false);
-        var before = DecodeTick(reply);
+        var identity = DecodeTick(reply);
         var observedAt = clock.Now();
         if (startedAt == default || observedAt < startedAt)
         {
@@ -158,9 +152,8 @@ public static partial class ObservationPackage
             Snapshot = new Snapshot
             {
                 StartedAt = startedAt,
-                Before = before,
-                After = before,
-                Status = new Status { Availability = Availability.GameLoaded, Paused = before.Paused },
+                Identity = identity,
+                Status = new Status { Availability = Availability.GameLoaded, Paused = identity.Paused },
                 ObservedAt = observedAt,
             },
         };

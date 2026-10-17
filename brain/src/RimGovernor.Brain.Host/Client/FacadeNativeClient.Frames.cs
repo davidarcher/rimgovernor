@@ -88,7 +88,7 @@ internal sealed class FramePrepared
     /// <summary>The detail of a Failure the frame carried: a refusal naming the section, never a frame without it.</summary>
     internal string? FailureDetail { get; private init; }
 
-    /// <summary>Why the frame is skipped (invalid context, an invalid pawn row under an emergency census, an undecodable census).</summary>
+    /// <summary>Why the frame is skipped (an invalid pawn row under an emergency census, an undecodable census).</summary>
     internal Exception? Problem { get; private init; }
 
     /// <summary>A refusal the emergency decoder raised: surfaced to the reader, like Go's refused frame.</summary>
@@ -98,7 +98,11 @@ internal sealed class FramePrepared
 
     internal FrameHeld Held { get; private init; } = FrameHeld.Empty;
 
-    internal EmergencyObservation Emergency { get; private init; } = new(null, new P.EmergencyFacts());
+    /// <summary>
+    /// The frame's emergency census decoded against <see cref="Held"/>'s pawn table, with the pending drop pods of the
+    /// frame's combat events; null when the frame carries no census. The routine and combat reads share it.
+    /// </summary>
+    internal EmergencyObservation? Emergency { get; private init; }
 
     internal static FramePrepared Of(PbObservations.BundleSnapshot v)
     {
@@ -106,21 +110,14 @@ internal sealed class FramePrepared
         {
             return new FramePrepared { FailureDetail = failure.Detail ?? "" };
         }
-        try
-        {
-        }
-        catch (BridgeContractException problem)
-        {
-            return new FramePrepared { Problem = problem };
-        }
         var context = v.Context!;
         var held = FrameHeld.Of(v, context);
-        var emergency = new EmergencyObservation(null, new P.EmergencyFacts());
+        EmergencyObservation? emergency = null;
         if (v.Emergency is not null)
         {
             try
             {
-                emergency = FacadeNativeClient.EmergencyDecode.DecodeEmergencyStatus(v.Emergency, held.Pawns, context.Identity!);
+                emergency = FacadeNativeClient.PodsPending(FacadeNativeClient.EmergencyDecode.DecodeEmergencyStatus(v.Emergency, held.Pawns, context.Identity!), v.CombatEvents);
             }
             catch (Refusal refusal)
             {
@@ -164,14 +161,6 @@ internal sealed class FrameHeld
         Things = v.Things is { } things ? new Things(Index(things.Things, row => row.Entity?.Id ?? "")) : default,
         ThingsMeta = v.Things is not null ? new PbObservations.ThingsSnapshot { Context = context } : null,
     };
-
-    /// <summary>Go <c>heldTables.pawnList</c>: the pawn table as a list snapshot in id order, null when the frame carries none.</summary>
-    internal PbObservations.PawnSnapshot? PawnList() =>
-        PawnMeta is null ? null : PawnMeta with { Pawns = [.. Pawns.Table.Sorted()] };
-
-    /// <summary>Go <c>heldTables.buildingList</c>.</summary>
-    internal PbObservations.BuildingsSnapshot? BuildingList() =>
-        BuildMeta is null ? null : BuildMeta with { Buildings = [.. Buildings.Table.Sorted()] };
 
     /// <summary>A keyed table of the rows: a row with no id is not addressable and never enters it; a repeated id keeps the last row.</summary>
     private static Table<TRow> Index<TRow>(IEnumerable<TRow> rows, Func<TRow, string> id)

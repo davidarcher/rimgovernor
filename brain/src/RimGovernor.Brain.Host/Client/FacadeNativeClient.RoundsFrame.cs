@@ -6,7 +6,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Host;
 
-// Go frames.go: ReadRoundsFrame, DecodeRoundsFrame/decodeRoundsFrame, podArrivals, podsPending, roundsPawnRows,
+// Go frames.go: ReadRoundsFrame, DecodeRoundsFrame/decodeRoundsFrame, podsPending, roundsPawnRows,
 // roundsPawnIDs, ReadCombat, combatFrameHeld, censusPawns, primaryWeaponThings, DecodeCombat, combatRoom, validateCombat.
 internal sealed partial class FacadeNativeClient
 {
@@ -31,8 +31,7 @@ internal sealed partial class FacadeNativeClient
         }
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
         var view = await FrameSectionAsync(RoundsFrameMethod, identity, anyFrame: false, frame => frame, cancellationToken).ConfigureAwait(false);
-        var held = view.Prepared.Held;
-        var routine = DecodeRoundsFrame(view.Snapshot, catalog, held);
+        var routine = DecodeRoundsFrame(view.Snapshot, catalog, view.Prepared);
         if (routine.Buildings is { } census)
         {
             routine = routine with { Buildings = census with { Memo = _frameCensus } };
@@ -45,10 +44,14 @@ internal sealed partial class FacadeNativeClient
         return routine;
     }
 
-    /// <summary>Go <c>decodeRoundsFrame</c>: decodes the frame's routine sections; the keyed tables are <paramref name="held"/>'s, never the frame's lists.</summary>
-    internal static RoundsFrame DecodeRoundsFrame(PbObservations.BundleSnapshot v, DefinitionCatalog catalog, FrameHeld held)
+    /// <summary>
+    /// Go <c>decodeRoundsFrame</c>: decodes the frame's routine sections; the keyed tables and the emergency census
+    /// are <paramref name="prepared"/>'s, decoded once per frame, never the frame's lists.
+    /// </summary>
+    internal static RoundsFrame DecodeRoundsFrame(PbObservations.BundleSnapshot v, DefinitionCatalog catalog, FramePrepared prepared)
     {
         var identity = v.Context!.Identity!;
+        var held = prepared.Held;
         var pawns = held.Pawns;
         var output = new RoundsFrame
         {
@@ -59,9 +62,8 @@ internal sealed partial class FacadeNativeClient
             Buildings = held.BuildMeta is null ? null : new BuildingCensus(held.BuildMeta.Context, held.Buildings),
             Tables = new Tables(held.Buildings, pawns, held.Things),
         };
-        if (v.Emergency is not null)
+        if (prepared.Emergency is { } emergency)
         {
-            var emergency = PodsPending(EmergencyDecode.DecodeEmergencyStatus(v.Emergency, pawns, identity), v.CombatEvents);
             output = output with { Emergency = emergency };
             if (held.PawnMeta is { } meta && RoundsPawnRows(meta, pawns, emergency) is { } colonists)
             {
@@ -101,20 +103,6 @@ internal sealed partial class FacadeNativeClient
             output = output with { Zones = PlacementReads.DecodeZones(v.Zones, identity) };
         }
         return output;
-    }
-
-    /// <summary>Go <c>podArrivals</c>: the drop-pod arrival rows among a frame's combat events.</summary>
-    internal static EquatableArray<PbMirror.CombatEventRow> PodArrivals(EquatableArray<PbMirror.CombatEventRow> events)
-    {
-        var output = new List<PbMirror.CombatEventRow>();
-        foreach (var row in events)
-        {
-            if (BridgeFunctions.DropPodArrival(row))
-            {
-                output.Add(row);
-            }
-        }
-        return [.. output];
     }
 
     /// <summary>
@@ -184,7 +172,7 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("combat read without an identity");
         }
         var view = await FrameSectionAsync(CombatFrameMethod, identity, anyFrame: false, frame => frame, cancellationToken).ConfigureAwait(false);
-        var combat = DecodeCombat(CombatFrame(view));
+        var combat = DecodeCombat(view);
         // The weapons' facts, the mech guard orders and a fight's race flags resolve against the catalog of the load.
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
         // An unbuildable race table fails the read here, so the fight's race lookups never see the error.
@@ -193,10 +181,9 @@ internal sealed partial class FacadeNativeClient
     }
 
     /// <summary>Go <c>combatFrameHeld</c>: the part of the frame a combat read answers, its census rows looked up in the frame's held pawn table.</summary>
-    private static PbObservations.BundleSnapshot CombatFrame(FrameView view)
+    private static PbObservations.BundleSnapshot CombatFrame(FrameView view, PbObservations.PawnSnapshot? pawns, PbObservations.ThingsSnapshot? things)
     {
         var v = view.Snapshot;
-        var pawns = CensusPawns(view);
         var frame = new PbObservations.BundleSnapshot
         {
             Context = v.Context,
@@ -215,38 +202,45 @@ internal sealed partial class FacadeNativeClient
         {
             frame = frame with { ColonyFacts = new PbObservations.ColonyFactsSnapshot { OutdoorTemperatureC = outdoor } };
         }
-        return frame with { Things = PrimaryWeaponThings(view, pawns) };
+        return frame with { Things = things };
     }
 
-    /// <summary>Go <c>primaryWeaponThings</c>: the things rows the census pawns' primary weapons name.</summary>
-    private static PbObservations.ThingsSnapshot? PrimaryWeaponThings(FrameView view, PbObservations.PawnSnapshot? pawns)
+    /// <summary>
+    /// Go <c>primaryWeaponThings</c>: the things rows the census pawns' primary weapons name, as the frame's list and
+    /// keyed from the frame's held things table.
+    /// </summary>
+    private static (PbObservations.ThingsSnapshot? Rows, Things Table) PrimaryWeaponThings(FrameView view, PbObservations.PawnSnapshot? pawns)
     {
         if (pawns is null)
         {
-            return null;
+            return (null, default);
         }
         var held = view.Prepared.Held;
-        var output = new PbObservations.ThingsSnapshot { Context = view.Snapshot.Context };
         var rows = new List<PbObservations.Thing>();
+        var table = default(Table<PbObservations.Thing>);
         foreach (var pawn in pawns.Pawns)
         {
             var id = pawn.Equipment?.PrimaryId ?? "";
             if (id.Length != 0 && held.Things.TryGetValue(id, out var row) && row is not null)
             {
                 rows.Add(row);
+                table = table.Set(id, row);
             }
         }
-        return output with { Things = [.. rows] };
+        return (new PbObservations.ThingsSnapshot { Context = view.Snapshot.Context, Things = [.. rows] }, new Things(table));
     }
 
-    /// <summary>Go <c>censusPawns</c>: the frame's pawn table rows the emergency census references.</summary>
-    private static PbObservations.PawnSnapshot? CensusPawns(FrameView view)
+    /// <summary>
+    /// Go <c>censusPawns</c>: the frame's pawn table rows the emergency census references, as the frame's list and
+    /// keyed from the frame's held pawn table.
+    /// </summary>
+    private static (PbObservations.PawnSnapshot? Rows, Pawns Table) CensusPawns(FrameView view)
     {
         var v = view.Snapshot;
         var held = view.Prepared.Held;
         if (v.Pawns is null || v.Emergency is null || held.PawnMeta is null)
         {
-            return null;
+            return (null, default);
         }
         var ids = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var reference in v.Emergency.Colonists)
@@ -280,36 +274,38 @@ internal sealed partial class FacadeNativeClient
             }
         }
         var output = new List<PbObservations.PawnState>();
+        var table = default(Table<PbObservations.PawnState>);
         foreach (var id in ids)
         {
             if (held.Pawns.TryGetValue(id, out var row) && row is not null)
             {
                 output.Add(row);
+                table = table.Set(id, row);
             }
         }
-        return new PbObservations.PawnSnapshot
+        var rows = new PbObservations.PawnSnapshot
         {
             Context = v.Pawns.Context,
             Completeness = v.Pawns.Completeness,
             MeditateAssignmentAvailable = v.Pawns.MeditateAssignmentAvailable,
             Pawns = [.. output],
         };
+        return (rows, new Pawns(table));
     }
 
     /// <summary>Go <c>isMechRow</c>: a living pawn carrying a mechanitor or mech block.</summary>
     private static bool IsMechRow(PbObservations.PawnState row) =>
         !row.Dead.GetValueOrDefault() && (row.Biotech?.Mechanitor is not null || row.Biotech?.Mech is not null);
 
-    /// <summary>Go <c>DecodeCombat</c>: validates and decodes a frame's combat part.</summary>
-    private static Combat DecodeCombat(PbObservations.BundleSnapshot v)
+    /// <summary>
+    /// Go <c>DecodeCombat</c>: validates and decodes a frame's combat part. The census pawns and weapons are keyed from
+    /// the frame's held tables and the emergency census is the frame's, decoded once (<see cref="FrameView.Prepared"/>).
+    /// </summary>
+    private static Combat DecodeCombat(FrameView view)
     {
-        try
-        {
-        }
-        catch (BridgeContractException)
-        {
-            throw BridgeFunctions.Contract("combat frame without a context");
-        }
+        var (pawnRows, pawns) = CensusPawns(view);
+        var (thingRows, things) = PrimaryWeaponThings(view, pawnRows);
+        var v = CombatFrame(view, pawnRows, thingRows);
         ValidateCombat(v);
         var identity = v.Context!.Identity!;
         var output = new Combat
@@ -319,16 +315,16 @@ internal sealed partial class FacadeNativeClient
             Events = v.CombatEvents,
             Doors = v.CombatDoors,
             Frame = v,
+            Detail = pawns,
+            Things = things,
         };
         if (v.WorldProgression is not null)
         {
             output = output with { World = BridgeFunctions.DecodeWorldProgressionSnapshot(v.WorldProgression, identity) };
         }
-        var pawns = PawnTable(v.Pawns, identity);
-        output = output with { Detail = pawns, Things = ThingTable(v.Things, identity) };
-        if (v.Emergency is not null)
+        if (view.Prepared.Emergency is { } emergency)
         {
-            output = output with { Emergency = PodsPending(EmergencyDecode.DecodeEmergencyStatus(v.Emergency, pawns, identity), v.CombatEvents) };
+            output = output with { Emergency = emergency };
         }
         if (v.CombatLinesOfFire is { } lines)
         {

@@ -159,10 +159,6 @@ internal sealed partial class FacadeNativeClient
                     throw Contract("invalid load superseded");
                 }
 
-                if (superseded.ObservedContext is not null)
-                {
-                }
-
                 break;
             case PbLifecycle.LoadReplyOutcome.FailureCase { Value: var failure }:
                 throw Failure(failure);
@@ -196,10 +192,6 @@ internal sealed partial class FacadeNativeClient
 
         if (request.ExpectedPlayer is { } player)
         {
-            if (player.Identity is not null)
-            {
-            }
-
             if (player.RequestId is not null && !IsValidId(player.RequestId))
             {
                 throw Contract("load request expected player request id invalid");

@@ -132,19 +132,6 @@ internal sealed partial class FacadeNativeClient
 
     private static PbCommon.Cell DefenseWireCell(DomainCell cell) => new() { X = cell.X, Z = cell.Z };
 
-    /// <summary>Go <c>ValidateContext(ctx) == nil &amp;&amp; sameIdentity(ctx.Identity, identity)</c>.</summary>
-    private static bool DefenseContextMatches(PbCommon.ObservationContext? context, PbCommon.Identity identity)
-    {
-        try
-        {
-        }
-        catch (BridgeContractException)
-        {
-            return false;
-        }
-        return BridgeFunctions.SameIdentity(context!.Identity, identity);
-    }
-
     /// <summary>Go <c>validateLineCells</c>.</summary>
     private static void DefenseValidateLineCells(IReadOnlyList<DomainCell> cells)
     {
@@ -165,7 +152,7 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>validateDefenseSite</c>.</summary>
     private static DefenseSite DefenseValidateSite(PbObservations.DefenseSiteSnapshot? v, PbCommon.Identity identity, CellRect region)
     {
-        if (v is null || !DefenseContextMatches(v.Context, identity))
+        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("invalid defense site context");
         }
@@ -289,7 +276,7 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>validateLinesOfFire</c>.</summary>
     internal static List<LineOfFire> DefenseValidateLinesOfFire(PbObservations.LinesOfFireSnapshot? v, PbCommon.Identity identity, IReadOnlyList<DomainCell> firing, IReadOnlyList<DomainCell> approach)
     {
-        if (v is null || !DefenseContextMatches(v.Context, identity))
+        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("invalid lines of fire context");
         }
@@ -365,7 +352,7 @@ internal sealed partial class FacadeNativeClient
         IReadOnlyList<string> pawnIds
     )
     {
-        if (v is null || !DefenseContextMatches(v.Context, identity))
+        if (v is null || !BridgeFunctions.SameIdentity(v.Context?.Identity, identity))
         {
             throw BridgeFunctions.Contract("invalid spatial access context");
         }

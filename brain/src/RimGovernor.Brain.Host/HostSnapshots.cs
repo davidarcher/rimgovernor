@@ -41,7 +41,7 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
             try
             {
                 reading = await ObservationPackage.Observe(source, clock, cancellationToken).ConfigureAwait(false);
-                reading.Snapshot.CheckFresh(clock.Now(), maxAge, reading.Snapshot.After);
+                reading.Snapshot.CheckFresh(clock.Now(), maxAge, reading.Snapshot.Identity);
             }
             catch (NotLoadedException e)
             {
@@ -83,8 +83,8 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
                     Connected = true,
                     Stale = false,
                     Status = "Read-only observation",
-                    Identity = Known(reading.Snapshot.After),
-                    Tick = Known(reading.Snapshot.After.Tick),
+                    Identity = Known(reading.Snapshot.Identity),
+                    Tick = Known(reading.Snapshot.Identity.Tick),
                     Paused = reading.Snapshot.Status.Paused,
                     ObservedAt = Known(reading.Snapshot.ObservedAt),
                 };

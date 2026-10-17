@@ -118,9 +118,6 @@ internal sealed partial class FacadeNativeClient
                 {
                     throw BridgeFunctions.Contract("invalid save uncertain");
                 }
-                if (uncertain.ObservedContext is not null)
-                {
-                }
                 throw new FacadeSaveUncertainException(uncertain, NoReceipt);
             case PbLifecycle.SaveReplyOutcome.FailureCase { Value: var failure }:
                 throw Failure(failure);
