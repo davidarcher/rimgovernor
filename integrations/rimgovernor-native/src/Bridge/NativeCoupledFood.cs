@@ -51,10 +51,10 @@ internal static class NativeCoupledFood
                         || bench.IsForbidden(pawn) || source.IsForbidden(pawn)
 
                         || !pawn.CanReserveAndReach(bench, PathEndMode.InteractionCell, Danger.None)) continue;
-                    var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(g => g.workType == DefDatabase<WorkTypeDef>.GetNamed("Cooking")
+                    var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(g => g.workType == ExtraWorkTypeDefOf.Cooking
                         && g.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(bench));
                     if (giver == null || !bill.IsFixedOrAllowedIngredient(raw)) continue;
-                    var canCook = !pawn.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed("Cooking"))
+                    var canCook = !pawn.WorkTypeIsDisabled(ExtraWorkTypeDefOf.Cooking)
                         && recipe.FirstSkillRequirementPawnDoesntSatisfy(pawn) == null
                         && NativeActivityRecipe.ResolveRecipe(pawn,bench,giver.defName,bill.GetUniqueLoadID(),recipe.defName,out _,out _);
                     var canHaul = !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) && !pawn.WorkTagIsDisabled(WorkTags.ManualDumb)

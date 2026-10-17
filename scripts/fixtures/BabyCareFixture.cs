@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
     // feeding and the growth) is the game's and the controller's.
     public sealed class BabyCareFixture
     {
-        private static WorkTypeDef Cooking => DefDatabase<WorkTypeDef>.GetNamed("Cooking");
+        private static WorkTypeDef Cooking => ExtraWorkTypeDefOf.Cooking;
         private static bool BabyEdible(ThingDef def) => def?.ingestible != null && def.ingestible.babiesCanIngest;
 
         [Tool("test/baby_care_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture (#1691): build a roofed kitchen with a fueled stove, seed the ingredients of its baby-edible recipe, finish the recipe's research and add one baby daysToChild days short of its first childhood stage, with no breastfeeder in the colony. Requires Biotech.")]

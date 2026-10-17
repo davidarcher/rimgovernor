@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
         private static double meatUnits, leatherUnits;
         private static bool patched;
         private static Thing table;
-        private static WorkTypeDef CookingWork => DefDatabase<WorkTypeDef>.GetNamed("Cooking");
+        private static WorkTypeDef CookingWork => ExtraWorkTypeDefOf.Cooking;
 
         [Tool("test/ledger_hunt_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage a ranger with a bow, a wild deer designated for hunting and an empty butcher table, and start tallying deer corpses and butchered products.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)

@@ -376,7 +376,7 @@ namespace HomeBridge.BridgeTools
                 foreach(var worker in map.mapPawns.FreeColonistsSpawned) {
                     worker.skills.GetSkill(SkillDefOf.Crafting).Level=12; worker.skills.GetSkill(SkillDefOf.Plants).Level=12;
                     worker.workSettings.EnableAndInitialize();
-                    worker.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Tailoring"),1); worker.workSettings.SetPriority(WorkTypeDefOf.Growing,1);
+                    worker.workSettings.SetPriority(ExtraWorkTypeDefOf.Tailoring,1); worker.workSettings.SetPriority(WorkTypeDefOf.Growing,1);
                     worker.workSettings.SetPriority(WorkTypeDefOf.PlantCutting,1);
                 }
                 var bench=(Building_WorkTable)Place(map,DefDatabase<ThingDef>.GetNamed("HandTailoringBench"),ThingDefOf.WoodLog,map.Center+new IntVec3(-8,0,-7));

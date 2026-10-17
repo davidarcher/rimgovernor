@@ -53,7 +53,7 @@ namespace HomeBridge.BridgeTools
                 var definition = ThingDef.Named(hot ? "PassiveCooler" : "Campfire");
                 foreach (var project in definition.researchPrerequisites ?? Enumerable.Empty<ResearchProjectDef>())
                     if (!project.IsFinished) Find.ResearchManager.FinishProject(project, false);
-                var construction = DefDatabase<WorkTypeDef>.GetNamed("Construction");
+                var construction = WorkTypeDefOf.Construction;
                 var builder = people.Where(p => !p.WorkTypeIsDisabled(construction) && !p.skills.GetSkill(SkillDefOf.Construction).TotallyDisabled)
                     .OrderByDescending(p => p.skills.GetSkill(SkillDefOf.Construction).Level).FirstOrDefault();
                 if (builder == null) throw new InvalidOperationException("No capable fixture builder.");

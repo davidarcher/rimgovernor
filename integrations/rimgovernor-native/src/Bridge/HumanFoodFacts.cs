@@ -48,8 +48,8 @@ namespace HomeBridge.BridgeTools
         internal static bool CanButcher(Pawn pawn, Thing bench) => CanWorkButcher(pawn,bench) && AcceptsButchery(pawn);
         internal static bool CanWorkButcher(Pawn pawn, Thing bench) => pawn.IsFreeColonist
             && !pawn.Dead && !pawn.Downed && !pawn.Drafted && !pawn.InMentalState
-            && pawn.workSettings?.Initialized == true && pawn.workSettings.GetPriority(DefDatabase<WorkTypeDef>.GetNamed("Cooking")) > 0
-            && !pawn.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed("Cooking"))
+            && pawn.workSettings?.Initialized == true && pawn.workSettings.GetPriority(ExtraWorkTypeDefOf.Cooking) > 0
+            && !pawn.WorkTypeIsDisabled(ExtraWorkTypeDefOf.Cooking)
             && !bench.IsForbidden(pawn) && pawn.Position.DistanceTo(bench.Position) <= 40
             && pawn.CanReach(bench, PathEndMode.InteractionCell, Danger.None);
 

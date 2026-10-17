@@ -121,7 +121,7 @@ namespace HomeBridge.BridgeTools
                         if (worker != subject)
                             foreach (var worn in worker.apparel.WornApparel)
                                 worker.outfits.forcedHandler.SetForced(worn, true);
-                        var tailoring = DefDatabase<WorkTypeDef>.GetNamed("Tailoring");
+                        var tailoring = ExtraWorkTypeDefOf.Tailoring;
                         if (!worker.WorkTypeIsDisabled(tailoring)) worker.workSettings.SetPriority(tailoring, 1);
                     }
                     // Vanilla's apparel optimizer would dress the subject in the produced garment on its own

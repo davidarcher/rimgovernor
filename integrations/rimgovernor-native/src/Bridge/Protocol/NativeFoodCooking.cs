@@ -22,7 +22,7 @@ internal static class NativeFoodCooking
         if (benches.Length > 4) truncated = true;
         foreach (var bench in benches.Take(4))
         {
-            var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(g => g.workType == DefDatabase<WorkTypeDef>.GetNamed("Cooking")
+            var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(g => g.workType == ExtraWorkTypeDefOf.Cooking
                 && g.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(bench));
             if (giver is null) continue;
             var bills = bench.BillStack.Bills.OfType<Bill_Production>().OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Take(9).ToArray();

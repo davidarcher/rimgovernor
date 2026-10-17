@@ -101,7 +101,7 @@ namespace HomeBridge.BridgeTools
                 Building_WorkTable stove = null;
                 var existing = map.zoneManager.AllZones.OfType<Zone_Stockpile>().Where(z => z.cells.Count > 0 && z.settings.Priority == StoragePriority.Important).Select(z => CellRect.FromLimits(z.cells.Min(c => c.x), z.cells.Min(c => c.z), z.cells.Max(c => c.x), z.cells.Max(c => c.z))).ToList();
                 foreach (var rect in existing) { stove = map.listerBuildings.allBuildingsColonist.OfType<Building_WorkTable>().FirstOrDefault(b => b.def.defName == "FueledStove" && rect.Contains(b.Position)); if (stove != null) { room = rect.ExpandedBy(1); break; } }
-                foreach (var p in people) { p.jobs.StopAll(); p.workSettings.EnableAndInitialize(); p.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Cooking"), 1); if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)) p.workSettings.SetPriority(WorkTypeDefOf.Hauling, 2); p.skills.GetSkill(SkillDefOf.Cooking).Level = 8; }
+                foreach (var p in people) { p.jobs.StopAll(); p.workSettings.EnableAndInitialize(); p.workSettings.SetPriority(ExtraWorkTypeDefOf.Cooking, 1); if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)) p.workSettings.SetPriority(WorkTypeDefOf.Hauling, 2); p.skills.GetSkill(SkillDefOf.Cooking).Level = 8; }
                 if (stove != null) pemmican = map.listerThings.ThingsOfDef(ThingDef.Named("Pemmican")).Sum(t => t.stackCount);
                 else {
                 foreach (var c in GenRadial.RadialCellsAround(cook.Position, 25, true)) {
@@ -158,7 +158,7 @@ namespace HomeBridge.BridgeTools
                     otherFood = things.Where(t => !(t is Pawn) && t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible && t.def.defName != "Pemmican").Sum(t => t.stackCount),
                     hungriest = map.mapPawns.FreeColonistsSpawned.Min(p => p.needs.food.CurLevelPercentage),
                     bills = map.listerThings.AllThings.OfType<Building_WorkTable>().SelectMany(b => b.BillStack.Bills).OfType<Bill_Production>().Select(b => new { id = b.GetUniqueLoadID(), recipe = b.recipe.defName, target = b.targetCount, repeat = b.repeatMode.defName, suspended = b.suspended, paused = b.paused, shouldDo = b.ShouldDoNow(), count = b.recipe.WorkerCounter.CountProducts(b), fuel = (b.billStack.billGiver as Thing)?.TryGetComp<CompRefuelable>()?.Fuel ?? -1f }).ToList(),
-                    jobs = map.mapPawns.FreeColonistsSpawned.Select(p => new { name = p.LabelShort, job = p.CurJob?.def.defName ?? "", target = p.CurJob?.targetA.Thing?.def.defName ?? "", bill = p.CurJob?.bill?.recipe.defName ?? "", cooking = p.workSettings.GetPriority(DefDatabase<WorkTypeDef>.GetNamed("Cooking")), hauling = p.workSettings.GetPriority(WorkTypeDefOf.Hauling) }).ToList() };
+                    jobs = map.mapPawns.FreeColonistsSpawned.Select(p => new { name = p.LabelShort, job = p.CurJob?.def.defName ?? "", target = p.CurJob?.targetA.Thing?.def.defName ?? "", bill = p.CurJob?.bill?.recipe.defName ?? "", cooking = p.workSettings.GetPriority(ExtraWorkTypeDefOf.Cooking), hauling = p.workSettings.GetPriority(WorkTypeDefOf.Hauling) }).ToList() };
             }, cancellationToken);
         }
 

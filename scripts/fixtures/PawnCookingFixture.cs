@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
         public async Task<object> PrepareCooking(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var map = Find.CurrentMap;
-            worker = map.mapPawns.FreeColonistsSpawned.First(p => !p.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed("Cooking")));
+            worker = map.mapPawns.FreeColonistsSpawned.First(p => !p.WorkTypeIsDisabled(ExtraWorkTypeDefOf.Cooking));
             foreach (var p in map.mapPawns.FreeColonistsSpawned) p.jobs.StartJob(JobMaker.MakeJob(JobDefOf.Wait, 120000), JobCondition.InterruptForced);
             worker.skills.GetSkill(SkillDefOf.Cooking).Level = 20;
             var center = GenRadial.RadialCellsAround(worker.Position, 12, false).First(c => c.InBounds(map)
@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
                 if (!observations.Any(o => o.Cooking?.Continuation.Bill == selectedBill.GetUniqueLoadID()
                     && o.Cooking.IngredientCount == needed && o.Cooking.CookTicks > 0 && o.Cooking.ProductNutrition.IsKnown))
                 {
-                    var probeGiver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(g => g.workType == DefDatabase<WorkTypeDef>.GetNamed("Cooking")
+                    var probeGiver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(g => g.workType == ExtraWorkTypeDefOf.Cooking
                         && g.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(cookingBench));
                     NativeActivityRecipe.ResolveRecipe(worker, cookingBench, probeGiver.defName, selectedBill.GetUniqueLoadID(), selectedBill.recipe.defName, out _, out var reason);
                     using var toBench = map.pathFinder.FindPathNow(unselectedIngredient.Position, cookingBench.InteractionCell, TraverseParms.For(worker, Danger.None), peMode: PathEndMode.OnCell);
@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
                 }
                 if (remaining != 0) throw new InvalidOperationException("Selected inputs were lost, not merely moved.");
             }
-            var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(g => g.workType == DefDatabase<WorkTypeDef>.GetNamed("Cooking") && g.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(cookingBench));
+            var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(g => g.workType == ExtraWorkTypeDefOf.Cooking && g.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(cookingBench));
             var step = new PawnActivityStep(PawnActivityKind.Recipe, cookingBench.GetUniqueLoadID(), giver.defName, "", 0, deadline)
                 { Recipe = new PawnActivityRecipe(selectedBill.GetUniqueLoadID(), selectedBill.recipe.defName,
                     EquatableArray.From(selected)) };

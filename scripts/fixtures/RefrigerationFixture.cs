@@ -259,7 +259,7 @@ namespace HomeBridge.BridgeTools
                     var cookBill = (Bill_Production)DefDatabase<RecipeDef>.GetNamed("CookMealSimple").MakeNewBill();
                     cookBill.repeatMode = BillRepeatModeDefOf.TargetCount; cookBill.targetCount = 1; cookBill.suspended = true;
                     stove.BillStack.AddBill(cookBill);
-                    var cooking = DefDatabase<WorkTypeDef>.GetNamed("Cooking");
+                    var cooking = ExtraWorkTypeDefOf.Cooking;
                     // The debug start can be lightly clothed: even -5 C then
                     // has native Danger.Some, outside this planner's safe route.
                     foreach (var pawn in map.mapPawns.FreeColonistsSpawned)

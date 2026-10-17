@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
             var giver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(workGiver);
             reason = "cooking_worker_unavailable";
             if (giver?.Worker is not WorkGiver_DoBill scanner || !scanner.ThingIsUsableBillGiver(target)
-                || giver.workType != DefDatabase<WorkTypeDef>.GetNamed("Cooking") || pawn.WorkTagIsDisabled(giver.workTags)
+                || giver.workType != ExtraWorkTypeDefOf.Cooking || pawn.WorkTagIsDisabled(giver.workTags)
                 || pawn.WorkTypeIsDisabled(giver.workType) || scanner.MissingRequiredCapacity(pawn) != null) return false;
             bill = bench.BillStack.Bills.OfType<Bill_Production>().SingleOrDefault(b => b.GetUniqueLoadID() == billId);
             reason = "cooking_bill_unavailable";

@@ -91,7 +91,7 @@ namespace HomeBridge.BridgeTools
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused)
                     throw new InvalidOperationException("A paused disposable colony is required.");
-                var research = DefDatabase<WorkTypeDef>.GetNamed("Research");
+                var research = WorkTypeDefOf.Research;
                 var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.workSettings != null && p.reading != null)
                     .OrderBy(p => p.thingIDNumber).ToList();
                 var researcher = pawns.First(p => !p.WorkTypeIsDisabled(research));

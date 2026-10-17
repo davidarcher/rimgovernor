@@ -335,7 +335,7 @@ namespace HomeBridge.BridgeTools
             switch (skill)
             {
                 case TeamSkill.Plants: return WorkTypeDefOf.Growing;
-                case TeamSkill.Cooking: return DefDatabase<WorkTypeDef>.GetNamed("Cooking");
+                case TeamSkill.Cooking: return ExtraWorkTypeDefOf.Cooking;
                 case TeamSkill.Construction: return WorkTypeDefOf.Construction;
                 case TeamSkill.Medicine: return WorkTypeDefOf.Doctor;
                 case TeamSkill.Mining: return WorkTypeDefOf.Mining;

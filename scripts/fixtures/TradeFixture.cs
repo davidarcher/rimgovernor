@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
                         foreach (var colonist in map.mapPawns.FreeColonistsSpawned)
                         {
                             foreach (var held in colonist.inventory.innerContainer.Where(t => t.def == ThingDefOf.Steel).ToList()) held.Destroy();
-                            colonist.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Construction"), 0);
+                            colonist.workSettings.SetPriority(WorkTypeDefOf.Construction, 0);
                         }
                         // GenSpawn clamps an oversized stack to the stack limit (75).
                         for (var remaining = steel; remaining > 0; remaining -= ThingDefOf.Steel.stackLimit)
@@ -117,7 +117,7 @@ namespace HomeBridge.BridgeTools
                             bill.repeatMode = BillRepeatModeDefOf.TargetCount; bill.targetCount = 30; stove.BillStack.AddBill(bill);
                             // Preserve inventory for the trade assertion; the active
                             // fine bill supplies intent, this case does not cook it.
-                            foreach (var cook in map.mapPawns.FreeColonistsSpawned) cook.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Cooking"), 0);
+                            foreach (var cook in map.mapPawns.FreeColonistsSpawned) cook.workSettings.SetPriority(ExtraWorkTypeDefOf.Cooking, 0);
                         }
                     }
                     // Outlander bulk traders buy steel; neolithic traders cover the herbal-medicine and food cases.

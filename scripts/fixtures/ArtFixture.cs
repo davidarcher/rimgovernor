@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
                 art.Level = i == 0 ? 8 : 3;
                 art.passion = Passion.None;
                 if (i == 1) p.story.traits.GainTrait(new Trait(DefDatabase<TraitDef>.GetNamed("Ascetic"), 0, true));
-                p.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Art"), i == 0 ? 1 : 0);
+                p.workSettings.SetPriority(ExtraWorkTypeDefOf.Art, i == 0 ? 1 : 0);
                 if (p.equipment != null && p.equipment.Primary == null)
                     p.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Gun_Revolver")));
             }

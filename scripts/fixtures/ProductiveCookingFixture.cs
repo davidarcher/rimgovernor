@@ -18,6 +18,8 @@ public sealed partial class PawnControlFixture
     private static int productiveStart, productiveInitialRaw, productiveUrgeTick = -1, productiveUrgeCompletions;
     private static bool productiveSlept;
     private static int productiveCommitted;
+    private static string? productiveReassigned;
+    private static int productiveReassignTick = -1;
     private static readonly HashSet<string> productiveTiredCooks = new(StringComparer.Ordinal), productiveRestedCooks = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, int> productiveCompletions = new(StringComparer.Ordinal);
     private static readonly HashSet<string> productiveMethods = new(StringComparer.Ordinal);
@@ -72,6 +74,7 @@ public sealed partial class PawnControlFixture
             }
             productiveCompletions.Clear(); productiveMethods.Clear(); productiveOutput = false;
             productiveUrgeTick = -1; productiveUrgeCompletions = 0; productiveSlept = false; productiveTiredCooks.Clear(); productiveRestedCooks.Clear();
+            productiveReassigned = null; productiveReassignTick = -1;
             productiveStart = Find.TickManager.TicksGame; productiveInitialRaw = RawCount();
             SkillLearningVerifier.Start();
             if (!productivePatched)
@@ -128,6 +131,16 @@ public sealed partial class PawnControlFixture
             foreach (var pawn in worker!.Map.mapPawns.FreeColonistsSpawned) pawn.needs.rest.CurLevelPercentage = .9f;
             return new { success = true, tick = Find.TickManager.TicksGame };
         }, ct).ConfigureAwait(false);
+    [Tool("test/productive_cooking_reassign", Description="UNSAFE FOR MODEL EXECUTION. Withdraw the Cooking assignment from the colonist the running development currently owns, as a player changing work priorities would. Issues no work.")]
+    public async Task<object> ProductiveCookingReassign(IRimBridgeContext ctx, CancellationToken ct)
+        => await ctx.MainThread.InvokeAsync<object>(() =>
+        {
+            var pawn = worker!.Map.mapPawns.FreeColonistsSpawned.OrderByDescending(p => p.CurJob?.bill == selectedBill).FirstOrDefault(p => NativePawnActivities.Read(p) != null)
+                ?? throw new InvalidOperationException("No colonist is owned by the running development.");
+            pawn.workSettings.SetPriority(ExtraWorkTypeDefOf.Cooking, 0);
+            productiveReassigned = pawn.GetUniqueLoadID(); productiveReassignTick = Find.TickManager.TicksGame;
+            return new { success = true, tick = productiveReassignTick, pawn = productiveReassigned };
+        }, ct).ConfigureAwait(false);
     [Tool("test/productive_cooking_satisfy", Description="UNSAFE FOR MODEL EXECUTION. Withdraw the colony's remaining meal demand (the finite bill is deleted) after resumed development was observed, so retirement of the Method can be observed without waiting for the last repeat. Issues no work.")]
     public async Task<object> ProductiveCookingSatisfy(IRimBridgeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
@@ -150,6 +163,9 @@ public sealed partial class PawnControlFixture
             billActive = cookingBench.BillStack.Bills.Contains(selectedBill), repeatLeft = selectedBill.repeatCount,
             owned = worker!.Map.mapPawns.FreeColonistsSpawned.Count(p => NativePawnActivities.Read(p) != null),
             cooking = worker!.Map.mapPawns.FreeColonistsSpawned.Count(p => p.CurJob?.bill == selectedBill),
+            reassignTick = productiveReassignTick, reassignedPriority = worker!.Map.mapPawns.FreeColonistsSpawned.Where(p => p.GetUniqueLoadID() == productiveReassigned).Select(p => p.workSettings.GetPriority(ExtraWorkTypeDefOf.Cooking)).DefaultIfEmpty(-1).First(),
+            reassignedOwned = worker!.Map.mapPawns.FreeColonistsSpawned.Any(p => p.GetUniqueLoadID() == productiveReassigned && NativePawnActivities.Read(p) != null),
+            reassignedCooking = worker!.Map.mapPawns.FreeColonistsSpawned.Any(p => p.GetUniqueLoadID() == productiveReassigned && p.CurJob?.bill == selectedBill),
             learningFailures = SkillLearningVerifier.Failures.ToArray()
         }, ct).ConfigureAwait(false);
 }
