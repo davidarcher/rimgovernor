@@ -230,6 +230,47 @@ public sealed class ContractOrphansTests : IDisposable
         Assert.Contains(orphans, o => o.Key == "Contracts|Observations.HuntCensus.Hunters");
     }
 
+    [Fact]
+    public void FailsOnAFixtureContractMemberNoAcceptanceCaseSetsOrReads()
+    {
+        var fixtures = Compile("RimGovernor.Fixtures.Contracts", """
+            namespace RimGovernor.Fixtures.Contracts;
+
+            public sealed record StageSpec
+            {
+                public bool Paused { get; init; }
+                public int Seed { get; init; }
+                public string Note { get; init; } = "";
+            }
+
+            public sealed record StageReply(string Site)
+            {
+                public string Digest { get; init; } = "";
+            }
+            """);
+        var cases = Compile("RimGovernor.Brain.Acceptance.Cases", """
+            using RimGovernor.Fixtures.Contracts;
+            public static class LabStage
+            {
+                public static StageSpec Spec() => new() { Paused = true };
+                public static string Where(StageReply reply) => reply.Site;
+            }
+            """, fixtures);
+
+        var orphans = ContractOrphans.Find(ContractOrphans.Fixtures, fixtures, [cases], [], out var checkedCount);
+
+        // The fixture build that reads the spec and writes the reply is out of sight: a case setting Paused uses it, as a
+        // case reading Site does; nothing sets Seed, Note's initializer is not a case's write, and nothing reads Digest.
+        Assert.Equal(5, checkedCount);
+        Assert.Equal(
+            [
+                ("Fixtures|StageReply.Digest", "not referenced outside its declaration"),
+                ("Fixtures|StageSpec.Note", "not referenced outside its declaration"),
+                ("Fixtures|StageSpec.Seed", "not referenced outside its declaration"),
+            ],
+            orphans);
+    }
+
     private IReadOnlyList<string> Find(string brain, string native, out int checkedCount)
     {
         var contracts = Compile("RimGovernor.Brain.Contracts", ContractsSource);

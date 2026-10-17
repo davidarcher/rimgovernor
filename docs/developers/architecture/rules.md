@@ -1,8 +1,9 @@
 # Architecture rules
 
 Six rules are mechanical gates, one more gate (the world-state ban) bans game APIs from the
-brain, the record-orphan job of the repo gate catches unread contract and Policy record members
-(see [Record orphans](#record-orphans)), and three are review questions. The C# brain enforces the rules as Roslyn
+brain, the record-orphan job of the repo gate catches unread contract, Policy and fixture-contract record members
+(see [Record orphans](#record-orphans)), the acceptance-case gates hold the cases to their charter (see
+[Acceptance cases](#acceptance-cases)), and three are review questions. The C# brain enforces the rules as Roslyn
 analyzers in `brain/analyzers/RimGovernor.Brain.Analyzers`, loaded into every
 `brain/src` project by `brain/Directory.Build.props`, so they run inside every
 `dotnet build`, the gate's among them (the tests projects are not gated). Each gate
@@ -125,13 +126,19 @@ declaring assembly is followed through its calls to the backing fields they reac
 property reads what it computes from and a Policy function reads the records it decides over.
 Constructing a type reaches its virtual methods (overrides, interface implementations, iterator
 bodies). Record equality, hashing, printing and cloning, and the JSON context and converters, touch
-every member and count as nothing: a member that only takes part in equality is an orphan. Findings
+every member and count as nothing: a member that only takes part in equality is an orphan. A parameterless
+constructor's field initializers are not a write by whoever constructs the type. Findings
 read `Contracts|Type.Member` or `Policy|Type.Member` with a reason (`not referenced outside its
 declaration`, `written, never read`, `written by the native side, never read by the brain`). The baseline
 `brain/analyzers/baseline/orphans.txt` holds the orphans that predate the check (burndown: [#3351](https://github.com/davidarcher/rimgovernor/issues/3351)), and it only shrinks: a new
 orphan fails (delete it through every layer, never add a line), and so does a line that is no
-longer an orphan (delete the line). The check is unavailable without the game, because then the
+longer an orphan (delete the line). The wire and Policy checks are unavailable without the game, because then the
 native mod is not built and the game-reading brain projects are empty.
+
+The public types of `RimGovernor.Fixtures.Contracts` (the stage spec and its reply, enums aside) are checked
+the same way, as `Fixtures|Type.Member`. Their other end is the fixture build's `test/stage`, which the gate
+never builds, so the acceptance cases and their harness are the readers: a case setting a spec member uses
+it as a case reading a reply member does. This check needs no game, and it has no baseline lines.
 
 Acceptance cases read many native replies by JSON key (`WireCodec`'s flat view, `JsonNode`
 lookups such as `view["shown"]`), which no symbol shows. As a stopgap until the cases read typed
@@ -144,6 +151,22 @@ touched case reads the typed record instead (`WireCodec.ToRecord<T>` and the mem
 is compile-checked and visible to the gate. PlayerApi also serves Presentation records as JSON to
 HTTP clients ([player API](../contracts/player-api.md)); a field that contract documents has a
 reader the check cannot see.
+
+### Acceptance cases
+
+Two gates hold the cases to the [acceptance charter](../testing/acceptance-guide.md#charter) without a game:
+
+- **Catalog test** (`AcceptanceCatalogTests` in `RimGovernor.Brain.Domain.Tests`). It builds the whole registry
+  through `CaseCatalog.Register`. Every typed case must declare a non-blank `Scope`, `Ticks` within its start's
+  cap and a defined `Tier`. Every legacy case must pass the runner's `AcceptanceCase.Lint()`. The legacy case
+  count must equal the test's `LegacyCases` constant, which only shrinks: a port or deletion lowers it in the same
+  commit, and a new legacy case fails.
+- **Banned APIs (RS0030)** on `RimGovernor.Brain.Acceptance.Cases`: `Microsoft.CodeAnalysis.BannedApiAnalyzers`
+  over the project's `BannedSymbols.txt` (`Task.Delay`, `Thread.Sleep`, the `JsonNode`/`JsonObject` indexers).
+  The ban is per project, not per case type, so the project's `.editorconfig` makes it an error and keeps a
+  shrink-only baseline of legacy files, one `[/Area/File.cs]` section each, at `suggestion`. The compiler still
+  writes their uses to `banned-api.sarif`, and the gate's `banned-API baseline` job fails a section whose file
+  no longer uses a banned API (delete the section). Never add a section; write the case on the typed API.
 
 ## Refreshing
 

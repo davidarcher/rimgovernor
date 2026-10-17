@@ -30,6 +30,8 @@
   <ItemGroup>
     <ProjectReference Include="../../analyzers/RimGovernor.Brain.Analyzers/RimGovernor.Brain.Analyzers.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Acceptance/RimGovernor.Brain.Acceptance.csproj" />
+    <!-- The catalog test (AcceptanceCatalogTests) builds the whole case registry without a game. -->
+    <ProjectReference Include="../../src/RimGovernor.Brain.Acceptance.Cases/RimGovernor.Brain.Acceptance.Cases.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />

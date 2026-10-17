@@ -128,6 +128,7 @@ internal static class Gate
             new("native-hook-set", c =>
                 File.Exists(hookset) ? Dotnet(p.Repo, c, hookset) : Task.FromResult("unavailable (not built; Harmony missing)\n")),
             new("contract orphans", _ => Task.Run(() => Orphans(p))),
+            new("banned-API baseline", _ => Task.Run(() => BannedApi(p))),
         };
         Log.Info($"test: {jobs.Count} jobs at once; each prints when it finishes");
         var failed = new List<string>();
@@ -172,38 +173,49 @@ internal static class Gate
     /// The orphan check (<see cref="ContractOrphans"/>) over the brain assemblies the solution built and the native
     /// mod's own, against its shrink-only baseline <c>brain/analyzers/baseline/orphans.txt</c>: an orphan not listed
     /// fails, and so does a listed line that is no longer an orphan (delete it). Without the game the native mod is not
-    /// built and the game-reading brain projects are empty, so the check has no evidence and says unavailable.
+    /// built and the game-reading brain projects are empty, so the wire and Policy checks have no evidence and say
+    /// unavailable; the fixture contracts, whose readers are the acceptance cases, are checked either way.
     /// </summary>
     private static string Orphans(Paths p)
     {
-        if (!File.Exists(p.Manifest))
-        {
-            return "unavailable (the native mod is not built)\n";
-        }
         var brain = Directory.EnumerateDirectories(Path.Combine(p.Artifacts, "bin"), "RimGovernor.Brain.*")
             .Select(dir => Path.GetFileName(dir))
             .Where(name => name != "RimGovernor.Brain.Analyzers" && !name.EndsWith(".Tests", StringComparison.Ordinal))
             .Select(name => Path.Combine(p.Bin(name), name + ".dll"))
             .Where(File.Exists)
             .ToList();
-        var native = Directory.EnumerateFiles(Path.Combine(p.Mod, "RimGovernor"), "RimGovernor.*.dll", SearchOption.AllDirectories)
-            .Where(f => !Path.GetFileName(f).StartsWith("RimGovernor.Brain.", StringComparison.Ordinal))
-            .ToList();
         var found = new List<(string Key, string Reason)>();
         var counts = new List<string>();
-        // The acceptance cases read some native replies by JSON key; any wire member whose JSON name they mention is read.
-        var keys = ContractOrphans.LiteralKeys(brain.Where(f => Path.GetFileName(f).StartsWith("RimGovernor.Brain.Acceptance", StringComparison.Ordinal)));
-        var contracts = Path.Combine(p.Bin("RimGovernor.Brain.Contracts"), "RimGovernor.Brain.Contracts.dll");
-        var byName = ContractOrphans.WireNames(contracts).Where(n => keys.Contains(n.Value)).Select(n => n.Key).ToHashSet(StringComparer.Ordinal);
-        foreach (var (target, project) in new[] { (ContractOrphans.Wire, "RimGovernor.Brain.Contracts"), (ContractOrphans.PolicyRecords, "RimGovernor.Brain.Policy") })
+        var fixtures = Path.Combine(p.Bin("RimGovernor.Fixtures.Contracts"), "RimGovernor.Fixtures.Contracts.dll");
+        found.AddRange(ContractOrphans.Find(ContractOrphans.Fixtures, fixtures, brain, [], out var fixtureCount));
+        counts.Add($"{ContractOrphans.Fixtures.Name} {fixtureCount}");
+        var targets = new List<string> { ContractOrphans.Fixtures.Name };
+        if (File.Exists(p.Manifest))
         {
-            var declaring = Path.Combine(p.Bin(project), project + ".dll");
-            found.AddRange(ContractOrphans.Find(
-                target, declaring, brain.Where(f => f != declaring), native, out var checkedCount, target == ContractOrphans.Wire ? byName : null));
-            counts.Add($"{target.Name} {checkedCount}");
+            var native = Directory.EnumerateFiles(Path.Combine(p.Mod, "RimGovernor"), "RimGovernor.*.dll", SearchOption.AllDirectories)
+                .Where(f => !Path.GetFileName(f).StartsWith("RimGovernor.Brain.", StringComparison.Ordinal))
+                .ToList();
+            // The acceptance cases read some native replies by JSON key; any wire member whose JSON name they mention is read.
+            var keys = ContractOrphans.LiteralKeys(brain.Where(f => Path.GetFileName(f).StartsWith("RimGovernor.Brain.Acceptance", StringComparison.Ordinal)));
+            var contracts = Path.Combine(p.Bin("RimGovernor.Brain.Contracts"), "RimGovernor.Brain.Contracts.dll");
+            var byName = ContractOrphans.WireNames(contracts).Where(n => keys.Contains(n.Value)).Select(n => n.Key).ToHashSet(StringComparer.Ordinal);
+            foreach (var (target, project) in new[] { (ContractOrphans.Wire, "RimGovernor.Brain.Contracts"), (ContractOrphans.PolicyRecords, "RimGovernor.Brain.Policy") })
+            {
+                var declaring = Path.Combine(p.Bin(project), project + ".dll");
+                found.AddRange(ContractOrphans.Find(
+                    target, declaring, brain.Where(f => f != declaring), native, out var checkedCount, target == ContractOrphans.Wire ? byName : null));
+                counts.Add($"{target.Name} {checkedCount}");
+                targets.Add(target.Name);
+            }
+        }
+        else
+        {
+            counts.Add("Contracts and Policy unavailable (the native mod is not built)");
         }
         var baselinePath = Path.Combine(p.Repo, "brain", "analyzers", "baseline", "orphans.txt");
-        var baseline = File.ReadAllLines(baselinePath).Where(l => l.Length > 0).ToHashSet(StringComparer.Ordinal);
+        var baseline = File.ReadAllLines(baselinePath)
+            .Where(l => l.Length > 0 && targets.Contains(l[..l.IndexOf('|', StringComparison.Ordinal)]))
+            .ToHashSet(StringComparer.Ordinal);
         var added = found.Where(f => !baseline.Contains(f.Key)).Select(f => $"{f.Key}: {f.Reason}").ToList();
         var stale = baseline.Except(found.Select(f => f.Key), StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
         var problems = new List<string>();
@@ -220,6 +232,27 @@ internal static class Gate
             throw new ToolException(string.Join("\n", problems));
         }
         return $"members checked: {string.Join(", ", counts)}; new orphans: none; baselined: {baseline.Count}\n";
+    }
+
+    /// <summary>
+    /// The acceptance cases' banned-API baseline (<see cref="BannedApiBaseline"/>) against the compiler log the solution
+    /// build wrote for <c>RimGovernor.Brain.Acceptance.Cases</c>.
+    /// </summary>
+    private static string BannedApi(Paths p)
+    {
+        const string project = "RimGovernor.Brain.Acceptance.Cases";
+        var cases = Path.Combine(p.Repo, "brain", "src", project);
+        var sarif = Path.Combine(p.Artifacts, "obj", project, "release", "banned-api.sarif");
+        if (!File.Exists(sarif))
+        {
+            throw new ToolException($"missing {sarif}: the solution build writes it when it compiles the cases");
+        }
+        var problems = BannedApiBaseline.Check(cases, Path.Combine(cases, ".editorconfig"), sarif, out var baselined);
+        if (problems.Count > 0)
+        {
+            throw new ToolException(string.Join("\n", problems));
+        }
+        return $"legacy files baselined: {baselined}; stale: none\n";
     }
 
     /// <summary>Runs dotnet captured and returns its output; a non-zero exit throws with that output.</summary>

@@ -93,9 +93,6 @@ public sealed record StageIncident
 
     public required string Def { get; init; }
 
-    /// <summary>Threat points; null keeps the storyteller's.</summary>
-    public float? Points { get; init; }
-
     /// <summary>
     /// A TraderKindDef the arrivals trade as; the faction becomes the first non-hostile one whose caravans or visitors
     /// carry it.
@@ -113,10 +110,10 @@ public sealed record StageQuest
 
     public required string Script { get; init; }
 
-    /// <summary>The points slate value; null takes the map's default threat points.</summary>
-    public float? Points { get; init; }
-
-    /// <summary>A floor under Points (the quiet storyteller's points are below what a raid part can generate).</summary>
+    /// <summary>
+    /// A floor under the map's default threat points for the points slate value (the quiet storyteller's points are
+    /// below what a raid part can generate).
+    /// </summary>
     public float MinPoints { get; init; }
 
     /// <summary>Lifts the quiet storyteller's ban on violent quests for this one generation.</summary>
@@ -252,10 +249,8 @@ public sealed record StageBuilding
     /// <summary>A stuffed def's stuff; null takes the def's default stuff.</summary>
     public string? Stuff { get; init; }
 
+    /// <summary>Each cell takes one building facing north.</summary>
     public required IReadOnlyList<StageCell> Cells { get; init; }
-
-    /// <summary>0..3: north, east, south, west.</summary>
-    public int Rotation { get; init; }
 
     public StageBuildState State { get; init; }
 
@@ -319,19 +314,14 @@ public sealed record StagePawn
     /// <summary>Biological and chronological age in years; null leaves it generated.</summary>
     public float? Age { get; init; }
 
-    public StageGender? Gender { get; init; }
-
     /// <summary>Every skill at this level without passion; null leaves the skills generated.</summary>
     public int? SkillLevel { get; init; }
 
     /// <summary>Under a non-zero spec seed each skill is drawn from SkillLevel plus or minus this.</summary>
     public int SkillSpread { get; init; }
 
-    /// <summary>SkillDef to level, after SkillLevel.</summary>
-    public IReadOnlyDictionary<string, int>? Skills { get; init; }
-
-    /// <summary>Replaces the traits (empty removes them all); null leaves them generated.</summary>
-    public IReadOnlyList<StageTrait>? Traits { get; init; }
+    /// <summary>Removes every generated trait; false leaves them generated.</summary>
+    public bool ClearTraits { get; init; }
 
     /// <summary>Replaces what the pawn holds; null leaves it.</summary>
     public StageGear? Gear { get; init; }
@@ -365,29 +355,11 @@ public sealed record StagePawn
     /// <summary>NeedDef to level 0..1.</summary>
     public IReadOnlyDictionary<string, float>? Needs { get; init; }
 
-    /// <summary>The label of an existing apparel policy.</summary>
-    public string? ApparelPolicy { get; init; }
-
-    /// <summary>The label of an existing food policy.</summary>
-    public string? FoodPolicy { get; init; }
-
-    /// <summary>The label of an existing drug policy.</summary>
-    public string? DrugPolicy { get; init; }
-
     /// <summary>A MentalStateDef the pawn is forced into (woken first); its failing to start refuses the staging.</summary>
     public string? MentalState { get; init; }
 
     /// <summary>An InspirationDef the pawn starts; its failing to start refuses the staging.</summary>
     public string? Inspiration { get; init; }
-}
-
-/// <summary>A TraitDef at a degree.</summary>
-public sealed record StageTrait(string Def, int Degree);
-
-public enum StageGender
-{
-    Male,
-    Female,
 }
 
 public enum StageTimeAssignment

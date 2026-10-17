@@ -71,7 +71,7 @@ internal static class LabStage
                 Kind = CombatFixtures.Gunner,
                 Faction = Fx.StageFaction.Hostile,
                 Age = 30,
-                Traits = [],
+                ClearTraits = true,
                 SkillLevel = 8,
                 Cell = new(10, 10),
                 Gear = new Fx.StageGear { Weapon = Rifle, Strip = true },

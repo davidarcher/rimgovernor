@@ -264,11 +264,10 @@ namespace HomeBridge.BridgeTools
 
         // Fire incident: def executed now through its own worker, forced, over the storyteller's default parms for its
         // category. A trader kind picks the first non-hostile faction carrying it. Returns the pawns that arrived.
-        public static (IncidentParms Parms, List<Pawn> Arrived) FireIncident(Map map, IncidentDef def, float? points, TraderKindDef traderKind)
+        public static (IncidentParms Parms, List<Pawn> Arrived) FireIncident(Map map, IncidentDef def, TraderKindDef traderKind)
         {
             var parms = StorytellerUtility.DefaultParmsNow(def.category, map);
             parms.forced = true;
-            if (points is float p) parms.points = p;
             if (traderKind != null)
             {
                 parms.traderKind = traderKind;
@@ -285,12 +284,12 @@ namespace HomeBridge.BridgeTools
             return (parms, map.mapPawns.AllPawnsSpawned.Where(x => !before.Contains(x)).OrderBy(x => x.thingIDNumber).ToList());
         }
 
-        // Generate quest: the script generated through the native storyteller path at points (the map's default threat
-        // points when null, floored at minPoints) and offered. allowViolent lifts the quiet storyteller's violent-quest
+        // Generate quest: the script generated through the native storyteller path at the map's default threat points,
+        // floored at minPoints, and offered. allowViolent lifts the quiet storyteller's violent-quest
         // ban for this generation only (it gates selection and generation; the threat scale stays zero).
-        public static (Quest Quest, float Points) GenerateQuest(Map map, QuestScriptDef script, float? points, float minPoints, bool allowViolent, int expireDays)
+        public static Quest GenerateQuest(Map map, QuestScriptDef script, float minPoints, bool allowViolent, int expireDays)
         {
-            var at = Math.Max(points ?? StorytellerUtility.DefaultThreatPointsNow(map), minPoints);
+            var at = Math.Max(StorytellerUtility.DefaultThreatPointsNow(map), minPoints);
             var difficulty = Find.Storyteller.difficulty;
             var violent = difficulty.allowViolentQuests;
             if (allowViolent) difficulty.allowViolentQuests = true;
@@ -306,7 +305,7 @@ namespace HomeBridge.BridgeTools
             if (quest == null || quest.State != QuestState.NotYetAccepted || quest.hidden)
                 throw new InvalidOperationException($"{script.defName} did not come out a visible, not-yet-accepted offer.");
             if (expireDays > 0) quest.acceptanceExpireTick = Find.TickManager.TicksGame + expireDays * GenDate.TicksPerDay;
-            return (quest, at);
+            return quest;
         }
     }
 

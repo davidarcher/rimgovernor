@@ -19,7 +19,9 @@ namespace RimGovernor.Tools.Workflow.Commands;
 /// property reads what it computes from, a positional constructor writes its parameters, a Policy function reads the
 /// records it decides over. Constructing a type reaches its virtual methods (overrides, interface implementations,
 /// iterator bodies), which the runtime calls without a token. Record plumbing (equality, hashing, printing, cloning)
-/// and the JSON serializer touch every member and count as nothing. See docs/developers/architecture/rules.md.
+/// and the JSON serializer touch every member and count as nothing. The fixture contracts
+/// (<c>RimGovernor.Fixtures.Contracts</c>) are checked the same way with the acceptance cases as their readers
+/// (<see cref="Fixtures"/>). See docs/developers/architecture/rules.md.
 /// </summary>
 internal static class ContractOrphans
 {
@@ -28,6 +30,13 @@ internal static class ContractOrphans
 
     /// <summary>Policy's records, of any visibility: IDE0051/IDE0052 see only private members.</summary>
     public static readonly Target PolicyRecords = new("Policy", "RimGovernor.Brain.Policy", RecordsOnly: true);
+
+    /// <summary>
+    /// The fixture stage spec and its reply: the public types of <c>RimGovernor.Fixtures.Contracts</c>, enums aside. Their
+    /// other end is the fixture build's <c>test/stage</c>, which the gate never builds, so the acceptance cases and their
+    /// harness are the readers: a case setting a spec member or reading a reply member uses it.
+    /// </summary>
+    public static readonly Target Fixtures = new("Fixtures", "RimGovernor.Fixtures.Contracts", RecordsOnly: false, ReferenceIsUse: true);
 
     /// <summary>Compiler-generated record members that touch every field without being a consumer's read.</summary>
     private static readonly HashSet<string> Plumbing = new(StringComparer.Ordinal)
@@ -49,9 +58,10 @@ internal static class ContractOrphans
 
     /// <summary>
     /// Which members of an assembly are checked. <paramref name="Name"/> prefixes every finding; members are the
-    /// public types under <paramref name="Namespace"/> or, with <paramref name="RecordsOnly"/>, its records.
+    /// public types under <paramref name="Namespace"/> or, with <paramref name="RecordsOnly"/>, its records. With
+    /// <paramref name="ReferenceIsUse"/>, a consumer's write uses a member as a read does.
     /// </summary>
-    internal sealed record Target(string Name, string Namespace, bool RecordsOnly);
+    internal sealed record Target(string Name, string Namespace, bool RecordsOnly, bool ReferenceIsUse = false);
 
     /// <summary>How the brain and the native side use one member.</summary>
     private sealed class Use
@@ -103,7 +113,7 @@ internal static class ContractOrphans
         }
         checkedCount = uses.Count;
         return [.. uses
-            .Select(u => (Key: $"{target.Name}|{u.Key}", Reason: Verdict(u.Value)))
+            .Select(u => (Key: $"{target.Name}|{u.Key}", Reason: target.ReferenceIsUse && u.Value.BrainWrite ? null : Verdict(u.Value)))
             .Where(u => u.Reason is not null)
             .Select(u => (u.Key, u.Reason!))
             .OrderBy(u => u.Key, StringComparer.Ordinal)];
@@ -346,9 +356,14 @@ internal static class ContractOrphans
                     }
                     continue;
                 }
+                // A parameterless constructor writes the type's initializers, not a value the consumer chose.
+                var initializersOnly = root.Key.EndsWith("::.ctor`0()Void", StringComparison.Ordinal);
                 foreach (var effect in Reach(root.Key).Concat(root.New ? Reach(Constructed + TypeOf(root.Key)) : []))
                 {
-                    yield return effect;
+                    if (!(initializersOnly && effect.Write))
+                    {
+                        yield return effect;
+                    }
                 }
             }
         }

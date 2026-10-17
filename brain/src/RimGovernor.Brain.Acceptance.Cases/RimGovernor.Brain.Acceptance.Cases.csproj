@@ -11,6 +11,18 @@
     <!-- The sustained colony variants (Go go:embed manifests/issue-1-matrix.json). -->
     <EmbeddedResource Include="Sustained\manifests\issue-1-matrix.json" LogicalName="sustained.issue-1-matrix.json" />
   </ItemGroup>
+  <!-- Charter rules 4 and 5 (#3397): RS0030 bans the APIs in BannedSymbols.txt. .editorconfig makes it an error and holds
+       the shrink-only baseline of legacy files at suggestion, which the compiler still writes to banned-api.sarif; the
+       gate's banned-API job fails a baselined file that no longer uses a banned API. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="BannedSymbols.txt" />
+  </ItemGroup>
+  <Target Name="BannedApiErrorLog" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <ErrorLog>$(IntermediateOutputPath)banned-api.sarif,version=2.1</ErrorLog>
+    </PropertyGroup>
+  </Target>
   <ItemGroup>
     <ProjectReference Include="..\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
     <!-- The cases that assert on the controller journal (upkeep, defense) open its service.sqlite, as the Go cases opened the store. -->

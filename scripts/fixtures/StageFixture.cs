@@ -110,9 +110,8 @@ namespace HomeBridge.BridgeTools
                 {
                     var def = FixtureKit.Def<ThingDef>(b.Def);
                     if (def.category != ThingCategory.Building) throw new ArgumentException($"{b.Def} is not a building.");
-                    if (b.Rotation < 0 || b.Rotation > 3) throw new ArgumentException($"Building {b.Name}: rotation must be within 0..3.");
                     var stuff = FixtureKit.Stuff(def, b.Stuff);
-                    var rot = new Rot4(b.Rotation);
+                    var rot = Rot4.North;
                     var made = new List<Thing>();
                     foreach (var cell in b.Cells.Select(At))
                     {
@@ -208,19 +207,19 @@ namespace HomeBridge.BridgeTools
             var incidents = new Dictionary<string, StagedIncident>();
             foreach (var i in spec.Incidents)
             {
-                var (parms, arrived) = FixtureKit.FireIncident(map, FixtureKit.Def<IncidentDef>(i.Def), i.Points, i.TraderKind == null ? null : FixtureKit.Def<TraderKindDef>(i.TraderKind));
-                Add(incidents, i.Name, new StagedIncident(parms.faction?.def.defName, parms.points, Ids(arrived),
+                var (parms, arrived) = FixtureKit.FireIncident(map, FixtureKit.Def<IncidentDef>(i.Def), i.TraderKind == null ? null : FixtureKit.Def<TraderKindDef>(i.TraderKind));
+                Add(incidents, i.Name, new StagedIncident(parms.faction?.def.defName, parms.points,
                     Ids(arrived.Where(x => x.trader?.traderKind != null))));
             }
             var quests = new Dictionary<string, StagedQuest>();
             foreach (var q in spec.Quests)
             {
-                var (quest, points) = FixtureKit.GenerateQuest(map, FixtureKit.Def<QuestScriptDef>(q.Script), q.Points, q.MinPoints, q.AllowViolent, q.ExpireDays);
-                Add(quests, q.Name, new StagedQuest(quest.GetUniqueLoadID(), quest.root.defName, quest.State.ToString(), points));
+                var quest = FixtureKit.GenerateQuest(map, FixtureKit.Def<QuestScriptDef>(q.Script), q.MinPoints, q.AllowViolent, q.ExpireDays);
+                Add(quests, q.Name, new StagedQuest(quest.GetUniqueLoadID(), quest.root.defName, quest.State.ToString()));
             }
             var rows = FixtureKit.DigestRows(map);
             return new StageReply { Success = true, Seed = spec.Seed, Research = research, Site = site, Rooms = rooms, Buildings = buildings, Things = things, Pawns = pawns, Zones = zones,
-                Incidents = incidents, Quests = quests, OutdoorTemperature = map.mapTemperature.OutdoorTemp, Tick = Find.TickManager.TicksGame, Hour = GenLocalDate.HourOfDay(map),
+                Incidents = incidents, Quests = quests, OutdoorTemperature = map.mapTemperature.OutdoorTemp, Hour = GenLocalDate.HourOfDay(map),
                 Digest = FixtureKit.Digest(rows), DigestRows = rows };
         }
 
@@ -256,18 +255,13 @@ namespace HomeBridge.BridgeTools
             var kind = FixtureKit.Def<PawnKindDef>(p.Kind ?? throw new ArgumentException($"Pawn {p.Name} names neither a Kind nor a Colonist."));
             if (p.Manhunter && faction != null) throw new ArgumentException($"Pawn {p.Name}: a manhunter has no faction.");
             if (p.Prisoner && p.Faction == StageFaction.Player) throw new ArgumentException($"Pawn {p.Name}: a prisoner is not the colony's own.");
-            Gender? gender = p.Gender == null ? (Gender?)null : p.Gender == StageGender.Male ? Gender.Male : Gender.Female;
             var request = kind.RaceProps.Humanlike
                 ? new PawnGenerationRequest(kind, faction, forceGenerateNewPawn: true, canGeneratePawnRelations: false, mustBeCapableOfViolence: true, allowAddictions: false,
-                    fixedBiologicalAge: p.Age, fixedChronologicalAge: p.Age, fixedGender: gender, forceBaselinerChance: 1f, developmentalStages: DevelopmentalStage.Adult)
+                    fixedBiologicalAge: p.Age, fixedChronologicalAge: p.Age, forceBaselinerChance: 1f, developmentalStages: DevelopmentalStage.Adult)
                 : new PawnGenerationRequest(kind, faction, forceGenerateNewPawn: true, canGeneratePawnRelations: false,
-                    fixedBiologicalAge: p.Age, fixedChronologicalAge: p.Age, fixedGender: gender, developmentalStages: DevelopmentalStage.Adult);
+                    fixedBiologicalAge: p.Age, fixedChronologicalAge: p.Age, developmentalStages: DevelopmentalStage.Adult);
             var pawn = PawnGenerator.GeneratePawn(request);
-            if (p.Traits != null)
-            {
-                FixtureKit.RemoveTraits(pawn);
-                foreach (var trait in p.Traits) pawn.story.traits.GainTrait(new Trait(FixtureKit.Def<TraitDef>(trait.Def), trait.Degree, true));
-            }
+            if (p.ClearTraits) FixtureKit.RemoveTraits(pawn);
             FixtureKit.RemoveBadHediffs(pawn);
             if (p.SkillLevel is int level)
                 foreach (var skill in pawn.skills.skills)
@@ -275,8 +269,6 @@ namespace HomeBridge.BridgeTools
                     skill.Level = seed == 0 || p.SkillSpread == 0 ? level : level + Rand.RangeInclusive(-p.SkillSpread, p.SkillSpread);
                     skill.passion = Passion.None;
                 }
-            foreach (var pair in p.Skills ?? new Dictionary<string, int>())
-                pawn.skills.GetSkill(FixtureKit.Def<SkillDef>(pair.Key)).Level = pair.Value;
             if (p.Gear?.Strip == true)
             {
                 pawn.apparel?.DestroyAll();
@@ -323,7 +315,7 @@ namespace HomeBridge.BridgeTools
             if (p.StunTicks > 0) pawn.stances.stunner.StunFor(p.StunTicks, null, addBattleLog: false);
         }
 
-        // Set pawn: work, timetable, needs and policies.
+        // Set pawn: work, timetable and needs.
         private static void Set(Pawn pawn, StagePawn p)
         {
             if (p.AllWork is int all) FixtureKit.SetAllWork(pawn, Priority(all));
@@ -342,12 +334,6 @@ namespace HomeBridge.BridgeTools
                 var need = pawn.needs?.TryGetNeed(FixtureKit.Def<NeedDef>(pair.Key)) ?? throw new ArgumentException($"Pawn {p.Name} has no {pair.Key} need.");
                 need.CurLevelPercentage = Math.Max(0f, Math.Min(1f, pair.Value));
             }
-            if (p.ApparelPolicy != null)
-                pawn.outfits.CurrentApparelPolicy = Current.Game.outfitDatabase.AllOutfits.FirstOrDefault(x => x.label == p.ApparelPolicy) ?? throw new ArgumentException($"No apparel policy {p.ApparelPolicy}.");
-            if (p.FoodPolicy != null)
-                pawn.foodRestriction.CurrentFoodPolicy = Current.Game.foodRestrictionDatabase.AllFoodRestrictions.FirstOrDefault(x => x.label == p.FoodPolicy) ?? throw new ArgumentException($"No food policy {p.FoodPolicy}.");
-            if (p.DrugPolicy != null)
-                pawn.drugs.CurrentPolicy = Current.Game.drugPolicyDatabase.AllPolicies.FirstOrDefault(x => x.label == p.DrugPolicy) ?? throw new ArgumentException($"No drug policy {p.DrugPolicy}.");
             if (p.MentalState != null)
             {
                 var state = FixtureKit.Def<MentalStateDef>(p.MentalState);
@@ -404,7 +390,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class StageFixture
     {
-        [Tool("test/stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3393, #3395): stage a StageSpec (RimGovernor.Fixtures.Contracts) on the current game in one call: finish or set research, pin the outdoor temperature and move the clock, find a site, clear areas, set cells, build rooms, place buildings, spawn items, spawn or set pawns (generated or existing colonists, gear, wounds, work, timetable, needs, policies, mental state, inspiration) with a raid's arrival and lords, lay zones, fire incidents and generate quest offers. Resets the lab damage and shot ledgers. Replies a StageReply: the ids and cells of everything made, keyed by the spec's names, and a name-free digest.")]
+        [Tool("test/stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3393, #3395): stage a StageSpec (RimGovernor.Fixtures.Contracts) on the current game in one call: finish or set research, pin the outdoor temperature and move the clock, find a site, clear areas, set cells, build rooms, place buildings, spawn items, spawn or set pawns (generated or existing colonists, gear, wounds, work, timetable, needs, mental state, inspiration) with a raid's arrival and lords, lay zones, fire incidents and generate quest offers. Resets the lab damage and shot ledgers. Replies a StageReply: the ids and cells of everything made, keyed by the spec's names, and a name-free digest.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "The StageSpec as JSON (FixtureJson).")] string spec)
         {

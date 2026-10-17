@@ -1,0 +1,856 @@
+# Charter rules 4 and 5 (#3397): RS0030 (BannedSymbols.txt) is an error in every case file.
+[*.cs]
+dotnet_diagnostic.RS0030.severity = error
+
+# The legacy baseline: files that used a banned API when the ban landed, held at suggestion so the compiler still
+# records each use in banned-api.sarif. It only shrinks: the gate's banned-API job fails a section whose file no
+# longer uses a banned API (delete the section). Never add one; port the case to TypedCase instead.
+
+[/Animals/AnimalsContainment.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Anomaly/AnomalyHoldStudy.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Anomaly/AnomalyHorror.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Anomaly/AnomalyMonolithDisrupt.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Apparel/DeadMans.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Apparel/TaintedFilter.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Authority/AuthorityWarm.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Bed/BedAssign.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Bills/BillsCensus.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Burial/GraveOverMorgue.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Burial/StrangerSarcophagus.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Campaign/Campaign.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Campaign/Recovery.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Caravan/CaravanDeparture.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Child/ChildFirstChild.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Child/ChildMechGestation.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Clearance/ClearanceKit.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Clearance/ClearancePackReinstall.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Clearance/ClearanceRecoveryRemote.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Clearance/ClearanceSalvageRemote.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/ClothingActivityCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Combat/CombatCases.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Animals.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Breach.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/CombatDrug.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/DoorHold.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/DraftResume.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Drugs.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Emp.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Frames.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Geometry.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/HiveTemperature.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/HoldFire.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Hunt.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/HuntingPrediction.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/LabState.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Lance.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Metrics.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/MetricsCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Mirror.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Mortar.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/MortarShell.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/NativeHold.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Orders.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Repair.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Rescue.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Reseed.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/SeededStaging.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/ServeKit.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Shots.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/SiegeStage.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Stage.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/StageCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Stops.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Strip.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Stun.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CombatLab/Wild.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/ConditionalMoodCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CoordinatedWorkCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/CoupledForecastCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Custody/CustodyPopulation.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Defense/Ieds.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Defense/Perimeter.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Defense/SiegeMortar.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Defense/SiteStuff.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Defense/Threat.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Defense/Upgrade.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/DevelopmentLifecycleCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/DevelopmentReassignmentCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Dialog/DialogPause.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Draft/DraftCases.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Draft/DraftIntent.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Draft/DraftTakeover.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Environment/TemperatureProbe.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Explain/ExplainAudit.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Farm/FarmBlight.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Farm/FarmCalendar.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Farm/FarmLattice.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Farm/FarmNonFood.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Farm/FarmPlantation.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Farm/FarmSelectHydroponics.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Floor/FloorKitchen.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Floor/FloorStandingRoom.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Food/FoodFishing.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Food/FoodFixture.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Food/FoodLedger.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Food/FoodLedgerHunt.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Food/FoodReserve.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Food/FoodStarving.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Food/FoodStarvingRecovery.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Hazard/HazardCases.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Husbandry/HusbandryDispatch.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Husbandry/HusbandryPlan.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Ideology/IdeologyReform.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Ideology/IdeologyRitual.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lab/CaptureProfile.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lab/FoodStorageRoutes.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lab/GridThings.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lab/LabCases.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lab/SkillLearning.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lab/Sparring.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lab/SparringMeasure.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lab/SparringWatch.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lab/SpoilagePick.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lab/Training.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lab/TrainingRange.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/LargeColonyReadsCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Layout/Fixture.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Layout/PowerSites.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Layout/RichSoil.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Layout/Ring.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Layout/SeaIceEnvelope.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Layout/SoilAudit.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Layout/StorageSuccessor.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Letter/LetterPause.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/Checkpoint.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/HeadlessSoak.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/IdeoligionDesign.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/LifecycleCases.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/Load.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/NewColony.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/NewColonyKit.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/NewColonyParts.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/NewColonyTeam.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/QuietStoryteller.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/Reuse.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/RuntimeFault.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/ScenarioStartParts.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/Shutdown.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Lifecycle/StartCost.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Light/LightDark.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/MaintenancePracticeCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Mapscope/MapscopeIsolation.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Medical/MedicalKit.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Medical/PegCycle.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Medical/PlagueReadback.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Medical/StablePatient.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Medical/SurgeryCases.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Medical/SurgeryFacts.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Medical/SurgeryIntent.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Medical/SurgeryRun.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Medical/TendGates.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Mood/Arrest.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Mood/Gathering.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Mood/Headroom.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Mood/Ledger.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Mood/MoodDrive.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Mood/Subdue.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Movement/MovementArrival.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Needs/NeedsFreeze.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/NeedsForecastCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/NeedTargetCapacityCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Odyssey/OdysseyLavaField.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/AnimalFoodPolicy.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/DrugAddiction.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/DrugPolicy.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/ExplicitDrugPolicy.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/FoodPolicy.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/Hostility.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/Inspiration.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/MedicineCarry.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/MentalState.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/Nickname.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/PawnSupport.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/ReadingPolicy.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/Reads.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Pawn/SelfTend.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/PawnActivityCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/PawnControlCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/PawnCookingCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/PawnDeliveryCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/PlannedRoomCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/PlannedRoomPredictionCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/PlannedShelterThermalCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/PlannedSiteCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/PortfolioNeedsCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/PortfolioThermalCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Power/PowerFuel.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Power/PowerKit.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Power/PowerWindThinRoof.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Presentation/PresentationRoster.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Production/ProductionApparelPolicy.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Production/ProductionArt.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Production/ProductionBuriedSteel.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Production/ProductionGearLedger.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Production/ProductionLadder.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Production/ProductionPerPawnOutfits.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/ProductiveCookingCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Quest/QuestAccept.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Quest/QuestDecree.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Quest/QuestExpedition.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Quest/QuestGiveItem.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Quest/QuestHack.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Quest/QuestHospitality.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Quest/QuestJoiner.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Quest/QuestLifecycle.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Quest/QuestShuttle.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Quest/QuestTitle.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Recovery/RecoveryArea.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Recovery/RecoveryService.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Refrigeration/RefrigerationBuild.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Research/ResearchReads.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Review/ReviewColonyWeek.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Rooms/RoomsReads.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Route/RouteStockpile.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Service/ServiceRestart.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/ServiceInvestmentCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shared/CaseJournal.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shared/CaseJson.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shared/MoodProbe.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shared/RoutineService.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shelter/Bunks.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shelter/Climate.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shelter/Retirement.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shelter/Shell.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shelter/Sheltering.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shelter/Siting.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shelter/Solo.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Shelter/Stage.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Sleeping/SleepingBedrooms.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Sleeping/SleepingSelectedBedroom.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Sleeping/SleepingSuites.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Smoke/SmokeIdentity.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Solo/SoloSeaIce.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/SpeedMatrix/GovernorOff.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/SpeedMatrix/Matrix.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/SpeedMatrix/Observations.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Startup/StartupLaborCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Stats/StatsEvaluateStat.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Storage/StorageOccupancyRing.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Storage/StorageStrandedLoot.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Storage/StorageYardShelf.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Supplies/SuppliesReads.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Support/CaseStore.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Support/CaseSupport.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Support/HostReads.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Support/NativeReads.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Support/SessionReattach.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/SupportPortfolioCase.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Sustained/Colony.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Sustained/ColonyStable.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Sustained/Stockpiles.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Sustained/Winter.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Takeover/TakeoverAudit.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Temperature/BuildingTemperature.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Tools/ToolsBaselineGen.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Tools/ToolsDeepResources.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Tools/ToolsFacts.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Tools/ToolsVariantSaveGen.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Trade/TradeExecute.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Trade/TradeKit.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Trade/TradeOpen.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Trade/TradeRequest.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Trade/TradeRounds.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Trade/TradeSettlementRoundtrip.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Trade/TradeWorldSession.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Upkeep/Campaign.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Upkeep/ColonyExtent.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Upkeep/Couple.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Upkeep/GreedyBedroom.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Upkeep/HomeCoverage.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Upkeep/JealousAscetic.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Upkeep/Upkeep.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/Adoption.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/ClearedFloor.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/ClearedRoom.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/ConstructionSkill.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/Deconstruct.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/DoorSwap.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/Layers.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/RemotePickup.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/Removal.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/Replace.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/TierGate.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/Upgrade.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/WallCases.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/WallCensus.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Wall/WallGeometry.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Waste/Burnable.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Waste/Equality.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Zone/Delete.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Zone/Invalidation.cs]
+dotnet_diagnostic.RS0030.severity = suggestion
+
+[/Zone/Rectangle.cs]
+dotnet_diagnostic.RS0030.severity = suggestion

@@ -117,7 +117,7 @@ internal sealed class LabPawn
                 Faction = Fx.StageFaction.Hostile,
                 Prisoner = Side == CombatFixtures.Prisoner,
                 Age = 30,
-                Traits = [],
+                ClearTraits = true,
                 SkillLevel = 8,
                 SkillSpread = 2,
             },

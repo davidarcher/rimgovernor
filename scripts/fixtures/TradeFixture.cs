@@ -104,7 +104,7 @@ namespace HomeBridge.BridgeTools
                     }
                     // Outlander bulk traders buy steel; neolithic traders cover the herbal-medicine and food cases.
                     var kind = DefDatabase<TraderKindDef>.GetNamed(steel > 0 ? "Caravan_Outlander_BulkGoods" : "Caravan_Neolithic_BulkGoods");
-                    var (parms, arrived) = FixtureKit.FireIncident(map, IncidentDefOf.TraderCaravanArrival, null, kind);
+                    var (parms, arrived) = FixtureKit.FireIncident(map, IncidentDefOf.TraderCaravanArrival, kind);
                     var arrival = new { applied = true, definition = IncidentDefOf.TraderCaravanArrival.defName, traderKind = kind.defName, faction = parms.faction.Name,
                         traderIds = arrived.Where(p => p.trader?.traderKind != null).Select(p => p.GetUniqueLoadID()).ToArray() };
                     var traderPawns = map.mapPawns.AllPawnsSpawned.Where(p => p.trader != null && p.trader.traderKind != null

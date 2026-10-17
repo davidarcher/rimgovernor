@@ -69,8 +69,11 @@ identity), `Staged` and `TicksLeft`. Its members:
 
 `lab/stage`, `lab/spawn` and `upkeep/auto-home-area` are the reference ports.
 
-A new area adds its registration to `CaseCatalog.Register`. The gate's catalog test checks the cap, claim and tier
-of every case without a game (#3397).
+A new area adds its registration to `CaseCatalog.Register`. The gate checks every case without a game
+([acceptance-case gates](../architecture/rules.md#acceptance-cases)): the catalog test checks each typed case's
+cap, claim and tier, lints each legacy case and holds the legacy count to a shrink-only number. RS0030 fails a
+case file that calls `Task.Delay` or `Thread.Sleep` or reads a `JsonNode` by key or index. Porting a legacy file
+deletes its baseline section in the Cases project's `.editorconfig`.
 
 ### Staging
 
@@ -86,11 +89,11 @@ The spec is `StageSpec` (`brain/src/RimGovernor.Fixtures.Contracts`). Its primit
 finish a project, or set its progress), world (`StageWorld`: pinned outdoor temperature, clock hour), find site
 (`StageSite`), clear area (`StageClear`), set cells (`StageCells`: terrain, roof, home, fog), build room
 (`StageRoom`), place building (`StageBuilding`: complete, frame or blueprint), spawn thing (`StageThing`), spawn or
-set pawn (`StagePawn`: kind, faction, age, skills, traits, gear, hediffs, work, timetable, needs, policies, mental
+set pawn (`StagePawn`: kind, faction, age, skill level, cleared traits, gear, hediffs, work, timetable, needs, mental
 state, inspiration), zone (`StageZone`), the raid that drives staged hostiles (`StageRaid`), fire incident
-(`StageIncident`: an IncidentDef through its own worker, optionally with points or a trader kind) and generate quest
+(`StageIncident`: an IncidentDef through its own worker, optionally with a trader kind) and generate quest
 (`StageQuest`: a QuestScriptDef offered as a not-yet-accepted quest). One fixture op, `test/stage`, applies a spec
-and replies a `StageReply` keyed by the names in the spec: each entry's ids and cells, the incidents' pawns and the
+and replies a `StageReply` keyed by the names in the spec: each entry's ids and cells, the incidents' traders and the
 quests' ids. A case stages through
 `FixtureStage`: `FixtureStage.Start(spec)` as its start (the reply is `FixtureStage.Prepared(s)`), or
 `FixtureStage.ApplyAsync` mid-case. The shared primitives on the mod side live in `scripts/fixtures/FixtureKit.cs`.

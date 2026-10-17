@@ -23,6 +23,12 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.0" />
     <!-- Compiles the contract-orphan fixtures (ContractOrphansTests); the analyzers pin the same version. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+    <!-- The analyzer the acceptance cases run (BannedApiTests loads it over a snippet), not applied here; the cases pin the same version. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" GeneratePathProperty="true" ExcludeAssets="all" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(PkgMicrosoft_CodeAnalysis_BannedApiAnalyzers)/analyzers/dotnet/cs/*.dll" LinkBase="BannedApi" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="../../brain/src/RimGovernor.Brain.Acceptance.Cases/BannedSymbols.txt" Link="BannedApi/BannedSymbols.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\repo\repo.csproj" />
