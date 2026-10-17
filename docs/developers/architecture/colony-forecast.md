@@ -212,10 +212,21 @@ within 10 cells. The composer shares the planned operations with the planned-roo
 roots, so they are never duplicated. A planned roof over a natively placed ring has
 no ordering edge on that placed shell; this is a known approximation.
 
-Native reads thermal cells only near placed sites and heaters and has no heat facts
-for a planned heater. So a room with no placed shell is valued only when a heater or
-heater blueprint stands in it; other unstarted rooms stay explicitly unknown
-(`missing_shelter_geometry` or `unknown_heat_source`) until #3323.
+An unstarted room with nothing placed has no cells in the coupled capture, so Rounds
+read it apart (#3323, the
+[planned shelter thermal read](../contracts/forecast-contracts.md#planned-shelter-thermal-read)).
+`PlannedThermalRequestOf` asks for up to four enclosed rectangular shelters that still
+owe a planned site, with sides of at most 10 cells, lowest id first. It also asks for
+each room's planned Build site of the catalog heater definition. `WithPlannedThermal`
+then joins the answer into the coupled thermal read. The coupled capture keeps every
+cell and source it has, and the planned rows fill only the gaps. The planned read
+comes from a later frame of the same round. A planned heater is a source whose
+`Target` is its planned site. The shelter requires that site's finish as one more
+`planned/room{R}/heater` demand, and notes `planned_heat_source_unvalued` when the
+site was not generated. Without the read, or past its bounds, the room stays
+explicitly unknown (`missing_shelter_geometry` or `unknown_heat_source`). A planned
+door's exchange is not read: a ring cell with nothing placed has no door definition.
+This is the same approximation as a planned door beside a placed heater.
 
 The supported estimate is a closed rectangular room with thin roof, under current
 outdoor temperature and current network supply. It uses observed native heat

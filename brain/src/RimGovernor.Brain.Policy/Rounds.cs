@@ -192,6 +192,12 @@ public sealed record RoundsFacts
     /// </summary>
     public Fact<PlannedSiteFacts> PlannedSites { get; init; }
 
+    /// <summary>
+    /// The native thermal read of the unplaced planned shelters (PlannedThermalRequestOf, #3323): their cells and planned
+    /// heaters, joined into the coupled thermal read (WithPlannedThermal); null when nothing was asked or native did not answer.
+    /// </summary>
+    public RimGovernor.Contracts.Wire.Observations.CoupledThermalRead? PlannedThermal { get; init; }
+
     /// <summary>Live bill jobs' promised ingredients, per working pawn (MaterialBudget).</summary>
     public Fact<EquatableArray<IngredientReservation>> BillReservations { get; init; }
 

@@ -272,6 +272,31 @@ The prepared `observations/planned-site` case checks open-ground walls, a door a
 shelf; rejection on a standing wall (`Unestimable`) and on deep water (`Illegal`);
 and Cut, Haul and Mine ops over a tree, a steel stack and natural rock.
 
+### Planned shelter thermal read
+
+The coupled capture samples `ThermalCell` rows only within six cells of placed sites
+and heaters, so an unplaced planned shelter has none. `ConstructionActivityRequest.Thermal`
+(a `PlannedThermalRequest`) asks for them (#3323): each `PlannedThermalRoom` is a
+room id and its interior bounds, and each `PlannedThermalHeater` is a planned heater
+site id, definition and cell. `ConstructionActivityRead.Thermal` answers with a
+`CoupledThermalRead`:
+
+- `Cells`: a row for every interior and ring cell, in the coupled capture's shape.
+- `Sources`: one `ThermalSource` per requested heater whose definition is a native
+  `Building_Heater`. `Target` is the planned site id and `Complete` is false. Heat per
+  tick, default target and power draw come from the definition. The network is the
+  one a connector at the planned cell would join (`BestTransmitterForConnector`).
+  Supply is known only when that network's current surplus covers the draw. Any other
+  definition, or a cell off the map, returns no source.
+- `Workers`, `Outdoors` and the exchange constants are read as in the coupled capture.
+  `RoofRoutes` is empty, because a planned roof is a planned site.
+
+The caps are 4 rooms, 16 heaters and 1,024 cells; anything past them sets `Truncated`.
+Rounds ask once per round
+([planned shelter](../architecture/colony-forecast.md#planned-shelter-and-occupancy)).
+The prepared `observations/planned-shelter-thermal` case reads an empty, unroofed
+3x3 room with a planned Heater beside a generator's conduit run, and a planned bed.
+
 ## Food reserve components
 
 Native reports forbidden stacks (the thing row's `forbidden`) with their

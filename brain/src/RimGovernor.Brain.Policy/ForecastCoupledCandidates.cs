@@ -34,6 +34,8 @@ public static partial class PolicyFunctions
         };
         if (!NeedEnabled(FoodSupplyNeed) || OutdoorAcquisitionHeld(facts))
             read = read with { Food = read.Food with { Options = [] }, FoodConversions = [] };
+        // An unplaced planned shelter's cells and planned heater come from the round's planned thermal read (#3323).
+        read = read with { Thermal = WithPlannedThermal(read.Thermal, facts.PlannedThermal) };
         var shelterEnabled = NeedEnabled(ShelterFamily.Starter) || NeedEnabled(ShelterFamily.Sleeping) || NeedEnabled(ShelterFamily.Expansion)
             || NeedEnabled(ShelterFamily.SafeArea) || NeedEnabled(ShelterFamily.Temperature);
         if (!shelterEnabled)

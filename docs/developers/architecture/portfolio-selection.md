@@ -70,7 +70,7 @@ goal task. Food and construction use this same mechanism. Shelter roof work
 requires completed physical shell sites; each site keeps every construction
 realization until shared comparison. A planned shelter's shell and roof are its
 planned room's sites: the shelter root requires their finishes (one demand per
-wall, door and roof kind, met by any generated stuff), and the composer shares
+wall, door, roof and planned heater kind, met by any generated stuff), and the composer shares
 those operations with the planned-room roots instead of repeating them. Multiple heat sources in one modeled room
 are explicitly unassessed instead of choosing one locally.
 

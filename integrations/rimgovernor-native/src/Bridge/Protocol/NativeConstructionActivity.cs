@@ -65,6 +65,7 @@ public sealed class NativeConstructionActivity
         var answers = request.Planned.Take(SiteCap).Select(s => Planned(map, roster, s, finishGiver, planned, clearing)).ToArray();
         return new() { Context = context, Known = true, Truncated = placed.Truncated || planned.Truncated || clearing.Truncated, Options = EquatableArray.From(options),
             Planned = EquatableArray.From(answers),
+            Thermal = request.Thermal is { } thermal ? NativeCoupledThermal.ReadPlanned(map, thermal) : null,
             Findings = EquatableArray.From(placed.Findings.Concat(planned.Findings).Concat(clearing.Findings).Distinct().OrderBy(s => s, StringComparer.Ordinal)) };
     }
 

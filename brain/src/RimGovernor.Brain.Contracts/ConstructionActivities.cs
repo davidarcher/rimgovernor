@@ -15,6 +15,8 @@ public sealed record ConstructionActivityRequest(Identity Identity,
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedConstructionSite>))]
     public EquatableArray<PlannedConstructionSite> Planned { get; init; }
+    /// <summary>Unplaced planned shelters whose thermal cells and planned heaters the read samples (#3323); null asks nothing.</summary>
+    public PlannedThermalRequest? Thermal { get; init; }
 }
 public sealed record ConstructionActivityOption(string Site, string Definition, Cell Location, string Pawn,
     string Resource, string Input, Cell Origin, int Count, int Capacity, string WorkGiver,
@@ -135,4 +137,6 @@ public sealed record ConstructionActivityRead
     public EquatableArray<ConstructionActivityOption> Options { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteAnswer>))]
     public EquatableArray<PlannedSiteAnswer> Planned { get; init; }
+    /// <summary>The answer to <see cref="ConstructionActivityRequest.Thermal"/>; null when nothing was asked.</summary>
+    public CoupledThermalRead? Thermal { get; init; }
 }

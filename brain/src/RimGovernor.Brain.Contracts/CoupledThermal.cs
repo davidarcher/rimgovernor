@@ -32,4 +32,22 @@ public sealed record ThermalSource(string Target, Cell Cell, bool Complete, Fact
 }
 public sealed record ThermalWorker(string Pawn, Fact<double> RoofCellWorkTicks);
 
+/// <summary>
+/// Unplaced planned shelters the construction activity read samples (#3323): each room's interior and ring cells as
+/// <see cref="ThermalCell"/> rows, and each planned heater as a <see cref="ThermalSource"/> of its definition at its
+/// planned cell (never complete; supply from the network that cell would join). Answered in
+/// <see cref="ConstructionActivityRead.Thermal"/> with no roof routes. At most 4 rooms, 16 heaters and 1024 cells.
+/// </summary>
+public sealed record PlannedThermalRequest
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedThermalRoom>))]
+    public EquatableArray<PlannedThermalRoom> Rooms { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedThermalHeater>))]
+    public EquatableArray<PlannedThermalHeater> Heaters { get; init; }
+}
+/// <summary>A planned room's interior bounds; the read adds the one-cell ring around them.</summary>
+public sealed record PlannedThermalRoom(string Room, Cell Origin, int Width, int Height);
+/// <summary>A planned heater site (its id is the source's Target) of Definition at Cell.</summary>
+public sealed record PlannedThermalHeater(string Site, string Definition, Cell Cell);
+
 public sealed record ThermalRoofRoute(string Pawn, Cell Cell, Fact<double> ApproachTicks);

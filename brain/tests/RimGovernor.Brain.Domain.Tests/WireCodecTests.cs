@@ -146,6 +146,50 @@ public sealed class WireCodecTests
     }
 
     [Fact]
+    public void PlannedShelterThermalRoundTripsRoomsHeatersCellsAndUnknownSupply()
+    {
+        var request = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest(new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, default)
+        {
+            Thermal = new()
+            {
+                Rooms = [new("3", new(10, 12), 4, 3)],
+                Heaters = [new("planned/room3/build/Heater/11/13", "Heater", new(11, 13))],
+            },
+        };
+        var decodedRequest = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(WireJson.Serialize(request));
+        Assert.Equal(request.Thermal.Rooms, decodedRequest.Thermal!.Rooms);
+        Assert.Equal(request.Thermal.Heaters, decodedRequest.Thermal.Heaters);
+        Assert.Null(WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(
+            WireJson.Serialize(request with { Thermal = null })).Thermal);
+
+        var read = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead
+        {
+            Known = true,
+            Thermal = new()
+            {
+                Cells = [new(new(9, 11), RimGovernor.Brain.Domain.Fact.Known(-12.5), "none", false, false, false, "", "", false, false, 0, false)],
+                Sources = [new("planned/room3/build/Heater/11/13", new(11, 13), false, RimGovernor.Brain.Domain.Fact.Known(.35),
+                    RimGovernor.Brain.Domain.Fact.Known(21.0), default) { AdditionalWatts = RimGovernor.Brain.Domain.Fact.Known(175.0) }],
+                Workers = [new("pawn", RimGovernor.Brain.Domain.Fact.Known(38.2))],
+                Outdoors = RimGovernor.Brain.Domain.Fact.Known(-12.5),
+                Truncated = true,
+            },
+        };
+        var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead>(WireJson.Serialize(read)).Thermal!;
+        Assert.Equal(read.Thermal.Cells, decoded.Cells);
+        var source = Assert.Single(decoded.Sources);
+        Assert.Equal(read.Thermal.Sources[0], source);
+        Assert.False(source.Complete);
+        Assert.False(source.SupplyTicks.IsKnown);
+        Assert.False(source.SurplusWatts.IsKnown);
+        Assert.Equal("", source.PowerNetwork);
+        Assert.Equal(read.Thermal.Workers, decoded.Workers);
+        Assert.Empty(decoded.RoofRoutes);
+        Assert.True(decoded.Truncated);
+        Assert.Null(WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead>(WireJson.Serialize(read with { Thermal = null })).Thermal);
+    }
+
+    [Fact]
     public void PlannedSiteClearingRoundTripsEachVerdictAndKeepsUnknownsUnknown()
     {
         var known = RimGovernor.Brain.Domain.Fact.Known(12.0);

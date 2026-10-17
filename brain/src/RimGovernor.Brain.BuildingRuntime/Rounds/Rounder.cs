@@ -485,6 +485,8 @@ public sealed partial class Rounder
         });
         var vPlannedSites = await PlannedSitesAsync(state.Snapshot, reading.Projection, Policy.Flooring, shelfCandidates, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { PlannedSites = vPlannedSites });
+        var vPlannedThermal = await PlannedThermalAsync(state.Snapshot, reading.Projection, reading.Projection.Facts.PlannedShelters, vPlannedSites, ct).ConfigureAwait(false);
+        reading = reading.WithFacts(rf => rf with { PlannedThermal = vPlannedThermal });
         if (Firebreak is not null)
         {
             // The ring plan's dwell clock advances every review; the layout family reads the work it leaves.

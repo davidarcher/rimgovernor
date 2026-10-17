@@ -44,8 +44,8 @@ internal static class CoupledShelterCandidates
         return (unique.Take(4).ToArray(), EquatableArray.From(findings), truncated);
     }
     /// <summary>
-    /// Shelter alternatives over observed and planned rooms. A planned room's unbuilt shell and roof are its planned
-    /// sites (#3277): planned is the round's planned-site facts and generated the sites PlannedRoomCandidates emitted,
+    /// Shelter alternatives over observed and planned rooms. A planned room's unbuilt shell and roof (#3277) and its
+    /// planned heater (#3323) are its planned sites: planned is the round's planned-site facts and generated the sites PlannedRoomCandidates emitted,
     /// whose operations the composer shares; a shelter requires their finishes and never repeats them.
     /// </summary>
     internal static CoupledShelterCandidatesResult Generate(IEnumerable<ForecastShelterGeometry> rooms, Fact<RoomObservation> physicalRooms, CoupledThermalRead? read,
@@ -169,7 +169,13 @@ internal static class CoupledShelterCandidates
             var source = sources.Length == 1 ? sources[0] : null;
             if (sources.Length > 1) notes.Add("unsupported_multiple_heat_sources");
             else if (source is null) notes.Add("unknown_heat_source");
-            else if (!source.Complete && !RequireSite(source.Target)) notes.Add("unmodeled_heat_source_work");
+            else if (!source.Complete && !RequireSite(source.Target))
+            {
+                // A planned heater (#3323) is its room's planned Build site: the shelter requires that site's finish.
+                if (made.ContainsKey(source.Target)) RequirePlanned("heater", roomSites.Where(s => s.Id == source.Target));
+                else if (roomSites.Any(s => s.Id == source.Target)) notes.Add("planned_heat_source_unvalued");
+                else notes.Add("unmodeled_heat_source_work");
+            }
             var valid = notes.All(n => n == "roof_per_cell_labor_conservative_native_jobs_may_cover_neighbors");
             var cells = interior.Where(observed.ContainsKey).Select(c => observed[c]).ToArray();
             var temperature = valid && cells.Length != 0 && cells.All(c => c.Temperature.IsKnown) ? Known(cells.Average(c => c.Temperature.Value)) : default;
