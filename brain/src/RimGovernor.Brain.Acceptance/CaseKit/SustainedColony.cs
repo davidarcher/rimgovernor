@@ -41,19 +41,19 @@ public sealed record ColonyOutcome
     /// <summary>The outcome in the report's JSON shape (the Go struct's tags).</summary>
     public JsonObject ToJson() => new()
     {
-        ["samples"] = Samples,
-        ["unreadable"] = Unreadable,
-        ["min_food_runway_days"] = SampleJson.Num(MinFoodRunwayDays),
-        ["min_food_nutrition"] = SampleJson.Num(MinFoodNutrition),
-        ["final_food_runway_days"] = SampleJson.Num(FinalFoodRunwayDays),
-        ["first_colonists"] = SampleJson.Num(FirstColonists),
-        ["final_colonists"] = SampleJson.Num(FinalColonists),
-        ["colonists_lost"] = ColonistsLost,
-        ["max_downed"] = MaxDowned,
-        ["final_downed"] = FinalDowned,
-        ["min_mood_mean"] = SampleJson.Num(MinMoodMean),
-        ["final_mood_mean"] = SampleJson.Num(FinalMoodMean),
-        ["min_food_runway_tick"] = SampleJson.Num(MinFoodRunwayTick),
+        { "samples", Samples },
+        { "unreadable", Unreadable },
+        { "min_food_runway_days", MinFoodRunwayDays },
+        { "min_food_nutrition", MinFoodNutrition },
+        { "final_food_runway_days", FinalFoodRunwayDays },
+        { "first_colonists", FirstColonists },
+        { "final_colonists", FinalColonists },
+        { "colonists_lost", ColonistsLost },
+        { "max_downed", MaxDowned },
+        { "final_downed", FinalDowned },
+        { "min_mood_mean", MinMoodMean },
+        { "final_mood_mean", FinalMoodMean },
+        { "min_food_runway_tick", MinFoodRunwayTick },
     };
 }
 
@@ -64,7 +64,7 @@ public static partial class SustainedFood
     /// mood mean, the roster) for one timeline sample, so a sustained run's timeline carries the colony facts the run
     /// is judged by beside the goal state. A failed read is recorded as an error block, never dropped.
     /// </summary>
-    public static async Task<JsonObject> SampleColonyAsync(ServiceApiCall apiCall, CancellationToken cancellationToken)
+    internal static async Task<ColonyRead> SampleColonyAsync(ServiceApiCall apiCall, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(apiCall);
         ServiceApiReply reply;
@@ -74,22 +74,33 @@ public static partial class SustainedFood
         }
         catch (AcceptanceException e)
         {
-            return new JsonObject { ["error"] = e.Message };
+            return new ColonyRead { Error = e.Message };
         }
 
         if (reply.Status != 200)
         {
-            return new JsonObject { ["error"] = string.Create(CultureInfo.InvariantCulture, $"status {reply.Status}: {reply.Body.ToJson()}") };
+            return new ColonyRead { Error = string.Create(CultureInfo.InvariantCulture, $"status {reply.Status}: {reply.Body.ToJson()}") };
         }
 
-        return reply.Body ?? [];
+        PlayerColony? census;
+        try
+        {
+            census = ServiceJson.Colony(reply.Body);
+        }
+        catch (AcceptanceException)
+        {
+            // Recorded as the body it is; its facts are unknown.
+            census = null;
+        }
+
+        return new ColonyRead { Body = reply.Body ?? [], Census = census };
     }
 
     /// <summary>
     /// Folds every sample's colony block into a <see cref="ColonyOutcome"/>; it never errors, a timeline without
     /// colony blocks yields zero samples.
     /// </summary>
-    public static ColonyOutcome DeriveColonyOutcome(IEnumerable<JsonObject> timeline)
+    internal static ColonyOutcome DeriveColonyOutcome(IEnumerable<WatchSample> timeline)
     {
         ArgumentNullException.ThrowIfNull(timeline);
         var samples = 0;
@@ -108,35 +119,35 @@ public static partial class SustainedFood
         double? finalMood = null;
         foreach (var sample in timeline)
         {
-            if (sample["colony"] is not JsonObject colony)
-            {
-                continue;
-            }
-
             samples++;
-            if (colony.ContainsKey("error"))
+            if (sample.Colony.Error is not null)
             {
                 unreadable++;
                 continue;
             }
 
-            if (SampleJson.TryFloat(colony["foodRunwayDays"], out var runway))
+            if (sample.Colony.Census is not { } census)
+            {
+                continue;
+            }
+
+            if (census.FoodRunwayDays is { } runway)
             {
                 if (minRunway is null || runway < minRunway)
                 {
                     minRunway = runway;
-                    minRunwayTick = SampleJson.Tick(sample["tick"]);
+                    minRunwayTick = sample.Tick;
                 }
 
                 finalRunway = runway;
             }
 
-            if (SampleJson.TryFloat(colony["foodNutrition"], out var nutrition) && (minNutrition is null || nutrition < minNutrition))
+            if (census.FoodNutrition is { } nutrition && (minNutrition is null || nutrition < minNutrition))
             {
                 minNutrition = nutrition;
             }
 
-            if (SampleJson.TryFloat(colony["colonists"], out var count))
+            if (census.Colonists is { } count)
             {
                 var colonists = (int)count;
                 firstColonists ??= colonists;
@@ -149,13 +160,13 @@ public static partial class SustainedFood
                 finalColonists = colonists;
             }
 
-            if (SampleJson.TryFloat(colony["downed"], out var downed))
+            if (census.Downed is { } downed)
             {
-                finalDowned = (int)downed;
+                finalDowned = downed;
                 maxDowned = Math.Max(maxDowned, finalDowned);
             }
 
-            if (SampleJson.TryFloat(colony["moodMean"], out var mood))
+            if (census.MoodMean is { } mood)
             {
                 if (minMood is null || mood < minMood)
                 {
@@ -182,47 +193,5 @@ public static partial class SustainedFood
             FinalMoodMean = finalMood,
             MinFoodRunwayTick = minRunwayTick,
         };
-    }
-
-    /// <summary>
-    /// The mean census food runway over the samples taken in the last <paramref name="span"/> ticks before the final
-    /// sample, and how many samples that is. The runway swings as the colony eats and restocks, so a gate that judges
-    /// food reads the mean, not one instant. Null when no readable sample carries both a tick and a runway.
-    /// </summary>
-    public static (double Mean, int Samples)? MeanFoodRunway(IEnumerable<JsonObject> timeline, ulong span)
-    {
-        ArgumentNullException.ThrowIfNull(timeline);
-        var points = new List<(ulong Tick, double Runway)>();
-        foreach (var sample in timeline)
-        {
-            if (sample["colony"] is not JsonObject colony || colony["error"] is not null)
-            {
-                continue;
-            }
-
-            if (SampleJson.TryFloat(sample["tick"], out var tick) && SampleJson.TryFloat(colony["foodRunwayDays"], out var runway))
-            {
-                points.Add(((ulong)tick, runway));
-            }
-        }
-
-        if (points.Count == 0)
-        {
-            return null;
-        }
-
-        var lastTick = points[^1].Tick;
-        double sum = 0;
-        var count = 0;
-        foreach (var (tick, runway) in points)
-        {
-            if (tick + span >= lastTick)
-            {
-                sum += runway;
-                count++;
-            }
-        }
-
-        return (sum / count, count);
     }
 }

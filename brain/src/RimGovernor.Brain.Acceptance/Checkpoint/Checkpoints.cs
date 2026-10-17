@@ -54,16 +54,6 @@ public static class Checkpoints
         return ring is null || ring.Every <= TimeSpan.Zero ? Task.FromResult(TimeSpan.Zero) : ring.MaybeAsync(cancellationToken);
     }
 
-    /// <summary>
-    /// Takes a named bundle on the active ring (a phase boundary the case declared: a goal admitted, a stage
-    /// advanced); null when no ring is active.
-    /// </summary>
-    public static async Task<Checkpoint?> CaptureCheckpointAsync(string label, CancellationToken cancellationToken)
-    {
-        var ring = Active;
-        return ring is null ? null : await ring.CaptureAsync(label, cancellationToken).ConfigureAwait(false);
-    }
-
     /// <summary>Reads dir's index; a missing ring is null.</summary>
     public static Ring? ReadRing(string dir) => Ring.Read(dir);
 

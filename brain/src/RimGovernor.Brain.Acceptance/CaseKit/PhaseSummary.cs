@@ -13,33 +13,7 @@ public static class PhaseQuantiles
     public static JsonObject ToJson(this DispatchQuantiles q)
     {
         ArgumentNullException.ThrowIfNull(q);
-        return new JsonObject { ["samples"] = q.Samples, ["p50_ms"] = q.P50, ["p95_ms"] = q.P95, ["p99_ms"] = q.P99, ["max_ms"] = q.Max, ["sum_ms"] = q.Sum };
-    }
-
-    /// <summary>Reduces one phase's samples; sorts in place.</summary>
-    internal static DispatchQuantiles Of(List<double> samples)
-    {
-        if (samples.Count == 0)
-        {
-            return new DispatchQuantiles();
-        }
-
-        samples.Sort();
-        return new DispatchQuantiles
-        {
-            Samples = (ulong)samples.Count,
-            Max = samples[^1],
-            Sum = samples.Sum(),
-            P50 = NearestRank(samples, 0.50),
-            P95 = NearestRank(samples, 0.95),
-            P99 = NearestRank(samples, 0.99),
-        };
-    }
-
-    private static double NearestRank(List<double> sorted, double q)
-    {
-        var rank = Math.Clamp((int)Math.Ceiling(q * sorted.Count), 1, sorted.Count);
-        return sorted[rank - 1];
+        return new JsonObject { { "samples", q.Samples }, { "p50_ms", q.P50 }, { "p95_ms", q.P95 }, { "p99_ms", q.P99 }, { "max_ms", q.Max }, { "sum_ms", q.Sum } };
     }
 }
 
@@ -115,31 +89,21 @@ public sealed class ObservationSample
     {
         var row = new JsonObject
         {
-            ["hops"] = Hops,
-            ["format_passes"] = FormatPasses,
-            ["payload_bytes"] = PayloadBytes,
-            ["capture_ms"] = CaptureMs,
-            ["format_ms"] = FormatMs,
-            ["capture"] = Capture.ToJson(),
-            ["format"] = Format.ToJson(),
-            ["queue"] = Queue.ToJson(),
-            ["execute"] = Execute.ToJson(),
+            { "hops", Hops },
+            { "format_passes", FormatPasses },
+            { "payload_bytes", PayloadBytes },
+            { "capture_ms", CaptureMs },
+            { "format_ms", FormatMs },
+            { "capture", Capture.ToJson() },
+            { "format", Format.ToJson() },
+            { "queue", Queue.ToJson() },
+            { "execute", Execute.ToJson() },
         };
         if (Sections.Count > 0)
         {
-            var sections = new JsonArray();
-            foreach (var section in Sections)
-            {
-                var item = new JsonObject { ["section"] = section.Section, ["hops"] = section.Hops, ["ms"] = section.Ms, ["max_ms"] = section.MaxMs, ["rows"] = section.Rows };
-                if (section.Candidates > 0)
-                {
-                    item["candidates"] = section.Candidates;
-                }
-
-                sections.Add(item);
-            }
-
-            row["sections"] = sections;
+            row.Add("sections", OutputJson.Array(Sections, section =>
+                new JsonObject { { "section", section.Section }, { "hops", section.Hops }, { "ms", section.Ms }, { "max_ms", section.MaxMs }, { "rows", section.Rows } }
+                    .AddIfPresent("candidates", section.Candidates > 0 ? section.Candidates : null)));
         }
 
         if (Outcomes.Count > 0)
@@ -147,39 +111,27 @@ public sealed class ObservationSample
             var outcomes = new JsonObject();
             foreach (var (name, count) in Outcomes)
             {
-                outcomes[name] = count;
+                outcomes.Add(name, count);
             }
 
-            row["outcomes"] = outcomes;
+            row.Add("outcomes", outcomes);
         }
 
-        if (EncodeHops > 0)
-        {
-            row["encode_hops"] = EncodeHops;
-        }
-
-        if (EncodeFormatPasses > 0)
-        {
-            row["encode_format_passes"] = EncodeFormatPasses;
-        }
-
-        if (EncodeFormatMs != 0)
-        {
-            row["encode_format_ms"] = EncodeFormatMs;
-        }
-
-        row["encode_queue"] = EncodeQueue.ToJson();
-        row["encode"] = Encode.ToJson();
+        row.AddIfPresent("encode_hops", EncodeHops > 0 ? EncodeHops : null)
+            .AddIfPresent("encode_format_passes", EncodeFormatPasses > 0 ? EncodeFormatPasses : null)
+            .AddIfPresent("encode_format_ms", EncodeFormatMs != 0 ? EncodeFormatMs : null);
+        row.Add("encode_queue", EncodeQueue.ToJson());
+        row.Add("encode", Encode.ToJson());
         if (Threats is { } t)
         {
-            row["threat_scan"] = new JsonObject
+            row.Add("threat_scan", new JsonObject
             {
-                ["hops"] = t.Hops,
-                ["examined"] = t.Examined,
-                ["candidates"] = t.Candidates,
-                ["projections"] = t.Projections,
-                ["proximity_checks"] = t.ProximityChecks,
-            };
+                { "hops", t.Hops },
+                { "examined", t.Examined },
+                { "candidates", t.Candidates },
+                { "projections", t.Projections },
+                { "proximity_checks", t.ProximityChecks },
+            });
         }
 
         return row;
@@ -226,38 +178,26 @@ public sealed class FrameSample
     {
         var row = new JsonObject
         {
-            ["hooked"] = Hooked,
-            ["samples"] = Samples,
-            ["updates"] = Updates,
-            ["elapsed_ms"] = ElapsedMs,
-            ["max_interval_ms"] = MaxIntervalMs,
-            ["observation_ms"] = ObservationMs,
-            ["observations"] = Observations,
-            ["cancelled_hops"] = Cancelled,
-            ["recorder_ms"] = RecorderMs,
-            ["intervals"] = Intervals.ToJson(),
-            ["observed_intervals"] = Observed.ToJson(),
+            { "hooked", Hooked },
+            { "samples", Samples },
+            { "updates", Updates },
+            { "elapsed_ms", ElapsedMs },
+            { "max_interval_ms", MaxIntervalMs },
+            { "observation_ms", ObservationMs },
+            { "observations", Observations },
+            { "cancelled_hops", Cancelled },
+            { "recorder_ms", RecorderMs },
+            { "intervals", Intervals.ToJson() },
+            { "observed_intervals", Observed.ToJson() },
         };
         if (Slow.Count > 0)
         {
-            var slow = new JsonArray();
-            foreach (var (threshold, count) in Slow)
-            {
-                slow.Add(new JsonObject { ["threshold_ms"] = threshold, ["count"] = count });
-            }
-
-            row["slow"] = slow;
+            row.Add("slow", OutputJson.Array(Slow, s => new JsonObject { { "threshold_ms", s.ThresholdMs }, { "count", s.Count } }));
         }
 
         if (Worst.Count > 0)
         {
-            var worst = new JsonArray();
-            foreach (var frame in Worst)
-            {
-                worst.Add(frame.DeepClone());
-            }
-
-            row["worst"] = worst;
+            row.Add("worst", OutputJson.Array(Worst, frame => frame.DeepClone()));
         }
 
         return row;
@@ -441,9 +381,9 @@ public sealed class PhaseSummary
 
     public DispatchSample Dispatch { get; } = new();
 
-    public ObservationSample Observation { get; private set; } = new();
+    public ObservationSample Observation { get; } = new();
 
-    public FrameSample Frames { get; private set; } = new();
+    public FrameSample Frames { get; } = new();
 
     /// <summary>
     /// Aggregates the rows of a log ring; the native clock accounting is the difference between the
@@ -454,108 +394,13 @@ public sealed class PhaseSummary
         ArgumentNullException.ThrowIfNull(records);
         var summary = new PhaseSummary();
         var clock = summary.Clock;
-        long lastTick = 0;
-        var haveTick = false;
-        double tickWall = 0;
-        double pausedWall = 0;
-        var lastPaused = false;
-        var havePaused = false;
         double holdWakeMs = 0;
         double maxHoldWakeMs = 0;
         ulong latencySamples = 0;
-        var observation = new ObservationAccumulator();
-        var frames = new FrameAccumulator();
         foreach (var row in records)
         {
             switch (row.Kind)
             {
-                case "native_call":
-                    var wrapper = Text(row.Payload.GetValueOrDefault("tool"));
-                    var failed = NativeReplyFailed(row);
-                    if (row.Payload.GetValueOrDefault("timing") is IReadOnlyDictionary<string, object?> timing)
-                    {
-                        if (Number(timing.GetValueOrDefault("native_queue_ms")) is { } queue)
-                        {
-                            observation.Timed(queue, Field(timing, "native_execute_ms"));
-                        }
-
-                        if (ObservationRecord.Read(timing) is { } account)
-                        {
-                            observation.Hop(account);
-                        }
-
-                        if (FrameRecord.Read(timing) is { } frame)
-                        {
-                            frames.Sample(frame);
-                        }
-                    }
-
-                    if (failed || wrapper != "games_call_tool")
-                    {
-                        continue;
-                    }
-
-                    var reply = RecordedReply(row.Payload);
-                    if (reply is null)
-                    {
-                        continue;
-                    }
-
-                    ReplyClock(reply, out var tick, out var paused, out var hasTick, out var hasPaused, out var effectiveTps);
-                    if (effectiveTps > 0)
-                    {
-                        clock.EffectiveTpsSamples++;
-                        clock.EffectiveTpsSum += effectiveTps;
-                    }
-
-                    if (hasPaused)
-                    {
-                        clock.ClockSamples++;
-                        if (paused)
-                        {
-                            clock.PausedSamples++;
-                        }
-
-                        if (havePaused && row.WallTime > pausedWall)
-                        {
-                            var span = row.WallTime - pausedWall;
-                            clock.SampledSecs += span;
-                            if (lastPaused)
-                            {
-                                clock.PausedSecs += span;
-                            }
-                        }
-
-                        lastPaused = paused;
-                        pausedWall = row.WallTime;
-                        havePaused = true;
-                    }
-
-                    if (!hasTick)
-                    {
-                        continue;
-                    }
-
-                    clock.TickSamples++;
-                    if (haveTick)
-                    {
-                        if (tick < lastTick)
-                        {
-                            clock.Resets++;
-                        }
-                        else
-                        {
-                            clock.TicksAdvanced += tick - lastTick;
-                            clock.WallSecs += row.WallTime - tickWall;
-                        }
-                    }
-
-                    lastTick = tick;
-                    tickWall = row.WallTime;
-                    haveTick = true;
-                    clock.LastTick = tick;
-                    break;
-
                 case TelemetryKinds.ClockStepKind:
                     StepRow(summary.Steps, SpeedMatrix.StepFields(row), ref holdWakeMs, ref maxHoldWakeMs, ref latencySamples);
                     break;
@@ -606,16 +451,9 @@ public sealed class PhaseSummary
             clock.Account(start, end);
         }
 
-        summary.Observation = observation.Result();
-        summary.Frames = frames.Result();
         summary.HoldWakeSamples = latencySamples;
         summary.MeanHoldWakeMs = latencySamples > 0 ? holdWakeMs / latencySamples : 0;
         summary.MaxHoldWakeMs = maxHoldWakeMs;
-        if (clock.WallSecs > 0)
-        {
-            clock.WallTps = (double)clock.TicksAdvanced / clock.WallSecs;
-        }
-
         return summary;
     }
 
@@ -674,10 +512,6 @@ public sealed class PhaseSummary
         }
     }
 
-    // A native_call row records a failure: ok false or an error text.
-    private static bool NativeReplyFailed(TimelineRecord row) =>
-        row.Payload.GetValueOrDefault("ok") is false || Text(row.Payload.GetValueOrDefault("error")).Length > 0;
-
     private static string Text(object? value) => value as string ?? "";
 
     internal static double? Number(object? value) => value switch
@@ -691,513 +525,4 @@ public sealed class PhaseSummary
     internal static double Field(IReadOnlyDictionary<string, object?> map, string key) => Number(map.GetValueOrDefault(key)) ?? 0;
 
     internal static ulong Count(object? value) => Number(value) is { } n and >= 0 ? (ulong)n : 0;
-
-    // A recorded native_call row's reply as a JSON object: the JSON text its result.payload holds.
-    private static JsonObject? RecordedReply(IReadOnlyDictionary<string, object?> payload)
-    {
-        if (payload.GetValueOrDefault("result") is not IReadOnlyDictionary<string, object?> result || result.GetValueOrDefault("payload") is not string text)
-        {
-            return null;
-        }
-
-        try
-        {
-            return JsonNode.Parse(text) as JsonObject;
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return null;
-        }
-    }
-
-    // The ProtoJSON int64 encodings: a JSON string or a number.
-    internal static bool TickValue(JsonNode? value, out long tick)
-    {
-        tick = 0;
-        if (value is not JsonValue v)
-        {
-            return false;
-        }
-
-        if (v.TryGetValue<string>(out var text))
-        {
-            return long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out tick);
-        }
-
-        if (v.TryGetValue<double>(out var number))
-        {
-            tick = (long)number;
-            return true;
-        }
-
-        return false;
-    }
-
-    private static double? JsonNumber(JsonNode? value) =>
-        value is JsonValue v && v.TryGetValue<double>(out var number) ? number : null;
-
-    // The observation tick and, for clock status replies (or a bundle's clock status section), the actual-paused flag
-    // and native's effective ticks per second (0 when absent) out of a recorded reply.
-    private static void ReplyClock(JsonObject reply, out long tick, out bool paused, out bool hasTick, out bool hasPaused, out double effectiveTps)
-    {
-        long tickOut = 0;
-        var pausedOut = false;
-        var hasTickOut = false;
-        var hasPausedOut = false;
-        double tpsOut = 0;
-        void Status(JsonObject candidate)
-        {
-            if (StatusPaused(candidate) is { } value)
-            {
-                pausedOut = value;
-                hasPausedOut = true;
-            }
-
-            if (JsonNumber(candidate["effectiveTicksPerSecond"]) is { } tps)
-            {
-                tpsOut = tps;
-            }
-        }
-
-        foreach (var (_, outcome) in reply)
-        {
-            if (outcome is not JsonObject body)
-            {
-                continue;
-            }
-
-            if (body["context"] is JsonObject context && TickValue(context["tick"], out var value))
-            {
-                tickOut = value;
-                hasTickOut = true;
-            }
-
-            Status(body);
-
-            // A bundle carries the clock status as a section.
-            if (body["clockStatus"] is JsonObject section)
-            {
-                Status(section);
-            }
-        }
-
-        tick = tickOut;
-        paused = pausedOut;
-        hasTick = hasTickOut;
-        hasPaused = hasPausedOut;
-        effectiveTps = tpsOut;
-    }
-
-    // Whether a recorded clock status shows the clock paused: its actual-paused flag when present, else its Run/Held state.
-    private static bool? StatusPaused(JsonObject status)
-    {
-        if (status["actualPaused"] is JsonValue flag && flag.TryGetValue<bool>(out var actual))
-        {
-            return actual;
-        }
-
-        return status["state"]?.ToString() switch
-        {
-            "CLOCK_STATE_RUNNING" => false,
-            "CLOCK_STATE_HELD" => true,
-            _ => null,
-        };
-    }
-
-    // ---- the companion's observation and frame accounts ----
-    internal sealed class ObservationRecord
-    {
-        public double CaptureMs;
-        public double FormatMs;
-        public bool HasCapture;
-        public ulong FormatPasses;
-        public ulong PayloadBytes;
-        public string Outcome = "";
-        public List<SectionPhases> Sections = [];
-        public bool Detached;
-        public double EncodeQueueMs;
-        public double EncodeMs;
-        public double EncFormat;
-        public ulong EncodeFormatPasses;
-        public ThreatScan? Threats;
-
-        // Reads the "native_observation" block; a row without one, or with a negative duration, reports nothing.
-        public static ObservationRecord? Read(IReadOnlyDictionary<string, object?> timing)
-        {
-            if (timing.GetValueOrDefault("native_observation") is not IReadOnlyDictionary<string, object?> raw)
-            {
-                return null;
-            }
-
-            var capture = Number(raw.GetValueOrDefault("captureMs"));
-            var format = Number(raw.GetValueOrDefault("formatMs"));
-            if (capture < 0 || format < 0)
-            {
-                return null;
-            }
-
-            var record = new ObservationRecord
-            {
-                CaptureMs = capture ?? 0,
-                HasCapture = capture is not null,
-                FormatMs = format ?? 0,
-                FormatPasses = Count(raw.GetValueOrDefault("formatPasses")),
-                PayloadBytes = Count(raw.GetValueOrDefault("payloadBytes")),
-                Outcome = Text(raw.GetValueOrDefault("outcome")),
-            };
-            if (raw.GetValueOrDefault("encode") is IReadOnlyDictionary<string, object?> encode
-                && Number(encode.GetValueOrDefault("queueMs")) is { } queue and >= 0
-                && Number(encode.GetValueOrDefault("ms")) is { } ms and >= 0)
-            {
-                record.Detached = true;
-                record.EncodeQueueMs = queue;
-                record.EncodeMs = ms;
-                record.EncFormat = Field(encode, "formatMs");
-                record.EncodeFormatPasses = Count(encode.GetValueOrDefault("formatPasses"));
-            }
-
-            if (raw.GetValueOrDefault("threatScan") is IReadOnlyDictionary<string, object?> scan)
-            {
-                record.Threats = new ThreatScan
-                {
-                    Hops = 1,
-                    Examined = Count(scan.GetValueOrDefault("examined")),
-                    Candidates = Count(scan.GetValueOrDefault("candidates")),
-                    Projections = Count(scan.GetValueOrDefault("projections")),
-                    ProximityChecks = Count(scan.GetValueOrDefault("proximityChecks")),
-                };
-            }
-
-            if (raw.GetValueOrDefault("sections") is IReadOnlyDictionary<string, object?> sections)
-            {
-                foreach (var (name, entry) in sections)
-                {
-                    if (entry is not IReadOnlyDictionary<string, object?> body)
-                    {
-                        continue;
-                    }
-
-                    var sectionMs = Math.Max(0, Field(body, "ms"));
-                    record.Sections.Add(new SectionPhases
-                    {
-                        Section = name,
-                        Hops = 1,
-                        Ms = sectionMs,
-                        MaxMs = sectionMs,
-                        Rows = Count(body.GetValueOrDefault("rows")),
-                        Candidates = Count(body.GetValueOrDefault("candidates")),
-                    });
-                }
-            }
-
-            if (capture is null && format is null && !record.Detached && record.PayloadBytes == 0 && record.Sections.Count == 0)
-            {
-                return null;
-            }
-
-            return record;
-        }
-    }
-
-    internal sealed class FrameRecord
-    {
-        public bool Hooked;
-        public ulong Updates;
-        public ulong Observations;
-        public ulong Cancelled;
-        public double ElapsedMs;
-        public double MaxIntervalMs;
-        public double ObservationMs;
-        public double RecorderMs;
-        public Dictionary<double, ulong>? Slow;
-        public List<JsonObject> Worst = [];
-        public List<double> HistEdges = [];
-        public List<ulong> HistCounts = [];
-        public List<ulong> HistObserved = [];
-
-        // Reads the "native_frames" block; one without an update count reports nothing.
-        public static FrameRecord? Read(IReadOnlyDictionary<string, object?> timing)
-        {
-            if (timing.GetValueOrDefault("native_frames") is not IReadOnlyDictionary<string, object?> raw)
-            {
-                return null;
-            }
-
-            if (Number(raw.GetValueOrDefault("updates")) is not { } updates || updates < 0)
-            {
-                return null;
-            }
-
-            var record = new FrameRecord
-            {
-                Updates = (ulong)updates,
-                Hooked = raw.GetValueOrDefault("hooked") is true,
-                ElapsedMs = Field(raw, "elapsedMs"),
-                MaxIntervalMs = Field(raw, "maxUpdateMs"),
-                ObservationMs = Field(raw, "observationMs"),
-                RecorderMs = Field(raw, "recorderMs"),
-                Observations = Count(raw.GetValueOrDefault("observations")),
-                Cancelled = Count(raw.GetValueOrDefault("cancelled")),
-            };
-            if (raw.GetValueOrDefault("slow") is List<object?> buckets)
-            {
-                record.Slow = [];
-                foreach (var entry in buckets)
-                {
-                    if (entry is IReadOnlyDictionary<string, object?> body && Number(body.GetValueOrDefault("thresholdMs")) is { } threshold)
-                    {
-                        record.Slow[threshold] = Count(body.GetValueOrDefault("count"));
-                    }
-                }
-            }
-
-            if (raw.GetValueOrDefault("histogram") is IReadOnlyDictionary<string, object?> hist
-                && hist.GetValueOrDefault("edgesMs") is List<object?> edges
-                && hist.GetValueOrDefault("counts") is List<object?> counts
-                && counts.Count == edges.Count + 1)
-            {
-                record.HistEdges = [.. edges.Select(edge => Number(edge) ?? 0)];
-                record.HistCounts = [.. counts.Select(Count)];
-                if (hist.GetValueOrDefault("observedCounts") is List<object?> observed && observed.Count == counts.Count)
-                {
-                    record.HistObserved = [.. observed.Select(Count)];
-                }
-            }
-
-            if (raw.GetValueOrDefault("worst") is List<object?> worst)
-            {
-                foreach (var entry in worst)
-                {
-                    if (entry is not IReadOnlyDictionary<string, object?> body)
-                    {
-                        continue;
-                    }
-
-                    var frame = new JsonObject
-                    {
-                        ["frame"] = Count(body.GetValueOrDefault("update")),
-                        ["interval_ms"] = Field(body, "intervalMs"),
-                        ["observation_ms"] = Field(body, "observationMs"),
-                    };
-                    var tick = body.GetValueOrDefault("tick");
-                    frame["tick"] = tick switch
-                    {
-                        string text when long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) => parsed,
-                        double number => (long)number,
-                        _ => 0L,
-                    };
-                    if (Text(body.GetValueOrDefault("trace")) is { Length: > 0 } trace)
-                    {
-                        frame["trace"] = trace;
-                    }
-
-                    record.Worst.Add(frame);
-                }
-            }
-
-            return record;
-        }
-    }
-
-    internal sealed class ObservationAccumulator
-    {
-        private readonly ObservationSample _sample = new();
-        private readonly List<double> _capture = [];
-        private readonly List<double> _format = [];
-        private readonly List<double> _queue = [];
-        private readonly List<double> _execute = [];
-        private readonly List<double> _encodeQueue = [];
-        private readonly List<double> _encode = [];
-        private readonly Dictionary<string, SectionPhases> _sections = new(StringComparer.Ordinal);
-
-        public void Hop(ObservationRecord record)
-        {
-            _sample.Hops++;
-            _sample.CaptureMs += record.CaptureMs;
-            _sample.FormatMs += record.FormatMs;
-            _sample.FormatPasses += record.FormatPasses;
-            _sample.PayloadBytes += record.PayloadBytes;
-            if (record.HasCapture)
-            {
-                _capture.Add(record.CaptureMs);
-            }
-
-            _format.Add(record.FormatMs);
-            if (record.Detached)
-            {
-                _sample.EncodeHops++;
-                _sample.EncodeFormatPasses += record.EncodeFormatPasses;
-                _sample.EncodeFormatMs += Math.Max(0, record.EncFormat);
-                _encodeQueue.Add(record.EncodeQueueMs);
-                _encode.Add(record.EncodeMs);
-            }
-
-            if (record.Outcome.Length > 0)
-            {
-                _sample.Outcomes[record.Outcome] = _sample.Outcomes.GetValueOrDefault(record.Outcome) + 1;
-            }
-
-            if (record.Threats is { } t)
-            {
-                var total = _sample.Threats ??= new ThreatScan();
-                total.Hops += t.Hops;
-                total.Examined += t.Examined;
-                total.Candidates += t.Candidates;
-                total.Projections += t.Projections;
-                total.ProximityChecks += t.ProximityChecks;
-            }
-
-            foreach (var section in record.Sections)
-            {
-                if (!_sections.TryGetValue(section.Section, out var entry))
-                {
-                    entry = new SectionPhases { Section = section.Section };
-                    _sections[section.Section] = entry;
-                }
-
-                entry.Hops++;
-                entry.Ms += section.Ms;
-                entry.MaxMs = Math.Max(entry.MaxMs, section.Ms);
-                entry.Rows += section.Rows;
-                entry.Candidates += section.Candidates;
-            }
-        }
-
-        // One hop's companion queue and execute time, which every timed reply carries whether or not it also carries an observation account.
-        public void Timed(double queueMs, double executeMs)
-        {
-            _queue.Add(queueMs);
-            _execute.Add(executeMs);
-        }
-
-        public ObservationSample Result()
-        {
-            _sample.Capture = PhaseQuantiles.Of(_capture);
-            _sample.Format = PhaseQuantiles.Of(_format);
-            _sample.Queue = PhaseQuantiles.Of(_queue);
-            _sample.Execute = PhaseQuantiles.Of(_execute);
-            _sample.EncodeQueue = PhaseQuantiles.Of(_encodeQueue);
-            _sample.Encode = PhaseQuantiles.Of(_encode);
-            _sample.Sections.Clear();
-            _sample.Sections.AddRange(_sections.Values
-                .OrderByDescending(s => s.Ms)
-                .ThenBy(s => s.Section, StringComparer.Ordinal));
-            return _sample;
-        }
-    }
-
-    // Differences the cumulative frame counters between the recording's first and last sample; a counter that went
-    // backwards (a reloaded game reset the session) starts a new baseline rather than reporting a negative span.
-    internal sealed class FrameAccumulator
-    {
-        private static readonly double[] SlowThresholdsMs = [16.7, 33.3, 100, 250];
-        private FrameRecord _first = new();
-        private FrameRecord _last = new();
-        private bool _have;
-        private ulong _samples;
-        private double _maxInterval;
-
-        public void Sample(FrameRecord record)
-        {
-            _samples++;
-            _maxInterval = Math.Max(_maxInterval, record.MaxIntervalMs);
-            if (!_have || record.Updates < _first.Updates)
-            {
-                _first = record;
-                _have = true;
-            }
-
-            _last = record;
-        }
-
-        public FrameSample Result()
-        {
-            if (!_have)
-            {
-                return new FrameSample();
-            }
-
-            var output = new FrameSample { Hooked = _last.Hooked, Samples = _samples, MaxIntervalMs = _maxInterval };
-            output.Worst.AddRange(_last.Worst);
-            output.Updates = Span(_last.Updates, _first.Updates);
-            output.Observations = Span(_last.Observations, _first.Observations);
-            output.Cancelled = Span(_last.Cancelled, _first.Cancelled);
-            output.ElapsedMs = SpanMs(_last.ElapsedMs, _first.ElapsedMs);
-            output.ObservationMs = SpanMs(_last.ObservationMs, _first.ObservationMs);
-            output.RecorderMs = SpanMs(_last.RecorderMs, _first.RecorderMs);
-            foreach (var threshold in SlowThresholdsMs)
-            {
-                if (_last.Slow is null || !_last.Slow.TryGetValue(threshold, out var lastCount))
-                {
-                    continue;
-                }
-
-                var firstCount = _first.Slow is not null && _first.Slow.TryGetValue(threshold, out var f) ? f : 0;
-                output.Slow.Add((threshold, Span(lastCount, firstCount)));
-            }
-
-            var sameSession = _first.Updates <= _last.Updates;
-            output.Intervals = HistogramQuantiles(_first.HistCounts, _last.HistCounts, _last.HistEdges, sameSession, output.MaxIntervalMs, output.ElapsedMs);
-            output.Observed = HistogramQuantiles(_first.HistObserved, _last.HistObserved, _last.HistEdges, sameSession, output.MaxIntervalMs, 0);
-
-            // The whole recording's widest interval is exact; the observed frames' widest is their top bucket, since the ring is session-wide.
-            if (output.Intervals.Samples > 0)
-            {
-                output.Intervals = output.Intervals with { Max = output.MaxIntervalMs };
-            }
-
-            return output;
-        }
-
-        private static ulong Span(ulong last, ulong first) => last < first ? last : last - first;
-
-        private static double SpanMs(double last, double first) => last < first ? Math.Max(0, last) : last - first;
-
-        // The nearest-rank p50/p95/p99 of the update intervals between two samples, differenced from the companion's
-        // cumulative interval histogram; a quantile reports its bucket's upper edge.
-        private static DispatchQuantiles HistogramQuantiles(List<ulong> first, List<ulong> last, List<double> edges, bool sameSession, double maxMs, double sumMs)
-        {
-            if (last.Count == 0)
-            {
-                return new DispatchQuantiles();
-            }
-
-            var counts = new ulong[last.Count];
-            ulong total = 0;
-            for (var i = 0; i < last.Count; i++)
-            {
-                var count = last[i];
-                if (sameSession && first.Count == last.Count && count >= first[i])
-                {
-                    count -= first[i];
-                }
-
-                counts[i] = count;
-                total += count;
-            }
-
-            if (total == 0)
-            {
-                return new DispatchQuantiles();
-            }
-
-            double Edge(double q)
-            {
-                var rank = Math.Max(1UL, (ulong)Math.Ceiling(q * total));
-                ulong seen = 0;
-                for (var i = 0; i < counts.Length; i++)
-                {
-                    seen += counts[i];
-                    if (seen >= rank)
-                    {
-                        return i < edges.Count ? Math.Min(edges[i], maxMs) : maxMs;
-                    }
-                }
-
-                return maxMs;
-            }
-
-            return new DispatchQuantiles { Samples = total, P50 = Edge(0.50), P95 = Edge(0.95), P99 = Edge(0.99), Max = Edge(1), Sum = sumMs };
-        }
-    }
 }

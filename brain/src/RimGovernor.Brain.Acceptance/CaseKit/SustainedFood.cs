@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -11,16 +10,8 @@ namespace RimGovernor.Brain.Acceptance;
 // (Go package sustainedfood).
 
 /// <summary>
-/// A phase boundary the watch checkpoints at: the first sample satisfying <see cref="When"/> saves the live game as
-/// <see cref="Name"/> (pause, save, resume through the service), copies the save into root/profile/Saves for the
-/// commit flow (tools/*-checkpoint) and, under the runner's checkpoint ring, takes a full bundle labelled
-/// <see cref="Name"/> a rerun can resume from (Go <c>sustainedfood.Checkpoint</c>).
-/// </summary>
-public sealed record WatchCheckpoint(string Name, Func<JsonObject, bool> When);
-
-/// <summary>
 /// The observation window <see cref="SustainedFood.WatchAsync"/> samples on a started service: the goal, how long and
-/// how often, an early exit and a checkpoint (Go <c>sustainedfood.WatchConfig</c>).
+/// how often (Go <c>sustainedfood.WatchConfig</c>).
 /// </summary>
 public sealed record WatchConfig
 {
@@ -48,7 +39,7 @@ public sealed record WatchConfig
     /// <summary>
     /// When a service journal row satisfies it, takes a sample at once instead of waiting for the cadence: the
     /// service's OTLP log ring is tailed between samples. Default <see cref="RowKinds.WorkerOutcome"/>, the row an
-    /// action's outcome changes on. <see cref="Until"/>, <see cref="FailFast"/> and the checkpoints all see the woken sample.
+    /// action's outcome changes on.
     /// </summary>
     public Func<LogRow, bool>? Wake { get; init; }
 
@@ -58,29 +49,18 @@ public sealed record WatchConfig
     /// <summary>Further goals each sample also reads, under the goal id.</summary>
     public IReadOnlyList<string> Extra { get; init; } = [];
 
-    /// <summary>Ends the window early once a sample satisfies it.</summary>
-    public Func<JsonObject, bool>? Until { get; init; }
-
-    /// <summary>Saves the live game the first time a sample satisfies When (see <see cref="WatchCheckpoint"/>); <see cref="Checkpoints"/> are further phase boundaries, each taken once. The report's checkpoint row is the first's; checkpoints lists them all.</summary>
-    public WatchCheckpoint? Checkpoint { get; init; }
-
-    public IReadOnlyList<WatchCheckpoint> Checkpoints { get; init; } = [];
-
-    /// <summary>Ends the window early with the journal's refusal text once the case cannot pass (see <see cref="RimGovernor.Brain.Acceptance.FailFast"/>); on by default.</summary>
-    public FailFast FailFast { get; init; } = new();
-
     /// <summary>
     /// Ends the window with an error once the live game tick has not advanced for this long of watch time (default
-    /// <see cref="SustainedFood.DefaultTickStall"/>; checkpoint saves do not count). A game that died and was
+    /// <see cref="SustainedFood.DefaultTickStall"/>; checkpoint captures do not count). A game that died and was
     /// relaunched sits at the main menu with no map, so without this the case waits out its whole Watch ceiling.
     /// </summary>
     public TimeSpan TickStall { get; init; }
 }
 
 /// <summary>
-/// The durable-state reads a watch makes of the service it observes (Go <c>*store.Store</c>: LoadRounds, LoadStandard
-/// and the plan loaders). The brain's store lives with the in-mod service, so the slice that owns the service launch
-/// supplies the reader; this project declares only the narrow surface the watch needs.
+/// The durable-state reads a watch makes of the service it observes (Go <c>*store.Store</c>: LoadRounds and the plan
+/// loaders). The brain's store lives with the in-mod service, so the slice that owns the service launch supplies the
+/// reader; this project declares only the narrow surface the watch needs.
 /// </summary>
 public interface IWatchStore
 {
@@ -88,33 +68,11 @@ public interface IWatchStore
     Task<ulong> RoundsRevisionAsync(CancellationToken cancellationToken);
 
     /// <summary>
-    /// Reads one Need's progress row and its owner's unretired Methods' plan stages in the review's world: <c>at</c>,
-    /// <c>method_count</c>, <c>review_revision</c>, <c>review_tick</c>, <c>blocked</c>, <c>concern_bound</c> and
-    /// <c>plans</c> (each <c>{plan, method, actions, stages, kinds, unsuccessful}</c>, an unsuccessful row
-    /// <c>{action, kind, reason}</c>). A key that is not a NeedId is never bound. Throws
-    /// <see cref="AcceptanceException"/> on a read failure.
+    /// Reads one Need's progress row and its owner's unretired Methods' plan stages in the review's world (see
+    /// <see cref="NeedSample"/>). A key that is not a NeedId is never bound. Throws <see cref="AcceptanceException"/>
+    /// on a read failure.
     /// </summary>
-    Task<JsonObject> SampleNeedAsync(string concern, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// The persisted review's Need progress rows whose NeedId starts with <paramref name="prefix"/> (#3231 decision 18:
-    /// a Need's row stands while it is not met): <c>review_tick</c>, <c>review_revision</c> and <c>needs</c>, their
-    /// ids in row order. Throws <see cref="AcceptanceException"/> on a read failure.
-    /// </summary>
-    Task<JsonObject> NeedRowsAsync(string prefix, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// The newest <paramref name="limit"/> plans whose method name matches <paramref name="methodGlob"/> (a <c>*</c>
-    /// wildcard; Go <c>Store.PlanHistoryWithMethods</c>), each <c>{plan, method, progress}</c> where progress is an array
-    /// of <c>{kind, stage, ...}</c> action rows in the wire spellings the sample uses: <c>stage</c> is the action's stage
-    /// (<c>completed</c> once it finished), a <c>production_bill</c> row also carries <c>mode</c> (<c>gear_batch</c>...)
-    /// a <c>policy_prune</c> row its <c>database</c> (<c>outfit</c>...) and a <c>husbandry</c> row its <c>method</c>
-    /// (<c>tame</c>, <c>sterilize</c>...), <c>animal</c>, <c>argument</c> and the <c>tick</c> of its latest progress; a
-    /// <c>cut_plant</c> row carries the <c>plant</c> id and the <c>receipt</c> (empty until applied), a <c>zone_create</c> row
-    /// only its stage. A <paramref name="methodGlob"/> of <c>*</c> lists every plan. Plans
-    /// are newest first, as the Go store lists them. Throws <see cref="AcceptanceException"/> on a read failure.
-    /// </summary>
-    Task<IReadOnlyList<JsonObject>> PlanHistoryAsync(int limit, string methodGlob, CancellationToken cancellationToken);
+    Task<NeedSample> SampleNeedAsync(string concern, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -127,8 +85,8 @@ public interface IWatchedService : ICheckpointService
     /// <summary>The service's OTLP log ring (otlp/logs.jsonl), tailed for wakes and read for the step failures.</summary>
     string LogPath { get; }
 
-    /// <summary>Acquires player authority; the reply describes the entry (its <c>resumed</c> member goes to the report).</summary>
-    Task<JsonObject> AcquireAsync(CancellationToken cancellationToken);
+    /// <summary>Acquires player authority.</summary>
+    Task AcquireAsync(CancellationToken cancellationToken);
 
     /// <summary>The store the watch samples.</summary>
     Task<IWatchStore> StoreAsync(CancellationToken cancellationToken);
@@ -197,20 +155,17 @@ public static partial class SustainedFood
 
     public static readonly TimeSpan DefaultTickStall = TimeSpan.FromMinutes(3);
 
-    private static string Now() => SampleJson.Stamp(DateTimeOffset.UtcNow);
-
     /// <summary>
     /// The serve-driven family's observation window on a service just started (not yet acquired): it acquires player
     /// authority and keeps it granted, confirms the scheduler reaches automate with a persisted rounds, then samples
-    /// the goal's durable state at the cadence <paramref name="cfg"/> sets (PollTicks, Poll, Wake) for Watch (or until
-    /// Until) with the step-stall check from the service's spec. Every sample also carries the service's live colony
-    /// census (<see cref="SampleColonyAsync"/>) so starvation is visible in the timeline itself. It records timeline,
-    /// events and timeline_samples on <paramref name="report"/> (also when it fails) and appends every sample to
+    /// the goal's durable state at the cadence <paramref name="cfg"/> sets (PollTicks, Poll, Wake) for Watch with the
+    /// step-stall check from the service's spec. Every sample also carries the service's live colony census
+    /// (<see cref="SampleColonyAsync"/>) so starvation is visible in the timeline itself. It records timeline, events
+    /// and timeline_samples on <paramref name="report"/> (also when it fails) and appends every sample to
     /// <paramref name="timeline"/>; the caller stops the service.
     /// </summary>
-    public static async Task WatchAsync(Config naCfg, IWatchedService service, WatchConfig cfg, Report report, ICollection<JsonObject> timeline, CancellationToken cancellationToken)
+    internal static async Task WatchAsync(IWatchedService service, WatchConfig cfg, Report report, ICollection<WatchSample> timeline, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(naCfg);
         ArgumentNullException.ThrowIfNull(service);
         ArgumentNullException.ThrowIfNull(cfg);
         ArgumentNullException.ThrowIfNull(report);
@@ -223,8 +178,10 @@ public static partial class SustainedFood
         ServiceApiCall apiCall = service.ApiAsync;
 
         // Resume needs no anchor plan: authority is the world's own root plan, created on first resume (SIMP02).
-        var entry = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
-        report["acquired"] = entry["resumed"]?.DeepClone();
+        await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
+
+        // The acquire reply never carried a resumed entry; the report keeps the key it always wrote.
+        report["acquired"] = null;
         report["window_ms"] = (long)cfg.Watch.TotalMilliseconds;
         var window = new TickWindow(cfg.Window);
         report["window"] = window.ToJson();
@@ -239,35 +196,30 @@ public static partial class SustainedFood
         var diagDeadline = DateTimeOffset.UtcNow.AddSeconds(60);
         var sawAutomate = false;
         ulong revision = 0;
-        while (DateTimeOffset.UtcNow < diagDeadline)
+        using (var pace = Wait.Pace(RunInterval))
         {
-            try
+            while (DateTimeOffset.UtcNow < diagDeadline)
             {
-                var state = await apiCall("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
-                if (state.Body.Member("mode").AsString() == "automate")
+                if (await LiveStateAsync(apiCall, cancellationToken).ConfigureAwait(false) is { Mode: "automate" })
                 {
                     sawAutomate = true;
                 }
-            }
-            catch (AcceptanceException)
-            {
-                // Polled again until the deadline.
-            }
 
-            try
-            {
-                revision = await verifyStore.RoundsRevisionAsync(cancellationToken).ConfigureAwait(false);
-                if (revision > 0)
+                try
                 {
-                    break;
+                    revision = await verifyStore.RoundsRevisionAsync(cancellationToken).ConfigureAwait(false);
+                    if (revision > 0)
+                    {
+                        break;
+                    }
                 }
-            }
-            catch (AcceptanceException)
-            {
-                // Not persisted yet.
-            }
+                catch (AcceptanceException)
+                {
+                    // Not persisted yet.
+                }
 
-            await Task.Delay(RunInterval, cancellationToken).ConfigureAwait(false);
+                await pace.NextAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
 
         if (!sawAutomate)
@@ -282,154 +234,86 @@ public static partial class SustainedFood
 
         // The observation window: sample the goal's state and the stage of every one of its committed methods' plans,
         // at Poll intervals, for Watch wall-clock duration. Every sample is retained (report["timeline"]); "events"
-        // additionally isolates the moments that actually changed (a method count change or a Need transition) so the
-        // failure mode is readable without wading through every sample.
-        var events = new List<JsonObject>();
+        // additionally isolates the moments that actually changed (a method count change) so the failure mode is
+        // readable without wading through every sample.
+        var events = new List<WatchSample>();
         var lastMethodCount = -1;
-        var lastNeed = "";
         var concernId = cfg.Concern.Length > 0 ? cfg.Concern : "food/supply";
         var watchStarted = DateTimeOffset.UtcNow;
         var watchDeadline = watchStarted + cfg.Watch;
-        var pending = new List<WatchCheckpoint>();
-        if (cfg.Checkpoint is not null)
-        {
-            pending.Add(cfg.Checkpoint);
-        }
-
-        pending.AddRange(cfg.Checkpoints);
-        var taken = new JsonArray();
         var stepped = false;
-        var failFast = new FailFastState(cfg.FailFast, concernId, service.LogPath);
         var tail = LogTail.Create(service.LogPath);
         var stall = new TickStall(tickStallLimit, DateTimeOffset.UtcNow);
-        var cadence = new Dictionary<string, int>(StringComparer.Ordinal) { ["wakes"] = 0, ["tick_polls"] = 0, ["wall_polls"] = 0 };
+        var wakes = 0;
+        var tickPolls = 0;
+        var wallPolls = 0;
         try
         {
             while (DateTimeOffset.UtcNow < watchDeadline)
             {
-                JsonObject sample;
-                var sampled = true;
+                NeedSample? need = null;
+                string? error = null;
                 try
                 {
-                    sample = await verifyStore.SampleNeedAsync(concernId, cancellationToken).ConfigureAwait(false);
-                    // The timeline reader names the top-level row by its owner, a Concern id or a NeedId.
-                    sample["concern"] = concernId;
+                    need = await verifyStore.SampleNeedAsync(concernId, cancellationToken).ConfigureAwait(false);
                 }
                 catch (AcceptanceException e)
                 {
-                    sampled = false;
-                    sample = new JsonObject { ["error"] = e.Message, ["at"] = Now() };
+                    error = e.Message;
                 }
 
+                var errorAt = WatchSample.Stamp(DateTimeOffset.UtcNow);
                 if (!stepped)
                 {
                     stepped = await service.StepAdmittedAsync(watchStarted, cancellationToken).ConfigureAwait(false);
                 }
 
+                var extras = new List<(string Goal, NeedSample? Sample, string? Error)>();
                 foreach (var extra in cfg.Extra)
                 {
-                    JsonObject also;
                     try
                     {
-                        also = await verifyStore.SampleNeedAsync(extra, cancellationToken).ConfigureAwait(false);
+                        extras.Add((extra, await verifyStore.SampleNeedAsync(extra, cancellationToken).ConfigureAwait(false), null));
                     }
                     catch (AcceptanceException e)
                     {
-                        also = new JsonObject { ["error"] = e.Message };
+                        extras.Add((extra, null, e.Message));
                     }
-
-                    sample[extra] = also;
                 }
 
-                if (await LiveTickAsync(apiCall, cancellationToken).ConfigureAwait(false) is { } liveTick)
+                var liveTick = await LiveTickAsync(apiCall, cancellationToken).ConfigureAwait(false);
+                if (liveTick is { } tick)
                 {
-                    sample["tick"] = liveTick;
-                    window.Observe(liveTick);
-                    stall.Observe(liveTick, DateTimeOffset.UtcNow);
+                    window.Observe(tick);
+                    stall.Observe(tick, DateTimeOffset.UtcNow);
                 }
 
-                sample["colony"] = await SampleColonyAsync(apiCall, cancellationToken).ConfigureAwait(false);
+                var sample = new WatchSample
+                {
+                    Need = need,
+                    Error = error,
+                    ErrorAt = errorAt,
+                    Concern = concernId,
+                    Extras = extras,
+                    Tick = liveTick,
+                    Colony = await SampleColonyAsync(apiCall, cancellationToken).ConfigureAwait(false),
+                };
+                timeline.Add(sample);
                 if (stall.Check(DateTimeOffset.UtcNow) is { } stalled)
                 {
-                    timeline.Add(sample);
-                    report["fail_fast"] = new JsonObject { ["kind"] = "tick_stall", ["error"] = stalled.Message, ["colony"] = sample["colony"]?.DeepClone() };
+                    report["fail_fast"] = new JsonObject { { "kind", "tick_stall" }, { "error", stalled.Message }, { "colony", sample.Colony.ToJson() } };
                     throw stalled;
                 }
 
-                timeline.Add(sample);
-                var methodCount = SampleJson.Count(sample, "method_count");
-                var need = sample["need"].AsString();
-                if (methodCount != lastMethodCount || need != lastNeed)
+                if (sample.MethodCount != lastMethodCount)
                 {
                     events.Add(sample);
-                    lastMethodCount = methodCount;
-                    lastNeed = need;
-                }
-
-                if (cfg.Until is not null && sampled && cfg.Until(sample))
-                {
-                    report["watch_ended_early"] = true;
-                    break;
+                    lastMethodCount = sample.MethodCount;
                 }
 
                 if (window.HasReached())
                 {
                     break;
-                }
-
-                // The failed checkpoint bundle is still taken: the runner captures it on the error path like any
-                // other watch failure.
-                if (sampled)
-                {
-                    if (failFast.Check(sample) is { } verdict)
-                    {
-                        report["fail_fast"] = verdict.ToJson();
-                        throw verdict;
-                    }
-
-                    for (var i = 0; i < pending.Count; i++)
-                    {
-                        var cp = pending[i];
-                        if (!cp.When(sample))
-                        {
-                            continue;
-                        }
-
-                        pending.RemoveAt(i);
-                        i--;
-                        JsonObject saved;
-                        try
-                        {
-                            saved = await CheckpointAsync(naCfg, cp, service, cancellationToken).ConfigureAwait(false);
-                        }
-                        catch (AcceptanceException e)
-                        {
-                            stall.Reset(DateTimeOffset.UtcNow);
-                            report["checkpoint"] = new JsonObject { ["name"] = cp.Name, ["error"] = e.Message };
-                            throw new AcceptanceException($"checkpoint {cp.Name}: {e.Message}", e);
-                        }
-
-                        stall.Reset(DateTimeOffset.UtcNow);
-                        try
-                        {
-                            if (await Checkpoints.CaptureCheckpointAsync(cp.Name, cancellationToken).ConfigureAwait(false) is { } bundle)
-                            {
-                                saved["bundle"] = bundle.Path;
-                            }
-                        }
-                        catch (AcceptanceException e)
-                        {
-                            saved["bundle_error"] = e.Message;
-                        }
-
-                        taken.Add(saved.DeepClone());
-                        if (!report.Has("checkpoint"))
-                        {
-                            report["checkpoint"] = saved;
-                        }
-
-                        report["checkpoints"] = taken.DeepClone();
-                    }
                 }
 
                 // Between samples is a natural pause for the runner's checkpoint ring; a capture's own time does not
@@ -441,9 +325,18 @@ public static partial class SustainedFood
                     stall.Reset(DateTimeOffset.UtcNow);
                 }
 
-                var sampledTick = SampleJson.Tick(sample["tick"]) ?? 0;
-                var reason = await WaitNextSampleAsync(apiCall, tail, wake, pollTicks, poll, stall, sampledTick, watchDeadline, cancellationToken).ConfigureAwait(false);
-                cadence[reason]++;
+                switch (await WaitNextSampleAsync(apiCall, tail, wake, pollTicks, poll, liveTick ?? 0, watchDeadline, cancellationToken).ConfigureAwait(false))
+                {
+                    case NextSample.Wake:
+                        wakes++;
+                        break;
+                    case NextSample.TickPoll:
+                        tickPolls++;
+                        break;
+                    default:
+                        wallPolls++;
+                        break;
+                }
             }
 
             window.WatchWall = FormatWall(DateTimeOffset.UtcNow - watchStarted);
@@ -451,17 +344,17 @@ public static partial class SustainedFood
         }
         finally
         {
-            report["timeline"] = new JsonArray([.. timeline.Select(sample => (JsonNode?)sample.DeepClone())]);
-            report["events"] = new JsonArray([.. events.Select(sample => (JsonNode?)sample.DeepClone())]);
+            report["timeline"] = OutputJson.Array(timeline, sample => sample.ToJson());
+            report["events"] = OutputJson.Array(events, sample => sample.ToJson());
             report["timeline_samples"] = timeline.Count;
             report["window"] = window.ToJson();
             report["cadence"] = new JsonObject
             {
-                ["poll_ticks"] = pollTicks,
-                ["poll_ms"] = (long)poll.TotalMilliseconds,
-                ["wakes"] = cadence["wakes"],
-                ["tick_polls"] = cadence["tick_polls"],
-                ["wall_polls"] = cadence["wall_polls"],
+                { "poll_ticks", pollTicks },
+                { "poll_ms", (long)poll.TotalMilliseconds },
+                { "wakes", wakes },
+                { "tick_polls", tickPolls },
+                { "wall_polls", wallPolls },
             };
         }
     }
@@ -473,92 +366,73 @@ public static partial class SustainedFood
         return WaitError.FormatDuration(rounded);
     }
 
+    // Which of the cadence's conditions ended a pause between two samples (the report's cadence counters).
+    private enum NextSample
+    {
+        Wake,
+        TickPoll,
+        WallPoll,
+    }
+
     // Pauses between two samples until one of the cadence's conditions holds and names it for the report: a journal row
-    // satisfying Wake ("wakes"), PollTicks of game time past the previous sample's tick ("tick_polls"), or the Poll
-    // wall-clock ceiling ("wall_polls"). The live tick and the journal are probed every RunInterval. The watch deadline
-    // ends the pause early so the loop's own check sees it.
-    private static async Task<string> WaitNextSampleAsync(ServiceApiCall apiCall, LogTail tail, Func<LogRow, bool> wake, ulong pollTicks, TimeSpan poll, TickStall stall, ulong sampledTick, DateTimeOffset watchDeadline, CancellationToken cancellationToken)
+    // satisfying Wake, PollTicks of game time past the previous sample's tick, or the Poll wall-clock ceiling. The live
+    // tick and the journal are probed every RunInterval. The watch deadline ends the pause so the loop's own check sees it.
+    private static async Task<NextSample> WaitNextSampleAsync(ServiceApiCall apiCall, LogTail tail, Func<LogRow, bool> wake, ulong pollTicks, TimeSpan poll, ulong sampledTick, DateTimeOffset watchDeadline, CancellationToken cancellationToken)
     {
         var started = Stopwatch.StartNew();
+        using var pace = Wait.Pace(RunInterval);
         while (true)
         {
-            var wait = RunInterval;
-            var remaining = watchDeadline - DateTimeOffset.UtcNow;
-            if (remaining < wait)
+            if (watchDeadline <= DateTimeOffset.UtcNow)
             {
-                wait = remaining;
+                return NextSample.WallPoll;
             }
 
-            if (wait <= TimeSpan.Zero)
-            {
-                return "wall_polls";
-            }
-
-            await Task.Delay(wait, cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
             foreach (var row in tail.Next())
             {
                 if (wake(row))
                 {
-                    return "wakes";
+                    return NextSample.Wake;
                 }
             }
 
             if (started.Elapsed >= poll)
             {
-                return "wall_polls";
+                return NextSample.WallPoll;
             }
 
             if (await LiveTickAsync(apiCall, cancellationToken).ConfigureAwait(false) is { } tick && sampledTick > 0 && tick >= sampledTick + pollTicks)
             {
-                return "tick_polls";
+                return NextSample.TickPoll;
             }
         }
     }
 
     /// <summary>Reads the service's live game tick from /api/state; null when the snapshot has none (not connected yet, or a stale read).</summary>
-    public static async Task<ulong?> LiveTickAsync(ServiceApiCall apiCall, CancellationToken cancellationToken)
+    public static async Task<ulong?> LiveTickAsync(ServiceApiCall apiCall, CancellationToken cancellationToken) =>
+        await LiveStateAsync(apiCall, cancellationToken).ConfigureAwait(false) is { Game.Tick: long tick and >= 0 } ? (ulong)tick : null;
+
+    // The service's /api/state; null when it did not answer 200 or answered another shape.
+    private static async Task<ServiceState?> LiveStateAsync(ServiceApiCall apiCall, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(apiCall);
-        ServiceApiReply reply;
         try
         {
-            reply = await apiCall("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
+            var reply = await apiCall("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
+            return reply.Status == 200 ? ServiceJson.State(reply.Body) : null;
         }
         catch (AcceptanceException)
         {
             return null;
         }
-
-        return reply.Status == 200 ? SampleJson.Tick(reply.Body.Member("game").Member("tick")) : null;
-    }
-
-    // Saves the live game as cp.Name through the service (pause to manual control, save, resume, the keep-alive held
-    // throughout) and copies the save into root/profile/Saves. The result is the report's checkpoint record.
-    private static async Task<JsonObject> CheckpointAsync(Config naCfg, WatchCheckpoint cp, IWatchedService service, CancellationToken cancellationToken)
-    {
-        var prefix = service.Label.Length > 0 ? service.Label : "serve";
-        var src = await CheckpointRing.ServiceSaveAsync(naCfg, cp.Name, service.HoldAuthority, service.ApiAsync, service.Identity, service.Token, prefix + "-checkpoint", cancellationToken).ConfigureAwait(false);
-        var dst = Path.Combine(naCfg.Root, "profile", "Saves", cp.Name + ".rws");
-        if (src != dst)
-        {
-            try
-            {
-                Checkpoints.CopyFile(src, dst);
-            }
-            catch (IOException e)
-            {
-                throw new AcceptanceException(e.Message, e);
-            }
-        }
-
-        return new JsonObject { ["name"] = cp.Name, ["path"] = dst, ["at"] = Now() };
     }
 
     /// <summary>
-    /// Runs one <paramref name="o"/> on <paramref name="session"/> and returns the timeline; the service is stopped and
-    /// the session reattached before Audit, on every path.
+    /// Runs one <paramref name="o"/> on <paramref name="session"/>; the service is stopped and the session reattached
+    /// before Audit, on every path.
     /// </summary>
-    public static async Task<IReadOnlyList<JsonObject>> ObserveAsync(IObservedSession session, SustainedObservation o, CancellationToken cancellationToken)
+    public static async Task ObserveAsync(IObservedSession session, SustainedObservation o, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(o);
@@ -597,12 +471,12 @@ public static partial class SustainedFood
             }
         }
 
-        var timeline = new List<JsonObject>();
+        var timeline = new List<WatchSample>();
         try
         {
             try
             {
-                await WatchAsync(session.Config, service, o.Watch, report, timeline, cancellationToken).ConfigureAwait(false);
+                await WatchAsync(service, o.Watch, report, timeline, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -621,7 +495,5 @@ public static partial class SustainedFood
         {
             await StopServiceAsync().ConfigureAwait(false);
         }
-
-        return timeline;
     }
 }

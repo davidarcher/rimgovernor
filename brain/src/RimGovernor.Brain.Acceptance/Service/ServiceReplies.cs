@@ -82,6 +82,20 @@ public sealed record PlayerSession
     public string Mode { get; init; } = "";
 }
 
+/// <summary><c>GET /api/player/colony</c>'s census facts a sustained watch folds (an unknown fact is null).</summary>
+public sealed record PlayerColony
+{
+    public long? Colonists { get; init; }
+
+    public double? FoodNutrition { get; init; }
+
+    public double? FoodRunwayDays { get; init; }
+
+    public int? Downed { get; init; }
+
+    public double? MoodMean { get; init; }
+}
+
 /// <summary><c>POST /api/player/control/resume</c> and <c>/pause</c>: the control record and the player state after it.</summary>
 public sealed record ServiceControl
 {
@@ -124,6 +138,9 @@ public static class ServiceJson
     /// <summary>The <c>/api/player/session</c> record.</summary>
     public static PlayerSession? Session(JsonObject? body) => Read(body, ServiceJsonContext.Default.PlayerSession, "/api/player/session");
 
+    /// <summary>The <c>/api/player/colony</c> census record.</summary>
+    public static PlayerColony? Colony(JsonObject? body) => Read(body, ServiceJsonContext.Default.PlayerColony, "/api/player/colony");
+
     /// <summary>The <c>/api/player/control/*</c> record.</summary>
     public static ServiceControl? Control(JsonObject? body) => Read(body, ServiceJsonContext.Default.ServiceControl, "/api/player/control");
 
@@ -155,6 +172,7 @@ public static class ServiceJson
 [JsonSerializable(typeof(ServiceState))]
 [JsonSerializable(typeof(ServiceHealth))]
 [JsonSerializable(typeof(PlayerSession))]
+[JsonSerializable(typeof(PlayerColony))]
 [JsonSerializable(typeof(ServiceControl))]
 [JsonSerializable(typeof(ServiceRoutines))]
 internal sealed partial class ServiceJsonContext : JsonSerializerContext;

@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -27,29 +26,26 @@ public static partial class Postmortems
         paths = [.. paths.OrderBy(Path.GetFileName, StringComparer.Ordinal).ThenBy(p => p, StringComparer.Ordinal)];
         for (var i = paths.Count - 1; i >= 0; i--)
         {
-            JsonObject? row;
+            RecordedRoutines? row;
             try
             {
-                row = JsonNode.Parse(File.ReadAllText(paths[i])) as JsonObject;
+                row = JsonSerializer.Deserialize(File.ReadAllText(paths[i]), PostmortemJsonContext.Default.RecordedRoutines);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
             {
+                // Another route's reply, or one that is not a routines body.
                 continue;
             }
 
-            if (row is null
-                || row["path"].AsString() != "/api/routines"
-                || row["status"].AsNumber() != 200
-                || row["response"].Member("extentEligibility") is not JsonObject view)
+            if (row is not { Path: "/api/routines", Status: 200, Response.ExtentEligibility: { } view })
             {
                 continue;
             }
 
             var rel = Path.GetRelativePath(dir, paths[i]).Replace('\\', '/');
             s.Note = "";
-            var known = view["known"].AsBool() ?? false;
-            s.Lines.Add(new DigestLine($"extent known={(known ? "true" : "false")} reason={view["reason"].AsString()}", rel));
-            var regions = view["regions"].AsSlice();
+            s.Lines.Add(new DigestLine($"extent known={(view.Known ? "true" : "false")} reason={view.Reason}", rel));
+            var regions = view.Regions;
             for (var j = 0; j < regions.Count; j++)
             {
                 if (j >= MaxLines - 1)
@@ -59,9 +55,8 @@ public static partial class Postmortems
                 }
 
                 var r = regions[j];
-                var eligible = r.Member("eligible").AsBool() ?? false;
                 s.Lines.Add(new DigestLine(
-                    $"region={Plain(r.Member("region") ?? JsonValue.Create(0))} stage={r.Member("stage").AsString()} origins={FormatList(r.Member("origins"))} facilities={FormatList(r.Member("facilities"))} active={FormatList(r.Member("activeFacilities"))} eligible={(eligible ? "true" : "false")} holds={FormatList(r.Member("holdReasons"))}",
+                    string.Create(CultureInfo.InvariantCulture, $"region={r.Region} stage={r.Stage} origins={FormatList(r.Origins)} facilities={FormatList(r.Facilities)} active={FormatList(r.ActiveFacilities)} eligible={(r.Eligible ? "true" : "false")} holds={FormatList(r.HoldReasons)}"),
                     rel));
             }
 
@@ -72,5 +67,5 @@ public static partial class Postmortems
     }
 
     /// <summary>A list as Go's <c>%v</c> prints a slice: "[a b]", "[]" for none.</summary>
-    private static string FormatList(JsonNode? value) => "[" + string.Join(' ', value.AsSlice().Select(Plain)) + "]";
+    private static string FormatList(IReadOnlyList<string> values) => "[" + string.Join(' ', values) + "]";
 }

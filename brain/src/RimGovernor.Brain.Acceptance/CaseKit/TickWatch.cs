@@ -94,12 +94,12 @@ public sealed class TickWindow
     /// <summary>The window in the report's JSON shape.</summary>
     public JsonObject ToJson() => new()
     {
-        ["ticks"] = Ticks,
-        ["first_tick"] = FirstTick,
-        ["last_tick"] = LastTick,
-        ["elapsed_ticks"] = Elapsed,
-        ["tick_sampled"] = Sampled,
-        ["reached"] = Reached,
-        ["watch_wall"] = WatchWall,
+        { "ticks", Ticks },
+        { "first_tick", FirstTick },
+        { "last_tick", LastTick },
+        { "elapsed_ticks", Elapsed },
+        { "tick_sampled", Sampled },
+        { "reached", Reached },
+        { "watch_wall", WatchWall },
     };
 }

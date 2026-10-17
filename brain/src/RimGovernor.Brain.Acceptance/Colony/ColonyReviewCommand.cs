@@ -230,7 +230,7 @@ public static class ColonyReviewCommand
         report["crew"] = new JsonObject { ["declared"] = 3, ["colonists"] = colonists, ["added"] = added };
         var spec = new ServeSpec { NativeTimeout = TimeSpan.FromSeconds(15), StepStall = TimeSpan.FromSeconds(90), Prefix = "colony-review" };
         var dir = Path.Combine(opts.Output, "review");
-        _ = await SustainedFood.ObserveAsync(
+        await SustainedFood.ObserveAsync(
             ObservedSession.Of(session, cfg, report, spec),
             new SustainedObservation
             {
@@ -242,9 +242,6 @@ public static class ColonyReviewCommand
                     PollTicks = 2500,
                     Concern = PolicyFunctions.FoodSupplyNeed.Value,
                     Extra = ColonyAudits.ColonyConcerns,
-
-                    // A review records whatever happens; nothing ends it early but a stalled clock.
-                    FailFast = new FailFast { Disabled = true },
                 },
                 Prepare = async (h, r, ct) =>
                 {

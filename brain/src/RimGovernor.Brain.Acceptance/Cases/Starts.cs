@@ -25,31 +25,11 @@ public sealed record DebugStart : Start
 {
     public DebugStartSize Size { get; init; } = new();
 
-    public override JsonObject Describe()
-    {
-        var row = new JsonObject
-        {
-            ["kind"] = "debug",
-            ["mapSize"] = Size.MapSize,
-            ["planetCoverage"] = Size.PlanetCoverage,
-        };
-        if (Size.Biomes.Length > 0)
-        {
-            row["biomes"] = Size.Biomes;
-        }
-
-        if (Size.Seed.Length > 0)
-        {
-            row["seed"] = Size.Seed;
-        }
-
-        if (Size.Flat)
-        {
-            row["flat"] = true;
-        }
-
-        return row;
-    }
+    public override JsonObject Describe() =>
+        OutputJson.Fields(("kind", "debug"), ("mapSize", Size.MapSize), ("planetCoverage", Size.PlanetCoverage))
+            .AddIfPresent("biomes", Size.Biomes.Length > 0 ? Size.Biomes : null)
+            .AddIfPresent("seed", Size.Seed.Length > 0 ? Size.Seed : null)
+            .AddIfPresent("flat", Size.Flat ? true : null);
 }
 
 /// <summary>Loads <c>profile/Saves/&lt;Name&gt;.rws</c>. The runner activates the save's expansions.</summary>
@@ -66,7 +46,7 @@ public sealed record SaveStart : Start
     /// </summary>
     public bool IgnoreModCompatibility { get; init; }
 
-    public override JsonObject Describe() => new() { ["kind"] = "save", ["name"] = Name };
+    public override JsonObject Describe() => OutputJson.Fields(("kind", "save"), ("name", Name));
 }
 
 /// <summary>Brings the game up through <see cref="On"/> (null: the debug colony), then calls the test fixture <see cref="Op"/> with <see cref="Args"/>; the reply is the session's Prepared.</summary>
@@ -78,21 +58,8 @@ public sealed record FixtureStart : Start
 
     public Start? On { get; init; }
 
-    public override JsonObject Describe()
-    {
-        var row = new JsonObject
-        {
-            ["kind"] = "fixture",
-            ["op"] = Op,
-            ["args"] = Args?.DeepClone(),
-        };
-        if (On is not null)
-        {
-            row["on"] = On.Describe();
-        }
-
-        return row;
-    }
+    public override JsonObject Describe() =>
+        OutputJson.Fields(("kind", "fixture"), ("op", Op), ("args", Args?.DeepClone())).AddIfPresent("on", On?.Describe());
 }
 
 /// <summary>
@@ -105,22 +72,8 @@ public sealed record OwnedStart : Start
 {
     public IReadOnlyList<string> Saves { get; init; } = [];
 
-    public override JsonObject Describe()
-    {
-        var row = new JsonObject { ["kind"] = "owned" };
-        if (Saves.Count > 0)
-        {
-            var saves = new JsonArray();
-            foreach (string save in Saves)
-            {
-                saves.Add(save);
-            }
-
-            row["saves"] = saves;
-        }
-
-        return row;
-    }
+    public override JsonObject Describe() =>
+        OutputJson.Fields(("kind", "owned")).AddIfPresent("saves", Saves.Count > 0 ? OutputJson.Array(Saves) : null);
 }
 
 /// <summary>
@@ -132,7 +85,7 @@ public sealed record LabStart : Start
 {
     public int Colonists { get; init; }
 
-    public override JsonObject Describe() => new() { ["kind"] = "lab", ["mapSize"] = LabWorld.LabMapSize, ["colonists"] = Colonists };
+    public override JsonObject Describe() => OutputJson.Fields(("kind", "lab"), ("mapSize", LabWorld.LabMapSize), ("colonists", Colonists));
 }
 
 /// <summary>Starts a programmatic scenario from the main menu through the production new-colony op: how a save variant is generated.</summary>
@@ -140,12 +93,6 @@ public sealed record ScenarioStart : Start
 {
     public ScenarioSpec Spec { get; init; } = new();
 
-    public override JsonObject Describe() => new()
-    {
-        ["kind"] = "scenario",
-        ["scenario"] = Spec.Scenario,
-        ["seed"] = Spec.Seed,
-        ["count"] = Spec.Count,
-        ["biome"] = Spec.Biome,
-    };
+    public override JsonObject Describe() =>
+        OutputJson.Fields(("kind", "scenario"), ("scenario", Spec.Scenario), ("seed", Spec.Seed), ("count", Spec.Count), ("biome", Spec.Biome));
 }

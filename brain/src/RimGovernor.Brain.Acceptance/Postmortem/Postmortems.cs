@@ -48,9 +48,10 @@ public static partial class Postmortems
             }
         }
 
+        var facts = ReportFacts.Of(report);
         var sections = new List<DigestSection>();
         var rows = LogRows(dir);
-        sections.Add(Revision(report, cancellationToken));
+        sections.Add(Revision(facts.InstalledPackage, cancellationToken));
         sections.Add(Refusals(dir, rows));
         var (db, storeNote) = OpenRaw(dir);
         using (db)
@@ -62,7 +63,7 @@ public static partial class Postmortems
             sections.Add(AuthorityGenerations(db, storeNote, rows, report));
         }
 
-        return new Digest(report["case"].AsString(), report["error"].AsString(), sections);
+        return new Digest(facts.Case ?? "", facts.Error ?? "", sections);
     }
 
     // --- 1. revision -----------------------------------------------------
@@ -71,11 +72,10 @@ public static partial class Postmortems
     /// Compares the run binary's source revision (the installed package manifest on the report) with main: a failure
     /// already fixed on main is the cheapest diagnosis there is.
     /// </summary>
-    private static DigestSection Revision(JsonObject report, CancellationToken cancellationToken)
+    private static DigestSection Revision(InstalledPackageFacts? pkg, CancellationToken cancellationToken)
     {
         var s = new DigestSection("revision");
-        var pkg = report["installed_package"];
-        var rev = pkg.Member("source_revision").AsString();
+        var rev = pkg?.SourceRevision ?? "";
         if (rev.Length == 0)
         {
             s.Note = "result.json has no installed_package.source_revision (native-only case or no manifest)";
@@ -83,7 +83,7 @@ public static partial class Postmortems
         }
 
         var text = "run binary built from " + Short(rev);
-        if (pkg.Member("source_dirty").AsBool() ?? false)
+        if (pkg?.SourceDirty == true)
         {
             text += " (dirty worktree)";
         }
@@ -324,30 +324,27 @@ public static partial class Postmortems
     }
 
     /// <summary>
-    /// Lists the last native refusals: refused step results, the Worker's refused dispatch rows, and native_call rows
-    /// that carry an error or a failure code. Repeats collapse (distinct texts are counted) and the most recent come
-    /// first, so a refusal repeated every window shows once with its count.
+    /// Lists the last native refusals: refused step results and the Worker's refused dispatch rows. Repeats collapse
+    /// (distinct texts are counted) and the most recent come first, so a refusal repeated every window shows once with
+    /// its count.
     /// </summary>
     private static DigestSection Refusals(string dir, List<LogRecordRow> rows)
     {
         var s = new DigestSection("native refusals (last first)");
         s.Lines.AddRange(RefusedSteps(dir));
-        foreach (Func<LogRecordRow, string?> read in new Func<LogRecordRow, string?>[] { DispatchRefusal, NativeCallRefusal })
+        foreach (var l in GroupRows(rows, DispatchRefusal))
         {
-            foreach (var l in GroupRows(rows, read))
+            if (s.Lines.Count >= 2 * MaxLines)
             {
-                if (s.Lines.Count >= 2 * MaxLines)
-                {
-                    break;
-                }
-
-                s.Lines.Add(l);
+                break;
             }
+
+            s.Lines.Add(l);
         }
 
         if (s.Lines.Count == 0)
         {
-            s.Note = "no refused step result, refused dispatch row, or native_call error or failure in otlp/logs.jsonl*";
+            s.Note = "no refused step result or refused dispatch row in otlp/logs.jsonl*";
         }
 
         return s;
@@ -490,112 +487,6 @@ public static partial class Postmortems
         return text;
     }
 
-    private static string Text(object? value) => value as string ?? "";
-
-    /// <summary>
-    /// Reads a native_call row that failed: a transport or refusal error (the text the native side gave, when it gave
-    /// one), or a reply carrying a {"failure":{"code":...}} payload, a refusal the native side answered rather than
-    /// raised.
-    /// </summary>
-    private static string? NativeCallRefusal(LogRecordRow row)
-    {
-        if (row.Rec.Kind != "native_call")
-        {
-            return null;
-        }
-
-        var payload = row.Rec.Payload;
-        var tool = Text(payload.GetValueOrDefault("native_tool"));
-        if (tool.Length == 0)
-        {
-            tool = Text(payload.GetValueOrDefault("tool"));
-        }
-
-        var errText = Text(payload.GetValueOrDefault("error"));
-        if (errText.Length > 0)
-        {
-            var refused = Text(payload.GetValueOrDefault("refused_text"));
-            if (refused.Length > 0)
-            {
-                errText = refused;
-            }
-
-            return $"native_call error {tool}: {Clip(errText)}";
-        }
-
-        if (RecordedFailure(payload) is not { } failure)
-        {
-            return null;
-        }
-
-        var code = failure.Member("code").AsString();
-        if (code.Length == 0)
-        {
-            return null;
-        }
-
-        var text = $"native_call refused {tool}: {code}";
-        var detail = failure.Member("detail").AsString();
-        if (detail.Length > 0)
-        {
-            text += ": " + Clip(detail);
-        }
-
-        return text;
-    }
-
-    /// <summary>
-    /// A recorded native_call row's failure: the <c>failure</c> outcome of the reply the row's <c>result.payload</c> holds,
-    /// or the <c>result</c> object's own <c>failure</c> when it carries one.
-    /// </summary>
-    private static JsonObject? RecordedFailure(IReadOnlyDictionary<string, object?> payload)
-    {
-        if (payload.GetValueOrDefault("result") is not IReadOnlyDictionary<string, object?> result)
-        {
-            return null;
-        }
-
-        if (result.GetValueOrDefault("payload") is string text)
-        {
-            return RecordedOutcome.Of(text) is ("failure", var failure) ? failure : null;
-        }
-
-        return result.ContainsKey("failure") ? ToNode(result.GetValueOrDefault("failure")) as JsonObject : null;
-    }
-
-    private static JsonNode? ToNode(object? value) => value switch
-    {
-        null => null,
-        string s => JsonValue.Create(s),
-        bool b => JsonValue.Create(b),
-        double d => JsonValue.Create(d),
-        IReadOnlyDictionary<string, object?> map => ToObject(map),
-        IEnumerable<object?> list => ToArray(list),
-        _ => JsonValue.Create(Convert.ToString(value, CultureInfo.InvariantCulture)),
-    };
-
-    private static JsonObject ToObject(IReadOnlyDictionary<string, object?> map)
-    {
-        var o = new JsonObject();
-        foreach (var (k, v) in map)
-        {
-            o[k] = ToNode(v);
-        }
-
-        return o;
-    }
-
-    private static JsonArray ToArray(IEnumerable<object?> list)
-    {
-        var a = new JsonArray();
-        foreach (var v in list)
-        {
-            a.Add(ToNode(v));
-        }
-
-        return a;
-    }
-
     private static List<DigestLine> RefusedSteps(string dir)
     {
         var lines = new List<DigestLine>();
@@ -621,22 +512,22 @@ public static partial class Postmortems
             .OrderByDescending(Sequence);
         foreach (var file in files)
         {
-            JsonObject? step;
+            RecordedStep? step;
             try
             {
-                step = JsonNode.Parse(File.ReadAllText(file)) as JsonObject;
+                step = JsonSerializer.Deserialize(File.ReadAllText(file), PostmortemJsonContext.Default.RecordedStep);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
             {
                 continue;
             }
 
-            if (step is null || StepResult.Parse(step["result"]) is not { } failure)
+            if (step is null || StepResult.Parse(step.Result) is not { } failure)
             {
                 continue;
             }
 
-            var tool = step["request"].Member("tool").AsString();
+            var tool = step.Request?.Tool ?? "";
             var kind = failure.Kind;
             if (kind == "native exception" && tool.StartsWith("test/", StringComparison.Ordinal))
             {

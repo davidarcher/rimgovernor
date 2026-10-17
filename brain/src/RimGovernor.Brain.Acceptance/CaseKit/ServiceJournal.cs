@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store;
 using Journal = RimGovernor.Brain.Store.Store;
@@ -89,6 +88,7 @@ public static class ServiceJournal
     public static async Task<Journal> OpenWithRetryAsync(string path, CancellationToken cancellationToken)
     {
         var deadline = DateTime.UtcNow.AddSeconds(60);
+        using var pace = Wait.Pace(TimeSpan.FromMilliseconds(500));
         while (true)
         {
             try
@@ -100,16 +100,16 @@ public static class ServiceJournal
                 _ = e;
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
     /// <summary>
     /// Polls until the service reaches automate mode and a Rounds pass has been persisted (a revision above zero),
-    /// returning the persisted review and the diagnostics it gathered. Besides <paramref name="timeout"/> the wait
-    /// stalls (<see cref="Wait.StallBudget"/>) when neither the service mode nor the review revision changes.
+    /// returning the persisted review. Besides <paramref name="timeout"/> the wait stalls (<see cref="Wait.StallBudget"/>)
+    /// when neither the service mode nor the review revision changes.
     /// </summary>
-    public static async Task<(ReviewRecord Review, IReadOnlyList<JsonObject> Diagnostics)> WaitRoundsAsync(
+    public static async Task<ReviewRecord> WaitRoundsAsync(
         ServiceProcess service,
         Journal journal,
         TimeSpan timeout,
@@ -117,7 +117,8 @@ public static class ServiceJournal
     {
         ArgumentNullException.ThrowIfNull(service);
         ArgumentNullException.ThrowIfNull(journal);
-        var diagnostics = new List<JsonObject>();
+        string? unreadable = null;
+        string? stateError = null;
         var sawAutomate = false;
         var review = new ReviewRecord();
         var wait = new Wait { Ceiling = timeout, Stall = Wait.StallBudget(), Terminal = service.Exited };
@@ -125,20 +126,19 @@ public static class ServiceJournal
         {
             await wait.WaitProgressAsync(async ct =>
             {
-                var entry = new JsonObject();
-                JsonObject? state = null;
+                ServiceApiReply? state = null;
                 try
                 {
-                    state = (await service.ApiAsync("GET", "/api/state", null, "", ct).ConfigureAwait(false)).Body;
-                    entry["state"] = state?.DeepClone();
+                    state = await service.ApiAsync("GET", "/api/state", null, "", ct).ConfigureAwait(false);
                 }
                 catch (NativeTransportException e)
                 {
-                    entry["state_error"] = e.Message;
+                    // Polled again next round; the last failure names an unreachable service.
+                    stateError = e.Message;
                 }
 
-                diagnostics.Add(entry);
-                var mode = state.Member("mode").AsString();
+                var mode = ServiceJson.State(state?.Body)?.Mode ?? "";
+
                 if (mode == "automate")
                 {
                     sawAutomate = true;
@@ -154,7 +154,7 @@ public static class ServiceJournal
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
-                    entry["journal_error"] = e.Message;
+                    unreadable = e.Message;
                 }
 
                 return (Wait.Signature(mode, review.Revision), false);
@@ -162,16 +162,16 @@ public static class ServiceJournal
         }
         catch (WaitError e) when (!sawAutomate)
         {
-            throw new AcceptanceException($"service never reached automate mode after acquire: {e.Message}", e);
+            throw new AcceptanceException($"service never reached automate mode after acquire: {e.Message}"
+                + (stateError is null ? "" : $"; the state read failed: {stateError}"), e);
         }
         catch (WaitError e)
         {
-            var unreadable = diagnostics.LastOrDefault(d => d["journal_error"] is not null)?["journal_error"]?.ToString();
             throw new AcceptanceException($"service reached automate mode but the Rounds pass was never persisted (revision 0): {e.Message}"
                 + (unreadable is null ? "" : $"; the journal read failed: {unreadable}"), e);
         }
 
-        return (review, diagnostics);
+        return review;
     }
 
     /// <summary>

@@ -218,7 +218,7 @@ public static class ColonyCommand
         AcceptanceException? error = null;
         try
         {
-            _ = await SustainedFood.ObserveAsync(
+            await SustainedFood.ObserveAsync(
                 ObservedSession.Of(session, cfg, report, spec),
                 new SustainedObservation
                 {
@@ -229,10 +229,6 @@ public static class ColonyCommand
                         Poll = TimeSpan.FromSeconds(10),
                         Concern = PolicyFunctions.FoodSupplyNeed.Value,
                         Extra = ColonyAudits.ColonyConcerns,
-
-                        // A generator, not a gate: a refusal is part of what the long window records, never a reason
-                        // to cut it short.
-                        FailFast = new FailFast { Disabled = true },
                     },
                     Audit = async (h, r, ct) =>
                     {

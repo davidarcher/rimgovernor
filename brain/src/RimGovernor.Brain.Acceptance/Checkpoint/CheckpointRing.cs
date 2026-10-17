@@ -297,46 +297,6 @@ public sealed partial class CheckpointRing
     }
 
     /// <summary>
-    /// Takes a named bundle now (a phase boundary a case declared), pausing the game if it runs; the bundle is kept
-    /// beside the ring and is not pruned.
-    /// </summary>
-    public async Task<Checkpoint> CaptureAsync(string label, CancellationToken cancellationToken)
-    {
-        lock (_gate)
-        {
-            if (_busy)
-            {
-                throw new AcceptanceException("a capture is already in progress");
-            }
-
-            _busy = true;
-        }
-
-        try
-        {
-            var entry = await CaptureCoreAsync(label, force: true, cancellationToken).ConfigureAwait(false);
-            lock (_gate)
-            {
-                _entries.Add(entry);
-            }
-
-            return entry;
-        }
-        catch (Exception e) when (IsCaptureFailure(e))
-        {
-            RecordError(label, e.Message);
-            throw;
-        }
-        finally
-        {
-            lock (_gate)
-            {
-                _busy = false;
-            }
-        }
-    }
-
-    /// <summary>
     /// Takes the final bundle of a failed run (<see cref="Checkpoints.FailedCheckpoint"/>), pausing the game if it
     /// still runs; it never fails the run further.
     /// </summary>

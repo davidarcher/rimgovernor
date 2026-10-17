@@ -30,27 +30,10 @@ public sealed class DigestSection
     /// <summary>The findings in reading order.</summary>
     public List<DigestLine> Lines { get; } = [];
 
-    internal JsonObject ToJson()
-    {
-        var section = new JsonObject { ["name"] = Name };
-        if (Note.Length > 0)
-        {
-            section["note"] = Note;
-        }
-
-        if (Lines.Count > 0)
-        {
-            var lines = new JsonArray();
-            foreach (var line in Lines)
-            {
-                lines.Add(new JsonObject { ["text"] = line.Text, ["evidence"] = line.Evidence });
-            }
-
-            section["lines"] = lines;
-        }
-
-        return section;
-    }
+    internal JsonObject ToJson() =>
+        OutputJson.Fields(("name", Name))
+            .AddIfPresent("note", Note.Length > 0 ? Note : null)
+            .AddIfPresent("lines", Lines.Count > 0 ? OutputJson.Array(Lines, line => OutputJson.Fields(("text", line.Text), ("evidence", line.Evidence))) : null);
 }
 
 /// <summary>
@@ -79,24 +62,10 @@ public sealed class Digest
     /// <summary>The digest as the report's <c>diagnosis</c> value: <c>case</c> and <c>error</c> when set, then <c>sections</c>.</summary>
     public JsonObject ToJson()
     {
-        var digest = new JsonObject();
-        if (Case.Length > 0)
-        {
-            digest["case"] = Case;
-        }
-
-        if (Error.Length > 0)
-        {
-            digest["error"] = Error;
-        }
-
-        var sections = new JsonArray();
-        foreach (var section in Sections)
-        {
-            sections.Add(section.ToJson());
-        }
-
-        digest["sections"] = sections;
+        var digest = new JsonObject()
+            .AddIfPresent("case", Case.Length > 0 ? Case : null)
+            .AddIfPresent("error", Error.Length > 0 ? Error : null);
+        digest.Add("sections", OutputJson.Array(Sections, section => section.ToJson()));
         return digest;
     }
 

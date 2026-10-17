@@ -765,14 +765,11 @@ public sealed record AreaEffect
 }
 
 /// <summary>
-/// One PolicyPruneIntent's result: the database (outfit, drug, food,
-/// reading or allowed_area), the ids deleted by this apply (ids already gone
-/// are absent) and the pawns moved off them first.
+/// One PolicyPruneIntent's result: the ids deleted by this apply (ids
+/// already gone are absent) and the pawns moved off them first.
 /// </summary>
 public sealed record PolicyPruneEffect
 {
-    public string? Database { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> DeletedIds { get; init; }
 

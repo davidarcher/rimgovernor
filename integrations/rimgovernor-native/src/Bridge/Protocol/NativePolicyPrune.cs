@@ -21,7 +21,6 @@ namespace HomeBridge.BridgeTools
     {
         private sealed class Database
         {
-            internal string Name = "";
             internal Func<IEnumerable<Policy>> All = () => Enumerable.Empty<Policy>();
             internal Func<Pawn, Policy?> Get = _ => null;
             internal Action<Pawn, Policy> Set = (_, _) => { };
@@ -35,19 +34,19 @@ namespace HomeBridge.BridgeTools
             switch (db)
             {
                 case Operations.PolicyDatabase.Outfit:
-                    return new Database { Name = "outfit", All = () => game.outfitDatabase.AllOutfits, Get = p => p.outfits?.CurrentApparelPolicy,
+                    return new Database { All = () => game.outfitDatabase.AllOutfits, Get = p => p.outfits?.CurrentApparelPolicy,
                         Set = (p, v) => { if (p.outfits != null) p.outfits.CurrentApparelPolicy = (ApparelPolicy)v; },
                         Make = () => game.outfitDatabase.MakeNewOutfit(), Delete = v => game.outfitDatabase.TryDelete((ApparelPolicy)v) };
                 case Operations.PolicyDatabase.Drug:
-                    return new Database { Name = "drug", All = () => game.drugPolicyDatabase.AllPolicies, Get = p => p.drugs?.CurrentPolicy,
+                    return new Database { All = () => game.drugPolicyDatabase.AllPolicies, Get = p => p.drugs?.CurrentPolicy,
                         Set = (p, v) => { if (p.drugs != null) p.drugs.CurrentPolicy = (DrugPolicy)v; },
                         Make = () => game.drugPolicyDatabase.MakeNewDrugPolicy(), Delete = v => game.drugPolicyDatabase.TryDelete((DrugPolicy)v) };
                 case Operations.PolicyDatabase.Food:
-                    return new Database { Name = "food", All = () => game.foodRestrictionDatabase.AllFoodRestrictions, Get = p => p.foodRestriction?.CurrentFoodPolicy,
+                    return new Database { All = () => game.foodRestrictionDatabase.AllFoodRestrictions, Get = p => p.foodRestriction?.CurrentFoodPolicy,
                         Set = (p, v) => { if (p.foodRestriction != null) p.foodRestriction.CurrentFoodPolicy = (FoodPolicy)v; },
                         Make = () => game.foodRestrictionDatabase.MakeNewFoodRestriction(), Delete = v => game.foodRestrictionDatabase.TryDelete((FoodPolicy)v) };
                 case Operations.PolicyDatabase.Reading:
-                    return new Database { Name = "reading", All = () => game.readingPolicyDatabase.AllReadingPolicies, Get = p => p.reading?.CurrentPolicy,
+                    return new Database { All = () => game.readingPolicyDatabase.AllReadingPolicies, Get = p => p.reading?.CurrentPolicy,
                         Set = (p, v) => { if (p.reading != null) p.reading.CurrentPolicy = (ReadingPolicy)v; },
                         Make = () => game.readingPolicyDatabase.MakeNewReadingPolicy(), Delete = v => game.readingPolicyDatabase.TryDelete((ReadingPolicy)v) };
                 default:
@@ -77,7 +76,6 @@ namespace HomeBridge.BridgeTools
             var reassigned = new SortedSet<string>(StringComparer.Ordinal);
             if (intent.Database.GetValueOrDefault() == Operations.PolicyDatabase.AllowedArea)
             {
-                effect = effect with { Database = "allowed_area" };
                 var map = ProtoBoundary.LoadedMap(context);
                 foreach (var id in intent.DeleteIds)
                 {
@@ -95,7 +93,6 @@ namespace HomeBridge.BridgeTools
             else
             {
                 var db = For(intent.Database.GetValueOrDefault())!;
-                effect = effect with { Database = db.Name };
                 foreach (var id in intent.DeleteIds)
                 {
                     var policy = db.All().ById(id);

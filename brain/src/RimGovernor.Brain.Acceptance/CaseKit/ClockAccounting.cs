@@ -1,4 +1,5 @@
-using System.Text.Json.Nodes;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -21,7 +22,8 @@ public sealed record HazardGap
 /// <summary>
 /// The clock's acceptance-only accounting (#3416), read through the mod's <c>rimgovernor/acceptance_read_clock_accounting</c>
 /// tool; every counter is cumulative for the loaded game session and resets when the loaded game changes. Production reads
-/// none of it: the clock status keeps only the effective tick rate the pacing reads.
+/// none of it: the clock status keeps only the effective tick rate the pacing reads. The members carry the payload's
+/// camelCase names.
 /// </summary>
 public sealed record ClockAccounting
 {
@@ -34,12 +36,16 @@ public sealed record ClockAccounting
     public ulong RunningMs { get; init; }
 
     /// <summary>Main-thread wall time of the hazard probe and of the fact-change digests, and their pass counts.</summary>
+    [JsonPropertyName("probeElapsedMs")]
     public double ProbeMs { get; init; }
 
+    [JsonPropertyName("digestElapsedMs")]
     public double DigestMs { get; init; }
 
+    [JsonPropertyName("probeTotal")]
     public ulong Probes { get; init; }
 
+    [JsonPropertyName("digestTotal")]
     public ulong Digests { get; init; }
 
     /// <summary>The widest tick gap between consecutive probes in the session.</summary>
@@ -51,8 +57,10 @@ public sealed record ClockAccounting
     /// <summary>The frame account: frames that ticked, those whose tick work exceeded the frame budget, and the widest frame's tick work.</summary>
     public ulong PacedFrames { get; init; }
 
+    [JsonPropertyName("pacedFramesOverBudget")]
     public ulong OverBudget { get; init; }
 
+    [JsonPropertyName("maxPacedFrameMs")]
     public double MaxFrameMs { get; init; }
 
     /// <summary>Reads the accounting now.</summary>
@@ -60,57 +68,27 @@ public sealed record ClockAccounting
     {
         ArgumentNullException.ThrowIfNull(harness);
         var reply = await harness.CallAsync(label, Tool, null, cancellationToken).ConfigureAwait(false);
-        if (reply["payload"] is not JsonValue value || !value.TryGetValue<string>(out var payload))
-        {
-            throw new AcceptanceException($"{Tool}: reply carried no payload: {reply.ToJsonString()}");
-        }
-
         try
         {
-            return Parse(JsonNode.Parse(payload) as JsonObject ?? throw new AcceptanceException($"{Tool}: payload is not an object"));
+            if (reply.Deserialize(ClockAccountingJsonContext.Default.AcceptanceReadReply)?.Payload is not { } payload)
+            {
+                throw new AcceptanceException($"{Tool}: reply carried no payload: {reply.ToJsonString()}");
+            }
+
+            return JsonSerializer.Deserialize(payload, ClockAccountingJsonContext.Default.ClockAccounting)
+                ?? throw new AcceptanceException($"{Tool}: payload is not an object");
         }
-        catch (System.Text.Json.JsonException e)
+        catch (JsonException e)
         {
             throw new AcceptanceException($"{Tool}: invalid payload: {e.Message}", e);
         }
     }
-
-    /// <summary>The accounting out of the tool's payload.</summary>
-    public static ClockAccounting Parse(JsonObject read)
-    {
-        ArgumentNullException.ThrowIfNull(read);
-        var gaps = new List<HazardGap>();
-        foreach (var raw in read["hazardGaps"] as JsonArray ?? [])
-        {
-            if (raw is JsonObject gap)
-            {
-                gaps.Add(new HazardGap
-                {
-                    HazardClass = gap["hazardClass"]?.ToString() ?? "",
-                    BoundTicks = (long)Number(gap, "boundTicks"),
-                    MaxTickGap = (long)Number(gap, "maxTickGap"),
-                    Hooked = gap["hooked"] is JsonValue hooked && hooked.TryGetValue<bool>(out var h) && h,
-                });
-            }
-        }
-
-        return new ClockAccounting
-        {
-            PausedMs = Count(read, "pausedMs"),
-            RunningMs = Count(read, "runningMs"),
-            ProbeMs = Number(read, "probeElapsedMs"),
-            DigestMs = Number(read, "digestElapsedMs"),
-            Probes = Count(read, "probeTotal"),
-            Digests = Count(read, "digestTotal"),
-            SessionMaxProbeTickGap = (long)Number(read, "sessionMaxProbeTickGap"),
-            HazardGaps = gaps,
-            PacedFrames = Count(read, "pacedFrames"),
-            OverBudget = Count(read, "pacedFramesOverBudget"),
-            MaxFrameMs = Number(read, "maxPacedFrameMs"),
-        };
-    }
-
-    private static double Number(JsonObject o, string name) => o[name] is JsonValue v && v.TryGetValue<double>(out var d) ? d : 0;
-
-    private static ulong Count(JsonObject o, string name) => Number(o, name) is var n and > 0 ? (ulong)n : 0;
 }
+
+/// <summary>An acceptance read's reply: the op's JSON as a string under <c>payload</c>.</summary>
+internal sealed record AcceptanceReadReply(string? Payload);
+
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(AcceptanceReadReply))]
+[JsonSerializable(typeof(ClockAccounting))]
+internal sealed partial class ClockAccountingJsonContext : JsonSerializerContext;

@@ -199,7 +199,7 @@ public sealed class CaseRunner
         try
         {
             var (colonists, added) = await DebugGame.StaffCrewAsync(harness, c.Crew.Size, cancellationToken).ConfigureAwait(false);
-            report["crew"] = new JsonObject { ["declared"] = c.Crew.Size, ["colonists"] = colonists, ["added"] = added };
+            report["crew"] = new JsonObject { { "declared", c.Crew.Size }, { "colonists", colonists }, { "added", added } };
         }
         catch (AcceptanceException e)
         {
@@ -244,7 +244,8 @@ public sealed class CaseRunner
             // A collector bug must not hide the case's verdict: record what failed and carry on.
             var failed = new DigestSection("postmortem");
             failed.Note = "postmortem collection failed: " + e.GetType().Name + ": " + e.Message;
-            digest = new Digest(report.Data["case"].AsString(), report.Data["error"].AsString(), [failed]);
+            var facts = ReportFacts.Of(report.Data);
+            digest = new Digest(facts.Case ?? "", facts.Error ?? "", [failed]);
         }
 
         report["diagnosis"] = digest.ToJson();

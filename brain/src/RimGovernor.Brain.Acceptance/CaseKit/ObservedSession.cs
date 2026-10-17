@@ -67,8 +67,7 @@ public static class ObservedSession
         public Task<ServiceApiReply> ApiAsync(string method, string path, JsonObject? body, string token, CancellationToken cancellationToken) =>
             process.ApiAsync(method, path, body, token, cancellationToken);
 
-        public async Task<JsonObject> AcquireAsync(CancellationToken cancellationToken) =>
-            new() { ["plan"] = await process.AcquireAsync(cancellationToken).ConfigureAwait(false) };
+        public Task AcquireAsync(CancellationToken cancellationToken) => process.AcquireAsync(cancellationToken);
 
         public Task<IWatchStore> StoreAsync(CancellationToken cancellationToken) => OpenStoreAsync(config, cancellationToken);
 
