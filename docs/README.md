@@ -45,6 +45,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Understand territory and Home margins | [Colony extent](developers/contracts/colony-extent.md), [Home coverage](developers/contracts/upkeep-contracts.md#home-coverage) |
 | Change a subsystem | [Behavior contracts](developers/contracts/README.md) |
 | Assess autonomous development shortfalls and bounded resilience | [Essential services](developers/contracts/essential-services.md) |
+| See which autonomous-development claims are observed in the real game and which only in pure tests | [Observed evidence](developers/contracts/essential-services.md#observed-evidence-and-remaining-gaps) |
 | Understand useful cooking development and its limits | [Productive skill learning](developers/contracts/skill-learning.md#productive-cooking-in-normal-selection) |
 | Judge whether game mechanics can be extracted into cards (Gate 0 spike, #3218) and read the shipped cards | [Mechanic-card spike](developers/mechanic-card-spike.md), [mechanic cards](developers/contracts/mood-control.md#mechanic-cards) |
 | Plan and reconcile trade missions | [Controllable trade](developers/contracts/controllable-trade.md) |

@@ -145,6 +145,13 @@ participant. Productive rebinding still requires ordinary shared admission,
 fresh native evidence and the original finite deadline; cleanup grants no right
 to take another Method's target.
 
+An urgent rest or food need never interrupts a running task. At the next boundary (a task
+just ended, or the pawn is waiting to depart) a participant whose native need is at or below
+its threshold is released through the same separate-revision cleanup, unless another
+participant's remaining task depends on one of its remaining tasks. The pawn then serves the
+need, and the Method resumes it afterward if the demand remains. Unknown need evidence never
+releases. The native activity read supplies needs for the batch's own pawns for this check.
+
 Expected productive resource contention returns a typed ResourcesUnavailable
 admission result without replacing the installed Method or advancing its owner
 revision. Worker continues the remaining Methods and ordinary dispatch/review,

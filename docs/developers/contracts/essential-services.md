@@ -140,7 +140,7 @@ Real-game runs under the normal planner (no fixture-selected winner) at the #316
 | `production/coupled-needs`, `lifecycle/load` | pass | normal harvest/ingestion and load preserve ownership |
 | `shelter/service-investment` | passes (#3245): the cold-room heater frame is selected, built, powered and warms the room, with the paired decision explained | food/shelter investment is observed. The cause was search order: a construction root rejected for lacking supported service relief was never paired with the sleep that gives it relief, because hundreds of sleep-time roots sorted ahead of it and spent the budget. Need roots now sort last and an unserved construction root seeds the extension |
 | `production/coupled-thermal` | passes (#3246): normal planner closes the roof of the first review's sleeping room (a small Shelter), the room warms, and the occupant sleeps there | roof work is reassigned to rested pawns when the tired sleeper's recovered capacity cannot cover it, and each roof job claims its own cell so two pawns never refuse each other at admission. The case runs up to 45000 ticks because the rested sleeper tires about tick 30000; a pre-tired sleeper makes thermal exposure unassessed and the planner chooses no roof
-| `service/restart` | cannot run locally: the harness does not start the game with the case's routine families (#3268) | restart evidence is **not** observed |
+| `service/restart` | passes (25 s; #3268 fixed so the case's routine families reach the game) | a restarted brain re-attaches to the in-game brain and keeps ownership |
 
 Cooking ingredients are staged on a free cell near the bench, never on its interaction
 cell, because the finished product drops there and a strict-exact-destination delivery
@@ -152,5 +152,14 @@ the role is unassigned when its requirement fails. The fixture therefore suppres
 recache for its own role so a real deficit exists; run it with an ordinary crew, since the
 harness's default skill boost would erase the deficit. Predicted-versus-observed rows are in
 `coupled_selection`/`coupled_observed` telemetry (see [OTLP signals](otel-signals.md)).
-Urgent-interruption, satisfaction/obsolescence and changed-assignment behavior is covered by
-pure paired tests only; no real-game run observes it yet.
+Urgent interruption and satisfaction are observed by `production/development-lifecycle`. The
+remaining lifecycle claims are proved by pure paired tests, not real-game runs: stale evidence
+is rejected atomically and a lost participant never releases its new owner
+(`ActivityContinuationTests`), an unknown or stable need does not churn useful work
+(`RecoveryReleasesButStableOrUnknownNeedDoesNotChurnUsefulWork`), a tired participant is released
+at the task boundary while a running task is never interrupted (`ActivityNeedBoundaryTests`),
+and changed skill or decay is covered by `ProductiveLearningTests` and `CapabilityMaintenanceTests`.
+Changed assignments and obsolescence by changed demand have no separate real-game case: a
+reassigned or lost participant is the lost-participant test above, and retirement on changed
+demand is the lifecycle case's deleted bill. Peg-leg doctor training is outside this epic
+(#3344).
