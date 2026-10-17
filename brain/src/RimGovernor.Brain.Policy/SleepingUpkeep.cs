@@ -53,8 +53,8 @@ public sealed record SleepingBed
     /// <summary>The native room id (RoomQuality.ID).</summary>
     public Fact<string> Room { get; init; }
 
-    /// <summary>The native QualityCategory name, unknown for a bed without quality.</summary>
-    public Fact<string> Quality { get; init; }
+    /// <summary>The bed's QualityCategory ordinal (0 Awful .. 6 Legendary), unknown for a bed without quality.</summary>
+    public Fact<int> Quality { get; init; }
 
     /// <summary>The native stuff defName, unknown for a stuffless bed.</summary>
     public Fact<string> Stuff { get; init; }

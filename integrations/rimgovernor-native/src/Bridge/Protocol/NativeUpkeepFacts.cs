@@ -6,6 +6,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Contracts.Wire.Common;
+using Defs = RimGovernor.Contracts.Wire.Defs;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 using static HomeBridge.BridgeTools.NativePawnObservationTools;
 
@@ -410,7 +411,7 @@ namespace HomeBridge.BridgeTools
                         TemperatureC = Number(b.AmbientTemperature) };
                     var room = b.GetRoom();
                     if (room != null) row = row with { Room = NativeRef.Room(room) };
-                    if (b.TryGetQuality(out var quality)) row = row with { Quality = quality.ToString() }; if (b.Stuff != null) row = row with { Stuff = b.Stuff.defName };
+                    if (b.TryGetQuality(out var quality)) row = row with { Quality = (Defs.QualityCategory)(int)quality }; if (b.Stuff != null) row = row with { Stuff = b.Stuff.defName };
                     var owners = b.OwnersForReading.Select(p => Id(p.GetUniqueLoadID())).OrderBy(id => id, StringComparer.Ordinal).ToList();
                     row = row with { Owners = [.. row.Owners, .. NativeRef.All(owners)] };
                     row = row with { Users = [.. row.Users, .. NativeRef.All(people.Where(p => p.CurrentBed() == b).Select(p => Id(p.GetUniqueLoadID())))] };

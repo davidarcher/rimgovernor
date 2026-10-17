@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
+using Defs = RimGovernor.Contracts.Wire.Defs;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
@@ -230,8 +231,7 @@ namespace HomeBridge.BridgeTools
                 if (entry.Thing is Corpse corpse)
                 {
                     var pawn = corpse.InnerPawn ?? throw new InvalidOperationException("Corpse pawn unavailable.");
-                    var detail = new Obs.CorpseState { Corpse = NativeRef.Thing(corpse), InnerPawn = NativeRef.Of(pawn),
-                        Race = Id(pawn.def.defName), Humanlike = pawn.RaceProps.Humanlike, WasColonist = pawn.IsColonist };
+                    var detail = new Obs.CorpseState { Corpse = NativeRef.Thing(corpse), Race = Id(pawn.def.defName), Humanlike = pawn.RaceProps.Humanlike };
                     var rot = corpse.GetComp<CompRottable>();
                     if (rot != null) detail = detail with { RotStage = NativeEnums.Rot(rot.Stage) };
                     else row = row with { Issues = [.. row.Issues, Issue("corpses." + Id(corpse.GetUniqueLoadID()) + ".rot_stage", Common.UnavailableReason.NotApplicable, "Corpse has no rot component.")] };
@@ -262,7 +262,7 @@ namespace HomeBridge.BridgeTools
                 entity = entity with { Inner = new Common.Ref { Id = Id(mini.InnerThing.GetUniqueLoadID()) } };
                 entity = entity with { InnerDefName = Id(mini.InnerThing.def.defName) };
                 // Art stock: the trade selector keeps the best pieces.
-                if (mini.InnerThing.TryGetQuality(out var quality)) entity = entity with { Quality = (int)quality };
+                if (mini.InnerThing.TryGetQuality(out var quality)) entity = entity with { Quality = (Defs.QualityCategory)(int)quality };
                 try { entity = entity with { MarketValue = thing.MarketValue }; } catch { }
             }
             return entity;

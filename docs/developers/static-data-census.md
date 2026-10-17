@@ -621,7 +621,6 @@ Kept, reason recorded:
 | ComfortFacts | message | 1361 | 5 | state | Comfort facts bundle |  |  |
 | UpkeepItem | message | 1362 | 11 | mixed | Upkeep item: hp, rot, deterioration, storage | max_hit_points;deterioration_rate | ThingDef.statBases MaxHitPoints and Deterioration x stuff (catalog stat table) |
 | UpkeepBed | message | 1363 | 15 | mixed | Upkeep bed: slots, owners, users, quality | slots;humanlike;rest_effectiveness | ThingDef.size (slots), BuildingProperties.bed_humanlike, ThingDef.statBases BedRestEffectiveness x stuff |
-| ItemStorageCapacity | message | 1364 | 3 | code | Unreserved covered storage capacity for an item |  |  |
 | UpkeepStructure | message | 1365 | 6 | mixed | Upkeep structure: home, roof holder, flammability | holds_roof;flammability | ThingDef.holdsRoof; ThingDef.statBases Flammability x stuff |
 | FireState | message | 1366 | 4 | state | Fire size and safe workers |  |  |
 | FilthState | message | 1367 | 6 | state | Filth thickness and room |  |  |

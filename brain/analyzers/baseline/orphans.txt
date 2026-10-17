@@ -18,8 +18,6 @@ Contracts|Observations.CaravanState.Resting
 Contracts|Observations.ChoiceDialogOption.DisabledReason
 Contracts|Observations.ColonyFactsSnapshot.Farms
 Contracts|Observations.ColonyFactsSnapshot.TileMutators
-Contracts|Observations.CorpseState.InnerPawn
-Contracts|Observations.CorpseState.WasColonist
 Contracts|Observations.CropForecast.HarvestWork
 Contracts|Observations.CropForecast.MaturePlants
 Contracts|Observations.CropForecast.SowWork
@@ -46,9 +44,6 @@ Contracts|Observations.HunterFacts.CookingActive
 Contracts|Observations.HunterFacts.ReachableBenches
 Contracts|Observations.HusbandryAnimal.Handlers
 Contracts|Observations.IngredientRequirement.Alternatives
-Contracts|Observations.ItemStorageCapacity.AcceptingCells
-Contracts|Observations.ItemStorageCapacity.ItemId
-Contracts|Observations.ItemStorageCapacity.UnreservedCoveredCapacity
 Contracts|Observations.ListZonesRequest.IncludeContents
 Contracts|Observations.MechWorkModeRoles.Recharge
 Contracts|Observations.ObservationBatchRequest.Supplies
@@ -115,13 +110,11 @@ Contracts|Observations.TradeSheet.NegotiatorAdjacent
 Contracts|Observations.TradeSheetRequest.IncludeUntradeable
 Contracts|Observations.TradeSheetRequest.OnlyChanged
 Contracts|Observations.Trader.TicksUntilDeparture
-Contracts|Observations.UpkeepFacts.StorageCapacity
 Contracts|Observations.UpkeepFacts.WallRemoval
 Contracts|Observations.WallRemovalRecord.CompletedTick
 Contracts|Observations.WallUpgradeSite.CompletedTick
 Contracts|Observations.WallUpgradeSite.Materials
 Contracts|Observations.WallUpgradeSite.RoofSupport
-Contracts|Observations.WasteItem.ProtectedReason
 Contracts|Observations.WorldMap.StoredItems
 Contracts|Observations.WorldTile.AverageTemperatureC
 Contracts|Observations.WorldTile.Coastal
@@ -1172,7 +1165,6 @@ Policy|UpkeepFilth.RoomId
 Policy|UpkeepFilth.Thickness
 Policy|UpkeepObservation.Filth
 Policy|UpkeepObservation.Ground
-Policy|UpkeepStructure.Definition
 Policy|WaitDoorCell.Roofed
 Policy|WantedPiece.Slot
 Policy|WasteItem.Cell

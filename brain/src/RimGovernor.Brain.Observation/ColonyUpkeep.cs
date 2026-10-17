@@ -22,11 +22,11 @@ public static partial class ObservationPackage
             var medical = new Dictionary<string, bool>(StringComparer.Ordinal);
             foreach (var bed in u.Beds)
             {
-                medical[bed.Bed?.Id ?? ""] = bed.Medical.GetValueOrDefault();
+                medical[bed.Bed.Id ?? ""] = bed.Medical;
             }
             foreach (var item in u.Structures)
             {
-                if (!buildings.TryGetRow(item.Building, out var b) || item.Home is null || b is null || b.HitPoints is null || b.MaxHitPoints is null)
+                if (!buildings.TryGetRow(item.Building, out var b) || b is null || b.HitPoints is null || b.MaxHitPoints is null)
                 {
                     known = false;
                     break;
@@ -38,18 +38,17 @@ public static partial class ObservationPackage
                 int priority;
                 try
                 {
-                    priority = catalog.RepairPriority(b.Building?.DefName ?? "", medical.GetValueOrDefault(item.Building?.Id ?? ""));
+                    priority = catalog.RepairPriority(b.Building.DefName, medical.GetValueOrDefault(item.Building.Id ?? ""));
                 }
                 catch (DomainException e)
                 {
-                    throw new DomainException($"upkeep structure {item.Building?.Id}: {e.Message}");
+                    throw new DomainException($"upkeep structure {item.Building.Id}: {e.Message}");
                 }
                 rows.Add(new UpkeepStructure
                 {
-                    Id = item.Building?.Id ?? "",
-                    Definition = b.Building?.DefName ?? "",
-                    Cell = CellOf(b.Building?.Position),
-                    Home = item.Home.GetValueOrDefault(),
+                    Id = item.Building.Id ?? "",
+                    Cell = CellOf(b.Building.Position),
+                    Home = item.Home,
                     HitPoints = b.HitPoints.GetValueOrDefault(),
                     MaxHitPoints = b.MaxHitPoints.GetValueOrDefault(),
                     Priority = priority,

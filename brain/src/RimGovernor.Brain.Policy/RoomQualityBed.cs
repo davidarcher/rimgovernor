@@ -84,11 +84,8 @@ public sealed record BedReplacement
 
 public static partial class PolicyFunctions
 {
-    /// <summary>Orders the native QualityCategory names.</summary>
-    internal static readonly IReadOnlyDictionary<string, int> BedQualityRank = new Dictionary<string, int>(StringComparer.Ordinal)
-    {
-        ["Awful"] = 0, ["Poor"] = 1, ["Normal"] = 2, ["Good"] = 3, ["Excellent"] = 4, ["Masterwork"] = 5, ["Legendary"] = 6,
-    };
+    /// <summary>The QualityCategory ordinal of Normal.</summary>
+    private const int NormalQuality = 2;
 
     /// <summary>The North footprints of the beds the closer builds.</summary>
     internal static readonly IReadOnlyDictionary<Resource, Cell> ReplacementBedSizes = new Dictionary<Resource, Cell>
@@ -112,17 +109,13 @@ public static partial class PolicyFunctions
         {
             return true;
         }
-        var xk = x.Quality.TryGetValue(out var xq);
-        var bk = b.Quality.TryGetValue(out var bq);
-        var xok = BedQualityRank.TryGetValue(xq ?? "", out var xr);
-        var bok = BedQualityRank.TryGetValue(bq ?? "", out var br);
-        if (!xk || !bk || !xok || !bok)
+        if (!x.Quality.TryGetValue(out var xr) || !b.Quality.TryGetValue(out var br))
         {
             return false;
         }
         double xs = BedScore(items, x), bs = BedScore(items, b);
-        xok = xs >= 0;
-        bok = bs >= 0;
+        var xok = xs >= 0;
+        var bok = bs >= 0;
         if (!xok || !bok)
         {
             xs = 0;
@@ -251,10 +244,10 @@ public static partial class PolicyFunctions
                 continue;
             }
             var owns = BedScore(materials.Items, owned);
-            owned.Quality.TryGetValue(out var name);
+
             Resource stuff = default;
             var weakest = WeakestRoomStat(q);
-            if (BedQualityRank.TryGetValue(name ?? "", out var rank) && rank < BedQualityRank["Normal"])
+            if (owned.Quality.TryGetValue(out var rank) && rank < NormalQuality)
             {
                 // Quality: never in a worse stuff than the owned bed's.
                 if (owns >= 0)

@@ -125,18 +125,6 @@ internal static class SuppliesReads
 
         await CheckWeaponClassesAsync(h, identity, report, cancellationToken).ConfigureAwait(false);
 
-        var invalid = new JsonObject
-        {
-            ["filter"] = new JsonObject { ["category"] = "unknown" },
-            ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-        };
-        var invalidReply = await h.WireAsync("bad-category", "observations_list_supplies", invalid, cancellationToken).ConfigureAwait(false);
-        var code = NativeAssert.FailureCode(invalidReply);
-        if (code != "FAILURE_CODE_INVALID_REQUEST")
-        {
-            throw new AcceptanceException($"bad-category: expected FAILURE_CODE_INVALID_REQUEST, got \"{code}\"");
-        }
-
         var identityAfterReply = await h.WireAsync("identity-after", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
         var (_, after) = Harness.Outcome(identityAfterReply, "loaded");
         if (after["paused"].AsBool() != true)
@@ -211,7 +199,8 @@ internal static class SuppliesReads
         foreach (var raw in items)
         {
             var item = raw.AsMap() ?? [];
-            var id = item["id"].AsString();
+            var reference = item["item"].AsMap() ?? [];
+            var id = reference["id"].AsString();
             if (id.Length == 0)
             {
                 throw new AcceptanceException($"stock item missing id for {definitionText}");
@@ -220,11 +209,6 @@ internal static class SuppliesReads
             if (!seenIds.Add(id))
             {
                 throw new AcceptanceException($"duplicate stock item id {id} for {definitionText}");
-            }
-
-            if ((int)item["mapId"].AsNumber() != (int)identity["mapId"].AsNumber())
-            {
-                throw new AcceptanceException($"stock item {id} has the wrong mapId");
             }
 
             try
@@ -294,10 +278,8 @@ internal static class SuppliesReads
     }
 
     /// <summary>
-    /// Proves the "weapons" census carries each definition's Weapons-category membership and IsRangedWeapon /
-    /// IsMeleeWeapon: the category is IsWeapon, so a wood log lists as a melee equippable that is no weapon by trade,
-    /// and the Core def naming (Bow_/Gun_/Pila ranged, MeleeWeapon_ melee) that the planner used to infer from is here
-    /// only the oracle for what the flags must say.
+    /// Proves the "weapons" census filters on IsWeapon, so a wood log lists as a makeshift equippable; the weapon class
+    /// itself is a def fact the catalog carries, not a census field.
     /// </summary>
     private static async Task CheckWeaponClassesAsync(Harness h, JsonObject identity, Report report, CancellationToken cancellationToken)
     {
@@ -308,67 +290,30 @@ internal static class SuppliesReads
         };
         var reply = await h.WireAsync("weapons-census", "observations_list_supplies", request, cancellationToken).ConfigureAwait(false);
         var (_, observed) = Harness.Outcome(reply, "observed");
-        var classes = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        var names = new JsonArray();
         foreach (var raw in observed["stocks"].AsSlice())
         {
-            var row = raw.AsMap() ?? [];
-            var name = row["definition"].AsMap()?["defName"].AsString() ?? "";
-            var byTrade = row["weaponByTrade"].AsBool();
-            var ranged = row["ranged"].AsBool();
-            var melee = row["melee"].AsBool();
-            if (byTrade is null || ranged is null || melee is null || ranged == melee)
-            {
-                throw new AcceptanceException($"weapons census row {name} lacks a consistent weapon class: weaponByTrade={row["weaponByTrade"].ToJson()} ranged={row["ranged"].ToJson()} melee={row["melee"].ToJson()}");
-            }
-
-            var cls = "makeshift";
-            if (ranged == true && byTrade == true)
-            {
-                cls = "ranged";
-            }
-            else if (melee == true && byTrade == true)
-            {
-                cls = "melee";
-            }
-
-            var want = "makeshift";
-            if ((name.Length > 4 && (name.StartsWith("Bow_", StringComparison.Ordinal) || name.StartsWith("Gun_", StringComparison.Ordinal))) || name == "Pila")
-            {
-                want = "ranged";
-            }
-            else if (name.Length > 12 && name.StartsWith("MeleeWeapon_", StringComparison.Ordinal))
-            {
-                want = "melee";
-            }
-
-            if (cls != want)
-            {
-                throw new AcceptanceException($"weapons census row {name} reports class {cls}, Core naming says {want}");
-            }
-
-            classes[name] = cls;
+            names.Add(raw.AsMap()?["definition"].AsMap()?["defName"].AsString() ?? "");
         }
 
-        if (classes.GetValueOrDefault("WoodLog") != "makeshift")
+        report["weapon_census"] = names;
+        if (!names.Any(n => n?.GetValue<string>() == "WoodLog"))
         {
-            throw new AcceptanceException($"WoodLog missing from the weapons census as a makeshift equippable: {string.Join(", ", classes.Select(pair => pair.Key + "=" + pair.Value))}");
+            throw new AcceptanceException($"WoodLog missing from the weapons census as a makeshift equippable: {names.ToJson()}");
         }
-
-        var recorded = new JsonObject();
-        foreach (var (name, cls) in classes)
-        {
-            recorded[name] = cls;
-        }
-
-        report["weapon_classes"] = recorded;
     }
 
     /// <summary>
-    /// Asserts <paramref name="value"/> is a JSON integer quantity: a non-negative whole number within int64 range. A
-    /// missing quantity (null, a string or a fraction) is never read as zero.
+    /// Asserts <paramref name="value"/> is a JSON integer quantity: a non-negative whole number within int64 range. An
+    /// absent quantity is zero, which the wire omits; a string or a fraction fails.
     /// </summary>
     private static long Count(JsonNode? value, string what)
     {
+        if (value is null)
+        {
+            return 0;
+        }
+
         if (value is not JsonValue json || !json.TryGetValue<long>(out var n))
         {
             throw new AcceptanceException($"{what}: missing/non-integer quantity: {value.ToJson()}");

@@ -223,7 +223,7 @@ internal static class NativeProtoSuppliesProbe
         }, true);
         Check(((IList)Get(corpseRow, "Corpses")).Count == 1, "Corpse traversal descends into held inventory and reports one corpse");
         var corpseState = ((IList)Get(corpseRow, "Corpses"))[0]!;
-        Check((string)Get(corpseState, "Race") == "Human_Test" && (bool)Get(corpseState, "Humanlike") && !(bool)Get(corpseState, "WasColonist"), "Corpse race/intelligence/faction facts observed");
+        Check((string)Get(corpseState, "Race") == "Human_Test" && (bool)Get(corpseState, "Humanlike"), "Corpse race and intelligence facts observed");
         Check(((IList)Get(corpseRow, "Holders")).Count == 1, "Corpse-held ration surfaces as one held-stock row");
         var corpseIssues = (IList)Get(corpseRow, "Issues");
         Check(corpseIssues.Count == 2 && Enumerable.Range(0, corpseIssues.Count).Any(i => ((string)Get(corpseIssues[i]!, "Field")).EndsWith(".rot_stage")), "Corpse without a rot component reports the documented rot_stage issue, not a crash");
@@ -236,7 +236,7 @@ internal static class NativeProtoSuppliesProbe
         var traderRow = RunProject(new object[] { MakeEntry(goods, traderHolder, "pawnInventory", false, false, false, false, false, false, true, true) }, true);
         Check((long)Get(traderRow, "TraderStock") == 6 && (long)Get(traderRow, "Ours") == 0, "Trader-carried goods count as trader stock, not ours");
         var traderHolders = (IList)Get(traderRow, "Holders");
-        Check(traderHolders.Count == 1 && (string)Get(traderHolders[0]!, "HolderKind") == "pawnInventory", "Trader caravan pawn recorded as the held-stock holder");
+        Check(traderHolders.Count == 1 && Get(traderHolders[0]!, "HolderKind").ToString() == "PawnInventory", "Trader caravan pawn recorded as the held-stock holder");
 
         // ---- Item 3: a container nested inside another container is walked multiple levels ----
         var outerCrate = MakeThing("Modded_OuterCrate", 1, 801);

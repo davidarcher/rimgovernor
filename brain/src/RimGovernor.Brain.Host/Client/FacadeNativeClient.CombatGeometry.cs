@@ -274,25 +274,12 @@ internal sealed partial class FacadeNativeClient
         var cargo = new Dictionary<string, long>(StringComparer.Ordinal);
         foreach (var stock in snapshot.Stocks)
         {
-            if (stock is null || stock.Definition is null || !IsValidId(stock.Definition.DefName ?? ""))
-            {
-                throw Contract("invalid cargo definition");
-            }
             var definition = stock.Definition.DefName ?? "";
             foreach (var held in stock.Holders)
             {
-                if (held is null || held.Holder is null || held.Units is null || held.Units.GetValueOrDefault() < 0 || held.HolderKind is null)
+                if (crew.Contains(held.Holder.Id ?? "") && held.HolderKind is PbObservations.HolderKind.PawnInventory or PbObservations.HolderKind.Carried)
                 {
-                    throw Contract("unknown cargo holder");
-                }
-                if (crew.Contains(held.Holder.Id ?? "") && held.HolderKind.GetValueOrDefault() is PbObservations.HolderKind.PawnInventory or PbObservations.HolderKind.Carried)
-                {
-                    cargo.TryGetValue(definition, out var count);
-                    if (count > long.MaxValue - held.Units.GetValueOrDefault())
-                    {
-                        throw Contract("cargo count overflow");
-                    }
-                    cargo[definition] = count + held.Units.GetValueOrDefault();
+                    cargo[definition] = cargo.GetValueOrDefault(definition) + held.Units;
                 }
             }
         }

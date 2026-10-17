@@ -1973,15 +1973,15 @@ public abstract record ListPawnsReplyOutcome
 /// One stack a stock row counts: the thing, the cell its units are
 /// at (its holder's when held), its supply CAS token when it is allowable,
 /// and for a packed (minified) item the building inside it, for a
-/// RelocateIntent install, with that building's quality (QualityCategory
-/// ordinal, 0 Awful .. 6 Legendary; absent without one) and the packed
-/// item's market value.
+/// RelocateIntent install, with that building's quality (absent without
+/// one) and the packed item's market value (absent when the game throws
+/// computing it).
 /// </summary>
 public sealed record StockItem
 {
-    public Common.Ref? Item { get; init; }
+    public Common.Ref Item { get; init; } = new();
 
-    public Common.Cell? Cell { get; init; }
+    public Common.Cell Cell { get; init; } = new();
 
     public SnapshotRef? Snapshot { get; init; }
 
@@ -1989,64 +1989,69 @@ public sealed record StockItem
 
     public string? InnerDefName { get; init; }
 
-    public int? Quality { get; init; }
+    public Defs.QualityCategory? Quality { get; init; }
 
     public double? MarketValue { get; init; }
 }
 
 public sealed record HeldStock
 {
-    public Common.Ref? Holder { get; init; }
+    public Common.Ref Holder { get; init; } = new();
 
-    public HolderKind? HolderKind { get; init; }
+    public HolderKind HolderKind { get; init; }
 
-    public long? Units { get; init; }
+    public long Units { get; init; }
 }
 
+/// <summary>
+/// One corpse a stock row counts: its race, whether that race is humanlike,
+/// and its rot stage (absent for a corpse without a rot component).
+/// </summary>
 public sealed record CorpseState
 {
-    public Common.Ref? Corpse { get; init; }
+    public Common.Ref Corpse { get; init; } = new();
 
-    public Common.Ref? InnerPawn { get; init; }
+    public string Race { get; init; } = "";
 
-    public string? Race { get; init; }
-
-    public bool? Humanlike { get; init; }
-
-    public bool? WasColonist { get; init; }
+    public bool Humanlike { get; init; }
 
     public Common.RotStage? RotStage { get; init; }
 }
 
+/// <summary>
+/// One definition's stock: unit and stack counts by place, ownership and
+/// state. carried, in_container and trader_stock are absent when the census
+/// excluded held stock.
+/// </summary>
 public sealed record ResourceStock
 {
-    public DefinitionRef? Definition { get; init; }
+    public DefinitionRef Definition { get; init; } = new();
 
-    public long? Units { get; init; }
+    public long Units { get; init; }
 
-    public long? Stacks { get; init; }
+    public long Stacks { get; init; }
 
-    public long? Spawned { get; init; }
+    public long Spawned { get; init; }
 
     public long? Carried { get; init; }
 
     public long? InContainer { get; init; }
 
-    public long? Ours { get; init; }
+    public long Ours { get; init; }
 
-    public long? OursUnforbidden { get; init; }
+    public long OursUnforbidden { get; init; }
 
-    public long? Forbidden { get; init; }
+    public long Forbidden { get; init; }
 
-    public long? PlayerFaction { get; init; }
+    public long PlayerFaction { get; init; }
 
-    public long? OtherFaction { get; init; }
+    public long OtherFaction { get; init; }
 
     public long? TraderStock { get; init; }
 
-    public long? Fogged { get; init; }
+    public long Fogged { get; init; }
 
-    public long? Reserved { get; init; }
+    public long Reserved { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<StockItem>))]
     public EquatableArray<StockItem> Items { get; init; }
@@ -3802,22 +3807,21 @@ public sealed record ResourceSource
     public string? DefName { get; init; }
 }
 
+/// <summary>
+/// One resource's protected, hauler-reachable storage: its empty-slot
+/// capacity, the count already stored there, the haulers and the candidate
+/// cells for a new stockpile.
+/// </summary>
 public sealed record StorageCapacity
 {
-    public string? Resource { get; init; }
+    public string Resource { get; init; } = "";
 
-    public long? Capacity { get; init; }
+    public long Capacity { get; init; }
 
-    public long? Stored { get; init; }
+    public long Stored { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Haulers { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Blockers { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
     public EquatableArray<Common.Cell> Candidates { get; init; }
@@ -4140,8 +4144,6 @@ public sealed record WasteItem
     public WasteKind? Kind { get; init; }
 
     public bool? Eligible { get; init; }
-
-    public string? ProtectedReason { get; init; }
 
     /// <summary>
     /// A corpse's inner pawn; unset for non-corpses.
@@ -6513,11 +6515,11 @@ public sealed record UpkeepItem
 
 public sealed record UpkeepBed
 {
-    public Common.Ref? Bed { get; init; }
+    public Common.Ref Bed { get; init; } = new();
 
-    public bool? Medical { get; init; }
+    public bool Medical { get; init; }
 
-    public bool? Prisoners { get; init; }
+    public bool Prisoners { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Owners { get; init; }
@@ -6528,35 +6530,25 @@ public sealed record UpkeepBed
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> AccessibleTo { get; init; }
 
-    public bool? Roofed { get; init; }
+    public bool Roofed { get; init; }
 
     public double? TemperatureC { get; init; }
 
     public Common.Ref? Room { get; init; }
 
-    public string? Quality { get; init; }
+    public Defs.QualityCategory? Quality { get; init; }
 
     public string? Stuff { get; init; }
 
-    public bool? ForSlaves { get; init; }
+    public bool ForSlaves { get; init; }
 }
 
-public sealed record ItemStorageCapacity
-{
-    public string? ItemId { get; init; }
-
-    public long? UnreservedCoveredCapacity { get; init; }
-
-    public uint? AcceptingCells { get; init; }
-}
 
 public sealed record UpkeepStructure
 {
-    public Common.Ref? Building { get; init; }
+    public Common.Ref Building { get; init; } = new();
 
-    public bool? Home { get; init; }
-
-    public bool? Roofed { get; init; }
+    public bool Home { get; init; }
 }
 
 public sealed record FireState
@@ -7883,8 +7875,6 @@ public sealed record UpkeepFacts
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepBed>))]
     public EquatableArray<UpkeepBed> Beds { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ItemStorageCapacity>))]
-    public EquatableArray<ItemStorageCapacity> StorageCapacity { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepStructure>))]
     public EquatableArray<UpkeepStructure> Structures { get; init; }

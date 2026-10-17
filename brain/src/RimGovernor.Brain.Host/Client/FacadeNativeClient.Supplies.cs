@@ -36,27 +36,14 @@ internal sealed partial class FacadeNativeClient
         var output = new List<PackedItem>();
         foreach (var row in snapshot.Stocks)
         {
-            if (row is null || (row.Definition?.DefName ?? "") != packedDef)
-            {
-                throw BridgeFunctions.Contract("invalid packed items row");
-            }
             foreach (var item in row.Items)
             {
-                if (!BridgeFunctions.ValidRef(item.Item)
-                    || !BridgeFunctions.ValidRef(item.Inner)
-                    || !BridgeFunctions.IsValidId(item.InnerDefName ?? "")
-                    || (item.Quality is { } quality && !BridgeFunctions.ValidQuality(quality))
-                    || !double.IsFinite(item.MarketValue.GetValueOrDefault())
-                    || item.MarketValue.GetValueOrDefault() < 0)
-                {
-                    throw BridgeFunctions.Contract("invalid packed item");
-                }
                 output.Add(new PackedItem
                 {
                     Id = item.Item.Id ?? "",
-                    Inner = item.Inner.Id ?? "",
+                    Inner = item.Inner?.Id ?? "",
                     InnerDef = item.InnerDefName ?? "",
-                    Quality = item.Quality.GetValueOrDefault(),
+                    Quality = (int)item.Quality.GetValueOrDefault(),
                     QualityKnown = item.Quality is not null,
                     MarketValue = item.MarketValue.GetValueOrDefault(),
                 });
@@ -112,29 +99,14 @@ internal sealed partial class FacadeNativeClient
                 throw BridgeFunctions.Contract("incomplete neuroformer census");
             }
             var output = new List<string>();
-            var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var stock in v.Stocks)
             {
-                if (stock is null
-                    || stock.Units is null
-                    || stock.Forbidden is null
-                    || stock.Units.GetValueOrDefault() < 0
-                    || stock.Forbidden.GetValueOrDefault() < 0
-                    || stock.Forbidden.GetValueOrDefault() > stock.Units.GetValueOrDefault()
-                    || (stock.Definition?.DefName ?? "") != def)
-                {
-                    throw BridgeFunctions.Contract("invalid neuroformer stock");
-                }
                 foreach (var item in stock.Items)
                 {
-                    var id = item.Item?.Id ?? "";
-                    if (!BridgeFunctions.ValidRef(item.Item) || !seen.Add(id))
-                    {
-                        throw BridgeFunctions.Contract("neuroformer entity mismatch");
-                    }
+                    var id = item.Item.Id ?? "";
 
                     // Native issues distinguish ineligible items from an incomplete census.
-                    if (item.Snapshot is null || stock.Forbidden.GetValueOrDefault() != 0)
+                    if (item.Snapshot is null || stock.Forbidden != 0)
                     {
                         continue;
                     }

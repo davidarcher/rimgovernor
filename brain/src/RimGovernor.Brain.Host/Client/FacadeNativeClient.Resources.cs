@@ -243,19 +243,9 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     private static Policy.ResourceStorage ResourceDecodeStorage(PbObservations.StorageCapacity? storage, string resource, BridgeCatalog catalog)
     {
-        if (storage is null || (storage.Resource ?? "") != resource)
+        if (storage is null || storage.Resource != resource)
         {
             throw Contract("resource storage identity mismatch");
-        }
-
-        if (storage.Capacity is null || storage.Capacity < 0)
-        {
-            throw Contract("invalid resource storage capacity");
-        }
-
-        if (storage.Stored is null || storage.Stored < 0)
-        {
-            throw Contract("invalid resource storage stored amount");
         }
 
         var stackLimit = catalog.StackLimit(resource);
@@ -264,29 +254,16 @@ internal sealed partial class FacadeNativeClient
             throw Contract("invalid resource storage stack limit");
         }
 
-        foreach (var hauler in storage.Haulers)
-        {
-            if (hauler is null || !IsValidId(hauler.Id ?? ""))
-            {
-                throw Contract("invalid resource storage hauler");
-            }
-        }
-
         var cells = new List<Domain.Cell>(storage.Candidates.Count);
         foreach (var cell in storage.Candidates)
         {
-            if (cell is null || cell.X is null || cell.Z is null || cell.X < 0 || cell.Z < 0)
-            {
-                throw Contract("invalid resource storage candidate cell");
-            }
-
-            cells.Add(new Domain.Cell(cell.X.Value, cell.Z.Value));
+            cells.Add(new Domain.Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
         }
 
         return new Policy.ResourceStorage
         {
-            Capacity = storage.Capacity.Value,
-            Stored = storage.Stored.Value,
+            Capacity = storage.Capacity,
+            Stored = storage.Stored,
             StackLimit = stackLimit,
             Haulers = storage.Haulers.Count,
             Candidates = Domain.EquatableArray.From(cells),

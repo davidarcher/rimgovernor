@@ -34,9 +34,6 @@ public sealed record UpkeepStructure
 {
     public string Id { get; init; } = "";
 
-    /// <summary>The building's def name; empty when the row carries none.</summary>
-    public string Definition { get; init; } = "";
-
     public Cell Cell { get; init; }
 
     public bool Home { get; init; }

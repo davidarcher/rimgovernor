@@ -71,25 +71,25 @@ public static partial class ObservationPackage
             }
             catch (DomainException e)
             {
-                throw new BridgeContractException($"sleeping bed {b.Bed?.Id}: {e.Message}");
+                throw new BridgeContractException($"sleeping bed {b.Bed.Id}: {e.Message}");
             }
             beds.Add(new SleepingBed
             {
-                Id = b.Bed?.Id ?? "",
+                Id = b.Bed.Id ?? "",
                 Definition = new Resource((head.DefName ?? "")),
                 Humanlike = Known(humanlike),
                 Crib = crib,
-                Medical = Optional(b.Medical is not null, b.Medical.GetValueOrDefault()),
-                Prisoners = Optional(b.Prisoners is not null, b.Prisoners.GetValueOrDefault()),
-                Slaves = b.ForSlaves.GetValueOrDefault(),
-                Roofed = Optional(b.Roofed is not null, b.Roofed.GetValueOrDefault()),
+                Medical = Known(b.Medical),
+                Prisoners = Known(b.Prisoners),
+                Slaves = b.ForSlaves,
+                Roofed = Known(b.Roofed),
                 RestEffectiveness = Known((double)(float)rest),
                 Temperature = Optional(b.TemperatureC is not null, b.TemperatureC.GetValueOrDefault()),
                 Owners = Ids(RefIds(b.Owners)),
                 Users = Ids(RefIds(b.Users)),
                 AccessibleTo = Ids(RefIds(b.AccessibleTo)),
                 Room = OptionalRef(b.Room),
-                Quality = Optional(b.Quality is not null, b.Quality ?? ""),
+                Quality = Optional(b.Quality is not null, (int)b.Quality.GetValueOrDefault()),
                 Stuff = Optional(b.Stuff is not null, b.Stuff ?? ""),
                 Cell = CellOf(head.Position),
             });

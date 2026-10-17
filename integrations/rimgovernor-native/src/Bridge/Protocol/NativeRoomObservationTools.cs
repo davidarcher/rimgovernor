@@ -188,7 +188,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var door in row.Doors) { w.Write((door.Cell?.X).GetValueOrDefault()); w.Write((door.Cell?.Z).GetValueOrDefault()); w.Write((door.Outside?.X).GetValueOrDefault()); w.Write((door.Outside?.Z).GetValueOrDefault()); w.Write(door.Outdoors is not null ? (door.Outdoors.GetValueOrDefault() ? 2 : 1) : 0); w.Write((door.Id ?? "")); w.Write(door.PlayerOwned.GetValueOrDefault()); w.Write(door.Open.GetValueOrDefault()); w.Write(door.HoldOpen.GetValueOrDefault()); w.Write(door.BlockedOpen.GetValueOrDefault()); w.Write(door.Forbidden.GetValueOrDefault()); }
                 foreach (var quantity in row.Contents) { w.Write((quantity.DefName ?? "")); w.Write(quantity.Units.GetValueOrDefault()); }
                 foreach (var membership in row.BedMemberships) { w.Write((membership.Building?.Id ?? "")); w.Write(membership.Owners.Count); w.Write(membership.Users.Count); }
-                foreach (var membership in row.StockpileMemberships) { w.Write(membership.Zone?.Id??""); foreach (var stock in membership.Contents) { w.Write((stock.Definition?.DefName ?? "")); w.Write(stock.Units.GetValueOrDefault()); } }
+                foreach (var membership in row.StockpileMemberships) { w.Write(membership.Zone?.Id??""); foreach (var stock in membership.Contents) { w.Write(stock.Definition.DefName ?? ""); w.Write(stock.Units); } }
             }) };
             return row;
         }
