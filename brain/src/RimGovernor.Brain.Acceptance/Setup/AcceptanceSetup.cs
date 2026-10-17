@@ -6,44 +6,21 @@ namespace RimGovernor.Brain.Acceptance;
 /// The <c>acceptance setup</c> subcommand (Go <c>cmd/acceptance/setup.go</c> runSetup/parseSetup): discovers the inputs,
 /// builds the worktree's private environment and prints the summary with the run command a first case needs.
 /// </summary>
-public sealed class AcceptanceSetup
+public static class AcceptanceSetup
 {
     /// <summary>The setup usage lines, for the command's usage text.</summary>
     public const string Usage = """
           acceptance setup [-worktree <dir>] [-rimworld <RimWorld dir>] [-harmony <0Harmony.dll>]
                            [-fixture A,B] [-rebuild] [-skip-mod]
-          acceptance setup generate <variantsave-<save>|variantsave-all> [run flags]
 
         """;
 
-    private readonly Func<IReadOnlyList<string>, TextWriter, TextWriter, CancellationToken, Task<int>>? _generate;
-
-    /// <summary>
-    /// <paramref name="generate"/> runs <c>setup generate &lt;name&gt; [run flags]</c> (it needs the case registry and runner,
-    /// which the command host owns); null makes <c>generate</c> report that it is unavailable.
-    /// </summary>
-    public AcceptanceSetup(Func<IReadOnlyList<string>, TextWriter, TextWriter, CancellationToken, Task<int>>? generate = null)
-    {
-        _generate = generate;
-    }
-
     /// <summary>Runs the subcommand with the arguments after <c>setup</c>; returns the exit code (2 usage, 1 failure).</summary>
-    public async Task<int> RunAsync(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr, CancellationToken cancellationToken)
+    public static async Task<int> RunAsync(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(args);
         ArgumentNullException.ThrowIfNull(stdout);
         ArgumentNullException.ThrowIfNull(stderr);
-        if (args.Count > 0 && string.Equals(args[0], "generate", StringComparison.Ordinal))
-        {
-            if (_generate is null)
-            {
-                await stderr.WriteLineAsync("setup generate is not available in this build").ConfigureAwait(false);
-                return 2;
-            }
-
-            return await _generate([.. args.Skip(1)], stdout, stderr, cancellationToken).ConfigureAwait(false);
-        }
-
         Parsed parsed;
         try
         {

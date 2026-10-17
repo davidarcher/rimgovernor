@@ -7,7 +7,6 @@ public static class ToolsCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        registry.Register(ToolsBaselineGen.Case());
         registry.Register(ToolsDeepResources.Case());
         registry.Register(ToolsFoodChannels.Case());
     }

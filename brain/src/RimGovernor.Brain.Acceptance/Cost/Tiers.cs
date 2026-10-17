@@ -16,8 +16,8 @@ public enum CaseTier
     Nightly,
 
     /// <summary>
-    /// Never run by a tier or by <c>acceptance suite -all</c>: fixture generators, which <c>acceptance setup generate</c>
-    /// runs, and diagnostics, which gate nothing and stay runnable by hand with <c>acceptance run</c>.
+    /// Never run by a tier or by <c>acceptance suite -all</c>: diagnostics, which gate nothing and stay runnable by hand
+    /// with <c>acceptance run</c>. Generators are their own subcommands (<c>acceptance colony</c>, <c>acceptance baseline</c>).
     /// </summary>
     Off,
 }

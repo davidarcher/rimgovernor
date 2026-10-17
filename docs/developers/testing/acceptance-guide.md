@@ -152,7 +152,9 @@ JSON-looking values decode as JSON; other values are strings.
   Fail immediately on terminal refusals or service exit.
 
 The baseline is generated from `BaselineStart` on first use and stamped
-beside its save; a changed spec regenerates it. A retained seed/save/fixture hash
+beside its save; a changed spec regenerates it. `RimGovernor.cmd acceptance
+baseline -root <dir> [-game <id>] [-rendered]` regenerates it on demand, even
+when the stamp is current. A retained seed/save/fixture hash
 identifies the input actually exercised.
 
 The lab and debug starts cache as `RimGovernor-lab-*` and `RimGovernor-debug-*`

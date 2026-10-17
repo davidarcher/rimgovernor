@@ -267,9 +267,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/SupportPortfolioCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Tools/ToolsBaselineGen.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Trade/TradeExecute.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 

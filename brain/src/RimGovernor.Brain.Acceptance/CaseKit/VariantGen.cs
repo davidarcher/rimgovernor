@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
@@ -96,63 +94,5 @@ public sealed record Variant
                 SaveName = v.Save,
             },
         };
-    }
-}
-
-/// <summary>Persisting a generated scenario-start save (tools/baselinegen; Go package <c>variantgen</c>).</summary>
-public static class VariantGen
-{
-    /// <summary>
-    /// Where a variant's generated save durably lives: profile/Saves under the disposable worker root, beside the
-    /// generated tribal8 baseline. PrepareRendered points RimWorld straight at this directory; Prepare (headless)
-    /// mirrors every .rws here into its own disposable headless-profile copy on each run.
-    /// </summary>
-    public static string SavePath(string root, string save) => Path.Combine(root, "profile", "Saves", save + ".rws");
-
-    /// <summary>
-    /// Confirms the loaded, paused game's save and persists it into root/profile/Saves (the durable location Prepare
-    /// mirrors into the headless profile). The new-colony op already saved the colony under the variant's save name
-    /// when the start completed (<see cref="Variant.Start"/> sets it); this checks the colony is paused and copies the
-    /// file out of the running profile. The generated path is recorded as <c>row["path"]</c>.
-    /// </summary>
-    public static async Task SaveVariantAsync(Harness harness, string root, bool headless, string save, JsonObject row, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(harness);
-        ArgumentNullException.ThrowIfNull(row);
-        var identityReply = await harness.WireAsync("identity", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, loaded) = Harness.Outcome(identityReply, "loaded");
-        if (loaded["paused"].AsBool() != true)
-        {
-            throw new AcceptanceException("generated colony did not end up paused before save");
-        }
-
-        try
-        {
-            PersistSave(root, headless, save);
-        }
-        catch (IOException e)
-        {
-            throw new AcceptanceException($"persist generated save to profile/Saves: {e.Message}", e);
-        }
-
-        row["path"] = SavePath(root, save);
-    }
-
-    // Copies the save the running process just wrote from its own (possibly disposable) profile directory into
-    // profile/Saves, the durable location every harness's Prepare reads from. In rendered mode the running profile
-    // already is profile/Saves; in headless mode it is headless-profile/Saves, which Prepare overwrites from
-    // profile/Saves on every run.
-    private static void PersistSave(string root, bool headless, string save)
-    {
-        var full = Path.GetFullPath(root);
-        var dst = Path.Combine(full, "profile", "Saves", save + ".rws");
-        var src = Path.Combine(full, headless ? "headless-profile" : "profile", "Saves", save + ".rws");
-        if (src == dst)
-        {
-            return;
-        }
-
-        Directory.CreateDirectory(Path.GetDirectoryName(dst)!);
-        File.Copy(src, dst, overwrite: true);
     }
 }
