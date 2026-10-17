@@ -10,16 +10,19 @@ namespace HomeBridge.BridgeTools
     // Private disposable acceptance only. Builds the unfloored kitchen
     // flooraccept needs to exercise the rooms/flooring Need : an
     // enclosed roofed room holding a fuelled stove whose interior stands on
-    // bare soil (terrain cleanliness -1), with enough wood outside for a plank
-    // floor over every interior cell. The controller must choose a floor it
-    // can afford, order it on the deficient cells, and the measured census
-    // must then read every cell non-natural with cleanliness >= 0.
+    // bare soil (terrain cleanliness -1), with enough quarried granite blocks
+    // outside for a stone tile over every interior cell. The tier style lays
+    // the quarried stone's tile in a kitchen (never wood), so the stock and the
+    // Stonecutting research that unlock it are the precondition. The
+    // controller must choose the floor it can afford, order it on the
+    // deficient cells, and the measured census must then read every cell
+    // non-natural with cleanliness >= 0.
     //
     // Nothing here orders, builds or places anything on the controller's
     // behalf.
     public sealed class FlooringFixture
     {
-        [Tool("test/flooring_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed kitchen (fuelled stove) whose interior cells stand on bare soil and spawn wood outside for a plank floor.")]
+        [Tool("test/flooring_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed kitchen (fuelled stove) whose interior cells stand on bare soil and spawn granite blocks outside for a stone tile floor.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -33,15 +36,18 @@ namespace HomeBridge.BridgeTools
                 var doorDef = DefDatabase<ThingDef>.GetNamedSilentFail("Door");
                 var stoveDef = DefDatabase<ThingDef>.GetNamedSilentFail("FueledStove");
                 var soil = DefDatabase<TerrainDef>.GetNamedSilentFail("Soil");
-                var plank = DefDatabase<TerrainDef>.GetNamedSilentFail("WoodPlankFloor");
-                if (wallDef == null || doorDef == null || stoveDef == null || soil == null || plank == null)
-                    return Refuse("Wall, Door, FueledStove, Soil or WoodPlankFloor unavailable in this ruleset.");
-                if (!plank.BuildableByPlayer || plank.researchPrerequisites != null && plank.researchPrerequisites.Any(r => !r.IsFinished))
-                    return Refuse("WoodPlankFloor is not buildable in this ruleset.");
+                var tile = DefDatabase<TerrainDef>.GetNamedSilentFail("TileGranite");
+                var blocks = DefDatabase<ThingDef>.GetNamedSilentFail("BlocksGranite");
+                if (wallDef == null || doorDef == null || stoveDef == null || soil == null || tile == null || blocks == null)
+                    return Refuse("Wall, Door, FueledStove, Soil, TileGranite or BlocksGranite unavailable in this ruleset.");
+                if (!tile.BuildableByPlayer)
+                    return Refuse("TileGranite is not buildable in this ruleset.");
+                foreach (var research in tile.researchPrerequisites ?? new System.Collections.Generic.List<ResearchProjectDef>())
+                    if (!research.IsFinished) Find.ResearchManager.FinishProject(research, false);
 
                 // 10x9 clearing: the room at (0..7, 2..6) with interior
                 // (1..6, 3..5) on soil; concrete on the walls and the open rows
-                // 0/1 for the wood pile and a spare far cell at (9,0) for the
+                // 0/1 for the block piles and a spare far cell at (9,0) for the
                 // harness's player building plan.
                 const int width = 10, height = 9;
                 var origin = GenRadial.RadialCellsAround(builder.Position, 75, true).FirstOrDefault(c =>
@@ -80,10 +86,13 @@ namespace HomeBridge.BridgeTools
                 // (3..5, 5) against the north wall and makes the room a kitchen.
                 var stove = Spawn(stoveDef, At(4, 5), Rot4.North);
                 stove.TryGetComp<CompRefuelable>()?.Refuel(stove.TryGetComp<CompRefuelable>().Props.fuelCapacity);
-                // Wood for 18 plank cells (3 each) with margin, outside the room.
-                var wood = ThingMaker.MakeThing(ThingDefOf.WoodLog);
-                wood.stackCount = 75;
-                GenPlace.TryPlaceThing(wood, At(2, 0), map, ThingPlaceMode.Direct);
+                // Blocks for 18 tile cells (4 each) with margin, outside the room.
+                for (var i = 0; i < 2; i++)
+                {
+                    var stone = ThingMaker.MakeThing(blocks);
+                    stone.stackCount = 75;
+                    GenPlace.TryPlaceThing(stone, At(2 + i, 0), map, ThingPlaceMode.Direct);
+                }
                 var construction = builder.skills?.GetSkill(SkillDefOf.Construction);
                 if (construction != null && construction.Level < 4) { construction.Level = 4; construction.xpSinceLastLevel = 0f; }
                 // A ranked project only runs while no emergency is active, so
@@ -109,7 +118,7 @@ namespace HomeBridge.BridgeTools
                     role = kitchen.Role?.defName,
                     interior = new { minX = interior.minX, minZ = interior.minZ, maxX = interior.maxX, maxZ = interior.maxZ },
                     cells = interior.Area, stove = stove.GetUniqueLoadID(),
-                    setup = "Test-only enclosed roofed kitchen whose interior stands on bare soil, wood outside; every floor choice, placement and latch remains the controller's.",
+                    setup = "Test-only enclosed roofed kitchen whose interior stands on bare soil, granite blocks outside; every floor choice, placement and latch remains the controller's.",
                 };
             }, cancellationToken).ConfigureAwait(false);
         }
