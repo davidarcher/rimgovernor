@@ -94,7 +94,7 @@ namespace HomeBridge.BridgeTools
                 MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) } };
             foreach (var cell in cells) {
                 var row = new Obs.DefenseCell { Cell = new Common.Cell { X = cell.x, Z = cell.z }, Fogged = cell.Fogged(map) };
-                if (row.Fogged.GetValueOrDefault()) { row = row with { Issues = [.. row.Issues, Issue("terrain", Common.UnavailableReason.NotApplicable, "Fogged cell geometry is unknown.")] }; snapshot = snapshot with { Cells = [.. snapshot.Cells, row] }; continue; }
+                if (row.Fogged.GetValueOrDefault()) { snapshot = snapshot with { Cells = [.. snapshot.Cells, row] }; continue; }
                 row = row with { Terrain = Identifier(cell.GetTerrain(map)?.defName) };
                 row = row with { FoundationRemovalDesignated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFoundation) != null };
                 row = row with { Walkable = cell.Walkable(map) }; row = row with { Passable = !cell.Impassable(map) };
@@ -143,7 +143,7 @@ namespace HomeBridge.BridgeTools
                 if (System.Diagnostics.Stopwatch.GetTimestamp() - began >= budgetTicks) { snapshot = snapshot with { Skipped = true }; return snapshot; }
                 var row = new Obs.LineOfFire { From = new Common.Cell { X = from.x, Z = from.z }, To = new Common.Cell { X = to.x, Z = to.z },
                     Distance = Finite((from - to).LengthHorizontal) };
-                if (from.Fogged(map) || to.Fogged(map)) { row = row with { Issues = [.. row.Issues, Issue("line_of_sight", Common.UnavailableReason.NotApplicable, "Fogged endpoint geometry is unknown.")] }; snapshot = snapshot with { Lines = [.. snapshot.Lines, row] }; continue; }
+                if (from.Fogged(map) || to.Fogged(map)) { snapshot = snapshot with { Lines = [.. snapshot.Lines, row] }; continue; }
                 row = row with { LineOfSight = GenSight.LineOfSight(from, to, map, true) };
                 row = row with { TargetCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(to), from, map)) };
                 row = row with { ShooterCover = Finite(CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(from), to, map)) };
@@ -155,6 +155,5 @@ namespace HomeBridge.BridgeTools
         private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");
         private static double Finite(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
     }
 }

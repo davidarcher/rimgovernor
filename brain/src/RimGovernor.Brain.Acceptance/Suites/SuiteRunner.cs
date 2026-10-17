@@ -174,9 +174,10 @@ public static class SuiteRunner
         // The landing gate never rebuilds the mod on its own (NoHeal); the rows' fixture ops still let the preflight name
         // a fixture the build lacks. Cases go unnamed so no row's output directory counts as occupied here (each worker
         // checks its own).
-        var selected = list.Where(e => e.Registered is not null).Select(e => new AcceptanceCase { Start = e.Registered!.Start }).ToList();
+        var ops = list.Where(e => e.Registered is not null).SelectMany(e => e.Registered!.FixtureOps()).Distinct(StringComparer.Ordinal).ToList();
         var pre = await PreflightPass.RunAsync(
-            selected,
+            [],
+            ops,
             new RunOptions { Root = opts.Root, Output = opts.Output, GameId = opts.GameId, NoHeal = true },
             stderr,
             cancellationToken).ConfigureAwait(false);

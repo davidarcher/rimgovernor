@@ -78,9 +78,6 @@ public sealed record SaveStart : Start
     public override JsonObject Describe() => new() { ["kind"] = "save", ["name"] = Name };
 }
 
-/// <summary>Computes more fixture arguments from the loaded game just before the op runs (the starter hut site, for one).</summary>
-public delegate Task<JsonObject?> FixtureArgsFrom(Harness harness, CancellationToken cancellationToken);
-
 /// <summary>Brings the game up through <see cref="On"/> (null: the debug colony), then calls the test fixture <see cref="Op"/> with <see cref="Args"/>; the reply is the session's Prepared.</summary>
 public sealed record FixtureStart : Start
 {
@@ -89,8 +86,6 @@ public sealed record FixtureStart : Start
     public JsonObject? Args { get; init; }
 
     public Start? On { get; init; }
-
-    public FixtureArgsFrom? ArgsFrom { get; init; }
 
     public override JsonObject Describe()
     {

@@ -133,7 +133,7 @@ namespace HomeBridge.BridgeTools
             foreach (var alert in ordered.Take(limit))
             {
                 // Alerts are singletons per type in the readout; the type is the identity.
-                var row = new Presentation.Alert { Id = Id(alert.GetType().FullName!), NativeType = Id(alert.GetType().FullName!), Active = alert.Active };
+                var row = new Presentation.Alert { Id = Id(alert.GetType().FullName!) };
                 try { row = row with { Label = Diagnostic(alert.Label ?? string.Empty) }; }
                 catch (Exception) { /* a label that throws leaves the alert unlabelled */ }
                 try
@@ -171,7 +171,7 @@ namespace HomeBridge.BridgeTools
             if (target.HasThing && target.Thing != null)
             {
                 var thing = target.Thing;
-                row = row with { Id = Id(thing.GetUniqueLoadID()) }; row = row with { NativeType = Id(thing.GetType().FullName!) };
+                row = row with { Id = Id(thing.GetUniqueLoadID()) };
                 row = row with { Label = Diagnostic(thing is Pawn pawn ? pawn.Name?.ToStringShort ?? pawn.LabelShort : thing.LabelCap) };
                 if (thing.def != null && ProtoBoundary.IsIdentifier(thing.def.defName)) row = row with { DefName = thing.def.defName };
                 if (thing.Map != null) { row = row with { MapId = thing.Map.uniqueID }; if (thing.Spawned && thing.Position.InBounds(thing.Map)) row = row with { Position = Cell(thing.Position) }; }
@@ -180,7 +180,7 @@ namespace HomeBridge.BridgeTools
             if (target.HasWorldObject && target.WorldObject != null)
             {
                 var worldObject = target.WorldObject;
-                row = row with { Id = Id(worldObject.GetUniqueLoadID()) }; row = row with { NativeType = Id(worldObject.GetType().FullName!) };
+                row = row with { Id = Id(worldObject.GetUniqueLoadID()) };
                 row = row with { Label = Diagnostic(target.Label ?? string.Empty) };
                 if (worldObject.def != null && ProtoBoundary.IsIdentifier(worldObject.def.defName)) row = row with { DefName = worldObject.def.defName };
                 return row;

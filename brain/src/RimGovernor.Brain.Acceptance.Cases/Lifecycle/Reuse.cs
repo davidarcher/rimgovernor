@@ -83,7 +83,7 @@ internal static class LifecycleReuse
             var unclean = await BeginAsync(reuse, "case-unclean", labSave, cancellationToken).ConfigureAwait(false);
             try
             {
-                _ = await DraftColonistAsync(s, TypedReads.Identity(unclean.Identity), "unclean", cancellationToken).ConfigureAwait(false);
+                _ = await DraftColonistAsync(s, Harness.IdentityOf(unclean.Identity), "unclean", cancellationToken).ConfigureAwait(false);
             }
             catch (AcceptanceException e)
             {
@@ -170,7 +170,7 @@ internal static class LifecycleReuse
     /// <summary>One well-behaved case: authority on, draft, release, authority off, then a service handle taken and stopped against this very load.</summary>
     private static async Task CleanCaseAsync(ITypedSession s, GameReuse reuse, ReuseCase c, CancellationToken cancellationToken)
     {
-        var identity = TypedReads.Identity(c.Identity);
+        var identity = Harness.IdentityOf(c.Identity);
         var pawn = await DraftColonistAsync(s, identity, c.Name, cancellationToken).ConfigureAwait(false);
         var undraft = await ApplyDraftAsync(s, c.Name + "-undraft", identity, pawn, drafted: false, cancellationToken).ConfigureAwait(false);
         if (undraft.Job?.Issued != true)

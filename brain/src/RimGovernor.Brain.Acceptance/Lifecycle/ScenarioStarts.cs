@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using Wl = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -20,10 +21,10 @@ public static class ScenarioStarts
     public static string DefaultStoryteller(bool quiet) => quiet ? QuietStorytellerDef : LoudStorytellerDef;
 
     /// <summary>
-    /// The op's wire spec for <paramref name="spec"/>. The spec's Storyteller wins; empty takes
-    /// <paramref name="defaultStoryteller"/>. A temperature band of 0..0 or the unconstrained -100..100 is left out.
+    /// The op's spec for <paramref name="spec"/>: its parts with the base members set. The spec's Storyteller wins; empty
+    /// takes <paramref name="defaultStoryteller"/>. A temperature band of 0..0 or the unconstrained -100..100 is left out.
     /// </summary>
-    public static JsonObject Spec(ScenarioSpec spec, string defaultStoryteller)
+    public static Wl.NewColonySpec Spec(ScenarioSpec spec, string defaultStoryteller)
     {
         ArgumentNullException.ThrowIfNull(spec);
         if (spec.Seed.Length == 0)
@@ -32,50 +33,23 @@ public static class ScenarioStarts
         }
 
         var size = spec.Size.WithDefaults();
-        var difficulty = spec.Difficulty.Length > 0 ? spec.Difficulty : "Rough";
-        var storyteller = spec.Storyteller.Length > 0 ? spec.Storyteller : defaultStoryteller;
-        var saveName = spec.SaveName.Length > 0 ? spec.SaveName : ScenarioSpec.DefaultSaveName;
-        var wire = new JsonObject
-        {
-            ["scenario"] = spec.Scenario,
-            ["colonistCount"] = spec.Count,
-            ["seed"] = spec.Seed,
-            ["difficulty"] = difficulty,
-            ["storyteller"] = storyteller,
-            ["mapSize"] = size.MapSize,
-            ["planetCoverage"] = size.PlanetCoverage,
-            ["saveName"] = saveName,
-        };
-        var biomes = SplitBiomes(spec.Biome);
-        if (biomes.Count > 0)
-        {
-            wire["biomes"] = biomes;
-        }
-
-        if (spec.Flat)
-        {
-            wire["flatTile"] = true;
-        }
-
-        if (spec.WorldTemperature.Length > 0)
-        {
-            wire["worldTemperature"] = spec.WorldTemperature;
-        }
-
         var constrained = (spec.MinTemperature != 0 || spec.MaxTemperature != 0) && (spec.MinTemperature != -100 || spec.MaxTemperature != 100);
-        if (constrained)
+        return (spec.Parts ?? new Wl.NewColonySpec()) with
         {
-            wire["minTemperature"] = spec.MinTemperature;
-            wire["maxTemperature"] = spec.MaxTemperature;
-        }
-
-        // The parts hold only what the start names; each part is a top-level member of the spec.
-        foreach (var (key, value) in spec.Parts ?? [])
-        {
-            wire[key] = value?.DeepClone();
-        }
-
-        return wire;
+            Scenario = spec.Scenario,
+            ColonistCount = (uint)spec.Count,
+            Seed = spec.Seed,
+            Difficulty = spec.Difficulty.Length > 0 ? spec.Difficulty : "Rough",
+            Storyteller = spec.Storyteller.Length > 0 ? spec.Storyteller : defaultStoryteller,
+            MapSize = (uint)size.MapSize,
+            PlanetCoverage = (float)size.PlanetCoverage,
+            SaveName = spec.SaveName.Length > 0 ? spec.SaveName : ScenarioSpec.DefaultSaveName,
+            Biomes = [.. SplitBiomes(spec.Biome)],
+            FlatTile = spec.Flat ? true : null,
+            WorldTemperature = spec.WorldTemperature.Length > 0 ? spec.WorldTemperature : null,
+            MinTemperature = constrained ? (float)spec.MinTemperature : null,
+            MaxTemperature = constrained ? (float)spec.MaxTemperature : null,
+        };
     }
 
     /// <summary>
@@ -107,18 +81,12 @@ public static class ScenarioStarts
         var spec = start.Spec;
         var run = await RunAsync(spec, session.Harness, quiet != QuietMode.Loud, cancellationToken).ConfigureAwait(false);
         session.Report["quiet"] = quiet != QuietMode.Loud;
-        var phases = new JsonArray();
-        foreach (var phase in run.Phases)
-        {
-            phases.Add(phase);
-        }
-
         session.Report["new_colony"] = new JsonObject
         {
-            ["phases"] = phases,
+            ["phases"] = new JsonArray([.. run.Phases.Select(p => (JsonNode?)JsonValue.Create(p.ToString()))]),
             ["rerolls"] = run.Rerolls,
-            ["seed"] = run.Completed["seed"]?.DeepClone(),
-            ["saveName"] = run.Completed["saveName"]?.DeepClone(),
+            ["seed"] = run.Completed.Seed,
+            ["saveName"] = run.Completed.SaveName,
         };
         return new JsonObject
         {
@@ -132,19 +100,7 @@ public static class ScenarioStarts
         };
     }
 
-    /// <summary>A comma-separated biome preference list as the wire's biomes array, in order, without blanks; empty when none is named.</summary>
-    internal static JsonArray SplitBiomes(string list)
-    {
-        var biomes = new JsonArray();
-        foreach (var part in list.Split(','))
-        {
-            var name = part.Trim();
-            if (name.Length > 0)
-            {
-                biomes.Add(name);
-            }
-        }
-
-        return biomes;
-    }
+    /// <summary>A comma-separated biome preference list, in order, without blanks; empty when none is named.</summary>
+    internal static IReadOnlyList<string> SplitBiomes(string list) =>
+        [.. list.Split(',').Select(part => part.Trim()).Where(name => name.Length > 0)];
 }

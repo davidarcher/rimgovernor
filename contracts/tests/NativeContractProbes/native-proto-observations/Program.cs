@@ -27,7 +27,7 @@ internal static class NativeProtoObservationsProbe
             var idle=tools.GetMethod("JobRow",Flags)!.Invoke(null,new object?[]{null,queued})!;
             Check(Get(idle,"PlayerForced") is false,"idle current job is known not player forced");
             Check(Get(idle,"QueuedJobs") is uint queuedJobs && queuedJobs==queued,"idle queue remains independently observed");
-            Check(Get(idle,"DefName")==null && Get(idle,"LoadId")==null,"idle has no invented current job identity");
+            Check(Get(idle,"DefName")==null,"idle has no invented current job identity");
         }
         foreach (var invalidQueue in new[] {-1,257}) {
             bool refused=false;

@@ -530,8 +530,8 @@ public sealed partial class CheckpointRing
     /// </summary>
     private async Task<SaveResult> BridgeSaveAsync(Harness h, string name, string label, bool force, CancellationToken cancellationToken)
     {
-        var loaded = await ReadLoadedAsync(h, $"checkpoint-{label}-identity", cancellationToken).ConfigureAwait(false);
-        if (loaded["paused"].AsBool() != true)
+        var loaded = await h.LoadedAsync($"checkpoint-{label}-identity", cancellationToken).ConfigureAwait(false);
+        if (loaded.Paused != true)
         {
             if (!force)
             {
@@ -539,28 +539,14 @@ public sealed partial class CheckpointRing
             }
 
             await h.CallAsync($"checkpoint-{label}-pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
-            loaded = await ReadLoadedAsync(h, $"checkpoint-{label}-identity-paused", cancellationToken).ConfigureAwait(false);
+            loaded = await h.LoadedAsync($"checkpoint-{label}-identity-paused", cancellationToken).ConfigureAwait(false);
         }
 
-        var loadedContext = loaded["context"].AsMap();
-        var identity = loadedContext?["identity"].AsMap()?.DeepCloneObject();
-        var tick = loadedContext?["tick"].AsNumber() ?? -1;
+        var tick = loaded.Context?.Tick ?? -1;
         var tickNumber = tick < 0 ? 0UL : (ulong)tick;
-        var request = new JsonObject
-        {
-            ["player"] = new JsonObject
-            {
-                ["identity"] = identity?.DeepClone(),
-                ["playerDirection"] = 1,
-                ["requestId"] = $"checkpoint-{label}-{DateTimeOffset.UtcNow.Ticks}",
-            },
-            ["saveName"] = name,
-            ["expectedTick"] = tickNumber,
-        };
         try
         {
-            var reply = await h.WireAsync($"checkpoint-{label}-save", "lifecycle_save", request, cancellationToken).ConfigureAwait(false);
-            Harness.Outcome(reply, "completed");
+            _ = await h.SaveGameAsync($"checkpoint-{label}-save", loaded, name, $"checkpoint-{label}-{DateTimeOffset.UtcNow.Ticks}", cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e) when (e is not RunLostException)
         {
@@ -573,14 +559,7 @@ public sealed partial class CheckpointRing
             throw new AcceptanceException($"lifecycle_save completed but {path} is not there");
         }
 
-        return new SaveResult(path, tickNumber, identity);
-    }
-
-    /// <summary>The "loaded" outcome of lifecycle_read_identity.</summary>
-    private static async Task<JsonObject> ReadLoadedAsync(Harness h, string label, CancellationToken cancellationToken)
-    {
-        var reply = await h.WireAsync(label, "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        return Harness.Outcome(reply, "loaded").Value;
+        return new SaveResult(path, tickNumber, loaded.Context?.Identity is { } identity ? Harness.IdentityNode(identity) : null);
     }
 
     private void RecordError(string label, string message)

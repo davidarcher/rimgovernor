@@ -82,12 +82,4 @@ internal static class TradeKit
         var reply = await s.CallAsync(label, NativeOps.ReadTradeAcquisition, new Observations.TradeAcquisitionRequest { Scope = s.Scope, Pack = pack }, cancellationToken).ConfigureAwait(false);
         return TypedReads.Observed(label, NativeOps.ReadTradeAcquisition, reply, reply.Outcome?.Observed);
     }
-
-    /// <summary>Sends one <c>observations_*</c> read under the identity and returns its <c>observed</c> outcome.</summary>
-    internal static async Task<JsonObject> ObserveAsync(Harness h, string label, string method, JsonObject identity, JsonObject? extra, CancellationToken cancellationToken)
-    {
-        var request = CaseJson.Scoped(identity, extra ?? []);
-        var reply = await h.WireAsync(label, method, request, cancellationToken).ConfigureAwait(false);
-        return Harness.Outcome(reply, "observed").Value;
-    }
 }

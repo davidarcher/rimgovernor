@@ -315,8 +315,6 @@ public sealed record LoadRequest
     public PlayerLifecycleContext? ExpectedPlayer { get; init; }
 
     public string? ExpectedInstanceId { get; init; }
-
-    public ulong? PlayerDirection { get; init; }
 }
 
 public sealed record LoadCompleted
@@ -384,10 +382,6 @@ public abstract record LoadReplyOutcome
     public sealed record FailureCase(Common.Failure Value) : LoadReplyOutcome;
 
     public static implicit operator LoadReplyOutcome(Common.Failure value) => new FailureCase(value);
-
-    /// <summary>The <c>Superseded</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public LoadSuperseded? Superseded => (this as SupersededCase)?.Value;
 
     public sealed record SupersededCase(LoadSuperseded Value) : LoadReplyOutcome;
 
@@ -714,10 +708,6 @@ public abstract record NewColonyReplyOutcome
     public sealed record FailureCase(Common.Failure Value) : NewColonyReplyOutcome;
 
     public static implicit operator NewColonyReplyOutcome(Common.Failure value) => new FailureCase(value);
-
-    /// <summary>The <c>Superseded</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public NewColonySuperseded? Superseded => (this as SupersededCase)?.Value;
 
     public sealed record SupersededCase(NewColonySuperseded Value) : NewColonyReplyOutcome;
 

@@ -94,7 +94,6 @@ namespace HomeBridge.BridgeTools
             }
             var effect = new Receipts.AreaEffect { Present = area != null, CellCount = area?.TrueCount ?? 0 };
             if (intent.Home is not null && intent.Home.GetValueOrDefault()) effect = effect with { Home = true };
-            else if (intent.PollutionClear is not true) effect = effect with { Key = intent.Key };
             if (area != null) effect = effect with { AreaId = area.GetUniqueLoadID() };
             return new Receipts.EffectEvidence { Effect = effect };
         }

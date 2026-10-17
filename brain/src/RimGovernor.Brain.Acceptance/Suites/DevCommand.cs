@@ -115,11 +115,6 @@ public static class DevCommand
         var outputDir = Path.GetFullPath(output.Value.Length == 0 ? Path.Combine(root.Value, "acceptance") : output.Value);
         var c = registry.Lookup(names[0])
             ?? throw new UsageException($"unknown case \"{names[0]}\" (see `acceptance list`)");
-        var lint = c.Lint();
-        if (lint.Count > 0)
-        {
-            throw new UsageException(string.Join("\n", lint));
-        }
 
         return new DevOptions(
             c,

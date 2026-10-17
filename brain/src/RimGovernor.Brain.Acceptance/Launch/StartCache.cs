@@ -193,31 +193,11 @@ public sealed class ProfileStartCache : IStartCache
     public async Task SaveAsync(Harness harness, string name, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
-        var identityReply = await harness.WireAsync("cached-start-identity", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, loaded) = Harness.Outcome(identityReply, "loaded");
-        var loadedContext = loaded["context"].AsMap();
-        var identity = loadedContext?["identity"].AsMap();
-        var tick = loadedContext?["tick"].AsNumber() ?? -1;
+        var loaded = await harness.LoadedAsync("cached-start-identity", cancellationToken).ConfigureAwait(false);
         var nanos = (DateTime.UtcNow - DateTime.UnixEpoch).Ticks * 100;
-        JsonObject saveReply;
         try
         {
-            saveReply = await harness.WireAsync(
-                "cached-start-save",
-                "lifecycle_save",
-                new JsonObject
-                {
-                    ["player"] = new JsonObject
-                    {
-                        ["identity"] = identity?.DeepClone(),
-                        ["playerDirection"] = 1,
-                        ["requestId"] = string.Create(CultureInfo.InvariantCulture, $"cached-start-{nanos}"),
-                    },
-                    ["saveName"] = name,
-                    ["expectedTick"] = tick,
-                },
-                cancellationToken).ConfigureAwait(false);
-            _ = Harness.Outcome(saveReply, "completed");
+            _ = await harness.SaveGameAsync("cached-start-save", loaded, name, string.Create(CultureInfo.InvariantCulture, $"cached-start-{nanos}"), cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {

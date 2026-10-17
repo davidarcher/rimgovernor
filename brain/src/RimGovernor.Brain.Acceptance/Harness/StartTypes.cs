@@ -139,8 +139,8 @@ public sealed record ScenarioSpec
     /// <summary>A StorytellerDef name; empty takes the run's default.</summary>
     public string Storyteller { get; init; } = "";
 
-    /// <summary>Scenario parts added to the base scenario, in the wire's JSON shape.</summary>
-    public JsonObject? Parts { get; init; }
+    /// <summary>Scenario parts added to the base scenario: only the part members are read; the base members are the spec's own.</summary>
+    public RimGovernor.Contracts.Wire.Lifecycle.NewColonySpec? Parts { get; init; }
 
     public string SaveName { get; init; } = "";
 

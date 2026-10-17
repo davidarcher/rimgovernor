@@ -123,11 +123,6 @@ public sealed record CombatPawn
 
     public bool? Dead { get; init; }
 
-    /// <summary>
-    /// def name, absent when none
-    /// </summary>
-    public string? MentalState { get; init; }
-
     public bool? Drafted { get; init; }
 
     /// <summary>
@@ -244,10 +239,6 @@ public sealed record CombatDoorRow
     public string? Id { get; init; }
 
     public Common.Cell? Cell { get; init; }
-
-    public int? HitPoints { get; init; }
-
-    public int? MaxHitPoints { get; init; }
 }
 
 /// <summary>

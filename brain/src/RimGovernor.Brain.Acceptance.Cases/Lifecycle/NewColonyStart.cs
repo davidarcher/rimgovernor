@@ -131,10 +131,6 @@ internal static class NewColonyStart
             : throw new AcceptanceException($"the forced trait {trait} did not land: colonist traits [{string.Join(' ', traits)}]");
     }
 
-    /// <summary>Scenario parts in the wire's JSON shape for a <see cref="ScenarioSpec.Parts"/>: only the members <paramref name="parts"/> sets.</summary>
-    internal static JsonObject Parts(Lifecycle.NewColonySpec parts) =>
-        JsonNode.Parse(WireJson.Serialize(parts))?.AsObject() ?? throw new AcceptanceException("scenario parts serialized to null");
-
     /// <summary>A JSON array of strings for the report.</summary>
     internal static JsonArray Strings(IEnumerable<string> values) => new([.. values.Select(v => (JsonNode?)JsonValue.Create(v))]);
 

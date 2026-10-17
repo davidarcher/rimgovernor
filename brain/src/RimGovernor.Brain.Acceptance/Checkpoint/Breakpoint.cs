@@ -274,7 +274,7 @@ public sealed partial class CheckpointRing
 
     /// <summary>
     /// The live game tick for a tick breakpoint: the service's /api/state while a service holds the game, an
-    /// identity read on the harness while it does (a scenario clock's replies carry no tick), else the newest tick a
+    /// identity read on the harness while it does, else the newest tick a
     /// reply carried (<see cref="ObservedTick"/>).
     /// </summary>
     private async Task<ulong?> ReadTickAsync(CancellationToken cancellationToken)
@@ -288,8 +288,8 @@ public sealed partial class CheckpointRing
         {
             try
             {
-                var loaded = await ReadLoadedAsync(harness, "break-tick", cancellationToken).ConfigureAwait(false);
-                var tick = loaded["context"].AsMap()?["tick"].AsNumber() ?? -1;
+                var loaded = await harness.LoadedAsync("break-tick", cancellationToken).ConfigureAwait(false);
+                var tick = loaded.Context?.Tick ?? -1;
                 return tick > 0 ? (ulong)tick : null;
             }
             catch (AcceptanceException)

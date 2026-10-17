@@ -322,13 +322,8 @@ public sealed partial class ServiceProcess
     /// Reads lifecycle_read_identity and returns the loaded game's identity (colonyId, loadToken, mapId); the main
     /// menu is an error (Go <c>ReadIdentity</c>).
     /// </summary>
-    private static async Task<JsonObject> ReadIdentityAsync(Harness harness, string label, CancellationToken cancellationToken)
-    {
-        var reply = await harness.WireAsync(label, "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var loaded = Harness.Outcome(reply, "loaded").Value;
-        return loaded["context"].AsMap()?["identity"].AsMap()?.DeepClone() as JsonObject
-            ?? throw new AcceptanceException($"{label}: loaded game reports no identity");
-    }
+    private static Task<JsonObject> ReadIdentityAsync(Harness harness, string label, CancellationToken cancellationToken) =>
+        Session.ReadIdentityAsync(harness, label, cancellationToken);
 
     /// <summary>The environment variable naming the clock speed a serve-driven harness runs at; the default is Ultrafast.</summary>
     public const string ClockSpeedEnv = "RIMGOVERNOR_ACCEPT_CLOCK_SPEED";

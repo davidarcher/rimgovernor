@@ -3,8 +3,8 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 // The narrow interfaces the runner needs from machinery other slices own: the checkpoint ring and stage planning
-// (Go checkpoint.go and stage.go), the pre-run doctor/heal pass (cmd/acceptance heal.go) and the scenario clock
-// (scenario.go). The host wires an implementation into RunDependencies; nothing here is Go-shaped beyond the names.
+// (Go checkpoint.go and stage.go) and the pre-run doctor/heal pass (cmd/acceptance heal.go). The host wires an
+// implementation into RunDependencies; nothing here is Go-shaped beyond the names.
 
 /// <summary>What <see cref="IRunCheckpointing.PlanResume"/> decided: the bundle to resume from (null entry when starting fresh) and the ring index it came from (Go <c>resumption</c>).</summary>
 public sealed class ResumePlan
@@ -106,31 +106,6 @@ public interface IRunPreflight
     Task<PreflightResult> RunAsync(IReadOnlyList<AcceptanceCase> selected, RunOptions options, TextWriter stdout, CancellationToken cancellationToken);
 }
 
-/// <summary>A scenario runtime built over a controller clock (Go <c>na.ScenarioRuntime</c>); the scenario port's type implements it.</summary>
-public interface IScenarioRuntime
-{
-}
-
-/// <summary>An option to <see cref="ISession.AdvanceAsync"/> (Go <c>na.AdvanceOption</c>); the scenario port's option types implement it.</summary>
-public interface IScenarioAdvanceOption
-{
-}
-
-/// <summary>The scenario clock the session's <see cref="ISession.RuntimeAsync"/> and <see cref="ISession.AdvanceAsync"/> bind (Go scenario.go's <c>ScenarioClock</c>, <c>ScenarioRuntime</c>, <c>AdvanceGame</c>).</summary>
-public interface IScenarioDriver
-{
-    /// <summary>Acquires the controller clock on <paramref name="harness"/> and builds the runtime (the discovered tools let an advance dismiss the letters it acknowledges).</summary>
-    Task<IScenarioRuntime> CreateRuntimeAsync(Harness harness, JsonObject identity, Report report, IReadOnlyList<string> tools, CancellationToken cancellationToken);
-
-    /// <summary>AdvanceGame on <paramref name="runtime"/>. <paramref name="expectedLetters"/>, when not null, makes the advance a strict window over exactly those letters.</summary>
-    Task<JsonObject> AdvanceAsync(
-        IScenarioRuntime runtime,
-        ulong ticks,
-        IReadOnlyList<(string Label, string LetterDef)>? expectedLetters,
-        IReadOnlyList<IScenarioAdvanceOption> options,
-        CancellationToken cancellationToken);
-}
-
 /// <summary>Everything the runner needs wired from outside this folder.</summary>
 public sealed class RunDependencies
 {
@@ -139,9 +114,6 @@ public sealed class RunDependencies
 
     /// <summary>The doctor/heal pass; null skips the preflight.</summary>
     public IRunPreflight? Preflight { get; init; }
-
-    /// <summary>The scenario clock; null makes <see cref="ISession.RuntimeAsync"/> fail with a wiring message.</summary>
-    public IScenarioDriver? Scenario { get; init; }
 
     /// <summary>The profile and process half of the session lifecycle; <see cref="SessionHost.Default"/> when null.</summary>
     public ISessionHost? Host { get; init; }

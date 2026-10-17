@@ -276,20 +276,6 @@ public static class StagePlanning
         return "";
     }
 
-    /// <summary>
-    /// The case state key as the bundle this run opened on recorded it (a ring resume, else a stage hit; null on a fresh
-    /// run): what a staging block wrote through <see cref="Checkpoints.SetState"/> for the code after the stage call,
-    /// which on a hit never ran the block. The value is JSON round-tripped, so read it through the tolerant accessors.
-    /// </summary>
-    public static JsonNode? RestoredState(Checkpoint? resumed, Checkpoint? staged, string key)    {
-        if (resumed?.State is { } state && state.TryGetPropertyValue(key, out JsonNode? found))
-        {
-            return found;
-        }
-
-        return staged?.State?[key];
-    }
-
     /// <summary>Validates -through against <paramref name="c"/> before the game opens: a declared stage of a plain run with staging on.</summary>
     public static void CheckThrough(AcceptanceCase c, RunOptions opts)
     {

@@ -172,15 +172,11 @@ Decided (user, 2026-10-13):
   game is also relaunched (reason `package`) when any file under the installed mod's `Assemblies/` or
   `BridgeTools/RimGovernor/` (or `About.xml`) changed since its launch (`Harness.RelaunchFiles`); the lab start-cache
   stamp and report `package_files` stay on the narrower `Harness.StampFiles` (About.xml, Runtime.dll, Bridge.dll).
-  `HostSeams.Install()` (called from `CaseCatalog.Register`) wires the
-  store-backed case readers over that file. Readers that need the game's own data (`StarterSite.Planner`,
-  `LayoutSiteHost.Surveyor`, `ColonyFactsSource.Reader`, the catalog and blight readers) call the mod's read-only
-  `rimgovernor/acceptance_read_*` tools (`colony_facts`, `starter_site`, `impressiveness`, `capture_profile`, and `clock_accounting` for the speed matrix and hazard cases;
-  `AcceptanceReadTools`) through the generic native route. The tools run `AcceptanceReads` in the Host project: the
-  observation layer's colony read with a standalone planning window and the load's definition catalog over the published
-  facade, returning JSON in `payload`; they record nothing and need no running brain. The first layout plan is derived
-  as the starter site did (no ledger, no stock) and returned in the store codec, so it can differ from the plan a
-  running service records.
+  The harness's journal reader (`CaseStore`) opens that file. The speed matrix and hazard cases call the mod's
+  read-only `rimgovernor/acceptance_read_*` tools (`capture_profile` and `clock_accounting`; `AcceptanceReadTools`)
+  through the generic native route. `capture_profile` times the brain's decode of a captured frame with
+  `AcceptanceReads.FrameDecodeProfile` in the Host project; the tools return JSON in `payload`, record nothing and
+  need no running brain.
 - **Catalog.** `BrainCompositionOptions.CatalogFactory` is `NativeCatalogFactory.Create` and `StartingIdeoligion` is
   `NativeCatalogFactory.StartingIdeoligion`; both run on the brain's threads, never the game thread.
 - **Clock native.** Nothing to build: `FacadeNativeClient` already implements `IClockDriverNative`.

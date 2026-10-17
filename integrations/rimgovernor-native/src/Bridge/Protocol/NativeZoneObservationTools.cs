@@ -99,26 +99,17 @@ namespace HomeBridge.BridgeTools
                         GrowthMean = plants.Average(p => p.Growth),
                         FertilityFactorMean = plants.Average(p => p.GrowthRateFactor_Fertility) };
                 row = row with { Farm = farm };
-                row = row with { Issues = [.. row.Issues, Issue("priority", Common.UnavailableReason.NotApplicable, "Growing zones have no storage priority.")] };
             }
             else if (zone is Zone_Stockpile stockpile)
             {
                 row = row with { Priority = stockpile.settings.Priority.ToString() };
-                row = row with { Issues = [.. row.Issues, Issue("crop_def_name", Common.UnavailableReason.NotApplicable, "Stockpile zones have no crop.")] };
                 if (request.IncludeFilter.GetValueOrDefault()) row = row with { Filter = NativeStockpileSettings.Project(stockpile.settings.filter) };
-                else row = row with { Issues = [.. row.Issues, Issue("filter", Common.UnavailableReason.NotRequested, "The stockpile filter is not requested.")] };
             }
-            else row = row with { Issues = [.. row.Issues, Issue("type", Common.UnavailableReason.Unsupported, "Zone subtype is not a growing or stockpile zone.")] };
-
-            if (!(zone is Zone_Stockpile)) row = row with { Issues = [.. row.Issues, Issue("filter", Common.UnavailableReason.NotApplicable, "Only stockpile zones have a filter.")] };
-            foreach (var field in new[] { "contents", "anomalies" })
-                row = row with { Issues = [.. row.Issues, Issue(field, Common.UnavailableReason.Unsupported, "Typed fact is not implemented by this read adapter.")] };
             return row;
         }
 
         private static bool CellPresent(Common.Cell? cell) => cell != null;
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native ID unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
     }
 }

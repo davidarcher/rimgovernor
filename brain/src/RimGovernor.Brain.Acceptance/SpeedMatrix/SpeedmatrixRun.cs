@@ -484,16 +484,10 @@ internal sealed partial class SpeedmatrixRun
 
             var after = await ControlAsync(h, identity, "control-after", cancellationToken).ConfigureAwait(false);
             report["control_after"] = after.DeepClone();
-            var pawnsReply = await h.WireAsync(
-                "pawns-after",
-                "observations_list_pawns",
-                new JsonObject { ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() }, ["filter"] = new JsonObject { ["colonist"] = true } },
-                cancellationToken).ConfigureAwait(false);
-            ClockFixture.RequireHealthyColonists(pawnsReply);
-            var (_, observedPawns) = Harness.Outcome(pawnsReply, "observed");
+            var healthy = await ClockFixture.RequireHealthyColonistsAsync(h, "pawns-after", identity, cancellationToken).ConfigureAwait(false);
             var outcome = SpeedMatrix.OutcomeFromControl(c.Name, after) with
             {
-                HealthyColonists = observedPawns["pawns"].AsSlice().Count,
+                HealthyColonists = healthy,
                 UnsuccessfulStages = unsuccessful,
             };
             report["outcome"] = outcome.ToJson();

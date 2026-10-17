@@ -44,19 +44,8 @@ public sealed partial class Harness : IAsyncDisposable
         CallCoreAsync(label, tool, arguments ?? [], retry: true, cancellationToken);
 
     /// <summary>
-    /// Calls a <c>rimgovernor/*</c> wire method: <see cref="WireCodec"/> turns <paramref name="request"/> (the cases' flat
-    /// oneof view) into the host's Contracts JSON, wraps it as <c>{"request": json}</c>, and turns the reply's string
-    /// <c>payload</c> back into the flat view.
-    /// </summary>
-    public async Task<JsonObject> WireAsync(string label, string method, JsonNode? request, CancellationToken cancellationToken)
-    {
-        var (message, _) = await WireBytesAsync(label, method, request, cancellationToken).ConfigureAwait(false);
-        return message;
-    }
-
-    /// <summary>
     /// Calls the native op <paramref name="op"/> with its Contracts request record and returns its Contracts reply record:
-    /// the typed edge (<see cref="WireJson"/> both ways, no flat view), recorded as evidence like every call.
+    /// the typed edge (<see cref="WireJson"/> both ways), recorded as evidence like every call.
     /// </summary>
     public async Task<TReply> CallAsync<TRequest, TReply>(string label, NativeOp<TRequest, TReply> op, TRequest request, CancellationToken cancellationToken)
         where TRequest : class
@@ -79,66 +68,6 @@ public sealed partial class Harness : IAsyncDisposable
             throw new AcceptanceException($"{label}: {op.Name}: invalid reply: {e.Message}", e);
         }
     }
-
-    /// <summary>Wire returning the reply payload's ProtoJSON byte count beside the decoded message.</summary>
-    public async Task<(JsonObject Message, int Bytes)> WireBytesAsync(string label, string method, JsonNode? request, CancellationToken cancellationToken)
-    {
-        var encoded = WireCodec.EncodeRequest(method, request);
-        var reply = await CallAsync(label, "rimgovernor/" + method, new JsonObject { ["request"] = encoded }, cancellationToken).ConfigureAwait(false);
-        return DecodeEnvelope(method, reply);
-    }
-
-    /// <summary>
-    /// Decodes a wire call's reply envelope (<c>{"payload": "&lt;JSON&gt;"}</c>) into the cases' flat view, with the
-    /// payload's byte count.
-    /// </summary>
-    private static (JsonObject Message, int Bytes) DecodeEnvelope(string method, JsonObject envelope)
-    {
-        if (envelope["payload"] is not JsonValue value || !value.TryGetValue<string>(out var payload))
-        {
-            throw new AcceptanceException($"{method}: reply did not preserve the JSON string envelope");
-        }
-
-        try
-        {
-            return (WireCodec.DecodeReply(method, payload), System.Text.Encoding.UTF8.GetByteCount(payload));
-        }
-        catch (JsonException e)
-        {
-            throw new AcceptanceException($"{method}: invalid reply: {e.Message}", e);
-        }
-    }
-
-    /// <summary>Adapts <see cref="WireAsync"/> to the <see cref="WireFunc"/> the authority helpers and the scenario clock take.</summary>
-    public WireFunc WireFunc() =>
-        (label, method, request, cancellationToken) => WireAsync(label, method, request, cancellationToken);
-
-    /// <summary>
-    /// Asserts the wire reply is exactly the single-field oneof named by one of <paramref name="cases"/> and returns
-    /// the case name and its value.
-    /// </summary>
-    public static (string Case, JsonObject Value) Outcome(JsonObject message, params string[] cases)
-    {
-        if (message.Count != 1)
-        {
-            throw new AcceptanceException($"expected exactly one oneof case, found [{string.Join(' ', Keys(message))}]");
-        }
-
-        foreach (var name in cases)
-        {
-            if (message.TryGetPropertyValue(name, out var value))
-            {
-                return value is JsonObject nested
-                    ? (name, nested)
-                    : throw new AcceptanceException($"oneof case {name} must be an object");
-            }
-        }
-
-        throw new AcceptanceException($"expected one of [{string.Join(' ', cases)}], found [{string.Join(' ', Keys(message))}]");
-    }
-
-    /// <summary>The keys of an object in ordinal order.</summary>
-    public static IReadOnlyList<string> Keys(JsonObject map) => [.. map.Select(pair => pair.Key).Order(StringComparer.Ordinal)];
 
     /// <summary>
     /// The game's OTLP log ring: the channel directory the opened game writes its rings to, where native's clock and
@@ -250,8 +179,3 @@ public sealed partial class Harness : IAsyncDisposable
         return error;
     }
 }
-
-/// <summary>
-/// The rimgovernor/* ProtoJSON transport: ordinarily <see cref="Harness.WireAsync"/> (Go <c>WireFunc</c>).
-/// </summary>
-public delegate Task<JsonObject> WireFunc(string label, string method, JsonObject request, CancellationToken cancellationToken);

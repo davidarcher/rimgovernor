@@ -374,7 +374,7 @@ namespace HomeBridge.BridgeTools
                 Effect = new Receipts.AbilityEffect
                 {
                     PawnId = cast.Pawn.GetUniqueLoadID(),
-                    Outcome = new Receipts.PsycastUseEffect { JobDef = job.def.defName },
+                    Outcome = new Receipts.PsycastUseEffect(),
                 },
             };
         }

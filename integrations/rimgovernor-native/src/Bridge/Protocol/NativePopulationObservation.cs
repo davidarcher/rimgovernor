@@ -99,9 +99,6 @@ namespace HomeBridge.BridgeTools
                     }
                 }
                 person = person with { WillJoinIfRescued = p.mindState.WillJoinColonyIfRescued };
-                // The prisoner custody and interaction settings token
-                // (NativePrisonerInteractionOperations.Settings).
-                person = person with { PawnSnapshot = new Obs.SnapshotRef { Context = context, EntityId = person.Pawn.Id, Token = NativePrisonerInteractionOperations.Settings(p) } };
                 snapshot = snapshot with { Persons = [.. snapshot.Persons, person] };
             }
             // Owned-pawn names: the census the unique-name planner reads.

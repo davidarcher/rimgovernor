@@ -1,31 +1,3 @@
 # Charter rules 4 and 5 (#3397): RS0030 (BannedSymbols.txt) is an error in every case file.
 [*.cs]
 dotnet_diagnostic.RS0030.severity = error
-
-# The legacy baseline: files that used a banned API when the ban landed, held at suggestion so the compiler still
-# records each use in banned-api.sarif. It only shrinks: the gate's banned-API job fails a section whose file no
-# longer uses a banned API (delete the section). Never add one; port the case to TypedCase instead.
-
-[/Shared/CaseJournal.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Shared/CaseJson.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Shared/RoutineService.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Support/CaseStore.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Support/CaseSupport.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Support/HostReads.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Support/NativeReads.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Wall/WallCensus.cs]
-dotnet_diagnostic.RS0030.severity = suggestion

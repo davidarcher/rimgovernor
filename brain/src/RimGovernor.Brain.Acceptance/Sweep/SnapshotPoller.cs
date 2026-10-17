@@ -1,4 +1,4 @@
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Contracts.Wire;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
@@ -24,13 +24,6 @@ public sealed class SnapshotPoller
     /// <summary>The last committed frame number, 0 before the first.</summary>
     public async Task<ulong> HeadAsync(CancellationToken cancellationToken) =>
         (await ReadAsync(ulong.MaxValue, cancellationToken).ConfigureAwait(false)).Head;
-
-    /// <summary>
-    /// The native applied-write counter now: a frame captured at or past it reflects every write that returned before
-    /// this call.
-    /// </summary>
-    public async Task<long> WritesAsync(CancellationToken cancellationToken) =>
-        (await ReadAsync(ulong.MaxValue, cancellationToken).ConfigureAwait(false)).Writes;
 
     /// <summary>The newest committed frame when it is numbered past <paramref name="after"/>; null otherwise (or before the first).</summary>
     public async Task<SnapshotPulled?> LatestAsync(ulong after, CancellationToken cancellationToken)
@@ -69,14 +62,7 @@ public sealed class SnapshotPoller
 
     private async Task<Obs.SnapshotRead> ReadAsync(ulong after, CancellationToken cancellationToken)
     {
-        var request = WireJson.Serialize(new Obs.SnapshotReadRequest { AfterNumber = after });
-        var envelope = await _harness.CallAsync("snapshot-read", "rimgovernor/observations_read_snapshot", new JsonObject { ["request"] = request }, cancellationToken).ConfigureAwait(false);
-        if (envelope["payload"] is not JsonValue value || !value.TryGetValue<string>(out var payload))
-        {
-            throw new AcceptanceException("observations_read_snapshot: reply did not preserve the JSON string envelope");
-        }
-
-        var reply = WireJson.Deserialize<Obs.SnapshotReadReply>(payload);
+        var reply = await _harness.CallAsync("snapshot-read", NativeOps.ReadSnapshot, new Obs.SnapshotReadRequest { AfterNumber = after }, cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Read
             ?? throw new AcceptanceException($"observations_read_snapshot: {(reply.Outcome?.Unavailable is { } unavailable ? "unavailable: " + unavailable.Detail : reply.Outcome?.Failure is { } failure ? "failure: " + failure.Detail : "no outcome")}");
     }

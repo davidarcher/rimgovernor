@@ -6,9 +6,9 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// Dynamic-JSON navigation shared by the harness and the cases (Go <c>assert.go</c>). A native reply is a decoded
-/// JSON document; these helpers navigate it loosely, with explicit results in place of bare casts. The Go
-/// <c>map[string]any</c> is a <see cref="JsonObject"/>, <c>[]any</c> a <see cref="JsonArray"/>.
+/// Dynamic-JSON navigation for the documents the harness handles as JSON: fixture-op replies, recorded evidence, the
+/// report and the service API (a wire reply is read as its typed Contracts record instead). These helpers navigate
+/// loosely, with explicit results in place of bare casts.
 /// </summary>
 public static class Dyn
 {
@@ -89,28 +89,8 @@ public static class Dyn
         return null;
     }
 
-    /// <summary>A JSON Ref's <c>id</c>, empty without one.</summary>
-    public static string RefId(this JsonNode? value) => AsString(value.AsMap()?["id"]);
-
     /// <summary>A member of an object value, null when the value is not an object or lacks the key.</summary>
     public static JsonNode? Member(this JsonNode? value, string key) => value is JsonObject map && map.TryGetPropertyValue(key, out var found) ? found : null;
-
-    /// <summary>A shallow union of <paramref name="baseValues"/> and <paramref name="extra"/>, extra's keys taking priority. Neither input is changed.</summary>
-    public static JsonObject Merge(JsonObject? baseValues, JsonObject? extra)
-    {
-        var merged = new JsonObject();
-        foreach (var (key, value) in baseValues ?? [])
-        {
-            merged[key] = value?.DeepClone();
-        }
-
-        foreach (var (key, value) in extra ?? [])
-        {
-            merged[key] = value?.DeepClone();
-        }
-
-        return merged;
-    }
 
     /// <summary>Whether <paramref name="values"/> holds <paramref name="want"/> (ordinal).</summary>
     public static bool Contains(IEnumerable<string> values, string want) => values.Contains(want, StringComparer.Ordinal);
@@ -128,9 +108,6 @@ public static class Dyn
 
     /// <summary>The compact JSON text of a value; "null" for none.</summary>
     public static string ToJson(this JsonNode? value) => value is null ? "null" : value.ToJsonString();
-
-    /// <summary>Parses JSON text into a node; the text must be valid JSON.</summary>
-    public static JsonNode? Parse(string json) => JsonNode.Parse(json);
 
     /// <summary>Parses JSON text that must be an object.</summary>
     public static JsonObject ParseObject(string json) =>

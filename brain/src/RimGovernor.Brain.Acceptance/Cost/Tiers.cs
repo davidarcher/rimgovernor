@@ -61,6 +61,6 @@ public static class Tiers
     public static bool ServeDriven(AcceptanceCase c)
     {
         ArgumentNullException.ThrowIfNull(c);
-        return c.Serve is not null || c.Service;
+        return c.Serve is not null;
     }
 }

@@ -609,8 +609,7 @@ unknown (1) is evaluator policy, not part of the contract. Quantity is the exist
 `StockCount` (the stack size claims sum against), distinct from `AvailableCount`, which
 is capped at `maxNumToIngestAtOnce`. The evaluator reads it as above (#3210); a generated
 target without a `NeedTarget` row (a delivery cell) carries its capacity on the
-`ForecastNeedTask` itself. The wire codec is pinned by
-`WireCodecTests.NeedTargetMaxPawnsRoundTripsKnownAndUnknownAsNumberOrNull`.
+`ForecastNeedTask` itself.
 
 An ingestion target names only the source stack. The Eat step carries a thing target
 (or `observed-output`, rebound natively to the selected resource within two cells of

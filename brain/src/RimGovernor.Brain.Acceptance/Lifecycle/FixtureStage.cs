@@ -27,9 +27,9 @@ public static class FixtureStage
         Op.CallAsync(h, label, spec, cancellationToken);
 
     /// <summary>The typed reply of a session started by <see cref="Start"/>.</summary>
-    public static Fx.StageReply Prepared(ISession s) => Read(Tool, s.Prepared);
+    public static Fx.StageReply Prepared(JsonObject? prepared) => Read(Tool, prepared);
 
-    /// <summary>The op arguments that stage <paramref name="spec"/>, for a start whose spec needs the loaded game (<see cref="FixtureStart.ArgsFrom"/>).</summary>
+    /// <summary>The op arguments that stage <paramref name="spec"/>.</summary>
     public static JsonObject Args(Fx.StageSpec spec) => new() { ["spec"] = Fx.FixtureJson.Serialize(spec) };
 
     private static Fx.StageReply Read(string label, JsonObject? reply)

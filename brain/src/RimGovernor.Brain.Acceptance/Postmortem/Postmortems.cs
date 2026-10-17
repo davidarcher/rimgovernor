@@ -523,12 +523,11 @@ public static partial class Postmortems
             return $"native_call error {tool}: {Clip(errText)}";
         }
 
-        if (RecordedReply(tool, payload) is not { } reply)
+        if (RecordedFailure(payload) is not { } failure)
         {
             return null;
         }
 
-        var failure = reply["failure"];
         var code = failure.Member("code").AsString();
         if (code.Length == 0)
         {
@@ -546,11 +545,10 @@ public static partial class Postmortems
     }
 
     /// <summary>
-    /// A recorded native_call row's reply as a JSON object: the JSON text the row's <c>result.payload</c> holds, or the
-    /// <c>result</c> object itself when it already is the reply. (The Go rows also carried a packed protobuf reply; the
-    /// C# rows are plain JSON.)
+    /// A recorded native_call row's failure: the <c>failure</c> outcome of the reply the row's <c>result.payload</c> holds,
+    /// or the <c>result</c> object's own <c>failure</c> when it carries one.
     /// </summary>
-    private static JsonObject? RecordedReply(string tool, IReadOnlyDictionary<string, object?> payload)
+    private static JsonObject? RecordedFailure(IReadOnlyDictionary<string, object?> payload)
     {
         if (payload.GetValueOrDefault("result") is not IReadOnlyDictionary<string, object?> result)
         {
@@ -559,18 +557,10 @@ public static partial class Postmortems
 
         if (result.GetValueOrDefault("payload") is string text)
         {
-            try
-            {
-                // The host's reply text decodes through the codec into the flat view the cases read.
-                return WireCodec.TryDecodeReply(tool, text);
-            }
-            catch (JsonException)
-            {
-                return null;
-            }
+            return RecordedOutcome.Of(text) is ("failure", var failure) ? failure : null;
         }
 
-        return result.ContainsKey("failure") ? ToNode(result) as JsonObject : null;
+        return result.ContainsKey("failure") ? ToNode(result.GetValueOrDefault("failure")) as JsonObject : null;
     }
 
     private static JsonNode? ToNode(object? value) => value switch

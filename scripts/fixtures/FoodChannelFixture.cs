@@ -58,24 +58,6 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        [Tool("test/food_channels_observe", Description = "Read remaining food channels and held food in the disposable fixture; no mutations.")]
-        public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap ?? throw new InvalidOperationException("Loaded map required.");
-                var things = AllThings(map).Where(t => !t.Destroyed).ToList();
-                return new { success = true,
-                    fields = map.zoneManager.AllZones.OfType<Zone_Growing>().Count(),
-                    plants = things.OfType<Plant>().Count(FoodPlant),
-                    animals = things.OfType<Pawn>().Count(p => p.RaceProps.Animal),
-                    heldAnimals = things.OfType<Pawn>().Where(p => p.RaceProps.Animal && !p.Spawned).Select(p => new { defName = p.def.defName, holder = Holders(p) }).ToList(),
-                    corpses = things.OfType<Corpse>().Count(),
-                    producers = things.Count(Producer),
-                    stock = things.Where(t => t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible)
-                        .Select(t => new { defName = t.def.defName, units = t.stackCount, spawned = t.Spawned, holder = t.Spawned ? null : Holders(t) }).ToList() };
-            }, cancellationToken);
-        }
-
         private static float reserveEaten;
         private static bool reservePatched;
         private static void ReserveIngested(Thing __instance, Pawn ingester, float __result)
@@ -283,14 +265,6 @@ namespace HomeBridge.BridgeTools
             || t is Plant plant && FoodPlant(plant) || Producer(t)
             || t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible;
 
-        // The parent holder chain of an unspawned thing, outermost last.
-        private static string Holders(Thing t)
-        {
-            var names = new List<string>();
-            for (var holder = t.ParentHolder; holder != null && names.Count < 8; holder = holder.ParentHolder)
-                names.Add(holder is Thing thing ? thing.GetUniqueLoadID() : holder.GetType().Name);
-            return string.Join(" < ", names);
-        }
 
         private static HashSet<Thing> AllThings(Map map)
         {

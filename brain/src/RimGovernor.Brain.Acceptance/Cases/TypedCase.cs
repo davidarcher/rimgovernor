@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// One acceptance case on the typed API (the charter in docs/developers/testing/acceptance-guide.md): one native claim,
 /// a precondition staged by a typed stage spec, a budget in game ticks and a declared tier. The body receives an
 /// <see cref="ITypedSession"/>: typed calls and reads, waits on ticks, signatures and events, telemetry by kind. The
-/// runner drives it through <see cref="ToCase"/>, beside the frozen legacy <see cref="AcceptanceCase"/>.
+/// runner drives it through <see cref="ToCase"/>.
 /// </summary>
 public sealed record TypedCase
 {
@@ -125,14 +125,11 @@ public sealed record TypedCase
         _ => null,
     };
 
-    /// <summary>The runner's record of this case: the legacy shape the existing runner drives, its Run and Postmortem over a <see cref="TypedSession"/>.</summary>
+    /// <summary>The runner's record of this case, its Run and Postmortem over a <see cref="TypedSession"/>.</summary>
     public AcceptanceCase ToCase() => new()
     {
         Name = Name,
         Scope = Scope,
-
-        // Rule 7: a departure from a default (an ordinary crew, a bigger debug map, a scenario serve) is justified by the claim.
-        Reason = Scope,
         Start = Stage is null ? Start : FixtureStage.Start(Stage, Start),
         RequiredOps = Ops,
         QuietWorld = QuietWorld,

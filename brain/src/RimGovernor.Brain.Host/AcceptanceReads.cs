@@ -1,84 +1,11 @@
-using System.Globalization;
-using System.Text.Json;
-using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.NativeFacade;
-using RimGovernor.Brain.Observation;
-using RimGovernor.Brain.Policy;
-using RimGovernor.Brain.Store.Codec;
-
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// The game-side reads the out-of-process acceptance harness cannot decode itself (#3117): the decoded colony facts,
-/// the first layout plan and map survey, and the catalog tables. Each read runs the in-process
-/// observation layer over the published native facade (the same decode the brain's reviews use) and returns the
-/// small JSON the harness's host seams parse. The mod registers one read-only tool per method; nothing here writes.
+/// The game-side measurement the out-of-process acceptance harness cannot make itself: the brain's decode of one captured
+/// frame, timed for the mod's read-only capture profile probe. Nothing here writes.
 /// </summary>
-public sealed class AcceptanceReads
+public static class AcceptanceReads
 {
-    private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(1);
-
-    private readonly FacadeNativeClient _client;
-
-    private AcceptanceReads(FacadeNativeClient client) => _client = client;
-
-    /// <summary>Reads over <paramref name="facade"/>; <paramref name="catalogFactory"/> builds the definition catalog of a load (the mod's NativeCatalogFactory).</summary>
-    public static AcceptanceReads Create(INativeFacade facade, Func<RimGovernor.Contracts.Wire.Observations.DefinitionCatalog, RimGovernor.Contracts.Wire.Common.Identity, DefinitionCatalog> catalogFactory)
-    {
-        ArgumentNullException.ThrowIfNull(facade);
-        ArgumentNullException.ThrowIfNull(catalogFactory);
-        return new AcceptanceReads(FacadeNativeClient.Create(facade, catalogFactory));
-    }
-
-    /// <summary>The sleeping temperature band and power coverage of the loaded colony (<c>null</c> members are unread facts).</summary>
-    public async Task<string> ColonyFactsAsync(CancellationToken cancellationToken)
-    {
-        var (_, _, reading) = await ReadColonyAsync(cancellationToken).ConfigureAwait(false);
-        var f = reading.Projection.Facts;
-        return Write(w =>
-        {
-            Optional(w, "sleepingMin", f.SleepingMin.TryGetValue(out var min), min);
-            Optional(w, "sleepingMax", f.SleepingMax.TryGetValue(out var max), max);
-            Optional(w, "powerRequired", f.PowerRequired.TryGetValue(out var required), required);
-            Optional(w, "powerHeadroom", f.PowerHeadroom.TryGetValue(out var headroom), headroom);
-            Optional(w, "disabledConsumers", f.DisabledConsumers.TryGetValue(out var disabled), disabled);
-        });
-    }
-
-    /// <summary>
-    /// The first layout plan of the loaded game (the seed rooms and the outskirts: no ledger, no stock) and the map bounds.
-    /// </summary>
-    public async Task<string> StarterSiteAsync(CancellationToken cancellationToken)
-    {
-        // The review's rooms read, as the colony plan derives from: the station catalog, item facts and dining furniture
-        // ride the rounds frame, not the bare colony read.
-        var expected = await ReadIdentityAsync(cancellationToken).ConfigureAwait(false);
-        var catalog = await _client.DefinitionCatalogAsync(IdentityOf(expected), cancellationToken).ConfigureAwait(false);
-        using var window = ClockPlanning.StandaloneWindow(_client);
-        var reading = await ObservationPackage.ObserveRoundsRooms(_client, SystemClock.Instance, expected, MaxAge, Fact.Unknown<EquatableArray<ConstructionClaim>>(), [], cancellationToken).ConfigureAwait(false);
-        var projection = reading.Projection;
-        var survey = catalog.SurveyFromCells(projection.Cells, projection.Bounds) with
-        {
-            Cold = projection.ColdMap.TryGetValue(out var cold) && cold,
-            Hot = projection.HotMap.TryGetValue(out var hot) && hot,
-        };
-        var facts = StationFactsBuilder.StationFacts(catalog, StationFactsBuilder.FirstPlanFacts(projection, survey, new Dictionary<Resource, long>(), PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone)));
-        var (fact, _) = PolicyFunctions.DeriveLayoutPlan(survey, facts, []);
-        var planJson = fact.TryGetValue(out var plan) ? StoreJson.Serialize(plan) : null;
-        return Write(w =>
-        {
-            w.WriteNumber("width", projection.Bounds.Width);
-            w.WriteNumber("height", projection.Bounds.Height);
-            if (planJson is not null)
-            {
-                w.WritePropertyName("plan");
-                w.WriteRawValue(planJson);
-            }
-        });
-    }
-
     /// <summary>
     /// Measures the brain's reads of one captured frame for the capture profile probe: the held tables and the
     /// whole-map planning window over the frame's grid, each <paramref name="iterations"/> times on the calling thread.
@@ -109,82 +36,5 @@ public sealed class AcceptanceReads
             }
         }
         return samples;
-    }
-
-    /// <summary>The Impressiveness room stat's score stages of the loaded game.</summary>
-    public async Task<string> ImpressivenessAsync(CancellationToken cancellationToken)
-    {
-        var (_, catalog) = await ReadIdentityAndCatalogAsync(cancellationToken).ConfigureAwait(false);
-        var levels = catalog.ImpressivenessLevels();
-        return Write(w =>
-        {
-            w.WriteNumber("dull", levels.Dull);
-            w.WriteNumber("mediocre", levels.Mediocre);
-            w.WriteNumber("decent", levels.Decent);
-            w.WriteNumber("slightlyImpressive", levels.SlightlyImpressive);
-            w.WriteStartArray("stages");
-            foreach (var stage in levels.Stages)
-            {
-                w.WriteNumberValue(stage);
-            }
-
-            w.WriteEndArray();
-        });
-    }
-
-    private async Task<(PbCommon.Identity Identity, DefinitionCatalog Catalog, ColonyReading Reading)> ReadColonyAsync(CancellationToken cancellationToken)
-    {
-        var expected = await ReadIdentityAsync(cancellationToken).ConfigureAwait(false);
-        var identity = IdentityOf(expected);
-        var catalog = await _client.DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
-        // The colony read fills its planning window straight from the native read (no scheduler step attaches one here).
-        using var window = ClockPlanning.StandaloneWindow(_client);
-        var reading = await ObservationPackage.ObserveColony(_client, SystemClock.Instance, expected, MaxAge, true, cancellationToken).ConfigureAwait(false);
-        return (identity, catalog, reading);
-    }
-
-    private async Task<(PbCommon.Identity Identity, DefinitionCatalog Catalog)> ReadIdentityAndCatalogAsync(CancellationToken cancellationToken)
-    {
-        var identity = IdentityOf(await ReadIdentityAsync(cancellationToken).ConfigureAwait(false));
-        var catalog = await _client.DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
-        return (identity, catalog);
-    }
-
-    private async Task<RimGovernor.Brain.Observation.Identity> ReadIdentityAsync(CancellationToken cancellationToken)
-    {
-        var reply = await ((IColonySource)_client).IdentityAsync(cancellationToken).ConfigureAwait(false);
-        return ObservationPackage.DecodeIdentity(reply);
-    }
-
-    private static PbCommon.Identity IdentityOf(RimGovernor.Brain.Observation.Identity expected) =>
-        new() { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value };
-
-    private static void Optional(Utf8JsonWriter w, string name, bool known, double value)
-    {
-        if (known)
-        {
-            w.WriteNumber(name, value);
-        }
-    }
-
-    private static void Optional(Utf8JsonWriter w, string name, bool known, bool value)
-    {
-        if (known)
-        {
-            w.WriteBoolean(name, value);
-        }
-    }
-
-    private static string Write(Action<Utf8JsonWriter> body)
-    {
-        using var stream = new MemoryStream();
-        using (var w = new Utf8JsonWriter(stream))
-        {
-            w.WriteStartObject();
-            body(w);
-            w.WriteEndObject();
-        }
-
-        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
     }
 }

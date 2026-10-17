@@ -1,6 +1,10 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Contracts.Wire;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Wl = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -19,11 +23,6 @@ public sealed class Game : IGameHold
 {
     /// <summary>Controls whether the RimWorld process stays alive between harness binaries.</summary>
     public const string KeepGameEnv = "RIMGOVERNOR_ACCEPT_KEEP_GAME";
-
-    /// <summary>The production return-to-menu op (#3298): ends the loaded game without saving, the process stays up.</summary>
-    private const string MenuMethod = "lifecycle_menu";
-
-    private const string MenuReadMethod = "lifecycle_read_menu";
 
     private static readonly TimeSpan CloseBudget = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan MenuCeiling = TimeSpan.FromSeconds(90);
@@ -335,14 +334,14 @@ public sealed class Game : IGameHold
     /// A start refused as unavailable while another long event finishes is asked again; any other refusal, or no
     /// completion within the ceiling, is an <see cref="AcceptanceException"/>.
     /// </summary>
-    public static async Task<JsonObject> ReturnToMenuAsync(Harness h, string label, CancellationToken cancellationToken)
+    public static async Task<Wl.MenuCompleted> ReturnToMenuAsync(Harness h, string label, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(h);
         var requestId = string.Create(CultureInfo.InvariantCulture, $"{label}-{DateTime.UtcNow.Ticks}");
         var started = false;
         var attempt = 0;
-        JsonObject? last = null;
-        JsonObject? completed = null;
+        Wl.MenuReply? last = null;
+        Wl.MenuCompleted? completed = null;
         try
         {
             await new Wait { Ceiling = MenuCeiling, Interval = MenuInterval }.WaitProgressAsync(
@@ -350,16 +349,16 @@ public sealed class Game : IGameHold
                 {
                     var step = string.Create(CultureInfo.InvariantCulture, $"{label}-{attempt++}");
                     var reply = started
-                        ? await h.WireAsync(step + "-read", MenuReadMethod, new JsonObject { ["requestId"] = requestId }, ct).ConfigureAwait(false)
-                        : await h.WireAsync(step + "-menu", MenuMethod, await MenuRequestAsync(h, step, requestId, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
+                        ? await h.CallAsync(step + "-read", NativeOps.PollMenu, new Wl.RequestStatus { RequestId = requestId }, ct).ConfigureAwait(false)
+                        : await h.CallAsync(step + "-menu", NativeOps.StartMenu, await MenuRequestAsync(h, step, requestId, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
                     last = reply;
-                    if (reply["completed"].AsMap() is { } done)
+                    if (reply.Outcome?.Completed is { } done)
                     {
                         completed = done;
                         return ("", true);
                     }
 
-                    if (reply["pending"].AsMap() is not null)
+                    if (reply.Outcome?.Pending is not null)
                     {
                         started = true;
                         return (Wait.Signature("pending"), false);
@@ -367,19 +366,18 @@ public sealed class Game : IGameHold
 
                     // A long event already queued (a load or save finishing) refuses the start as unavailable; it is
                     // asked again once that is done. Any other refusal is final.
-                    var code = reply["failure"].AsMap()?["code"].AsString();
-                    if (!started && code == "FAILURE_CODE_UNAVAILABLE")
+                    if (!started && reply.Outcome?.Failure?.Code == Common.FailureCode.Unavailable)
                     {
                         return (Wait.Signature("busy"), false);
                     }
 
-                    throw new AcceptanceException($"{MenuMethod} refused: {reply.ToJson()}");
+                    throw new AcceptanceException($"{NativeOps.StartMenu.Name} refused: {WireJson.Serialize(reply)}");
                 },
                 cancellationToken).ConfigureAwait(false);
         }
         catch (WaitError e)
         {
-            throw new AcceptanceException($"{MenuMethod} did not reach the main menu; last reply {last?.ToJson()}: {e.Message}", e);
+            throw new AcceptanceException($"{NativeOps.StartMenu.Name} did not reach the main menu; last reply {(last is null ? "none" : WireJson.Serialize(last))}: {e.Message}", e);
         }
 
         return completed!;
@@ -389,16 +387,12 @@ public sealed class Game : IGameHold
     /// The production return-to-menu request (#3298): it names the loaded game, read from <c>lifecycle_read_identity</c>,
     /// since native refuses to end a live map the caller did not name; at the main menu there is nothing to name.
     /// </summary>
-    private static async Task<JsonObject> MenuRequestAsync(Harness h, string label, string requestId, CancellationToken cancellationToken)
+    private static async Task<Wl.MenuRequest> MenuRequestAsync(Harness h, string label, string requestId, CancellationToken cancellationToken)
     {
-        var request = new JsonObject { ["requestId"] = requestId };
-        var reply = await h.WireAsync(label + "-identity", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        if (reply["loaded"].AsMap()?["context"].AsMap()?["identity"].AsMap() is { } identity)
-        {
-            request["expectedPlayer"] = new JsonObject { ["identity"] = identity.DeepClone(), ["playerDirection"] = 1, ["requestId"] = requestId };
-        }
-
-        return request;
+        var reply = await h.CallAsync(label + "-identity", NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
+        return reply.Outcome?.Loaded?.Context?.Identity is { } identity
+            ? new Wl.MenuRequest { RequestId = requestId, ExpectedPlayer = new() { Identity = identity, PlayerDirection = 1, RequestId = requestId } }
+            : new Wl.MenuRequest { RequestId = requestId };
     }
 
     /// <summary>

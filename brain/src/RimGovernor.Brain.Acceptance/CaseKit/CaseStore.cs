@@ -7,15 +7,14 @@ using RimGovernor.Brain.Store.Codec;
 using Journal = RimGovernor.Brain.Store.Store;
 using ReviewRecord = RimGovernor.Brain.Store.Rounds;
 
-namespace RimGovernor.Brain.Acceptance.Cases;
+namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// The case-side reader of the in-mod brain's state database (the file the harness points the game at with
 /// <c>RIMGOVERNOR_STATE</c>, <see cref="ServiceJournal.PathOf"/>): one store handle serving the watch's projections
-/// (<see cref="IWatchStore"/>), the quest and clearance cases' journal reads (<see cref="ICaseJournal"/>) and a staging
-/// phase's review reads (<see cref="IPhaseStore"/>). Every read is a snapshot of committed rows; nothing here writes.
+/// (<see cref="IWatchStore"/>). Every read is a snapshot of committed rows; nothing here writes.
 /// </summary>
-internal sealed class CaseStore : ICaseJournal, IPhaseStore
+internal sealed class CaseStore : IWatchStore, IDisposable
 {
     private readonly Journal _store;
 
@@ -75,53 +74,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
                 return (IReadOnlyList<JsonObject>)rows;
             },
             cancellationToken);
-
-    public Task<IReadOnlyList<JsonObject>> PlanHistoryAsync(int limit, IReadOnlyList<string> methodPatterns, CancellationToken cancellationToken) =>
-        ReadAsync(
-            "plan history " + string.Join(',', methodPatterns),
-            ct => (IReadOnlyList<JsonObject>)[.. _store.PlanHistoryWithMethods(Math.Clamp(limit, 1, 256), methodPatterns, ct).Select(PlanRow)],
-            cancellationToken);
-
-    async Task<(ulong Revision, ulong Tick)?> IPhaseStore.LoadRoundsAsync(CancellationToken cancellationToken)
-    {
-        var review = await ReadAsync("read rounds", ct => _store.LoadRounds(ct), cancellationToken).ConfigureAwait(false);
-        return review.Revision == 0 ? null : (review.Revision, (ulong)review.Tick.Value);
-    }
-
-    public Task<LayoutPlanRecord?> LayoutPlanAsync(ulong reviewTick, CancellationToken cancellationToken) =>
-        ReadAsync(
-            "layout plan",
-            ct =>
-            {
-                var review = _store.LoadRounds(ct);
-                if (review.Revision == 0 || _store.LayoutPlan(review.Snapshot, new Tick((long)reviewTick), ct) is not { Plan: { } plan } found)
-                {
-                    return null;
-                }
-
-                return new LayoutPlanRecord((ulong)found.Tick.Value, JsonNode.Parse(StoreJson.Serialize(plan)) as JsonObject ?? []);
-            },
-            cancellationToken);
-
-    /// <summary>The layout plan the journal recorded for its latest persisted review, and that review's tick.</summary>
-    internal static async Task<(ulong Tick, LayoutPlan? Plan)> ReadLayoutPlanAsync(Config config, CancellationToken cancellationToken)
-    {
-        using var store = await OpenAsync(config, cancellationToken).ConfigureAwait(false);
-        return await ReadAsync(
-            "layout plan",
-            ct =>
-            {
-                var review = store._store.LoadRounds(ct);
-                if (review.Revision == 0)
-                {
-                    return (0UL, (LayoutPlan?)null);
-                }
-
-                var plan = store._store.LayoutPlan(review.Snapshot, review.Tick, ct)?.Plan;
-                return ((ulong)review.Tick.Value, plan);
-            },
-            cancellationToken).ConfigureAwait(false);
-    }
 
     private static async Task<T> ReadAsync<T>(string what, Func<CancellationToken, T> read, CancellationToken cancellationToken)
     {
@@ -233,21 +185,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
 
         return obj;
     }
-
-    private static JsonObject PlanRow(PlanState plan) => PlanRow(plan, plan.Method.Value);
-
-    private static JsonObject PlanRow(PlanState plan, string method) => new()
-    {
-        ["plan"] = plan.Spec.Id.Value,
-        ["method"] = method,
-        ["steps"] = new JsonArray([.. plan.Progress.Select(p => (JsonNode?)new JsonObject
-        {
-            ["id"] = p.Action.Id.Value,
-            ["kind"] = Wire.Name(p.Action.Kind),
-            ["stage"] = Wire.Name(p.View.Stage),
-            ["action"] = Payload(p.Action),
-        })]),
-    };
 
     private static JsonObject ProgressRow(Progress progress)
     {

@@ -1,44 +1,17 @@
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// Adapts a registry case's <see cref="ISession"/> to the <see cref="IObservedSession"/> the serve-driven watch
-/// (<see cref="SustainedFood.ObserveAsync"/>) drives (Go: <c>cases.Session</c> satisfied <c>sustainedfood.Observed</c>
-/// directly). The service is the session's <see cref="ServiceProcess"/>, wrapped as an <see cref="IWatchedService"/>.
+/// The <see cref="IObservedSession"/> the serve-driven watch (<see cref="SustainedFood.ObserveAsync"/>) drives over a
+/// game a driver outside the case runner opened itself (the colony and colony-review subcommands). The service is a
+/// <see cref="ServiceProcess"/>, wrapped as an <see cref="IWatchedService"/>.
 /// </summary>
-public sealed class ObservedSession : IObservedSession
+public static class ObservedSession
 {
-    private readonly ISession _session;
-
-    private ObservedSession(ISession session) => _session = session;
-
-    /// <summary>
-    /// Opens the service's durable-journal reader for the case's run (Go <c>store.Open</c> on
-    /// <c>&lt;output&gt;/service.sqlite</c>), for the watch's samples and for a case's own audit after the service
-    /// stopped. The in-game brain's journal location is owned by the service/journal slice (#3085, #3087): until it
-    /// assigns this hook, <see cref="OpenStoreAsync"/> fails with a message naming the missing reader.
-    /// </summary>
-    public static Func<Config, CancellationToken, Task<IWatchStore>>? StoreOpener { get; set; }
-
-    /// <summary>
-    /// Reads the layout plan the journal recorded for its latest persisted review (Go <c>store.LoadRounds</c> then
-    /// <c>store.LayoutPlan</c>): the review tick and the plan, null when none was recorded by then. Assigned with
-    /// <see cref="StoreOpener"/>.
-    /// </summary>
-    public static Func<Config, CancellationToken, Task<(ulong Tick, LayoutPlan? Plan)>>? LayoutPlanReader { get; set; }
-
-    /// <summary>The watch view of <paramref name="session"/>.</summary>
-    public static IObservedSession Of(ISession session)
-    {
-        ArgumentNullException.ThrowIfNull(session);
-        return new ObservedSession(session);
-    }
-
     /// <summary>
     /// The watch view of a game a driver outside the case runner opened itself (<see cref="Session.OpenAsync"/>): the
-    /// service it serves is launched on that game, not by a case session.
+    /// service it serves is launched on that game.
     /// </summary>
     public static IObservedSession Of(Session session, Config config, Report report, ServeSpec spec)
     {
@@ -50,53 +23,14 @@ public sealed class ObservedSession : IObservedSession
     }
 
     /// <summary>
-    /// The watch view of a service the case launched itself (<see cref="ISession.ServeAsync"/>), for a case that drives
-    /// <see cref="SustainedFood.WatchAsync"/> phase by phase and stops the service between them.
+    /// Opens the service's durable-journal reader for the run <paramref name="config"/> describes (the file the
+    /// harness points the game at, <c>&lt;output&gt;/service.sqlite</c>), for the watch's samples.
     /// </summary>
-    public static IWatchedService Watched(ISession session, ServiceProcess process)
-    {
-        ArgumentNullException.ThrowIfNull(session);
-        return Watched(process, session.Config);
-    }
-
-    /// <summary>The watch view of a service a driver outside the case runner launched on the run <paramref name="config"/> describes.</summary>
-    public static IWatchedService Watched(ServiceProcess process, Config config)
-    {
-        ArgumentNullException.ThrowIfNull(process);
-        ArgumentNullException.ThrowIfNull(config);
-        return new WatchedService(process, config);
-    }
-
-    /// <summary>Opens the journal reader of the run <paramref name="config"/> describes.</summary>
-    public static Task<IWatchStore> OpenStoreAsync(Config config, CancellationToken cancellationToken)
+    public static async Task<IWatchStore> OpenStoreAsync(Config config, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(config);
-        var open = StoreOpener
-            ?? throw new AcceptanceException("no journal reader is wired for the in-game brain's store (ObservedSession.StoreOpener): the case cannot read the goal's durable state");
-        return open(config, cancellationToken);
+        return await CaseStore.OpenAsync(config, cancellationToken).ConfigureAwait(false);
     }
-
-    /// <summary>Reads the layout plan of the run <paramref name="config"/> describes (see <see cref="LayoutPlanReader"/>).</summary>
-    public static Task<(ulong Tick, LayoutPlan? Plan)> ReadLayoutPlanAsync(Config config, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(config);
-        var read = LayoutPlanReader
-            ?? throw new AcceptanceException("no layout-plan reader is wired for the in-game brain's store (ObservedSession.LayoutPlanReader)");
-        return read(config, cancellationToken);
-    }
-
-    public Harness Harness => _session.Harness;
-
-    public Config Config => _session.Config;
-
-    public Report Report => _session.Report;
-
-    public ServeSpec Spec => _session.Spec;
-
-    public async Task<IWatchedService> ServeAsync(ServeSpec spec, CancellationToken cancellationToken) =>
-        new WatchedService(await _session.ServeAsync(spec, cancellationToken).ConfigureAwait(false), _session.Config);
-
-    public Task<Harness> ReattachAsync(CancellationToken cancellationToken) => Task.FromResult(_session.Reattach());
 
     private sealed class OpenedSession(Session session, Config config, Report report, ServeSpec spec) : IObservedSession
     {
@@ -109,7 +43,7 @@ public sealed class ObservedSession : IObservedSession
         public ServeSpec Spec => spec;
 
         public async Task<IWatchedService> ServeAsync(ServeSpec serve, CancellationToken cancellationToken) =>
-            Watched(
+            new WatchedService(
                 await ServiceProcess.ServeAsync(config, session.Harness, session.Identity, serve, report, cancellationToken).ConfigureAwait(false),
                 config);
 

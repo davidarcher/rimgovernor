@@ -59,7 +59,7 @@ public static class ColonyAudits
     {
         ArgumentNullException.ThrowIfNull(harness);
         ArgumentNullException.ThrowIfNull(report);
-        var identity = await Session.ReadIdentityAsync(harness, "audit-nutrition-identity", cancellationToken).ConfigureAwait(false);
+        var identity = Harness.Context(await harness.LoadedAsync("audit-nutrition-identity", cancellationToken).ConfigureAwait(false), "audit-nutrition-identity").Identity;
         var reply = await harness.CallAsync(
             "audit-nutrition",
             NativeOps.ListPawns,
@@ -125,7 +125,7 @@ public static class ColonyAudits
     /// </summary>
     internal static async Task AuditStockpilesAsync(Harness harness, JsonObject identity, string output, Report report, CancellationToken cancellationToken)
     {
-        var scope = TypedReads.Scope(identity);
+        var scope = TypedReads.Scope(Harness.IdentityOf(identity));
         var zones = await harness.CallAsync("audit-zones", NativeOps.ListZones, new Observations.ListZonesRequest { Scope = scope, IncludeFilter = true }, cancellationToken).ConfigureAwait(false);
         var stockpiles = 0;
         var food = 0;

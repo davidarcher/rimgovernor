@@ -92,7 +92,6 @@ public sealed class TypedCaseTests
         Assert.IsType<LabStart>(start.On);
         Assert.Equal(CaseTier.Nightly, c.Tier);
         Assert.Same(typed, c.Typed);
-        Assert.Empty(c.Lint());
     }
 
     [Fact]

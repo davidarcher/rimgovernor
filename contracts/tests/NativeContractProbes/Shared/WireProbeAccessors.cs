@@ -9,8 +9,8 @@ internal static class WireProbeAccessors
 {
     extension(Authority.ControlRequest r)
     {
-        public Authority.SetMode SetMode => r.Operation?.SetMode;
-        public Authority.Revoke Revoke => r.Operation?.Revoke;
+        public Authority.SetMode SetMode => (r.Operation as Authority.ControlRequestOperation.SetModeCase)?.Value;
+        public Authority.Revoke Revoke => (r.Operation as Authority.ControlRequestOperation.RevokeCase)?.Value;
         public Authority.FocusMap FocusMap => r.Operation?.FocusMap;
     }
     extension(Authority.StatusReply r)

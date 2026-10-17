@@ -42,9 +42,8 @@ public sealed class CaseRunner
     }
 
     /// <summary>
-    /// Runs one case end to end (prepare, open, start, quiet, freeze, Run, close) and writes its report. A case that
-    /// fails Lint is refused before the game opens; Finalize fails the run when it took longer than the budget
-    /// (budget_ms) and stamps its timing and metrics block; the report records under wait_stats how many of its waits
+    /// Runs one case end to end (prepare, open, start, quiet, freeze, Run, close) and writes its report. A hung body is
+    /// cut at its hang guard; Finalize stamps its timing and metrics block; the report records under wait_stats how many of its waits
     /// stalled and under game_log the slice of the game's own log the case wrote, copied to &lt;output&gt;/game.log. The
     /// block is appended to the run's series (<see cref="RunOptions.SeriesPath"/>) and the report lists under "drift" the
     /// metrics past their rule against the series' trailing median; neither changes the verdict.
@@ -61,7 +60,7 @@ public sealed class CaseRunner
             opts = opts with { NoSeries = true };
         }
 
-        var headless = opts.Headless && !c.Rendered;
+        var headless = opts.Headless;
         var report = Report.Create(c.Scope, headless);
         report["case"] = c.Name;
         if (opts.Healed.Count > 0)
@@ -116,34 +115,16 @@ public sealed class CaseRunner
         }
 
         opened = true;
-        var lint = c.Lint();
-        if (lint.Count > 0)
-        {
-            report["error"] = string.Join('\n', lint);
-            return Finish();
-        }
 
-        var budget = c.Budget;
-        if (opts.Budget > TimeSpan.Zero)
-        {
-            budget = opts.Budget;
-        }
+        // A case is held to its ticks, not the wall clock: its hang guard cuts a hung body (RunOpenedAsync), and a
+        // passing claim never fails on time, so the report carries no budget.
+        var budget = opts.Budget > TimeSpan.Zero ? opts.Budget : c.Typed.HangGuard;
+        report["ticks"] = c.Typed.Ticks;
+        report["hang_guard_ms"] = (long)budget.TotalMilliseconds;
 
-        if (c.Typed is { } typed)
-        {
-            // A typed case is held to its ticks, not the wall clock: its hang guard cuts a hung body (RunOpenedAsync), and
-            // a passing claim never fails on time, so the report carries no budget.
-            report["ticks"] = typed.Ticks;
-            report["hang_guard_ms"] = (long)(opts.Budget > TimeSpan.Zero ? opts.Budget : typed.HangGuard).TotalMilliseconds;
-        }
-        else
-        {
-            report.SetBudget(budget);
-        }
-
-        // The shared waits read the stall budget from the environment; a flag override or the case's own Stall is set
-        // for this case and the process's original value put back for the next.
-        var stall = opts.Stall > TimeSpan.Zero ? opts.Stall : c.Stall;
+        // The shared waits read the stall budget from the environment; a flag override is set for this case and the
+        // process's original value put back for the next.
+        var stall = opts.Stall;
         Environment.SetEnvironmentVariable(Wait.StallEnv, stall > TimeSpan.Zero ? GoDuration.Format(stall) : InitialStallEnv);
         report["stall_ms"] = (long)Wait.StallBudget().TotalMilliseconds;
         EvidenceBudget.SetEvidenceMode(opts.Evidence);
@@ -240,52 +221,25 @@ public sealed class CaseRunner
         }
     }
 
-    // Which process profile a case under -headless must end before it opens, or "" when it reuses whatever runs: a
-    // rendered case cannot run on the headless process ("headless"), and a headless case after a rendered one would boot
-    // beside the windowed process the rendered case kept ("rendered"). Without -headless every case shares the windowed
-    // profile and nothing is stopped.
-    private static string ProfileToStop(AcceptanceCase c, bool headless)
+    // Under -headless, ends a windowed process an earlier run kept, so the case does not boot beside it, recording the
+    // stop on the report under "stopped_rendered". Without -headless every case shares the windowed profile.
+    private static async Task StopOtherProfileAsync(RunOptions opts, Report report, CancellationToken cancellationToken)
     {
-        if (!headless)
+        if (!opts.Headless)
         {
-            return "";
+            return;
         }
 
-        return c.Rendered ? "headless" : "rendered";
-    }
-
-    // Ends the process ProfileToStop names, recording a rendered stop on the report under "stopped_rendered".
-    private static async Task StopOtherProfileAsync(AcceptanceCase c, RunOptions opts, Report report, CancellationToken cancellationToken)
-    {
-        switch (ProfileToStop(c, opts.Headless))
+        try
         {
-            case "headless":
-                try
-                {
-                    _ = await Game.StopGameAsync(opts.Root, opts.GameId, cancellationToken).ConfigureAwait(false);
-                }
-                catch (AcceptanceException e)
-                {
-                    throw new AcceptanceException("stop kept headless game before rendered start: " + e.Message, e);
-                }
-
-                break;
-            case "rendered":
-                try
-                {
-                    if (await Game.StopRenderedGameAsync(opts.Root, opts.GameId, cancellationToken).ConfigureAwait(false))
-                    {
-                        report["stopped_rendered"] = true;
-                    }
-                }
-                catch (AcceptanceException e)
-                {
-                    throw new AcceptanceException("stop kept rendered game before headless start: " + e.Message, e);
-                }
-
-                break;
-            default:
-                break;
+            if (await Game.StopRenderedGameAsync(opts.Root, opts.GameId, cancellationToken).ConfigureAwait(false))
+            {
+                report["stopped_rendered"] = true;
+            }
+        }
+        catch (AcceptanceException e)
+        {
+            throw new AcceptanceException("stop kept rendered game before headless start: " + e.Message, e);
         }
     }
 
@@ -373,7 +327,7 @@ public sealed class CaseRunner
             staged = staged.WithOff("dev iteration");
         }
 
-        var session = new CaseSession(c, report, _deps.Scenario, opts.Seed, staged, opts.StagesDir(c), opts.Through);
+        var session = new CaseSession(c, report);
         if (resumed.Resuming || staged.Staged)
         {
             // The restored store holds the earlier run's submissions.
@@ -383,11 +337,6 @@ public sealed class CaseRunner
         if (opts.Dev)
         {
             session.ResumeSuffix = "dev" + CaseSession.Tag(Math.Max(opts.Attempt, 1));
-        }
-
-        if (resumed.Resuming)
-        {
-            session.Resumed = resumed.Entry;
         }
 
         var cfg = NewConfig(c, opts, output);
@@ -477,7 +426,7 @@ public sealed class CaseRunner
             return;
         }
 
-        await StopOtherProfileAsync(c, opts, report, cancellationToken).ConfigureAwait(false);
+        await StopOtherProfileAsync(opts, report, cancellationToken).ConfigureAwait(false);
 
         // Session.OpenAsync is the shared preamble: stale-package check, profile, a kept process, discovery, the start,
         // pause, the fixture op, frozen needs and the identity, each on the report.
@@ -519,7 +468,6 @@ public sealed class CaseRunner
     {
         var checkpointing = _deps.Checkpointing;
         await StaffAsync(c, lifecycle.Harness, report, cancellationToken).ConfigureAwait(false);
-        await Needs.RecordVanillaColonistsAsync(c, lifecycle.Harness, report, cancellationToken).ConfigureAwait(false);
         report["quiet_mode"] = QuietText(c.Quiet);
         if (resumed.Resuming && resumed.Entry!.Prepared is { } resumedPrepared)
         {
@@ -566,16 +514,8 @@ public sealed class CaseRunner
             // The budget cuts the Run body where Finalize would fail it anyway: the -timeout safety net sits minutes past
             // it, long enough for a hung serve loop to run on unseen.
             using var body = CancellationTokenSource.CreateLinkedTokenSource(runScope.Token);
-            if (c.Typed is { } typed)
-            {
-                // The hang guard runs from the body's start: boot and staging are the runner's, not the claim's.
-                body.CancelAfter(opts.Budget > TimeSpan.Zero ? opts.Budget : typed.HangGuard);
-            }
-            else if (report.BudgetDeadline() is { } deadline)
-            {
-                var remaining = deadline - DateTimeOffset.UtcNow;
-                body.CancelAfter(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
-            }
+            // The hang guard runs from the body's start: boot and staging are the runner's, not the claim's.
+            body.CancelAfter(opts.Budget > TimeSpan.Zero ? opts.Budget : c.Typed.HangGuard);
 
             Exception? runError = null;
             try
@@ -590,7 +530,7 @@ public sealed class CaseRunner
             if (runError is not null && body.IsCancellationRequested && !runScope.IsCancellationRequested)
             {
                 runError = new AcceptanceException(
-                    (c.Typed is null ? "run cut at its wall-clock budget: " : "run cut at its hang guard (ticks / 300 per second + 1 min): ") + ErrorText(runError),
+                    "run cut at its hang guard (ticks / 300 per second + 1 min): " + ErrorText(runError),
                     runError);
             }
 
@@ -738,9 +678,8 @@ public sealed class CaseRunner
             throw new AcceptanceException($"bundle {entry.Path} cannot be loaded under this tree: {reason}");
         }
 
-        var session = new CaseSession(c, report, _deps.Scenario, "", StagePlan.None, "", "")
+        var session = new CaseSession(c, report)
         {
-            Resumed = entry,
             ResumeSuffix = opts.RunId(),
         };
         var cfg = NewConfig(c, opts, output);
@@ -780,7 +719,7 @@ public sealed class CaseRunner
             await log.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"postmortem-only: {c.Name} over {entry.Path} (tick {entry.Tick}); the ring is untouched")).ConfigureAwait(false);
         }
 
-        await StopOtherProfileAsync(c, opts, report, cancellationToken).ConfigureAwait(false);
+        await StopOtherProfileAsync(opts, report, cancellationToken).ConfigureAwait(false);
         var lifecycle = await Session.OpenAsync(cfg, new RunnerHost(_host, c.NoKeep), report, new SaveStart { Name = save, Resumed = true }, c.Quiet, c.KeepNeeds(), cancellationToken).ConfigureAwait(false);
         try
         {
@@ -926,8 +865,7 @@ public sealed class CaseRunner
         {
             Root = opts.Root,
             Output = output,
-            Headless = opts.Headless && !c.Rendered,
-            Graphics = c.Graphics,
+            Headless = opts.Headless,
             GameId = opts.GameId,
             QuietWorld = c.QuietWorld,
         };

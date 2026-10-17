@@ -3,7 +3,6 @@ Contracts|Observations.PlannedSiteBlocker.Clearing
 Contracts|Observations.PlannedSiteRejection.Illegal
 Contracts|Observations.PracticeWorker.InjuryRecoveryTicks
 Contracts|Observations.RecipeActivityRead.Findings
-Contracts|Observations.ResearchRequest.ProgressOnly
 Contracts|Observations.SkillLearning.RangeRawXpPerShot
 Contracts|Observations.SkillLearning.SparringRawXpPerExchange
 Contracts|Observations.SupportDemand.DeadlineTicks

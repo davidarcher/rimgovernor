@@ -664,8 +664,6 @@ public sealed record JobEvidence
 {
     public string? DefName { get; init; }
 
-    public string? LoadId { get; init; }
-
     public bool PlayerForced { get; init; }
 
     public TargetRef? TargetA { get; init; }
@@ -924,10 +922,6 @@ public sealed record GearItem
     public string? Stuff { get; init; }
 
     public Defs.QualityCategory? Quality { get; init; }
-
-    public int? HitPoints { get; init; }
-
-    public int? MaxHitPoints { get; init; }
 
     public double? ConditionFraction { get; init; }
 
@@ -2018,9 +2012,6 @@ public sealed record BillState
 
     public StockpileFilter? IngredientFilter { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-
     /// <summary>
     /// Live bill jobs' promised ingredients: one row per spawned pawn
     /// whose current job works this bill, the spawned things it has queued or
@@ -2397,9 +2388,6 @@ public sealed record RoomState
     [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
     public EquatableArray<Quantity> Contents { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-
     public SnapshotRef? Snapshot { get; init; }
 
     /// <summary>
@@ -2524,9 +2512,6 @@ public sealed record ZoneState
     public string? CropDefName { get; init; }
 
     public StockpileFilter? Filter { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 
     public FarmFacts? Farm { get; init; }
 
@@ -2737,9 +2722,6 @@ public sealed record ResearchProject
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> LockReasons { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 }
 
 public sealed record ResearchSlot
@@ -2965,9 +2947,6 @@ public sealed record DefenseCell
 
     public bool? Door { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-
     /// <summary>
     /// The thing whose fillPercent cover_fill reports (GetCover, else the
     /// edifice), with the clearance designation ordinary work would need.
@@ -3099,9 +3078,6 @@ public sealed record LineOfFire
     public double? ShooterCover { get; init; }
 
     public double? Distance { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 }
 
 public sealed record LinesOfFireSnapshot
@@ -3880,14 +3856,11 @@ public abstract record RecoveryReplyOutcome
 }
 
 /// <summary>
-/// pawn refers to the bundle pawn table row; its snapshot is the
-/// prisoner custody and interaction settings token.
+/// pawn refers to the bundle pawn table row.
 /// </summary>
 public sealed record PopulationPerson
 {
     public Common.Ref? Pawn { get; init; }
-
-    public SnapshotRef? PawnSnapshot { get; init; }
 
     public bool? Admitted { get; init; }
 
@@ -4079,9 +4052,6 @@ public sealed record WorldTile
     public string? Hilliness { get; init; }
 
     public double? Longitude { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 }
 
 public sealed record WorldSnapshot
@@ -4656,9 +4626,6 @@ public sealed record QuestState
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestReward>))]
     public EquatableArray<QuestReward> Rewards { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-
     public SnapshotRef? Snapshot { get; init; }
 
     public string? ScriptDef { get; init; }
@@ -4988,10 +4955,6 @@ public sealed record ResolveTargetRequest
 public abstract record ResolveTargetRequestQuery
 {
     private protected ResolveTargetRequestQuery() { }
-
-    /// <summary>The <c>EntityId</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public string? EntityId => (this as EntityIdCase)?.Value;
 
     public sealed record EntityIdCase(string Value) : ResolveTargetRequestQuery;
 
@@ -5747,8 +5710,6 @@ public sealed record TradeCommsWork
     public string? ConsoleId { get; init; }
 
     public string? FactionId { get; init; }
-
-    public int? JobId { get; init; }
 }
 
 public sealed record TradePackEstimate
@@ -6305,9 +6266,6 @@ public sealed record FoodClimate
 
     public double? GrowingDaysRemaining { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-
     public bool? SowingNow { get; init; }
 
     public double? GrowingDaysUntil { get; init; }
@@ -6371,9 +6329,6 @@ public sealed record GrowLight
     public bool? LitNow { get; init; }
 
     public string? PowerNetId { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 }
 
 public sealed record PlantGrower
@@ -6385,9 +6340,6 @@ public sealed record PlantGrower
     public string? CropDefName { get; init; }
 
     public bool? CanSow { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 }
 
 public sealed record GrowRoom
@@ -6430,9 +6382,6 @@ public sealed record ControlledEnvironment
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PowerHeadroom>))]
     public EquatableArray<PowerHeadroom> Networks { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 }
 
 /// <summary>
@@ -7358,11 +7307,6 @@ public sealed record ThreatFacts
     public double? AdaptationFactor { get; init; }
 
     public double? DifficultyThreatScale { get; init; }
-
-    public uint? ColonistCount { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
 
     /// <summary>
     /// The hostile lords seen on the map since load (RaidArrivalState): the defense layout ranks the approaches by where ground raids crossed its census.
@@ -8964,8 +8908,6 @@ public sealed record ThreatBuilding
 
     public SnapshotRef BuildingSnapshot { get; init; } = new();
 
-    public int HitPoints { get; init; }
-
     public int? NearestColonistDistance { get; init; }
 
     public bool Passive { get; init; }
@@ -9202,8 +9144,6 @@ public sealed record ObservationBatchSnapshot
 {
     public ListPawnsReply? Pawns { get; init; }
 
-    public ListBuildingsReply? Buildings { get; init; }
-
     public ListRoomsReply? Rooms { get; init; }
 
     public ListZonesReply? Zones { get; init; }
@@ -9217,8 +9157,6 @@ public sealed record ObservationBatchRequest
     public StatusRequest? Status { get; init; }
 
     public ListPawnsRequest? Pawns { get; init; }
-
-    public ListBuildingsRequest? Buildings { get; init; }
 
     public ListRoomsRequest? Rooms { get; init; }
 

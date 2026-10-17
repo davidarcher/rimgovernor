@@ -187,7 +187,6 @@ public sealed class ClockRunDriverTests
             State = _held ? PbClock.ClockState.Held : PbClock.ClockState.Running,
             Reason = _held ? _reason : null,
             TargetSpeed = _speed == PbClock.Speed.Unspecified ? null : _speed,
-            PauseVerified = _held ? true : null,
             HeldAtUnixMs = _held ? _heldAtMs : null,
             NativeTickBoundary = true,
             HoldSerial = _holdSerial,

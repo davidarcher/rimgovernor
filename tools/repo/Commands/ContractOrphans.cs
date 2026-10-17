@@ -130,7 +130,8 @@ internal static class ContractOrphans
     /// The identifier-shaped string literals of <paramref name="assemblies"/>: the keys the acceptance cases and their
     /// harness may read a native reply by (<c>view["benches"]</c>, a helper's key argument). Every such literal counts,
     /// not only an indexer's, so a case's by-name read never leaves its member flagged; a common word may keep a real
-    /// orphan alive. A stopgap until the cases read typed Contracts records.
+    /// orphan alive. The cases read typed Contracts records; this stays while the harness subcommands (sweep, speedmatrix,
+    /// colony) still read native replies as JsonNode by key.
     /// </summary>
     public static HashSet<string> LiteralKeys(IEnumerable<string> assemblies)
     {
@@ -196,8 +197,11 @@ internal static class ContractOrphans
         return names;
     }
 
+    // A member the brain writes and the native side reads is a request field in use, even outside the intent
+    // namespaces and when the native side builds its own request too (a frame's scope).
     private static string? Verdict(Use use, bool intent) =>
-        use.NativeWrite && !use.BrainRead && !intent ? "written by the native side, never read by the brain"
+        use.BrainWrite && use.NativeRead ? null
+        : use.NativeWrite && !use.BrainRead && !intent ? "written by the native side, never read by the brain"
         : use.BrainRead || use.NativeRead ? null
         : use.BrainWrite || use.NativeWrite ? "written, never read"
         : "not referenced outside its declaration";

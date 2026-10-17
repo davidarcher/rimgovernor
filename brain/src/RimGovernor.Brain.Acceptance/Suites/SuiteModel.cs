@@ -28,7 +28,7 @@ public sealed record SuiteEntry
     public bool ServeDriven => Registered is not null && Tiers.ServeDriven(Registered);
 
     /// <summary>
-    /// The row's scheduling tier: 0 keeps the process, 1 ends or replaces it (NoKeep, Rendered), 2 hosts a service and
+    /// The row's scheduling tier: 0 keeps the process, 1 ends or replaces it (NoKeep), 2 hosts a service and
     /// keeps the process, 3 hosts a service and ends it. The row after an ending one boots cold, so the ending
     /// serve-driven rows go behind the keeping ones.
     /// </summary>
@@ -46,7 +46,7 @@ public sealed record SuiteEntry
                 return 2;
             }
 
-            return Registered is { } c && (c.NoKeep || c.Rendered) ? 1 : 0;
+            return Registered is { NoKeep: true } ? 1 : 0;
         }
     }
 }

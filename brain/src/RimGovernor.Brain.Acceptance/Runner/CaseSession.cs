@@ -5,11 +5,11 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The runner's <see cref="ISession"/> over the lifecycle's <see cref="Session"/> (Go <c>cases.session</c>), plus the
-/// services a case launched so the runner can stop them before the game closes. The lifecycle session is null for an
-/// Owned case, which opens its own game on <see cref="Config"/>.
+/// The runner's session over the lifecycle's <see cref="Session"/> (Go <c>cases.session</c>) that a
+/// <see cref="TypedSession"/> wraps, plus the services a case launched so the runner can stop them before the game
+/// closes. The lifecycle session is null for an Owned case, which opens its own game on <see cref="Config"/>.
 /// </summary>
-public sealed class CaseSession : ISession, IRingHost
+public sealed class CaseSession : IRingHost
 {
     /// <summary>
     /// The checkpoint state key under which the ring records the last stage a run completed, so a resume from a later
@@ -19,59 +19,34 @@ public sealed class CaseSession : ISession, IRingHost
 
     private readonly AcceptanceCase _case;
     private readonly Report _report;
-    private readonly IScenarioDriver? _scenario;
     private readonly List<ServiceProcess> _services = [];
     private readonly JsonArray _stageRows = [];
-    private readonly string _seed;
-    private readonly string _stagesDir;
-    private readonly string _through;
-    private readonly StagePlan _stagePlan;
     private Config? _config;
     private Session? _opened;
     private JsonObject? _prepared;
-    private int _stageNext;
-    private IScenarioRuntime? _runtime;
-    private Harness? _runtimeHarness;
 
-    internal CaseSession(AcceptanceCase c, Report report, IScenarioDriver? scenario, string seed, StagePlan stagePlan, string stagesDir, string through)
+    internal CaseSession(AcceptanceCase c, Report report)
     {
         _case = c;
         _report = report;
-        _scenario = scenario;
-        _seed = seed;
-        _stagePlan = stagePlan;
-        _stagesDir = stagesDir;
-        _through = through;
     }
 
-    /// <inheritdoc />
+    /// <summary>The run's resolved configuration (root, output, profile, startup log); an Owned case opens its own game with it.</summary>
     public Config Config => _config ?? throw new InvalidOperationException("the session has no configuration yet");
 
-    /// <inheritdoc />
+    /// <summary>Records evidence under the run's output directory.</summary>
     public Harness Harness => Opened.Harness;
 
-    /// <inheritdoc />
-    public IReadOnlyList<string> Names => Opened.Names;
-
-    /// <inheritdoc />
+    /// <summary>The loaded colony's identity (colonyId, loadToken, mapId...).</summary>
     public JsonObject Identity => Opened.Identity;
 
-    /// <inheritdoc />
+    /// <summary>A Fixture start's reply, null otherwise.</summary>
     public JsonObject? Prepared => _prepared ?? _opened?.Prepared;
 
-    /// <inheritdoc />
+    /// <summary>The run's report; the case adds its own fields.</summary>
     public Report Report => _report;
 
-    /// <inheritdoc />
-    public ServeSpec Spec => _case.Serve ?? new ServeSpec();
-
-    /// <inheritdoc />
-    public Checkpoint? Resumed { get; internal set; }
-
-    /// <inheritdoc />
-    public Checkpoint? Staged => _stagePlan.Staged ? _stagePlan.Entry : null;
-
-    /// <inheritdoc />
+    /// <summary>The failed run's result.json under <c>-postmortem-only</c>, null on any other run or when the ring did not record it.</summary>
     public JsonObject? Prior { get; internal set; }
 
     /// <summary>What <see cref="RequestId"/> appends on a resumed run, empty on a fresh one.</summary>
@@ -109,190 +84,23 @@ public sealed class CaseSession : ISession, IRingHost
     /// <summary>The fixture op's reply a bundle recorded replaces the one the session found (a resumed or staged run opens on a save, not the op).</summary>
     internal void UsePrepared(JsonObject prepared) => _prepared = prepared;
 
-    /// <inheritdoc />
-    public string RequestId(string baseId) => ResumeSuffix.Length == 0 ? baseId : baseId + "-" + ResumeSuffix;
+    /// <summary>Takes the game back once the services have stopped; returns the (unchanged) harness.</summary>
+    internal Harness Reattach() => Opened.Harness;
 
-    /// <inheritdoc />
-    public void Release()
-    {
-        _ = Opened;
-    }
-
-    /// <inheritdoc />
-    public Harness Reattach() => Opened.Harness;
-
-    /// <inheritdoc />
-    public async Task<Harness> ReloadAsync(CancellationToken cancellationToken)
-    {
-        var opened = Opened;
-        var start = CaseRunner.SeededStart(_case.Start!, _seed);
-        await opened.ReopenAsync(start, _case.Quiet, _case.KeepNeeds(), cancellationToken).ConfigureAwait(false);
-        await CaseRunner.StaffAsync(_case, opened.Harness, _report, cancellationToken).ConfigureAwait(false);
-        await Needs.RecordVanillaColonistsAsync(_case, opened.Harness, _report, cancellationToken).ConfigureAwait(false);
-        return opened.Harness;
-    }
-
-    /// <inheritdoc />
-    public async Task<ServiceProcess> LaunchAsync(ServiceLaunch launch, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(launch);
-        var opened = Opened;
-
-        Release();
-        var service = await ServiceProcess.LaunchServiceAsync(Config, launch, _report, cancellationToken, opened.Harness).ConfigureAwait(false);
-        _services.Add(service);
-        return service;
-    }
-
-    /// <inheritdoc />
-    public async Task<ServiceProcess> ServeAsync(ServeSpec spec, CancellationToken cancellationToken)
+    /// <summary>The full serve lifecycle over the session's game: load, attach to the session's identity.</summary>
+    internal async Task<ServiceProcess> ServeAsync(ServeSpec spec, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(spec);
         var opened = Opened;
 
-        // The handle's own request ids (resume, acknowledge, the watch's commands) carry the run suffix like the case's:
-        // a resumed or staged run's restored store already holds the earlier run's under the case's prefix with that
-        // run's identity, and the same requestId with a new loadToken is a conflict (409).
+        // The handle's own request ids (resume, acknowledge, the watch's commands) carry the run suffix: a resumed or
+        // staged run's restored store already holds the earlier run's under the case's prefix with that run's identity,
+        // and the same requestId with a new loadToken is a conflict (409).
         var prefix = spec.Prefix.Length == 0 ? "serve" : spec.Prefix;
         spec = spec with { Prefix = RequestId(prefix) };
         var service = await ServiceProcess.ServeAsync(Config, opened.Harness, opened.Identity, spec, _report, cancellationToken).ConfigureAwait(false);
         _services.Add(service);
         return service;
-    }
-
-    /// <summary>
-    /// The case's scenario runtime over a controller clock acquired on first use; the discovered tools let an advance
-    /// dismiss the letters it acknowledges. The runtime is cached per harness: a runtime built on another harness would
-    /// bind a closed transport.
-    /// </summary>
-    public async Task<IScenarioRuntime> RuntimeAsync(CancellationToken cancellationToken)
-    {
-        var driver = _scenario ?? throw new AcceptanceException("no scenario clock is wired into this runner (RunDependencies.Scenario)");
-        var harness = Harness;
-        if (_runtime is not null && ReferenceEquals(_runtimeHarness, harness))
-        {
-            return _runtime;
-        }
-
-        var runtime = await driver.CreateRuntimeAsync(harness, Identity, _report, Names, cancellationToken).ConfigureAwait(false);
-        _runtime = runtime;
-        _runtimeHarness = harness;
-        return runtime;
-    }
-
-    /// <inheritdoc />
-    public async Task<JsonObject> AdvanceAsync(ulong ticks, IReadOnlyList<IScenarioAdvanceOption>? options, CancellationToken cancellationToken)
-    {
-        var runtime = await RuntimeAsync(cancellationToken).ConfigureAwait(false);
-        return await _scenario!.AdvanceAsync(runtime, ticks, _case.Letters, options ?? [], cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
-    public async Task StageAsync(string name, Func<CancellationToken, Task> stage, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(stage);
-        var index = -1;
-        for (var i = 0; i < _case.Stages.Count; i++)
-        {
-            if (_case.Stages[i] == name)
-            {
-                index = i;
-            }
-        }
-
-        if (index < 0)
-        {
-            throw new AcceptanceException($"stage \"{name}\" is not declared by {_case.Name} (Stages: [{string.Join(' ', _case.Stages)}])");
-        }
-
-        if (index != _stageNext)
-        {
-            var next = _stageNext < _case.Stages.Count ? _case.Stages[_stageNext] : "(none)";
-            throw new AcceptanceException($"stage \"{name}\" out of order: {_case.Name} declares [{string.Join(' ', _case.Stages)}] and the next stage is \"{next}\"");
-        }
-
-        _stageNext++;
-        var began = Stopwatch.StartNew();
-        var row = new JsonObject { ["name"] = name };
-        _stageRows.Add(row);
-        if (index <= _stagePlan.Hit)
-        {
-            row["outcome"] = "hit";
-            row["path"] = Path.Combine(_stagesDir, name);
-            row["wall_ms"] = 0L;
-            TripStage(name);
-            EndThrough(name, "hit");
-            return;
-        }
-
-        try
-        {
-            await stage(cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception)
-        {
-            row["outcome"] = "failed";
-            row["wall_ms"] = began.ElapsedMilliseconds;
-            throw;
-        }
-
-        if (_opened is null)
-        {
-            throw new AcceptanceException($"stage \"{name}\": no game open");
-        }
-
-        var holder = HoldingService();
-        if (holder is not null)
-        {
-            throw new AcceptanceException($"stage \"{name}\": a service still holds the game ({holder.Label}); stop it before the staging block returns");
-        }
-
-        // The ring's later bundles record the stage as done, so a resume from one (which replays the body from the top)
-        // skips it as a hit would.
-        Checkpoints.SetState(StageStateKey, JsonValue.Create(name));
-        try
-        {
-            if (Stages is null)
-            {
-                row["outcome"] = "uncached";
-                row["wall_ms"] = began.ElapsedMilliseconds;
-                if (name == _through)
-                {
-                    throw new AcceptanceException($"stage \"{name}\": -through needs the bundle cached, but staging is off ({_stagePlan.Off})");
-                }
-
-                return;
-            }
-
-            // The bundle's offset is the run's, so a hit sets the ring's Base and its labels stay monotonic; the case
-            // state travels with it.
-            Stages.Base = RunStarted.Elapsed;
-            if (Ring is not null)
-            {
-                Stages.Base = Ring.Offset();
-                Stages.State = Ring.StateSnapshot() ?? [];
-            }
-
-            Checkpoint entry;
-            try
-            {
-                entry = await Stages.CaptureAsync(name, cancellationToken).ConfigureAwait(false);
-            }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"stage \"{name}\": capture: {e.Message}", e);
-            }
-
-            row["outcome"] = "captured";
-            row["path"] = entry.Path;
-            row["wall_ms"] = began.ElapsedMilliseconds;
-            row["capture_ms"] = entry.WallMs;
-            EndThrough(name, "captured");
-        }
-        finally
-        {
-            TripStage(name);
-        }
     }
 
     /// <inheritdoc />
@@ -325,32 +133,9 @@ public sealed class CaseSession : ISession, IRingHost
         }
     }
 
-    // A service that still holds the game: the package's latest launch, else any of ours still running.
-    private ServiceProcess? HoldingService() => ServiceProcess.LatestService() ?? _services.FirstOrDefault(p => p.Running());
-
-    // Fires the run's stage breakpoint once the named stage is done, whether its block ran or a bundle covered it.
-    private void TripStage(string name)
-    {
-        if (Ring is { } ring && ring.Break.Stage == name)
-        {
-            ring.Trip("stage " + name + " done");
-        }
-    }
-
-    // Ends the run after the named stage when it is the run's -through stage: the Run body is cut and the report says
-    // which stage the run ended on and whether its bundle was taken by this run or found cached.
-    private void EndThrough(string name, string outcome)
-    {
-        if (name != _through)
-        {
-            return;
-        }
-
-        _report["staged_through"] = new JsonObject { ["stage"] = name, ["outcome"] = outcome, ["path"] = Path.Combine(_stagesDir, name) };
-        var cause = new StagedThroughException(name, outcome);
-        CutRun?.Invoke(cause);
-        throw cause;
-    }
-
     internal static string Tag(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    // <paramref name="baseId"/> on a fresh run and suffixed with the run's id on a resumed one: the restored store
+    // already holds the fresh run's submissions.
+    private string RequestId(string baseId) => ResumeSuffix.Length == 0 ? baseId : baseId + "-" + ResumeSuffix;
 }

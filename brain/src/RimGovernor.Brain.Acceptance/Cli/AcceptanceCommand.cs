@@ -39,12 +39,11 @@ public static class AcceptanceCommand
             return args.Count == 0 ? 2 : 0;
         }
 
-        // The default wiring of the run machinery: ring and stage planner, doctor/heal preflight, scenario clock.
+        // The default wiring of the run machinery: ring and stage planner, doctor/heal preflight.
         RunDependencies.Current ??= new RunDependencies
         {
             Checkpointing = new RunCheckpointing(StoreBackup.SnapshotAsync),
             Preflight = RunPreflight.Instance,
-            Scenario = new ScenarioDriver(),
         };
         IReadOnlyList<string> rest = [.. args.Skip(1)];
         switch (args[0])

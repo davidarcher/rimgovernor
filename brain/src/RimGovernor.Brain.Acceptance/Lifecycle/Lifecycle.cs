@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.HttpChannel;
+using RimGovernor.Brain.NativeFacade;
+using Wl = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -315,8 +317,8 @@ public static class StartOps
 
     private static async Task<JsonObject> LoadLoadedAsync(Session session, CancellationToken cancellationToken)
     {
-        var reply = await session.Harness.WireAsync("loaded-identity", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        if (reply["loaded"].AsMap() is null)
+        var reply = await session.Harness.CallAsync("loaded-identity", NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
+        if (reply.Outcome?.Loaded is null)
         {
             throw new AcceptanceException("no game is loaded in the kept process; start from a save instead");
         }
@@ -473,24 +475,6 @@ public sealed class Session
         return new Session(config, host, null, harness, report, names);
     }
 
-    /// <summary>
-    /// Runs the start again over the running game: a world change that keeps the durable journal, with the fixture
-    /// op, pause, frozen needs and the identity repeated as open did them, and Identity replaced by the reloaded
-    /// game's (a kept load token is an error). The report's start, prepared and frozen_needs rows are those of the
-    /// reopened world; identity_reloaded records the new identity.
-    /// </summary>
-    public async Task ReopenAsync(Start start, QuietMode quiet, IReadOnlyList<NeedDef>? keep, CancellationToken cancellationToken)
-    {
-        var before = Identity["loadToken"].AsString();
-        await OpenCoreAsync(start, quiet, keep ?? [], cancellationToken).ConfigureAwait(false);
-        if (Identity["loadToken"].AsString() == before)
-        {
-            throw new AcceptanceException($"reopen kept load token {before}");
-        }
-
-        Report["identity_reloaded"] = Identity;
-    }
-
     /// <summary>Pauses the game.</summary>
     public Task PauseAsync(CancellationToken cancellationToken) =>
         Harness.CallAsync("pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken);
@@ -506,12 +490,8 @@ public sealed class Session
     public static async Task<JsonObject> ReadIdentityAsync(Harness harness, string label, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
-        var reply = await harness.WireAsync(label, "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, loaded) = Harness.Outcome(reply, "loaded");
-        var identity = loaded["context"].Member("identity").AsMap();
-        return identity is null
-            ? throw new AcceptanceException($"{label}: loaded game reports no identity")
-            : identity.DeepClone().AsMap()!;
+        var loaded = await harness.LoadedAsync(label, cancellationToken).ConfigureAwait(false);
+        return Harness.IdentityNode(Harness.Context(loaded, label).Identity);
     }
 
     /// <summary>
@@ -567,22 +547,6 @@ public sealed class Session
         await RefreshIdentityAsync("identity", cancellationToken).ConfigureAwait(false);
         if (start is FixtureStart fixture)
         {
-            if (fixture.ArgsFrom is not null)
-            {
-                JsonObject extra;
-                try
-                {
-                    extra = await fixture.ArgsFrom(Harness, cancellationToken).ConfigureAwait(false) ?? [];
-                }
-                catch (AcceptanceException e)
-                {
-                    throw new AcceptanceException($"{fixture.Op} arguments: {e.Message}", e);
-                }
-
-                fixture = fixture with { Args = Dyn.Merge(fixture.Args, extra) };
-                Report["fixture_args"] = extra;
-            }
-
             var prepared = await StartOps.PrepareFixtureAsync(fixture, this, Identity, cancellationToken).ConfigureAwait(false);
             Prepared = prepared;
             Report["prepared"] = prepared;

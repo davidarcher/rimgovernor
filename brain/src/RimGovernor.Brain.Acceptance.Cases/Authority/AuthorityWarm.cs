@@ -64,7 +64,7 @@ internal static class AuthorityWarm
             var failed = true;
             try
             {
-                var next = TypedReads.Identity(c.Identity);
+                var next = Harness.IdentityOf(c.Identity);
                 if (next.LoadToken == first.LoadToken)
                 {
                     throw new AcceptanceException($"the reload kept load token {first.LoadToken}");

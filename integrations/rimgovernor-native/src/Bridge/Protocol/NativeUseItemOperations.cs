@@ -111,7 +111,7 @@ namespace HomeBridge.BridgeTools
         {
             Effect = new Receipts.JobEffect
             {
-                PawnId = pawn.GetUniqueLoadID(), JobId = job.loadID, JobDef = job.def?.defName ?? "",
+                PawnId = pawn.GetUniqueLoadID(), JobDef = job.def?.defName ?? "",
                 TargetA = new Receipts.JobTarget { Target = new Receipts.JobTargetTarget.ThingIdCase(targetA.GetUniqueLoadID()) },
                 Issued = issued, Drafted = pawn.Drafted,
             }

@@ -354,7 +354,7 @@ public static partial class PlanCommand
     private static string Str(JsonElement parent, string name) => Str((JsonElement?)parent, name);
 
     /// <summary>
-    /// Builds the selection: the tier's cases (or the requested ones) minus the rendered ones, the shard plan and the
+    /// Builds the selection: the tier's cases (or the requested ones), the shard plan and the
     /// per-case rows. Refuses a selection that cannot fit the run's limits instead of truncating it (Go <c>buildSelection</c>).
     /// </summary>
     public static JsonObject BuildSelection(PlanRun r, PlanReference reference, CaseRegistry registry)
@@ -378,19 +378,7 @@ public static partial class PlanCommand
 
         var skipped = new List<SkippedCase>();
 
-        // Hosted Windows has no usable GPU. Keep exclusions explicit and remove them before assigning shards or charging
-        // execution budgets.
         var selected = chosen.OrderBy(c => c.Name, StringComparer.Ordinal).ToList();
-        selected.RemoveAll(c =>
-        {
-            if (!c.Rendered)
-            {
-                return false;
-            }
-
-            skipped.Add(new SkippedCase(c.Name, "rendered"));
-            return true;
-        });
         if (selected.Count == 0)
         {
             throw new AcceptanceException("empty remote selection");
@@ -476,7 +464,6 @@ public static partial class PlanCommand
             row["fixture_ops"] = new JsonArray([.. ops.Select(s => (JsonNode?)JsonValue.Create(s))]);
             row["roles"] = roles;
             row["mod_role"] = "fixture";
-            row["rendered"] = c.Rendered;
             rows.Add(row);
             budgets[assignment[c.Name]] += c.Budget * r.Limits.Attempts;
         }

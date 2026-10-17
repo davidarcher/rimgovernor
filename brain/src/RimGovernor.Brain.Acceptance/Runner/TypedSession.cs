@@ -14,12 +14,12 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The typed session over the runner's <see cref="ISession"/>: what <see cref="TypedCase.ToCase"/> hands a typed body.
+/// The typed session over the runner's <see cref="CaseSession"/>: what <see cref="TypedCase.ToCase"/> hands a typed body.
 /// Every wait spends from the case's declared ticks, and a wait past them fails before the game runs.
 /// </summary>
 public sealed class TypedSession : ITypedSession
 {
-    private readonly ISession _s;
+    private readonly CaseSession _s;
     private readonly TypedCase _case;
     private int _spent;
 
@@ -27,7 +27,7 @@ public sealed class TypedSession : ITypedSession
     private GameReuse? _launched;
     private int _launches;
 
-    public TypedSession(ISession session, TypedCase typed)
+    internal TypedSession(CaseSession session, TypedCase typed)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(typed);
@@ -35,9 +35,9 @@ public sealed class TypedSession : ITypedSession
         _case = typed;
 
         // An owned body opens its own games: there is no identity until it starts or loads a colony.
-        Identity = typed.Start is OwnedStart ? NoColony : TypedReads.Identity(session.Identity);
+        Identity = typed.Start is OwnedStart ? NoColony : Harness.IdentityOf(session.Identity);
         Scope = TypedReads.Scope(Identity);
-        Staged = typed.Stage is null ? null : FixtureStage.Prepared(session);
+        Staged = typed.Stage is null ? null : FixtureStage.Prepared(session.Prepared);
     }
 
     // A reload polls lifecycle_read_load at most this many times, this far apart.
@@ -94,7 +94,7 @@ public sealed class TypedSession : ITypedSession
         H.ZonesAsync(label, Scope, cancellationToken);
 
     public Task<IReadOnlyList<GrowingZone>> GrowingZonesAsync(string label, CancellationToken cancellationToken) =>
-        H.GrowingZonesAsync(label, _s.Identity, cancellationToken);
+        H.GrowingZonesAsync(label, Identity, cancellationToken);
 
     public IReadOnlyList<LogRow> Telemetry(TelemetryKind kind)
     {
@@ -304,7 +304,6 @@ public sealed class TypedSession : ITypedSession
                 RequestId = loadId,
                 SaveName = name,
                 Readiness = Lifecycle.Readiness.Map,
-                PlayerDirection = 1,
                 ExpectedPlayer = player with { RequestId = loadId },
             },
             cancellationToken).ConfigureAwait(false);

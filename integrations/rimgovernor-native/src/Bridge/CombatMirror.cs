@@ -272,7 +272,6 @@ namespace HomeBridge.BridgeTools
         {
             var row = new Mirror.CombatPawn { Id = LoadId(pawn), Side = side, Cell = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z }, Downed = pawn.Downed, Dead = pawn.Dead };
             try { if (pawn.Faction != null) row = row with { Faction = NativeRef.Of(pawn.Faction) }; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
-            if (pawn.MentalStateDef != null) row = row with { MentalState = pawn.MentalStateDef.defName };
             if (pawn.drafter != null)
             {
                 row = row with { Drafted = pawn.drafter.Drafted };

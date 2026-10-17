@@ -18,8 +18,8 @@ public sealed class CaseRegistry
         Register(c.ToCase());
     }
 
-    /// <summary>Adds <paramref name="c"/>; throws on an invalid case or a duplicate name.</summary>
-    public void Register(AcceptanceCase c)
+    /// <summary>Adds the runner record <paramref name="c"/> (<see cref="TypedCase.ToCase"/>); throws on an invalid case or a duplicate name.</summary>
+    internal void Register(AcceptanceCase c)
     {
         ArgumentNullException.ThrowIfNull(c);
         c.Validate();

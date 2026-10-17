@@ -17,7 +17,6 @@ public sealed class ProfileFixtureHost : IProfileFixtureHost
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(info);
-        var probe = new AcceptanceCase { Start = new FixtureStart { Op = request.Op } };
         var options = new RunOptions
         {
             Root = request.Root,
@@ -26,7 +25,7 @@ public sealed class ProfileFixtureHost : IProfileFixtureHost
             Headless = request.Headless,
             NoHeal = request.NoHeal,
         };
-        var result = await PreflightPass.RunAsync([probe], options, info, cancellationToken).ConfigureAwait(false);
+        var result = await PreflightPass.RunAsync([], [request.Op], options, info, cancellationToken).ConfigureAwait(false);
         return result.Ok;
     }
 

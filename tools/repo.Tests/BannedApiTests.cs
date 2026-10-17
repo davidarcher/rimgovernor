@@ -10,7 +10,7 @@ namespace RimGovernor.Tools.Workflow.Tests;
 
 /// <summary>
 /// The acceptance cases' banned-API rule (#3397): the cases' own <c>BannedSymbols.txt</c> under the analyzer they run
-/// flags a wall-clock wait and a by-key reply read, and the gate's shrink-only baseline fails a stale or missing section.
+/// flags a wall-clock wait and a by-key reply read, and the gate fails a use a suppression kept from the build.
 /// </summary>
 public sealed class BannedApiTests : IDisposable
 {
@@ -61,32 +61,20 @@ public sealed class BannedApiTests : IDisposable
     }
 
     [Fact]
-    public void FailsAStaleSectionAndAUseWithoutOne()
+    public void FailsAUseASuppressionKeptFromTheBuild()
     {
         var cases = Path.Combine(temp, "Cases");
-        var editorConfig = Path.Combine(cases, ".editorconfig");
         Directory.CreateDirectory(cases);
-        File.WriteAllLines(editorConfig,
-        [
-            "[*.cs]", "dotnet_diagnostic.RS0030.severity = error", "",
-            "[/Food/Ported.cs]", "dotnet_diagnostic.RS0030.severity = suggestion", "",
-            "[/Food/Legacy.cs]", "dotnet_diagnostic.RS0030.severity = suggestion",
-        ]);
         var sarif = Path.Combine(temp, "banned-api.sarif");
-        File.WriteAllText(sarif, Log(cases, ("RS0030", "Food/Legacy.cs"), ("RS0030", "Food/Pragma.cs"), ("CA1822", "Food/Ported.cs")));
+        File.WriteAllText(sarif, Log(cases, ("RS0030", "Food/Pragma.cs"), ("CA1822", "Food/Ported.cs")));
 
-        var problems = BannedApiBaseline.Check(cases, editorConfig, sarif, out var baselined);
+        // Ported.cs only has another rule's finding; Pragma.cs uses a banned API a suppression kept from failing the build.
+        var problem = Assert.Single(BannedApiUses.Check(cases, sarif));
+        Assert.StartsWith("1 files use a banned API under a suppression", problem, StringComparison.Ordinal);
+        Assert.EndsWith("\n  Food/Pragma.cs", problem, StringComparison.Ordinal);
 
-        // Ported.cs only has another rule's finding, so its section is stale; Pragma.cs uses a banned API with no section.
-        Assert.Equal(2, baselined);
-        Assert.Equal(2, problems.Count);
-        Assert.StartsWith("1 baselined files no longer use a banned API", problems[0], StringComparison.Ordinal);
-        Assert.EndsWith("\n  Food/Ported.cs", problems[0], StringComparison.Ordinal);
-        Assert.StartsWith("1 files use a banned API without a baseline section", problems[1], StringComparison.Ordinal);
-        Assert.EndsWith("\n  Food/Pragma.cs", problems[1], StringComparison.Ordinal);
-
-        File.WriteAllText(sarif, Log(cases, ("RS0030", "Food/Legacy.cs"), ("RS0030", "Food/Ported.cs")));
-        Assert.Empty(BannedApiBaseline.Check(cases, editorConfig, sarif, out _));
+        File.WriteAllText(sarif, Log(cases, ("CA1822", "Food/Ported.cs")));
+        Assert.Empty(BannedApiUses.Check(cases, sarif));
     }
 
     private static string Log(string cases, params (string Rule, string File)[] results) =>

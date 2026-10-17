@@ -17,7 +17,7 @@ leaves a member absent; it cannot satisfy required presence.
 | ObservationContext | identity and nonnegative int64 tick; positive native_generation whenever authority is available. |
 | Owner | nonblank controller_session_id and positive uint64 player_direction. |
 | AttemptKey | controller_session_id, action_id and positive uint64 attempt_id. |
-| WritePrecondition | identity, positive expected_generation and complete attempt. |
+| WritePrecondition | identity and complete attempt. |
 | Cell | both coordinates, each within the relevant native map; no missing-to-zero conversion. |
 | Opaque ID/definition/token | valid nonblank Unicode, <=256 UTF-8 bytes, no NUL; exact case/content; narrower native input limits are documented in the [presentation contract](presentation.md). |
 | Failure/Unavailable | supported nonzero reason/code; bounded diagnostic if supplied; absence of observed context never fabricates a loaded identity. |

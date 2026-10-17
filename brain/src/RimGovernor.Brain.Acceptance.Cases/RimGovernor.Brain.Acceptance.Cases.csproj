@@ -9,9 +9,9 @@
   </PropertyGroup>
   <ItemGroup>
   </ItemGroup>
-  <!-- Charter rules 4 and 5 (#3397): RS0030 bans the APIs in BannedSymbols.txt. .editorconfig makes it an error and holds
-       the shrink-only baseline of legacy files at suggestion, which the compiler still writes to banned-api.sarif; the
-       gate's banned-API job fails a baselined file that no longer uses a banned API. -->
+  <!-- Charter rules 4 and 5 (#3397): RS0030 bans the APIs in BannedSymbols.txt and .editorconfig makes it an error in
+       every file. The compiler writes banned-api.sarif; the gate's banned-API job fails a use a suppression kept from
+       failing the build. -->
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
     <AdditionalFiles Include="BannedSymbols.txt" />

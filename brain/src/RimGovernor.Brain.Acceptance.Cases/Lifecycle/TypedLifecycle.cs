@@ -48,7 +48,6 @@ internal static class TypedLifecycle
             SaveName = saveName,
             Readiness = readiness,
             ExpectedPlayer = Player(identity, requestId),
-            PlayerDirection = Direction,
         };
         var reply = await s.CallAsync(label + "-start", NativeOps.StartLoad, request, cancellationToken).ConfigureAwait(false);
         Lifecycle.LoadCompleted? completed = null;

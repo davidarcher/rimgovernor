@@ -15,10 +15,9 @@ namespace HomeBridge.BridgeTools
 
     // Disposable test setup only (#3230). Under an active controller authority
     // NativePawnActivities owns every player-controlled colonist's voluntary job
-    // choice, and the acceptance scenario clock runs only under that authority.
-    // A case that probes a vanilla mechanic (a colonist hauling a corpse on its
-    // own) declares AcceptanceCase.VanillaColonists, and the runner calls this op
-    // so colonists choose jobs natively for the current game only. Production keeps
+    // choice. A case that probes a vanilla mechanic (a colonist hauling a corpse
+    // on its own) lists this op and calls it so colonists choose jobs natively for
+    // the current game only. Production keeps
     // the rule that a controlled colonist never silently falls back to vanilla AI.
     public static class VanillaColonists
     {
@@ -55,7 +54,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class VanillaColonistsFixture
     {
-        [Tool("test/vanilla_colonists", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3230): colonists choose voluntary jobs natively under an active controller authority, for the current game only. For acceptance cases that probe vanilla mechanics under the scenario clock.")]
+        [Tool("test/vanilla_colonists", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3230): colonists choose voluntary jobs natively under an active controller authority, for the current game only. For acceptance cases that probe vanilla mechanics.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -67,7 +66,7 @@ namespace HomeBridge.BridgeTools
 
     // Disposable test setup only (#3322). Under brain authority every controlled colonist holds a Hands
     // assignment: the brain gives a colonist it selected nothing for an explicit standby. A native-only case runs
-    // no brain, so the scenario clock stands in for that one decision: before each Run it calls this op, which
+    // no brain, so a fixture that needs it (pawn cooking, pawn delivery) stands in for that one decision: this
     // installs the same standby order (native wander, no work, no deadline) for each controlled colonist with no
     // assignment and an idle job. It never replaces an assignment, so a fixture's own orders keep their pawns;
     // under VanillaColonists no colonist is controlled and nothing is installed.
@@ -100,18 +99,6 @@ namespace HomeBridge.BridgeTools
                 installed.Add(id);
             }
             return new { success = true, active = true, standby = installed.Count, pawns = installed, refused };
-        }
-    }
-
-    public sealed class StandbyColonistsFixture
-    {
-        [Tool("test/standby_colonists", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3322): the scenario clock's stand-in for the brain's standby. Installs the explicit idle for each controlled colonist with no Hands assignment and an idle job; never replaces an assignment.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                if (Current.Game == null || Find.CurrentMap == null) throw new InvalidOperationException("A loaded game is required.");
-                return StandbyColonists.Apply();
-            }, cancellationToken).ConfigureAwait(false);
         }
     }
 

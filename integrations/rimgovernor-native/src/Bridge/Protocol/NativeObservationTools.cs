@@ -113,7 +113,7 @@ namespace HomeBridge.BridgeTools
             NativeThreatClassifier.Collect(spawned.Where(p => !p.Dead && !p.IsColonist).ToList(), pawn => ThreatFactsOf(pawn, player),
                 colonistCells, radius, NativePawnObservationTools.Ref, pawn => NativeRef.Thing(HuntedPawn(pawn)!), ref threats);
             foreach (var building in HostileBuildings(map, player)) {
-                var row = new Obs.ThreatBuilding { Building = Entity(building), HitPoints = building.HitPoints };
+                var row = new Obs.ThreatBuilding { Building = Entity(building) };
                 row = row with { BuildingSnapshot = new Obs.SnapshotRef { Context = context, EntityId = row.Building.Id, Token = Token(context.Identity, building) } };
                 if (colonists.Count > 0) row = row with { NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z))) };
                 var rect = building.OccupiedRect();
@@ -195,7 +195,6 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs };
             if (job != null) {
                 row = row with { DefName = Identifier(job.def.defName) };
-                row = row with { LoadId = job.loadID.ToString(System.Globalization.CultureInfo.InvariantCulture) };
                 // The work giver's WorkTypeDef names the labor the job spends
                 // (a cut designation, a bill, a frame); a job no giver issued
                 // (a forced order, rest, a meal, wandering) carries none.

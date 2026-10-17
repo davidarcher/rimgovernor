@@ -119,6 +119,37 @@ public sealed class ContractOrphansTests : IDisposable
     }
 
     [Fact]
+    public void AnObservationRequestTheBrainSendsIsLiveWhenTheNativeSideAlsoBuildsOne()
+    {
+        var contracts = Compile("RimGovernor.Brain.Contracts", """
+            namespace RimGovernor.Contracts.Wire.Observations
+            {
+                public sealed record Query { public bool Planning { get; init; } public bool Extra { get; init; } }
+            }
+            """);
+        var brain = Compile("RimGovernor.Brain.Policy", """
+            using RimGovernor.Contracts.Wire.Observations;
+            public static class Asker
+            {
+                public static Query Ask() => new() { Planning = false };
+            }
+            """, contracts);
+        var native = Compile("RimGovernor.Bridge", """
+            using RimGovernor.Contracts.Wire.Observations;
+            public static class Reader
+            {
+                public static Query Frame() => new() { Planning = true, Extra = true };
+                public static bool Read(Query query) => query.Planning || query.Extra;
+            }
+            """, contracts);
+
+        var orphans = ContractOrphans.Find(ContractOrphans.Wire, contracts, [brain], [native], out _);
+
+        // The brain sends Planning and the native side reads it; Extra only the native side's own frame request sets.
+        Assert.Equal([("Contracts|Observations.Query.Extra", "written by the native side, never read by the brain")], orphans);
+    }
+
+    [Fact]
     public void FailsOnAMemberNothingReferencesAndIgnoresEqualityAndCloning()
     {
         var orphans = Find(

@@ -15,9 +15,6 @@ namespace HomeBridge.BridgeTools
     {
         [ThreadStatic] private static CensusMemo? current;
 
-        // The equality probe's switch (test/gear_memo_equality): a read with
-        // it set computes every fact afresh.
-        internal static bool Off = false;
         private readonly CensusMemo? previous;
         private readonly Dictionary<(string, object?), object> values = new Dictionary<(string, object?), object>();
 
@@ -27,7 +24,7 @@ namespace HomeBridge.BridgeTools
         internal static T Of<T>((string, object?) key, Func<T> make) where T : class
         {
             var scope = current;
-            if (scope == null || Off) return make();
+            if (scope == null) return make();
             if (!scope.values.TryGetValue(key, out var value)) scope.values[key] = value = make();
             return (T)value;
         }

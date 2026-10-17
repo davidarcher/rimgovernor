@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
             Span("cf.fc.wrap");
             result = result with { Upkeep = ReadComfort(map, things, routePathBudgetMs) };
             Span("cf.upkeep");
-            result = result with { Threat = ReadThreat(map, people.Count) };
+            result = result with { Threat = ReadThreat(map) };
             result = result with { Development = new Obs.DevelopmentSection { Outcome = ReadPower(map) } };
             Span("cf.power");
             result = result with { FoodChannels = NativeFoodChannels.Read(map, center, workers, humanFood) };
@@ -215,7 +215,7 @@ namespace HomeBridge.BridgeTools
         // would draw for this map now, with the adaptation and difficulty
         // factors already inside that figure. Any failure makes the section
         // unavailable rather than partial.
-        internal static Obs.ThreatSection ReadThreat(Map map, int colonists)
+        internal static Obs.ThreatSection ReadThreat(Map map)
         {
             try {
                 var wealth = map.wealthWatcher;
@@ -225,7 +225,6 @@ namespace HomeBridge.BridgeTools
                     RaidPoints = Finite(StorytellerUtility.DefaultThreatPointsNow(map)),
                     AdaptationFactor = Finite(Find.StoryWatcher.watcherAdaptation.TotalThreatPointsFactor),
                     DifficultyThreatScale = Finite(Find.Storyteller.difficulty.threatScale),
-                    ColonistCount = checked((uint)colonists),
                 };
                 facts = facts with { Raids = [.. facts.Raids, .. NativeDefenseObservationTools.RaidTracks(map)] };
                 return new Obs.ThreatSection { Outcome = facts };
@@ -411,7 +410,6 @@ namespace HomeBridge.BridgeTools
                 if (IsSunLamp(building)) { var lamp = building;
                     var row = new Obs.GrowLight { Building = NativeBuildingObservationTools.Ref(lamp) };
                     if (power != null) { var id = NetId(power); if (id != null) row = row with { PowerNetId = id }; }
-                    else row = row with { Issues = [.. row.Issues, Issue("powered", Common.UnavailableReason.NotApplicable, "Lamp has no power trader.")] };
                     var schedule = lamp.TryGetComp<CompSchedule>();
                     row = row with { LitNow = (power == null || power.PowerOn) && (schedule == null || schedule.Allowed) };
                     foreach (var c in GenRadial.RadialCellsAround(lamp.Position, lamp.def.specialDisplayRadius, true).Where(c => c.InBounds(map))) row = row with { GrowthCells = [.. row.GrowthCells, Cell(c)] };

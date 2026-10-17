@@ -183,8 +183,6 @@ public sealed record LookTarget
 {
     public string? Id { get; init; }
 
-    public string? NativeType { get; init; }
-
     public string? Label { get; init; }
 
     public string? DefName { get; init; }
@@ -220,11 +218,7 @@ public sealed record Alert
 {
     public string? Id { get; init; }
 
-    public string? NativeType { get; init; }
-
     public string? Label { get; init; }
-
-    public bool? Active { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<LookTarget>))]
     public EquatableArray<LookTarget> Targets { get; init; }
@@ -416,13 +410,11 @@ public abstract record NotificationsReplyOutcome
 }
 
 /// <summary>
-/// Claimed direction/viewer fields never authenticate their own authority.
+/// A claimed viewer field never authenticates its own authority.
 /// </summary>
 public sealed record PlayerIdentity
 {
     public Common.Identity? Identity { get; init; }
-
-    public ulong? PlayerDirection { get; init; }
 
     public string? ViewerId { get; init; }
 }

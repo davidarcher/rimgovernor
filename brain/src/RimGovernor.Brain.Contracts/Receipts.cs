@@ -759,8 +759,6 @@ public sealed record SurgeryEffect
 /// </summary>
 public sealed record AreaEffect
 {
-    public string? Key { get; init; }
-
     public bool? Home { get; init; }
 
     public string? AreaId { get; init; }
@@ -872,7 +870,6 @@ public sealed record PermitUseEffect
 /// </summary>
 public sealed record PsycastUseEffect
 {
-    public string? JobDef { get; init; }
 }
 
 public sealed record WallEffect
@@ -918,8 +915,6 @@ public sealed record JobEffect
 {
     public string? PawnId { get; init; }
 
-    public int? JobId { get; init; }
-
     public string? JobDef { get; init; }
 
     public JobTarget? TargetA { get; init; }
@@ -929,8 +924,6 @@ public sealed record JobEffect
     public bool? Issued { get; init; }
 
     public bool? Drafted { get; init; }
-
-    public int? HitPoints { get; init; }
 
     public string? ResultingSnapshotToken { get; init; }
 }

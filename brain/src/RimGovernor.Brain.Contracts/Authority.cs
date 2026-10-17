@@ -198,17 +198,9 @@ public abstract record ControlRequestOperation
 {
     private protected ControlRequestOperation() { }
 
-    /// <summary>The <c>SetMode</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public SetMode? SetMode => (this as SetModeCase)?.Value;
-
     public sealed record SetModeCase(SetMode Value) : ControlRequestOperation;
 
     public static implicit operator ControlRequestOperation(SetMode value) => new SetModeCase(value);
-
-    /// <summary>The <c>Revoke</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Revoke? Revoke => (this as RevokeCase)?.Value;
 
     public sealed record RevokeCase(Revoke Value) : ControlRequestOperation;
 
@@ -286,15 +278,12 @@ public abstract record ControlReplyOutcome
 }
 
 /// <summary>
-/// Writes atomically require current colony/load/map identity, a fresh attempt,
-/// and the generation used to plan the command. Player interruptions advance
-/// the generation; Auto has a single bot owner.
+/// Writes atomically require current colony/load/map identity and a fresh
+/// attempt; Auto has a single bot owner.
 /// </summary>
 public sealed record WritePrecondition
 {
     public Common.Identity? Identity { get; init; }
-
-    public ulong? ExpectedGeneration { get; init; }
 
     public Common.AttemptKey? Attempt { get; init; }
 }

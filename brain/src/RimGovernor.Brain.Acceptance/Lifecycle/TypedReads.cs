@@ -1,5 +1,3 @@
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Contracts.Wire;
@@ -10,30 +8,12 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// Production observation reads over typed requests and replies: the reads a case checks game state through instead of
-/// a private test probe. The typed session (<see cref="ITypedSession"/>) reads through these; a legacy case pins its
-/// scope with <see cref="Scope(JsonNode)"/>.
+/// a private test probe. The typed session (<see cref="ITypedSession"/>) reads through these.
 /// </summary>
 public static class TypedReads
 {
-    /// <summary>A read scope pinned to the legacy session's flat-view <paramref name="identity"/>.</summary>
-    public static Observations.ReadScope Scope(JsonNode identity) => Scope(Identity(identity));
-
     /// <summary>A read scope pinned to <paramref name="identity"/>.</summary>
     public static Observations.ReadScope Scope(Common.Identity identity) => new() { ExpectedIdentity = identity };
-
-    /// <summary>The Contracts identity of the legacy session's flat-view <paramref name="identity"/>.</summary>
-    public static Common.Identity Identity(JsonNode identity)
-    {
-        ArgumentNullException.ThrowIfNull(identity);
-        try
-        {
-            return WireCodec.ToRecord<Common.Identity>(identity);
-        }
-        catch (JsonException e)
-        {
-            throw new AcceptanceException($"identity {identity.ToJsonString()} is not a wire identity: {e.Message}", e);
-        }
-    }
 
     /// <summary>A read reply's <c>observed</c> arm; any other arm fails <paramref name="label"/> with the reply.</summary>
     public static T Observed<TReply, T>(string label, NativeOp op, TReply reply, T? observed)
@@ -64,7 +44,7 @@ public static class TypedReads
     /// Each growing zone (by load id) with its crop, its cells and the cells carrying a plant of that crop: the zones read
     /// joined to the whole map's cell grid.
     /// </summary>
-    public static async Task<IReadOnlyList<GrowingZone>> GrowingZonesAsync(this Harness harness, string label, JsonNode identity, CancellationToken cancellationToken)
+    public static async Task<IReadOnlyList<GrowingZone>> GrowingZonesAsync(this Harness harness, string label, Common.Identity identity, CancellationToken cancellationToken)
     {
         var zones = await harness.ZonesAsync(label + "-zones", Scope(identity), cancellationToken).ConfigureAwait(false);
         var grid = await harness.MapCellsAsync(label + "-cells", identity, cancellationToken).ConfigureAwait(false);

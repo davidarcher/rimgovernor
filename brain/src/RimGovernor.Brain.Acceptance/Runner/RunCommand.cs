@@ -220,14 +220,7 @@ public static class RunCommand
         var selected = new List<AcceptanceCase>(names.Count);
         foreach (var name in names)
         {
-            var c = registry.Lookup(name) ?? throw new UsageException($"unknown case \"{name}\" (see `acceptance list`)");
-            var lint = c.Lint();
-            if (lint.Count > 0)
-            {
-                throw new UsageException(string.Join('\n', lint));
-            }
-
-            selected.Add(c);
+            selected.Add(registry.Lookup(name) ?? throw new UsageException($"unknown case \"{name}\" (see `acceptance list`)"));
         }
 
         return new ParsedRun(selected, options.Fresh, options.Repeat, options.PostmortemOnly, options.Seed, options);

@@ -1,19 +1,12 @@
 using System.Globalization;
 using System.Runtime.ExceptionServices;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Contracts.Wire;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Wp = RimGovernor.Contracts.Wire.Presentation;
 
 namespace RimGovernor.Brain.Acceptance;
-
-public sealed partial class Harness
-{
-    /// <summary>Reads the current game tick through lifecycle_read_identity; an unloaded game is an error.</summary>
-    public async Task<ulong> TickAsync(CancellationToken cancellationToken)
-    {
-        var reply = await WireAsync("tick", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, loaded) = Outcome(reply, "loaded");
-        return (ulong)loaded["context"].Member("tick").AsNumber();
-    }
-}
 
 /// <summary>
 /// Why the game stopped ticking under <see cref="RunAt.RunUntilAsync(Harness, string, ulong, Wait, Probe, bool, Report?, CancellationToken)"/>:
@@ -85,40 +78,42 @@ public static class RunAt
     public static readonly TimeSpan RunInterval = TimeSpan.FromMilliseconds(250);
 
     /// <summary>Removes one letter from the stack (scripts/fixtures/LetterFixture.cs); every fixture build carries it.</summary>
-    public const string DismissLetterTool = ScenarioRuntime.DismissLetterTool;
+    public const string DismissLetterTool = "test/dismiss_letter";
 
-    // The letter defs a running wait acknowledges by default are the scenario runtime's: one list for both waits.
-    private static IReadOnlySet<string> AcknowledgedLetterDefs => ScenarioRuntime.AcknowledgedLetterDefs;
+    // The informational letter defs a running wait acknowledges by default: an unanswered outcome is harmless to an
+    // assertion (a joiner leaves, a quest stays offered). Threat letters are never here.
+    private static readonly HashSet<string> AcknowledgedLetterDefs = new(StringComparer.Ordinal)
+    {
+        "NeutralEvent",
+        "PositiveEvent",
+        "NegativeEvent",
+        "NewQuest",
+        "AcceptJoiner",
+        "AcceptVisitors",
+        "AcceptCreepJoiner",
+        "RitualOutcomePositive",
+        "RitualOutcomeNegative",
+        "BabyBirth",
+        "BabyToChild",
+        "ChildToAdult",
+        "ChildBirthday",
+    };
 
     /// <summary>
     /// The game's pause state and its visible causes: lifecycle_read_tick's paused, forcePaused, timeSpeed, tick and
     /// force-pausing windows ({type, title}), and presentation_notifications' letter stack ({id, label, letterDef}).
     /// </summary>
-    public static async Task<JsonObject> ReadPauseStateAsync(WireFunc wire, string label, CancellationToken cancellationToken)
+    public static async Task<JsonObject> ReadPauseStateAsync(Harness h, string label, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(wire);
-        var reply = await wire(label + "-tick", "lifecycle_read_tick", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        JsonObject loaded;
-        try
-        {
-            (_, loaded) = Harness.Outcome(reply, "loaded");
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"{label}: lifecycle_read_tick: {e.Message}", e);
-        }
-
-        var loadedContext = loaded["context"].AsMap();
+        ArgumentNullException.ThrowIfNull(h);
+        var loaded = await h.LoadedTickAsync(label + "-tick", cancellationToken).ConfigureAwait(false);
         var windows = new JsonArray();
-        foreach (var raw in loaded["pausingWindows"].AsSlice())
+        foreach (var row in loaded.PausingWindows)
         {
-            if (raw is JsonObject row)
-            {
-                windows.Add(new JsonObject { ["type"] = row["nativeType"]?.DeepClone(), ["title"] = row["title"]?.DeepClone() });
-            }
+            windows.Add(new JsonObject { ["type"] = row.NativeType, ["title"] = row.Title });
         }
 
-        var letters = await ReadLettersAsync(wire, label, loadedContext?["identity"], cancellationToken).ConfigureAwait(false);
+        var letters = await ReadLettersAsync(h, label, loaded.Context?.Identity, cancellationToken).ConfigureAwait(false);
         var rows = new JsonArray();
         foreach (var letter in letters)
         {
@@ -127,59 +122,32 @@ public static class RunAt
 
         return new JsonObject
         {
-            ["tick"] = loadedContext?["tick"].AsNumber() ?? -1,
-            ["paused"] = loaded["paused"].AsBool() == true,
-            ["forcePaused"] = loaded["forcePaused"].AsBool() == true,
-            ["timeSpeed"] = loaded["timeSpeed"]?.DeepClone(),
+            ["tick"] = loaded.Context?.Tick ?? -1,
+            ["paused"] = loaded.Paused == true,
+            ["forcePaused"] = loaded.ForcePaused == true,
+            ["timeSpeed"] = loaded.TimeSpeed,
             ["windows"] = windows,
             ["letters"] = rows,
         };
     }
 
     /// <summary>presentation_notifications' letter stack, newest first, as {id, label, letterDef} rows.</summary>
-    public static async Task<IReadOnlyList<JsonObject>> ReadLettersAsync(WireFunc wire, string label, JsonNode? identity, CancellationToken cancellationToken)
+    public static async Task<IReadOnlyList<JsonObject>> ReadLettersAsync(Harness h, string label, Common.Identity? identity, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(wire);
-        var reply = await wire(
+        ArgumentNullException.ThrowIfNull(h);
+        var reply = await h.CallAsync(
             label + "-letters",
-            "presentation_notifications",
-            new JsonObject { ["identity"] = identity?.DeepClone(), ["includeMessages"] = false, ["includeAlerts"] = false },
+            NativeOps.ReadNotifications,
+            new Wp.NotificationsRequest { Identity = identity, IncludeMessages = false, IncludeAlerts = false },
             cancellationToken).ConfigureAwait(false);
-        JsonObject snapshot;
-        try
-        {
-            (_, snapshot) = Harness.Outcome(reply, "notifications");
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"{label}: presentation_notifications: {e.Message}", e);
-        }
-
-        JsonObject observed;
-        try
-        {
-            (_, observed) = Harness.Outcome(snapshot["letters"].AsMap() ?? [], "observed");
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"{label}: letter section: {e.Message}", e);
-        }
-
-        var rows = new List<JsonObject>();
-        foreach (var raw in observed["letters"].AsSlice())
-        {
-            if (raw is JsonObject row)
-            {
-                rows.Add(new JsonObject
-                {
-                    ["id"] = row["id"]?.DeepClone(),
-                    ["label"] = row["label"]?.DeepClone(),
-                    ["letterDef"] = row["defName"]?.DeepClone(),
-                });
-            }
-        }
-
-        return rows;
+        var snapshot = reply.Outcome?.Notifications
+            ?? throw new AcceptanceException($"{label}: {NativeOps.ReadNotifications.Name}: {WireJson.Serialize(reply)}");
+        var observed = snapshot.Letters?.Outcome?.Observed
+            ?? throw new AcceptanceException($"{label}: letter section not observed: {WireJson.Serialize(snapshot)}");
+        return
+        [
+            .. observed.Items.Select(row => new JsonObject { ["id"] = row.Id, ["label"] = row.Label, ["letterDef"] = row.DefName }),
+        ];
     }
 
     /// <summary>
@@ -262,9 +230,9 @@ public static class RunAt
             Interval = w.Interval <= TimeSpan.Zero ? RunInterval : w.Interval,
             Tick = async ct =>
             {
-                var loaded = await ReadLoadedAsync(h, "tick", ct).ConfigureAwait(false);
-                latest = (ulong)loaded["context"].Member("tick").AsNumber();
-                paused = loaded["paused"].AsBool() == true;
+                var loaded = await h.LoadedAsync("tick", ct).ConfigureAwait(false);
+                latest = (ulong)Harness.Context(loaded, "tick").Tick;
+                paused = loaded.Paused == true;
                 return latest;
             },
         };
@@ -337,7 +305,7 @@ public static class RunAt
     /// </summary>
     private static async Task ResolvePauseAsync(Harness h, string label, ulong tick, bool quiet, Report? report, CancellationToken cancellationToken)
     {
-        var status = await ReadPauseStateAsync(h.WireFunc(), label + "-paused", cancellationToken).ConfigureAwait(false);
+        var status = await ReadPauseStateAsync(h, label + "-paused", cancellationToken).ConfigureAwait(false);
         var (cause, dismiss) = ClassifyPause(status, h.Tools, label, tick, quiet);
         if (cause is not null)
         {
@@ -375,13 +343,5 @@ public static class RunAt
         {
             await h.CallAsync(label + "-resume", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = RunSpeed, ["ultraSpeedBoost"] = RunBoost }, cancellationToken).ConfigureAwait(false);
         }
-    }
-
-    /// <summary>The "loaded" outcome of lifecycle_read_identity.</summary>
-    private static async Task<JsonObject> ReadLoadedAsync(Harness h, string label, CancellationToken cancellationToken)
-    {
-        var reply = await h.WireAsync(label, "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, loaded) = Harness.Outcome(reply, "loaded");
-        return loaded;
     }
 }

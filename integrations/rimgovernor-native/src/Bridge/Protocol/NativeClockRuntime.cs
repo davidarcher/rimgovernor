@@ -359,7 +359,7 @@ namespace HomeBridge.BridgeTools
                     else
                     {
                         result = result with { State = Clock.ClockState.Held, Reason = s.Pending?.Reason ?? s.StopReason,
-                            Detail = ProtoBoundary.WireText(s.Pending?.Detail ?? s.StopDetail ?? ""), PauseVerified = TypedOf(s).StopPauseVerified };
+                            Detail = ProtoBoundary.WireText(s.Pending?.Detail ?? s.StopDetail ?? "") };
                         if (s.StopAtMs.HasValue && s.Pending == null) result = result with { HeldAtUnixMs = s.StopAtMs.Value };
                         if (TypedOf(s).CombatEvent != Clock.CombatEvent.Unspecified) result = result with { CombatEvent = TypedOf(s).CombatEvent };
                     }

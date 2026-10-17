@@ -379,9 +379,6 @@ public sealed record Status
     /// </summary>
     public uint? CeilingTicksPerSecond { get; init; }
 
-    /// <summary>Held only: the hold's pause took (the original hold, not an everlasting guarantee).</summary>
-    public bool? PauseVerified { get; init; }
-
     public long? HeldAtUnixMs { get; init; }
 
     /// <summary>HOLD_REASON_COMBAT_EVENT only: which armed event held the clock.</summary>

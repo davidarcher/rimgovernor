@@ -1,6 +1,10 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Contracts.Wire;
+using Wa = RimGovernor.Contracts.Wire.Authority;
+using Wo = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -542,155 +546,75 @@ public sealed class GameReuse : IAsyncDisposable
     public static async Task<(ResetState State, JsonObject Identity)> ObserveResetAsync(Harness h, string label, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(h);
-        var identityReply = await h.WireAsync(label + "-identity", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, loaded) = Harness.Outcome(identityReply, "loaded");
-        var loadedContext = loaded["context"].AsMap();
-        var identity = loadedContext?["identity"].AsMap() ?? [];
-        var colonyId = identity["colonyId"].AsString();
-        var loadToken = identity["loadToken"].AsString();
-        var tick = loadedContext?["tick"].AsNumber() ?? 0;
-        var paused = loaded["paused"].AsBool() == true;
+        var loaded = await h.LoadedAsync(label + "-identity", cancellationToken).ConfigureAwait(false);
+        var context = Harness.Context(loaded, label + "-identity");
+        var identity = context.Identity;
+        var scope = new Wo.ReadScope { ExpectedIdentity = identity };
 
-        var statusReply = await h.WireAsync(
-            label + "-authority",
-            "authority_read_status",
-            new JsonObject { ["identity"] = identity.DeepClone() },
-            cancellationToken).ConfigureAwait(false);
-        var (_, status) = Harness.Outcome(statusReply, "status");
-        var authorityActive = status.ContainsKey("active");
+        var statusReply = await h.CallAsync(label + "-authority", NativeOps.ReadAuthorityStatus, new Wa.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
+        var status = statusReply.Outcome?.Status
+            ?? throw new AcceptanceException($"{label}-authority: {NativeOps.ReadAuthorityStatus.Name}: {WireJson.Serialize(statusReply)}");
 
-        var pawnsReply = await h.WireAsync(
+        var pawnsReply = await h.CallAsync(
             label + "-pawns",
-            "observations_list_pawns",
-            new JsonObject
-            {
-                ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                ["filter"] = new JsonObject { ["colonist"] = true },
-            },
+            NativeOps.ListPawns,
+            new Wo.ListPawnsRequest { Scope = scope, Filter = new() { Colonist = true } },
             cancellationToken).ConfigureAwait(false);
-        var (_, pawns) = Harness.Outcome(pawnsReply, "observed");
-        var drafted = pawns["pawns"].AsSlice().Count(row => row.AsMap()?["drafted"].AsBool() == true);
+        var pawns = TypedReads.Observed(label + "-pawns", NativeOps.ListPawns, pawnsReply, pawnsReply.Outcome?.Observed);
 
         // Stock: the colony-facts resource census (units per definition) is the bounded, save-independent sample; an
         // unfiltered supplies listing exceeds the native 256-row item limit on an ordinary colony. Forbidden counts come
         // from a supplies read scoped to those definitions and are skipped (-1) when native declines that read as too
         // large as well.
-        var factsReply = await h.WireAsync(
+        var factsReply = await h.CallAsync(
             label + "-stock",
-            "observations_read_colony_facts",
-            new JsonObject
-            {
-                ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                ["planning"] = false,
-            },
+            NativeOps.ReadColonyFacts,
+            new Wo.ColonyFactsRequest { Scope = scope, Planning = false },
             cancellationToken).ConfigureAwait(false);
-        var (_, facts) = Harness.Outcome(factsReply, "observed");
+        var facts = TypedReads.Observed(label + "-stock", NativeOps.ReadColonyFacts, factsReply, factsReply.Outcome?.Observed);
         var stock = new Dictionary<string, StockCounts>(StringComparer.Ordinal);
-        var defNames = new JsonArray();
-        foreach (var node in facts["resources"].AsSlice())
+        foreach (var row in facts.Resources)
         {
-            var row = node.AsMap();
-            var name = row?["defName"].AsString() ?? "";
-            if (name.Length == 0)
+            if (!string.IsNullOrEmpty(row.DefName))
             {
-                continue;
+                stock[row.DefName] = new StockCounts(row.Units ?? 0, -1);
             }
-
-            stock[name] = new StockCounts((long)row!["units"].AsNumber(), -1);
-            defNames.Add(name);
         }
 
-        if (defNames.Count > 0)
+        if (stock.Count > 0)
         {
-            var suppliesReply = await h.WireAsync(
+            var suppliesReply = await h.CallAsync(
                 label + "-forbidden",
-                "observations_list_supplies",
-                new JsonObject
-                {
-                    ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                    ["filter"] = new JsonObject { ["defNames"] = defNames, ["ownership"] = "STOCK_OWNERSHIP_ALL" },
-                },
+                NativeOps.ListSupplies,
+                new Wo.ListSuppliesRequest { Scope = scope, Filter = new() { DefNames = [.. stock.Keys], Ownership = Wo.StockOwnership.All } },
                 cancellationToken).ConfigureAwait(false);
-            try
+            if (suppliesReply.Outcome?.Observed is { } supplies)
             {
-                var (_, supplies) = Harness.Outcome(suppliesReply, "observed");
-                foreach (var node in supplies["stocks"].AsSlice())
+                foreach (var row in supplies.Stocks)
                 {
-                    var row = node.AsMap();
-                    var defName = row?["definition"].AsMap()?["defName"].AsString() ?? "";
-                    if (stock.TryGetValue(defName, out var counts))
+                    if (row.Definition.DefName is { } defName && stock.TryGetValue(defName, out var counts))
                     {
-                        stock[defName] = counts with { Forbidden = (long)row!["forbidden"].AsNumber() };
+                        stock[defName] = counts with { Forbidden = row.Forbidden };
                     }
                 }
             }
-            catch (AcceptanceException e) when (suppliesReply["unavailable"].AsMap() is null)
+            else if (suppliesReply.Outcome?.Unavailable is null)
             {
-                throw new AcceptanceException($"supplies: {e.Message} (reply: {suppliesReply.ToJson()})", e);
-            }
-            catch (AcceptanceException)
-            {
-                // Native declined the bounded read; the forbidden counts stay unsampled.
+                // Native declining the bounded read leaves the forbidden counts unsampled; anything else is a failure.
+                throw new AcceptanceException($"supplies: {WireJson.Serialize(suppliesReply)}");
             }
         }
 
         var state = new ResetState
         {
-            ColonyId = colonyId,
-            LoadToken = loadToken,
-            Tick = tick,
-            Paused = paused,
-            AuthorityActive = authorityActive,
-            Drafted = drafted,
+            ColonyId = identity.ColonyId,
+            LoadToken = identity.LoadToken,
+            Tick = context.Tick,
+            Paused = loaded.Paused == true,
+            AuthorityActive = status.State?.Active is not null,
+            Drafted = pawns.Pawns.Count(p => p.Drafted),
             Stock = stock,
         };
-        return (state, identity.DeepClone().AsMap()!);
+        return (state, Harness.IdentityNode(identity));
     }
-
-    /// <summary>
-    /// Drives <c>rimgovernor/lifecycle_read_load</c> until a completed outcome, a native failure, or a bounded number of
-    /// attempts elapses. A pending or superseded outcome is otherwise a definite non-completion the caller must fail on
-    /// rather than loop past. Returns the completed outcome's value.
-    /// </summary>
-    public static async Task<JsonObject> PollLoadAsync(Harness h, JsonObject first, string requestId, string label, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(h);
-        ArgumentNullException.ThrowIfNull(first);
-        var reply = first;
-        for (var attempt = 0; attempt < 300; attempt++)
-        {
-            if (Case(reply, "completed") is { } completed)
-            {
-                return completed;
-            }
-
-            if (Case(reply, "superseded") is { } superseded)
-            {
-                throw new AcceptanceException($"load was superseded: {superseded["detail"].ToJson()}");
-            }
-
-            if (reply["failure"].AsMap() is { } failure)
-            {
-                throw new AcceptanceException($"load failed: {failure["code"].AsString()}");
-            }
-
-            if (Case(reply, "pending") is null)
-            {
-                throw new AcceptanceException($"unexpected load reply shape: {reply.ToJson()}");
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken).ConfigureAwait(false);
-            reply = await h.WireAsync(
-                string.Create(CultureInfo.InvariantCulture, $"{label}-{attempt}"),
-                "lifecycle_read_load",
-                new JsonObject { ["requestId"] = requestId },
-                cancellationToken).ConfigureAwait(false);
-        }
-
-        throw new AcceptanceException("load did not complete within the polling budget");
-    }
-
-    /// <summary>The value of the reply's single-field oneof when it is the named case.</summary>
-    private static JsonObject? Case(JsonObject reply, string name) =>
-        reply.Count == 1 && reply.TryGetPropertyValue(name, out var value) ? value as JsonObject : null;
 }

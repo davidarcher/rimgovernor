@@ -31,12 +31,9 @@ A case that cannot satisfy rules 1–3 is deleted, not given an exception.
 
 ## Writing a case
 
-New cases use the typed case API. It runs on the existing runner beside the legacy `AcceptanceCase`, and the
-compiler enforces the charter. The legacy `AcceptanceCase`/`ISession` path is frozen: add no cases to it. Port or
-delete a legacy case when you touch it. The legacy path is deleted once no cases remain on it.
-
-A typed case is a `TypedCase` record (`brain/src/RimGovernor.Brain.Acceptance/Cases/TypedCase.cs`), registered
-with `registry.Register(...)` like a legacy case:
+Every case uses the typed case API, and the compiler enforces the charter. A case is a `TypedCase` record
+(`brain/src/RimGovernor.Brain.Acceptance/Cases/TypedCase.cs`), registered with `registry.Register(...)` in
+`CaseCatalog`:
 
 | Member | Contract |
 | --- | --- |
@@ -96,10 +93,9 @@ identity), `Staged` and `TicksLeft`. Its members:
 `lab/stage`, `lab/spawn` and `upkeep/auto-home-area` are the reference ports.
 
 A new area adds its registration to `CaseCatalog.Register`. The gate checks every case without a game
-([acceptance-case gates](../architecture/rules.md#acceptance-cases)): the catalog test checks each typed case's
-cap, claim and tier, lints each legacy case and holds the legacy count to a shrink-only number. RS0030 fails a
-case file that calls `Task.Delay` or `Thread.Sleep` or reads a `JsonNode` by key or index. Porting a legacy file
-deletes its baseline section in the Cases project's `.editorconfig`.
+([acceptance-case gates](../architecture/rules.md#acceptance-cases)): the catalog test checks each case's
+cap, claim and tier. RS0030 fails a case file that calls `Task.Delay` or `Thread.Sleep` or reads a `JsonNode` by
+key or index.
 
 ### Staging
 
@@ -151,14 +147,9 @@ JSON-looking values decode as JSON; other values are strings.
   explicitly with the case's expansions or `RIMGOVERNOR_ACCEPT_EXPANSIONS`.
 - Keep needs the case tests unfrozen; freeze the rest. Use `QuietWorld` only when wild-map
   simulation is irrelevant, not for farm, hunting or husbandry claims.
-- Service-driven waits use a progress signature that ends on service exit: `ServeUntilAsync` on the typed
-  API (`WaitProgress`, `WaitReview`, `WaitPlan` and `WaitRounds` on the frozen legacy path).
-- Advance gameplay by ticks with `RunUntil`/tick waits. `AdvanceGame` plays the
-  harness as the brain: `clock_run`, a heartbeat about every second, and a
-  `REVIEW` hold at the tick target. It guarantees at least N ticks (the clock
-  may run a few past the target before the hold lands; `overshootTicks` records
-  how many), not exactly N. The speed matrix reports hold counts by reason,
-  resume latency and effective speed instead of window counts
+- Service-driven waits use a progress signature that ends on service exit: `ServeUntilAsync`.
+- Advance gameplay by ticks with `RunTicksAsync`, `RunUntilAsync` and `RunUntilEventAsync`. The speed matrix
+  reports hold counts by reason, resume latency and effective speed instead of window counts
   ([measure-throughput](measure-throughput.md#across-clock-speeds)).
   Fail immediately on terminal refusals or service exit.
 
@@ -183,8 +174,8 @@ cache instead of generating a start.
 - **nightly**: whole-colony proofs, run against main every night. It is a signal, not a landing gate.
 - **on demand**: every other case, run by name or by the remote workflow's cases tier.
 
-`acceptance list -tier <name>` prints a tier's cases. Every case declares its tier as `Tier = CaseTier.<Tier>`: a
-`TypedCase` must declare one, and a legacy `AcceptanceCase` defaults to `OnDemand`. `Off` covers fixture
+`acceptance list -tier <name>` prints a tier's cases. Every case declares its tier as `Tier = CaseTier.<Tier>`.
+`Off` covers fixture
 generators and diagnostics. Tiers never run them, and neither does `acceptance suite -all`.
 `brain/src/RimGovernor.Brain.Acceptance/Cost/Tiers.cs` builds each tier from these declarations.
 

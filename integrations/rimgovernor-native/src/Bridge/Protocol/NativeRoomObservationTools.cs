@@ -106,7 +106,7 @@ namespace HomeBridge.BridgeTools
             row = row with { TemperatureControl = things.Any(t => t is Building_TempControl || t.TryGetComp<CompHeatPusher>() != null) };
             row = row with { PerishableContents = things.Any(t => room.ContainsCell(t.Position) && t.TryGetComp<CompRottable>() != null) };
             try { row = row with { TemperatureC = Finite(room.Temperature) }; }
-            catch (Exception) { row = row with { Issues = [.. row.Issues, Issue("temperature_c", Common.UnavailableReason.ReadFailed, "Native room temperature unavailable.")] }; }
+            catch (Exception) { } // the temperature stays unobserved
             try
             {
                 var role = room.Role;
@@ -115,7 +115,7 @@ namespace HomeBridge.BridgeTools
                 var label = room.GetRoomRoleLabel();
                 if (label != null) row = row with { Label = PlacementPreviewOperation.Diagnostic(label) };
             }
-            catch (Exception) { row = row with { Issues = [.. row.Issues, Issue("role/label", Common.UnavailableReason.ReadFailed, "Native room role or label unavailable.")] }; }
+            catch (Exception) { } // the role and label stay unobserved
             row = row with { Extents = new Obs.Rectangle { Minimum = Cell(new IntVec3(cells.Min(c => c.x), 0, cells.Min(c => c.z))), Maximum = Cell(new IntVec3(cells.Max(c => c.x), 0, cells.Max(c => c.z))) } };
             row = row with { Center = Cell(Center(cells)) };
             var held = cells.Where(c => !c.Fogged(map)).ToList();
@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
             foreach (var group in contents) row = row with { Contents = [.. row.Contents, new Obs.Quantity { DefName = group.Key, Units = group.LongCount() }] };
             foreach (var definition in new[] { RoomStatDefOf.Cleanliness, RoomStatDefOf.Wealth, RoomStatDefOf.Space, RoomStatDefOf.Beauty, RoomStatDefOf.Impressiveness })
             {
-                if (definition == null) { row = row with { Issues = [.. row.Issues, Issue("stats", Common.UnavailableReason.NativeComponentMissing, "A standard native room stat definition is unavailable.")] }; continue; }
+                if (definition == null) continue;
                 var stat = new Obs.RoomStat { DefName = Name(definition.defName) };
                 try
                 {
@@ -183,6 +183,5 @@ namespace HomeBridge.BridgeTools
         private static string Id(int id) => id >= 0 ? id.ToString(CultureInfo.InvariantCulture) : throw new InvalidOperationException("Invalid room ID.");
         private static string Name(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid native room identifier.");
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(reason, detail) };
     }
 }

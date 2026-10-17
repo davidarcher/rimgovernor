@@ -170,19 +170,17 @@ delete physiological, involuntary, emergency or manual-player coverage merely
 because it does not belong to ordinary economic selection.
 
 A native-only case that probes a vanilla mechanic through a colonist's own job
-choice (`burial/stranger-sarcophagus`, `burial/grave-over-morgue`) declares
-`AcceptanceCase.VanillaColonists` with a Reason. The runner then calls the
-test-only `test/vanilla_colonists` fixture op, so colonists choose voluntary jobs
-natively for that game while the scenario clock holds the authority. It is
-absent from production builds and is not evidence of controlled execution.
+choice (`burial/stranger-sarcophagus`, `burial/grave-over-morgue`) lists the
+test-only `test/vanilla_colonists` fixture op (`Needs.VanillaColonistsTool`) in
+its `Ops` and says why in its `Scope`, so colonists choose voluntary jobs
+natively for that game. It is absent from production builds and is not evidence
+of controlled execution.
 
-A native-only case runs no brain, so before each Run the scenario clock calls the
-test-only `test/standby_colonists` fixture op, its stand-in for the brain's
-standby: each controlled colonist with no assignment and an idle job gets the
-same `Standby` order. Under `VanillaColonists` no colonist is controlled and the
-op installs nothing. The mood probes `apparel/dead_mans`, `environment/cold` and
-`environment/hot` are typed cases, whose waits run the game through RunAt rather
-than the scenario clock, so they declare none.
+A native-only case runs no brain. The fixtures that need the brain's standby
+(pawn cooking, pawn delivery) install it themselves (`StandbyColonists` in
+`scripts/fixtures/FreezeNeedsFixture.cs`): each controlled colonist with no
+assignment and an idle job gets the same `Standby` order. Under
+`test/vanilla_colonists` no colonist is controlled and it installs nothing.
 
 Native disorientation and the native imposed-sleep/force-job ability effects retain
 their direct job authority through exact source-method scopes. The scope applies only

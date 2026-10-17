@@ -144,33 +144,22 @@ the same way, as `Fixtures|Type.Member`. Their other end is the fixture build's 
 never builds, so the acceptance cases and their harness are the readers: a case setting a spec member uses
 it as a case reading a reply member does. This check needs no game, and it has no baseline lines.
 
-Acceptance cases read many native replies by JSON key (`WireCodec`'s flat view, `JsonNode`
-lookups such as `view["shown"]`), which no symbol shows. As a stopgap until the cases read typed
-Contracts records (a migration that will be its own epic), the check counts as read every wire
-member whose JSON name (taken from `WireJsonContext`'s own metadata, so naming policy and
-`[JsonPropertyName]` apply) equals an identifier-shaped string literal anywhere in the
-`RimGovernor.Brain.Acceptance*` assemblies. This is deliberately loose: no field a case reads by key
-is flagged, at the cost that a common key such as `"label"` keeps a real orphan alive. A new or
-touched case reads the typed record instead (`WireCodec.ToRecord<T>` and the member), so the read
-is compile-checked and visible to the gate. PlayerApi also serves Presentation records as JSON to
-HTTP clients ([player API](../contracts/player-api.md)); a field that contract documents has a
-reader the check cannot see.
+Acceptance cases and their harness read native replies as typed Contracts records
+(`Harness.CallAsync` with a `NativeOps` op), so every read is a symbol the check sees. PlayerApi
+also serves Presentation records as JSON to HTTP clients ([player API](../contracts/player-api.md));
+a field that contract documents has a reader the check cannot see.
 
 ### Acceptance cases
 
 Two gates hold the cases to the [acceptance charter](../testing/acceptance-guide.md#charter) without a game:
 
 - **Catalog test** (`AcceptanceCatalogTests` in `RimGovernor.Brain.Domain.Tests`). It builds the whole registry
-  through `CaseCatalog.Register`. Every typed case must declare a non-blank `Scope`, `Ticks` within its start's
-  cap and a defined `Tier`. Every legacy case must pass the runner's `AcceptanceCase.Lint()`. The legacy case
-  count must equal the test's `LegacyCases` constant, which only shrinks: a port or deletion lowers it in the same
-  commit, and a new legacy case fails.
+  through `CaseCatalog.Register`. Every case must declare a non-blank `Scope`, `Ticks` within its start's
+  cap and a defined `Tier`.
 - **Banned APIs (RS0030)** on `RimGovernor.Brain.Acceptance.Cases`: `Microsoft.CodeAnalysis.BannedApiAnalyzers`
   over the project's `BannedSymbols.txt` (`Task.Delay`, `Thread.Sleep`, the `JsonNode`/`JsonObject` indexers).
-  The ban is per project, not per case type, so the project's `.editorconfig` makes it an error and keeps a
-  shrink-only baseline of legacy files, one `[/Area/File.cs]` section each, at `suggestion`. The compiler still
-  writes their uses to `banned-api.sarif`, and the gate's `banned-API baseline` job fails a section whose file
-  no longer uses a banned API (delete the section). Never add a section; write the case on the typed API.
+  The project's `.editorconfig` makes it an error in every file. The compiler writes any use a suppression kept
+  from failing the build to `banned-api.sarif`, and the gate's `banned-API uses` job fails it.
 
 ## Refreshing
 

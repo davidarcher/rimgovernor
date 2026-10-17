@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
             {
                 foreach (var job in pawn.jobs.jobQueue.Select(q => q.job).Concat(new[] { pawn.CurJob })) {
                     if (job?.def != JobDefOf.UseCommsConsole || !(job.commTarget is Faction faction) || !(job.targetA.Thing is Building_CommsConsole console)) continue;
-                    result = result with { CommsWork = [.. result.CommsWork, new Obs.TradeCommsWork { NegotiatorId = pawn.GetUniqueLoadID(), ConsoleId = console.GetUniqueLoadID(), FactionId = faction.GetUniqueLoadID(), JobId = job.loadID }] };
+                    result = result with { CommsWork = [.. result.CommsWork, new Obs.TradeCommsWork { NegotiatorId = pawn.GetUniqueLoadID(), ConsoleId = console.GetUniqueLoadID(), FactionId = faction.GetUniqueLoadID() }] };
                 }
             }
             var consoles = map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>()

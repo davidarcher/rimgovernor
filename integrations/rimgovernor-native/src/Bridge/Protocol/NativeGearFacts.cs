@@ -268,7 +268,7 @@ namespace HomeBridge.BridgeTools
             if (thing.TryGetQuality(out var quality)) row = row with { Quality = (Defs.QualityCategory)(int)quality };
             if (thing.def.useHitPoints) {
                 if (thing.MaxHitPoints <= 0 || thing.HitPoints < 0) throw new InvalidOperationException("Invalid native hit points.");
-                row = row with { HitPoints = thing.HitPoints, MaxHitPoints = thing.MaxHitPoints, ConditionFraction = Number((double)thing.HitPoints / thing.MaxHitPoints) };
+                row = row with { ConditionFraction = Number((double)thing.HitPoints / thing.MaxHitPoints) };
             }
             return row;
         }

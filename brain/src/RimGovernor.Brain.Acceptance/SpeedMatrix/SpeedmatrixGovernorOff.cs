@@ -97,14 +97,8 @@ internal sealed partial class SpeedmatrixRun
         clock.Account(accountingStart, await ClockAccounting.ReadAsync(h, "clock-accounting-end", cancellationToken).ConfigureAwait(false));
         var after = await ControlAsync(h, identity, "control-after", cancellationToken).ConfigureAwait(false);
         report["control_after"] = after.DeepClone();
-        var pawnsReply = await h.WireAsync(
-            "pawns-after",
-            "observations_list_pawns",
-            new JsonObject { ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() }, ["filter"] = new JsonObject { ["colonist"] = true } },
-            cancellationToken).ConfigureAwait(false);
-        ClockFixture.RequireHealthyColonists(pawnsReply);
-        var (_, observed) = Harness.Outcome(pawnsReply, "observed");
-        var outcome = SpeedMatrix.OutcomeFromControl(c.Name, after) with { HealthyColonists = observed["pawns"].AsSlice().Count };
+        var healthy = await ClockFixture.RequireHealthyColonistsAsync(h, "pawns-after", identity, cancellationToken).ConfigureAwait(false);
+        var outcome = SpeedMatrix.OutcomeFromControl(c.Name, after) with { HealthyColonists = healthy };
         report["outcome"] = outcome.ToJson();
         var wallTps = wallSeconds > 0 && lastTick > startTick ? (lastTick - startTick) / wallSeconds : 0.0;
         var metrics = new JsonObject
@@ -142,18 +136,11 @@ internal sealed partial class SpeedmatrixRun
     }
 
     // Reads the loaded identity the stage reload produced.
-    private static async Task<JsonObject> ReadIdentityAsync(Harness h, CancellationToken cancellationToken)
-    {
-        var reply = await h.WireAsync("identity", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, loaded) = Harness.Outcome(reply, "loaded");
-        return loaded["context"].AsMap()?["identity"].AsMap() ?? [];
-    }
+    private static Task<JsonObject> ReadIdentityAsync(Harness h, CancellationToken cancellationToken) =>
+        Session.ReadIdentityAsync(h, "identity", cancellationToken);
 
     // The loaded tick.
-    private static async Task<ulong> ReadTickAsync(Harness h, string label, CancellationToken cancellationToken)
-    {
-        var reply = await h.WireAsync(label, "lifecycle_read_tick", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var (_, loaded) = Harness.Outcome(reply, "loaded");
-        return (ulong)loaded["context"].AsMap()?["tick"].AsNumber()!;
-    }
+    private static async Task<ulong> ReadTickAsync(Harness h, string label, CancellationToken cancellationToken) =>
+        (ulong)((await h.LoadedTickAsync(label, cancellationToken).ConfigureAwait(false)).Context?.Tick
+            ?? throw new AcceptanceException($"{label}: lifecycle_read_tick loaded without a context"));
 }

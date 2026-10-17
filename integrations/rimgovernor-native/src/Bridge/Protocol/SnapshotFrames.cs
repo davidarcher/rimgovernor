@@ -132,7 +132,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (!door.Spawned || !door.def.useHitPoints || door.HitPoints >= door.MaxHitPoints) continue;
                 doors.Add(new RimGovernor.Contracts.Wire.Mirror.CombatDoorRow { Id = door.GetUniqueLoadID(),
-                    Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, HitPoints = door.HitPoints, MaxHitPoints = door.MaxHitPoints });
+                    Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z } });
             }
             // The unroofed player mortars, for counter-battery.
             var mortars = new List<RimGovernor.Contracts.Wire.Mirror.CombatMortarRow>(observed.CombatMortars);

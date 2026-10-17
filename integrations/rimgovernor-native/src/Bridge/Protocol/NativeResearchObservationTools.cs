@@ -146,7 +146,6 @@ namespace HomeBridge.BridgeTools
             Number(cost); Number(def.baseCost);
             row = row with { Progress = points };
             if (cost > 0) row = row with { ProgressFraction = Fraction(points, cost) };
-            else row = row with { Issues = [.. row.Issues, Issue("progress_fraction", "Zero-cost project has no finite native progress fraction.")] };
             foreach (var prerequisite in def.prerequisites ?? new List<ResearchProjectDef>())
                 if (!Finished(Progress(prerequisite, progress, knowledge, anomaly), prerequisite.Cost)) row = row with { LockReasons = [.. row.LockReasons, "prerequisite:" + Id(prerequisite.defName)] };
             foreach (var prerequisite in def.hiddenPrerequisites ?? new List<ResearchProjectDef>())
@@ -178,5 +177,5 @@ namespace HomeBridge.BridgeTools
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid research identifier.");
         private static Obs.DefinitionRef Definition(Def def) => new Obs.DefinitionRef { DefName = Id(def.defName) };
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.ReadIssue Issue(string field, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(Common.UnavailableReason.ReadFailed, detail) };    }
+    }
 }

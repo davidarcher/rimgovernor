@@ -128,7 +128,7 @@ internal static class Gate
             new("native-hook-set", c =>
                 File.Exists(hookset) ? Dotnet(p.Repo, c, hookset) : Task.FromResult("unavailable (not built; Harmony missing)\n")),
             new("contract orphans", _ => Task.Run(() => Orphans(p))),
-            new("banned-API baseline", _ => Task.Run(() => BannedApi(p))),
+            new("banned-API uses", _ => Task.Run(() => BannedApi(p))),
         };
         Log.Info($"test: {jobs.Count} jobs at once; each prints when it finishes");
         var failed = new List<string>();
@@ -195,7 +195,8 @@ internal static class Gate
             var native = Directory.EnumerateFiles(Path.Combine(p.Mod, "RimGovernor"), "RimGovernor.*.dll", SearchOption.AllDirectories)
                 .Where(f => !Path.GetFileName(f).StartsWith("RimGovernor.Brain.", StringComparison.Ordinal))
                 .ToList();
-            // The acceptance cases read some native replies by JSON key; any wire member whose JSON name they mention is read.
+            // The harness subcommands still read some native replies by JSON key; any wire member whose JSON name the
+            // acceptance assemblies mention is read.
             var keys = ContractOrphans.LiteralKeys(brain.Where(f => Path.GetFileName(f).StartsWith("RimGovernor.Brain.Acceptance", StringComparison.Ordinal)));
             var contracts = Path.Combine(p.Bin("RimGovernor.Brain.Contracts"), "RimGovernor.Brain.Contracts.dll");
             var byName = ContractOrphans.WireNames(contracts).Where(n => keys.Contains(n.Value)).Select(n => n.Key).ToHashSet(StringComparer.Ordinal);
@@ -235,7 +236,7 @@ internal static class Gate
     }
 
     /// <summary>
-    /// The acceptance cases' banned-API baseline (<see cref="BannedApiBaseline"/>) against the compiler log the solution
+    /// The acceptance cases' suppressed banned-API uses (<see cref="BannedApiUses"/>) in the compiler log the solution
     /// build wrote for <c>RimGovernor.Brain.Acceptance.Cases</c>.
     /// </summary>
     private static string BannedApi(Paths p)
@@ -247,12 +248,12 @@ internal static class Gate
         {
             throw new ToolException($"missing {sarif}: the solution build writes it when it compiles the cases");
         }
-        var problems = BannedApiBaseline.Check(cases, Path.Combine(cases, ".editorconfig"), sarif, out var baselined);
+        var problems = BannedApiUses.Check(cases, sarif);
         if (problems.Count > 0)
         {
             throw new ToolException(string.Join("\n", problems));
         }
-        return $"legacy files baselined: {baselined}; stale: none\n";
+        return "suppressed uses: none\n";
     }
 
     /// <summary>Runs dotnet captured and returns its output; a non-zero exit throws with that output.</summary>
