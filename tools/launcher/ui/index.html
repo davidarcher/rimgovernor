@@ -783,7 +783,7 @@ function obNow(v) {
   if (review) h += `<div class="obcard"><h3>Latest rounds review</h3>${obRowHtml(review)}</div>`;
   const steps = lastN('clock_step', 8);
   if (steps.length) h += `<div class="obcard"><h3>Pace: newest clock steps</h3>${steps.map(obRowHtml).join('')}</div>`;
-  const events = ob.rows.filter(r => ['clock_stop', 'clock_hold', 'clock_resume', 'authority'].includes(r.kind)).slice(-8).reverse();
+  const events = ob.rows.filter(r => ['clock_stop', 'clock_hold', 'clock_resume', 'clock_authority', 'authority'].includes(r.kind)).slice(-8).reverse();
   if (events.length) h += `<div class="obcard"><h3>Holds, stops and authority changes</h3>${events.map(obRowHtml).join('')}</div>`;
   return h;
 }

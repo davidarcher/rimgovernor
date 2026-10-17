@@ -103,6 +103,7 @@ namespace HomeBridge.BridgeTools
                 LaunchPhases.Record(LaunchPhases.NextId(), 0, "brain.host_start", hostStart, brainStarted);
                 ReplayLaunch(brainStarted);
                 host = started;
+                Supervisor.AttachRows(started.Telemetry);
                 await ProtoBoundary.OnGameThread("brain/activity", () => { PawnActivityTracker.Attach(started.Telemetry); return started; }, CancellationToken.None, MainThreadAdmission.Observation).ConfigureAwait(false);
                 AppDomain.CurrentDomain.ProcessExit += (_, _) => StopOnExit(started);
                 Log.Message($"[RimGovernor] The in-process brain started (state {inputs.StatePath}, run {inputs.RunId}, auto-resume {inputs.AutoResume}).");

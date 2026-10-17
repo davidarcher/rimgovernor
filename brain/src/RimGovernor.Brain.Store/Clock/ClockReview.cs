@@ -46,7 +46,7 @@ public static partial class ClockJournal
         reason is Pb.HoldReason.NeverRun or Pb.HoldReason.CoupledOrder or Pb.HoldReason.Review or Pb.HoldReason.Autosave or Pb.HoldReason.GameForced or Pb.HoldReason.CombatEvent;
 
     /// <summary><see cref="BenignHold"/> with the hold's evidence; a letter pause for an informational letter is benign too.</summary>
-    public static bool BenignHoldEvent(Pb.HoldEntered? hold)
+    private static bool BenignHoldEvent(Pb.HoldEntered? hold)
     {
         var reason = hold?.Reason ?? Pb.HoldReason.Unavailable;
         if (BenignHold(reason))

@@ -25,4 +25,34 @@ public static class TelemetryKinds
 
     /// <summary>One observed production-site output (<see cref="PawnActivityTelemetry.OutputKind"/>).</summary>
     public static readonly TelemetryKind PawnActivityOutput = new(PawnActivityTelemetry.OutputKind);
+
+    /// <summary>The clock entered a hold (<see cref="ClockEventTelemetry.HoldKind"/>): a hazard, a game pause, a combat event or a brain hold.</summary>
+    public static readonly TelemetryKind ClockHold = new(ClockEventTelemetry.HoldKind);
+
+    /// <summary>A Run resumed a held clock (<see cref="ClockEventTelemetry.ResumeKind"/>).</summary>
+    public static readonly TelemetryKind ClockResume = new(ClockEventTelemetry.ResumeKind);
+
+    /// <summary>The native authority generation moved (<see cref="ClockEventTelemetry.AuthorityKind"/>).</summary>
+    public static readonly TelemetryKind ClockAuthority = new(ClockEventTelemetry.AuthorityKind);
+
+    /// <summary>A new game alert (<see cref="ClockEventTelemetry.AlertKind"/>).</summary>
+    public static readonly TelemetryKind ClockAlert = new(ClockEventTelemetry.AlertKind);
+
+    /// <summary>A new letter or transient message (<see cref="ClockEventTelemetry.NotificationKind"/>).</summary>
+    public static readonly TelemetryKind ClockNotification = new(ClockEventTelemetry.NotificationKind);
+
+    /// <summary>A colonist injury observed without a hold (<see cref="ClockEventTelemetry.InjuryKind"/>).</summary>
+    public static readonly TelemetryKind ClockInjury = new(ClockEventTelemetry.InjuryKind);
+
+    /// <summary>No conscious hostiles remain (<see cref="ClockEventTelemetry.HostilesClearedKind"/>).</summary>
+    public static readonly TelemetryKind ClockHostilesCleared = new(ClockEventTelemetry.HostilesClearedKind);
+
+    /// <summary>Observed fact families changed under a running clock (<see cref="ClockEventTelemetry.InvalidationKind"/>).</summary>
+    public static readonly TelemetryKind ClockInvalidation = new(ClockEventTelemetry.InvalidationKind);
+
+    /// <summary>A long event or transient force pause began or cleared (<see cref="ClockEventTelemetry.LongEventKind"/>).</summary>
+    public static readonly TelemetryKind ClockLongEvent = new(ClockEventTelemetry.LongEventKind);
+
+    /// <summary>A pending hold's pause did not take; the hold stays armed (<see cref="ClockEventTelemetry.PauseFailedKind"/>).</summary>
+    public static readonly TelemetryKind ClockPauseFailed = new(ClockEventTelemetry.PauseFailedKind);
 }

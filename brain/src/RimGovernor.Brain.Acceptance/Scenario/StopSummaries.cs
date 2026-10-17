@@ -1,23 +1,18 @@
-using System.Globalization;
-using System.Text.Json;
+using System.Text;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
 
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// One clock hold's legs, read from the journal's holdEntered event and the resumed event that ended it. Ticks come
-/// from the hold event alone (native's context tick, the tick the hold was raised at and, where the hazard carries one,
-/// the tick it arose). ObserveMs is native's own age of the row when the page carrying it was composed (age_at_reply_ms)
-/// plus the round trip's transport residual on the controller's side (call_ms less native queue and execute), each on one
-/// process's clock. ResumeMs is native's own time from the hold to the Run that resumed it (the two events'
-/// observed_at stamps, both on native's clock), so nothing subtracts one process's Unix time from another's; the cursor
-/// is the only cross-process key.
+/// One clock hold's legs, read from native's <c>clock_hold</c> row and the <c>clock_resume</c> row that ended it. Ticks
+/// come from the hold row alone (its tick, the tick the hold was raised at and, where the hazard carries one, the tick
+/// it arose). ResumeMs is native's own time from the hold to the Run that resumed it (the hold's stop stamp to the
+/// resume's observed stamp, both on native's clock).
 /// </summary>
 public sealed class HoldLatency
 {
-    public long Cursor { get; set; }
-
     public string Reason { get; set; } = "";
 
     public long HoldTick { get; set; }
@@ -30,14 +25,12 @@ public sealed class HoldLatency
 
     public long? HoldTicks { get; set; }
 
-    public double? ObserveMs { get; set; }
-
     public double? ResumeMs { get; set; }
 
-    /// <summary>The hold as its report row (json tags cursor, reason, hold_tick, then the optional legs).</summary>
+    /// <summary>The hold as its report row (json tags reason, hold_tick, then the optional legs).</summary>
     public JsonObject ToJson()
     {
-        var row = new JsonObject { ["cursor"] = Cursor, ["reason"] = Reason, ["hold_tick"] = HoldTick };
+        var row = new JsonObject { ["reason"] = Reason, ["hold_tick"] = HoldTick };
         if (DetectedTick is { } detected)
         {
             row["detected_tick"] = detected;
@@ -58,11 +51,6 @@ public sealed class HoldLatency
             row["hold_ticks"] = holdTicks;
         }
 
-        if (ObserveMs is { } observe)
-        {
-            row["observe_ms"] = observe;
-        }
-
         if (ResumeMs is { } resume)
         {
             row["resume_ms"] = resume;
@@ -73,22 +61,15 @@ public sealed class HoldLatency
 }
 
 /// <summary>
-/// The clock holds one serve process observed, read back from its log-ring timeline: every holdEntered event a
-/// clock_read_events reply carried, counted by hold reason, with the latency from the companion's observed_at stamp to
-/// the reply reaching the service (observe) and the native time each hold lasted before a Run resumed it (resume).
+/// The clock holds one serve process recorded, read back from its log ring's native <c>clock_hold</c> rows, counted by
+/// hold reason, with the native time each hold lasted before a Run resumed it (resume).
 /// </summary>
 public sealed class HoldSummary
 {
     public int Holds { get; set; }
 
-    /// <summary>Holds by lowercase reason ("letter_pause", "review", ...).</summary>
+    /// <summary>Holds by snake_case reason ("letter_pause", "review", ...).</summary>
     public Dictionary<string, int> Reasons { get; } = new(StringComparer.Ordinal);
-
-    public int ObserveCount { get; set; }
-
-    public double MeanObserveMs { get; set; }
-
-    public double MaxObserveMs { get; set; }
 
     /// <summary>Holds a later Run resumed, and their native hold-to-resume time.</summary>
     public int ResumeCount { get; set; }
@@ -97,10 +78,10 @@ public sealed class HoldSummary
 
     public double MaxResumeMs { get; set; }
 
-    /// <summary>The per-hold split, in cursor order.</summary>
+    /// <summary>The per-hold split, in emission order.</summary>
     public List<HoldLatency> Latencies { get; } = [];
 
-    /// <summary>The summary as its report row (json tags holds, reasons, observe_*, resume_*, ...).</summary>
+    /// <summary>The summary as its report row (json tags holds, reasons, resume_*, ...).</summary>
     public JsonObject ToJson()
     {
         var row = new JsonObject { ["holds"] = Holds };
@@ -115,9 +96,6 @@ public sealed class HoldSummary
             row["reasons"] = reasons;
         }
 
-        row["observe_samples"] = ObserveCount;
-        row["mean_observe_ms"] = MeanObserveMs;
-        row["max_observe_ms"] = MaxObserveMs;
         row["resume_samples"] = ResumeCount;
         row["mean_resume_ms"] = MeanResumeMs;
         row["max_resume_ms"] = MaxResumeMs;
@@ -136,105 +114,48 @@ public sealed class HoldSummary
     }
 }
 
-/// <summary>Reads the clock holds a serve process's log ring recorded (Go speedmatrix.go's SummarizeStops and its helpers).</summary>
+/// <summary>Reads the clock holds a serve process's log ring recorded from native's hold and resume rows.</summary>
 public static class StopSummaries
 {
-    private const string ClockEventsTool = "rimgovernor/clock_read_events";
-    private const string HoldReasonPrefix = "HOLD_REASON_";
-
     /// <summary>
-    /// Reads clock events from direct replies and bundle pages, deduplicating by cursor. Events before
-    /// <paramref name="sinceUnixMs"/> are skipped because the journal survives game reloads in the same process and
-    /// can contain previous cases' holds. Zero keeps every event.
+    /// Summarizes the <c>clock_hold</c> and <c>clock_resume</c> rows in reader order. Rows observed before
+    /// <paramref name="sinceUnixMs"/> are skipped because a kept process's ring carries earlier cases' holds. Zero keeps
+    /// every row.
     /// </summary>
     public static HoldSummary SummarizeHolds(IReadOnlyList<TimelineRecord> rows, long sinceUnixMs)
     {
         ArgumentNullException.ThrowIfNull(rows);
         var summary = new HoldSummary();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        double observeTotal = 0;
 
-        // The journal's own order is the cursor order: holds and resumes pair up by it, whichever reply carried them.
-        var ordered = new List<(long Cursor, bool Hold, long ObservedAt, HoldLatency? Latency)>();
+        // A resume ends the hold before it; the first reason stands, so holds raised while one is already standing
+        // add no pending entry of their own.
+        HoldLatency? pending = null;
+        double pendingAt = 0;
+        double resumeTotal = 0;
         foreach (var row in rows)
         {
-            if (row.Kind != "native_call" || NativeReplyFailed(row))
+            var hold = row.Kind == TelemetryKinds.ClockHold.Name;
+            if (!hold && row.Kind != TelemetryKinds.ClockResume.Name)
             {
                 continue;
             }
 
-            if ((row.Payload.GetValueOrDefault("native_tool") as string ?? "") != ClockEventsTool || RecordedReply(row.Payload) is not { } reply)
+            var observed = Number(row.Payload, ClockEventTelemetry.ObservedAtKey);
+            if (sinceUnixMs > 0 && (observed is not { } at || at < sinceUnixMs))
             {
                 continue;
             }
 
-            foreach (var evt in FindEvents(reply))
-            {
-                var hasObserved = Int64Value(evt["observedAtUnixMs"], out var observed);
-                if (sinceUnixMs > 0 && (!hasObserved || observed < sinceUnixMs))
-                {
-                    continue;
-                }
-
-                var hasCursor = Int64Value(evt["cursor"], out var cursor);
-                var key = evt["cursor"] is { } cursorNode
-                    ? CursorKey(cursorNode)
-                    : string.Create(CultureInfo.InvariantCulture, $"row-{row.Sequence}-{evt["observedAtUnixMs"].ToJson()}");
-                if (evt["resumed"] is JsonObject)
-                {
-                    if (seen.Add(key) && hasCursor && hasObserved)
-                    {
-                        ordered.Add((cursor, false, observed, null));
-                    }
-
-                    continue;
-                }
-
-                if (evt["holdEntered"] is not JsonObject held || !seen.Add(key))
-                {
-                    continue;
-                }
-
-                var reason = ReasonName(held["reason"]);
-                summary.Holds++;
-                summary.Reasons[reason] = summary.Reasons.GetValueOrDefault(reason) + 1;
-                var latency = HoldLatencyOf(evt, held, reason, row);
-                summary.Latencies.Add(latency);
-                ordered.Add((cursor, true, hasObserved ? observed : 0, latency));
-                if (hasObserved && row.WallTime > 0)
-                {
-                    var sinceObserved = (row.WallTime * 1000) - observed;
-                    if (sinceObserved >= 0)
-                    {
-                        summary.ObserveCount++;
-                        observeTotal += sinceObserved;
-                        if (sinceObserved > summary.MaxObserveMs)
-                        {
-                            summary.MaxObserveMs = sinceObserved;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (summary.ObserveCount > 0)
-        {
-            summary.MeanObserveMs = observeTotal / summary.ObserveCount;
-        }
-
-        // A resume ends the hold before it in the journal; the first reason stands, so holds raised while one is
-        // already standing add no pending entry of their own.
-        HoldLatency? pending = null;
-        long pendingAt = 0;
-        double resumeTotal = 0;
-        foreach (var (_, hold, observed, latency) in ordered.OrderBy(entry => entry.Cursor))
-        {
             if (hold)
             {
+                var latency = HoldLatencyOf(row.Payload);
+                summary.Holds++;
+                summary.Reasons[latency.Reason] = summary.Reasons.GetValueOrDefault(latency.Reason) + 1;
+                summary.Latencies.Add(latency);
                 if (pending is null)
                 {
                     pending = latency;
-                    pendingAt = observed;
+                    pendingAt = Number(row.Payload, ClockEventTelemetry.StopAtMsKey) ?? observed ?? 0;
                 }
 
                 continue;
@@ -245,9 +166,9 @@ public static class StopSummaries
                 continue;
             }
 
-            if (pendingAt > 0 && observed >= pendingAt)
+            if (pendingAt > 0 && observed is { } resumedAt && resumedAt >= pendingAt)
             {
-                var resume = (double)(observed - pendingAt);
+                var resume = resumedAt - pendingAt;
                 pending.ResumeMs = resume;
                 summary.ResumeCount++;
                 resumeTotal += resume;
@@ -265,150 +186,56 @@ public static class StopSummaries
         return summary;
     }
 
-    // "HOLD_REASON_LETTER_PAUSE" is "letter_pause"; an unnamed reason reads as "unspecified".
-    private static string ReasonName(JsonNode? reason)
+    // One hold's tick legs from its row; the resume leg is filled in once the scan has paired it with its resume.
+    private static HoldLatency HoldLatencyOf(IReadOnlyDictionary<string, object?> payload)
     {
-        var text = reason.AsString();
-        if (text.StartsWith(HoldReasonPrefix, StringComparison.Ordinal))
+        var output = new HoldLatency
         {
-            text = text[HoldReasonPrefix.Length..];
-        }
-
-        return text.Length == 0 ? "unspecified" : text.ToLowerInvariant();
-    }
-
-    // fmt.Sprint of a decoded cursor: a ProtoJSON uint64 string reads as itself, a number as its integer.
-    private static string CursorKey(JsonNode cursor) =>
-        cursor is JsonValue value && value.TryGetValue<string>(out var text) ? text : Int64Value(cursor, out var number) ? number.ToString(CultureInfo.InvariantCulture) : cursor.ToJson();
-
-    // Whether a native_call row records a failure: ok false or an error text.
-    private static bool NativeReplyFailed(TimelineRecord row) =>
-        (row.Payload.GetValueOrDefault("ok") is false) || (row.Payload.GetValueOrDefault("error") as string ?? "").Length > 0;
-
-    // A recorded native_call row's reply as a JSON object: the JSON text its result.payload holds (the Go rows also
-    // carried a packed protobuf reply; the C# rows are plain JSON).
-    private static JsonObject? RecordedReply(IReadOnlyDictionary<string, object?> payload)
-    {
-        if (payload.GetValueOrDefault("result") is not IReadOnlyDictionary<string, object?> result || result.GetValueOrDefault("payload") is not string text)
+            Reason = ReasonName(payload.GetValueOrDefault(ClockEventTelemetry.ReasonKey) as string ?? ""),
+            HoldTick = (long)(Number(payload, ClockEventTelemetry.TickKey) ?? 0),
+        };
+        if (Number(payload, ClockEventTelemetry.DetectedTickKey) is { } detected)
         {
-            return null;
-        }
-
-        try
-        {
-            return JsonNode.Parse(text) as JsonObject;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    // Derives one hold's tick and observation legs from its event and the reply row that carried it; the resume leg is
-    // filled in once the scan has paired the hold with its resume.
-    private static HoldLatency HoldLatencyOf(JsonObject evt, JsonObject held, string reason, TimelineRecord row)
-    {
-        var output = new HoldLatency { Reason = reason };
-        if (Int64Value(evt["cursor"], out var cursor))
-        {
-            output.Cursor = cursor;
-        }
-
-        if (evt["context"] is JsonObject context && Int64Value(context["tick"], out var holdTick))
-        {
-            output.HoldTick = holdTick;
-        }
-
-        if (Int64Value(held["detectedTick"], out var detected))
-        {
-            output.DetectedTick = detected;
-            output.HoldTicks = output.HoldTick - detected;
-            if (Int64Value(held["occurrenceTick"], out var occurrence))
+            output.DetectedTick = (long)detected;
+            output.HoldTicks = output.HoldTick - (long)detected;
+            if (Number(payload, ClockEventTelemetry.OccurrenceTickKey) is { } occurrence)
             {
-                output.OccurrenceTick = occurrence;
-                output.DetectTicks = detected - occurrence;
+                output.OccurrenceTick = (long)occurrence;
+                output.DetectTicks = (long)detected - (long)occurrence;
             }
-        }
-
-        if (Int64Value(evt["ageAtReplyMs"], out var age) && age >= 0)
-        {
-            double observe = age;
-            if (row.Payload.GetValueOrDefault("timing") is IReadOnlyDictionary<string, object?> timing)
-            {
-                // Only the legs the row carries: a missing key reads as 0.
-                var residual = TimingMs(timing, "call_ms") - TimingMs(timing, "native_queue_ms") - TimingMs(timing, "native_execute_ms");
-                if (residual > 0)
-                {
-                    observe += residual;
-                }
-            }
-
-            output.ObserveMs = observe;
         }
 
         return output;
     }
 
-    // One leg of a native_call timing map, zero when absent.
-    private static double TimingMs(IReadOnlyDictionary<string, object?> timing, string key) =>
-        timing.ContainsKey(key) ? RowValue.Number(timing[key]) : 0;
-
-    // Every object in an "events" array anywhere in the decoded ProtoJSON reply, in document order.
-    private static List<JsonObject> FindEvents(JsonNode? node)
+    // "LetterPause" (a HoldReason name) is "letter_pause"; an unnamed reason reads as "unspecified".
+    private static string ReasonName(string reason)
     {
-        var output = new List<JsonObject>();
-        switch (node)
+        if (reason.Length == 0)
         {
-            case JsonObject map:
-                foreach (var key in map.Select(pair => pair.Key).Order(StringComparer.Ordinal))
-                {
-                    if (key == "events" && map[key] is JsonArray list)
-                    {
-                        output.AddRange(list.OfType<JsonObject>());
-                        continue;
-                    }
-
-                    output.AddRange(FindEvents(map[key]));
-                }
-
-                break;
-            case JsonArray array:
-                foreach (var item in array)
-                {
-                    output.AddRange(FindEvents(item));
-                }
-
-                break;
+            return "unspecified";
         }
 
-        return output;
+        var text = new StringBuilder();
+        foreach (var c in reason)
+        {
+            if (char.IsUpper(c) && text.Length > 0)
+            {
+                text.Append('_');
+            }
+
+            text.Append(char.ToLowerInvariant(c));
+        }
+
+        return text.ToString();
     }
 
-    // Accepts ProtoJSON int64 encodings: a JSON string or a number.
-    private static bool Int64Value(JsonNode? value, out long result)
-    {
-        result = 0;
-        if (value is not JsonValue json)
+    // A row's numeric field; null when absent (a null attribute is absent from the record).
+    private static double? Number(IReadOnlyDictionary<string, object?> payload, string key) =>
+        payload.GetValueOrDefault(key) switch
         {
-            return false;
-        }
-
-        if (json.TryGetValue<string>(out var text))
-        {
-            return long.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out result);
-        }
-
-        if (json.TryGetValue<long>(out result))
-        {
-            return true;
-        }
-
-        if (json.TryGetValue<double>(out var number))
-        {
-            result = (long)number;
-            return true;
-        }
-
-        return false;
-    }
+            double value => value,
+            long value => value,
+            _ => null,
+        };
 }

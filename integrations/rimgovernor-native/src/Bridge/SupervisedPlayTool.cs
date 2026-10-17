@@ -1110,7 +1110,7 @@ namespace HomeBridge.BridgeTools
         }
         private static void Add(string kind, string? detail, State s, Dictionary<string, object?>? payload)
         {
-            try { Append(TypedEvent(kind, detail, s, payload)); }
+            try { Append(TypedEvent(kind, detail, s, payload), s.StopAtMs); }
             catch
             {
                 var sameContext = ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map);

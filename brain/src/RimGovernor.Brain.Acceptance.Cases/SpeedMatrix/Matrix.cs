@@ -824,18 +824,16 @@ internal sealed partial class SpeedmatrixRun
             ["gate_wait_ms_mean"] = gateWaitMean,
             ["gate_wait_ms_max"] = steps.MaxGateWaitMs,
 
-            // Hold metrics, from the native journal: holds by reason (letter_pause, review, coupled_order, ...), the
-            // native time each hold lasted before a Run resumed it, and how long the controller took to see it.
+            // Hold metrics, from native's hold and resume rows: holds by reason (letter_pause, review, coupled_order,
+            // ...) and the native time each hold lasted before a Run resumed it.
             ["holds"] = holds.Holds,
             ["holds_per_6000_ticks"] = holdsPer6000,
             ["hold_reasons"] = reasons,
             ["resume_latency_ms_mean"] = holds.MeanResumeMs,
             ["resume_latency_ms_max"] = holds.MaxResumeMs,
             ["resume_samples"] = holds.ResumeCount,
-            ["observe_latency_ms_mean"] = holds.MeanObserveMs,
-            ["observe_latency_ms_max"] = holds.MaxObserveMs,
 
-            // Per hold: detect_ticks, hold_ticks, observe_ms, resume_ms.
+            // Per hold: detect_ticks, hold_ticks, resume_ms.
             ["hold_latencies"] = latencies,
 
             // The steps a hold woke and how long the wake took; the brain's own Run, Hold and refusal rows, and the

@@ -132,7 +132,6 @@ internal sealed class ClockEventPoll(
                 var skip = first.NewestCursor.GetValueOrDefault() - config.PageLimit;
                 if (await journal.AdoptClockBacklogAsync(config.Profile, skip, call).ConfigureAwait(false))
                 {
-                    ClockEvents.Event("clock-scheduler", "clock_journal", "clock journal adopted native backlog", ("through_cursor", skip), ("newest_cursor", first.NewestCursor));
                     review = await journal.ReadClockReviewAsync(config.Profile, call).ConfigureAwait(false);
                     if (first.Context?.Identity is { } adopted)
                     {
@@ -169,7 +168,6 @@ internal sealed class ClockEventPoll(
             if (captured)
             {
                 Tel.ObserveTick(current.Tick);
-                Publish(page);
                 wake = Pkg.PageWake(page);
                 sections = Pkg.ClockPageSections(page);
             }
@@ -213,58 +211,4 @@ internal sealed class ClockEventPoll(
     }
 
     private static long LastCursor(PbClock.EventsPage page) => page.Events.Count == 0 ? -1 : page.Events[^1].Cursor.GetValueOrDefault();
-
-    // The oneof case name of a wire choice record ("HealthCase" -> "Health"), "None" when no case is set.
-    private static string CaseName(object? choice) =>
-        choice is null ? "None" : choice.GetType().Name.Replace("Case", "", StringComparison.Ordinal);
-
-    // Publishes the typed service events a committed page carries: clock_hold, clock_resume, authority and alert
-    // rows. Every other kind is the step reason's business (Go clockPollEvents).
-    private static void Publish(PbClock.EventsPage page)
-    {
-        foreach (var @event in page.Events)
-        {
-            switch (@event.Event)
-            {
-                case PbClock.ClockEventEvent.HoldEnteredCase { Value: var held }:
-                    ClockEvents.Event("clock-scheduler", "clock_hold", "clock held", [("reason", held.Reason.GetValueOrDefault().ToString()), ("evidence", HoldEvidenceName(held)), ("cursor", @event.Cursor.GetValueOrDefault()), ("observed_at_unix_ms", @event.ObservedAtUnixMs.GetValueOrDefault()), ("benign", ClockJournal.BenignHoldEvent(held)), .. HoldLegs(@event, held)]);
-                    break;
-                case PbClock.ClockEventEvent.ResumedCase { Value: var resumed }:
-                    ClockEvents.Event("clock-scheduler", "clock_resume", "clock resumed", ("from", resumed.From.GetValueOrDefault().ToString()), ("speed", resumed.Speed.GetValueOrDefault().ToString()), ("cursor", @event.Cursor.GetValueOrDefault()));
-                    break;
-                case PbClock.ClockEventEvent.AuthorityChangedCase { Value: var changed }:
-                    ClockEvents.Event("clock-scheduler", "authority", "authority changed", ("change", "changed"), ("reason", (changed.Reason ?? "")), ("active", changed.Active.GetValueOrDefault()), ("generation", changed.Generation.GetValueOrDefault()), ("previous_generation", changed.PreviousGeneration.GetValueOrDefault()), ("cursor", @event.Cursor.GetValueOrDefault()));
-                    break;
-                case PbClock.ClockEventEvent.AlertCase { Value: var alert }:
-                    ClockEvents.Event("clock-scheduler", "alert", "game alert", ("key", (alert.Key ?? "")), ("label", (alert.Label ?? "")), ("priority", (alert.Priority ?? "")), ("cursor", @event.Cursor.GetValueOrDefault()));
-                    break;
-            }
-        }
-    }
-
-    // The hold's latency legs on the row: the live half of the split the throughput report computes offline (Go clockStopLegs).
-    private static (string, object?)[] HoldLegs(PbClock.ClockEvent @event, PbClock.HoldEntered held)
-    {
-        var tick = @event.Context?.Tick ?? 0;
-        var attrs = new List<(string, object?)> { ("tick", tick) };
-        if (held.DetectedTick is not null)
-        {
-            attrs.Add(("detected_tick", held.DetectedTick.GetValueOrDefault()));
-            attrs.Add(("hold_ticks", tick - held.DetectedTick.GetValueOrDefault()));
-            if (held.OccurrenceTick is not null)
-            {
-                attrs.Add(("occurrence_tick", held.OccurrenceTick.GetValueOrDefault()));
-                attrs.Add(("detect_ticks", held.DetectedTick.GetValueOrDefault() - held.OccurrenceTick.GetValueOrDefault()));
-            }
-        }
-        if (@event.AgeAtReplyMs is { } ageAtReplyMs)
-        {
-            attrs.Add(("age_at_reply_ms", (double)ageAtReplyMs));
-        }
-        return [.. attrs];
-    }
-
-    // Names the evidence a hold carries (the oneof case: pause, health, watch, ...), "" when it carries none.
-    private static string HoldEvidenceName(PbClock.HoldEntered held) =>
-        held.Evidence is null ? "" : CaseName(held.Evidence).ToLowerInvariant();
 }

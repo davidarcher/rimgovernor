@@ -434,12 +434,8 @@ namespace HomeBridge.BridgeTools
                     if (request.AfterCursor.GetValueOrDefault() > Journal.Newest) return new Clock.EventsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cursor exceeds the retained native journal.") };
                     var began = System.Diagnostics.Stopwatch.GetTimestamp();
                     var window = Journal.ReadWindow(request.AfterCursor.GetValueOrDefault(), (int)request.Limit.GetValueOrDefault());
-                    // Native's own clock on both sides: the unobserved age of
-                    // each event when this page was composed.
-                    var now = NowMs();
-                    var events = window.Events.Select(observed => observed with { AgeAtReplyMs = (ulong)Math.Max(0, now - observed.ObservedAtUnixMs.GetValueOrDefault()) }).ToList();
-                    ObservationWork.Captured("clockEventsJournal", System.Diagnostics.Stopwatch.GetTimestamp() - began, events.Count);
-                    return new Clock.EventsReply { Outcome = new Clock.EventsPage { Context = context, Events = EquatableArray.From(events),
+                    ObservationWork.Captured("clockEventsJournal", System.Diagnostics.Stopwatch.GetTimestamp() - began, window.Events.Count);
+                    return new Clock.EventsReply { Outcome = new Clock.EventsPage { Context = context, Events = EquatableArray.From(window.Events),
                         NewestCursor = Journal.Newest, NextCursor = window.Next, Gap = window.Lost != 0, LostCount = window.Lost } };
                 }
                 catch (Exception error) { ModLog.Error("clock", "Clock event journal read failed: " + error); return new Clock.EventsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Clock event journal could not establish complete cursor continuity.") }; }
@@ -461,10 +457,34 @@ namespace HomeBridge.BridgeTools
         // The only journal writer. An event takes its cursor after its context
         // read, so a publication that read causes (a revoke through the
         // authority seam) lands first and this event takes the next cursor.
-        private static void Append(Clock.ClockEvent value)
+        // Each journalled event is also one OTLP row (ClockEventRows); a
+        // hold's row carries stopAtMs, the stamp Status reports as held-at.
+        private static void Append(Clock.ClockEvent value, long? stopAtMs = null)
         {
             if (!ValidStoredEvent(value)) throw new InvalidOperationException("Clock event is incomplete");
             Journal.Append(value);
+            EmitRow(value, stopAtMs);
+        }
+
+        // The brain's emitter, attached once BrainHost has started; before it
+        // (or without the brain) events have no row.
+        private static RimGovernor.Brain.Telemetry.TelemetryEmitter? _rows;
+        private static bool _rowFailureLogged;
+        internal static void AttachRows(RimGovernor.Brain.Telemetry.TelemetryEmitter emitter)
+        {
+            lock (Gate) _rows = emitter;
+        }
+        // Telemetry never fails the journal: a row that cannot be written is logged once and dropped.
+        private static void EmitRow(Clock.ClockEvent value, long? stopAtMs)
+        {
+            if (_rows is not { } emitter) return;
+            try { ClockEventRows.Write(emitter, value, stopAtMs); }
+            catch (Exception error)
+            {
+                if (_rowFailureLogged) return;
+                _rowFailureLogged = true;
+                ModLog.Warn("clock", "Clock event row was not written: " + error);
+            }
         }
         // Events published outside a run segment take their context from the
         // current map. Null means no complete context exists to publish under.

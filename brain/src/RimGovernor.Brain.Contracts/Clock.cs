@@ -859,13 +859,6 @@ public sealed record ClockEvent
     public string? Detail { get; init; }
 
     public ClockEventEvent? Event { get; init; }
-
-    /// <summary>
-    /// How long ago, on native's own clock, this event was observed when the
-    /// page carrying it was composed: the unobserved time a hold sat in native
-    /// before this reply, measured without comparing clocks across processes.
-    /// </summary>
-    public ulong? AgeAtReplyMs { get; init; }
 }
 
 /// <summary>The <c>event</c> choice of <see cref="ClockEvent"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>

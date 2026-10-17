@@ -70,13 +70,34 @@ the first native protective effect.
 |---|---|
 | `planner_step` (decision) | one per planner run. `target` planner, `verdict` outcome (`admitted`, `waiting`, `refused`, `unselected`, `failed`), `reason` the refusal or wait `policy.Cause` wire value (a closed set; free-text detail is not recorded); attrs `concern` (a Concern id, or the NeedId of a family entry, which writes one row per Need; read by ExplainAudit), `subject` (optional, what the cause concerns), `proposals`, `edits`, `cause`, `admitted`, `running`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `repeated`, `error`. Rounder targets `rounds` (`ok`/`reviewed`, `ok`/`cancelled` when an authority change cancelled the round, or `failed`/`error`; attr `partial`); the worker targets `worker_step`. Step journal failures target `reasons`, `waits` or `proposals` with `failed`/`journal_error`. |
 | `admission` (decision) | `target` method or plan, `verdict` `admitted`/`refused`/`held`, `reason` the refusal (a method refusal; a held building method `claim_conflict` or `method_continued`); attrs `concern`, `refused` (all reasons), `held_by`, `mode`, `work`, `combat_plan`, `hostiles`, `actions`, `error` |
-| `clock_hold` | event row, one per `HoldEntered` journal event the poll commits (a native hazard, a game pause or a brain hold). `reason` (the `HoldReason`), `evidence`, `cursor`, `observed_at_unix_ms`, `benign`, `tick` and the legs `detected_tick`, `hold_ticks`, `occurrence_tick`, `detect_ticks`, `age_at_reply_ms` |
-| `clock_resume` | event row, one per `Resumed` journal event. `from` (the hold reason), `speed`, `cursor` |
 | `clock_stop` | event row, one per combat hold the brain resumed from while a fight was open. `event` (the armed combat event), `tick`, `resume_latency_ms` (hold to the resuming `Run`), `over_budget` and `resume_budget_ms` when the resume-latency gate tripped, `ticks_since_stop` |
 | `combat_summary` | event row at combat end. `stops`, `by_event`, `resume_latency_p50_ms`, `resume_latency_p95_ms`, `resume_budget_ms`, `gate_tripped`, `ticks_between_stops_p50`, `ticks_between_stops_p95` |
-| `authority` | event row. `change` (`changed`, `lost`, `retaken`), `reason`, `active`, `generation`, `previous_generation`, `cursor`; `WARN` for `lost` |
-| `clock_journal` | event row. `through_cursor`, `newest_cursor` |
-| `alert` | event row. `key`, `label`, `priority`, `cursor` |
+| `authority` | event row, the brain's view of its grant: `change` (`lost`, `retaken`; absent when the poll saw authority change under it), `reason` and the detail attrs; `WARN` for `lost`. Native's own generation moves are `clock_authority` rows ([below](#clock-and-colony-events)) |
+
+### Clock and colony events
+
+Native emits one row per event it journals (`ClockEventRows`, written from
+`NativeClockRuntime.Append` through the brain's emitter, attached once
+`BrainHost` has started), component `clock`; the brain does not republish
+them. Kind constants: `TelemetryKinds.Clock*`, keys in `ClockEventTelemetry`.
+Every row carries `msg` (the event's detail), `tick`, `observed_at_unix_ms`
+(native's clock), `colony`, `load`, `map` and `native_generation`. Enum values
+are their C# names (`LetterPause`, `Fast`, `Research`).
+
+| Kind | Shape and fields |
+|---|---|
+| `clock_hold` | the clock entered a hold: a native hazard, a game pause, an armed combat event or a brain hold. `reason` (the `HoldReason`), `stop_at_ms` (the stamp `Status` reports as held-at), the legs `detected_tick`, `occurrence_tick`, `hold_ticks`, `detect_ticks`, and `evidence` (`pawn`, `injury`, `health`, `pause`, `notifications`, `unavailable`, `combat`) with its fields: `pawn`, `pawn_name`, `x`, `z`, `pawn_reason`; `new_wound`, `suppression`, `before`/`after` health maps; `health_at_start`, `health_now`, `min_health_fraction`, `health_drop_fraction`; `actual_paused`, `pause_verified`, `force_pausing_windows`, `letter_id`, `letter_label`, `letter_def`, `dialog_window_id`, `dialog_window_type`, `dialog_title`; `letters`, `messages`; `unavailable_reason`, `unavailable_detail`; `combat_event`, `thing`, `combat_reason`. Readers: `StopSummaries` (speed matrix), the launcher Observe tab |
+| `clock_resume` | a Run resumed a held clock. `from` (the hold reason it ended), `speed`; `observed_at_unix_ms` is the resume time. Readers: `StopSummaries`, the launcher Observe tab |
+| `clock_authority` | the native authority generation moved. `generation`, `previous_generation`, `reason`, `active`. Readers: the postmortem's authority generations, the launcher Observe tab |
+| `clock_alert` | a new game alert. `key`, `label`, `priority` |
+| `clock_notification` | a new letter or transient message. `source` (`letter`, `message`), `id`, `label`, `def` (letter), `type`, `text`, `starting_tick` (message) |
+| `clock_injury` | a colonist injury observed without a hold. The `injury` evidence fields above |
+| `clock_hostiles_cleared` | no conscious hostiles remain. `conscious_hostiles_before`, `downed_hostiles`, `drafted_colonists` (pawn ids) |
+| `clock_invalidation` | observed fact families changed under a running clock. `families` (`FactFamily` names), `reason`, `entity_ids` and `cells` (`min_x`, `min_z`, `max_x`, `max_z`) when native could narrow the change |
+| `clock_long_event` | a long event or transient force pause: `state` `waiting` (with the `pause` evidence fields) or `cleared` |
+| `clock_pause_failed` | a pending hold's pause did not take and stays armed. The pending hold's `reason` and `evidence` |
+
+The other kinds are read in the OTLP timeline and the launcher's Log view.
 
 
 ### Rounds, layout and colony (`RimGovernor.Brain.BuildingRuntime/Rounds`, `ColonyPlan`, `Layout*`)
@@ -181,8 +202,8 @@ The launcher's Observe tab (`tools/launcher/Observe.cs`, which tails `logs.jsonl
 and acceptance diagnostics consume these kinds; `RimGovernor.cmd launch-phases`
 reads the launch spans (see [Launch spans](#launch-spans)).
 `bridge.IsWorkerStep` and `bridge.StepFields` centralize
-clock/worker interpretation. Combat `clock_stop` rows carry `event`; `clock_hold` rows
-carry the journal's hold. Acceptance readers use the case's OTLP log ring
+clock/worker interpretation. Combat `clock_stop` rows carry `event`; native `clock_hold` rows
+carry each hold's reason, evidence and latency legs. Acceptance readers use the case's OTLP log ring
 (`<output>/otlp/logs.jsonl*`, `<output>/service-N/otlp/...` per relaunch):
 `OtlpTimeline.Read` rebuilds the row shape these
 helpers expect from the typed log reader (`OtlpReader.ReadLogs`, see

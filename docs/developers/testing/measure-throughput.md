@@ -37,7 +37,9 @@ There is no text log or debug flag: everything is a log record in `otlp/logs.jso
 Every service event is a structured record that
 becomes a row of its `kind`; a record with no kind writes nothing.
 Kinds: `planner_step` (one per planner run; target `worker_step` is the clock worker's step, one per change of outcome), `clock_step`, `admission`,
-`clock_run`, `clock_hold`, `clock_resume`, `clock_stop`, `authority`, `alert`, `dispatch`, `rounds_review`. Grep the
+`clock_run`, `clock_stop`, `authority`, `dispatch`, `rounds_review`, and native's one row per clock or colony event
+(`clock_hold`, `clock_resume`, `clock_authority`, `clock_alert`, ...: [clock and colony
+events](../contracts/otel-signals.md#clock-and-colony-events)). Grep the
 emitting code for each one's
 attributes.
 
@@ -144,18 +146,18 @@ brain attached (the simulation ceiling): it reports only `ticks_advanced`,
   `max_probe_tick_gap`, `hazard_gaps`) is the difference between two
   `rimgovernor/acceptance_read_clock_accounting` reads, one when the row
   resumes and one when its wait ends (`ClockAccounting`).
-- `holds` counts the clock holds the journal carried, `holds_per_6000_ticks`
+- `holds` counts native's `clock_hold` rows, `holds_per_6000_ticks`
   is the rate comparable across speeds and `hold_reasons` splits them by
   reason (`letter_pause`, `review`, `coupled_order`, ...). A healthy run holds
   for a named reason and resumes at once.
 - `resume_latency_ms_mean`/`_max` is native's own time from a hold to the Run
-  that resumed it (both events' stamps are on native's clock);
-  `observe_latency_ms_*` is how long the controller took to see the hold.
+  that resumed it (the hold row's `stop_at_ms` to the `clock_resume` row's
+  `observed_at_unix_ms`, both on native's clock).
 - `effective_speed` is `wall_tps` over the speed's own rate (Normal 60, Fast
   180, Superfast 360, Ultrafast 9000: the boost native serves it with under
   the one ceiling), holds included: 1 means the clock never lost pace. `native_effective_tps_mean` is native's ten-second account.
-- `hold_latencies` correlate the two processes by cursor only (no Unix time of
-  one is subtracted from the other's).
+- `hold_latencies` give each hold's legs: `detect_ticks` (hazard to
+  detection), `hold_ticks` (detection to the hold taking) and `resume_ms`.
 - `run_verdicts` counts the brain's Run, Hold and refusal rows;
   `coupled_runs`/`coupled_orders` count the Runs that carried coupled orders.
 - `hazard_gaps` names each hazard class's declared bound, widest observed gap

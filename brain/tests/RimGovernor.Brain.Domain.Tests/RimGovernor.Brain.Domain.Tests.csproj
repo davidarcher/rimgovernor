@@ -49,6 +49,10 @@
   <ItemGroup>
     <Compile Include="../../../integrations/rimgovernor-host/src/Host/LaunchStageFilter.cs" Link="Host/LaunchStageFilter.cs" />
   </ItemGroup>
+  <!-- Native's clock event row projection (#3415) reads only the wire event; compiled in to pin each row's kind and fields. -->
+  <ItemGroup>
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/Protocol/ClockEventRows.cs" Link="Native/ClockEventRows.cs" />
+  </ItemGroup>
   <!-- The thoughtaudit guard analysis (#3218 spike) is pure syntax analysis; compiled in to pin its unknown handling without the game. -->
   <ItemGroup>
     <Compile Include="../../../tools/rg/Commands/ThoughtAudit/GuardIndex.cs" Link="ThoughtAudit/GuardIndex.cs" />

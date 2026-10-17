@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Data.Sqlite;
+using RimGovernor.Brain.Telemetry;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -325,9 +326,17 @@ public static partial class Postmortems
 
     // --- 6. authority generations ------------------------------------------
 
-    /// <summary>How an authority row moved the grant: "changed" (an AuthorityChanged event), "lost" or "retaken", from the row's change field.</summary>
+    /// <summary>
+    /// How an authority row moved the grant: "changed" for native's clock_authority row (an AuthorityChanged event), else
+    /// the brain's authority row's change field ("lost", "retaken").
+    /// </summary>
     private static string? AuthorityMovement(LogRecordRow row)
     {
+        if (row.Rec.Kind == TelemetryKinds.ClockAuthority.Name)
+        {
+            return "changed";
+        }
+
         if (row.Rec.Kind != "authority")
         {
             return null;
