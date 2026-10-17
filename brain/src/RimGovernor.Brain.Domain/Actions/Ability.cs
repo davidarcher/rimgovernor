@@ -44,7 +44,7 @@ public sealed record AbilitySource
     public static AbilitySource PermitSource(string faction, string permit)
     {
         DomainException.Require(
-            Identity.IsValidText(faction) && Identity.IsValidText(permit) && !faction.Contains(':') && !permit.Contains(':'),
+            IdText.IsValidText(faction) && IdText.IsValidText(permit) && !faction.Contains(':') && !permit.Contains(':'),
             "ability permit source requires a faction def and a permit def"
         );
         return new AbilitySource(AbilitySourceKind.Permit, faction, permit);
@@ -53,7 +53,7 @@ public sealed record AbilitySource
     /// <summary>The psycast source for an AbilityDef defName.</summary>
     public static AbilitySource PsycastSource(string ability)
     {
-        DomainException.Require(Identity.IsValidText(ability) && !ability.Contains(':'), "ability psycast source requires an ability def");
+        DomainException.Require(IdText.IsValidText(ability) && !ability.Contains(':'), "ability psycast source requires an ability def");
         return new AbilitySource(AbilitySourceKind.Psycast, "", ability);
     }
 
@@ -129,7 +129,7 @@ public sealed record AbilityTarget
 
     public static AbilityTarget AbilityThingTarget(string thing)
     {
-        DomainException.Require(Identity.IsValidText(thing), "invalid ability target thing");
+        DomainException.Require(IdText.IsValidText(thing), "invalid ability target thing");
         return new AbilityTarget(AbilityTargetKind.Thing, default, thing);
     }
 }

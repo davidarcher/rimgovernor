@@ -12,7 +12,7 @@ public sealed record BuildingTemperature : IActionPayload
     /// <summary>Go <c>NewBuildingTemperature</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public BuildingTemperature(string thing, double celsius)
     {
-        DomainException.Require(Identity.IsValidText(thing), "invalid building temperature identity");
+        DomainException.Require(IdText.IsValidText(thing), "invalid building temperature identity");
         DomainException.Require(
             double.IsFinite(celsius) && celsius >= MinTemperatureCelsius && celsius <= MaxTemperatureCelsius,
             "building temperature out of range"

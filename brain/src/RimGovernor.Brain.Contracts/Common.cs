@@ -136,7 +136,7 @@ public sealed record IdeoligionDesign
 }
 
 /// <summary>
-/// Presence is significant: map zero and tick zero are valid observations.
+/// Presence is significant: map zero and tick zero are valid observations. The brain's typed form is <c>Observation.Identity</c>.
 /// </summary>
 public sealed record Identity
 {

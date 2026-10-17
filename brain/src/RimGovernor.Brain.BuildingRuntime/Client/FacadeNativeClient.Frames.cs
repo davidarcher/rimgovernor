@@ -59,7 +59,7 @@ internal sealed class FramePrepared
     internal Exception? Problem { get; private init; }
 
     /// <summary>A refusal the emergency decoder raised: surfaced to the reader, like Go's refused frame.</summary>
-    internal Bridge.Contracts.Refusal? DecodeRefusal { get; private init; }
+    internal Bridge.Contracts.ReadRefusedException? DecodeRefusal { get; private init; }
 
     internal PbCommon.Identity? World { get; private init; }
 
@@ -86,7 +86,7 @@ internal sealed class FramePrepared
             {
                 emergency = FacadeNativeClient.PodsPending(FacadeNativeClient.EmergencyDecode.DecodeEmergencyStatus(v.Emergency, held.Pawns), v.CombatEvents);
             }
-            catch (Bridge.Contracts.Refusal refusal)
+            catch (Bridge.Contracts.ReadRefusedException refusal)
             {
                 return new FramePrepared { DecodeRefusal = refusal, World = context.Identity };
             }
@@ -437,7 +437,7 @@ public sealed partial class FacadeNativeClient : IDisposable
     /// <summary>
     /// Go <c>frameReadView</c>: waits for the newest frame past this client's last write that answers the read
     /// (<paramref name="lookup"/>) and returns the answer. A frame carrying a Failure is a
-    /// <see cref="Refusal"/> naming the section; a frame of another world is <see cref="BridgeRefusedException"/>;
+    /// <see cref="Bridge.Contracts.ReadRefusedException"/> naming the section; a frame of another world is <see cref="BridgeRefusedException"/>;
     /// no frame within <see cref="FrameReadTimeout"/> is <see cref="BridgeUnavailableException"/>. With
     /// <paramref name="fallback"/>, a frame of the same world that carries the method only in another shape, while
     /// no subscription change is pending, is not served and the caller reads live. <paramref name="anyFrame"/> is
@@ -478,11 +478,11 @@ public sealed partial class FacadeNativeClient : IDisposable
                         var prepared = frame.Prepared;
                         if (prepared.FailureDetail is not null)
                         {
-                            throw new Bridge.Contracts.Refusal("snapshot_frame", prepared.FailureDetail, NoReceipt);
+                            throw new Bridge.Contracts.ReadRefusedException("snapshot_frame", prepared.FailureDetail, NoReceipt);
                         }
                         if (prepared.DecodeRefusal is { } decoded)
                         {
-                            throw new Bridge.Contracts.Refusal(decoded.Tool, decoded.Cause, NoReceipt);
+                            throw new Bridge.Contracts.ReadRefusedException(decoded.Tool, decoded.Cause, NoReceipt);
                         }
                         if (prepared.Problem is null)
                         {

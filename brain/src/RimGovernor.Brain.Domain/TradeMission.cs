@@ -53,7 +53,7 @@ public sealed record TradeMission
             HomeColony.IsValid
                 && HomeMap.Value >= 0
                 && HomeTile >= 0
-                && Identity.IsValidText(Settlement)
+                && IdText.IsValidText(Settlement)
                 && SettlementTile >= 0
                 && SettlementTile != HomeTile
                 && SilverBudget > 0

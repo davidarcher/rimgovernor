@@ -6,7 +6,7 @@ public sealed record HackDesignation : IActionPayload
     /// <summary>Go <c>NewHackDesignation</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public HackDesignation(string target, bool enabled)
     {
-        DomainException.Require(Identity.IsValidText(target), "hack designation requires an exact target");
+        DomainException.Require(IdText.IsValidText(target), "hack designation requires an exact target");
         Target = target;
         Enabled = enabled;
     }

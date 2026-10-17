@@ -152,7 +152,7 @@ public sealed record PawnSettings : IActionPayload
     public static PawnSettings NewChoosePermitSetting(PawnId pawn, string faction, string permit)
     {
         DomainException.Require(
-            pawn.IsValid && Identity.IsValidText(faction) && !faction.Contains(':', StringComparison.Ordinal) && Identity.IsValidText(permit),
+            pawn.IsValid && IdText.IsValidText(faction) && !faction.Contains(':', StringComparison.Ordinal) && IdText.IsValidText(permit),
             "a choose permit setting requires a colonist, a faction def and a permit def"
         );
         return new PawnSettings(pawn, SettingKind.ChoosePermit) { PermitFaction = faction, PermitDef = permit };
@@ -164,7 +164,7 @@ public sealed record PawnSettings : IActionPayload
     /// </summary>
     public static PawnSettings NewMechWorkModeSetting(PawnId pawn, string mode)
     {
-        DomainException.Require(pawn.IsValid && Identity.IsValidText(mode), "a mech work mode setting requires a mech and a work mode def");
+        DomainException.Require(pawn.IsValid && IdText.IsValidText(mode), "a mech work mode setting requires a mech and a work mode def");
         return new PawnSettings(pawn, SettingKind.MechWorkMode) { MechWorkMode = mode };
     }
 
@@ -178,21 +178,21 @@ public sealed record PawnSettings : IActionPayload
     /// <summary>Assigns the drug policy labelled name.</summary>
     public static PawnSettings NewDrugPolicySetting(PawnId pawn, string name)
     {
-        DomainException.Require(pawn.IsValid && Identity.IsValidText(name) && ByteLength(name) <= 80, "a drug policy setting requires a pawn and a policy name");
+        DomainException.Require(pawn.IsValid && IdText.IsValidText(name) && ByteLength(name) <= 80, "a drug policy setting requires a pawn and a policy name");
         return new PawnSettings(pawn, SettingKind.DrugPolicy) { DrugPolicy = name };
     }
 
     /// <summary>Assigns the reading policy labelled name.</summary>
     public static PawnSettings NewReadingPolicySetting(PawnId pawn, string name)
     {
-        DomainException.Require(pawn.IsValid && Identity.IsValidText(name) && ByteLength(name) <= 80, "a reading policy setting requires a pawn and a policy name");
+        DomainException.Require(pawn.IsValid && IdText.IsValidText(name) && ByteLength(name) <= 80, "a reading policy setting requires a pawn and a policy name");
         return new PawnSettings(pawn, SettingKind.ReadingPolicy) { ReadingPolicy = name };
     }
 
     /// <summary>Assigns the food policy labelled name.</summary>
     public static PawnSettings NewFoodPolicySetting(PawnId pawn, string name)
     {
-        DomainException.Require(pawn.IsValid && Identity.IsValidText(name) && ByteLength(name) <= 80, "a food policy setting requires a pawn and a policy name");
+        DomainException.Require(pawn.IsValid && IdText.IsValidText(name) && ByteLength(name) <= 80, "a food policy setting requires a pawn and a policy name");
         return new PawnSettings(pawn, SettingKind.FoodPolicy) { FoodPolicy = name };
     }
 

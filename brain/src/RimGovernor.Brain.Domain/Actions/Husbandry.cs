@@ -37,7 +37,7 @@ public sealed record Husbandry : IActionPayload
         switch (method)
         {
             case HusbandryMethod.Train:
-                DomainException.Require(Identity.IsValidText(argument), "husbandry training requires a valid trainable definition");
+                DomainException.Require(IdText.IsValidText(argument), "husbandry training requires a valid trainable definition");
                 break;
             case HusbandryMethod.Slaughter:
             case HusbandryMethod.Tame:
@@ -49,7 +49,7 @@ public sealed record Husbandry : IActionPayload
                 break;
             case HusbandryMethod.AllowedArea:
             case HusbandryMethod.Master:
-                DomainException.Require(argument == "" || Identity.IsValidText(argument), "husbandry assignment requires a valid target identity or none");
+                DomainException.Require(argument == "" || IdText.IsValidText(argument), "husbandry assignment requires a valid target identity or none");
                 break;
             case HusbandryMethod.FollowDrafted:
             case HusbandryMethod.FollowFieldwork:

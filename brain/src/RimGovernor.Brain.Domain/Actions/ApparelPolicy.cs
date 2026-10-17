@@ -25,8 +25,8 @@ public sealed record ApparelPolicy : IActionPayload
     {
         DomainException.Require(
             spec.Pawn.IsValid
-                && Identity.IsValidText(spec.Token)
-                && Identity.IsValidText(spec.Name)
+                && IdText.IsValidText(spec.Token)
+                && IdText.IsValidText(spec.Name)
                 && spec.Definitions.Count != 0
                 && !double.IsNaN(spec.MinHP)
                 && !double.IsNaN(spec.MaxHP)
@@ -41,7 +41,7 @@ public sealed record ApparelPolicy : IActionPayload
         var sorted = spec.Definitions.OrderBy(d => d, StringComparer.Ordinal).ToArray();
         for (var i = 0; i < sorted.Length; i++)
         {
-            DomainException.Require(Identity.IsValidText(sorted[i]) && !(i > 0 && sorted[i] == sorted[i - 1]), "invalid apparel definition");
+            DomainException.Require(IdText.IsValidText(sorted[i]) && !(i > 0 && sorted[i] == sorted[i - 1]), "invalid apparel definition");
         }
         Spec = spec with { Definitions = EquatableArray.From(sorted) };
     }

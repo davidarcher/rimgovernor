@@ -11,7 +11,7 @@ public sealed record RemoveProductionBill : IActionPayload
     /// <summary>Go <c>NewRemoveProductionBill</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public RemoveProductionBill(string bench, string bill)
     {
-        DomainException.Require(Identity.IsValidText(bench) && Identity.IsValidText(bill), "invalid production bill removal");
+        DomainException.Require(IdText.IsValidText(bench) && IdText.IsValidText(bill), "invalid production bill removal");
         Bench = bench;
         Bill = bill;
     }

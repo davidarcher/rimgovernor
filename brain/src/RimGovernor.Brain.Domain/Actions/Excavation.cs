@@ -12,7 +12,7 @@ public sealed record Excavation : IActionPayload
     /// <summary>Go <c>NewExcavation</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public Excavation(Cell cell, string definition)
     {
-        DomainException.Require(Identity.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0, "invalid excavation definition or cell");
+        DomainException.Require(IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0, "invalid excavation definition or cell");
         Cell = cell;
         Definition = definition;
     }

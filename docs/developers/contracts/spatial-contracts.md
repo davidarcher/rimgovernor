@@ -887,7 +887,7 @@ a tier whose gates open later joins the record through the same siting.
 ### A blocked tier
 
 When a tree, a rock chunk or a new building stands on a cell a pinned tier needs
-(`DefenseCell.Cover`), `policy.PriceTierBlocks` (`DefenseBlock.cs`) prices both ways out
+(`DefenseCensusCell.Cover`), `policy.PriceTierBlocks` (`DefenseBlock.cs`) prices both ways out
 in the layout's units and takes the cheaper; neither is a veto, and a tie keeps the tier.
 Clear is the work from the game's defs (a plant's `harvestWork`, a building's
 `WorkToBuild` clamped to `JobDriver_Deconstruct`'s limits; `DefinitionCatalog.ClearRow`)

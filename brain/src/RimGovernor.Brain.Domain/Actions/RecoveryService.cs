@@ -32,7 +32,7 @@ public sealed record RecoveryService : IActionPayload
 {
     public RecoveryService(PawnId pawn, string thing, RecoveryMethod method)
     {
-        DomainException.Require(pawn.IsValid && Identity.IsValidText(thing), "recovery service requires a valid pawn and thing identity");
+        DomainException.Require(pawn.IsValid && IdText.IsValidText(thing), "recovery service requires a valid pawn and thing identity");
         DomainException.Require(Wire.IsDefined(method), "recovery service requires a valid method");
         Pawn = pawn;
         Thing = thing;

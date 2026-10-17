@@ -360,7 +360,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return output;
     }
 
-    internal static DefenseCell DefenseCellFacts(BridgeDefenseCell cell)
+    internal static DefenseCell DefenseCellFacts(DefenseCensusCell cell)
     {
         var output = new DefenseCell { Cell = cell.Cell };
         if (cell.Fogged)

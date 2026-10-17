@@ -21,14 +21,14 @@ public sealed record DefenseSector
     public EquatableArray<Cell> Route { get; init; }
 }
 
-/// <summary>Stewardship demand. Sector indexes the ranked Sectors; a Hold keeps the cell visible but forbids treating it as clearance work.</summary>
-public sealed record DefenseCover(Cell Cell, int Sector, string Hold);
+/// <summary>Stewardship demand on one cell (the bridge's <c>DefenseCover</c> is the clearance identity of a thing, which this is not). Sector indexes the ranked Sectors; a Hold keeps the cell visible but forbids treating it as clearance work.</summary>
+public sealed record DefenseCoverDemand(Cell Cell, int Sector, string Hold);
 
 public sealed record DefenseApproaches
 {
     public EquatableArray<DefenseSector> Sectors { get; init; }
 
-    public EquatableArray<DefenseCover> Cover { get; init; }
+    public EquatableArray<DefenseCoverDemand> Cover { get; init; }
 
     public string Hold { get; init; } = "";
 }
@@ -339,7 +339,7 @@ internal sealed partial class DefenseSite
             return output with { Hold = "engagement_range_unknown" };
         }
         var dir = DefenseTurretsPolicy.DirectionOf(l.Toward);
-        var cover = new List<DefenseCover>();
+        var cover = new List<DefenseCoverDemand>();
         foreach (var (c, row) in Cells)
         {
             if (protectedCells.Contains(c) || !row.CoverFill.TryGetValue(out var fill) || fill <= threshold)
@@ -411,7 +411,7 @@ internal sealed partial class DefenseSite
                     }
                 }
             }
-            cover.Add(new DefenseCover(c, sectorIndex, hold));
+            cover.Add(new DefenseCoverDemand(c, sectorIndex, hold));
         }
         // Nearest the entry first: the cover a raider would take at the line is cleared before the cover farther up the approach.
         var sortedCover = cover

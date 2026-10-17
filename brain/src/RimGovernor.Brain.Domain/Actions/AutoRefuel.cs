@@ -10,7 +10,7 @@ public sealed record AutoRefuel : IActionPayload
     /// <summary>Go <c>NewAutoRefuel</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public AutoRefuel(string thing, bool allow)
     {
-        DomainException.Require(Identity.IsValidText(thing), "invalid auto refuel identity");
+        DomainException.Require(IdText.IsValidText(thing), "invalid auto refuel identity");
         Thing = thing;
         Allow = allow;
     }

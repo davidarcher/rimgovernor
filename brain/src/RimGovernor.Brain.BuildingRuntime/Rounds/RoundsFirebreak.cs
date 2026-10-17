@@ -92,7 +92,7 @@ internal sealed class FirebreakMemory
         }
         request = request with { Floors = floors };
         var ground = new Dictionary<Cell, Fact<FirebreakGround>>();
-        var site = new Dictionary<Cell, BridgeDefenseCell>();
+        var site = new Dictionary<Cell, DefenseCensusCell>();
         foreach (var tile in FirebreakTiles(cells))
         {
             var rect = tile with
@@ -258,7 +258,7 @@ internal sealed class FirebreakMemory
         return claimed;
     }
 
-    private static FirebreakGround FirebreakGroundOf(BridgeDefenseCell cell)
+    private static FirebreakGround FirebreakGroundOf(DefenseCensusCell cell)
     {
         if (cell.Fogged || cell.NaturalRock)
         {

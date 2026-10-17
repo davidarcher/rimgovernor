@@ -13,7 +13,7 @@ public sealed record WastepackHaul : IActionPayload
     public WastepackHaul(string thing, string definition, Cell cell)
     {
         DomainException.Require(
-            Identity.IsValidText(thing) && Identity.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
+            IdText.IsValidText(thing) && IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
             "invalid wastepack haul identity or cell"
         );
         Thing = thing;

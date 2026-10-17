@@ -80,10 +80,10 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
     {
         DomainException.Require(step.Practice != null || step.Job is not ("RimGovernor_TrainShooting" or "RimGovernor_Spar"), "practice requires an assigned mandate");
         if (step.Practice is { } practice)
-            DomainException.Require(step.Kind == PawnActivityKind.Work && Identity.IsValidText(practice.Role) && Identity.IsValidText(practice.Beneficiary)
+            DomainException.Require(step.Kind == PawnActivityKind.Work && IdText.IsValidText(practice.Role) && IdText.IsValidText(practice.Beneficiary)
                 && practice.RequirementIndex >= 0 && practice.DurationTicks > 0 && practice.DurationTicks <= GameTime.TicksPerDay
                 && (practice.Skill == "Shooting" && step.Job == "RimGovernor_TrainShooting" && practice.Partner.Length == 0 && practice.PartnerTarget.Length == 0
-                    || practice.Skill == "Melee" && step.Job == "RimGovernor_Spar" && Identity.IsValidText(practice.Partner) && Identity.IsValidText(practice.PartnerTarget)),
+                    || practice.Skill == "Melee" && step.Job == "RimGovernor_Spar" && IdText.IsValidText(practice.Partner) && IdText.IsValidText(practice.PartnerTarget)),
                 "invalid selected practice");
     }
     public void Validate()
@@ -92,17 +92,17 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
         var pawns = new HashSet<string>(StringComparer.Ordinal);
         foreach (var order in Orders)
         {
-            DomainException.Require(order != null && Identity.IsValidText(order.Pawn) && pawns.Add(order.Pawn)
-                && Identity.IsValidText(order.Assignment) && Identity.IsValidText(order.Method)
+            DomainException.Require(order != null && IdText.IsValidText(order.Pawn) && pawns.Add(order.Pawn)
+                && IdText.IsValidText(order.Assignment) && IdText.IsValidText(order.Method)
                 && order.ExpectedRevision >= 0 && order.Revision > order.ExpectedRevision
                 && order.Steps != null && (order.Release ? order.Steps.Length == 0 : order.Steps.Length is > 0 and <= 64), "invalid activity assignment");
             foreach (var step in order.Steps)
             {
                 DomainException.Require(step != null && Enum.IsDefined(step.Kind) && step.Deadline > 0
-                    && (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Idle or PawnActivityKind.Standby or PawnActivityKind.Approach || Identity.IsValidText(step.Target))
+                    && (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Idle or PawnActivityKind.Standby or PawnActivityKind.Approach || IdText.IsValidText(step.Target))
                     && (step.Kind != PawnActivityKind.Standby || order.Steps.Length == 1 && step.Target.Length == 0 && step.Count == 0
                         && step.WorkGiver.Length == 0 && step.Job.Length == 0 && step.WaitForFilth.Length == 0 && order.OutputDelivery == null && order.Task.Length == 0)
-                    && (step.Kind != PawnActivityKind.Work || Identity.IsValidText(step.WorkGiver) && Identity.IsValidText(step.Job))
+                    && (step.Kind != PawnActivityKind.Work || IdText.IsValidText(step.WorkGiver) && IdText.IsValidText(step.Job))
                     && (step.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Deliver or PawnActivityKind.Supply) || step.Count > 0)
                     && (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Approach
                         ? step.Destination is { X: >= 0, Z: >= 0 } && step.WorkGiver.Length == 0 && step.Job.Length == 0
@@ -110,17 +110,17 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                             ? step.Destination is { X: >= 0, Z: >= 0 } : step.Destination is null)
                     && step.NotBefore >= 0 && step.NotBefore < step.Deadline
                     && (step.Kind == PawnActivityKind.Supply || step.Kind == PawnActivityKind.Deliver && step.SupportDemand.Length != 0
-                        ? Identity.IsValidText(step.Container) : step.Container.Length == 0)
-                    && (step.SupportDemand.Length == 0 || (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Work) && Identity.IsValidText(step.SupportDemand))
-                    && (step.Medicine.Length == 0 || step.Kind == PawnActivityKind.Work && (step.Job is "TendPatient" or "DoBill") && Identity.IsValidText(step.Medicine)), "invalid activity step");
+                        ? IdText.IsValidText(step.Container) : step.Container.Length == 0)
+                    && (step.SupportDemand.Length == 0 || (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Work) && IdText.IsValidText(step.SupportDemand))
+                    && (step.Medicine.Length == 0 || step.Kind == PawnActivityKind.Work && (step.Job is "TendPatient" or "DoBill") && IdText.IsValidText(step.Medicine)), "invalid activity step");
                 ValidatePractice(step);
                 if (step.Kind == PawnActivityKind.Recipe || step.Kind == PawnActivityKind.Work && step.Job == "DoBill")
                 {
                     var cooking = step.Recipe;
-                    DomainException.Require(cooking != null && (Identity.IsValidText(cooking.Bill) || Identity.IsValidText(cooking.Stuff)) && Identity.IsValidText(cooking.Recipe)
-                        && Identity.IsValidText(step.WorkGiver) && (step.Job.Length == 0 || step.Kind == PawnActivityKind.Work && step.Job == "DoBill") && step.Count == 0
+                    DomainException.Require(cooking != null && (IdText.IsValidText(cooking.Bill) || IdText.IsValidText(cooking.Stuff)) && IdText.IsValidText(cooking.Recipe)
+                        && IdText.IsValidText(step.WorkGiver) && (step.Job.Length == 0 || step.Kind == PawnActivityKind.Work && step.Job == "DoBill") && step.Count == 0
                         && (cooking.Unfinished.Length != 0 ? cooking.Ingredients.Count == 0 : cooking.Ingredients.Count is > 0 and <= 16)
-                        && cooking.Ingredients.All(i => i != null && Identity.IsValidText(i.Thing) && i.Count > 0)
+                        && cooking.Ingredients.All(i => i != null && IdText.IsValidText(i.Thing) && i.Count > 0)
                         && cooking.Ingredients.Select(i => i.Thing).Distinct(StringComparer.Ordinal).Count() == cooking.Ingredients.Count,
                         "invalid exact cooking activity");
                 }
@@ -128,12 +128,12 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
             }
             if (order.OutputDelivery is { } output)
             {
-                DomainException.Require(Identity.IsValidText(output.Resource) && output.Count > 0 && output.Deadline > 0
+                DomainException.Require(IdText.IsValidText(output.Resource) && output.Count > 0 && output.Deadline > 0
                     && output.AttemptsLeft is >= 0 and <= 3 && output.Origin is { X: >= 0, Z: >= 0 }
                     && output.Destination is { X: >= 0, Z: >= 0 }, "invalid output delivery obligation");
                 if (output.Recipe is { } cook)
-                    DomainException.Require(Identity.IsValidText(cook.Bench) && Identity.IsValidText(cook.Bill)
-                        && Identity.IsValidText(cook.Recipe) && Identity.IsValidText(cook.WorkGiver) && Identity.IsValidText(cook.Product)
+                    DomainException.Require(IdText.IsValidText(cook.Bench) && IdText.IsValidText(cook.Bill)
+                        && IdText.IsValidText(cook.Recipe) && IdText.IsValidText(cook.WorkGiver) && IdText.IsValidText(cook.Product)
                         && cook.ProductCount > 0 && cook.Origin is { X: >= 0, Z: >= 0 } && cook.Destination is { X: >= 0, Z: >= 0 }, "invalid cooking continuation");
             }
         }
@@ -141,13 +141,13 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
             "invalid selected activity task identities");
         var taskIds = Tasks.Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
         foreach (var task in Tasks)
-            DomainException.Require(Identity.IsValidText(task.Id) && Orders.Any(o => o.Pawn == task.Pawn && !o.Release)
+            DomainException.Require(IdText.IsValidText(task.Id) && Orders.Any(o => o.Pawn == task.Pawn && !o.Release)
                 && task.Prerequisites.All(p => p != task.Id && taskIds.Contains(p)) && task.AttemptsLeft is >= 0 and <= 3
                 && (!task.ProductiveWorkTicks.IsKnown || task.Step.Kind == PawnActivityKind.Recipe
                     && double.IsFinite(task.ProductiveWorkTicks.Value) && task.ProductiveWorkTicks.Value > 0)
-                && task.Inputs.All(i => Identity.IsValidText(i.Resource) && Identity.IsValidText(i.Lot) && i.Count > 0
-                    && i.Location is { X: >= 0, Z: >= 0 } && Identity.IsValidText(i.Provenance)
-                    && i.Producers.All(p => p != task.Id && Identity.IsValidText(p)))
+                && task.Inputs.All(i => IdText.IsValidText(i.Resource) && IdText.IsValidText(i.Lot) && i.Count > 0
+                    && i.Location is { X: >= 0, Z: >= 0 } && IdText.IsValidText(i.Provenance)
+                    && i.Producers.All(p => p != task.Id && IdText.IsValidText(p)))
                 && task.DepartTick >= 0 && task.Step.Deadline > task.DepartTick, "invalid selected activity obligation");
         foreach (var task in Tasks) ValidatePractice(task.Step);
         foreach (var task in Tasks.Where(t => t.Step.Practice?.Skill == "Melee"))

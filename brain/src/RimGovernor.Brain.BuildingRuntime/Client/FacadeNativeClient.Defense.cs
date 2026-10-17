@@ -143,14 +143,14 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go <c>validateDefenseSite</c>: decodes the defense site census of <paramref name="region"/>.</summary>
     private static DefenseSite DefenseDecodeSite(PbObservations.DefenseSiteSnapshot v, CellRect region)
     {
-        var cells = new List<BridgeDefenseCell>(v.Cells.Count);
+        var cells = new List<DefenseCensusCell>(v.Cells.Count);
         foreach (var row in v.Cells)
         {
             FactHelpers.TryProtoCell(row.Cell, out var cell);
             if (row.Fogged.GetValueOrDefault())
             {
                 // Unknown geometry carries no facts.
-                cells.Add(new BridgeDefenseCell { Cell = cell, Fogged = true });
+                cells.Add(new DefenseCensusCell { Cell = cell, Fogged = true });
                 continue;
             }
             BridgeDefenseCover? cover = null;
@@ -159,7 +159,7 @@ public sealed partial class FacadeNativeClient
                 cover = new BridgeDefenseCover(row.CoverThingId ?? "", row.CoverDefName ?? "", row.CoverKind.GetValueOrDefault(), row.CoverDesignated.GetValueOrDefault());
             }
             cells.Add(
-                new BridgeDefenseCell
+                new DefenseCensusCell
                 {
                     Cell = cell,
                     Fogged = false,

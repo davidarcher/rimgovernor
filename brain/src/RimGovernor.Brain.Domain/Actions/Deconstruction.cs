@@ -13,7 +13,7 @@ public sealed record Deconstruction : IActionPayload
     public Deconstruction(string target, string definition, Cell cell)
     {
         DomainException.Require(
-            Identity.IsValidText(target) && Identity.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
+            IdText.IsValidText(target) && IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
             "invalid deconstruction identity or cell"
         );
         Target = target;

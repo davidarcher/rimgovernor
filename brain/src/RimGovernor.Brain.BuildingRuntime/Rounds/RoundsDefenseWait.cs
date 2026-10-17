@@ -99,7 +99,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
 
     /// <summary>Marks which cells of the request can carry the wall and the trap, from the terrain affordances of the site.</summary>
-    internal async Task<DefenseRequest> MarkWallSupportAsync(C.Identity identity, DefenseRequest request, IReadOnlyList<BridgeDefenseCell> site, CancellationToken call)
+    internal async Task<DefenseRequest> MarkWallSupportAsync(C.Identity identity, DefenseRequest request, IReadOnlyList<DefenseCensusCell> site, CancellationToken call)
     {
         var catalog = await RoundsEquipPawn.PawnCatalogAsync(_native, identity, call).ConfigureAwait(false);
         if (catalog is null)

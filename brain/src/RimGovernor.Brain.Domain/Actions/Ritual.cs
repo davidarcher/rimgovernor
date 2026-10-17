@@ -89,7 +89,7 @@ public sealed record Ritual : IActionPayload
     public static Ritual NewRitualBegin(PawnId organizer, string precept, Cell spot, IEnumerable<RitualSlot> slots, IEnumerable<PawnId> spectators)
     {
         DomainException.Require(organizer.IsValid, "ritual begin requires a valid organizer identity");
-        DomainException.Require(Identity.IsValidText(precept) && new RitualKind(precept) != RitualKind.Bestowing, "ritual begin requires a ritual precept id");
+        DomainException.Require(IdText.IsValidText(precept) && new RitualKind(precept) != RitualKind.Bestowing, "ritual begin requires a ritual precept id");
         DomainException.Require(spot.X >= 0 && spot.Z >= 0, "ritual begin requires a spot cell on the map");
         var seenSlots = new HashSet<string>(StringComparer.Ordinal);
         var seenPawns = new HashSet<PawnId>();
@@ -101,7 +101,7 @@ public sealed record Ritual : IActionPayload
         var ownedSlots = new List<RitualSlot>();
         foreach (var slot in slots)
         {
-            DomainException.Require(Identity.IsValidText(slot.Slot), "ritual begin requires a valid role slot id");
+            DomainException.Require(IdText.IsValidText(slot.Slot), "ritual begin requires a valid role slot id");
             DomainException.Require(seenSlots.Add(slot.Slot), "ritual begin names a role slot twice");
             DomainException.Require(slot.Pawns.Count != 0, "ritual begin names a role slot without pawns");
             foreach (var pawn in slot.Pawns)

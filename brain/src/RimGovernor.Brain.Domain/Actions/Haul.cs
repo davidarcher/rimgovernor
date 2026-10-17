@@ -12,7 +12,7 @@ public sealed record Haul : IActionPayload
     public Haul(PawnId pawn, string thing, string definition, Cell cell)
     {
         DomainException.Require(
-            pawn.IsValid && Identity.IsValidText(thing) && Identity.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
+            pawn.IsValid && IdText.IsValidText(thing) && IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
             "haul requires a valid pawn, thing, definition identity and cell"
         );
         Pawn = pawn;

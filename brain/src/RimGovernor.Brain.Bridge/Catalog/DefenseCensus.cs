@@ -57,7 +57,7 @@ public sealed partial class DefinitionCatalog
         }
         var census = new CensusReader(this);
         var reach = CensusReader.EdgeReachable(grid, width, height);
-        var rows = new List<DefenseCell>((int)region.Cells);
+        var rows = new List<DefenseCensusCell>((int)region.Cells);
         for (var z = region.Min.Z; z <= region.Max.Z; z++)
         {
             for (var x = region.Min.X; x <= region.Max.X; x++)
@@ -81,7 +81,7 @@ public sealed partial class DefinitionCatalog
         // Decodes the traversal facts of one mirror cell. A held cell with an unknown walkability or terrain is not known.
         private static CensusCell Read(P.SiteCell? cell)
         {
-            if (cell is null || !cell.Walkable.TryGetValue(out var walkable) || !cell.Terrain.TryGetValue(out var terrain) || !Domain.Identity.IsValidText(terrain))
+            if (cell is null || !cell.Walkable.TryGetValue(out var walkable) || !cell.Terrain.TryGetValue(out var terrain) || !Domain.IdText.IsValidText(terrain))
             {
                 return default;
             }
@@ -180,12 +180,12 @@ public sealed partial class DefinitionCatalog
         }
 
         // One census row: fogged when the mirror does not know the cell.
-        public DefenseCell Cell(P.SiteCell? cell, Domain.Cell at)
+        public DefenseCensusCell Cell(P.SiteCell? cell, Domain.Cell at)
         {
             var view = Read(cell);
             if (!view.Known || cell is null)
             {
-                return new DefenseCell { Cell = at, Fogged = true };
+                return new DefenseCensusCell { Cell = at, Fogged = true };
             }
             P.Thing? edifice = null;
             P.Thing? cover = null;
@@ -201,7 +201,7 @@ public sealed partial class DefinitionCatalog
                     (cover, fill) = (t, f);
                 }
             }
-            var row = new DefenseCell
+            var row = new DefenseCensusCell
             {
                 Cell = at,
                 Terrain = cell.Terrain.ValueOrDefault ?? "",

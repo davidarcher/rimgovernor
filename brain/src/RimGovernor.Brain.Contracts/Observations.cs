@@ -8147,8 +8147,7 @@ public sealed record Polluter
 }
 
 /// <summary>
-/// frozen, outdoors, in_atomizer and can_dissolve_now are CompDissolution's
-/// own verdicts; deterioration_rate is CompDissolution.DeterioarationRate.
+/// frozen and in_atomizer are CompDissolution's own verdicts.
 /// </summary>
 public sealed record Wastepack
 {
@@ -8162,13 +8161,7 @@ public sealed record Wastepack
 
     public bool? Frozen { get; init; }
 
-    public bool? Outdoors { get; init; }
-
     public bool? InAtomizer { get; init; }
-
-    public bool? CanDissolveNow { get; init; }
-
-    public int? DeteriorationRate { get; init; }
 
     public bool? Forbidden { get; init; }
 }

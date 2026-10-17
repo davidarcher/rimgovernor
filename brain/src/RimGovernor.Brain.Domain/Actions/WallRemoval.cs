@@ -14,7 +14,7 @@ public sealed record WallRemoval : IActionPayload
     public WallRemoval(string original, ActionId backupOf, Cell cell)
     {
         DomainException.Require(
-            !(backupOf.IsEmpty && !Identity.IsValidText(original)),
+            !(backupOf.IsEmpty && !IdText.IsValidText(original)),
             "wall removal requires either an original native identity or a backup prerequisite"
         );
         DomainException.Require(

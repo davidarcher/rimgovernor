@@ -21,12 +21,12 @@ public readonly record struct CellRect(DomainCell Min, DomainCell Max)
 }
 
 /// <summary>
-/// Go's <c>DefenseCell</c>: one observed cell of a defense site census. Unknown (fogged) cells carry only
+/// Go's <c>DefenseCensusCell</c>: one observed cell of a defense site census. Unknown (fogged) cells carry only
 /// <see cref="Fogged"/>; every other fact is the game's own: <see cref="CoverFill"/> (and sight blocking)
 /// are what CoverUtility/GenSight consult, <see cref="EdgeReachable"/> is native ground reachability to a map edge
 /// without opening doors (the walk-in raid approach), and NaturalRock/Door/PlayerOwned describe the edifice.
 /// </summary>
-public sealed record DefenseCell
+public sealed record DefenseCensusCell
 {
     public DomainCell Cell { get; init; }
 
@@ -106,7 +106,7 @@ public sealed record RaidTrack
 }
 
 /// <summary>Go's <c>DefenseSite</c>: one complete rectangle census with the context the caller validates against its acting generation.</summary>
-public sealed record DefenseSite(ObservationContext? Context, uint Width, uint Height, CellRect Region, IReadOnlyList<DefenseCell> Cells);
+public sealed record DefenseSite(ObservationContext? Context, uint Width, uint Height, CellRect Region, IReadOnlyList<DefenseCensusCell> Cells);
 
 /// <summary>
 /// Go's <c>LineOfFire</c>: the native shooting-model evidence for one (firing, approach) pair, GenSight line of

@@ -25,7 +25,7 @@ public sealed record Building
 {
     public Building(string definition, Cell cell, Rotation rotation, string stuff)
     {
-        DomainException.Require(Identity.IsNativeText(definition, allowEmpty: false) && Identity.IsNativeText(stuff, allowEmpty: true), "invalid native definition or stuff text");
+        DomainException.Require(IdText.IsNativeText(definition, allowEmpty: false) && IdText.IsNativeText(stuff, allowEmpty: true), "invalid native definition or stuff text");
         DomainException.Require(cell.X >= 0 && cell.Z >= 0, "building anchor must be nonnegative");
         DomainException.Require(Wire.IsDefined(rotation), "invalid building rotation");
         Definition = definition;
@@ -128,7 +128,7 @@ public sealed partial record DomainAction
     {
         const string Message = "invalid construction finishing skill";
         var order = BuildingOrderOrThrow(Message);
-        DomainException.Require(minimum is >= 0 and <= 1000 && Identity.IsNativeText(target, allowEmpty: true), Message);
+        DomainException.Require(minimum is >= 0 and <= 1000 && IdText.IsNativeText(target, allowEmpty: true), Message);
         return WithPayload(order with { FinishingSkill = Known(minimum), ConstructionTarget = target });
     }
 
@@ -146,7 +146,7 @@ public sealed partial record DomainAction
         var order = BuildingOrderOrThrow(Message);
         DomainException.Require(
             Wire.IsDefined(tier)
-                && Identity.IsNativeText(target, allowEmpty: true)
+                && IdText.IsNativeText(target, allowEmpty: true)
                 && !(order.ConstructionTarget.Length != 0 && target.Length != 0 && target != order.ConstructionTarget),
             Message
         );

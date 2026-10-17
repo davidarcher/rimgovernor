@@ -19,7 +19,7 @@ public sealed record CombatRestoration(World World, PlanId Owner, EquatableArray
     internal void Validate()
     {
         var total = Doors.Count + Animals.Count;
-        if (!World.IsValid || !Identity.IsValidText(Owner.Value) || total == 0 || total > 256)
+        if (!World.IsValid || !IdText.IsValidText(Owner.Value) || total == 0 || total > 256)
         {
             throw new CapacityException();
         }
@@ -34,7 +34,7 @@ public sealed record CombatRestoration(World World, PlanId Owner, EquatableArray
         var animals = new HashSet<PawnId>();
         foreach (var a in Animals)
         {
-            if (!Identity.IsValidText(a.Pawn.Value) || (a.Area.Length != 0 && !Identity.IsValidText(a.Area)) || !animals.Add(a.Pawn))
+            if (!IdText.IsValidText(a.Pawn.Value) || (a.Area.Length != 0 && !IdText.IsValidText(a.Area)) || !animals.Add(a.Pawn))
             {
                 throw new ConflictException();
             }

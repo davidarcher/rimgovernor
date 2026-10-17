@@ -140,7 +140,7 @@ public sealed partial class LayoutRounds
         {
             foreach (var option in materials)
             {
-                if (ProductionRules.MaterialBudgetCovers(available, option.Costs.Select(c => new Pol.Amount(new Pol.Resource(c.Resource), c.Units)), backupCount + 1))
+                if (ProductionRules.MaterialBudgetCovers(available, option.Costs, backupCount + 1))
                 {
                     material = option;
                     funded = true;
@@ -152,7 +152,7 @@ public sealed partial class LayoutRounds
         {
             return (BuildingReasonStoneShellUnstocked, false);
         }
-        var costs = material.Costs.Select(c => new Pol.Amount { Resource = new Pol.Resource(c.Resource), Count = c.Units }).ToList();
+        var costs = material.Costs.ToList();
         var key = StoneShellMethodId(wall);
         var id = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };

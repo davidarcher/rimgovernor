@@ -35,7 +35,7 @@ public sealed record CombatBatch : IActionPayload
 {
     public CombatBatch(PlanId fight, string key, IReadOnlyList<CombatCommand> orders)
     {
-        DomainException.Require(fight.IsValid && Identity.IsValidText(key) && orders.Count > 0, "invalid combat batch");
+        DomainException.Require(fight.IsValid && IdText.IsValidText(key) && orders.Count > 0, "invalid combat batch");
         foreach (var o in orders)
         {
             DomainException.Require(o.Cell.X >= 0 && o.Cell.Z >= 0 && o.Aim.X >= 0 && o.Aim.Z >= 0, "invalid combat cell");
@@ -81,7 +81,7 @@ public sealed record CombatBatch : IActionPayload
             }
             if (o.Kind == "drug")
             {
-                DomainException.Require(Identity.IsValidText(o.Drug), "invalid combat drug");
+                DomainException.Require(IdText.IsValidText(o.Drug), "invalid combat drug");
             }
         }
         Fight = fight;

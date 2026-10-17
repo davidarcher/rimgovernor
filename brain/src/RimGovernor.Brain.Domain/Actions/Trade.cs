@@ -83,7 +83,7 @@ public sealed record Trade : IActionPayload
                 break;
             case TradeOperationKind.Accept:
                 DomainException.Require(!giftMode && rows.Count == 0 && !allowPawns && endKind == TradeEndKind.None, "accept trade carries no other operation's fields");
-                DomainException.Require(Identity.IsValidText(expectedDealSignature), "accept trade requires an expected deal signature");
+                DomainException.Require(IdText.IsValidText(expectedDealSignature), "accept trade requires an expected deal signature");
                 break;
             case TradeOperationKind.End:
                 DomainException.Require(
@@ -98,7 +98,7 @@ public sealed record Trade : IActionPayload
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var l in rows)
         {
-            DomainException.Require(Identity.IsValidText(l.LineId) && seen.Add(l.LineId), "invalid or duplicate trade line");
+            DomainException.Require(IdText.IsValidText(l.LineId) && seen.Add(l.LineId), "invalid or duplicate trade line");
         }
         Kind = kind;
         Participant = participant;

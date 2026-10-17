@@ -10,7 +10,7 @@ public sealed record FloorRemoval : IActionPayload
     /// <summary>Go <c>NewFloorRemoval</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public FloorRemoval(string definition, Cell cell)
     {
-        DomainException.Require(Identity.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0, "invalid floor removal definition or cell");
+        DomainException.Require(IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0, "invalid floor removal definition or cell");
         Definition = definition;
         Cell = cell;
     }

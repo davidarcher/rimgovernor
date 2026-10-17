@@ -79,7 +79,7 @@ public sealed record CaravanDeparture : IActionPayload
         var seenCargo = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in items)
         {
-            if (!Identity.IsValidText(item.Definition) || item.Count == 0 || item.Count > int.MaxValue || !seenCargo.Add(item.Definition))
+            if (!IdText.IsValidText(item.Definition) || item.Count == 0 || item.Count > int.MaxValue || !seenCargo.Add(item.Definition))
             {
                 return "invalid or duplicate caravan cargo item";
             }

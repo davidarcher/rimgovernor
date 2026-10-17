@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 public sealed partial class BridgeContractException(string message) : Exception("bridge contract failure: " + message);
 
 /// <summary>
-/// Go's <c>ErrRefused</c>: a native read was refused. <see cref="Refusal"/> and <see cref="NativeFailureException"/>
+/// Go's <c>ErrRefused</c>: a native read was refused. <see cref="ReadRefusedException"/> and <see cref="NativeFailureException"/>
 /// are the typed forms; the base type itself is thrown where Go returned the bare sentinel.
 /// </summary>
 public class BridgeRefusedException(string message) : Exception(message)
@@ -58,9 +58,9 @@ public sealed class NativeUnavailableException(Unavailable value, Result receipt
 }
 
 /// <summary>Go's <c>Refusal</c>: a named read the native side refused, with the refusal's own account of itself.</summary>
-public sealed class Refusal : BridgeRefusedException
+public sealed class ReadRefusedException : BridgeRefusedException
 {
-    public Refusal(string tool, string cause, Result result)
+    public ReadRefusedException(string tool, string cause, Result result)
         : base(cause.Length == 0 ? "bridge read refused: " + tool : "bridge read refused: " + tool + ": " + cause)
     {
         Tool = tool;

@@ -42,7 +42,8 @@ public enum Outcome
 
 /// <summary>
 /// Says why an <see cref="Outcome.Refused"/> step stopped or what an <see cref="Outcome.Waiting"/> goal waits on: a
-/// cause, the thing it concerns and optional detail. Detail is machine-only: it rides in
+/// cause, the thing it concerns and optional detail. Kept apart from the wire and admission refusals: it is a routine
+/// step's own verdict, not a native reply or an admitted action turned away. Detail is machine-only: it rides in
 /// <see cref="Verdict.ToString"/> and never into persisted rows or wording.
 /// </summary>
 public readonly record struct Refusal(Cause Kind, string Subject = "", string Detail = "");

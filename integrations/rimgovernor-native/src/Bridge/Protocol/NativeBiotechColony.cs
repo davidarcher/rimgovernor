@@ -84,8 +84,8 @@ namespace HomeBridge.BridgeTools
                     var dissolution = (t as ThingWithComps)?.GetComp<CompDissolution>();
                     if (dissolution == null || !t.Spawned) continue;
                     facts = facts with { Wastepacks = [.. facts.Wastepacks, new Obs.Wastepack { ThingId = Id(t.GetUniqueLoadID()), DefName = Id(t.def.defName), Position = Cell(t.Position), Count = t.stackCount,
-                        Frozen = dissolution.IsFrozen, Outdoors = dissolution.IsOutdoors, InAtomizer = dissolution.InAtomizer, CanDissolveNow = dissolution.CanDissolveNow,
-                        DeteriorationRate = dissolution.DeterioarationRate, Forbidden = t.IsForbidden(Faction.OfPlayer) }] };
+                        Frozen = dissolution.IsFrozen, InAtomizer = dissolution.InAtomizer,
+                        Forbidden = t.IsForbidden(Faction.OfPlayer) }] };
                 }
 
                 foreach (var pawn in map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == Faction.OfPlayer && p.RaceProps.Humanlike

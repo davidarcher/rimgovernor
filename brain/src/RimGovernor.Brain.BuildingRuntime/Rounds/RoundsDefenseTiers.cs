@@ -337,7 +337,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 partial class TierOverlay
 {
     /// <summary>The cover the cell's thing offers: its definition and kind, and for a building the stuff when it is the cell's edifice.</summary>
-    internal static CoverThing DefenseCover(BridgeDefenseCell cell)
+    internal static CoverThing DefenseCover(DefenseCensusCell cell)
     {
         if (cell.Cover is null)
         {

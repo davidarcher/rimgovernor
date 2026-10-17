@@ -29,7 +29,7 @@ public sealed record CoverClearance : IActionPayload
     public CoverClearance(string thing, string definition, CoverClearanceDesignation designation, Cell cell)
     {
         DomainException.Require(
-            Identity.IsValidText(thing) && Identity.IsValidText(definition) && Wire.IsDefined(designation) && cell.X >= 0 && cell.Z >= 0,
+            IdText.IsValidText(thing) && IdText.IsValidText(definition) && Wire.IsDefined(designation) && cell.X >= 0 && cell.Z >= 0,
             "invalid cover clearance identity, designation or cell"
         );
         Thing = thing;

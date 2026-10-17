@@ -13,7 +13,7 @@ public sealed record SupplyAllow : IActionPayload
     private SupplyAllow(string thing, string definition, Cell cell, bool forbid)
     {
         DomainException.Require(
-            Identity.IsValidText(thing) && Identity.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
+            IdText.IsValidText(thing) && IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
             "invalid supply identity or cell"
         );
         Thing = thing;

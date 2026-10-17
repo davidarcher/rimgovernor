@@ -15,7 +15,7 @@ public sealed record DialogAnswer : IActionPayload
 
     private DialogAnswer(int windowId, int optionIndex, string optionLabel, string letterToken)
     {
-        DomainException.Require(windowId >= 0 && optionIndex >= 0 && Identity.IsValidText(optionLabel), "dialog answer requires a valid window, option index and label");
+        DomainException.Require(windowId >= 0 && optionIndex >= 0 && IdText.IsValidText(optionLabel), "dialog answer requires a valid window, option index and label");
         WindowId = windowId;
         OptionIndex = optionIndex;
         OptionLabel = optionLabel;
@@ -34,7 +34,7 @@ public sealed record DialogAnswer : IActionPayload
     /// <summary>Go <c>NewJoinerLetterAnswer</c>: targets a pending native letter rather than a window.</summary>
     public static DialogAnswer NewJoinerLetterAnswer(int letterId, string label, string token)
     {
-        DomainException.Require(letterId >= 0 && Identity.IsValidText(label) && Identity.IsValidText(token), "invalid joiner letter target");
+        DomainException.Require(letterId >= 0 && IdText.IsValidText(label) && IdText.IsValidText(token), "invalid joiner letter target");
         return new DialogAnswer(letterId, 0, label, token);
     }
 }

@@ -10,7 +10,7 @@ public sealed record GiveItem : IActionPayload
     public GiveItem(PawnId hauler, PawnId recipient, string definition, long expectedRemaining)
     {
         DomainException.Require(
-            hauler.IsValid && recipient.IsValid && hauler != recipient && Identity.IsValidText(definition) && expectedRemaining > 0 && expectedRemaining <= int.MaxValue,
+            hauler.IsValid && recipient.IsValid && hauler != recipient && IdText.IsValidText(definition) && expectedRemaining > 0 && expectedRemaining <= int.MaxValue,
             "give item requires exact actors, definition and positive native remaining count"
         );
         Hauler = hauler;

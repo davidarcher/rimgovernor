@@ -9,7 +9,7 @@ public sealed record Gathering : IActionPayload
     /// <summary>Go <c>NewGathering</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public Gathering(string def, PawnId organizer)
     {
-        DomainException.Require(Identity.IsValidText(def) && organizer.IsValid, "gathering requires a gathering def and an organizer");
+        DomainException.Require(IdText.IsValidText(def) && organizer.IsValid, "gathering requires a gathering def and an organizer");
         Def = def;
         Organizer = organizer;
     }

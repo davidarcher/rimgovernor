@@ -263,7 +263,7 @@ public sealed record EmergencySnapshot
         return new EmergencySnapshot(current, tick, owned);
     }
 
-    private static bool ValidId(PawnId id) => Identity.IsValidText(id.Value);
+    private static bool ValidId(PawnId id) => IdText.IsValidText(id.Value);
 
     /// <summary>
     /// Go <c>PodsPending</c>: a drop-pod raid on its way down: an arrival whose pods have not opened by the

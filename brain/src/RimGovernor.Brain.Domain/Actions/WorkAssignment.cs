@@ -33,12 +33,12 @@ public sealed record WorkAssignment : IActionPayload
         DomainException.Require(rows.Count != 0 || hasArea || schedule.Count != 0, "invalid work assignment");
         if (schedule.Count > 0)
         {
-            DomainException.Require(schedule.Count == WorkAssignmentConstants.ScheduleHours && schedule.All(Identity.IsValidText), "invalid schedule assignment");
+            DomainException.Require(schedule.Count == WorkAssignmentConstants.ScheduleHours && schedule.All(IdText.IsValidText), "invalid schedule assignment");
         }
         if (hasArea)
         {
             DomainException.Require(!(areaClear && areaId.Length != 0), "invalid area assignment");
-            DomainException.Require(areaClear || Identity.IsValidText(areaId), "invalid area assignment");
+            DomainException.Require(areaClear || IdText.IsValidText(areaId), "invalid area assignment");
         }
         else
         {
@@ -48,7 +48,7 @@ public sealed record WorkAssignment : IActionPayload
         {
             var row = rows[i];
             DomainException.Require(
-                Identity.IsValidText(row.Definition)
+                IdText.IsValidText(row.Definition)
                     && row.Priority >= 0
                     && row.Priority <= WorkAssignmentConstants.MaxPriority
                     && !(i > 0 && string.Equals(rows[i - 1].Definition, row.Definition, StringComparison.Ordinal)),

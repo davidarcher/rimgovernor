@@ -11,7 +11,7 @@ public sealed record GearReplace : IActionPayload
     public GearReplace(PawnId pawn, string thing, string definition)
     {
         DomainException.Require(
-            pawn.IsValid && Identity.IsValidText(thing) && Identity.IsValidText(definition),
+            pawn.IsValid && IdText.IsValidText(thing) && IdText.IsValidText(definition),
             "gear replace requires a valid pawn, thing and definition identity"
         );
         Pawn = pawn;

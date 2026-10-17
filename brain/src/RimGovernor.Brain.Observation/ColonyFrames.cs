@@ -195,12 +195,7 @@ public static class ColonyFramesReads
         {
             return Unknown<PollutionFacts>();
         }
-        var packs = new List<Policy.Wastepack>(b.Wastepacks.Count);
-        foreach (var w in b.Wastepacks)
-        {
-            packs.Add(new Policy.Wastepack { Id = w.ID, Definition = w.Definition, Cell = w.Position, Frozen = w.Frozen, InAtomizer = w.InAtomizer, Forbidden = w.Forbidden });
-        }
-        return Known(new PollutionFacts { UncoveredCells = b.PollutedUncoveredCells, Wastepacks = packs });
+        return Known(new PollutionFacts { UncoveredCells = b.PollutedUncoveredCells, Wastepacks = b.Wastepacks });
     }
 
     /// <summary>

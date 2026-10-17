@@ -44,7 +44,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         request = request with { Tick = tick };
         request = request with { Killbox = killbox };
         request = request with { Region = new Rectangle(region.Min.X, region.Min.Z, region.Max.X - region.Min.X + 1, region.Max.Z - region.Min.Z + 1) };
-        var byCell = new Dictionary<Cell, BridgeDefenseCell>();
+        var byCell = new Dictionary<Cell, DefenseCensusCell>();
         var requestCells = new List<DefenseCell>();
         var entrances = new List<Cell>();
         foreach (var cell in site.Cells)
@@ -186,7 +186,7 @@ partial class RoundsDefenseLayoutPlanner
     }
 
     /// <summary>The cover to clear and the counts of the cover held back by reason.</summary>
-    internal static (List<CoverClearance> Clearances, Dictionary<string, int> Held) DefenseCoverSelection(DefenseApproaches approaches, IReadOnlyDictionary<Cell, BridgeDefenseCell> byCell)
+    internal static (List<CoverClearance> Clearances, Dictionary<string, int> Held) DefenseCoverSelection(DefenseApproaches approaches, IReadOnlyDictionary<Cell, DefenseCensusCell> byCell)
     {
         var clearances = new List<CoverClearance>();
         var held = new Dictionary<string, int>(StringComparer.Ordinal);

@@ -9,7 +9,7 @@ public sealed record GrowerCrop : IActionPayload
     /// <summary>Go <c>NewGrowerCrop</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public GrowerCrop(string thing, string crop)
     {
-        DomainException.Require(Identity.IsValidText(thing) && Identity.IsValidText(crop), "invalid grower crop identity");
+        DomainException.Require(IdText.IsValidText(thing) && IdText.IsValidText(crop), "invalid grower crop identity");
         Thing = thing;
         Crop = crop;
     }

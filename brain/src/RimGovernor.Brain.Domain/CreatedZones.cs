@@ -26,7 +26,7 @@ public sealed record CreatedZones
         var canonical = new List<CreatedZone>(input.Count);
         foreach (var row in input)
         {
-            DomainException.Require(Identity.IsValidText(row.Id) && ids.Add(row.Id), "invalid created stockpile identity");
+            DomainException.Require(IdText.IsValidText(row.Id) && ids.Add(row.Id), "invalid created stockpile identity");
             var footprint = ZoneCreate.CanonicalConnectedCells(row.Cells);
             foreach (var c in footprint)
             {

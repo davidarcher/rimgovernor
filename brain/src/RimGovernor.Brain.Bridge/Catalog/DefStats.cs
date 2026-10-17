@@ -8,10 +8,7 @@ namespace RimGovernor.Brain.Bridge;
 // Go catalog_def_stats.go: per-def stat facts the planners read.
 
 /// <summary>One candidate stone stuff and its per-wall cost (Go <c>WallMaterial</c>).</summary>
-public sealed record WallMaterial(string Stuff, IReadOnlyList<Amount> Costs);
-
-/// <summary>A resource and a unit count (Go bridge <c>Amount</c>).</summary>
-public readonly record struct Amount(string Resource, long Units);
+public sealed record WallMaterial(string Stuff, IReadOnlyList<P.Amount> Costs);
 
 public sealed partial class DefinitionCatalog
 {
@@ -57,7 +54,7 @@ public sealed partial class DefinitionCatalog
                 continue;
             }
 
-            result.Add(new WallMaterial(stuff, [.. AdjustedCosts(def, stuff).Select(cost => new Amount(cost.Def, cost.Units))]));
+            result.Add(new WallMaterial(stuff, [.. AdjustedCosts(def, stuff).Select(cost => new P.Amount(new P.Resource(cost.Def), cost.Units))]));
         }
 
         return result;

@@ -197,6 +197,7 @@ public readonly partial record struct Reason(string Value)
     public static readonly Reason InvalidHeld = new("held_reservation_unverifiable");
 }
 
+/// <summary>One action admission turned away, with the safeguard reason. Kept apart from the wire and verdict refusals: it names a planned action, not a native reply or a routine step.</summary>
 public sealed record Refusal(ActionId Action, Reason Reason, Resource Resource)
 {
     /// <summary>The zero value Go's struct literal starts from.</summary>

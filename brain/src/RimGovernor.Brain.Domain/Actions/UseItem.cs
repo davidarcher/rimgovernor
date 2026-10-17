@@ -12,7 +12,7 @@ public sealed record UseItem : IActionPayload
     public UseItem(PawnId pawn, string item, PawnId target)
     {
         DomainException.Require(
-            pawn.IsValid && Identity.IsValidText(item) && target.IsValid && item != pawn.Value && item != target.Value,
+            pawn.IsValid && IdText.IsValidText(item) && target.IsValid && item != pawn.Value && item != target.Value,
             "use item requires valid pawn, item and target identities, the item distinct from both"
         );
         Pawn = pawn;

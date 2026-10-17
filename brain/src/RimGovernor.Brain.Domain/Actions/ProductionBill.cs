@@ -24,8 +24,8 @@ public sealed record ProductionBill : IActionPayload
     public ProductionBill(string bench, string recipe, BillMode mode, int target, params string[] ingredients)
     {
         DomainException.Require(
-            Identity.IsValidText(bench)
-                && Identity.IsValidText(recipe)
+            IdText.IsValidText(bench)
+                && IdText.IsValidText(recipe)
                 && mode is BillMode.FoodTarget or BillMode.ButcherForever or BillMode.StockTarget or BillMode.BeerReserve or BillMode.GearBatch
                 && !(mode == BillMode.FoodTarget && target < 1)
                 && !(mode == BillMode.ButcherForever && target != 0)
@@ -36,7 +36,7 @@ public sealed record ProductionBill : IActionPayload
         var rows = ingredients.OrderBy(n => n, StringComparer.Ordinal).ToList();
         for (var i = 0; i < rows.Count; i++)
         {
-            DomainException.Require(Identity.IsValidText(rows[i]) && !(i > 0 && rows[i] == rows[i - 1]), "invalid bill ingredient");
+            DomainException.Require(IdText.IsValidText(rows[i]) && !(i > 0 && rows[i] == rows[i - 1]), "invalid bill ingredient");
         }
         Bench = bench;
         Recipe = recipe;
@@ -72,14 +72,14 @@ public sealed record ProductionBill : IActionPayload
     public static ProductionBill NewHumanButcherBill(string bench, string recipe, string worker)
     {
         var bill = new ProductionBill(bench, recipe, BillMode.ButcherForever, 0);
-        DomainException.Require(Identity.IsValidText(worker), "invalid human butcher bill");
+        DomainException.Require(IdText.IsValidText(worker), "invalid human butcher bill");
         return bill with { Mode = BillMode.HumanButcherForever, Worker = worker, Corpses = CorpseOf.Stranger };
     }
 
     /// <summary>Go <c>PinWorker</c>: restricts a fixed-count batch to one pawn (one art bill per artist).</summary>
     public ProductionBill PinWorker(string worker)
     {
-        DomainException.Require(Mode == BillMode.GearBatch && Identity.IsValidText(worker), "invalid pinned batch bill");
+        DomainException.Require(Mode == BillMode.GearBatch && IdText.IsValidText(worker), "invalid pinned batch bill");
         return this with { Worker = worker };
     }
 
@@ -95,7 +95,7 @@ public sealed record ProductionBill : IActionPayload
     public ProductionBill ReplaceOwnedBill(string id)
     {
         DomainException.Require(
-            Identity.IsValidText(id) && Mode is BillMode.FoodTarget or BillMode.ButcherForever or BillMode.StockTarget or BillMode.HumanButcherForever,
+            IdText.IsValidText(id) && Mode is BillMode.FoodTarget or BillMode.ButcherForever or BillMode.StockTarget or BillMode.HumanButcherForever,
             "invalid bill replacement"
         );
         return this with { Replaces = id };

@@ -24,21 +24,21 @@ public sealed record BedUse : IActionPayload
 
     public static BedUse NewBedMedical(string thing, bool medical)
     {
-        DomainException.Require(Identity.IsValidText(thing), "invalid bed medical identity");
+        DomainException.Require(IdText.IsValidText(thing), "invalid bed medical identity");
         return new BedUse(thing, medical, false, false);
     }
 
     /// <summary>Sets one exact bed for prisoners; there is no patch back to colonists.</summary>
     public static BedUse NewBedPrisoners(string thing)
     {
-        DomainException.Require(Identity.IsValidText(thing), "invalid bed medical identity");
+        DomainException.Require(IdText.IsValidText(thing), "invalid bed medical identity");
         return new BedUse(thing, false, true, false);
     }
 
     /// <summary>Sets one exact bed for slaves (Ideology); like the prisoners patch, there is no patch back to colonists.</summary>
     public static BedUse NewBedSlaves(string thing)
     {
-        DomainException.Require(Identity.IsValidText(thing), "invalid bed medical identity");
+        DomainException.Require(IdText.IsValidText(thing), "invalid bed medical identity");
         return new BedUse(thing, false, false, true);
     }
 }

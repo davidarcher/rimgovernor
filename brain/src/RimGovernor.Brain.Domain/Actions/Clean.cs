@@ -12,7 +12,7 @@ public sealed record Clean : IActionPayload
     public Clean(PawnId pawn, string filth, Cell cell)
     {
         DomainException.Require(
-            pawn.IsValid && Identity.IsValidText(filth) && cell.X >= 0 && cell.Z >= 0,
+            pawn.IsValid && IdText.IsValidText(filth) && cell.X >= 0 && cell.Z >= 0,
             "clean requires a valid pawn, filth and nonnegative cell"
         );
         Pawn = pawn;

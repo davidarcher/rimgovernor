@@ -13,11 +13,11 @@ public sealed record ReadingPolicy : IActionPayload
     /// <summary>Go <c>NewReadingPolicy</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public ReadingPolicy(string name, IEnumerable<string> definitions)
     {
-        DomainException.Require(Identity.IsValidText(name) && Encoding.UTF8.GetByteCount(name) <= 80, "a reading policy needs a name");
+        DomainException.Require(IdText.IsValidText(name) && Encoding.UTF8.GetByteCount(name) <= 80, "a reading policy needs a name");
         var rows = definitions.OrderBy(d => d, StringComparer.Ordinal).ToArray();
         for (var i = 0; i < rows.Length; i++)
         {
-            DomainException.Require(Identity.IsValidText(rows[i]) && !(i > 0 && rows[i - 1] == rows[i]), "invalid reading policy definition");
+            DomainException.Require(IdText.IsValidText(rows[i]) && !(i > 0 && rows[i - 1] == rows[i]), "invalid reading policy definition");
         }
         Name = name;
         Definitions = EquatableArray.From(rows);

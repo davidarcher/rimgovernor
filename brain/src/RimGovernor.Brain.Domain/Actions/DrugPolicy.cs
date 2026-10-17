@@ -26,7 +26,7 @@ public sealed record DrugPolicyEntry(
         get
         {
             static bool Unit(double v) => !double.IsNaN(v) && v >= 0 && v <= 1;
-            return Identity.IsValidText(Drug)
+            return IdText.IsValidText(Drug)
                 && !Off
                 && !double.IsNaN(DaysFrequency)
                 && DaysFrequency > 0
@@ -56,7 +56,7 @@ public sealed record DrugPolicy : IActionPayload
     /// <summary>Go <c>NewDrugPolicy</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public DrugPolicy(string name, IEnumerable<DrugPolicyEntry> entries)
     {
-        DomainException.Require(Identity.IsValidText(name) && Encoding.UTF8.GetByteCount(name) <= 80, "a drug policy needs a name");
+        DomainException.Require(IdText.IsValidText(name) && Encoding.UTF8.GetByteCount(name) <= 80, "a drug policy needs a name");
         var rows = entries.OrderBy(e => e.Drug, StringComparer.Ordinal).ToArray();
         for (var i = 0; i < rows.Length; i++)
         {

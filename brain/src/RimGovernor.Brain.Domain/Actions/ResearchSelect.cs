@@ -10,7 +10,7 @@ public sealed record ResearchSelect : IActionPayload
     /// <summary>Go <c>NewResearchSelect</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public ResearchSelect(string project)
     {
-        DomainException.Require(Identity.IsValidText(project), "research select requires a valid project identity");
+        DomainException.Require(IdText.IsValidText(project), "research select requires a valid project identity");
         Project = project;
     }
 

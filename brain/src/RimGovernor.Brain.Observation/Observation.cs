@@ -14,6 +14,7 @@ public sealed class ObservationChangedException() : DomainException("native obse
 /// <summary>Go's <c>ErrStale</c>: the native observation is older than the caller allows.</summary>
 public sealed class ObservationStaleException() : DomainException("native observation is stale");
 
+/// <summary>The domain identity of one observation: typed ids, tick, native generation and pause. The wire <c>Common.Identity</c> is the same context as raw strings and is decoded into this.</summary>
 public sealed record Identity
 {
     public ColonyId Colony { get; init; }

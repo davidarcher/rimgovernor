@@ -17,10 +17,10 @@ public sealed record CommsTradeRequest : IActionPayload
     {
         DomainException.Require(
             Wire.IsDefined(kind)
-                && Identity.IsValidText(faction)
-                && Identity.IsValidText(traderKind)
-                && Identity.IsValidText(console)
-                && Identity.IsValidText(negotiator)
+                && IdText.IsValidText(faction)
+                && IdText.IsValidText(traderKind)
+                && IdText.IsValidText(console)
+                && IdText.IsValidText(negotiator)
                 && expectedLastRequestTick >= int.MinValue
                 && expectedLastRequestTick <= int.MaxValue,
             "invalid comms trade request"

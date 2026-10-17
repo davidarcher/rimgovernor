@@ -9,7 +9,7 @@ public sealed record ClaimBuilding : IActionPayload
     /// <summary>Go <c>NewClaimBuilding</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public ClaimBuilding(string thing)
     {
-        DomainException.Require(Identity.IsValidText(thing), "invalid claim building identity");
+        DomainException.Require(IdText.IsValidText(thing), "invalid claim building identity");
         Thing = thing;
     }
 

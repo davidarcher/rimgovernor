@@ -21,7 +21,7 @@ public readonly record struct NeedId(string Value) : IComparable<NeedId>
     {
         get
         {
-            if (!Identity.IsValidText(Value))
+            if (!IdText.IsValidText(Value))
             {
                 return false;
             }

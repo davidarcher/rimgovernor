@@ -9,7 +9,7 @@ public sealed record Strip : IActionPayload
     /// <summary>Go <c>NewStrip</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public Strip(string target)
     {
-        DomainException.Require(Identity.IsValidText(target), "strip requires a valid target identity");
+        DomainException.Require(IdText.IsValidText(target), "strip requires a valid target identity");
         Target = target;
     }
 

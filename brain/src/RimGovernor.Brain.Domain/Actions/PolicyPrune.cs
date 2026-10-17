@@ -30,7 +30,7 @@ public sealed record PolicyPrune : IActionPayload
         DomainException.Require(rows.Length != 0, "policy prune needs ids");
         for (var i = 0; i < rows.Length; i++)
         {
-            DomainException.Require(Identity.IsValidText(rows[i]) && !(i > 0 && rows[i - 1] == rows[i]), "invalid policy id");
+            DomainException.Require(IdText.IsValidText(rows[i]) && !(i > 0 && rows[i - 1] == rows[i]), "invalid policy id");
         }
         Database = database;
         Ids = EquatableArray.From(rows);

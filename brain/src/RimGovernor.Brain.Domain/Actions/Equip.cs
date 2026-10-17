@@ -12,7 +12,7 @@ public sealed record Equip : IActionPayload
     public Equip(PawnId pawn, string thing, string definition, Cell cell)
     {
         DomainException.Require(
-            pawn.IsValid && Identity.IsValidText(thing) && Identity.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
+            pawn.IsValid && IdText.IsValidText(thing) && IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
             "equip requires a valid pawn, thing, definition identity and cell"
         );
         Pawn = pawn;

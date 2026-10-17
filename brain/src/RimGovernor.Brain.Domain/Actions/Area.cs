@@ -49,11 +49,11 @@ public sealed record Area : IActionPayload
         {
             case AreaOperation.Create:
             case AreaOperation.Delete:
-                DomainException.Require(Identity.IsValidText(key), "area create and delete need a bot area key");
+                DomainException.Require(IdText.IsValidText(key), "area create and delete need a bot area key");
                 break;
             case AreaOperation.SetCells:
             case AreaOperation.ClearCells:
-                DomainException.Require(!(key.Length != 0 && !Identity.IsValidText(key)) && cells.Count != 0, "area cell edits need cells");
+                DomainException.Require(!(key.Length != 0 && !IdText.IsValidText(key)) && cells.Count != 0, "area cell edits need cells");
                 break;
             default:
                 throw new DomainException("invalid area operation");

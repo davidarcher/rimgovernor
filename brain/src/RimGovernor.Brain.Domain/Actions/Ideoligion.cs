@@ -17,7 +17,7 @@ public sealed record IdeoligionDesign(EquatableArray<string> Memes, EquatableArr
         var sorted = names.OrderBy(n => n, StringComparer.Ordinal).ToList();
         for (var i = 0; i < sorted.Count; i++)
         {
-            DomainException.Require(Identity.IsValidText(sorted[i]) && !(i > 0 && sorted[i] == sorted[i - 1]), "invalid or duplicate ideoligion selection");
+            DomainException.Require(IdText.IsValidText(sorted[i]) && !(i > 0 && sorted[i] == sorted[i - 1]), "invalid or duplicate ideoligion selection");
         }
         return EquatableArray.From(sorted);
     }
@@ -30,7 +30,7 @@ public sealed record IdeoligionReform : IActionPayload
     public IdeoligionReform(string ideo, IdeoligionDesign expected, IdeoligionDesign design, int count)
     {
         DomainException.Require(
-            Identity.IsValidText(ideo) && count >= 0 && count < 2147483647 && expected.Fluid && design.Fluid,
+            IdText.IsValidText(ideo) && count >= 0 && count < 2147483647 && expected.Fluid && design.Fluid,
             "invalid fluid ideoligion reform"
         );
         var canonicalExpected = IdeoligionDesign.CanonicalIdeoligionDesign(expected);

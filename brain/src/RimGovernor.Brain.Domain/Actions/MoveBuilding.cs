@@ -13,7 +13,7 @@ public sealed record MoveBuilding : IActionPayload
     public MoveBuilding(string thing, string definition, Cell cell, Rotation rotation)
     {
         DomainException.Require(
-            Identity.IsValidText(thing) && Identity.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
+            IdText.IsValidText(thing) && IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
             "invalid move identity or destination"
         );
         DomainException.Require(Wire.IsDefined(rotation), "invalid move rotation");

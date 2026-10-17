@@ -22,6 +22,8 @@ public sealed record Wastepack
 
     public Cell Cell { get; init; }
 
+    public int Count { get; init; }
+
     public Fact<bool> Frozen { get; init; }
 
     public Fact<bool> InAtomizer { get; init; }

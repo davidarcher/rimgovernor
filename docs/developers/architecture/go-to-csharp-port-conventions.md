@@ -76,7 +76,7 @@ solution is turned off once, in `brain/.editorconfig`, with a one-line reason.
 | defined `string` type with consts (`type Stage string`) | `enum Stage`; the Go string is the member's wire name (snake_case of the member unless `[WireName("x")]`), read with `Wire.Name` / `Wire.TryParse`; add `None = 0` with `[WireName("")]` when Go's empty string is a legal state; order members so `default` means what Go's zero meant |
 | defined `string` type used as an id (`type PawnID string`) | `readonly record struct PawnId(string Value)` with ordinal equality, `CompareTo` and `<`; `default` is the empty id; `ID` becomes `Id` |
 | defined integer type (`type Tick int64`) | `readonly record struct Tick(long Value)` with comparison operators |
-| `validID(string(x))` | `x.IsValid` / `Identity.IsValidText(s)` |
+| `validID(string(x))` | `x.IsValid` / `IdText.IsValidText(s)` |
 | slice | `IReadOnlyList<T>` / `ImmutableArray<T>` in signatures; a slice field in a record Go compares with `==` is `EquatableArray<T>`; never copy defensively, values are immutable |
 | `append([]T(nil), s...)` copy | not needed; `EquatableArray.From(s)` only to snapshot a mutable caller list |
 | comparable struct holding JSON in a `string` so it stays comparable | the typed value (`EquatableArray<T>`); JSON is kept only where it is a real persisted text (a `Standard.Record`, an incident payload) and then uses source-generated `System.Text.Json` (`JsonSerializerContext`, never reflection; see JSON tags below) with the Go field names |

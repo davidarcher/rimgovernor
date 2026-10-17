@@ -93,7 +93,7 @@ public sealed record ZoneCreate : IActionPayload
     /// <summary>Go <c>NewZoneCreate</c>: a growing zone over an exact connected footprint.</summary>
     public ZoneCreate(ZoneKind kind, string crop, IEnumerable<Cell> cells)
     {
-        DomainException.Require(kind == ZoneKind.Growing && Identity.IsValidText(crop), "invalid zone configuration");
+        DomainException.Require(kind == ZoneKind.Growing && IdText.IsValidText(crop), "invalid zone configuration");
         _cells = CanonicalConnectedCells(cells);
         Kind = kind;
         Crop = crop;
@@ -165,7 +165,7 @@ public sealed record ZoneCreate : IActionPayload
     /// </summary>
     public static ZoneCreate NewFishingZoneExtension(string zoneId, IEnumerable<Cell> cells)
     {
-        DomainException.Require(Identity.IsValidText(zoneId), "invalid fishing zone identity");
+        DomainException.Require(IdText.IsValidText(zoneId), "invalid fishing zone identity");
         return NewFishingZone(cells) with { ExtendId = zoneId };
     }
 
@@ -198,7 +198,7 @@ public sealed record ZoneCreate : IActionPayload
     /// <summary>Tags a stockpile with the role key its planner claims it by.</summary>
     public ZoneCreate WithRole(string role)
     {
-        DomainException.Require(Kind == ZoneKind.Stockpile && Identity.IsValidText(role) && Encoding.UTF8.GetByteCount(role) <= 128, "invalid stockpile role");
+        DomainException.Require(Kind == ZoneKind.Stockpile && IdText.IsValidText(role) && Encoding.UTF8.GetByteCount(role) <= 128, "invalid stockpile role");
         return this with { Role = role };
     }
 

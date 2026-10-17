@@ -19,7 +19,7 @@ public sealed record Surgery : IActionPayload
     public Surgery(PawnId pawn, string recipe, int part, bool acknowledgeViolation)
     {
         DomainException.Require(
-            pawn.IsValid && Identity.IsValidText(recipe) && part >= SurgeryConstants.NoSurgeryPart,
+            pawn.IsValid && IdText.IsValidText(recipe) && part >= SurgeryConstants.NoSurgeryPart,
             "surgery requires a patient, a recipe and a whole-body or exact part index"
         );
         Pawn = pawn;

@@ -196,7 +196,7 @@ public sealed record HoldEvidence
 public readonly record struct ConstructionIdentity(string Origin, string Current)
 {
     public void Validate() =>
-        DomainException.Require(Identity.IsValidText(Origin) && Identity.IsValidText(Current), "invalid completed construction identity");
+        DomainException.Require(IdText.IsValidText(Origin) && IdText.IsValidText(Current), "invalid completed construction identity");
 }
 
 public sealed record Observation(
@@ -415,7 +415,7 @@ public sealed partial record Progress
     public Progress RecordZoneReceipt(AttemptId attempt, Receipt receipt, string zone)
     {
         DomainException.Require(
-            Action.ZoneCreate is { } create && create.Kind != ZoneKind.Stockpile && receipt == Receipt.Accepted && Identity.IsValidText(zone),
+            Action.ZoneCreate is { } create && create.Kind != ZoneKind.Stockpile && receipt == Receipt.Accepted && IdText.IsValidText(zone),
             "zone identity requires an applied zone create"
         );
         return RecordReceiptCore(attempt, receipt).With(v => v with { Zone = Known(zone) });
@@ -425,7 +425,7 @@ public sealed partial record Progress
     public Progress RecordBillReceipt(AttemptId attempt, Receipt receipt, string bill)
     {
         DomainException.Require(
-            Action.Kind is ActionKind.ProductionBill or ActionKind.Surgery && receipt == Receipt.Accepted && Identity.IsValidText(bill),
+            Action.Kind is ActionKind.ProductionBill or ActionKind.Surgery && receipt == Receipt.Accepted && IdText.IsValidText(bill),
             "bill identity requires an applied bill placement"
         );
         return RecordReceiptCore(attempt, receipt).With(v => v with { Bill = Known(bill) });

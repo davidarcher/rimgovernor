@@ -25,7 +25,7 @@ public sealed record PreviousAssignment
     /// <summary>Go <c>KnownPrevious</c>: asserts the pawn currently owns the exact thing identified by <paramref name="id"/>.</summary>
     public static PreviousAssignment KnownPrevious(string id)
     {
-        DomainException.Require(Identity.IsValidText(id), "invalid previous assignment identity");
+        DomainException.Require(IdText.IsValidText(id), "invalid previous assignment identity");
         return new PreviousAssignment(id, false);
     }
 }
@@ -45,7 +45,7 @@ public sealed record Assign : IActionPayload
     private Assign(PawnId pawn, string thing, PreviousAssignment previous, bool swap)
     {
         DomainException.Require(
-            pawn.IsValid && Identity.IsValidText(thing) && pawn.Value != thing,
+            pawn.IsValid && IdText.IsValidText(thing) && pawn.Value != thing,
             "assign requires a valid pawn, thing and previous-assignment expectation"
         );
         DomainException.Require(previous.Clear || previous.Id != thing, "assign previous assignment must differ from the assigned thing");

@@ -23,7 +23,7 @@ public sealed record BiotechColony
 
     public IReadOnlyList<Polluter> Polluters { get; init; } = [];
 
-    public IReadOnlyList<Wastepack> Wastepacks { get; init; } = [];
+    public IReadOnlyList<Policy.Wastepack> Wastepacks { get; init; } = [];
 
     public IReadOnlyList<WastepackAtomizer> Atomizers { get; init; } = [];
 
@@ -190,23 +190,6 @@ public sealed record Polluter : BuildingRow
     public Fact<int> CellsPerDay { get; init; }
 }
 
-public sealed record Wastepack : BuildingRow
-{
-    public int Count { get; init; }
-
-    public Fact<bool> Frozen { get; init; }
-
-    public Fact<bool> Outdoors { get; init; }
-
-    public Fact<bool> InAtomizer { get; init; }
-
-    public Fact<bool> CanDissolveNow { get; init; }
-
-    public Fact<bool> Forbidden { get; init; }
-
-    public Fact<int> DeteriorationRate { get; init; }
-}
-
 public sealed record WastepackAtomizer : BuildingRow
 {
     public Fact<bool> Powered { get; init; }
@@ -300,21 +283,19 @@ public static class BiotechColonyReads
         {
             polluters.Add(WithRow(new Polluter { Polluting = ColonyDecodeReads.Optional(x.Polluting is not null, x.Polluting.GetValueOrDefault()), CellsPerDay = ColonyDecodeReads.Optional(x.CellsPerDay is not null, x.CellsPerDay.GetValueOrDefault()) }, x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
-        var wastepacks = new List<Wastepack>();
+        var wastepacks = new List<Policy.Wastepack>();
         foreach (var x in f.Wastepacks)
         {
-            wastepacks.Add(WithRow(
-                new Wastepack
-                {
-                    Count = x.Count.GetValueOrDefault(),
-                    Frozen = ColonyDecodeReads.Optional(x.Frozen is not null, x.Frozen.GetValueOrDefault()),
-                    Outdoors = ColonyDecodeReads.Optional(x.Outdoors is not null, x.Outdoors.GetValueOrDefault()),
-                    InAtomizer = ColonyDecodeReads.Optional(x.InAtomizer is not null, x.InAtomizer.GetValueOrDefault()),
-                    CanDissolveNow = ColonyDecodeReads.Optional(x.CanDissolveNow is not null, x.CanDissolveNow.GetValueOrDefault()),
-                    Forbidden = ColonyDecodeReads.Optional(x.Forbidden is not null, x.Forbidden.GetValueOrDefault()),
-                    DeteriorationRate = ColonyDecodeReads.Optional(x.DeteriorationRate is not null, x.DeteriorationRate.GetValueOrDefault()),
-                },
-                x.ThingId ?? "", x.DefName ?? "", x.Position));
+            wastepacks.Add(new Policy.Wastepack
+            {
+                Id = x.ThingId ?? "",
+                Definition = x.DefName ?? "",
+                Cell = ColonyDecodeReads.CellOf(x.Position),
+                Count = x.Count.GetValueOrDefault(),
+                Frozen = ColonyDecodeReads.Optional(x.Frozen is not null, x.Frozen.GetValueOrDefault()),
+                InAtomizer = ColonyDecodeReads.Optional(x.InAtomizer is not null, x.InAtomizer.GetValueOrDefault()),
+                Forbidden = ColonyDecodeReads.Optional(x.Forbidden is not null, x.Forbidden.GetValueOrDefault()),
+            });
         }
         var atomizers = new List<WastepackAtomizer>();
         foreach (var x in f.Atomizers)

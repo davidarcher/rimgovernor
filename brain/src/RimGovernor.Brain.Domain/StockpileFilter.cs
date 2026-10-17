@@ -129,7 +129,7 @@ public sealed partial record StockpileFilter
         for (var i = 0; i < sorted.Count; i++)
         {
             var s = sorted[i];
-            DomainException.Require(Wire.IsDefined(s.Kind) && Identity.IsValidText(s.Name) && !(i > 0 && sorted[i - 1] == s), "invalid filter selector");
+            DomainException.Require(Wire.IsDefined(s.Kind) && IdText.IsValidText(s.Name) && !(i > 0 && sorted[i - 1] == s), "invalid filter selector");
         }
         return EquatableArray.From(sorted);
     }

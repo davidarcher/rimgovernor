@@ -19,7 +19,7 @@ public sealed record ZoneCellEdit : IActionPayload
     public ZoneCellEdit(string zone, CellEditMode mode, IEnumerable<Cell> cells)
     {
         var rows = cells.OrderBy(c => c.X).ThenBy(c => c.Z).ToList();
-        DomainException.Require(Identity.IsValidText(zone) && Wire.IsDefined(mode) && rows.Count != 0, "invalid zone cell edit");
+        DomainException.Require(IdText.IsValidText(zone) && Wire.IsDefined(mode) && rows.Count != 0, "invalid zone cell edit");
         for (var i = 0; i < rows.Count; i++)
         {
             DomainException.Require(rows[i].X >= 0 && rows[i].Z >= 0 && !(i > 0 && rows[i - 1] == rows[i]), "invalid zone cell edit cell");
@@ -55,9 +55,9 @@ public sealed record StockpilePatch : IActionPayload
     {
         DomainException.Require(
             Wire.IsDefined(kind)
-                && Identity.IsValidText(target)
+                && IdText.IsValidText(target)
                 && ZoneCreate.ValidStockpilePriority(priority)
-                && (role.Length == 0 || (Identity.IsValidText(role) && Encoding.UTF8.GetByteCount(role) <= 128)),
+                && (role.Length == 0 || (IdText.IsValidText(role) && Encoding.UTF8.GetByteCount(role) <= 128)),
             "invalid stockpile patch"
         );
         TargetKind = kind;

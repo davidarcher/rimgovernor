@@ -30,7 +30,7 @@ public sealed record TradeParticipant(TradeParticipantKind Kind, string Id, stri
 
     private string? Problem()
     {
-        if (!Identity.IsValidText(Id))
+        if (!IdText.IsValidText(Id))
         {
             return "invalid trade participant ID";
         }
@@ -39,7 +39,7 @@ public sealed record TradeParticipant(TradeParticipantKind Kind, string Id, stri
             case TradeParticipantKind.Map or TradeParticipantKind.Orbital:
                 return Caravan.Length != 0 ? "caravan on non-settlement trade participant" : null;
             case TradeParticipantKind.Settlement:
-                return !Identity.IsValidText(Caravan) || Caravan == Id ? "invalid settlement trade caravan" : null;
+                return !IdText.IsValidText(Caravan) || Caravan == Id ? "invalid settlement trade caravan" : null;
             default:
                 return "invalid trade participant kind";
         }

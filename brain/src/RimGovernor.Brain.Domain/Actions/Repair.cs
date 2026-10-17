@@ -12,7 +12,7 @@ public sealed record Repair : IActionPayload
     public Repair(PawnId pawn, string structure, Cell cell)
     {
         DomainException.Require(
-            pawn.IsValid && Identity.IsValidText(structure) && cell.X >= 0 && cell.Z >= 0,
+            pawn.IsValid && IdText.IsValidText(structure) && cell.X >= 0 && cell.Z >= 0,
             "repair requires a valid pawn, structure and nonnegative cell"
         );
         Pawn = pawn;

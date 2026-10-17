@@ -8,7 +8,7 @@ public sealed record ZoneDelete : IActionPayload
 {
     public ZoneDelete(string zone)
     {
-        DomainException.Require(Identity.IsValidText(zone), "invalid zone delete identity");
+        DomainException.Require(IdText.IsValidText(zone), "invalid zone delete identity");
         Zone = zone;
     }
 

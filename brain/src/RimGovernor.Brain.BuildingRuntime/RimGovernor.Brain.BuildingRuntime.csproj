@@ -60,7 +60,6 @@
     <Using Include="RimGovernor.Brain.Bridge.Contracts.CellRect" Alias="BridgeCellRect" />
     <Using Include="RimGovernor.Brain.Observation.Combat" Alias="BridgeCombat" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.CombatOrderResult" Alias="BridgeCombatOrderResult" />
-    <Using Include="RimGovernor.Brain.Bridge.Contracts.DefenseCell" Alias="BridgeDefenseCell" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.DefenseCover" Alias="BridgeDefenseCover" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.DefenseSite" Alias="BridgeDefenseSite" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.EmergencyObservation" Alias="BridgeEmergencyObservation" />

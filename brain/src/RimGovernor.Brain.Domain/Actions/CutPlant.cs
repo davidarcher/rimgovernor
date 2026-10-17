@@ -10,7 +10,7 @@ public sealed record CutPlant : IActionPayload
     public CutPlant(string plant, string definition, Cell cell)
     {
         DomainException.Require(
-            Identity.IsValidText(plant) && Identity.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
+            IdText.IsValidText(plant) && IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0,
             "invalid plant identity or cell"
         );
         Plant = plant;

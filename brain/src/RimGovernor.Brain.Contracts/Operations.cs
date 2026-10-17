@@ -2545,6 +2545,7 @@ public sealed record CommsTradeRequestIntent
     public long? ExpectedLastRequestTick { get; init; }
 }
 
+/// <summary>The wire body of a refused native reply; the domain forms are the verdict and admission refusals, which carry typed ids rather than wire strings.</summary>
 public sealed record Refusal
 {
     public Common.FailureCode? Code { get; init; }

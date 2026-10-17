@@ -10,7 +10,7 @@ public sealed record FoundationRemoval : IActionPayload
     /// <summary>Go <c>NewFoundationRemoval</c>; throws <see cref="DomainException"/> when invalid.</summary>
     public FoundationRemoval(string definition, Cell cell)
     {
-        DomainException.Require(Identity.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0, "invalid foundation removal definition or cell");
+        DomainException.Require(IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0, "invalid foundation removal definition or cell");
         Definition = definition;
         Cell = cell;
     }

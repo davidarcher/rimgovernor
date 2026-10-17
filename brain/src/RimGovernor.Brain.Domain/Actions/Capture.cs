@@ -30,7 +30,7 @@ public sealed record Capture : IActionPayload
     public static Capture NewArrest(PawnId capturer, PawnId patient, string bed)
     {
         var c = new Capture(capturer, patient);
-        DomainException.Require(Identity.IsValidText(bed) && bed != capturer.Value && bed != patient.Value, "arrest requires an exact prisoner bed");
+        DomainException.Require(IdText.IsValidText(bed) && bed != capturer.Value && bed != patient.Value, "arrest requires an exact prisoner bed");
         return c with { Bed = bed };
     }
 }

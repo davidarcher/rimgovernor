@@ -10,7 +10,7 @@ public sealed record DropEquipment : IActionPayload
     public DropEquipment(PawnId pawn, string thing)
     {
         DomainException.Require(
-            pawn.IsValid && Identity.IsValidText(thing) && thing != pawn.Value,
+            pawn.IsValid && IdText.IsValidText(thing) && thing != pawn.Value,
             "drop equipment requires a valid pawn and a distinct held weapon"
         );
         Pawn = pawn;
