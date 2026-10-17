@@ -671,6 +671,20 @@ public sealed partial class Rounder
         AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value) };
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));
+        attrs.Add(("hunt_sources", reading.Projection.Acquisition.TryGetValue(out var offered) ? offered.Count(s => s.Hunt && s.Food) : -1));
+        if (reading.Projection.HuntHolds.Count > 0)
+        {
+            attrs.Add(("hunt_holds", reading.Projection.HuntHolds.Select(h => h.ID + ":" + h.Reason + (h.Detail.Count == 0 ? "" : "(" + string.Join(";", h.Detail) + ")")).ToArray()));
+        }
+        if (reading.Projection.Facts.ForecastObserved.Coupled?.Hunt is { } huntRead)
+        {
+            attrs.Add(("hunt_read", $"known={huntRead.Known} hunters={huntRead.Hunters.Count} prey={huntRead.Prey.Count} truncated={huntRead.Truncated} findings=[{string.Join(";", huntRead.Findings)}]"));
+            if (HuntEstimates is { } estimates)
+            {
+                var view = estimates.Current(huntRead, reading.Projection.Identity.Tick.Value);
+                attrs.Add(("hunt_estimates", $"answered={view.Estimates.Count} pending={view.Pending.Count} refused=[{string.Join(";", view.Refusals.Select(r => r.Key + "=" + r.Value))}]"));
+            }
+        }
         ClockEvents.Event("routine", "rounds_review", "rounds ran", [.. attrs]);
         if (Needs.Contains(MilitaryFamily.Equipment))
         {

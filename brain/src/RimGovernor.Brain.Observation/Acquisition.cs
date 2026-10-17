@@ -157,33 +157,7 @@ public static partial class ObservationPackage
     /// <summary>Decodes native's raw hunt facts.</summary>
     private static HuntCensus HuntCensusOf(O.HuntCensus? v, DefinitionCatalog catalog)
     {
-        var benches = new List<HuntBench>();
         var hunters = new List<HuntHunter>();
-        foreach (var b in v?.Benches ?? [])
-        {
-            var bills = new List<HuntBill>();
-            foreach (var bill in b.Bills)
-            {
-                var repeat = bill.RepeatMode.GetValueOrDefault() switch
-                {
-                    Ops.RepeatMode.Forever => HuntRepeat.Forever,
-                    Ops.RepeatMode.Count => HuntRepeat.Count,
-                    Ops.RepeatMode.Target => HuntRepeat.Target,
-                    _ => HuntRepeat.Unset,
-                };
-                bills.Add(new HuntBill
-                {
-                    Suspended = bill.Suspended.GetValueOrDefault(),
-                    Paused = bill.Paused.GetValueOrDefault(),
-                    Count = (int)bill.RepeatCount.GetValueOrDefault(),
-                    Target = (int)bill.TargetCount.GetValueOrDefault(),
-                    AllowedCorpses = Set(bill.AllowedCorpses),
-                    Repeat = repeat,
-                    Product = bill.ProductCount is not null ? (int)bill.ProductCount.GetValueOrDefault() : null,
-                });
-            }
-            benches.Add(new HuntBench { ID = b.BenchId ?? "", Usable = b.Usable.GetValueOrDefault(), Bills = bills });
-        }
         foreach (var h in v?.Hunters ?? [])
         {
             var safe = new HashSet<string>(StringComparer.Ordinal);
@@ -214,10 +188,8 @@ public static partial class ObservationPackage
                 HuntingPriority = (int)h.HuntingPriority.GetValueOrDefault(),
                 HuntingActive = h.HuntingActive.GetValueOrDefault(),
                 HuntingDisabled = h.HuntingDisabled.GetValueOrDefault(),
-                CookingActive = h.CookingActive.GetValueOrDefault(),
                 HasHuntingWeapon = h.HasHuntingWeapon.GetValueOrDefault(),
                 RangedBlockingShield = h.RangedBlockingShield.GetValueOrDefault(),
-                ReachableBenches = Set(h.ReachableBenches),
                 RouteSafePrey = safe,
                 RouteUnsafePrey = unsafePrey,
                 RouteSkippedPrey = skipped,
@@ -225,7 +197,7 @@ public static partial class ObservationPackage
                 Weapon = catalog.HuntWeapon((h.WeaponDef ?? "")),
             });
         }
-        return new HuntCensus { Benches = benches, Hunters = hunters };
+        return new HuntCensus { Hunters = hunters };
     }
 
     internal static HashSet<string> Set(IEnumerable<string> values) => new(values, StringComparer.Ordinal);

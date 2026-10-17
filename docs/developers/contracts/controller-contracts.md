@@ -421,7 +421,7 @@ projectiles, bullets and arrows alike, with no blast radius and no flame damage,
 ranged-blocking shield) or a melee weapon or bare hands against meleeable prey
 (body size <= 1.0, which flees), within 100 cells (a pest anywhere) and a safe route. A
 held row is not a source; the projection's `HuntHolds` names the first failing gate
-(`fogged`, `not_safe_prey`, `no_butcher_bill`, `no_colonist`, `no_hunter` with each
+(`fogged`, `not_safe_prey`, `no_colonist`, `no_hunter` with each
 colonist's `downed`, `mental_state`, `hunting_inactive`, `no_hunting_weapon`, `ranged_blocking_shield`, `too_far`,
 `no_safe_route` (evaluated, unsafe), `route_skipped` (budget spent) or `route_unevaluated` (no verdict)).
 The 100-cell reach and the plant cutter's former 50-cell reach are no longer native filters:

@@ -67,8 +67,7 @@ public sealed record HuntWeapon
 /// <summary>
 /// One free colonist's raw hunting facts. HuntingPriority is the work priority (0 is off), HuntingActive the
 /// game's WorkIsActive. HasHuntingWeapon and RangedBlockingShield mirror the game's own hunting-weapon and shield
-/// checks. The Route*Prey sets carry native's per-row route verdict; ReachableBenches the butcher benches the
-/// colonist can reach.
+/// checks. The Route*Prey sets carry native's per-row route verdict.
 /// </summary>
 public sealed record HuntHunter
 {
@@ -94,57 +93,6 @@ public sealed record HuntHunter
 
     /// <summary>The native budget ran out before this row. A row in none of the three sets was not evaluated.</summary>
     public IReadOnlySet<string> RouteSkippedPrey { get; init; } = new HashSet<string>();
-}
-
-/// <summary>A bill's repeat mode.</summary>
-public enum HuntRepeat
-{
-    [WireName("")]
-    Unset = 0,
-
-    [WireName("forever")]
-    Forever,
-
-    [WireName("count")]
-    Count,
-
-    [WireName("target")]
-    Target,
-}
-
-/// <summary>A butcher-flesh bill on a bench, raw. Product is the bill's product count, known for a target-count bill only.</summary>
-public sealed record HuntBill
-{
-    public bool Suspended { get; init; }
-    public bool Paused { get; init; }
-    public HuntRepeat Repeat { get; init; }
-    public int Count { get; init; }
-    public int Target { get; init; }
-    public int? Product { get; init; }
-    public IReadOnlySet<string> AllowedCorpses { get; init; } = new HashSet<string>();
-
-    internal bool Running(string corpse)
-    {
-        if (Suspended || Paused || !AllowedCorpses.Contains(corpse))
-        {
-            return false;
-        }
-        return Repeat switch
-        {
-            HuntRepeat.Forever => true,
-            HuntRepeat.Count => Count > 0,
-            HuntRepeat.Target => Product is { } product && product < Target,
-            _ => false,
-        };
-    }
-}
-
-/// <summary>A bench carrying butcher-flesh bills.</summary>
-public sealed record HuntBench
-{
-    public string ID { get; init; } = "";
-    public bool Usable { get; init; }
-    public IReadOnlyList<HuntBill> Bills { get; init; } = [];
 }
 
 /// <summary>A hunt row policy offers no hunt for: the first gate it fails, and for no_hunter each colonist's reason ("&lt;id&gt; &lt;reason&gt;").</summary>
@@ -176,38 +124,10 @@ public sealed record HuntVerdict
     public double WeaponRange { get; init; }
 }
 
-/// <summary>Native's raw hunt facts: every free colonist and every butcher bench.</summary>
+/// <summary>Native's raw hunt facts: every free colonist.</summary>
 public sealed record HuntCensus
 {
     public IReadOnlyList<HuntHunter> Hunters { get; init; } = [];
-    public IReadOnlyList<HuntBench> Benches { get; init; } = [];
-
-    /// <summary>Reports a usable bench with a running butcher bill that accepts the corpse and a Cooking worker (standing, active, able to reach the bench).</summary>
-    public bool ButcherReady(string corpse)
-    {
-        foreach (var bench in Benches)
-        {
-            if (!bench.Usable)
-            {
-                continue;
-            }
-            foreach (var bill in bench.Bills)
-            {
-                if (!bill.Running(corpse))
-                {
-                    continue;
-                }
-                foreach (var h in Hunters)
-                {
-                    if (!h.Downed && !h.MentalState && h.CookingActive && h.ReachableBenches.Contains(bench.ID))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
 
     /// <summary>Why a colonist cannot hunt the prey, empty when they can; order is the gate's: downed, mental state, Hunting off, weapon (a shield blocks a ranged one), reach, route.</summary>
     private static string HunterReason(HuntHunter h, HuntPrey prey)
@@ -258,7 +178,7 @@ public sealed record HuntCensus
 
     /// <summary>
     /// Decides whether the hunt row is offered: the first failing gate holds it. Gates in order: fogged, safe prey
-    /// (a pest waives it), a running butcher bill and Cooking worker (a pest waives it), a colonist, then a
+    /// (a pest waives it), a colonist, then a
     /// colonist who can hunt it.
     /// </summary>
     public HuntVerdict Gate(HuntPrey prey)
@@ -274,10 +194,6 @@ public sealed record HuntCensus
             if (prey.Mental || !prey.Source.Food)
             {
                 return Hold(PolicyFunctions.HuntHoldNotSafePrey);
-            }
-            if (!ButcherReady(prey.Source.Resource))
-            {
-                return Hold(PolicyFunctions.HuntHoldNoButcher);
             }
         }
         if (Hunters.Count == 0)
@@ -326,7 +242,6 @@ public static partial class PolicyFunctions
     // Hunt hold reasons, stable words; no_hunter carries each colonist's own reason.
     public const string HuntHoldFogged = "fogged";
     public const string HuntHoldNotSafePrey = "not_safe_prey";
-    public const string HuntHoldNoButcher = "no_butcher_bill";
     public const string HuntHoldNoColonist = "no_colonist";
     public const string HuntHoldNoHunter = "no_hunter";
     internal const string HuntHunterDowned = "downed";

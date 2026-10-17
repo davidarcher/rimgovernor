@@ -97,31 +97,13 @@ namespace HomeBridge.BridgeTools
             result = result with { PendingFoodNutrition = (result.PendingFoodNutrition ?? 0d) + map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition) };
             return result;
         }
-        // Raw facts per free colonist and per butcher bench. Route evidence is skipped for a colonist
+        // Raw facts per free colonist. Route evidence is skipped for a colonist
         // who is downed, in a mental state or has Hunting off: policy refuses each of those before it
         // reads a route, so the skip loses nothing.
         private static Obs.HuntCensus Census(Map map, List<Pawn> prey, uint? routeBudgetMs, float? predatorMarginCells)
         {
             var census = new Obs.HuntCensus();
             var pairs = new List<(Pawn pawn, Obs.HunterFacts hunter, Pawn animal)>();
-            var corpses = prey.Select(p => p.RaceProps.corpseDef).Distinct().ToList();
-            var benches = map.listerThings.AllThings.OfType<Building>()
-                .Where(b => b is IBillGiver giver && giver.BillStack.Bills.OfType<Bill_Production>().Any(bill => NativeRecipeRoles.ButcherFlesh(bill.recipe)))
-                .OrderBy(b => b.thingIDNumber).ToList();
-            foreach (var bench in benches)
-            {
-                var row = new Obs.HuntButcherBench { BenchId = bench.GetUniqueLoadID(), Usable = !bench.IsForbidden(Faction.OfPlayer) && ((IBillGiver)bench).CurrentlyUsableForBills() };
-                foreach (var bill in ((IBillGiver)bench).BillStack.Bills.OfType<Bill_Production>().Where(b => NativeRecipeRoles.ButcherFlesh(b.recipe)))
-                {
-                    var facts = new Obs.HuntButcherBill { Suspended = bill.suspended, Paused = bill.paused, RepeatMode = NativeEnums.Repeat(bill.repeatMode),
-                        RepeatCount = bill.repeatCount, TargetCount = bill.targetCount };
-                    if (bill.repeatMode == BillRepeatModeDefOf.TargetCount && BillCommon.ProductCount(bill) is int count) facts = facts with { ProductCount = count };
-                    facts = facts with { AllowedCorpses = [.. facts.AllowedCorpses, .. corpses.Where(bill.ingredientFilter.Allows).Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal)] };
-                    row = row with { Bills = [.. row.Bills, facts] };
-                }
-                census = census with { Benches = [.. census.Benches, row] };
-            }
-            var cooking = DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking");
             foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber))
             {
                 var settings = pawn.workSettings;
@@ -129,11 +111,8 @@ namespace HomeBridge.BridgeTools
                     Downed = pawn.Downed, InMentalState = pawn.InMentalState, Drafted = pawn.Drafted,
                     HuntingPriority = settings?.GetPriority(WorkTypeDefOf.Hunting) ?? 0, HuntingActive = settings?.WorkIsActive(WorkTypeDefOf.Hunting) == true,
                     HuntingDisabled = pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hunting),
-                    CookingActive = cooking != null && settings?.WorkIsActive(cooking) == true,
                     HasHuntingWeapon = WorkGiver_HunterHunt.HasHuntingWeapon(pawn), RangedBlockingShield = WorkGiver_HunterHunt.HasShieldAndRangedWeapon(pawn) };
                 if (pawn.equipment?.Primary != null) hunter = hunter with { WeaponDef = pawn.equipment.Primary.def.defName };
-                if (hunter.CookingActive.GetValueOrDefault() && !pawn.Downed && !pawn.InMentalState)
-                    foreach (var bench in benches.Where(b => pawn.CanReach(b, PathEndMode.InteractionCell, Danger.None))) hunter = hunter with { ReachableBenches = [.. hunter.ReachableBenches, bench.GetUniqueLoadID()] };
                 if (hunter.HuntingActive.GetValueOrDefault() && !pawn.Downed && !pawn.InMentalState)
                     foreach (var animal in prey.Where(a => !a.Position.Fogged(map)))
                         pairs.Add((pawn, hunter, animal));

@@ -101,6 +101,11 @@ public sealed class HuntEstimateService : IHuntEstimates, IAsyncDisposable
             while (!_stop.IsCancellationRequested && _queue.Reader.TryRead(out var item))
             {
                 try { _done[item.Roster.Key] = await PredictAsync(item.Read, item.Roster, item.Tick).ConfigureAwait(false); }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    // A failed prediction is a refusal to try again soon, never an answer and never the end of the loop.
+                    _done[item.Roster.Key] = new(item.Read, item.Tick, null, "prediction_failed:" + e.GetType().Name + ":" + e.Message, item.Tick + RetryTicks);
+                }
                 finally { _pending.TryRemove(item.Roster.Key, out _); }
             }
     }

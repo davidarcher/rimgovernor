@@ -7439,7 +7439,7 @@ public sealed record AcquisitionFacts
 
 /// <summary>
 /// Raw hunt census: what Go needs to decide whether a hunt row is offered. Native states
-/// facts and keeps only physical validity; butcher readiness, weapon rules, hunter eligibility and
+/// facts and keeps only physical validity; weapon rules, hunter eligibility and
 /// the pending-hunt cap are Go policy (policy.HuntGate).
 /// One free colonist. hunting_priority is the raw work priority (0 is off); hunting_active is
 /// WorkIsActive; hunting_disabled is WorkTypeIsDisabled. weapon_def is the primary weapon def (absent for an unarmed pawn); Go reads its verbs and projectile off the ThingDef rows.
@@ -7449,7 +7449,6 @@ public sealed record AcquisitionFacts
 /// Hunting active who is neither downed nor in a mental state, until the request's
 /// hunt_route_budget_ms runs out. A pair with no row was not evaluated (the colonist is
 /// ineligible or the prey is fogged); policy refuses those first.
-/// reachable_benches lists the butcher benches the colonist can reach.
 /// </summary>
 public sealed record HunterFacts
 {
@@ -7497,46 +7496,10 @@ public sealed record HuntRoute
     public bool? Skipped { get; init; }
 }
 
-/// <summary>
-/// A butcher-flesh bill on a bench; allowed_corpses are the corpse defs of the census's wild
-/// animals the bill's ingredient filter allows; product_count is BillCommon.ProductCount for a
-/// target-count bill.
-/// </summary>
-public sealed record HuntButcherBill
-{
-    public bool? Suspended { get; init; }
-
-    public bool? Paused { get; init; }
-
-    public Operations.RepeatMode? RepeatMode { get; init; }
-
-    public int? RepeatCount { get; init; }
-
-    public int? TargetCount { get; init; }
-
-    public int? ProductCount { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> AllowedCorpses { get; init; }
-}
-
-public sealed record HuntButcherBench
-{
-    public string? BenchId { get; init; }
-
-    public bool? Usable { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HuntButcherBill>))]
-    public EquatableArray<HuntButcherBill> Bills { get; init; }
-}
-
 public sealed record HuntCensus
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<HunterFacts>))]
     public EquatableArray<HunterFacts> Hunters { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HuntButcherBench>))]
-    public EquatableArray<HuntButcherBench> Benches { get; init; }
 }
 
 public sealed record ButcheringFacts
