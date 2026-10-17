@@ -42,8 +42,8 @@ test-only `/native/{op}` route ([HTTP channel](http-channel.md)) calls the same 
 refusals and replies are identical.
 
 - A call that touches game state runs on the game thread through `ProtoBoundary.OnGameThread`, which takes an
-  admission class (`control` for writes, `observation` for reads), the per-frame allowance, a watchdog line and the
-  observation account, and the host's game-thread access from `RimBridgeMainThreadAccess.Current`.
+  admission class (`control` for writes, `observation` for reads), the per-frame allowance and a watchdog line, and the
+  host's game-thread access from `RimBridgeMainThreadAccess.Current`.
 - Not on the game thread: `WaitSaveSignalAsync`, `FlushDoneAsync`, `FlushFramesAsync`, and
   `PutGovernorStateBatchAsync` unless a save that predates the component needs it attached.
 - Callers must not be on the game thread (they would wait on themselves).

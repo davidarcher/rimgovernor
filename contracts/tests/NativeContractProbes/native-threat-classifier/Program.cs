@@ -26,15 +26,9 @@ internal static class NativeThreatClassifierProbe
     {
         projected = 0; ProjectedIds.Clear();
         var threats = new Obs.ThreatsSnapshot();
-        var hop = ObservationWork.Begin();
         var scan = NativeThreatClassifier.Collect(pawns, p => p.F, colonists, radius,
             p => { projected++; ProjectedIds.Add(p.Id); return new RimGovernor.Contracts.Wire.Common.Ref { Id = p.Id }; },
             p => new RimGovernor.Contracts.Wire.Common.Ref { Id = "prey-" + p.Id }, ref threats);
-        ObservationWork.End();
-        var report = ObservationWork.Report(hop);
-        var account = (Dictionary<string, object>)report["threatScan"];
-        Check((long)account["examined"] == scan.Examined && (long)account["projections"] == scan.Projections
-            && (long)account["candidates"] == scan.Candidates && (long)account["proximityChecks"] == scan.ProximityChecks, "hop account carries the scan");
         return (threats, scan);
     }
 

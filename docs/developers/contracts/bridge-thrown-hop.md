@@ -10,7 +10,7 @@ so **a rethrow is safe**: no catch is needed to protect the mod.
 
 1. `MainThreadAdmission.Run` catches it and fails the hop's completion
    (`TrySetException`); the host's pump and the game thread never see it.
-   `OnGameThread`'s `finally` still closes the watchdog entry and the frame account.
+   `OnGameThread`'s `finally` still closes the watchdog entry.
 2. The awaiting `InProcessNativeFacade` method rethrows the original exception
    to its caller, the brain (no `TargetInvocationException`: nothing is invoked
    by reflection).

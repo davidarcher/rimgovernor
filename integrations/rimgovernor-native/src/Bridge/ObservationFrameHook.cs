@@ -2,14 +2,13 @@
 
 using System;
 using System.Reflection;
-using System.Threading;
 using HarmonyLib;
+using RimGovernor.Host.Sdk;
 using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    /// The real frame boundary behind the update-interval account: a
-    /// prefix on TickManager.TickManagerUpdate, which Game.UpdatePlay calls
+    /// The per-frame boundary: a prefix on TickManager.TickManagerUpdate, which Game.UpdatePlay calls
     /// once per Unity update for the loaded game before the world and map
     /// update passes. That is the only update-to-update signal available
     /// without patching the engine, and it is the same boundary the play
@@ -17,14 +16,8 @@ namespace HomeBridge.BridgeTools
     /// launch too -- a GameComponent's GameComponentUpdate does not, since
     /// UpdatePlay reaches it only after the draw passes have run.
     ///
-    /// The hook does no work of its own beyond reading the current tick and
-    /// handing FrameAccounting a monotonic timestamp, and FrameAccounting
-    /// times that, so the recorder's own cost is measured rather than assumed.
-    /// The session it passes is the loaded Game, so a reload starts a new
-    /// session and the account resets with it.
-    ///
-    /// The intervals are Unity update intervals, never a statement about GPU
-    /// presentation: an unrendered launch still updates.
+    /// It opens the per-frame main-thread allowance, answers the colony-naming
+    /// letter and refreshes clearance salvage evidence.
     ///
     /// The patch installs from the native startup (NativeStartup, the
     /// module initializer the host runs), not from a startup constructor:
@@ -34,24 +27,11 @@ namespace HomeBridge.BridgeTools
     public static class ObservationFrameHook
     {
         public const string Owner = "rimgovernor.native.observation-frames";
-        private static int _patched;
-        private static string? _error;
-
-        /// Install once, from any thread; after the first call this is one
-        /// interlocked read.
-        internal static void Ensure()
-        {
-            if (Volatile.Read(ref _patched) != 0) return;
-            Install();
-        }
-
-        /// Patch the boundary once. A failure is recorded and never thrown:
-        /// the frame account going unrecorded must not take the bridge down.
-        /// InstallError carries the reason, and with nothing driving the
-        /// recorder every reply reports the account as unhooked.
+        /// Patches the boundary; NativeStartup calls it once. A failure is
+        /// logged and never thrown: a missing frame boundary must not take the
+        /// bridge down; the allowance then never defers (MainThreadAdmission.StaleMs).
         public static void Install()
         {
-            if (Interlocked.CompareExchange(ref _patched, 1, 0) != 0) return;
             try
             {
                 MethodBase? target = AccessTools.Method(typeof(TickManager), "TickManagerUpdate");
@@ -60,30 +40,15 @@ namespace HomeBridge.BridgeTools
                 var info = Harmony.GetPatchInfo(target);
                 if (info == null || !info.Owners.Contains(Owner))
                     throw new InvalidOperationException("Harmony did not report the observation frame patch after installation.");
-                _error = null;
             }
             catch (Exception ex)
             {
-                _error = ex.GetType().Name + ": " + ex.Message;
+                ModLog.Error("startup", "observation frame hook not installed: " + ex.GetType().Name + ": " + ex.Message);
             }
         }
 
-        /// The patch's error, null when it installed.
-        public static string? InstallError => _error;
-
         internal static void OnUpdate()
         {
-            try
-            {
-                var game = Current.Game;
-                if (game == null) return;
-                var ticks = Find.TickManager;
-                FrameAccounting.Update(game, ticks != null ? ticks.TicksGame : 0);
-            }
-            catch (Exception)
-            {
-                // Never let the account interrupt an update.
-            }
             // The one per-frame allowance opens here: it drains hops earlier
             // frames deferred; paused, hops are not budgeted.
             try
@@ -93,7 +58,7 @@ namespace HomeBridge.BridgeTools
             }
             catch (Exception)
             {
-                // Never let the account interrupt an update.
+                // Never let the allowance interrupt an update.
             }
             // The colony-naming letter is answered here, with the suggestions.
             try

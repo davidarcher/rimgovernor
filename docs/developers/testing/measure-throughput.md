@@ -20,9 +20,8 @@ Row kinds a phase report reads:
 
 - native call rows carry `timing`: gate wait (`class` is `control`,
   `observation` or `mirror`), round trip, receipt and reply decode, and,
-  when present, main-thread queue and execute time plus
-  `native_observation` (capture/format account) and `native_frames` (update
-  intervals). Absent blocks read unknown, never zero.
+  when present, main-thread queue and execute time. Absent blocks read
+  unknown, never zero.
 - `native_frame` with `outcome` `hit`: a read the snapshot frame stream served without a round trip.
 - `clock_step`: one row per `ClockScheduler.Step` (round trips by tool, reason,
   hold-to-step latency, budgets against use: `budget`,

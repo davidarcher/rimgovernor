@@ -84,7 +84,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (!OverlayVisibility.Shown(group)) continue;
                 try { draw(map); }
-                catch (Exception ex) { ModLog.Error("overlay", "overlay drawer " + group + " failed: " + ex, null, "overlay.drawer:" + group); }
+                catch (Exception ex) { ModLog.Error("overlay", "overlay drawer " + group + " failed: " + ex, "overlay.drawer:" + group); }
             }
             foreach (var entry in layers)
             {

@@ -21,7 +21,6 @@ namespace HomeBridge.BridgeTools
     // drains what stays queued, so every hop still runs exactly once.
     internal static class MainThreadAdmission
     {
-        internal const string ClassArgument = "class";
         internal const string Control = "control", Observation = "observation";
 
         internal sealed class Hop
@@ -29,12 +28,7 @@ namespace HomeBridge.BridgeTools
             internal readonly int Rank;
             internal readonly Func<object> Body;
             internal readonly TaskCompletionSource<object> Completion = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-            internal readonly CancellationToken Token;
-            internal readonly int QueueDepth;
-            // When it was queued, on the allowance's clock.
-            internal readonly long QueuedAt = Clock();
-            internal Hop(int rank, Func<object> body, CancellationToken token, int queueDepth)
-            { Rank = rank; Body = body; Token = token; QueueDepth = queueDepth; }
+            internal Hop(int rank, Func<object> body) { Rank = rank; Body = body; }
         }
 
         private static readonly object Gate = new object();
@@ -52,22 +46,13 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static string ClassOf(int rank) => rank == 0 ? Control : Observation;
-
         // Queues body under rank and hands the host one pump. The returned
         // task completes with the body's reply (or its exception), or
-        // cancelled when token fires before the hop runs. queueDepth is how
-        // many hops were pending when this one was queued.
-        internal static Task<object> Enqueue(IRimBridgeMainThread mainThread, int rank, Func<object> body, CancellationToken token, out int queueDepth)
+        // cancelled when token fires before the hop runs.
+        internal static Task<object> Enqueue(IRimBridgeMainThread mainThread, int rank, Func<object> body, CancellationToken token)
         {
-            Hop hop;
-            lock (Gate)
-            {
-                queueDepth = 0;
-                foreach (var list in Pending) queueDepth += list.Count;
-                hop = new Hop(rank, body, token, queueDepth);
-                Pending[rank].Add(hop);
-            }
+            var hop = new Hop(rank, body);
+            lock (Gate) Pending[rank].Add(hop);
             if (token.CanBeCanceled)
                 token.Register(() => hop.Completion.TrySetCanceled(token));
             Task<object> pump;
@@ -126,9 +111,8 @@ namespace HomeBridge.BridgeTools
                 if (Budgeted() && spent >= AllowanceTicks && !ControlPending()) return null!;
                 var hop = Take();
                 if (hop == null) return null!;
-                // Cancelled while queued: counted so the observation report
-                // separates work never done from work that ran.
-                if (hop.Completion.Task.IsCompleted) { FrameAccounting.Cancelled(); continue; }
+                // Cancelled while queued: skipped.
+                if (hop.Completion.Task.IsCompleted) continue;
                 Run(hop);
                 return null!;
             }
@@ -143,15 +127,12 @@ namespace HomeBridge.BridgeTools
         // when set to a number in [0.5, 100], else DefaultAllowanceMs.
         internal const string AllowanceVariable = "RIMGOVERNOR_MAIN_THREAD_BUDGET_MS";
         internal const double DefaultAllowanceMs = 4.0, StaleMs = 250;
-        internal static Func<long> Clock = System.Diagnostics.Stopwatch.GetTimestamp;
-        internal static long Frequency = System.Diagnostics.Stopwatch.Frequency;
-        internal static long AllowanceTicks = Ticks(Allowance(Environment.GetEnvironmentVariable(AllowanceVariable)));
+        private static readonly Func<long> Clock = System.Diagnostics.Stopwatch.GetTimestamp;
+        private static readonly long Frequency = System.Diagnostics.Stopwatch.Frequency;
+        private static readonly long AllowanceTicks = Ticks(Allowance(Environment.GetEnvironmentVariable(AllowanceVariable)));
         private static bool running;
         private static long spent, frameAt;
         private static bool framed;
-        // Session aggregates for the timing block.
-        private static ulong frames, overrunFrames, deferredHops;
-        private static long maxDeferTicks;
 
         internal static double Allowance(string? configured)
             => double.TryParse(configured, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ms) && ms >= 0.5 && ms <= 100 ? ms : DefaultAllowanceMs;
@@ -165,45 +146,17 @@ namespace HomeBridge.BridgeTools
         // deferred hop runs per frame so none starves under a spent allowance.
         internal static void Frame(bool clockRunning)
         {
-            if (framed && spent > AllowanceTicks) overrunFrames++;
-            running = clockRunning; framed = true; frameAt = Clock(); spent = 0; frames++;
+            running = clockRunning; framed = true; frameAt = Clock(); spent = 0;
             RunControl();
             var floor = true;
             while (floor || !running || spent < AllowanceTicks)
             {
                 var hop = Take();
                 if (hop == null) break;
-                if (hop.Completion.Task.IsCompleted) { FrameAccounting.Cancelled(); continue; }
-                deferredHops++; maxDeferTicks = Math.Max(maxDeferTicks, Clock() - hop.QueuedAt);
+                if (hop.Completion.Task.IsCompleted) continue;
                 Run(hop);
                 floor = false;
             }
-        }
-
-        private static double Ms(long ticks) => ticks * 1000.0 / Frequency;
-
-        // The allowance's session account, once the frame boundary has run a
-        // hop a spent allowance left queued.
-        internal static Dictionary<string, object?>? BudgetReport()
-        {
-            if (deferredHops == 0) return null;
-            var report = new Dictionary<string, object?>
-            {
-                ["allowanceMs"] = Ms(AllowanceTicks),
-                ["frames"] = frames,
-                ["overrunFrames"] = overrunFrames,
-                ["deferredHops"] = deferredHops,
-                ["maxDeferMs"] = Ms(maxDeferTicks),
-            };
-            return report;
-        }
-
-        // Resets the allowance's state; probes only.
-        internal static void ResetBudget(Func<long> clock, long frequency, double allowanceMs)
-        {
-            Clock = clock; Frequency = frequency; AllowanceTicks = Ticks(allowanceMs);
-            running = framed = false; spent = frameAt = 0;
-            frames = overrunFrames = deferredHops = 0; maxDeferTicks = 0;
         }
 
         // Whether a control hop is queued: a pump runs one past a spent
@@ -214,24 +167,21 @@ namespace HomeBridge.BridgeTools
         }
 
         // Runs every queued control hop now, on the game thread, at the
-        // frame boundary; returns how many ran. Their
-        // pumps, when the host runs them, find the hops gone and return,
-        // so every hop still runs exactly once.
-        private static int RunControl()
+        // frame boundary. Their pumps, when the host runs them, find the hops
+        // gone and return, so every hop still runs exactly once.
+        private static void RunControl()
         {
-            var ran = 0;
             while (true)
             {
                 Hop? hop;
                 lock (Gate)
                 {
-                    if (Pending[0].Count == 0) return ran;
+                    if (Pending[0].Count == 0) return;
                     hop = Pending[0][0];
                     Pending[0].RemoveAt(0);
                 }
-                if (hop.Completion.Task.IsCompleted) { FrameAccounting.Cancelled(); continue; }
+                if (hop.Completion.Task.IsCompleted) continue;
                 Run(hop);
-                ran++;
             }
         }
 
@@ -246,17 +196,6 @@ namespace HomeBridge.BridgeTools
             catch (OperationCanceledException) { hop.Completion.TrySetCanceled(); }
             catch (Exception e) { hop.Completion.TrySetException(e); }
             finally { spent += Math.Max(0, Clock() - began); }
-        }
-
-        // Pending hops per class, for a status line.
-        internal static int PendingCount()
-        {
-            lock (Gate)
-            {
-                var n = 0;
-                foreach (var list in Pending) n += list.Count;
-                return n;
-            }
         }
     }
 }

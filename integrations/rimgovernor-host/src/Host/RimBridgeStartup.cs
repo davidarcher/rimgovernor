@@ -72,7 +72,7 @@ internal static class RimBridgeStartup
                 using (LaunchPhases.Phase("capabilities.initialize"))
                     RimBridgeCapabilities.Initialize();
                 // Mod diagnostics reach Unity's log as warnings only: Log.Error pauses the game.
-                RimGovernor.Host.Sdk.ModLog.Sink = (level, component, tick, trace, message, suppressed) =>
+                RimGovernor.Host.Sdk.ModLog.Sink = (level, component, tick, message, suppressed) =>
                 {
                     if (level >= RimGovernor.Host.Sdk.ModLogLevel.Warn)
                         Log.Warning($"[{component}] {message}");

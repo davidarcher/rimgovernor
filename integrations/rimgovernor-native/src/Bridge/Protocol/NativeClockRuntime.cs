@@ -424,7 +424,7 @@ namespace HomeBridge.BridgeTools
                     // each event when this page was composed.
                     var now = NowMs();
                     var events = window.Events.Select(observed => observed with { AgeAtReplyMs = (ulong)Math.Max(0, now - observed.ObservedAtUnixMs.GetValueOrDefault()) }).ToList();
-                    ObservationWork.Captured("clockEventsJournal", System.Diagnostics.Stopwatch.GetTimestamp() - began, events.Count, events.Count);
+                    ObservationWork.Captured("clockEventsJournal", System.Diagnostics.Stopwatch.GetTimestamp() - began, events.Count);
                     return new Clock.EventsReply { Outcome = new Clock.EventsPage { Context = context, Events = EquatableArray.From(events),
                         NewestCursor = Journal.Newest, NextCursor = window.Next, Gap = window.Lost != 0, LostCount = window.Lost } };
                 }

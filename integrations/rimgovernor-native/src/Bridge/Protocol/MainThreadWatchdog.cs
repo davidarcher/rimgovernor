@@ -15,12 +15,9 @@ namespace HomeBridge.BridgeTools
     // once per hop, the first time one has waited in the queue longer than
     // StallSeconds (the game thread is not pumping: a long event, a modal OS
     // dialog, the window not updating) or has been running longer than
-    // StallSeconds (the body itself is stuck), naming the operation and the
-    // controller's trace ("<trace_id>/<span_id>") so the line joins the
-    // service's flight log. Without it a hung call shows only as a Go-side
-    // deadline, indistinguishable from a dead game. The lines go through
-    // ModLog (the rimgovernor.log channel), not Unity's log: they reach
-    // the OTLP log ring as mod_log rows carrying the same trace.
+    // StallSeconds (the body itself is stuck), naming the operation.
+    // Without it a hung call shows only as the caller's deadline,
+    // indistinguishable from a dead game. The lines go through ModLog.
     internal static class MainThreadWatchdog
     {
         internal const double StallSeconds = 2.0;
@@ -30,12 +27,10 @@ namespace HomeBridge.BridgeTools
         internal sealed class Hop
         {
             internal readonly string Operation;
-            internal readonly string? Trace;
             internal readonly long Queued;
             internal long Started;
             internal bool Reported;
-            internal Hop(string operation, string? trace, long queued) { Operation = operation; Trace = trace; Queued = queued; }
-            internal string Describe() => Operation + (Trace == null ? "" : " trace=" + Trace);
+            internal Hop(string operation, long queued) { Operation = operation; Queued = queued; }
         }
 
         private static readonly object Gate = new object();
@@ -43,9 +38,9 @@ namespace HomeBridge.BridgeTools
         private static long next;
         private static Timer? timer;
 
-        internal static long Enqueue(string operation, string? trace)
+        internal static long Enqueue(string operation)
         {
-            var hop = new Hop(operation, trace, Stopwatch.GetTimestamp());
+            var hop = new Hop(operation, Stopwatch.GetTimestamp());
             lock (Gate)
             {
                 var id = ++next;
@@ -72,11 +67,11 @@ namespace HomeBridge.BridgeTools
                 // stall line still names itself, so a choppy session shows
                 // which op held the game thread.
                 var executeMs = Millis(hop.Started == 0 ? 0 : now - hop.Started);
-                if (executeMs >= SlowMillis) ModLog.Warn(Component, "hop slow: " + hop.Describe() + " executeMs=" + executeMs, hop.Trace, "watchdog.slow:" + hop.Operation);
+                if (executeMs >= SlowMillis) ModLog.Warn(Component, "hop slow: " + hop.Operation + " executeMs=" + executeMs, "watchdog.slow:" + hop.Operation);
                 return;
             }
-            ModLog.Warn(Component, "hop recovered: " + hop.Describe() + " queuedMs=" + Millis((hop.Started == 0 ? now : hop.Started) - hop.Queued)
-                + " executeMs=" + Millis(hop.Started == 0 ? 0 : now - hop.Started), hop.Trace, "watchdog.recovered:" + hop.Operation);
+            ModLog.Warn(Component, "hop recovered: " + hop.Operation + " queuedMs=" + Millis((hop.Started == 0 ? now : hop.Started) - hop.Queued)
+                + " executeMs=" + Millis(hop.Started == 0 ? 0 : now - hop.Started), "watchdog.recovered:" + hop.Operation);
         }
 
         private static void Scan()
@@ -95,7 +90,7 @@ namespace HomeBridge.BridgeTools
                         if (waited < StallSeconds) continue;
                         hop.Reported = true;
                         stalled.Add(hop);
-                        lines.Add("queued " + waited.ToString("F1") + "s without the game thread picking it up: " + hop.Describe());
+                        lines.Add("queued " + waited.ToString("F1") + "s without the game thread picking it up: " + hop.Operation);
                     }
                     else
                     {
@@ -103,12 +98,12 @@ namespace HomeBridge.BridgeTools
                         if (running < StallSeconds) continue;
                         hop.Reported = true;
                         stalled.Add(hop);
-                        lines.Add("running " + running.ToString("F1") + "s on the game thread: " + hop.Describe());
+                        lines.Add("running " + running.ToString("F1") + "s on the game thread: " + hop.Operation);
                     }
                 }
             }
             for (var i = 0; i < stalled.Count; i++)
-                ModLog.Warn(Component, "hop " + lines[i], stalled[i].Trace, "watchdog.stall:" + stalled[i].Operation);
+                ModLog.Warn(Component, "hop " + lines[i], "watchdog.stall:" + stalled[i].Operation);
         }
 
         private static double Seconds(long ticks) => ticks <= 0 ? 0.0 : ticks / (double)Stopwatch.Frequency;

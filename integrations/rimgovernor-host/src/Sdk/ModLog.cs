@@ -38,40 +38,32 @@ namespace RimGovernor.Host.Sdk
         private static readonly Dictionary<string, Site> Sites = new Dictionary<string, Site>(StringComparer.Ordinal);
 
         [ThreadStatic] private static bool inside;
-        [ThreadStatic] private static string currentTrace;
 
         /// <summary>The game tick, or -1 when none. Set by the mod; read on whatever thread logs.</summary>
         public static Func<long> TickSource;
 
-        /// <summary>Receives each admitted line (level, component, tick or -1, trace or null, message, lines the rate limit dropped).</summary>
-        public static Action<ModLogLevel, string, long, string, string, long> Sink;
+        /// <summary>Receives each admitted line (level, component, tick or -1, message, lines the rate limit dropped).</summary>
+        public static Action<ModLogLevel, string, long, string, long> Sink;
 
         /// <summary>Monotonic milliseconds for the rate limit. Replaceable so a probe needs no wall-clock wait.</summary>
         internal static Func<long> ClockMs = () => Stopwatch.GetTimestamp() * 1000 / Stopwatch.Frequency;
 
-        /// <summary>The trace new lines on this thread carry unless the call names one (set around a main-thread hop).</summary>
-        public static string CurrentTrace
-        {
-            get { return currentTrace; }
-            set { currentTrace = value; }
-        }
-
         /// <summary>Lines dropped because the writing thread was already inside the helper.</summary>
         public static long ReentrantDrops;
 
-        public static void Debug(string component, string message, string trace = null, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
-            => Write(ModLogLevel.Debug, component, message, trace, key, file, line);
+        public static void Debug(string component, string message, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
+            => Write(ModLogLevel.Debug, component, message, key, file, line);
 
-        public static void Info(string component, string message, string trace = null, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
-            => Write(ModLogLevel.Info, component, message, trace, key, file, line);
+        public static void Info(string component, string message, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
+            => Write(ModLogLevel.Info, component, message, key, file, line);
 
-        public static void Warn(string component, string message, string trace = null, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
-            => Write(ModLogLevel.Warn, component, message, trace, key, file, line);
+        public static void Warn(string component, string message, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
+            => Write(ModLogLevel.Warn, component, message, key, file, line);
 
-        public static void Error(string component, string message, string trace = null, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
-            => Write(ModLogLevel.Error, component, message, trace, key, file, line);
+        public static void Error(string component, string message, string key = null, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0)
+            => Write(ModLogLevel.Error, component, message, key, file, line);
 
-        public static void Write(ModLogLevel level, string component, string message, string trace = null, string key = null, string file = null, int line = 0)
+        public static void Write(ModLogLevel level, string component, string message, string key = null, string file = null, int line = 0)
         {
             if (inside)
             {
@@ -93,7 +85,7 @@ namespace RimGovernor.Host.Sdk
                 {
                     if (!Admit(siteKey, now, out suppressed)) return;
                 }
-                Sink?.Invoke(level, component ?? "", tick, trace ?? currentTrace, text, suppressed);
+                Sink?.Invoke(level, component ?? "", tick, text, suppressed);
             }
             finally { inside = false; }
         }

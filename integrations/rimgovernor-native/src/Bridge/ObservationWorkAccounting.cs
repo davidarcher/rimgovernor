@@ -3,36 +3,30 @@ using RimGovernor.Host.Sdk;
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace HomeBridge.BridgeTools
 {
-    /// Where one main-thread observation hop's time went: reading game
-    /// state (the capture spans a bundle's sections declare), ProtoJSON
-    /// formatting and the UTF-8 size checks that precede it, how many
-    /// formatting passes the hop paid for, the bytes it returned, the rows
-    /// each section produced and how the hop ended. ProtoBoundary opens a
-    /// scope per hop and reports the account beside queueMs/executeMs, so a
-    /// slow bundle can be attributed to the colony read or to the encoding
-    /// without any per-pawn logging.
+    /// Where one frame capture's game-thread time went: the capture spans the
+    /// snapshot sections and their families declare, with the rows each
+    /// produced. The snapshot stream opens a scope per capture and logs a slow
+    /// capture's spans; the capture profile and the waste fixture read the
+    /// same spans. Outside a scope every call is a no-op.
     ///
-    /// The scope is thread-static: a hop runs to completion on the game
-    /// thread, so no locking is needed. A hop that declares nothing reports
-    /// nothing: absent is not zero.
+    /// The scope is thread-static: a capture runs to completion on the game
+    /// thread, so no locking is needed.
     internal static class ObservationWork
     {
-        /// Bounds the section list so a malformed request cannot grow the
-        /// account; a request asks for far fewer sections than this.
+        /// Bounds the section list so a malformed shape cannot grow the
+        /// account; a capture declares far fewer sections than this.
         internal const int MaxSections = 96;
 
         internal sealed class Section
         {
             internal readonly string Name;
             internal long Ticks;
-            internal long Rows, Candidates;
+            internal long Rows;
             // Bytes this thread allocated since the previous span of its kind closed (profiling only).
             internal long Bytes;
-            internal int Failures;
             // A span inside a Captured family (Detail), not a family.
             internal bool Detail;
             internal Section(string name) { Name = name; }
@@ -40,33 +34,14 @@ namespace HomeBridge.BridgeTools
 
         internal sealed class Hop
         {
-            internal long CaptureTicks, FormatTicks;
-            internal int FormatPasses;
-            internal long PayloadBytes = -1;
-            internal string? Outcome;
             internal readonly List<Section> Sections = new List<Section>();
-            internal ulong Frame;
-            internal long ThreatExamined = -1, ThreatCandidates, ThreatProjections, ThreatProximityChecks;
             internal long CaptureMark = GC.GetAllocatedBytesForCurrentThread(), AnyMark = GC.GetAllocatedBytesForCurrentThread();
         }
 
         [ThreadStatic] private static Hop? _current;
 
-        /// The open hop, or null outside one (a call the boundary did not
-        /// wrap, or a background thread).
-        internal static Hop? Current { get { return _current; } }
-
-        /// Opens a scope for the hop about to run on the game thread,
-        /// replacing any scope a previous hop failed to close.
-        internal static Hop Begin()
-        {
-            var hop = new Hop { Frame = FrameAccounting.OpenFrame() };
-            _current = hop;
-            return hop;
-        }
-
-        /// Opens a scope for work that is not a bridge hop (a snapshot frame
-        /// capture): no frame accounting, only the capture spans.
+        /// Opens a scope for the capture about to run, replacing any scope a
+        /// previous capture failed to close.
         internal static Hop BeginCapture()
         {
             var hop = new Hop();
@@ -74,8 +49,8 @@ namespace HomeBridge.BridgeTools
             return hop;
         }
 
-        /// Closes the scope and returns the hop's account, or null when no
-        /// scope was open.
+        /// Closes the scope and returns its spans, or null when no scope was
+        /// open.
         internal static Hop? End()
         {
             var hop = _current;
@@ -83,365 +58,41 @@ namespace HomeBridge.BridgeTools
             return hop;
         }
 
-        /// One capture span: stopwatchTicks of main-thread game-state reading
-        /// for the named section, returning rows of an optional candidates
-        /// total (0 where the section's page info does not know one).
-        internal static void Captured(string section, long stopwatchTicks, long rows = 0, long candidates = 0)
-            => Record(section, stopwatchTicks, rows, candidates, true);
+        /// One capture span: stopwatchTicks of game-state reading for the
+        /// named section, producing rows.
+        internal static void Captured(string section, long stopwatchTicks, long rows = 0)
+            => Record(section, stopwatchTicks, rows, false);
 
-        /// A span inside a section already Captured: listed beside the
-        /// families so a slow capture line breaks the family down, but not
-        /// added to the hop's capture total a second time.
+        /// A span inside a section already Captured, listed beside the
+        /// families so a slow capture line breaks the family down.
         internal static void Detail(string section, long stopwatchTicks, long rows = 0)
-            => Record(section, stopwatchTicks, rows, 0, false);
+            => Record(section, stopwatchTicks, rows, true);
 
-        /// The named section threw and is missing from the frame: the
-        /// hop's account reports it as failed rather than absent. Logs an
-        /// error row with the exception's stack, keyed per section so a sustained failure is rate-limited.
+        /// The named section threw and is missing from the frame. Logs an
+        /// error row with the exception's stack, keyed per section so a
+        /// sustained failure is rate-limited.
         internal static void Failed(string section, Exception ex)
-        {
-            Record(section, 0, 0, 0, true);
-            var hop = _current;
-            if (hop != null)
-                foreach (var known in hop.Sections)
-                    if (string.Equals(known.Name, section, StringComparison.Ordinal)) { known.Failures++; break; }
-            ModLog.Error("observe", "snapshot section " + section + " failed: " + ex, null, "observe.section:" + section);
-        }
+            => ModLog.Error("observe", "snapshot section " + section + " failed: " + ex, "observe.section:" + section);
 
-        private static void Record(string section, long stopwatchTicks, long rows, long candidates, bool capture)
+        private static void Record(string section, long stopwatchTicks, long rows, bool detail)
         {
             var hop = _current;
             if (hop == null) return;
-            var ticks = Math.Max(0, stopwatchTicks);
             var allocated = GC.GetAllocatedBytesForCurrentThread();
-            var bytes = allocated - (capture ? hop.CaptureMark : hop.AnyMark);
+            var bytes = allocated - (detail ? hop.AnyMark : hop.CaptureMark);
             hop.AnyMark = allocated;
-            if (capture) hop.CaptureMark = allocated;
-            if (capture) hop.CaptureTicks += ticks;
-            Section entry = null!;
+            if (!detail) hop.CaptureMark = allocated;
+            Section? entry = null;
             foreach (var known in hop.Sections) if (string.Equals(known.Name, section, StringComparison.Ordinal)) { entry = known; break; }
             if (entry == null)
             {
                 if (hop.Sections.Count >= MaxSections) return;
-                entry = new Section(section) { Detail = !capture };
+                entry = new Section(section) { Detail = detail };
                 hop.Sections.Add(entry);
             }
-            entry.Ticks += ticks;
+            entry.Ticks += Math.Max(0, stopwatchTicks);
             entry.Bytes += bytes;
             entry.Rows += Math.Max(0, rows);
-            entry.Candidates += Math.Max(0, candidates);
-        }
-
-        /// One threat classification pass: pawns examined, those kept
-        /// as threat rows, full pawn projections paid for and nearest-colonist
-        /// scans run. Summed across the hop's passes.
-        internal static void ThreatScan(long examined, long candidates, long projections, long proximityChecks)
-        {
-            var hop = _current;
-            if (hop == null) return;
-            if (hop.ThreatExamined < 0) hop.ThreatExamined = 0;
-            hop.ThreatExamined += examined; hop.ThreatCandidates += candidates;
-            hop.ThreatProjections += projections; hop.ThreatProximityChecks += proximityChecks;
-        }
-
-        /// One ProtoJSON formatting pass took stopwatchTicks.
-        internal static void Formatted(long stopwatchTicks)
-        {
-            var hop = _current;
-            if (hop == null) return;
-            hop.FormatPasses++;
-            hop.FormatTicks += Math.Max(0, stopwatchTicks);
-        }
-
-        /// One UTF-8 size check took stopwatchTicks; it is formatting cost,
-        /// not a formatting pass.
-        internal static void SizeChecked(long stopwatchTicks)
-        {
-            var hop = _current;
-            if (hop == null) return;
-            hop.FormatTicks += Math.Max(0, stopwatchTicks);
-        }
-
-        /// The payload the hop is returning is bytes UTF-8 bytes long. The
-        /// last envelope encoded wins, which is the one the caller receives.
-        internal static void Payload(long bytes)
-        {
-            var hop = _current;
-            if (hop != null) hop.PayloadBytes = Math.Max(0, bytes);
-        }
-
-        /// How the hop ended: "ok", "failure", "unavailable" or "error".
-        internal static void Outcome(string outcome)
-        {
-            var hop = _current;
-            if (hop != null) hop.Outcome = outcome;
-        }
-
-        /// The hop's account as the timing block carries it, or null when the
-        /// hop declared nothing worth reporting.
-        internal static Dictionary<string, object?>? Report(Hop? hop)
-        {
-            if (hop == null) return null;
-            if (hop.CaptureTicks == 0 && hop.FormatPasses == 0 && hop.PayloadBytes < 0 && hop.Outcome == null && hop.ThreatExamined < 0) return null;
-            var report = new Dictionary<string, object?>(StringComparer.Ordinal)
-            {
-                ["captureMs"] = Ms(hop.CaptureTicks),
-                ["formatMs"] = Ms(hop.FormatTicks),
-                ["formatPasses"] = hop.FormatPasses,
-                ["frame"] = hop.Frame,
-            };
-            if (hop.PayloadBytes >= 0) report["payloadBytes"] = hop.PayloadBytes;
-            if (hop.Outcome != null) report["outcome"] = hop.Outcome;
-            if (hop.ThreatExamined >= 0)
-                report["threatScan"] = new Dictionary<string, object?>(StringComparer.Ordinal)
-                {
-                    ["examined"] = hop.ThreatExamined, ["candidates"] = hop.ThreatCandidates,
-                    ["projections"] = hop.ThreatProjections, ["proximityChecks"] = hop.ThreatProximityChecks,
-                };
-            if (hop.Sections.Count > 0)
-            {
-                var sections = new Dictionary<string, object?>(StringComparer.Ordinal);
-                foreach (var section in hop.Sections)
-                {
-                    var entry = new Dictionary<string, object?>(StringComparer.Ordinal) { ["ms"] = Ms(section.Ticks), ["rows"] = section.Rows };
-                    if (section.Candidates > 0) entry["candidates"] = section.Candidates;
-                    if (section.Failures > 0) entry["failed"] = section.Failures;
-                    sections[section.Name] = entry;
-                }
-                report["sections"] = sections;
-            }
-            return report;
-        }
-
-        internal static double Ms(long stopwatchTicks)
-            => stopwatchTicks <= 0 ? 0.0 : Math.Round(stopwatchTicks * 1000.0 / Stopwatch.Frequency, 3);
-    }
-
-    /// The game's update-to-update intervals and the observation work that
-    /// ran inside them, cumulative for the loaded game session like
-    /// ClockProbeAccounting. ObservationFrameHook calls Update once per Unity
-    /// update, from a prefix on the TickManagerUpdate boundary the game
-    /// drives every update; everything here is bounded: four
-    /// declared slow thresholds and a ring of the widest intervals the
-    /// session saw, with no per-sample storage, no file or network I/O and no
-    /// per-pawn record.
-    ///
-    /// These are update-to-update wall times on a monotonic clock, not GPU
-    /// presentation intervals: a dropped or stalled present is not
-    /// distinguishable here, and an unrendered batch-mode launch still
-    /// updates. The recorder times itself (RecorderMs) so its own cost is
-    /// reported rather than assumed negligible.
-    internal static class FrameAccounting
-    {
-        /// The declared slow-update thresholds in milliseconds; an interval
-        /// counts against every threshold it exceeds. 16.7 and 33.3 ms are
-        /// 60 and 30 updates per second.
-        internal static readonly double[] Thresholds = { 16.7, 33.3, 100.0, 250.0 };
-
-        /// The widest intervals kept for the session.
-        private const int WorstKept = 8;
-
-        private static readonly object Gate = new object();
-        private static object? _session;
-        private static bool _hooked;
-        private static long _last;
-        private static ulong _updates;
-        private static long _elapsedTicks, _observationTicks, _recorderTicks;
-        private static double _maxIntervalMs;
-        private static ulong _observations, _cancelled;
-        private static readonly ulong[] Slow = new ulong[4];
-
-        /// Upper edges (ms) of the cumulative interval histogram: 1 ms steps
-        /// to 50, 5 ms to 250, 50 ms to 1000; a last bucket holds the rest.
-        /// Cumulative counts let a reader difference two samples and take
-        /// p95/p99 of the window between them.
-        internal static readonly double[] HistogramEdgesMs = BuildEdges();
-        private static readonly ulong[] Histogram = new ulong[HistogramEdgesMs.Length + 1];
-        // The same histogram over only the intervals that ran main-thread
-        // observation work, so a tail can be attributed to observation frames.
-        private static readonly ulong[] ObservedHistogram = new ulong[HistogramEdgesMs.Length + 1];
-
-        private static double[] BuildEdges()
-        {
-            var edges = new List<double>();
-            for (var ms = 1; ms <= 50; ms++) edges.Add(ms);
-            for (var ms = 55; ms <= 250; ms += 5) edges.Add(ms);
-            for (var ms = 300; ms <= 1000; ms += 50) edges.Add(ms);
-            return edges.ToArray();
-        }
-
-        private static int Bucket(double ms)
-        {
-            int lo = 0, hi = HistogramEdgesMs.Length;
-            while (lo < hi) { var mid = (lo + hi) / 2; if (ms <= HistogramEdgesMs[mid]) hi = mid; else lo = mid + 1; }
-            return lo;
-        }
-
-        // The open interval: work charged to it and the most expensive
-        // observation's trace, for the worst ring.
-        private static long _openObservationTicks;
-        private static string? _openTrace;
-        private static long _openTraceTicks;
-        private static int _openTick;
-
-        private sealed class Worst
-        {
-            internal ulong Frame; internal double IntervalMs, ObservationMs; internal int Tick; internal string? Trace;
-        }
-        private static readonly List<Worst> WorstFrames = new List<Worst>();
-
-        // The memoized timing block, rebuilt at most once per update: hops
-        // are far rarer than updates, so consecutive hops in one update share
-        // one immutable dictionary instead of allocating per reply.
-        private static Dictionary<string, object?>? _report;
-        private static ulong _reportUpdates = ulong.MaxValue;
-
-        /// A new game session resets everything: the reload between two
-        /// staged runs is nobody's frame.
-        internal static void Started(object? session)
-        {
-            lock (Gate)
-            {
-                if (ReferenceEquals(session, _session)) return;
-                _session = session; _last = 0; _updates = 0; _elapsedTicks = 0; _observationTicks = 0; _recorderTicks = 0;
-                _maxIntervalMs = 0; _observations = 0; _cancelled = 0;
-                for (var i = 0; i < Slow.Length; i++) Slow[i] = 0;
-                for (var i = 0; i < Histogram.Length; i++) { Histogram[i] = 0; ObservedHistogram[i] = 0; }
-                _openObservationTicks = 0; _openTrace = null; _openTraceTicks = 0; _openTick = 0;
-                WorstFrames.Clear();
-                _report = null; _reportUpdates = ulong.MaxValue;
-            }
-        }
-
-        /// One update of the named session ran at game tick tick. The
-        /// interval it closes is the wall since the previous update.
-        internal static void Update(object? session, int tick)
-            => UpdateAt(session, tick, Stopwatch.GetTimestamp());
-
-        /// Update with the monotonic timestamp supplied, so a probe can drive
-        /// exact intervals; production passes Stopwatch.GetTimestamp().
-        internal static void UpdateAt(object? session, int tick, long now)
-        {
-            // The recorder times itself on its own clock, so a supplied
-            // interval timestamp cannot distort its reported overhead.
-            var entered = Stopwatch.GetTimestamp();
-            Started(session);
-            lock (Gate)
-            {
-                _hooked = true;
-                if (_last != 0)
-                {
-                    var ticks = now - _last;
-                    if (ticks < 0) ticks = 0;
-                    _updates++;
-                    _elapsedTicks += ticks;
-                    var ms = ObservationWork.Ms(ticks);
-                    if (ms > _maxIntervalMs) _maxIntervalMs = ms;
-                    for (var i = 0; i < Thresholds.Length; i++) if (ms > Thresholds[i]) Slow[i]++;
-                    var bucket = Bucket(ms);
-                    Histogram[bucket]++;
-                    if (_openObservationTicks > 0) ObservedHistogram[bucket]++;
-                    Keep(_updates, ms, ObservationWork.Ms(_openObservationTicks), _openTick, _openTrace);
-                }
-                _last = now;
-                _openObservationTicks = 0; _openTrace = null; _openTraceTicks = 0; _openTick = tick;
-                _recorderTicks += Math.Max(0, Stopwatch.GetTimestamp() - entered);
-            }
-        }
-
-        /// The id of the interval now open, which a hop running on the game
-        /// thread belongs to.
-        internal static ulong OpenFrame() { lock (Gate) return _updates + 1; }
-
-        /// Whether the frame boundary has driven the account at all.
-        internal static bool Hooked { get { lock (Gate) return _hooked; } }
-
-        /// One main-thread observation hop took stopwatchTicks under the open
-        /// interval; trace names it for the worst ring.
-        internal static void Observed(long stopwatchTicks, string? trace)
-        {
-            var began = Stopwatch.GetTimestamp();
-            var ticks = Math.Max(0, stopwatchTicks);
-            lock (Gate)
-            {
-                _observations++;
-                _observationTicks += ticks;
-                _openObservationTicks += ticks;
-                if (ticks > _openTraceTicks) { _openTraceTicks = ticks; _openTrace = trace; }
-                _recorderTicks += Math.Max(0, Stopwatch.GetTimestamp() - began);
-            }
-        }
-
-        /// One hop the caller cancelled before the game thread ran it.
-        internal static void Cancelled() { lock (Gate) _cancelled++; }
-
-        /// Keeps the interval when it is among the widest of the session.
-        private static void Keep(ulong frame, double intervalMs, double observationMs, int tick, string? trace)
-        {
-            if (WorstFrames.Count == WorstKept)
-            {
-                var least = 0;
-                for (var i = 1; i < WorstFrames.Count; i++) if (WorstFrames[i].IntervalMs < WorstFrames[least].IntervalMs) least = i;
-                if (WorstFrames[least].IntervalMs >= intervalMs) return;
-                WorstFrames.RemoveAt(least);
-            }
-            WorstFrames.Add(new Worst { Frame = frame, IntervalMs = intervalMs, ObservationMs = observationMs, Tick = tick, Trace = trace });
-        }
-
-        /// The session's account as the timing block carries it, or null
-        /// before any update was observed. The returned dictionary is shared
-        /// and must not be mutated.
-        internal static Dictionary<string, object?>? Report()
-        {
-            lock (Gate)
-            {
-                if (!_hooked) return null;
-                if (_report != null && _reportUpdates == _updates) return _report;
-                var slow = new List<object?>(Thresholds.Length);
-                for (var i = 0; i < Thresholds.Length; i++)
-                    slow.Add(new Dictionary<string, object?>(StringComparer.Ordinal) { ["thresholdMs"] = Thresholds[i], ["count"] = Slow[i] });
-                var worst = new List<object?>(WorstFrames.Count);
-                WorstFrames.Sort((a, b) => b.IntervalMs.CompareTo(a.IntervalMs));
-                foreach (var frame in WorstFrames)
-                {
-                    var row = new Dictionary<string, object?>(StringComparer.Ordinal)
-                    { ["update"] = frame.Frame, ["intervalMs"] = frame.IntervalMs, ["observationMs"] = frame.ObservationMs, ["tick"] = frame.Tick };
-                    if (frame.Trace != null) row["trace"] = frame.Trace;
-                    worst.Add(row);
-                }
-                _report = new Dictionary<string, object?>(StringComparer.Ordinal)
-                {
-                    ["hooked"] = true,
-                    ["updates"] = _updates,
-                    ["elapsedMs"] = ObservationWork.Ms(_elapsedTicks),
-                    ["maxUpdateMs"] = _maxIntervalMs,
-                    ["observationMs"] = ObservationWork.Ms(_observationTicks),
-                    ["observations"] = _observations,
-                    ["cancelled"] = _cancelled,
-                    ["recorderMs"] = ObservationWork.Ms(_recorderTicks),
-                    ["slow"] = slow,
-                    ["worst"] = worst,
-                    ["histogram"] = new Dictionary<string, object?>(StringComparer.Ordinal)
-                    {
-                        ["edgesMs"] = new List<object?>(Array.ConvertAll(HistogramEdgesMs, e => (object?)e)),
-                        ["counts"] = new List<object?>(Array.ConvertAll(Histogram, c => (object?)c)),
-                        ["observedCounts"] = new List<object?>(Array.ConvertAll(ObservedHistogram, c => (object?)c)),
-                    },
-                };
-                _reportUpdates = _updates;
-                return _report;
-            }
-        }
-
-        /// Session totals for a probe: updates, the accounted interval wall
-        /// and the observation work charged to them.
-        internal static void Totals(out ulong updates, out double elapsedMs, out double observationMs, out ulong observations, out ulong cancelled)
-        {
-            lock (Gate)
-            {
-                updates = _updates; elapsedMs = ObservationWork.Ms(_elapsedTicks);
-                observationMs = ObservationWork.Ms(_observationTicks); observations = _observations; cancelled = _cancelled;
-            }
         }
     }
 }

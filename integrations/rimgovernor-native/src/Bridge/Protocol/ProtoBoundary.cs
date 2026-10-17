@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,31 +20,18 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>
         /// Runs body on the game thread under its admission class (control before observation), the per-frame
-        /// allowance, the watchdog and the observation account, and returns its reply as built.
+        /// allowance and the watchdog, and returns its reply as built.
         /// </summary>
         internal static async Task<T> OnGameThread<T>(string operation, Func<T> body, CancellationToken cancellationToken, string? cls = null) where T : class
         {
             var mainThread = RimBridgeMainThreadAccess.Current ?? throw new InvalidOperationException("The host's game-thread access is not available.");
-            var hop = MainThreadWatchdog.Enqueue(operation, null);
+            var hop = MainThreadWatchdog.Enqueue(operation);
             var task = MainThreadAdmission.Enqueue(mainThread, MainThreadAdmission.RankOf(cls), () =>
             {
                 MainThreadWatchdog.Start(hop);
-                var started = Stopwatch.GetTimestamp();
-                ObservationWork.Begin();
                 try { return body(); }
-                catch (Exception)
-                {
-                    ObservationWork.Outcome("error");
-                    throw;
-                }
-                finally
-                {
-                    // A hop that threw still spent its main-thread time and still belongs in the account.
-                    FrameAccounting.Observed(Stopwatch.GetTimestamp() - started, null);
-                    ObservationWork.End();
-                    MainThreadWatchdog.Finish(hop);
-                }
-            }, cancellationToken, out _);
+                finally { MainThreadWatchdog.Finish(hop); }
+            }, cancellationToken);
             try { return (T)await task.ConfigureAwait(false); }
             // A hop the host never runs (cancelled while queued) still leaves the watchdog.
             finally { MainThreadWatchdog.Finish(hop); }

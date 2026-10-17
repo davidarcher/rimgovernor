@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
                     var destination = !stored && StoreUtility.TryFindBestBetterStoreCellFor(chunk, null, map, StoreUtility.CurrentStoragePriorityOf(chunk), player, out _, false);
                     snapshot = snapshot with { Chunks = [.. snapshot.Chunks, new Obs.ClearanceChunk { EntityId = Id(chunk.GetUniqueLoadID()), DefName = Id(chunk.def.defName), Cell = Cell(chunk.Position.x, chunk.Position.z), Forbidden = forbidden, Stored = stored, Destination = destination }] };
                 }
-                ObservationWork.Captured("clearanceChunks", Now() - began, snapshot.Chunks.Count, chunks.Count);
+                ObservationWork.Captured("clearanceChunks", Now() - began, snapshot.Chunks.Count);
                 long dangerTicks = 0, roofTicks = 0, salvageTicks = 0, salvageRows = 0;
                 began = Now();
                 var triggers = TempleTriggers(map);
@@ -110,7 +110,7 @@ namespace HomeBridge.BridgeTools
                 ObservationWork.Captured("clearanceAncientDanger", dangerTicks, snapshot.Targets.Count);
                 ObservationWork.Captured("clearanceRoofBlocker", roofTicks, snapshot.Targets.Count);
                 ObservationWork.Captured("clearanceSalvage", salvageTicks, salvageRows);
-                ObservationWork.Captured("clearanceTargetRows", targetTicks - dangerTicks - roofTicks - salvageTicks, snapshot.Targets.Count, buildings.Count);
+                ObservationWork.Captured("clearanceTargetRows", targetTicks - dangerTicks - roofTicks - salvageTicks, snapshot.Targets.Count);
                 var count = (ulong)snapshot.Targets.Count;
                 return new Obs.ClearanceTargetsReply { Outcome = snapshot };
             }
@@ -300,8 +300,8 @@ namespace HomeBridge.BridgeTools
             internal void End()
             {
                 Forget(salvageTargets.Keys.Where(k => !seen.Contains(k)));
-                ObservationWork.Captured("clearanceSalvageRecompute", inlineTicks, inline, served + inline);
-                if (capped > 0) ObservationWork.Captured("clearanceSalvageCapped", 0, capped, census ? 1 : 0);
+                ObservationWork.Captured("clearanceSalvageRecompute", inlineTicks, inline);
+                if (capped > 0) ObservationWork.Captured("clearanceSalvageCapped", 0, capped);
                 ObservationWork.Captured("clearanceSalvageBackground", backgroundTicks, backgroundRows);
                 backgroundTicks = backgroundRows = 0;
             }

@@ -101,7 +101,7 @@ meaning in the [control loop](control-loop.md#constants-that-are-not-measured).
 
 | Quantity | Measured | Current constant | Source row |
 | --- | --- | --- | --- |
-| Frame time at each speed (p50/p95/p99) | not measured | 30 ms budget (`ClockCeiling.DefaultFrameBudgetMs`) | native call `timing` / `native_frames` |
+| Frame time at each speed (p50/p95/p99) | not measured | 30 ms budget (`ClockCeiling.DefaultFrameBudgetMs`) | none (native keeps no frame-interval account) |
 | Effective ticks/s at Ultrafast (boosted, up to 9000 ticks/s, with the one ceiling lowering it on over-budget frames) | not measured | 0.7 down, 1.25 up per 250 ms | `clock_step` pacing fields (`pacing_reason`, `paced_tps`, `tps_ceiling`, `effective_tps`) |
 | Critical planner wave wall time | not measured | none | `clock_step.critical_wave_ms` |
 | Immediate review scope wall time | not measured | none | `rounds_review`, `planner_step` `dur_ms` |

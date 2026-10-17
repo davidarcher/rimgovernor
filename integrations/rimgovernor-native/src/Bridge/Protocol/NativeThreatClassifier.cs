@@ -46,7 +46,7 @@ namespace HomeBridge.BridgeTools
     /// NativeObservationTools.Status supplies the RimWorld adapters.
     internal static class NativeThreatClassifier
     {
-        /// What one Collect call did, for the hop's observation account.
+        /// What one Collect call did: the probe's proof that discarded pawns are never projected.
         internal struct Scan { internal long Examined, Candidates, Projections, ProximityChecks; }
 
         /// Whether f carries a fact a threat rule reads regardless of
@@ -79,7 +79,6 @@ namespace HomeBridge.BridgeTools
                 if (f.HasPrey) { row = row with { Prey = prey(pawn) }; row = row with { PreyIsOurs = f.PreyOurs }; }
                 threats = threats with { Pawns = [.. threats.Pawns, row] };
             }
-            ObservationWork.ThreatScan(scan.Examined, scan.Candidates, scan.Projections, scan.ProximityChecks);
             return scan;
         }
 
