@@ -17,10 +17,10 @@ namespace RimGovernor.Brain.Acceptance;
 /// The store is read raw (a run's service.sqlite may predate the current schema, which the store's own open refuses); a
 /// missing table or file is reported as a line, never an error, so a native-only case still gets a digest.
 /// </summary>
-public static partial class Postmortems
+public static class Postmortems
 {
     /// <summary>Bounds every section: the digest is the first thing read, not the whole log.</summary>
-    private const int MaxLines = 12;
+    internal const int MaxLines = 12;
 
     private static readonly TimeSpan GitTimeout = TimeSpan.FromSeconds(20);
 
@@ -53,14 +53,14 @@ public static partial class Postmortems
         var rows = LogRows(dir);
         sections.Add(Revision(facts.InstalledPackage, cancellationToken));
         sections.Add(Refusals(dir, rows));
-        var (db, storeNote) = OpenRaw(dir);
+        var (db, storeNote) = PostmortemStore.OpenRaw(dir);
         using (db)
         {
-            sections.Add(RoundsSection(db, storeNote));
-            sections.Add(ExtentEligibility(dir));
-            sections.Add(UnsuccessfulStages(db, storeNote));
+            sections.Add(PostmortemStore.RoundsSection(db, storeNote));
+            sections.Add(PostmortemExtent.ExtentEligibility(dir));
+            sections.Add(PostmortemStore.UnsuccessfulStages(db, storeNote));
             sections.Add(JobFailures(rows));
-            sections.Add(AuthorityGenerations(db, storeNote, rows, report));
+            sections.Add(PostmortemStore.AuthorityGenerations(db, storeNote, rows, report));
         }
 
         return new Digest(facts.Case ?? "", facts.Error ?? "", sections);
@@ -212,7 +212,7 @@ public static partial class Postmortems
     /// One decoded log record with the segment it came from. A row's evidence is "&lt;file&gt;#&lt;line&gt;": the segment
     /// path relative to the case directory and the 1-based line there, the number <c>grep -n</c> prints.
     /// </summary>
-    private sealed record LogRecordRow(string File, int Line, TimelineRecord Rec)
+    internal sealed record LogRecordRow(string File, int Line, TimelineRecord Rec)
     {
         public string Evidence() => string.Create(CultureInfo.InvariantCulture, $"{File}#{Line}");
 
@@ -425,7 +425,7 @@ public static partial class Postmortems
     }
 
     /// <summary>The first of <paramref name="keys"/> the row carries as text; a list renders comma-joined, and an empty list is no text.</summary>
-    private static string FirstText(IReadOnlyDictionary<string, object?> fields, params string[] keys)
+    internal static string FirstText(IReadOnlyDictionary<string, object?> fields, params string[] keys)
     {
         foreach (var key in keys)
         {
@@ -457,7 +457,7 @@ public static partial class Postmortems
     }
 
     /// <summary>A number as Go's <c>%v</c> prints it: integral values without a fraction.</summary>
-    private static string FormatNumber(double d) =>
+    internal static string FormatNumber(double d) =>
         d == Math.Floor(d) && Math.Abs(d) < 1e15 ? ((long)d).ToString(CultureInfo.InvariantCulture) : d.ToString("R", CultureInfo.InvariantCulture);
 
     /// <summary>Reads a Worker outcome row the native side or the planner turned down: verdict refused, or a non-empty refused list.</summary>

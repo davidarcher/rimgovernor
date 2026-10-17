@@ -75,7 +75,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
             return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable("medicine_catalog") };
         }
 
-        var sources = ObservationPackage.ColonyAcquisition(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false));
+        var sources = AcquisitionReads.ColonyAcquisition(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false));
         var stalledSources = new HashSet<string>();
         bool Medicine(AcquisitionSource row) => new Resource(row.Resource) == medicineResource;
         foreach (var row in RoundsAcquisitionPlanner.StalledDesignations(sources, false, new Tick((observed.Context?.Tick).GetValueOrDefault()), reviewer.Policy.AcquisitionProgress(), Medicine))
@@ -97,7 +97,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
             return new RoundsMedicalResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(withdraw), Plan = withdraw.Outcome == ClaimOutcome.Conflict ? default : stallPlan.Id };
         }
 
-        var facts = ObservationPackage.ColonyMedicalReserve(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false)) with { Catalog = items };
+        var facts = ColonyFramesReads.ColonyMedicalReserve(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false)) with { Catalog = items };
         var medicalReview = PolicyFunctions.ReviewMedicalReserve(facts, true, reviewer.Policy.MedicalReserve);
         if (!medicalReview.Active)
         {
@@ -200,7 +200,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
             }
         }
 
-        var sources = ObservationPackage.ColonyAcquisition(observed, tables, await CatalogAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false));
+        var sources = AcquisitionReads.ColonyAcquisition(observed, tables, await CatalogAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false));
         if (!sources.TryGetValue(out var rows))
         {
             return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable("acquisition_sources") };

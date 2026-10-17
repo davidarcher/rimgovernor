@@ -159,15 +159,15 @@ internal sealed class FirebreakMemory
                 }
             }
         }
-        var dir = Environment.GetEnvironmentVariable(SnapshotApi.DirEnv);
+        var dir = Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv);
         if (!string.IsNullOrEmpty(dir))
         {
-            var f = SnapshotApi.NewFirebreak(request, dwell, MapCells(standing), MapCells(open));
+            var f = SnapshotFirebreakReplay.NewFirebreak(request, dwell, MapCells(standing), MapCells(open));
             f.Recorded = string.Create(CultureInfo.InvariantCulture, $"colony {current.Colony} load {current.Load} map {current.Map} tick {tick.Value}");
             f.Snapshot = current;
             try
             {
-                SnapshotApi.RecordFirebreak(dir, f);
+                SnapshotFirebreakReplay.RecordFirebreak(dir, f);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

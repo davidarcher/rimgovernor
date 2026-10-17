@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class ColonyDecodeReads
 {
     /// <summary>Whether <paramref name="buildings"/> holds the building every row refers to.</summary>
     internal static bool Resolved<TRow>(Buildings buildings, IEnumerable<TRow> rows, Func<TRow, C.Ref?> reference)
@@ -64,7 +64,7 @@ public static partial class ObservationPackage
     internal static Fact<bool> NativePresence(string? value, IEnumerable<O.ReadIssue> issues, string field) =>
         PlanningWindowRules.CellPresence(value, issues, field, false);
 
-    private static Cell CellOf(C.Cell? cell) => new(cell?.X ?? 0, cell?.Z ?? 0);
+    internal static Cell CellOf(C.Cell? cell) => new(cell?.X ?? 0, cell?.Z ?? 0);
 
     /// <summary>
     /// Projects only same-tick validated facts. Native raw food runway cannot stand in for the
@@ -90,7 +90,7 @@ public static partial class ObservationPackage
             throw new BridgeRefusedException();
         }
         var v = reply.Outcome?.Observed ?? throw new ObservationContractException("missing colony facts");
-        var identity = ContextIdentity(v.Context);
+        var identity = DecodeReads.ContextIdentity(v.Context);
         // The colony facts row may come from the step's fact cache at any earlier tick; only another generation
         // changes its world.
         if (expected.NativeGeneration.TryGetValue(out var generation)
@@ -109,10 +109,10 @@ public static partial class ObservationPackage
         var races = RequireCatalog(catalog).AnimalRaces();
         r = r with
         {
-            FoodChannels = ColonyFoodChannels(v.FoodChannels, tables.Pawns, races),
-            DeliveryLedger = ColonyDeliveryLedger(v.DeliveryLedger),
-            DeepResources = ColonyDeepResources(v.DeepResources, catalog),
-            Policies = ColonyPolicies(v.Policies),
+            FoodChannels = FoodChannelsReads.ColonyFoodChannels(v.FoodChannels, tables.Pawns, races),
+            DeliveryLedger = DeliveryLedgerReads.ColonyDeliveryLedger(v.DeliveryLedger),
+            DeepResources = DeepResourcesReads.ColonyDeepResources(v.DeepResources, catalog),
+            Policies = PoliciesReads.ColonyPolicies(v.Policies),
         };
         if (r.Policies.TryGetValue(out var policies))
         {
@@ -120,7 +120,7 @@ public static partial class ObservationPackage
             policies = policies with { BiomeDiseases = catalog.BiomeDiseases(v.Biome) };
             r = r with { Policies = Known(policies) };
         }
-        var (conditions, conditionsKnown) = ColonyConditions(v, catalog);
+        var (conditions, conditionsKnown) = ColonyFramesReads.ColonyConditions(v, catalog);
         if (catalog is not null)
         {
             r = r with
@@ -155,9 +155,9 @@ public static partial class ObservationPackage
         var outdoorsDark = default(Fact<bool>);
         r = r with
         {
-            Biotech = ColonyBiotech(v.Biotech),
-            Anomaly = ColonyAnomaly(v.Anomaly),
-            RoyaltyColony = ColonyRoyalty(v.Royalty),
+            Biotech = BiotechColonyReads.ColonyBiotech(v.Biotech),
+            Anomaly = AnomalyColonyReads.ColonyAnomaly(v.Anomaly),
+            RoyaltyColony = RoyaltyColonyProjectionReads.ColonyRoyalty(v.Royalty),
         };
         var f = new RoundsFacts
         {
@@ -173,12 +173,12 @@ public static partial class ObservationPackage
         f = f with
         {
             MapBounds = Known(r.Bounds),
-            ShelterArea = ShelterArea(r.Policies),
-            NoDangerArea = AllowedAreaID(r.Policies, NoDangerAreaLabel),
-            AnimalWard = f.AnimalWard with { Area = AllowedAreaID(r.Policies, HospitalAreaLabel) },
-            IsolationArea = AllowedAreaID(r.Policies, PolicyConstants.IsolationAreaLabel),
+            ShelterArea = PoliciesReads.ShelterArea(r.Policies),
+            NoDangerArea = PoliciesReads.AllowedAreaID(r.Policies, NoDangerAreaLabel),
+            AnimalWard = f.AnimalWard with { Area = PoliciesReads.AllowedAreaID(r.Policies, HospitalAreaLabel) },
+            IsolationArea = PoliciesReads.AllowedAreaID(r.Policies, PolicyConstants.IsolationAreaLabel),
             RaidPoints = r.Threat.RaidPoints,
-            Monolith = MonolithFacts(r.Anomaly),
+            Monolith = AnomalyColonyReads.MonolithFacts(r.Anomaly),
         };
         r = r with { Raids = r.Threat.Raids };
         var threat = r.Threat;
@@ -243,7 +243,7 @@ public static partial class ObservationPackage
                     TurretDps = Optional(row.TurretDps is not null, row.TurretDps.GetValueOrDefault()),
                 };
                 power.Add(site);
-                var consumer = FuelConsumerOf(catalog, site.Id, site.Definition, site, out var refuelable);
+                var consumer = FuelReads.FuelConsumerOf(catalog, site.Id, site.Definition, site, out var refuelable);
                 if (refuelable)
                 {
                     fuel.Add(consumer);
@@ -327,7 +327,7 @@ public static partial class ObservationPackage
         }
         if (v.FoodClimate is { } climate && !HasIssue(v.Issues, "food_climate"))
         {
-            outdoorsDark = ColonyOutdoorsDark(v, catalog);
+            outdoorsDark = ColonyFramesReads.ColonyOutdoorsDark(v, catalog);
             r = r with
             {
                 CropClimate = new CropClimate
@@ -338,7 +338,7 @@ public static partial class ObservationPackage
                     Biome = Known(v.Biome),
                 },
             };
-            f = f with { Calendar = ColonyCalendar(climate) };
+            f = f with { Calendar = ColonyProductionReads.ColonyCalendar(climate) };
         }
         var curve = v.Planning?.Outcome?.Observed?.Gear?.OutdoorTemperatureByTwelfthC;
         if (curve is { } curveTemps && curveTemps.Count == 12)
@@ -356,9 +356,9 @@ public static partial class ObservationPackage
                 FullRotRateC = RequireCatalog(catalog).Derived.FullRotRateC,
             };
         }
-        ApplyAcquisition(v, tables, catalog, ref r);
-        f = ColonyProduction(v, f);
-        r = r with { ProductionBenches = ColonyProductionBenches(v, buildings, tables.Pawns, catalog) };
+        AcquisitionReads.ApplyAcquisition(v, tables, catalog, ref r);
+        f = ColonyProductionReads.ColonyProduction(v, f);
+        r = r with { ProductionBenches = ColonyProductionReads.ColonyProductionBenches(v, buildings, tables.Pawns, catalog) };
         f = f with { TradeMealIngredients = PolicyFunctions.TradeMealIngredients(r.ProductionBenches) };
         if (!HasIssue(v.Issues, "butchering") && Headed(buildings, v.Butchering, b => b.Bench))
         {
@@ -381,33 +381,33 @@ public static partial class ObservationPackage
             f = f with { ButcherBenches = Known(EquatableArray.From(standing)) };
             r = r with { ButcheringBenches = Known(EquatableArray.From(benches)) };
         }
-        f = ColonyDisaster(v, f, buildings, catalog, conditions, conditionsKnown);
-        var comfort = ColonyComfort(v, catalog);
-        f = f with { Comfort = comfort, BasicComfort = comfort, HomeCoverage = ColonyHomeCoverage(v) };
-        f = f with { StoneStructures = ColonyStoneStructures(v, buildings, catalog) };
-        f = f with { Sleeping = ColonySleeping(v, buildings, catalog) };
+        f = ColonyFramesReads.ColonyDisaster(v, f, buildings, catalog, conditions, conditionsKnown);
+        var comfort = ColonyFramesReads.ColonyComfort(v, catalog);
+        f = f with { Comfort = comfort, BasicComfort = comfort, HomeCoverage = FacilityUpkeepReads.ColonyHomeCoverage(v) };
+        f = f with { StoneStructures = FacilityUpkeepReads.ColonyStoneStructures(v, buildings, catalog) };
+        f = f with { Sleeping = SleepingUpkeepReads.ColonySleeping(v, buildings, catalog) };
         f = f with
         {
             AnimalUpkeep = f.AnimalUpkeep with
             {
                 AnimalRaces = races,
-                Animals = MergeHerdFoodFacts(ColonyAnimals(v, tables.Pawns, races), r.FoodChannels),
-                WildAnimals = ColonyWildAnimals(v, tables.Pawns, races),
+                Animals = AnimalUpkeepReads.MergeHerdFoodFacts(AnimalUpkeepReads.ColonyAnimals(v, tables.Pawns, races), r.FoodChannels),
+                WildAnimals = AnimalUpkeepReads.ColonyWildAnimals(v, tables.Pawns, races),
             },
         };
         if (r.Policies.TryGetValue(out policies))
         {
-            policies = policies with { FoodEaters = AnimalFoodEaters(policies.FoodEaters, tables.Pawns, races, catalog) };
+            policies = policies with { FoodEaters = PoliciesReads.AnimalFoodEaters(policies.FoodEaters, tables.Pawns, races, catalog) };
             r = r with { Policies = Known(policies) };
         }
-        f = f with { Waste = ColonyWaste(v, tables), Pollution = ColonyPollution(r.Biotech) };
-        f = f with { Upkeep = ColonyUpkeep(v, tables, catalog) };
+        f = f with { Waste = ColonyFramesReads.ColonyWaste(v, tables), Pollution = ColonyFramesReads.ColonyPollution(r.Biotech) };
+        f = f with { Upkeep = ColonyUpkeepReads.ColonyUpkeep(v, tables, catalog) };
         if (f.Upkeep.Lighting.IsKnown && !outdoorsDark.IsKnown)
         {
-            outdoorsDark = ColonyOutdoorsDark(v, catalog);
+            outdoorsDark = ColonyFramesReads.ColonyOutdoorsDark(v, catalog);
         }
         f = f with { OutdoorsDark = outdoorsDark };
-        f = f with { MedicalReserve = ColonyMedicalReserve(v, tables, catalog) };
+        f = f with { MedicalReserve = ColonyFramesReads.ColonyMedicalReserve(v, tables, catalog) };
         var letters = new List<JoinerLetterOffer>(v.JoinerLetters.Count);
         foreach (var row in v.JoinerLetters)
         {
@@ -439,7 +439,7 @@ public static partial class ObservationPackage
         // A food supply whose stock the things table misses stays unknown until a later frame.
         if (v.FoodSupply?.Outcome is { } food)
         {
-            if (DecodeFoodSupply(food, tables.Things, catalog) is { } supply)
+            if (FoodSupplyReads.DecodeFoodSupply(food, tables.Things, catalog) is { } supply)
             {
                 r = r with { FoodSupply = Known(supply) };
                 f = f with { FoodStorageUpkeep = PolicyFunctions.FoodStorageStocks(supply, RequireCatalog(catalog).Derived.FullRotRateC) };
@@ -447,7 +447,7 @@ public static partial class ObservationPackage
         }
         if (v.Forecast?.Outcome is { } forecast)
         {
-            var combined = DecodeFoodSupply(forecast.CombinedFoodSupply, tables.Things, catalog);
+            var combined = FoodSupplyReads.DecodeFoodSupply(forecast.CombinedFoodSupply, tables.Things, catalog);
             if (combined is not null)
             {
                 r = r with { CombinedFoodSupply = Known(combined) };
@@ -624,7 +624,7 @@ public static partial class ObservationPackage
         var sowTag = Unknown<string>();
         if (row is not null && row.fertility >= 0)
         {
-            fertility = FiniteFact(row.fertility);
+            fertility = PlanningViewReads.FiniteFact(row.fertility);
         }
         var tag = row?.building?.sowTag ?? "";
         if (tag != "")

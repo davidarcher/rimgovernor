@@ -29,7 +29,7 @@ public enum StockpilePriority
     Low,
 }
 
-public static partial class DomainConstants
+public static class ZoneCreateConstants
 {
     /// <summary>The mod's burnable special filter (native BurnableRule; saved in games, never rename).</summary>
     public const string BurnableFilterDef = "RimGovernorBurnable";

@@ -11,7 +11,7 @@ internal sealed record SchemaPart(string Ddl, IReadOnlyList<string> Checks);
 /// live in the domain constructors a payload is rebuilt through. The journal is disposable on upgrade: a file of
 /// another version is moved aside and replaced, so there are no migrations.
 /// </summary>
-internal static partial class StoreSchema
+internal static class StoreSchema
 {
     private const string CoreDdl = """
         CREATE TABLE metadata(singleton INTEGER PRIMARY KEY CHECK(singleton=1), controller_session_id TEXT NOT NULL) STRICT;
@@ -32,7 +32,16 @@ internal static partial class StoreSchema
         "SELECT action_id,payload FROM admissions LIMIT 0",
     ];
 
-    private static SchemaPart[] Parts() => [new SchemaPart(CoreDdl, _coreChecks), .. MorePartsOf()];
+    private static SchemaPart[] Parts() =>
+    [
+        new SchemaPart(CoreDdl, _coreChecks),
+        ControlSchema.ControlPart,
+        SubmissionSchema.SubmissionPart,
+        StateMirrorSchema.OwnersPart,
+        TimelinesSchema.TimelinePart,
+        FamiliesSchema.SingletonPart,
+        CombatSchema.CombatFightsPart,
+    ];
 
     /// <summary>Creates every table of a new file.</summary>
     public static void Create(StoreTransaction tx)

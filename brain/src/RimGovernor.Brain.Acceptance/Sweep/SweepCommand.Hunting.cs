@@ -18,7 +18,7 @@ public sealed record HuntingPredictionRun(HuntingCellPrediction Record, Encounte
 /// </summary>
 public delegate Task<HuntingPredictionRun> HuntingPredictor(HuntingPredictionInput input, CancellationToken cancellationToken);
 
-public static partial class SweepCommand
+public static class SweepHunting
 {
     /// <summary>A cell seed's native trial reply, kept whether or not it resolved.</summary>
     public const string NativeTrialFile = "native_trial.json";
@@ -33,15 +33,15 @@ public static partial class SweepCommand
 
     private static readonly JsonSerializerOptions HuntingJson = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
-    private static IReadOnlyList<string> HuntingOps => [DebugGame.LabStartTool, HuntingTool];
+    internal static IReadOnlyList<string> HuntingOps => [DebugGame.LabStartTool, HuntingTool];
 
     // A cell's one predictor request on worker 1 (the scene observed natively under seed 1, which is never collected),
     // then one native encounter per seed on the shared dispatcher, which stops queued trials after the first failure.
-    private static async Task<int> SweepHuntingAsync(string cell, HuntingPredictor predictor, SweepOptions opts, string load, string[] roots,
+    internal static async Task<int> SweepHuntingAsync(string cell, HuntingPredictor predictor, SweepOptions opts, string load, string[] roots,
         TextWriter stdout, TextWriter stderr, CancellationToken ct)
     {
         var (prey, hunters, index) = HuntingCell(cell);
-        var directory = Path.Combine(opts.Output, HuntingPrefix + cell);
+        var directory = Path.Combine(opts.Output, SweepCommand.HuntingPrefix + cell);
         var start = new LabStart { Colonists = Math.Max(2, hunters) };
         await stderr.WriteLineAsync($"hunting {cell} prediction").ConfigureAwait(false);
         var predicted = await SweepSeed.WithGameAsync(
@@ -67,7 +67,7 @@ public static partial class SweepCommand
                 var error = await SweepSeed.WithGameAsync(
                     opts,
                     roots[worker],
-                    SeedDir(directory, seed),
+                    SweepCommand.SeedDir(directory, seed),
                     $"One native hunt of {cell} with revenge enabled; never a statistical pass alone.",
                     start,
                     [],
@@ -171,7 +171,7 @@ public static partial class SweepCommand
         }
     }
 
-    private static int HuntingReport(string[] args, TextWriter stdout, TextWriter stderr)
+    internal static int HuntingReport(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length != 2)
         {
@@ -194,7 +194,7 @@ public static partial class SweepCommand
         }
 
         // A seed directory of a cell that holds no trial is a trial that never resolved.
-        foreach (var cellDir in Directory.EnumerateDirectories(root, HuntingPrefix + "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+        foreach (var cellDir in Directory.EnumerateDirectories(root, SweepCommand.HuntingPrefix + "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
         {
             foreach (var seedDir in Directory.EnumerateDirectories(cellDir, "seed-*").Order(StringComparer.Ordinal))
             {

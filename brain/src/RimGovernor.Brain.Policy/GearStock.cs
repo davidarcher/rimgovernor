@@ -10,10 +10,10 @@ public sealed record GearStock
     public int Count { get; init; }
 
     /// <summary>
-    /// Reports stock over the gear floors (<see cref="DomainConstants.GearHitPointFloor"/>, Normal quality): what
+    /// Reports stock over the gear floors (<see cref="StockpileRolesConstants.GearHitPointFloor"/>, Normal quality): what
     /// the gear stores keep; the rest is sale gear or burnable waste.
     /// </summary>
-    public bool Serviceable() => HPBand >= DomainConstants.GearHitPointFloor * 10 && Quality >= 2;
+    public bool Serviceable() => HPBand >= StockpileRolesConstants.GearHitPointFloor * 10 && Quality >= 2;
 }
 
 /// <summary>The definition and stuff a stock row or need is netted under. (Go <c>gearStockKey</c>.)</summary>

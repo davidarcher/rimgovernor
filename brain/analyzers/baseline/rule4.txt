@@ -24,7 +24,7 @@ Acceptance/Lifecycle/ObservationReaders.cs|ObservationReaders.ReadLoopAsync
 Acceptance/Native/HttpNativeTransport.cs|HttpNativeTransport.ReadFailure
 Acceptance/Postmortem/Postmortems.cs|Postmortems.Collect
 Acceptance/Postmortem/Postmortems.cs|Postmortems.TryKill
-Acceptance/Postmortem/Postmortems.Store.cs|Postmortems.UnsuccessfulStages
+Acceptance/Postmortem/Postmortems.Store.cs|PostmortemStore.UnsuccessfulStages
 Acceptance/Profiling/ProfileCompareCommand.cs|ProfileCompareCommand.RunAsync
 Acceptance/Runner/CaseRunner.cs|CaseRunner.Diagnose
 Acceptance/Service/Serve.cs|ServiceProcess.AssertStoppedAsync
@@ -72,12 +72,12 @@ Host/SchedulerLoop.cs|SchedulerLoop.Run
 Host/SchedulerLoop.cs|SchedulerLoop.WaitOrWake
 HttpChannel/EndpointFile.cs|EndpointFile.Remove
 HttpChannel/HttpChannelServer.cs|HttpChannelServer.ServeAsync
-Observation/ColonyDecode.cs|ObservationPackage.DecodeColony
-Observation/ColonyProduction.cs|ObservationPackage.ProductionProductOf
-Observation/Definitions.cs|ObservationPackage.ReadDefinitionFacts
-Observation/FoodSupply.cs|ObservationPackage.DecodeFoodSupply
+Observation/ColonyDecode.cs|ColonyDecodeReads.DecodeColony
+Observation/ColonyProduction.cs|ColonyProductionReads.ProductionProductOf
+Observation/Definitions.cs|DefinitionsReads.ReadDefinitionFacts
+Observation/FoodSupply.cs|FoodSupplyReads.DecodeFoodSupply
 Observation/MealTier.cs|ColonyProjection.MealRequest
-Observation/RoundsRead.cs|ObservationPackage.FrameQuests
+Observation/RoundsRead.cs|RoundsReads.FrameQuests
 Observation/StuffChoice.cs|ColonyProjection.BulkBuildStuffExcept
 PlayerApi/PlayerRoutes.cs|PlayerRoutes.ReadControlAsync
 Policy/DefenseTiers.cs|DefenseTiersPolicy.PlanDefenseTiers
@@ -92,6 +92,6 @@ Policy/QuestCoreSite.cs|QuestCoreSite.CoreSiteJoiner
 Policy/QuestDecrees.cs|QuestDecrees.PlanDecreeProduction
 Policy/QuestMonument.cs|QuestMonument.SelectQuestMonument
 Policy/StoreMedicine.cs|StoreView.MedicineStore
-Executor/SnapshotLater.cs|SnapshotPackage.Later
+Executor/SnapshotLater.cs|SnapshotLaterReplay.Later
 Store/Core/StoreTransaction.cs|StoreTransaction.Dispose
 Telemetry/Otlp/OtlpFileWriter.cs|OtlpFileWriter.MetricLoopAsync

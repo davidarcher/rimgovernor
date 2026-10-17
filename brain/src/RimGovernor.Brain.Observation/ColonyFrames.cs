@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Observation;
 
 // The colony read's small sections: disaster, comfort, pollution, waste, blight and the medical reserve.
 
-public static partial class ObservationPackage
+public static class ColonyFramesReads
 {
     /// <summary>
     /// The frame's active game conditions, each with what its def row says (a condition the catalog has no row
@@ -10,7 +10,7 @@ public static partial class ObservationPackage
     /// </summary>
     internal static (EquatableArray<DisasterCondition> Conditions, bool Known) ColonyConditions(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
     {
-        if (HasIssue(v.Issues, "environment"))
+        if (ColonyDecodeReads.HasIssue(v.Issues, "environment"))
         {
             return ([], false);
         }
@@ -22,7 +22,7 @@ public static partial class ObservationPackage
                 Id = row.Id ?? "",
                 Definition = row.DefName ?? "",
                 Permanent = row.Permanent.GetValueOrDefault(),
-                DisablesPower = RequireCatalog(catalog).DisablesElectricity((row.DefName ?? "")),
+                DisablesPower = ColonyDecodeReads.RequireCatalog(catalog).DisablesElectricity((row.DefName ?? "")),
             };
             if (row.TicksLeft is not null && !condition.Permanent && row.TicksLeft.GetValueOrDefault() >= 0)
             {
@@ -53,7 +53,7 @@ public static partial class ObservationPackage
             facts = facts with { DisasterConditions = Known(conditions) };
         }
         facts = facts with { DisasterTick = new Tick((long)(v.Context?.Tick ?? 0)) };
-        if (v.Recovery?.Outcome?.Observed is not { } recovery || !Resolved(buildings, recovery.Buildings, r => r))
+        if (v.Recovery?.Outcome?.Observed is not { } recovery || !ColonyDecodeReads.Resolved(buildings, recovery.Buildings, r => r))
         {
             return facts;
         }
@@ -83,8 +83,8 @@ public static partial class ObservationPackage
                 Broken = Known(s.BrokenDown),
                 Forbidden = Known(row.Settings.Forbidden),
                 Burning = Known(row.Burning),
-                Fuel = Optional(s.Fuel is not null, s.Fuel.GetValueOrDefault()),
-                FuelTarget = Optional(s.TargetFuel is not null, s.TargetFuel.GetValueOrDefault()),
+                Fuel = ColonyDecodeReads.Optional(s.Fuel is not null, s.Fuel.GetValueOrDefault()),
+                FuelTarget = ColonyDecodeReads.Optional(s.TargetFuel is not null, s.TargetFuel.GetValueOrDefault()),
                 Refuelable = Known(s.Fuel is not null),
             };
             if (row.HitPoints is not null)
@@ -153,7 +153,7 @@ public static partial class ObservationPackage
             return EquatableArray.From(rows);
         }
         var r = new ComfortObservation { People = PawnIdArray(value.People), Dining = Facilities(value.Dining), Recreation = Facilities(value.Recreation) };
-        var required = RequireCatalog(catalog);
+        var required = ColonyDecodeReads.RequireCatalog(catalog);
         try
         {
             if (value.Joy is { } j)
@@ -177,7 +177,7 @@ public static partial class ObservationPackage
             var adjacent = new List<Cell>();
             foreach (var c in s.Adjacent)
             {
-                adjacent.Add(CellOf(c));
+                adjacent.Add(ColonyDecodeReads.CellOf(c));
             }
             surfaces.Add(new DiningSurface { Id = s.Id ?? "", RoomId = s.Room?.Id ?? "", Adjacent = EquatableArray.From(adjacent) });
         }
@@ -211,7 +211,7 @@ public static partial class ObservationPackage
     internal static Fact<EquatableArray<WasteItem>> ColonyWaste(O.ColonyFactsSnapshot v, Tables tables)
     {
         var snapshot = v.Waste?.Outcome;
-        if (snapshot is null || !Headed(tables, snapshot.Items, row => row.Thing))
+        if (snapshot is null || !ColonyDecodeReads.Headed(tables, snapshot.Items, row => row.Thing))
         {
             return Unknown<EquatableArray<WasteItem>>();
         }
@@ -272,7 +272,7 @@ public static partial class ObservationPackage
     public static MedicalReserveObservation ColonyMedicalReserve(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog)
     {
         var r = new MedicalReserveObservation { Colonists = Known((long)v.ColonistCount) };
-        if (!HasIssue(v.Issues, "resources"))
+        if (!ColonyDecodeReads.HasIssue(v.Issues, "resources"))
         {
             var rows = new List<Amount>();
             var known = true;
@@ -291,7 +291,7 @@ public static partial class ObservationPackage
             }
         }
         var u = v.Upkeep?.Outcome;
-        if (u is null || HasIssue(u.Issues, "items") || !Headed(tables, u.Items, item => item.Item))
+        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "items") || !ColonyDecodeReads.Headed(tables, u.Items, item => item.Item))
         {
             return r;
         }
@@ -302,7 +302,7 @@ public static partial class ObservationPackage
             bool medicine;
             try
             {
-                medicine = RequireCatalog(catalog).Medicine(tables.Entity(item.Item)?.DefName ?? "");
+                medicine = ColonyDecodeReads.RequireCatalog(catalog).Medicine(tables.Entity(item.Item)?.DefName ?? "");
             }
             catch (DomainException e)
             {
@@ -319,7 +319,7 @@ public static partial class ObservationPackage
                 Count = item.Count,
                 Forbidden = item.Forbidden,
                 Perishable = Known(item.RotTicks is not null),
-                RotTicks = Optional(item.RotTicks is not null, item.RotTicks.GetValueOrDefault()),
+                RotTicks = ColonyDecodeReads.Optional(item.RotTicks is not null, item.RotTicks.GetValueOrDefault()),
             });
         }
         return r with { Items = Known(EquatableArray.From(stacks)) };

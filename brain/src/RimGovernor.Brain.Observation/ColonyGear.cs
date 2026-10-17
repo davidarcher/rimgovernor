@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class ColonyGearReads
 {
     /// <summary>
     /// Decodes the gear census against the frame's definitions: the catalog's apparel rows and stat table give every
@@ -43,7 +43,7 @@ public static partial class ObservationPackage
         {
             Pawns = pawns,
             Stored = GearStorageFacts(gear),
-            Outfits = OutfitIds(ColonyPolicies(v.Policies)),
+            Outfits = OutfitIds(PoliciesReads.ColonyPolicies(v.Policies)),
         };
         return Known(result);
     }
@@ -93,7 +93,7 @@ public static partial class ObservationPackage
         var traits = new List<PawnTrait>();
         foreach (var t in m.Traits)
         {
-            traits.Add(ResolveTrait(catalog, new PawnTrait { Name = t.DefName, Degree = (int)t.Degree }));
+            traits.Add(RoundsWorkReads.ResolveTrait(catalog, new PawnTrait { Name = t.DefName, Degree = (int)t.Degree }));
         }
         var work = input.Role.Work with { Traits = Known(EquatableArray.From(traits)) };
         if (work.Work.TryGetValue(out var rows))
@@ -140,13 +140,13 @@ public static partial class ObservationPackage
     /// </summary>
     private static GearOption? GearLoadoutOption(O.GearLoadoutOption x, DefinitionCatalog catalog)
     {
-        var (row, apparel) = ApparelRow(catalog, (x.DefName ?? ""));
+        var (row, apparel) = GearDefinitionsReads.ApparelRow(catalog, (x.DefName ?? ""));
         if (apparel is null)
         {
             throw new DomainException($"gear option {(x.Id ?? "")}: no apparel row for def {(x.DefName ?? "")}");
         }
-        var layers = Distinct((apparel.layers ?? []).Select(l => l.defName));
-        var groups = Distinct((apparel.bodyPartGroups ?? []).Select(g => g.defName));
+        var layers = GearDefinitionsReads.Distinct((apparel.layers ?? []).Select(l => l.defName));
+        var groups = GearDefinitionsReads.Distinct((apparel.bodyPartGroups ?? []).Select(g => g.defName));
         if (!GearSlotOf(layers, groups, out var slot))
         {
             return null;
@@ -160,15 +160,15 @@ public static partial class ObservationPackage
             Slot = slot,
             Layers = layers,
             Groups = groups,
-            Source = WireParse<GearSource>(x.Source),
+            Source = ColonyDecodeReads.WireParse<GearSource>(x.Source),
             Condition = x.Condition.GetValueOrDefault(),
             WearPerDay = apparel.wearPerDay,
-            MoveSpeed = StatOffset(row, StatMoveSpeed),
+            MoveSpeed = GearDefinitionsReads.StatOffset(row, GearDefinitionsReads.StatMoveSpeed),
             Tainted = x.Tainted.GetValueOrDefault(),
             SlaveOnly = apparel.slaveApparel,
             Locked = x.Locked.GetValueOrDefault(),
-            Shield = HasShield(row),
-            Psychic = StatOffset(row, StatPsychic) < 0,
+            Shield = GearDefinitionsReads.HasShield(row),
+            Psychic = GearDefinitionsReads.StatOffset(row, GearDefinitionsReads.StatPsychic) < 0,
             Smokepop = catalog.SmokePop((x.DefName ?? "")),
         };
         if (option.Source == GearSource.Bill)
@@ -186,12 +186,12 @@ public static partial class ObservationPackage
         }
         option = option with
         {
-            Sharp = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.ArmorSharp, false),
-            Blunt = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.ArmorBlunt, false),
-            Cold = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.InsulationCold, false),
-            Heat = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.InsulationHeat, false),
-            Cost = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.MarketValue, true),
-            MaxHitPoints = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.MaxHitPoints, true),
+            Sharp = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.ArmorSharp, false),
+            Blunt = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.ArmorBlunt, false),
+            Cold = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.InsulationCold, false),
+            Heat = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.InsulationHeat, false),
+            Cost = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.MarketValue, true),
+            MaxHitPoints = GearDefinitionsReads.OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), CatalogStats.MaxHitPoints, true),
         };
         return option;
     }
@@ -288,7 +288,7 @@ public static partial class ObservationPackage
             {
                 return Unknown<EquatableArray<GearCandidate>>();
             }
-            if (ApparelRow(catalog, (head.DefName ?? "")).Apparel is null)
+            if (GearDefinitionsReads.ApparelRow(catalog, (head.DefName ?? "")).Apparel is null)
             {
                 continue;
             }
@@ -304,7 +304,7 @@ public static partial class ObservationPackage
     /// </summary>
     public static Fact<EquatableArray<GearApparel>> GearApparelFacts(O.PawnEquipment? equipment, Tables tables, DefinitionCatalog catalog)
     {
-        if (equipment is null || !Headed(tables, equipment.Apparel, item => item.Thing))
+        if (equipment is null || !ColonyDecodeReads.Headed(tables, equipment.Apparel, item => item.Thing))
         {
             return Unknown<EquatableArray<GearApparel>>();
         }
@@ -312,12 +312,12 @@ public static partial class ObservationPackage
         foreach (var item in equipment.Apparel)
         {
             var def = tables.Entity(item.Thing)?.DefName ?? "";
-            var worn = ApparelRow(catalog, def).Apparel;
+            var worn = GearDefinitionsReads.ApparelRow(catalog, def).Apparel;
             if (worn is null)
             {
                 return Unknown<EquatableArray<GearApparel>>();
             }
-            apparel.Add(new GearApparel { Definition = new Resource(def), Condition = item.ConditionFraction is not null ? item.ConditionFraction.GetValueOrDefault() : 1, Groups = Distinct((worn.bodyPartGroups ?? []).Select(g => g.defName)) });
+            apparel.Add(new GearApparel { Definition = new Resource(def), Condition = item.ConditionFraction is not null ? item.ConditionFraction.GetValueOrDefault() : 1, Groups = GearDefinitionsReads.Distinct((worn.bodyPartGroups ?? []).Select(g => g.defName)) });
         }
         return Known(EquatableArray.From(apparel));
     }
@@ -423,12 +423,12 @@ public static partial class ObservationPackage
             Role = new GearRoleInput { Child = v.Child.GetValueOrDefault(), Slave = v.Slave.GetValueOrDefault(), IncapableOfViolence = v.IncapableOfViolence.GetValueOrDefault(), DraftedSquad = v.Drafted.GetValueOrDefault() },
             Current = new ApparelPolicySpec(default, "", (v.Name ?? ""), EquatableArray.From(v.AllowedDefs), v.MinHitPoints.GetValueOrDefault(), v.MaxHitPoints.GetValueOrDefault(), (int)v.MinQuality.GetValueOrDefault(), (int)v.MaxQuality.GetValueOrDefault()),
         };
-        var wearer = WearerOf(p);
+        var wearer = GearDefinitionsReads.WearerOf(p);
         if (wearer is null || catalog is null)
         {
             return Unknown<ApparelPolicyState>();
         }
-        s = s with { Definitions = ApparelDefinitions(catalog, wearer) };
+        s = s with { Definitions = GearDefinitionsReads.ApparelDefinitions(catalog, wearer) };
         foreach (var a in p.Equipment?.Apparel ?? [])
         {
             s = s with { Overrides = s.Overrides || a.Forced || a.Locked };
@@ -436,11 +436,11 @@ public static partial class ObservationPackage
         var priorities = new List<WorkPriority>();
         foreach (var w in v.Work)
         {
-            if (WireParseOpen(w.DefName, WorkType.Unrecognized) == WorkType.Unrecognized)
+            if (ColonyDecodeReads.WireParseOpen(w.DefName, WorkType.Unrecognized) == WorkType.Unrecognized)
             {
                 continue;
             }
-            priorities.Add(new WorkPriority { Work = WireParse<WorkType>(w.DefName), Priority = (int)w.Priority, Disabled = w.Disabled });
+            priorities.Add(new WorkPriority { Work = ColonyDecodeReads.WireParse<WorkType>(w.DefName), Priority = (int)w.Priority, Disabled = w.Disabled });
         }
         var work = s.Role.Work with { Work = Known(EquatableArray.From(priorities)) };
         // An older producer omits skills; the role then splits on priorities alone.
@@ -449,7 +449,7 @@ public static partial class ObservationPackage
             var skills = new List<WorkSkill>();
             foreach (var sk in v.Skills)
             {
-                skills.Add(new WorkSkill { Learning = sk.Learning, Name = sk.DefName, Level = (int)sk.Level, Passion = SkillPassion(sk.Passion), Disabled = sk.Disabled });
+                skills.Add(new WorkSkill { Learning = sk.Learning, Name = sk.DefName, Level = (int)sk.Level, Passion = RoundsWorkReads.SkillPassion(sk.Passion), Disabled = sk.Disabled });
             }
             work = work with { Skills = Known(EquatableArray.From(skills)) };
         }
@@ -481,7 +481,7 @@ public static partial class ObservationPackage
         var output = new List<ClothingGarment>();
         foreach (var name in allowed)
         {
-            var apparel = ApparelRow(catalog, name).Apparel;
+            var apparel = GearDefinitionsReads.ApparelRow(catalog, name).Apparel;
             var groups = (apparel?.bodyPartGroups ?? []).Select(group => group.defName).ToList();
             if (!GearCoreGroups.Any(groups.Contains))
             {

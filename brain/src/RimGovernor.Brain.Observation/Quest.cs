@@ -2,7 +2,7 @@
 
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class QuestReads
 {
     // quest_capacity.go
 
@@ -53,7 +53,7 @@ public static partial class ObservationPackage
     /// <summary>Preserves the native exact exit cells from the same combat frame. No remote map selection or additional observation is performed.</summary>
     public static Fact<CombatSiteExit> CombatSiteExitOf(WorldProgressionRead? read, MapId mapId)
     {
-        if (!FrameWorldSites(read).TryGetValue(out var sites))
+        if (!WorldSitesReads.FrameWorldSites(read).TryGetValue(out var sites))
         {
             return Unknown<CombatSiteExit>();
         }
@@ -228,7 +228,7 @@ public static partial class ObservationPackage
         row = row with { HackTargets = [.. row.HackTargets, .. targets] };
         if (source.HackRisk is { } risk)
         {
-            row = row with { HackRisk = Known(new QuestHackRisk { FactionId = risk.FactionId ?? "", Hostile = Optional(risk.Hostile is not null, risk.Hostile.GetValueOrDefault()) }) };
+            row = row with { HackRisk = Known(new QuestHackRisk { FactionId = risk.FactionId ?? "", Hostile = ColonyDecodeReads.Optional(risk.Hostile is not null, risk.Hostile.GetValueOrDefault()) }) };
         }
         if (source.Gift is { } g)
         {
@@ -241,7 +241,7 @@ public static partial class ObservationPackage
             {
                 Recipient = new PawnId((g.RecipientId ?? "")),
                 Def = g.Def ?? "",
-                Remaining = Optional(g.Remaining is not null, (long)g.Remaining.GetValueOrDefault()),
+                Remaining = ColonyDecodeReads.Optional(g.Remaining is not null, (long)g.Remaining.GetValueOrDefault()),
                 Map = new MapId(g.MapId.GetValueOrDefault()),
                 PawnIds = [.. g.PawnIds.Select(id => new PawnId(id))],
                 HaulingPawnIds = [.. g.HaulingPawnIds.Select(id => new PawnId(id))],
@@ -267,11 +267,11 @@ public static partial class ObservationPackage
             {
                 Def = p.DefName ?? "",
                 Stuff = p.Stuff ?? "",
-                Offset = CellOf(p.Offset),
+                Offset = ColonyDecodeReads.CellOf(p.Offset),
                 Rotation = (Rotation)p.Rotation.GetValueOrDefault(),
-                Built = Optional(p.Built is not null, p.Built.GetValueOrDefault()),
-                Queued = Optional(p.Queued is not null, p.Queued.GetValueOrDefault()),
-                Allowed = Optional(p.Allowed is not null, p.Allowed.GetValueOrDefault()),
+                Built = ColonyDecodeReads.Optional(p.Built is not null, p.Built.GetValueOrDefault()),
+                Queued = ColonyDecodeReads.Optional(p.Queued is not null, p.Queued.GetValueOrDefault()),
+                Allowed = ColonyDecodeReads.Optional(p.Allowed is not null, p.Allowed.GetValueOrDefault()),
             });
         }
         for (var i = 0; i < m.Pieces.Count; i++)
@@ -293,7 +293,7 @@ public static partial class ObservationPackage
             {
                 return Unknown<QuestMonument>();
             }
-            pieces[i] = pieces[i] with { AllowedStuffs = allowed, BuildOptions = options, Footprint = CellsOf(p.Footprint) };
+            pieces[i] = pieces[i] with { AllowedStuffs = allowed, BuildOptions = options, Footprint = ColonyDecodeReads.CellsOf(p.Footprint) };
         }
         var resources = new List<QuestMonumentResource>(m.Resources.Count);
         foreach (var r in m.Resources)
@@ -302,8 +302,8 @@ public static partial class ObservationPackage
             {
                 Id = r.Id ?? "",
                 Def = r.DefName ?? "",
-                Cell = CellOf(r.Cell),
-                InStorage = Optional(r.InStorage is not null, r.InStorage.GetValueOrDefault()),
+                Cell = ColonyDecodeReads.CellOf(r.Cell),
+                InStorage = ColonyDecodeReads.Optional(r.InStorage is not null, r.InStorage.GetValueOrDefault()),
                 Haulers = [.. r.EligibleHaulers.Select(pawn => new PawnId(pawn))],
             });
         }
@@ -322,15 +322,15 @@ public static partial class ObservationPackage
             Marker = m.MarkerId ?? "",
             Def = m.DefName ?? "",
             Map = new MapId(m.MapId.GetValueOrDefault()),
-            Packed = Optional(m.Packed is not null, m.Packed.GetValueOrDefault()),
-            Installed = Optional(m.Installed is not null, m.Installed.GetValueOrDefault()),
-            AllDone = Optional(m.AllDone is not null, m.AllDone.GetValueOrDefault()),
+            Packed = ColonyDecodeReads.Optional(m.Packed is not null, m.Packed.GetValueOrDefault()),
+            Installed = ColonyDecodeReads.Optional(m.Installed is not null, m.Installed.GetValueOrDefault()),
+            AllDone = ColonyDecodeReads.Optional(m.AllDone is not null, m.AllDone.GetValueOrDefault()),
             DisallowedBuilding = m.DisallowedBuildingId ?? "",
-            ClearSite = Optional(m.ClearSite is not null, m.ClearSite.GetValueOrDefault()),
+            ClearSite = ColonyDecodeReads.Optional(m.ClearSite is not null, m.ClearSite.GetValueOrDefault()),
             SuppliedResources = supplied,
             AvailableResources = available,
-            Cell = m.Cell is null ? default : CellOf(m.Cell),
-            InstallCells = CellsOf(m.InstallCells),
+            Cell = m.Cell is null ? default : ColonyDecodeReads.CellOf(m.Cell),
+            InstallCells = ColonyDecodeReads.CellsOf(m.InstallCells),
             Pieces = pieces,
             Resources = resources,
         });
@@ -427,18 +427,18 @@ public static partial class ObservationPackage
                 {
                     rates[(rate.Stat ?? "")] = rate.Rate.GetValueOrDefault();
                 }
-                var row = new QuestWorkCapacity { Pawn = new PawnId((p.PawnId ?? "")), HealthyAdult = Optional(p.HealthyAdult is not null, p.HealthyAdult.GetValueOrDefault()), Rates = rates };
+                var row = new QuestWorkCapacity { Pawn = new PawnId((p.PawnId ?? "")), HealthyAdult = ColonyDecodeReads.Optional(p.HealthyAdult is not null, p.HealthyAdult.GetValueOrDefault()), Rates = rates };
                 capacity.Add(row);
                 departures.Add(new QuestDeparturePawn
                 {
                     Id = row.Pawn,
                     HealthyAdult = row.HealthyAdult,
-                    CanFight = Optional(p.CanFight is not null, p.CanFight.GetValueOrDefault()),
-                    CarryCapacity = Optional(p.CarryCapacity is not null, p.CarryCapacity.GetValueOrDefault()),
-                    CarriedMass = Optional(p.CarriedMass is not null, p.CarriedMass.GetValueOrDefault()),
-                    SocialLevel = Optional(p.SocialLevel is not null, p.SocialLevel.GetValueOrDefault()),
-                    FactionLeader = Optional(p.FactionLeader is not null, p.FactionLeader.GetValueOrDefault()),
-                    NegotiationAbility = Optional(p.NegotiationAbility is not null, p.NegotiationAbility.GetValueOrDefault()),
+                    CanFight = ColonyDecodeReads.Optional(p.CanFight is not null, p.CanFight.GetValueOrDefault()),
+                    CarryCapacity = ColonyDecodeReads.Optional(p.CarryCapacity is not null, p.CarryCapacity.GetValueOrDefault()),
+                    CarriedMass = ColonyDecodeReads.Optional(p.CarriedMass is not null, p.CarriedMass.GetValueOrDefault()),
+                    SocialLevel = ColonyDecodeReads.Optional(p.SocialLevel is not null, p.SocialLevel.GetValueOrDefault()),
+                    FactionLeader = ColonyDecodeReads.Optional(p.FactionLeader is not null, p.FactionLeader.GetValueOrDefault()),
+                    NegotiationAbility = ColonyDecodeReads.Optional(p.NegotiationAbility is not null, p.NegotiationAbility.GetValueOrDefault()),
                 });
             }
             return (Known(EquatableArray.From(capacity)), Known(EquatableArray.From(departures)));

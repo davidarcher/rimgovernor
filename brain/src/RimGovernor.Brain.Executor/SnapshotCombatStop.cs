@@ -40,7 +40,7 @@ public sealed class SnapshotCombatStop
     public bool Evidence { get; set; }
 }
 
-public static partial class SnapshotPackage
+public static class SnapshotCombatStopReplay
 {
     /// <summary>Caps a committed combat recording's stops.</summary>
     public const int CombatRecordingMaxStops = 40;
@@ -58,7 +58,7 @@ public static partial class SnapshotPackage
         {
             throw new DomainException($"combat stop at {s.Tick.Value} without a frame");
         }
-        Write(dir, "combat", $"combat-{s.Tick.Value}", new RecordedStop(s, frame));
+        SnapshotRecorder.Write(dir, "combat", $"combat-{s.Tick.Value}", new RecordedStop(s, frame));
     }
 }
 

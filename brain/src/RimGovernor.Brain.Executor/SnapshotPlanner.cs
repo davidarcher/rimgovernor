@@ -73,7 +73,7 @@ public sealed class PlannerRecorder : IDisposable
             }
             _planner.Snapshot = current;
             _planner.Tick = tick;
-            _planner.Recorded = SnapshotPackage.Provenance(current, tick);
+            _planner.Recorded = SnapshotRecorder.Provenance(current, tick);
             return _planner;
         }
     }
@@ -86,11 +86,11 @@ public sealed class PlannerRecorder : IDisposable
             return;
         }
         _disposed = true;
-        SnapshotPackage.Restore(_previous);
+        SnapshotPlannerReplay.Restore(_previous);
     }
 }
 
-public static partial class SnapshotPackage
+public static class SnapshotPlannerReplay
 {
     // The recorder rides the async flow, as Go's context value did.
     private static readonly AsyncLocal<PlannerRecorder?> Current = new();
@@ -104,7 +104,7 @@ public static partial class SnapshotPackage
     /// </summary>
     public static IDisposable StartPlanner(ConcernId goal)
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(DirEnv)))
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv)))
         {
             return NoRecording.Instance;
         }
@@ -116,7 +116,7 @@ public static partial class SnapshotPackage
     /// <summary>Writes what the step recorded (nothing when it recorded nothing).</summary>
     public static void Finish(IDisposable recording, GenerationSnapshot current, Tick tick)
     {
-        var dir = Environment.GetEnvironmentVariable(DirEnv);
+        var dir = Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv);
         if (string.IsNullOrEmpty(dir) || recording is not PlannerRecorder recorder)
         {
             return;
@@ -167,7 +167,7 @@ public static partial class SnapshotPackage
             seq = PlannerSeq.GetValueOrDefault(key) + 1;
             PlannerSeq[key] = seq;
         }
-        Write(dir, "planner", $"planner-{p.Concern.Value}-{p.Tick.Value}-{seq}", p);
+        SnapshotRecorder.Write(dir, "planner", $"planner-{p.Concern.Value}-{p.Tick.Value}-{seq}", p);
     }
 
     private static readonly object PlannerSeqLock = new();

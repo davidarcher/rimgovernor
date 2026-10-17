@@ -51,7 +51,7 @@ public sealed partial record StoreView
                 {
                     Site = new StoreSite
                     {
-                        Role = PolicyFunctions.PlannedKey(DomainConstants.MealsRolePrefix, bounds),
+                        Role = PolicyFunctions.PlannedKey(StockpileRolesConstants.MealsRolePrefix, bounds),
                         Interior = bounds,
                         Region = closet.Region,
                         Filter = StockpileFilter.MealShelfFilter(),
@@ -73,7 +73,7 @@ public sealed partial record StoreView
             Retired = meals.Retired,
             Site = new StoreSite
             {
-                Role = PolicyFunctions.PlannedKey(DomainConstants.MealsRolePrefix, meals.Dining),
+                Role = PolicyFunctions.PlannedKey(StockpileRolesConstants.MealsRolePrefix, meals.Dining),
                 Interior = meals.Dining,
                 Width = 1,
                 Height = 1,
@@ -120,7 +120,7 @@ public sealed partial record StoreView
                     {
                         Site = new StoreSite
                         {
-                            Role = PolicyFunctions.PlannedKey(DomainConstants.MealsRolePrefix, bounds),
+                            Role = PolicyFunctions.PlannedKey(StockpileRolesConstants.MealsRolePrefix, bounds),
                             Interior = bounds,
                             Width = 2,
                             Height = 2,
@@ -155,14 +155,14 @@ public sealed partial record StoreView
         var output = new List<Store>();
         (string Prefix, StockpileFilter Filter)[] shelves =
         [
-            (DomainConstants.RawMeatRolePrefix, StockpileFilter.RawMeatFilter()),
-            (DomainConstants.RawVegRolePrefix, StockpileFilter.RawVegFilter()),
-            (DomainConstants.CorpsesRolePrefix, StockpileFilter.CorpseLarderFilter()),
+            (StockpileRolesConstants.RawMeatRolePrefix, StockpileFilter.RawMeatFilter()),
+            (StockpileRolesConstants.RawVegRolePrefix, StockpileFilter.RawVegFilter()),
+            (StockpileRolesConstants.CorpsesRolePrefix, StockpileFilter.CorpseLarderFilter()),
         ];
         foreach (var shelf in shelves)
         {
             var at = anchor;
-            if (shelf.Prefix == DomainConstants.CorpsesRolePrefix)
+            if (shelf.Prefix == StockpileRolesConstants.CorpsesRolePrefix)
             {
                 // Carcasses stay by the butcher's door into the freezer.
                 var (door, hasDoor) = PolicyFunctions.ButcheryDoor(Layout);
@@ -189,7 +189,7 @@ public sealed partial record StoreView
         {
             Site = new StoreSite
             {
-                Role = PolicyFunctions.PlannedKey(DomainConstants.PerishablesRolePrefix, bounds),
+                Role = PolicyFunctions.PlannedKey(StockpileRolesConstants.PerishablesRolePrefix, bounds),
                 Interior = bounds,
                 Filter = StockpileFilter.PerishablesFilter(),
                 Priority = StockpilePriority.Preferred,

@@ -575,7 +575,7 @@ public sealed partial class Store
         );
 }
 
-internal static partial class StoreSchema
+internal static class CombatSchema
 {
     internal static readonly SchemaPart CombatFightsPart = new(
         """

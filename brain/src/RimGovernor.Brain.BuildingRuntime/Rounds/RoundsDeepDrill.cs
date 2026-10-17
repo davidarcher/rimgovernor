@@ -93,7 +93,7 @@ public sealed partial class RoundsResourcePlanner
         Identity expected;
         try
         {
-            expected = ObservationApi.DecodeIdentity(id);
+            expected = DecodeReads.DecodeIdentity(id);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

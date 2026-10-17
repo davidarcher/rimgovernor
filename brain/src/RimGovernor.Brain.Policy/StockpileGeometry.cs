@@ -24,7 +24,7 @@ public static partial class PolicyFunctions
     /// Reports a warehouse zone's role: every warehouse site is a general store, the first planned room's
     /// "general" or a further one's "general:&lt;room id&gt;".
     /// </summary>
-    internal static bool IsWarehouseRole(string role) => StockpileRolePrefix(role) == DomainConstants.GeneralRole;
+    internal static bool IsWarehouseRole(string role) => StockpileRolePrefix(role) == StockpileRolesConstants.GeneralRole;
 
     internal static string StockpileRolePrefix(string role)
     {

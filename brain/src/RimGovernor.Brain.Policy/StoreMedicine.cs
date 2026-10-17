@@ -79,7 +79,7 @@ public sealed partial record StoreView
             {
                 Site = new StoreSite
                 {
-                    Role = PolicyFunctions.PlannedKey(DomainConstants.MedicineRolePrefix, hospitalBounds),
+                    Role = PolicyFunctions.PlannedKey(StockpileRolesConstants.MedicineRolePrefix, hospitalBounds),
                     Interior = hospitalBounds,
                     Width = 2,
                     Height = 2,

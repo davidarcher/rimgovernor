@@ -3,7 +3,7 @@ using System.Text;
 
 namespace RimGovernor.Brain.Domain;
 
-public static partial class DomainConstants
+public static class PawnSettingsConstants
 {
     /// <summary>The Medicine inventory-stock group's max (vanilla InventoryStockGroupDef Medicine: 0-3).</summary>
     public const int MaxMedicineCarry = 3;
@@ -196,10 +196,10 @@ public sealed record PawnSettings : IActionPayload
         return new PawnSettings(pawn, SettingKind.FoodPolicy) { FoodPolicy = name };
     }
 
-    /// <summary>The pawn's Medicine inventory-stock count, 0 to <see cref="DomainConstants.MaxMedicineCarry"/>.</summary>
+    /// <summary>The pawn's Medicine inventory-stock count, 0 to <see cref="PawnSettingsConstants.MaxMedicineCarry"/>.</summary>
     public static PawnSettings NewMedicineCarrySetting(PawnId pawn, int count)
     {
-        DomainException.Require(pawn.IsValid && count >= 0 && count <= DomainConstants.MaxMedicineCarry, "a medicine carry setting requires a pawn and a count of 0-3");
+        DomainException.Require(pawn.IsValid && count >= 0 && count <= PawnSettingsConstants.MaxMedicineCarry, "a medicine carry setting requires a pawn and a count of 0-3");
         return new PawnSettings(pawn, SettingKind.MedicineCarry) { MedicineCarry = count };
     }
 

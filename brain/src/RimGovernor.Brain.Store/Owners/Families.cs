@@ -481,7 +481,7 @@ public sealed partial class Store
     public Task ResetRoundsAsync(CancellationToken cancellationToken) => Task.Run(() => ResetRounds(cancellationToken), cancellationToken);
 }
 
-internal static partial class StoreSchema
+internal static class FamiliesSchema
 {
     internal static readonly SchemaPart SingletonPart = new(
         """

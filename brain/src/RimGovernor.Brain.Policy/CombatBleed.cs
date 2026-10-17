@@ -97,7 +97,7 @@ public static partial class CombatBleedRules
     internal static HashSet<PawnId> SparedBleeders(CombatView view)
     {
         var output = new HashSet<PawnId>();
-        if (!view.Population.TryGetValue(out var pop) || pop >= DomainConstants.PopulationTarget)
+        if (!view.Population.TryGetValue(out var pop) || pop >= FindingConstants.PopulationTarget)
         {
             return output;
         }
@@ -135,7 +135,7 @@ public static partial class CombatBleedRules
     /// </summary>
     internal static void FinishContained(CombatView view, CombatMemory next)
     {
-        if (!view.Population.TryGetValue(out var pop) || pop >= DomainConstants.PopulationTarget)
+        if (!view.Population.TryGetValue(out var pop) || pop >= FindingConstants.PopulationTarget)
         {
             return;
         }

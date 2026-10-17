@@ -117,7 +117,7 @@ public sealed record AnomalyIncidents
     public Fact<double> ThreatFractionNow { get; init; }
 }
 
-public static partial class ObservationPackage
+public static class AnomalyColonyReads
 {
     /// <summary>The monolith rule's input: the level state of GameComponent_Anomaly and the monolith's own read; unknown without the Anomaly section.</summary>
     internal static Fact<MonolithFacts> MonolithFacts(Fact<AnomalyColony> section)
@@ -173,9 +173,9 @@ public static partial class ObservationPackage
             knowledge.Add(new KnowledgeProgress
             {
                 Category = x.Category ?? "",
-                CurrentProject = Optional(x.CurrentProject is not null, x.CurrentProject ?? ""),
-                Knowledge = Optional(x.Knowledge is not null, x.Knowledge.GetValueOrDefault()),
-                ProjectsAvailable = Optional(x.ProjectsAvailable is not null, x.ProjectsAvailable.GetValueOrDefault()),
+                CurrentProject = ColonyDecodeReads.Optional(x.CurrentProject is not null, x.CurrentProject ?? ""),
+                Knowledge = ColonyDecodeReads.Optional(x.Knowledge is not null, x.Knowledge.GetValueOrDefault()),
+                ProjectsAvailable = ColonyDecodeReads.Optional(x.ProjectsAvailable is not null, x.ProjectsAvailable.GetValueOrDefault()),
             });
         }
         var codex = new List<CodexProgress>();
@@ -191,7 +191,7 @@ public static partial class ObservationPackage
         var r = new AnomalyColony
         {
             DiscoveredEntries = [.. f.DiscoveredEntries],
-            HoldingPlatformAvailable = Optional(f.HoldingPlatformAvailable is not null, f.HoldingPlatformAvailable.GetValueOrDefault()),
+            HoldingPlatformAvailable = ColonyDecodeReads.Optional(f.HoldingPlatformAvailable is not null, f.HoldingPlatformAvailable.GetValueOrDefault()),
             Knowledge = knowledge,
             Codex = codex,
             HeldEntities = held,
@@ -202,18 +202,18 @@ public static partial class ObservationPackage
             {
                 Incidents = Known(new AnomalyIncidents
                 {
-                    MonolithSpawned = Optional(i.MonolithSpawned is not null, i.MonolithSpawned.GetValueOrDefault()),
-                    QuestlineEnded = Optional(i.QuestlineEnded is not null, i.QuestlineEnded.GetValueOrDefault()),
-                    AmbientHorrorMode = Optional(i.AmbientHorrorMode is not null, i.AmbientHorrorMode.GetValueOrDefault()),
-                    AnomalyStudyEnabled = Optional(i.AnomalyStudyEnabled is not null, i.AnomalyStudyEnabled.GetValueOrDefault()),
-                    VoidAwakeningActive = Optional(i.VoidAwakeningActive is not null, i.VoidAwakeningActive.GetValueOrDefault()),
-                    AwokenCorpseActive = Optional(i.AwokenCorpseActive is not null, i.AwokenCorpseActive.GetValueOrDefault()),
-                    MetalhorrorImplantPossible = Optional(i.MetalhorrorImplantPossible is not null, i.MetalhorrorImplantPossible.GetValueOrDefault()),
-                    LevelDef = Optional(i.LevelDef is not null, i.LevelDef ?? ""),
-                    Level = Optional(i.Level is not null, i.Level.GetValueOrDefault()),
-                    HighestLevelReached = Optional(i.HighestLevelReached is not null, i.HighestLevelReached.GetValueOrDefault()),
-                    TicksSinceLevelChange = Optional(i.TicksSinceLevelChange is not null, i.TicksSinceLevelChange.GetValueOrDefault()),
-                    ThreatFractionNow = Optional(i.AnomalyThreatFractionNow is not null, i.AnomalyThreatFractionNow.GetValueOrDefault()),
+                    MonolithSpawned = ColonyDecodeReads.Optional(i.MonolithSpawned is not null, i.MonolithSpawned.GetValueOrDefault()),
+                    QuestlineEnded = ColonyDecodeReads.Optional(i.QuestlineEnded is not null, i.QuestlineEnded.GetValueOrDefault()),
+                    AmbientHorrorMode = ColonyDecodeReads.Optional(i.AmbientHorrorMode is not null, i.AmbientHorrorMode.GetValueOrDefault()),
+                    AnomalyStudyEnabled = ColonyDecodeReads.Optional(i.AnomalyStudyEnabled is not null, i.AnomalyStudyEnabled.GetValueOrDefault()),
+                    VoidAwakeningActive = ColonyDecodeReads.Optional(i.VoidAwakeningActive is not null, i.VoidAwakeningActive.GetValueOrDefault()),
+                    AwokenCorpseActive = ColonyDecodeReads.Optional(i.AwokenCorpseActive is not null, i.AwokenCorpseActive.GetValueOrDefault()),
+                    MetalhorrorImplantPossible = ColonyDecodeReads.Optional(i.MetalhorrorImplantPossible is not null, i.MetalhorrorImplantPossible.GetValueOrDefault()),
+                    LevelDef = ColonyDecodeReads.Optional(i.LevelDef is not null, i.LevelDef ?? ""),
+                    Level = ColonyDecodeReads.Optional(i.Level is not null, i.Level.GetValueOrDefault()),
+                    HighestLevelReached = ColonyDecodeReads.Optional(i.HighestLevelReached is not null, i.HighestLevelReached.GetValueOrDefault()),
+                    TicksSinceLevelChange = ColonyDecodeReads.Optional(i.TicksSinceLevelChange is not null, i.TicksSinceLevelChange.GetValueOrDefault()),
+                    ThreatFractionNow = ColonyDecodeReads.Optional(i.AnomalyThreatFractionNow is not null, i.AnomalyThreatFractionNow.GetValueOrDefault()),
                 }),
             };
         }
@@ -223,18 +223,18 @@ public static partial class ObservationPackage
             {
                 Monolith = Known(new MonolithState
                 {
-                    CanActivate = Optional(m.CanActivate is not null, m.CanActivate.GetValueOrDefault()),
-                    NextLevelDef = Optional(m.NextLevelDef is not null, m.NextLevelDef ?? ""),
-                    NextLevelCodexCategory = Optional(m.NextLevelCodexCategory is not null, m.NextLevelCodexCategory ?? ""),
-                    NextLevelCodexRequired = Optional(m.NextLevelCodexRequired is not null, m.NextLevelCodexRequired.GetValueOrDefault()),
-                    CodexShortfall = Optional(m.CodexShortfall is not null, m.CodexShortfall.GetValueOrDefault()),
+                    CanActivate = ColonyDecodeReads.Optional(m.CanActivate is not null, m.CanActivate.GetValueOrDefault()),
+                    NextLevelDef = ColonyDecodeReads.Optional(m.NextLevelDef is not null, m.NextLevelDef ?? ""),
+                    NextLevelCodexCategory = ColonyDecodeReads.Optional(m.NextLevelCodexCategory is not null, m.NextLevelCodexCategory ?? ""),
+                    NextLevelCodexRequired = ColonyDecodeReads.Optional(m.NextLevelCodexRequired is not null, m.NextLevelCodexRequired.GetValueOrDefault()),
+                    CodexShortfall = ColonyDecodeReads.Optional(m.CodexShortfall is not null, m.CodexShortfall.GetValueOrDefault()),
                     BlockingConditions = [.. m.BlockingConditions],
-                    GleamingInteractionAvailable = Optional(m.GleamingInteractionAvailable is not null, m.GleamingInteractionAvailable.GetValueOrDefault()),
-                    VoidStructures = Optional(m.VoidStructures is not null, m.VoidStructures.GetValueOrDefault()),
-                    VoidStructuresActivated = Optional(m.VoidStructuresActivated is not null, m.VoidStructuresActivated.GetValueOrDefault()),
-                    VoidNodeExists = Optional(m.VoidNodeExists is not null, m.VoidNodeExists.GetValueOrDefault()),
-                    VoidAwakeningStage = Optional(m.VoidAwakeningStage is not null, m.VoidAwakeningStage.GetValueOrDefault()),
-                    MonolithID = Optional(m.MonolithId is not null, m.MonolithId ?? ""),
+                    GleamingInteractionAvailable = ColonyDecodeReads.Optional(m.GleamingInteractionAvailable is not null, m.GleamingInteractionAvailable.GetValueOrDefault()),
+                    VoidStructures = ColonyDecodeReads.Optional(m.VoidStructures is not null, m.VoidStructures.GetValueOrDefault()),
+                    VoidStructuresActivated = ColonyDecodeReads.Optional(m.VoidStructuresActivated is not null, m.VoidStructuresActivated.GetValueOrDefault()),
+                    VoidNodeExists = ColonyDecodeReads.Optional(m.VoidNodeExists is not null, m.VoidNodeExists.GetValueOrDefault()),
+                    VoidAwakeningStage = ColonyDecodeReads.Optional(m.VoidAwakeningStage is not null, m.VoidAwakeningStage.GetValueOrDefault()),
+                    MonolithID = ColonyDecodeReads.Optional(m.MonolithId is not null, m.MonolithId ?? ""),
                     PendingVoidStructureIDs = [.. m.PendingVoidStructureIds],
                     VoidNodeID = m.VoidNodeId ?? "",
                     VoidNodePawnIDs = [.. m.VoidNodePawnIds],

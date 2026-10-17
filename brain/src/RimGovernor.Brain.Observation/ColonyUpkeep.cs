@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class ColonyUpkeepReads
 {
     /// <summary>
     /// Decodes the upkeep censuses. A census whose frame lacks a field is unknown; one that needs a def the
@@ -15,7 +15,7 @@ public static partial class ObservationPackage
         {
             return r;
         }
-        if (!HasIssue(u.Issues, "structures"))
+        if (!ColonyDecodeReads.HasIssue(u.Issues, "structures"))
         {
             var rows = new List<UpkeepStructure>();
             var known = true;
@@ -47,7 +47,7 @@ public static partial class ObservationPackage
                 rows.Add(new UpkeepStructure
                 {
                     Id = item.Building.Id ?? "",
-                    Cell = CellOf(b.Building.Position),
+                    Cell = ColonyDecodeReads.CellOf(b.Building.Position),
                     Home = item.Home,
                     HitPoints = b.HitPoints.GetValueOrDefault(),
                     MaxHitPoints = b.MaxHitPoints.GetValueOrDefault(),
@@ -59,19 +59,19 @@ public static partial class ObservationPackage
                 r = r with { Structures = Known(EquatableArray.From(rows)) };
             }
         }
-        if (!HasIssue(u.Issues, "lighting"))
+        if (!ColonyDecodeReads.HasIssue(u.Issues, "lighting"))
         {
             r = r with { Lighting = ColonyLighting(u.Lighting, buildings, catalog) };
         }
-        if (!HasIssue(u.Issues, "routes"))
+        if (!ColonyDecodeReads.HasIssue(u.Issues, "routes"))
         {
             r = r with { Routes = ColonyRoutes(u.Routes) };
         }
-        if (!HasIssue(u.Issues, "flooring"))
+        if (!ColonyDecodeReads.HasIssue(u.Issues, "flooring"))
         {
             // The flooring census joins the routes census's traffic evidence, so a routes issue leaves flooring
             // unknown too rather than judging the traffic tier from nothing.
-            var routes = HasIssue(u.Issues, "routes") ? new O.RoutesSection() : u.Routes;
+            var routes = ColonyDecodeReads.HasIssue(u.Issues, "routes") ? new O.RoutesSection() : u.Routes;
             try
             {
                 r = r with { Flooring = ColonyFlooring(u.Flooring, routes, catalog) };
@@ -95,7 +95,7 @@ public static partial class ObservationPackage
         {
             return default;
         }
-        var terrains = RequireCatalog(catalog).FloorTerrains();
+        var terrains = ColonyDecodeReads.RequireCatalog(catalog).FloorTerrains();
         var r = new FlooringObservation { Terrains = new Dictionary<string, FloorTerrain>(terrains, StringComparer.Ordinal) };
         // The traffic tier reads the routes census's observed travel; an unknown routes census leaves the whole
         // flooring census unknown rather than silently dropping the tier. Traffic cells whose terrain the
@@ -126,7 +126,7 @@ public static partial class ObservationPackage
             var output = new FloorRoom { Id = room.Room?.Id ?? "" };
             if (room.Role is not null)
             {
-                output = output with { Role = Known(WireParseOpen(room.Role, RoomRole.Unrecognized)) };
+                output = output with { Role = Known(ColonyDecodeReads.WireParseOpen(room.Role, RoomRole.Unrecognized)) };
             }
             var cells = new List<FloorCell>();
             foreach (var cell in room.Cells)
@@ -139,7 +139,7 @@ public static partial class ObservationPackage
                 {
                     throw new ObservationContractException($"flooring cell stands on terrain {cell.Terrain}, which the catalog has no row for");
                 }
-                cells.Add(new FloorCell { Cell = CellOf(cell.Cell), Terrain = cell.Terrain, Pending = cell.Pending ?? "" });
+                cells.Add(new FloorCell { Cell = ColonyDecodeReads.CellOf(cell.Cell), Terrain = cell.Terrain, Pending = cell.Pending ?? "" });
             }
             rooms.Add(output with { Cells = [.. cells] });
         }
@@ -166,7 +166,7 @@ public static partial class ObservationPackage
         }
         foreach (var row in f.Facilities)
         {
-            var output = new RouteFacility { Id = row.Facility?.Id ?? "", Kind = WireEnums.RouteKindName(row.Kind.GetValueOrDefault()), Cell = CellOf(row.Cell) };
+            var output = new RouteFacility { Id = row.Facility?.Id ?? "", Kind = WireEnums.RouteKindName(row.Kind.GetValueOrDefault()), Cell = ColonyDecodeReads.CellOf(row.Cell) };
             if (row.Room is not null)
             {
                 output = output with { Room = Known(row.Room.Id ?? "") };
@@ -192,7 +192,7 @@ public static partial class ObservationPackage
             var breaches = new List<RouteBreach>();
             foreach (var b in row.Breaches)
             {
-                breaches.Add(new RouteBreach { Cell = CellOf(b.Cell), Edifice = b.Edifice ?? "", Pending = b.Pending ?? "", Distance = b.Distance.GetValueOrDefault() });
+                breaches.Add(new RouteBreach { Cell = ColonyDecodeReads.CellOf(b.Cell), Edifice = b.Edifice ?? "", Pending = b.Pending ?? "", Distance = b.Distance.GetValueOrDefault() });
             }
             facilities.Add(output with { Travel = [.. travels], Breaches = [.. breaches] });
         }
@@ -202,7 +202,7 @@ public static partial class ObservationPackage
             {
                 return default;
             }
-            traffic.Add(new TrafficCell { Cell = CellOf(t.Cell), Layer = layer, Samples = t.Samples.GetValueOrDefault(), Terrain = t.Terrain ?? "", Home = t.Home.GetValueOrDefault(), Pending = t.Pending ?? "" });
+            traffic.Add(new TrafficCell { Cell = ColonyDecodeReads.CellOf(t.Cell), Layer = layer, Samples = t.Samples.GetValueOrDefault(), Terrain = t.Terrain ?? "", Home = t.Home.GetValueOrDefault(), Pending = t.Pending ?? "" });
         }
         return Known(r with { Facilities = [.. facilities], Traffic = [.. traffic] });
     }
@@ -253,12 +253,12 @@ public static partial class ObservationPackage
             var sensitive = false;
             foreach (var plant in row.PlantDefs)
             {
-                sensitive = sensitive || RequireCatalog(catalog).PlantDiesToLight(plant);
+                sensitive = sensitive || ColonyDecodeReads.RequireCatalog(catalog).PlantDiesToLight(plant);
             }
             cells.Add(new WorkLightCell
             {
                 Bench = row.Bench?.Id ?? "",
-                Cell = CellOf(row.Cell),
+                Cell = ColonyDecodeReads.CellOf(row.Cell),
                 Glow = row.Glow.GetValueOrDefault(),
                 Roofed = row.Roofed.GetValueOrDefault(),
                 LightSensitive = sensitive,
@@ -272,18 +272,18 @@ public static partial class ObservationPackage
                 return default;
             }
             var reference = b.Building;
-            var radius = RequireCatalog(catalog).GlowRadius(reference.DefName)
+            var radius = ColonyDecodeReads.RequireCatalog(catalog).GlowRadius(reference.DefName)
                 ?? throw new DomainException($"lamp {reference.Id}: def {reference.DefName} has no glower comp");
             var s = b.Service;
             lamps.Add(new Lamp
             {
                 Id = reference.Id,
                 Definition = reference.DefName,
-                Cell = CellOf(reference.Position),
+                Cell = ColonyDecodeReads.CellOf(reference.Position),
                 Radius = radius,
                 Lit = row.Lit.GetValueOrDefault(),
                 SwitchedOn = Known(s.SwitchedOn),
-                OutOfFuel = Optional(s.OutOfFuel is not null, s.OutOfFuel.GetValueOrDefault()),
+                OutOfFuel = ColonyDecodeReads.Optional(s.OutOfFuel is not null, s.OutOfFuel.GetValueOrDefault()),
                 BrokenDown = Known(s.BrokenDown),
             });
         }

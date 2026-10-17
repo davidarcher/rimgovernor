@@ -26,7 +26,7 @@ public static class StoreBackup
             throw new AcceptanceException($"store snapshot: {destination} already exists");
         }
 
-        Postmortems.EnsureProvider();
+        PostmortemStore.EnsureProvider();
         try
         {
             using var from = new SqliteConnection(

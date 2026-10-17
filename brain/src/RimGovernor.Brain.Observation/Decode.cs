@@ -1,7 +1,7 @@
 using RimGovernor.Contracts.Wire.Lifecycle;
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class DecodeReads
 {
     internal static Identity ContextIdentity(C.ObservationContext? context)
     {

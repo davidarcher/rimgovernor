@@ -4,14 +4,14 @@ using System.Text.Json;
 namespace RimGovernor.Brain.Acceptance;
 
 // Go extent.go.
-public static partial class Postmortems
+public static class PostmortemExtent
 {
     /// <summary>
     /// Uses the latest successful recorded routines response, never reconstructs current safety from history alone or
     /// combines different observations: the extentEligibility view of the newest <c>service*/http-*.json</c> row whose
     /// path is /api/routines with status 200.
     /// </summary>
-    private static DigestSection ExtentEligibility(string dir)
+    internal static DigestSection ExtentEligibility(string dir)
     {
         var s = new DigestSection("colony extent") { Note = "no recorded /api/routines eligibility view" };
         var paths = new List<string>();
@@ -48,7 +48,7 @@ public static partial class Postmortems
             var regions = view.Regions;
             for (var j = 0; j < regions.Count; j++)
             {
-                if (j >= MaxLines - 1)
+                if (j >= Postmortems.MaxLines - 1)
                 {
                     s.Note = string.Create(CultureInfo.InvariantCulture, $"{regions.Count - j} more regions in recorded response");
                     break;

@@ -41,7 +41,7 @@ internal sealed record GearWearer(D.Gender Gender, D.DevelopmentalStage Stage, I
     }
 }
 
-public static partial class ObservationPackage
+public static class GearDefinitionsReads
 {
     // The StatDefs whose equipped offsets a loadout option reads from the apparel def.
     internal const string StatMoveSpeed = "MoveSpeed";
@@ -53,7 +53,7 @@ public static partial class ObservationPackage
     /// </summary>
     public static async Task<GearDefinitions> ReadGearDefinitions(object source, C.Identity id, CancellationToken cancellationToken)
     {
-        var facts = await ReadDefinitionFacts(source, id, null, cancellationToken).ConfigureAwait(false);
+        var facts = await DefinitionsReads.ReadDefinitionFacts(source, id, null, cancellationToken).ConfigureAwait(false);
         return new GearDefinitions { Catalog = facts?.Catalog, Finished = facts?.Finished ?? default };
     }
 

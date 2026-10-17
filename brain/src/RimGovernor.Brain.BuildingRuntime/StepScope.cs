@@ -11,6 +11,6 @@ internal static class StepScope
     internal static async Task<Observation.Identity> StepScopeAsync(Observation.ISource native, CancellationToken ct)
     {
         var reply = await native.TickAsync(ct).ConfigureAwait(false);
-        return ObservationApi.DecodeTick(reply);
+        return DecodeReads.DecodeTick(reply);
     }
 }

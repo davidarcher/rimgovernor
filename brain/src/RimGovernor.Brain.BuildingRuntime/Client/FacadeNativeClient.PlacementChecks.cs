@@ -10,7 +10,7 @@ public sealed partial class FacadeNativeClient
     /// group G4a): Go's <c>buildingContext</c>, <c>validCell</c> and <c>validRectangle</c>. A failed check throws what
     /// Go's <c>contract</c> returned.
     /// </summary>
-    internal static partial class PlacementReads
+    internal static class PlacementChecks
     {
         /// <summary>Whether <paramref name="check"/> passes (does not throw a contract error).</summary>
         internal static bool Passes(Action check)

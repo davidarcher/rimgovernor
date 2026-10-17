@@ -404,13 +404,13 @@ public sealed partial class RoundsTradePlanner
         var catalog = Native is Observation.IDefinitionSource definitions
             ? await definitions.DefinitionCatalogAsync(identity, call).ConfigureAwait(false)
             : null;
-        var medicalFacts = ObservationPackage.ColonyMedicalReserve(observed, tables, catalog);
+        var medicalFacts = ColonyFramesReads.ColonyMedicalReserve(observed, tables, catalog);
         medicalFacts = medicalFacts with { Catalog = items };
         var medical = Pol.PolicyFunctions.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, Reviewer.Policy.MedicalReserve);
-        var projection = ObservationPackage.DecodeColony(reply, new Observation.Identity { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map, Tick = new Tick(observed.Context?.Tick ?? 0) }, tables, catalog);
+        var projection = ColonyDecodeReads.DecodeColony(reply, new Observation.Identity { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map, Tick = new Tick(observed.Context?.Tick ?? 0) }, tables, catalog);
         projection = projection with { Facts = projection.Facts with { Items = items } };
         var zoneNative = Native as Observation.IZonesNative;
-        projection = await ObservationPackage.FillZones(zoneNative, observed.Context?.Identity ?? identity,projection.Identity, projection, call).ConfigureAwait(false);
+        projection = await ZonesReads.FillZones(zoneNative, observed.Context?.Identity ?? identity,projection.Identity, projection, call).ConfigureAwait(false);
         // The food plan reads the caravans on the census as present, the session's priced by the offers just recorded from this sheet.
         projection = projection with { Facts = projection.Facts with { Traders = Known<EquatableArray<Pol.TraderFacts>>([.. traders]) } };
         Reviewer.PlanFood(ref projection);
@@ -485,7 +485,7 @@ public sealed partial class RoundsTradePlanner
         claims.TryGetValue(out var owned);
         foreach (var z in owned)
         {
-            if (z.Role == DomainConstants.GeneralRole || z.Role.StartsWith(DomainConstants.GeneralRole + ":", StringComparison.Ordinal))
+            if (z.Role == StockpileRolesConstants.GeneralRole || z.Role.StartsWith(StockpileRolesConstants.GeneralRole + ":", StringComparison.Ordinal))
             {
                 warehouses.Add(z.Id);
             }

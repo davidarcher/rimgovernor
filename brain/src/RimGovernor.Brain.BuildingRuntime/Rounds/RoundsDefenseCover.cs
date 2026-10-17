@@ -68,7 +68,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         request = request with { Defenders = defenders };
         request = request with { MinRange = minRange };
         var layout = DefenseRecordLayout(record, killbox);
-        DefenseRecorder.RecordLayoutSnapshot(state.Snapshot, tick, new SnapshotLayout { Point = SnapshotApi.LayoutCover, Request = request, Record = record, Site = site.Cells }, call);
+        DefenseRecorder.RecordLayoutSnapshot(state.Snapshot, tick, new SnapshotLayout { Point = SnapshotLayoutReplay.LayoutCover, Request = request, Record = record, Site = site.Cells }, call);
         DefenseApproaches approaches;
         try
         {

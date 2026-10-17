@@ -34,12 +34,12 @@ public sealed record DrugPolicyEntry(
                 && Unit(OnlyIfMoodBelow)
                 && Unit(OnlyIfJoyBelow)
                 && TakeToInventory >= 0
-                && TakeToInventory <= DomainConstants.MaxDrugCarry;
+                && TakeToInventory <= DrugPolicyConstants.MaxDrugCarry;
         }
     }
 }
 
-public static partial class DomainConstants
+public static class DrugPolicyConstants
 {
     /// <summary>Bounds <see cref="DrugPolicyEntry.TakeToInventory"/>.</summary>
     public const int MaxDrugCarry = 10;

@@ -17,8 +17,8 @@ internal sealed class MilitaryOwner : IStoreOwner
         var output = new List<Store>();
         (string Role, Rectangle? Patch, StockpileFilter Filter)[] gears =
         [
-            (DomainConstants.WeaponsRole, patches.Weapons, view.Gear.Weapons),
-            (DomainConstants.ApparelRole, patches.Apparel, view.Gear.Apparel),
+            (StockpileRolesConstants.WeaponsRole, patches.Weapons, view.Gear.Weapons),
+            (StockpileRolesConstants.ApparelRole, patches.Apparel, view.Gear.Apparel),
         ];
         foreach (var (role, patch, filter) in gears)
         {

@@ -27,7 +27,7 @@ public interface ISnapshotSink
     void Record(string directory, string kind, string name, object value);
 }
 
-public static partial class SnapshotPackage
+public static class SnapshotRecorder
 {
     /// <summary>
     /// Names the directory a serve records every enabled routine review's snapshot into, one stream per serve; unset

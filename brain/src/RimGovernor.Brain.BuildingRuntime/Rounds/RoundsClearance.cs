@@ -49,7 +49,7 @@ public sealed partial class HomeUpkeepReader
         }
         var review = _reviewer.Player.Journal.LoadRounds(call);
         var identity = (await _native.IdentityAsync(call).ConfigureAwait(false));
-        var expected = ObservationApi.DecodeIdentity(identity);
+        var expected = DecodeReads.DecodeIdentity(identity);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("home upkeep: the native boundary moved");
@@ -65,7 +65,7 @@ public sealed partial class HomeUpkeepReader
             return facts;
         }
         var ground = Rounder.PlannedGround(colony.Projection);
-        var read = await ObservationApi.ObserveClearanceCensusOnGround(_native, expected, true, ground, call).ConfigureAwait(false);
+        var read = await ClearanceReads.ObserveClearanceCensusOnGround(_native, expected, true, ground, call).ConfigureAwait(false);
         if (!read.TryGetValue(out var census))
         {
             return facts;

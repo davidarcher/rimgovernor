@@ -271,7 +271,7 @@ internal static class ObservationStuff
 /// The first def named is the one stuff a set of defs built together is made from: the first def's cheapest allowed
 /// stuff, which every other def must be makeable from too (defs not made from stuff share the empty stuff).
 /// </summary>
-public static partial class ObservationPackage
+public static class StuffChoiceReads
 {
     /// <summary>The one stuff the defs share; false when they cannot share one.</summary>
     public static bool SharedStuff(PlanningDefinition first, PlanningDefinition other, out string stuff) => SharedStuff(first, [other], out stuff);

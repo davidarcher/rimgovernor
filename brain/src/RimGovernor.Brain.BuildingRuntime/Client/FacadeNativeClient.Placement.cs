@@ -57,7 +57,7 @@ public sealed partial class FacadeNativeClient
                 Stuff = b.Stuff,
                 X = b.Cell.X,
                 Z = b.Cell.Z,
-                Rotation = PlacementReads.WireRotation(b.Rotation),
+                Rotation = PlacementRequests.WireRotation(b.Rotation),
                 IgnoreNaturalRock = overRock ? true : null,
             });
         }
@@ -80,7 +80,7 @@ public sealed partial class FacadeNativeClient
                 {
                     throw Failure(rowFailure);
                 }
-                output.Add(PlacementReads.BuildingPreviewRow(actions[start + index], snapshot, new Tick(context.Tick), row.Outcome.Evaluated!));
+                output.Add(PlacementRequests.BuildingPreviewRow(actions[start + index], snapshot, new Tick(context.Tick), row.Outcome.Evaluated!));
             }
         }
         return output;
@@ -89,7 +89,7 @@ public sealed partial class FacadeNativeClient
     // Go PlacementPreviews: validates the request, makes the call and returns the batch the reply carries.
     private async Task<PbPlacement.PlacementBatch> PlacementPreviewsAsync(PbPlacement.PlacementRequest request, CancellationToken cancellationToken)
     {
-        PlacementReads.ValidatePlacementRequest(request);
+        PlacementRequests.ValidatePlacementRequest(request);
         var reply = await Facade.PreviewPlacementAsync(request, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
         {
@@ -101,7 +101,7 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go's <c>PreviewZone</c>: a planner's siting preview of one zone; native checks the ground live, so no map census token rides along.</summary>
     internal async Task<PbOperations.ZonePreviewReply> PreviewZoneAsync(PbCommon.Identity identity, ZoneCreate zone, CancellationToken cancellationToken)
     {
-        if (!PlacementReads.Passes(() => WireValidation.ValidateIdentity(identity)))
+        if (!PlacementChecks.Passes(() => WireValidation.ValidateIdentity(identity)))
         {
             throw BridgeContractException.Contract("invalid zone preview");
         }
@@ -126,7 +126,7 @@ public sealed partial class FacadeNativeClient
         var request = new PbPresentation.OverlayRequest { Identity = identity, LayerId = layerId, Enabled = enabled };
         if (enabled)
         {
-            var (shapes, labels) = PlacementReads.OverlayRequest(overlay);
+            var (shapes, labels) = PlacementRequests.OverlayRequest(overlay);
             request = request with { Shapes = [.. shapes], Labels = [.. labels] };
         }
         var reply = await Facade.ApplyOverlayAsync(request, cancellationToken).ConfigureAwait(false);
@@ -137,7 +137,7 @@ public sealed partial class FacadeNativeClient
         return reply.Outcome.Applied!;
     }
 
-    internal static partial class PlacementReads
+    internal static class PlacementRequests
     {
         /// <summary>Go's rotation table of <c>previewBuildings</c>: the cardinal rotations; anything else is unspecified and refused by the request check.</summary>
         internal static PbPlacement.Rotation WireRotation(Rotation rotation) =>

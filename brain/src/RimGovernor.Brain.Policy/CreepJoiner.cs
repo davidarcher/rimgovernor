@@ -368,7 +368,7 @@ public sealed record CreepJoinerHand
             {
                 continue;
             }
-            var part = op.PartIndex.TryGetValue(out var index) ? index : DomainConstants.NoSurgeryPart;
+            var part = op.PartIndex.TryGetValue(out var index) ? index : SurgeryConstants.NoSurgeryPart;
             if (best is null || part < bestPart)
             {
                 best = op;

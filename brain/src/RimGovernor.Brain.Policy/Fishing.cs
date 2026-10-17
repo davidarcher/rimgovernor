@@ -124,7 +124,7 @@ public static partial class PolicyFunctions
                     terms.Add(new CandidateTerm("fishing_frozen", 1));
                 }
             }
-            else if (pk && mk && population <= maximum * DomainConstants.FishingPopulationFloor)
+            else if (pk && mk && population <= maximum * ZoneCreateConstants.FishingPopulationFloor)
             {
                 // Native pauses fishing at or below the floor until the lake regrows: no catch, so the zone is not delivering meanwhile.
                 channel = WithFirstYield(channel, Known(0.0), Known(0.0));

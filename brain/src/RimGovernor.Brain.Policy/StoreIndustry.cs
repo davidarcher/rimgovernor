@@ -35,7 +35,7 @@ internal sealed class IndustryOwner : IStoreOwner
                 {
                     Site = new StoreSite
                     {
-                        Role = DomainConstants.IngredientsPrefix + input.Bench,
+                        Role = StockpileRolesConstants.IngredientsPrefix + input.Bench,
                         Exact = true,
                         Regions = PolicyFunctions.CellRects(PolicyFunctions.CellSet(room!.Cells)),
                         Width = BenchStoreSize,
@@ -63,11 +63,11 @@ internal sealed class IndustryOwner : IStoreOwner
         var output = new List<Store>();
         foreach (var z in view.Zones)
         {
-            if (!z.Role.StartsWith(DomainConstants.IngredientsPrefix, StringComparison.Ordinal))
+            if (!z.Role.StartsWith(StockpileRolesConstants.IngredientsPrefix, StringComparison.Ordinal))
             {
                 continue;
             }
-            var bench = z.Role[DomainConstants.IngredientsPrefix.Length..];
+            var bench = z.Role[StockpileRolesConstants.IngredientsPrefix.Length..];
             if (bench.Length == 0 || (standing.TryGetValue(bench, out var present) && present) || !seen.Add(z.Role))
             {
                 continue;

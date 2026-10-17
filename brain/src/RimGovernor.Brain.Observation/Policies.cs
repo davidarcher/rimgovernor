@@ -56,7 +56,7 @@ public sealed record Policies
     public IReadOnlyList<FoodEater> FoodEaters { get; init; } = [];
 }
 
-public static partial class ObservationPackage
+public static class PoliciesReads
 {
     private static List<PawnId> PawnIds(IEnumerable<string> ids)
     {
@@ -121,7 +121,7 @@ public static partial class ObservationPackage
             var traits = new List<PawnTrait>(e.Traits.Count);
             foreach (var trait in e.Traits)
             {
-                traits.Add(ResolveTrait(catalog, trait));
+                traits.Add(RoundsWorkReads.ResolveTrait(catalog, trait));
             }
             e = e with { Traits = traits };
             if (e.Animal)

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class TemperatureRoomsReads
 {
     internal static Fact<RoomObservation> TemperatureRooms(O.RoomsSnapshot rooms, IReadOnlyDictionary<string, IReadOnlyList<Cell>> cells, Fact<SleepingObservation> sleeping)
     {
@@ -37,11 +37,11 @@ public static partial class ObservationPackage
             {
                 Id = room.Id ?? "",
                 Role = RoomRoleOf(room),
-                Temperature = Optional(room.TemperatureC is not null, room.TemperatureC.GetValueOrDefault()),
+                Temperature = ColonyDecodeReads.Optional(room.TemperatureC is not null, room.TemperatureC.GetValueOrDefault()),
                 Enclosed = Known(room.ProperRoom.GetValueOrDefault() && !room.Doorway.GetValueOrDefault() && !room.Outdoors.GetValueOrDefault() && !room.PsychologicallyOutdoors.GetValueOrDefault() && !room.TouchesMapEdge.GetValueOrDefault() && room.OpenRoofCount.GetValueOrDefault() == 0),
-                Burning = Optional(room.Burning is not null, room.Burning.GetValueOrDefault()),
-                TemperatureControl = Optional(room.TemperatureControl is not null, room.TemperatureControl.GetValueOrDefault()),
-                PerishableContents = Optional(room.PerishableContents is not null, room.PerishableContents.GetValueOrDefault()),
+                Burning = ColonyDecodeReads.Optional(room.Burning is not null, room.Burning.GetValueOrDefault()),
+                TemperatureControl = ColonyDecodeReads.Optional(room.TemperatureControl is not null, room.TemperatureControl.GetValueOrDefault()),
+                PerishableContents = ColonyDecodeReads.Optional(room.PerishableContents is not null, room.PerishableContents.GetValueOrDefault()),
                 Pawns = EquatableArray.From(pawns),
                 Beds = EquatableArray.From(beds),
                 Contents = Known(EquatableArray.From(contents)),
@@ -73,5 +73,5 @@ public static partial class ObservationPackage
 
     // The native census names Room.Role by RoomRoleDef defName; a missing role is an unknown fact, never a generic room.
     private static Fact<RoomRole> RoomRoleOf(O.RoomState room) =>
-        room.Role is not null ? Known(WireParseOpen(room.Role, RoomRole.Unrecognized)) : Unknown<RoomRole>();
+        room.Role is not null ? Known(ColonyDecodeReads.WireParseOpen(room.Role, RoomRole.Unrecognized)) : Unknown<RoomRole>();
 }

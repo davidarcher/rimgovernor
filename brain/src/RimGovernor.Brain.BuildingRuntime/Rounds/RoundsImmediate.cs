@@ -94,7 +94,7 @@ public sealed partial class Rounder
             throw new ControlException("immediate review: the observed world is not the session's");
         }
 
-        var reading = await ObservationPackage.ObserveRoundsProtection(Native, Clock, expected, MaxAge, ctx).ConfigureAwait(false);
+        var reading = await RoundsReads.ObserveRoundsProtection(Native, Clock, expected, MaxAge, ctx).ConfigureAwait(false);
         PublishFrame(expected, reading.Frame);
         var handed = await p.ExpeditionHandoffAsync(state, reading, ctx, epoch).ConfigureAwait(false);
         if (handed)

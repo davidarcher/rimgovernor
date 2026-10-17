@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Observation;
 /// </summary>
 internal readonly record struct FoodDefFacts(FoodIngredientClass Class, bool RawMeat, bool Vegetable, bool Humanlike);
 
-public static partial class ObservationPackage
+public static class FoodSupplyReads
 {
     /// <summary>
     /// Joins <paramref name="v"/>'s stocks to their things table rows and to their def rows in the definition
@@ -35,9 +35,9 @@ public static partial class ObservationPackage
             {
                 corpses.Add(new CorpseHandling
                 {
-                    InStorage = Optional(row.InStorage is not null, row.InStorage.GetValueOrDefault()),
+                    InStorage = ColonyDecodeReads.Optional(row.InStorage is not null, row.InStorage.GetValueOrDefault()),
                     Id = row.StockId,
-                    Cell = CellOf(row.Cell),
+                    Cell = ColonyDecodeReads.CellOf(row.Cell),
                     Hauler = new PawnId((row.HaulerId ?? "")),
                     FrozenDestination = row.FrozenDestination,
                 });
@@ -58,8 +58,8 @@ public static partial class ObservationPackage
             consumers.Add(new FoodConsumer
             {
                 Id = new PawnId((row.PawnId ?? "")),
-                NutritionPerDay = Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
-                HumanMeatAcceptable = Optional(row.HumanMeatAcceptable is not null, row.HumanMeatAcceptable.GetValueOrDefault()),
+                NutritionPerDay = ColonyDecodeReads.Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
+                HumanMeatAcceptable = ColonyDecodeReads.Optional(row.HumanMeatAcceptable is not null, row.HumanMeatAcceptable.GetValueOrDefault()),
             });
         }
         var stocks = new List<FoodStock>();
@@ -80,18 +80,18 @@ public static partial class ObservationPackage
                 Vegetable = defFacts.Vegetable,
                 RawClass = Known(defFacts.Class),
                 Holder = Known(new PawnId(s.Holder?.Id ?? "")),
-                Nutrition = Optional(s.Nutrition is not null, s.Nutrition.GetValueOrDefault()),
+                Nutrition = ColonyDecodeReads.Optional(s.Nutrition is not null, s.Nutrition.GetValueOrDefault()),
                 Perishable = Known(row.RotTicks is not null),
-                RotTicks = Optional(row.RotTicks is not null, row.RotTicks.GetValueOrDefault()),
+                RotTicks = ColonyDecodeReads.Optional(row.RotTicks is not null, row.RotTicks.GetValueOrDefault()),
                 DefName = new Resource(def),
-                Roofed = Optional(row.Roofed is not null, row.Roofed.GetValueOrDefault()),
-                TemperatureC = Optional(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault()),
-                Room = OptionalRef(row.Room),
+                Roofed = ColonyDecodeReads.Optional(row.Roofed is not null, row.Roofed.GetValueOrDefault()),
+                TemperatureC = ColonyDecodeReads.Optional(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault()),
+                Room = ColonyDecodeReads.OptionalRef(row.Room),
             };
             stock = stock with { Count = Known(row.StackCount) };
             try
             {
-                stock = stock with { UnitMass = FiniteFact((float)catalog.StatValue(def, "", CatalogStats.Mass)) };
+                stock = stock with { UnitMass = PlanningViewReads.FiniteFact((float)catalog.StatValue(def, "", CatalogStats.Mass)) };
             }
             catch (DomainException)
             {
@@ -110,9 +110,9 @@ public static partial class ObservationPackage
             stock = stock with
             {
                 Forbidden = Known(row.Forbidden),
-                MeatAmount = Optional(row.MeatAmount is not null, row.MeatAmount.GetValueOrDefault()),
-                BodySize = Optional(row.BodySize is not null, row.BodySize.GetValueOrDefault()),
-                TileFootprint = Optional(row.TileFootprint is not null, (long)row.TileFootprint.GetValueOrDefault()),
+                MeatAmount = ColonyDecodeReads.Optional(row.MeatAmount is not null, row.MeatAmount.GetValueOrDefault()),
+                BodySize = ColonyDecodeReads.Optional(row.BodySize is not null, row.BodySize.GetValueOrDefault()),
+                TileFootprint = ColonyDecodeReads.Optional(row.TileFootprint is not null, (long)row.TileFootprint.GetValueOrDefault()),
             };
             if (barred && !stock.IsHumanMeat)
             {

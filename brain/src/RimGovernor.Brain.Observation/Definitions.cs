@@ -48,7 +48,7 @@ internal sealed class DefinitionFacts
         PlanningDefinition? view;
         try
         {
-            view = PlanningView(Catalog, name);
+            view = PlanningViewReads.PlanningView(Catalog, name);
         }
         catch (DomainException e)
         {
@@ -76,15 +76,15 @@ internal sealed class DefinitionFacts
         {
             d = d with
             {
-                NutritionDemandPerDay = Optional(crop.NutritionDemandPerDay is not null, crop.NutritionDemandPerDay.GetValueOrDefault()),
-                DietAllowed = Optional(crop.DietAllowed is not null, crop.DietAllowed.GetValueOrDefault()),
+                NutritionDemandPerDay = ColonyDecodeReads.Optional(crop.NutritionDemandPerDay is not null, crop.NutritionDemandPerDay.GetValueOrDefault()),
+                DietAllowed = ColonyDecodeReads.Optional(crop.DietAllowed is not null, crop.DietAllowed.GetValueOrDefault()),
             };
         }
         return d;
     }
 }
 
-public static partial class ObservationPackage
+public static class DefinitionsReads
 {
     /// <summary>The planning definitions every planning read resolves from the definition catalog; a read names any other it needs.</summary>
     public static readonly IReadOnlyList<string> StarterDefinitions =
@@ -127,9 +127,9 @@ public static partial class ObservationPackage
         return new DefinitionFacts { Catalog = catalog, Finished = finished, Crops = CropRows(planning) };
     }
 
-    private static Fact<IReadOnlySet<string>> FinishedSet(IEnumerable<string> names) => Known<IReadOnlySet<string>>(new HashSet<string>(names, StringComparer.Ordinal));
+    internal static Fact<IReadOnlySet<string>> FinishedSet(IEnumerable<string> names) => Known<IReadOnlySet<string>>(new HashSet<string>(names, StringComparer.Ordinal));
 
-    private static Dictionary<string, O.EdibleCrop> CropRows(O.PlanningFacts? planning)
+    internal static Dictionary<string, O.EdibleCrop> CropRows(O.PlanningFacts? planning)
     {
         var rows = new Dictionary<string, O.EdibleCrop>(StringComparer.Ordinal);
         if (planning is not null)

@@ -4,11 +4,11 @@ internal static class RoundsGear
 {
     internal static (GearObservation Observation, bool Known) GearObservationFacts(O.ColonyFactsSnapshot observed, Tables tables, GearDefinitions defs)
     {
-        var fact = ObservationPackage.GearFacts(observed, tables, defs);
+        var fact = ColonyGearReads.GearFacts(observed, tables, defs);
         return (fact.ValueOrDefault!, fact.IsKnown);
     }
 
-    internal static async Task<GearDefinitions> GearDefinitionsOfAsync(object source, C.Identity identity, CancellationToken call) => await ObservationPackage.ReadGearDefinitions(source, identity, call).ConfigureAwait(false);
+    internal static async Task<GearDefinitions> GearDefinitionsOfAsync(object source, C.Identity identity, CancellationToken call) => await GearDefinitionsReads.ReadGearDefinitions(source, identity, call).ConfigureAwait(false);
 
     internal static async Task<Things> FrameThingsOfAsync(object native, C.Identity identity, CancellationToken ct) =>
         native is FacadeNativeClient source ? await source.FrameThingsAsync(identity, ct).ConfigureAwait(false) : new Things();

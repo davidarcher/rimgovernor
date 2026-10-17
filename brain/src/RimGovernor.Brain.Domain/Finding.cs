@@ -33,7 +33,7 @@ public static class FindingExtensions
     public static Finding Finding(this Situation s) => (Finding)(int)s;
 }
 
-public static partial class DomainConstants
+public static class FindingConstants
 {
     /// <summary>
     /// The bot's own colony size target. The colony grows toward it only as fast as policy.JoinerCapacity's bed

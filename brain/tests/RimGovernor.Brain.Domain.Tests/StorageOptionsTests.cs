@@ -74,13 +74,13 @@ public sealed class StorageOptionsTests
             Cells = cells,
             Zones =
             [
-                new StockpileZone { Id = "Zone_w", Role = DomainConstants.GeneralRole, Cells = zone, Filter = StockpileFilter.GeneralFilter(), Capacity = Known(6), Used = Known(6) },
-                new StockpileZone { Id = "Zone_y", Role = DomainConstants.YardRole, Cells = RectCells(Yard), Filter = StockpileFilter.YardFilter(), Capacity = Known(12), Used = Known(3) },
+                new StockpileZone { Id = "Zone_w", Role = StockpileRolesConstants.GeneralRole, Cells = zone, Filter = StockpileFilter.GeneralFilter(), Capacity = Known(6), Used = Known(6) },
+                new StockpileZone { Id = "Zone_y", Role = StockpileRolesConstants.YardRole, Cells = RectCells(Yard), Filter = StockpileFilter.YardFilter(), Capacity = Known(12), Used = Known(3) },
             ],
             Stores =
             [
-                new Policy.Store { Site = new StoreSite { Role = DomainConstants.GeneralRole, Interior = Warehouse, Filter = StockpileFilter.GeneralFilter() } },
-                new Policy.Store { Site = new StoreSite { Role = DomainConstants.YardRole, Interior = Yard, Filter = StockpileFilter.YardFilter() } },
+                new Policy.Store { Site = new StoreSite { Role = StockpileRolesConstants.GeneralRole, Interior = Warehouse, Filter = StockpileFilter.GeneralFilter() } },
+                new Policy.Store { Site = new StoreSite { Role = StockpileRolesConstants.YardRole, Interior = Yard, Filter = StockpileFilter.YardFilter() } },
             ],
             Walkways = Known(EquatableArray.From(new List<Cell>())),
             ShelfStacks = Known(6),
@@ -109,7 +109,7 @@ public sealed class StorageOptionsTests
     [Fact]
     public void AShelfIsPricedFromItsStuffRowAndSavesOnlyTheDeterioratingStacksItCanHold()
     {
-        var warehouse = Store(Report(Request()), DomainConstants.GeneralRole);
+        var warehouse = Store(Report(Request()), StockpileRolesConstants.GeneralRole);
         var shelf = warehouse.Options.First(o => o.Kind == StorageOptionKind.Shelf);
 
         Assert.Equal("Zone_w", shelf.Zone);
@@ -128,7 +128,7 @@ public sealed class StorageOptionsTests
     [Fact]
     public void ZoneGrowthTakesTheOpenFootprintAtNoCostWithTheHorizonForLeadTime()
     {
-        var warehouse = Store(Report(Request()), DomainConstants.GeneralRole);
+        var warehouse = Store(Report(Request()), StockpileRolesConstants.GeneralRole);
         var growth = Assert.Single(warehouse.Options, o => o.Kind == StorageOptionKind.ZoneGrowth);
 
         Assert.Equal("Zone_w", growth.Zone);
@@ -145,7 +145,7 @@ public sealed class StorageOptionsTests
     [Fact]
     public void ASuccessorRoomIsPricedFromThePlanAndItsUnknownWorkLeavesTheLeadTimeUnknown()
     {
-        var warehouse = Store(Report(Request()), DomainConstants.GeneralRole);
+        var warehouse = Store(Report(Request()), StockpileRolesConstants.GeneralRole);
         var room = Assert.Single(warehouse.Options, o => o.Kind == StorageOptionKind.SuccessorRoom);
 
         Assert.Equal(7, room.Room);
@@ -162,7 +162,7 @@ public sealed class StorageOptionsTests
     {
         var request = Request();
         var rooms = request.StoreRooms.Value.Select(r => r.Room == 7 ? r with { Work = Known(3000.0), RoofOwed = true } : r).ToList();
-        var room = Assert.Single(Store(Report(request with { StoreRooms = Known<IReadOnlyList<PlannedStoreRoom>>(rooms) }), DomainConstants.GeneralRole).Options,
+        var room = Assert.Single(Store(Report(request with { StoreRooms = Known<IReadOnlyList<PlannedStoreRoom>>(rooms) }), StockpileRolesConstants.GeneralRole).Options,
             o => o.Kind == StorageOptionKind.SuccessorRoom);
 
         Assert.Equal(Known(3000.0), room.WorkTicks);
@@ -175,7 +175,7 @@ public sealed class StorageOptionsTests
     public void AFurtherYardBuildsNothingAndALeftUnsizedRoomIsUnknown()
     {
         var report = Report(Request());
-        var yard = Assert.Single(Store(report, DomainConstants.YardRole).Options, o => o.Kind == StorageOptionKind.FurtherRoom);
+        var yard = Assert.Single(Store(report, StockpileRolesConstants.YardRole).Options, o => o.Kind == StorageOptionKind.FurtherRoom);
 
         Assert.Equal(8, yard.Room);
         Assert.Empty(yard.Material.ValueOrDefault!);
@@ -183,7 +183,7 @@ public sealed class StorageOptionsTests
         Assert.Equal(Known(6), yard.Stacks);
         Assert.Equal(Known(0.0), yard.DeteriorationAvoided);
 
-        var unsized = Assert.Single(Store(Report(Request() with { StoreRooms = Known<IReadOnlyList<PlannedStoreRoom>>([]) }), DomainConstants.GeneralRole).Options, o => o.Kind == StorageOptionKind.SuccessorRoom);
+        var unsized = Assert.Single(Store(Report(Request() with { StoreRooms = Known<IReadOnlyList<PlannedStoreRoom>>([]) }), StockpileRolesConstants.GeneralRole).Options, o => o.Kind == StorageOptionKind.SuccessorRoom);
         Assert.Equal([FindingRoomUnsized], unsized.Findings);
         Assert.False(unsized.Material.IsKnown);
         Assert.False(unsized.Stacks.IsKnown);
@@ -194,13 +194,13 @@ public sealed class StorageOptionsTests
     public void UnknownShelfWorkLeavesTheLeadTimeUnknownWithAFinding()
     {
         var request = Request() with { ShelfCost = Known(new StorageBuildCost { Stuff = Wood.Value, Costs = [new Amount(Wood, 25)] }) };
-        var shelf = Store(Report(request), DomainConstants.GeneralRole).Options.First(o => o.Kind == StorageOptionKind.Shelf);
+        var shelf = Store(Report(request), StockpileRolesConstants.GeneralRole).Options.First(o => o.Kind == StorageOptionKind.Shelf);
 
         Assert.True(shelf.Material.IsKnown);
         Assert.False(shelf.LeadDays.IsKnown);
         Assert.Equal([FindingWorkUnknown], shelf.Findings);
 
-        var priced = Store(Report(Request() with { ShelfCost = Unknown<StorageBuildCost>() }), DomainConstants.GeneralRole).Options.First(o => o.Kind == StorageOptionKind.Shelf);
+        var priced = Store(Report(Request() with { ShelfCost = Unknown<StorageBuildCost>() }), StockpileRolesConstants.GeneralRole).Options.First(o => o.Kind == StorageOptionKind.Shelf);
         Assert.False(priced.Material.IsKnown);
         Assert.Contains(FindingShelfCostUnknown, priced.Findings);
     }
@@ -208,11 +208,11 @@ public sealed class StorageOptionsTests
     [Fact]
     public void DeteriorationIsUnknownNeverZeroWhenARateOrTheCensusIsUnknown()
     {
-        var noRate = Store(Report(Request() with { Items = Items(clothRate: false) }), DomainConstants.GeneralRole);
+        var noRate = Store(Report(Request() with { Items = Items(clothRate: false) }), StockpileRolesConstants.GeneralRole);
         Assert.All(noRate.Options, o => Assert.False(o.DeteriorationAvoided.IsKnown));
         Assert.Contains(FindingDeteriorationUnknown, noRate.Options.First(o => o.Kind == StorageOptionKind.Shelf).Findings);
 
-        var noCensus = Store(Report(Request() with { Loot = Unknown<EquatableArray<LootItem>>() }), DomainConstants.GeneralRole);
+        var noCensus = Store(Report(Request() with { Loot = Unknown<EquatableArray<LootItem>>() }), StockpileRolesConstants.GeneralRole);
         Assert.All(noCensus.Options, o => Assert.False(o.DeteriorationAvoided.IsKnown));
     }
 

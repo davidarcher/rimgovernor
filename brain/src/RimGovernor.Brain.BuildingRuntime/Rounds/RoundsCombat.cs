@@ -429,14 +429,14 @@ partial class RoundsDefensePlanner
 
     internal static void RecordCombatStop(BridgeCombat combat, SnapshotCombatStop s, CancellationToken ct)
     {
-        var dir = Environment.GetEnvironmentVariable(SnapshotApi.DirEnv);
+        var dir = Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv);
         if (string.IsNullOrEmpty(dir))
         {
             return;
         }
         try
         {
-            SnapshotApi.RecordCombatStop(dir, combat.Frame, s);
+            SnapshotCombatStopReplay.RecordCombatStop(dir, combat.Frame, s);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

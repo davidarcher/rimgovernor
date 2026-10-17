@@ -1,11 +1,11 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class SleepingUpkeepReads
 {
     internal static Fact<SleepingObservation> ColonySleeping(O.ColonyFactsSnapshot v, Buildings buildings, DefinitionCatalog? catalog)
     {
         var u = v.Upkeep?.Outcome;
-        if (u is null || HasIssue(u.Issues, "people") || HasIssue(u.Issues, "beds"))
+        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "people") || ColonyDecodeReads.HasIssue(u.Issues, "beds"))
         {
             return Unknown<SleepingObservation>();
         }
@@ -26,16 +26,16 @@ public static partial class ObservationPackage
                 RoyalTitle? title = null;
                 if (p.RoyalTitle is not null)
                 {
-                    title = RequireCatalog(catalog).RoyalTitleOf((p.RoyalTitle ?? ""), p.Ascetic.GetValueOrDefault(), p.Precepts);
+                    title = ColonyDecodeReads.RequireCatalog(catalog).RoyalTitleOf((p.RoyalTitle ?? ""), p.Ascetic.GetValueOrDefault(), p.Precepts);
                 }
                 output.Add(new SleepingPerson
                 {
                     Id = new PawnId(p.Pawn?.Id ?? ""),
                     OwnedBed = Known(p.OwnedBed?.Id ?? ""),
-                    ComfortableMin = Optional(p.ComfortableMinC is not null, p.ComfortableMinC.GetValueOrDefault()),
-                    ComfortableMax = Optional(p.ComfortableMaxC is not null, p.ComfortableMaxC.GetValueOrDefault()),
+                    ComfortableMin = ColonyDecodeReads.Optional(p.ComfortableMinC is not null, p.ComfortableMinC.GetValueOrDefault()),
+                    ComfortableMax = ColonyDecodeReads.Optional(p.ComfortableMaxC is not null, p.ComfortableMaxC.GetValueOrDefault()),
                     Partners = Ids(FactHelpers.RefIds(p.Partners)),
-                    BedSharingAllowed = Optional(p.BedSharingAllowed is not null, p.BedSharingAllowed.GetValueOrDefault()),
+                    BedSharingAllowed = ColonyDecodeReads.Optional(p.BedSharingAllowed is not null, p.BedSharingAllowed.GetValueOrDefault()),
                     Title = title,
                 });
             }
@@ -84,14 +84,14 @@ public static partial class ObservationPackage
                 Slaves = b.ForSlaves,
                 Roofed = b.Roofed,
                 RestEffectiveness = (float)rest,
-                Temperature = Optional(b.TemperatureC is not null, b.TemperatureC.GetValueOrDefault()),
+                Temperature = ColonyDecodeReads.Optional(b.TemperatureC is not null, b.TemperatureC.GetValueOrDefault()),
                 Owners = Ids(FactHelpers.RefIds(b.Owners)),
                 Users = Ids(FactHelpers.RefIds(b.Users)),
                 AccessibleTo = Ids(FactHelpers.RefIds(b.AccessibleTo)),
-                Room = OptionalRef(b.Room),
-                Quality = Optional(b.Quality is not null, (int)b.Quality.GetValueOrDefault()),
-                Stuff = Optional(b.Stuff is not null, b.Stuff ?? ""),
-                Cell = CellOf(head.Position),
+                Room = ColonyDecodeReads.OptionalRef(b.Room),
+                Quality = ColonyDecodeReads.Optional(b.Quality is not null, (int)b.Quality.GetValueOrDefault()),
+                Stuff = ColonyDecodeReads.Optional(b.Stuff is not null, b.Stuff ?? ""),
+                Cell = ColonyDecodeReads.CellOf(head.Position),
             });
         }
         return Known(r with { Beds = EquatableArray.From(beds) });
@@ -132,11 +132,11 @@ public static partial class ObservationPackage
             }
             var cells = r.CellCount is not null ? Known((int)r.CellCount.GetValueOrDefault()) : Unknown<int>();
             var quality = Unknown<RoomQuality>();
-            var sk = RoomStat(r, "Space").TryGetValue(out var s);
-            var bk = RoomStat(r, "Beauty").TryGetValue(out var b);
-            var ck = RoomStat(r, "Cleanliness").TryGetValue(out var c);
-            var wk = RoomStat(r, "Wealth").TryGetValue(out var w);
-            var ik = RoomStat(r, "Impressiveness").TryGetValue(out var i);
+            var sk = TemperatureRoomsReads.RoomStat(r, "Space").TryGetValue(out var s);
+            var bk = TemperatureRoomsReads.RoomStat(r, "Beauty").TryGetValue(out var b);
+            var ck = TemperatureRoomsReads.RoomStat(r, "Cleanliness").TryGetValue(out var c);
+            var wk = TemperatureRoomsReads.RoomStat(r, "Wealth").TryGetValue(out var w);
+            var ik = TemperatureRoomsReads.RoomStat(r, "Impressiveness").TryGetValue(out var i);
             if (sk && bk && ck && wk && ik)
             {
                 quality = Known(new RoomQuality(s, b, c, w, i));

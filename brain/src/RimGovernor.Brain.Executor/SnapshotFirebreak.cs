@@ -60,7 +60,7 @@ public readonly record struct FirebreakGroundCell(Cell Cell, Fact<FirebreakGroun
 
 public readonly record struct FirebreakDwell(Cell Cell, Tick Since);
 
-public static partial class SnapshotPackage
+public static class SnapshotFirebreakReplay
 {
     /// <summary>Records request, dwell and the census over the plan.</summary>
     public static SnapshotFirebreak NewFirebreak(FirebreakRequest request, IReadOnlyDictionary<Cell, Tick> dwell, IEnumerable<Cell> standing, IEnumerable<Cell> open)
@@ -84,5 +84,5 @@ public static partial class SnapshotPackage
     }
 
     /// <summary>Writes f into dir as firebreak-&lt;tick&gt;.</summary>
-    public static void RecordFirebreak(string dir, SnapshotFirebreak f) => Write(dir, "firebreak", $"firebreak-{f.Tick.Value}", f);
+    public static void RecordFirebreak(string dir, SnapshotFirebreak f) => SnapshotRecorder.Write(dir, "firebreak", $"firebreak-{f.Tick.Value}", f);
 }

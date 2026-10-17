@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Domain;
 
-public static partial class DomainConstants
+public static class SurgeryConstants
 {
     /// <summary>The part index of a whole-body recipe.</summary>
     public const int NoSurgeryPart = -1;
@@ -10,7 +10,7 @@ public static partial class DomainConstants
 /// Queues one medical operation bill on one patient: a medical ProductionBillIntent on Actions/Apply. Native
 /// re-checks the patient, recipe and part live; native doctor jobs choose the surgeon. Applied means queued.
 /// Carries the patient, the recipe defName, the body part index in the race body's AllParts
-/// (<see cref="DomainConstants.NoSurgeryPart"/> for a whole-body recipe) and whether the planner accepted that
+/// (<see cref="SurgeryConstants.NoSurgeryPart"/> for a whole-body recipe) and whether the planner accepted that
 /// the recipe is a violation on the patient (organ harvest). Surgeon, when set, restricts the bill to that
 /// colonist; null keeps vanilla's choice.
 /// </summary>
@@ -19,7 +19,7 @@ public sealed record Surgery : IActionPayload
     public Surgery(PawnId pawn, string recipe, int part, bool acknowledgeViolation)
     {
         DomainException.Require(
-            pawn.IsValid && Identity.IsValidText(recipe) && part >= DomainConstants.NoSurgeryPart,
+            pawn.IsValid && Identity.IsValidText(recipe) && part >= SurgeryConstants.NoSurgeryPart,
             "surgery requires a patient, a recipe and a whole-body or exact part index"
         );
         Pawn = pawn;

@@ -54,7 +54,7 @@ public sealed record SustainedMetrics
     }
 }
 
-public static partial class SustainedFood
+public static class SustainedMetricsDerivation
 {
     /// <summary>
     /// Computes <see cref="SustainedMetrics"/> from a Watch's returned timeline. It never errors: an empty timeline

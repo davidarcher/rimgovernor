@@ -116,7 +116,7 @@ public sealed partial class RoundsHospitalPlanner
 
         var started = Reviewer.Clock.Now();
         var identity = await Native.IdentityAsync(call).ConfigureAwait(false);
-        var expected = ObservationPackage.DecodeIdentity(identity);
+        var expected = DecodeReads.DecodeIdentity(identity);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");

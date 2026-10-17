@@ -194,7 +194,7 @@ public sealed partial class Store
     public Task<PlanState> EnsureRootPlanAsync(World w, CancellationToken cancellationToken) => Task.Run(() => EnsureRootPlan(w, cancellationToken), cancellationToken);
 }
 
-internal static partial class StoreSchema
+internal static class ControlSchema
 {
     internal static readonly SchemaPart ControlPart = new(
         "CREATE TABLE control_intents(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, phase TEXT NOT NULL, native_generation TEXT NOT NULL) STRICT;",

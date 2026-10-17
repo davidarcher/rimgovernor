@@ -96,7 +96,7 @@ public sealed partial class FacadeNativeClient
         }
         if (v.Zones is not null)
         {
-            output = output with { Zones = PlacementReads.DecodeZones(v.Zones) };
+            output = output with { Zones = BuildingDecode.DecodeZones(v.Zones) };
         }
         return output;
     }

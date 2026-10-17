@@ -61,7 +61,7 @@ internal sealed partial class SweepJsonContext : JsonSerializerContext
 /// summary). The report prints deaths and downs first; <c>-against</c> pairs the seeds with an earlier sweep and the exit
 /// code is 1 on a survival regression. <c>hunting-grid-&lt;cell&gt;</c> collects the hunting qualification instead.
 /// </summary>
-public static partial class SweepCommand
+public static class SweepCommand
 {
     /// <summary>The seed count a baseline sweep records (seeds 1..N).</summary>
     public const int BaselineSeeds = 20;
@@ -92,7 +92,7 @@ public static partial class SweepCommand
           acceptance sweep -hunting-report <output-dir> <report.json>
         """;
 
-    private const string HuntingPrefix = "hunting-grid-";
+    internal const string HuntingPrefix = "hunting-grid-";
 
     /// <summary>
     /// Runs the subcommand with the arguments after <c>sweep</c>; returns the process exit code (2 refused, 1 a failed seed
@@ -110,7 +110,7 @@ public static partial class SweepCommand
         ArgumentNullException.ThrowIfNull(stderr);
         if (args.Count > 0 && args[0] == "-hunting-report")
         {
-            return HuntingReport([.. args.Skip(1)], stdout, stderr);
+            return SweepHunting.HuntingReport([.. args.Skip(1)], stdout, stderr);
         }
 
         SweepOptions opts;
@@ -141,7 +141,7 @@ public static partial class SweepCommand
                     return 2;
                 }
 
-                ops.AddRange(HuntingOps);
+                ops.AddRange(SweepHunting.HuntingOps);
             }
             else
             {
@@ -186,7 +186,7 @@ public static partial class SweepCommand
             {
                 if (f.StartsWith(HuntingPrefix, StringComparison.Ordinal))
                 {
-                    var huntingExit = await SweepHuntingAsync(f[HuntingPrefix.Length..], predictor!, opts, load, roots, stdout, stderr, cancellationToken).ConfigureAwait(false);
+                    var huntingExit = await SweepHunting.SweepHuntingAsync(f[HuntingPrefix.Length..], predictor!, opts, load, roots, stdout, stderr, cancellationToken).ConfigureAwait(false);
                     exit = Math.Max(exit, huntingExit);
                     if (huntingExit != 0)
                     {
@@ -431,7 +431,7 @@ public static partial class SweepCommand
         return seeds;
     }
 
-    private static string SeedDir(string dir, int seed) => Path.Combine(dir, string.Create(CultureInfo.InvariantCulture, $"seed-{seed}"));
+    internal static string SeedDir(string dir, int seed) => Path.Combine(dir, string.Create(CultureInfo.InvariantCulture, $"seed-{seed}"));
 
     private static async Task<int> SweepFixtureAsync(
         string fixture,

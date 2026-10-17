@@ -37,7 +37,7 @@ public static partial class PolicyFunctions
     /// cells needed = ceil(deficit / UnitsPerCell). Unlike food it never plants on a guess: unknown season,
     /// darkness or crop facts refuse. Candidates are ranked by yield per day over the needed cells. A tree
     /// species (<c>IsTreeCrop</c>) is planned on the native lattice, one tree per
-    /// <see cref="DomainConstants.TreeCellsPerTree"/> cells. Null when no field is planned.
+    /// <see cref="ZoneCreateConstants.TreeCellsPerTree"/> cells. Null when no field is planned.
     /// </summary>
     public static FieldPlan? PlanFieldByResource(ResourceFieldRequest r)
     {
@@ -128,7 +128,7 @@ public static partial class PolicyFunctions
         var days = plan.Crop.GrowDays.ValueOrDefault;
         var sow = plan.Crop.SowWork.ValueOrDefault;
         var fell = plan.Crop.HarvestWork.ValueOrDefault;
-        var trees = plan.Sites.Cells / DomainConstants.TreeCellsPerTree;
+        var trees = plan.Sites.Cells / ZoneCreateConstants.TreeCellsPerTree;
         if (!ok || trees <= 0)
         {
             return null;
@@ -138,9 +138,9 @@ public static partial class PolicyFunctions
             ResourceFieldPrefix + plan.Crop.Name,
             new FieldHarvest
             {
-                Cells = (long)trees * DomainConstants.TreeCellsPerTree,
+                Cells = (long)trees * ZoneCreateConstants.TreeCellsPerTree,
                 GrowDays = days * fraction,
-                UnitsPerCell = wood / DomainConstants.TreeCellsPerTree,
+                UnitsPerCell = wood / ZoneCreateConstants.TreeCellsPerTree,
                 SetupTicks = trees * sow,
                 WorkPerDay = fell * trees / (days * fraction),
             }
@@ -160,7 +160,7 @@ public static partial class PolicyFunctions
         if (IsTreeCrop(crop) && hk && harvests == resource && nk)
         {
             var (_, wood, _, ok) = TreePricing(crop);
-            return ok ? wood * (n / (uint)DomainConstants.TreeCellsPerTree) : 0;
+            return ok ? wood * (n / (uint)ZoneCreateConstants.TreeCellsPerTree) : 0;
         }
         if (!hk || !uk || !nk || harvests != resource || !FieldPositive(units))
         {
@@ -211,7 +211,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Sizes a tree plantation for deficit units: whole lattice trees of the wood one gives at the fell point,
-    /// <see cref="DomainConstants.TreeCellsPerTree"/> cells each.
+    /// <see cref="ZoneCreateConstants.TreeCellsPerTree"/> cells each.
     /// </summary>
     private static (ViableCrop Crop, string Reason) TreeViable(CropChoice crop, double deficit, ResourceFieldRequest r)
     {
@@ -236,8 +236,8 @@ public static partial class PolicyFunctions
             {
                 Crop = crop,
                 Days = days,
-                Needed = trees * DomainConstants.TreeCellsPerTree,
-                Units = wood / DomainConstants.TreeCellsPerTree,
+                Needed = trees * ZoneCreateConstants.TreeCellsPerTree,
+                Units = wood / ZoneCreateConstants.TreeCellsPerTree,
                 Price = price,
             },
             ""

@@ -35,11 +35,11 @@ public sealed class GearZonesTests
 
         // The warehouse leaves both patches out, and the declared gear zones stand on exactly them.
         var declared = DeclareStores(View(plan));
-        var warehouse = Assert.Single(declared.Stores, s => s.Role == DomainConstants.GeneralRole);
+        var warehouse = Assert.Single(declared.Stores, s => s.Role == StockpileRolesConstants.GeneralRole);
         Assert.Equal(18, warehouse.Site.Avoid.Count);
-        var gear = Assert.Single(declared.Stores, s => s.Role == DomainConstants.WeaponsRole);
+        var gear = Assert.Single(declared.Stores, s => s.Role == StockpileRolesConstants.WeaponsRole);
         Assert.Equal(weapons, gear.Site.Interior);
-        Assert.Contains(declared.Stores, s => s.Role == DomainConstants.ApparelRole);
+        Assert.Contains(declared.Stores, s => s.Role == StockpileRolesConstants.ApparelRole);
     }
 
     [Fact]
@@ -50,8 +50,8 @@ public sealed class GearZonesTests
         Assert.Null(patches.Weapons);
         Assert.NotNull(patches.Apparel);
         var declared = DeclareStores(View(plan));
-        Assert.DoesNotContain(declared.Stores, s => s.Role == DomainConstants.WeaponsRole);
-        Assert.Contains(declared.Stores, s => s.Role == DomainConstants.ApparelRole);
+        Assert.DoesNotContain(declared.Stores, s => s.Role == StockpileRolesConstants.WeaponsRole);
+        Assert.Contains(declared.Stores, s => s.Role == StockpileRolesConstants.ApparelRole);
     }
 
     [Fact]

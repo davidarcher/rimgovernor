@@ -57,7 +57,7 @@ public sealed record ColonyOutcome
     };
 }
 
-public static partial class SustainedFood
+public static class SustainedColonySample
 {
     /// <summary>
     /// Reads the service's live colony census (GET /api/player/colony: food nutrition and runway, colonists, downed,

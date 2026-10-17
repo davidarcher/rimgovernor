@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// The step's refresher for the policy zone census: planners ask it through <c>ObservationApi.WithZones</c>, and
+/// The step's refresher for the policy zone census: planners ask it through <c>ZonesReads.WithZones</c>, and
 /// a review step asks it once up front. A review step reads the census whole once; any other ask serves the held
 /// census until an invalidation marks it.
 /// </summary>

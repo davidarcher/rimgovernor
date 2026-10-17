@@ -74,7 +74,7 @@ public sealed record SustainedObservation
     public Func<Harness, Report, CancellationToken, Task>? Audit { get; init; }
 }
 
-public static partial class SustainedFood
+public static class SustainedFood
 {
     /// <summary>The probe interval of the live tick and the journal between two samples (Go <c>na.RunInterval</c>).</summary>
     public static readonly TimeSpan RunInterval = TimeSpan.FromMilliseconds(250);
@@ -228,7 +228,7 @@ public static partial class SustainedFood
                     Concern = concernId,
                     Extras = extras,
                     Tick = liveTick,
-                    Colony = await SampleColonyAsync(apiCall, cancellationToken).ConfigureAwait(false),
+                    Colony = await SustainedColonySample.SampleColonyAsync(apiCall, cancellationToken).ConfigureAwait(false),
                 };
                 timeline.Add(sample);
                 if (stall.Check(DateTimeOffset.UtcNow) is { } stalled)
@@ -412,8 +412,8 @@ public static partial class SustainedFood
             }
             finally
             {
-                report["metrics"] = DeriveMetrics(timeline).ToJson();
-                report["colony_outcome"] = DeriveColonyOutcome(timeline).ToJson();
+                report["metrics"] = SustainedMetricsDerivation.DeriveMetrics(timeline).ToJson();
+                report["colony_outcome"] = SustainedColonySample.DeriveColonyOutcome(timeline).ToJson();
             }
 
             await StopServiceAsync().ConfigureAwait(false);

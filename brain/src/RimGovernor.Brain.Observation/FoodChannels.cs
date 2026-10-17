@@ -143,7 +143,7 @@ public sealed record ForagePlant
     public Fact<bool> GrowingNow { get; init; }
 }
 
-public static partial class ObservationPackage
+public static class FoodChannelsReads
 {
     /// <summary>Called only after the colony boundary validator has checked the section.</summary>
     internal static Fact<FoodChannels> ColonyFoodChannels(O.FoodChannelsSection? section, Pawns pawns, AnimalRaceCatalog races)
@@ -159,9 +159,9 @@ public static partial class ObservationPackage
             grazing.Add(new PenGrazing
             {
                 ID = row.PenId ?? "",
-                DemandPerDay = Optional(row.DemandPerDay is not null, row.DemandPerDay.GetValueOrDefault()),
-                PasturePerDay = Optional(row.PasturePerDay is not null, row.PasturePerDay.GetValueOrDefault()),
-                StoredNutrition = Optional(row.StoredNutrition is not null, row.StoredNutrition.GetValueOrDefault()),
+                DemandPerDay = ColonyDecodeReads.Optional(row.DemandPerDay is not null, row.DemandPerDay.GetValueOrDefault()),
+                PasturePerDay = ColonyDecodeReads.Optional(row.PasturePerDay is not null, row.PasturePerDay.GetValueOrDefault()),
+                StoredNutrition = ColonyDecodeReads.Optional(row.StoredNutrition is not null, row.StoredNutrition.GetValueOrDefault()),
             });
         }
         Dictionary<string, double>? pasture = null;
@@ -182,13 +182,13 @@ public static partial class ObservationPackage
             {
                 PawnID = row.PawnId ?? "",
                 Race = row.Race ?? "",
-                Fullness = Optional(row.Fullness is not null, row.Fullness.GetValueOrDefault()),
-                Resource = Optional(row.Resource is not null, row.Resource ?? ""),
-                HandlerReachable = Optional(row.HandlerReachable is not null, row.HandlerReachable.GetValueOrDefault()),
-                NutritionPerDay = Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
-                WorkPerDay = Optional(row.WorkPerDay is not null, row.WorkPerDay.GetValueOrDefault()),
-                LeadDays = Optional(row.LeadDays is not null, row.LeadDays.GetValueOrDefault()),
-                Active = Optional(row.Active is not null, row.Active.GetValueOrDefault()),
+                Fullness = ColonyDecodeReads.Optional(row.Fullness is not null, row.Fullness.GetValueOrDefault()),
+                Resource = ColonyDecodeReads.Optional(row.Resource is not null, row.Resource ?? ""),
+                HandlerReachable = ColonyDecodeReads.Optional(row.HandlerReachable is not null, row.HandlerReachable.GetValueOrDefault()),
+                NutritionPerDay = ColonyDecodeReads.Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
+                WorkPerDay = ColonyDecodeReads.Optional(row.WorkPerDay is not null, row.WorkPerDay.GetValueOrDefault()),
+                LeadDays = ColonyDecodeReads.Optional(row.LeadDays is not null, row.LeadDays.GetValueOrDefault()),
+                Active = ColonyDecodeReads.Optional(row.Active is not null, row.Active.GetValueOrDefault()),
             });
         }
         var eggs = new List<EggLayerAnimal>();
@@ -198,12 +198,12 @@ public static partial class ObservationPackage
             {
                 PawnID = row.PawnId ?? "",
                 Race = row.Race ?? "",
-                CanLayNow = Optional(row.CanLayNow is not null, row.CanLayNow.GetValueOrDefault()),
-                Progress = Optional(row.Progress is not null, row.Progress.GetValueOrDefault()),
-                NutritionPerDay = Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
-                LeadDays = Optional(row.LeadDays is not null, row.LeadDays.GetValueOrDefault()),
-                Active = Optional(row.Active is not null, row.Active.GetValueOrDefault()),
-                Fertilized = Optional(row.Fertilized is not null, row.Fertilized.GetValueOrDefault()),
+                CanLayNow = ColonyDecodeReads.Optional(row.CanLayNow is not null, row.CanLayNow.GetValueOrDefault()),
+                Progress = ColonyDecodeReads.Optional(row.Progress is not null, row.Progress.GetValueOrDefault()),
+                NutritionPerDay = ColonyDecodeReads.Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
+                LeadDays = ColonyDecodeReads.Optional(row.LeadDays is not null, row.LeadDays.GetValueOrDefault()),
+                Active = ColonyDecodeReads.Optional(row.Active is not null, row.Active.GetValueOrDefault()),
+                Fertilized = ColonyDecodeReads.Optional(row.Fertilized is not null, row.Fertilized.GetValueOrDefault()),
             });
         }
         var paste = new List<PasteDispenser>();
@@ -212,19 +212,19 @@ public static partial class ObservationPackage
             paste.Add(new PasteDispenser
             {
                 BuildingID = row.BuildingId ?? "",
-                Powered = Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
-                HopperNutrition = Optional(row.HopperNutrition is not null, row.HopperNutrition.GetValueOrDefault()),
-                AdjacentRoomID = Optional(row.AdjacentRoomId is not null, row.AdjacentRoomId ?? ""),
+                Powered = ColonyDecodeReads.Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
+                HopperNutrition = ColonyDecodeReads.Optional(row.HopperNutrition is not null, row.HopperNutrition.GetValueOrDefault()),
+                AdjacentRoomID = ColonyDecodeReads.Optional(row.AdjacentRoomId is not null, row.AdjacentRoomId ?? ""),
             });
         }
         var forage = new List<ForagePlant>();
         foreach (var row in v.Forage)
         {
-            forage.Add(new ForagePlant { DefName = row.DefName ?? "", GrowingTwelfths = [.. row.GrowingTwelfths], GrowingNow = Optional(row.GrowingNow is not null, row.GrowingNow.GetValueOrDefault()) });
+            forage.Add(new ForagePlant { DefName = row.DefName ?? "", GrowingTwelfths = [.. row.GrowingTwelfths], GrowingNow = ColonyDecodeReads.Optional(row.GrowingNow is not null, row.GrowingNow.GetValueOrDefault()) });
         }
         var channels = new FoodChannels
         {
-            PollutedCells = Optional(v.PollutedCells is not null, v.PollutedCells.GetValueOrDefault()),
+            PollutedCells = ColonyDecodeReads.Optional(v.PollutedCells is not null, v.PollutedCells.GetValueOrDefault()),
             Grazing = [.. grazing],
             Pasture = new PastureTable(pasture ?? new Dictionary<string, double>()),
             Slaughter = slaughter,
@@ -301,19 +301,19 @@ public static partial class ObservationPackage
     /// <summary>Applies the policy decisions to native's raw fishing facts: research lead, footprint, reachability verdict, delivery and capacity.</summary>
     private static FishableWater ColonyFishableWater(O.FishableWater water)
     {
-        var researched = Optional(water.FishingResearched is not null, water.FishingResearched.GetValueOrDefault());
+        var researched = ColonyDecodeReads.Optional(water.FishingResearched is not null, water.FishingResearched.GetValueOrDefault());
         var w = new FishableWater
         {
             FishingResearched = researched,
             ResearchLeadDays = FishingResearchLeadDays(new FishingResearchInputs
             {
                 Researched = researched,
-                BaseCost = Optional(water.ResearchBaseCost is not null, water.ResearchBaseCost.GetValueOrDefault()),
-                Progress = Optional(water.ResearchProgress is not null, water.ResearchProgress.GetValueOrDefault()),
-                CostFactor = Optional(water.ResearchCostFactor is not null, water.ResearchCostFactor.GetValueOrDefault()),
+                BaseCost = ColonyDecodeReads.Optional(water.ResearchBaseCost is not null, water.ResearchBaseCost.GetValueOrDefault()),
+                Progress = ColonyDecodeReads.Optional(water.ResearchProgress is not null, water.ResearchProgress.GetValueOrDefault()),
+                CostFactor = ColonyDecodeReads.Optional(water.ResearchCostFactor is not null, water.ResearchCostFactor.GetValueOrDefault()),
                 ResearcherSpeeds = [.. water.ResearcherSpeeds],
-                PointsPerWorkTick = Optional(water.ResearchPointsPerWorkTick is not null, water.ResearchPointsPerWorkTick.GetValueOrDefault()),
-                Difficulty = Optional(water.ResearchDifficultySpeedFactor is not null, water.ResearchDifficultySpeedFactor.GetValueOrDefault()),
+                PointsPerWorkTick = ColonyDecodeReads.Optional(water.ResearchPointsPerWorkTick is not null, water.ResearchPointsPerWorkTick.GetValueOrDefault()),
+                Difficulty = ColonyDecodeReads.Optional(water.ResearchDifficultySpeedFactor is not null, water.ResearchDifficultySpeedFactor.GetValueOrDefault()),
             }),
         };
         var fishers = new List<Fisher>(water.Fishers.Count);
@@ -327,15 +327,15 @@ public static partial class ObservationPackage
             var region = new FishableRegion
             {
                 Root = new Cell(row.Root?.X ?? 0, row.Root?.Z ?? 0),
-                Population = Optional(row.Population is not null, row.Population.GetValueOrDefault()),
-                MaxPopulation = Optional(row.MaxPopulation is not null, row.MaxPopulation.GetValueOrDefault()),
-                Zoned = Optional(row.Zoned is not null, row.Zoned.GetValueOrDefault()),
-                CellCount = Optional(row.CellCount is not null, row.CellCount.GetValueOrDefault()),
-                Frozen = Optional(row.Frozen is not null, row.Frozen.GetValueOrDefault()),
-                NutritionPerFish = Optional(row.NutritionPerFish is not null, row.NutritionPerFish.GetValueOrDefault()),
-                FishPerBatch = Optional(row.FishPerBatch is not null, row.FishPerBatch.GetValueOrDefault()),
-                WorkTicksPerBatch = Optional(row.WorkTicksPerBatch is not null, row.WorkTicksPerBatch.GetValueOrDefault()),
-                DistanceSquared = Optional(row.NearestDistanceSquared is not null, row.NearestDistanceSquared.GetValueOrDefault()),
+                Population = ColonyDecodeReads.Optional(row.Population is not null, row.Population.GetValueOrDefault()),
+                MaxPopulation = ColonyDecodeReads.Optional(row.MaxPopulation is not null, row.MaxPopulation.GetValueOrDefault()),
+                Zoned = ColonyDecodeReads.Optional(row.Zoned is not null, row.Zoned.GetValueOrDefault()),
+                CellCount = ColonyDecodeReads.Optional(row.CellCount is not null, row.CellCount.GetValueOrDefault()),
+                Frozen = ColonyDecodeReads.Optional(row.Frozen is not null, row.Frozen.GetValueOrDefault()),
+                NutritionPerFish = ColonyDecodeReads.Optional(row.NutritionPerFish is not null, row.NutritionPerFish.GetValueOrDefault()),
+                FishPerBatch = ColonyDecodeReads.Optional(row.FishPerBatch is not null, row.FishPerBatch.GetValueOrDefault()),
+                WorkTicksPerBatch = ColonyDecodeReads.Optional(row.WorkTicksPerBatch is not null, row.WorkTicksPerBatch.GetValueOrDefault()),
+                DistanceSquared = ColonyDecodeReads.Optional(row.NearestDistanceSquared is not null, row.NearestDistanceSquared.GetValueOrDefault()),
                 ConcurrentFishers = Known((uint)fishers.Count),
             };
             var cells = new List<FishingCell>(row.Cells.Count);
@@ -347,7 +347,7 @@ public static partial class ObservationPackage
             region = region with
             {
                 ProposedCells = proposed,
-                Reachable = FishingReachable(Optional(row.Reachable is not null, row.Reachable.GetValueOrDefault()), region.Zoned, proposed.Count, fishers.Count),
+                Reachable = FishingReachable(ColonyDecodeReads.Optional(row.Reachable is not null, row.Reachable.GetValueOrDefault()), region.Zoned, proposed.Count, fishers.Count),
             };
             var zones = new List<FishingZoneState>(row.Zones.Count);
             foreach (var z in row.Zones)
@@ -357,7 +357,7 @@ public static partial class ObservationPackage
             region = region with
             {
                 Delivering = Known(FishingDelivering(zones)),
-                PawnFishWorkCapacity = FishingWorkCapacity(fishers, Optional(row.YieldCurveValue is not null, row.YieldCurveValue.GetValueOrDefault()), region.NutritionPerFish, Optional(water.BaseFishingDurationTicks is not null, water.BaseFishingDurationTicks.GetValueOrDefault())),
+                PawnFishWorkCapacity = FishingWorkCapacity(fishers, ColonyDecodeReads.Optional(row.YieldCurveValue is not null, row.YieldCurveValue.GetValueOrDefault()), region.NutritionPerFish, ColonyDecodeReads.Optional(water.BaseFishingDurationTicks is not null, water.BaseFishingDurationTicks.GetValueOrDefault())),
             };
             regions.Add(region);
         }

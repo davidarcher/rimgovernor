@@ -29,7 +29,7 @@ public sealed record MedicineCarryPawn
 /// </summary>
 public static partial class PolicyFunctions
 {
-    public const int DoctorMaxCarry = DomainConstants.MaxMedicineCarry;
+    public const int DoctorMaxCarry = PawnSettingsConstants.MaxMedicineCarry;
     public const int FieldMaxCarry = 2;
 
     /// <summary>A MedicalCareCategory that allows any medicine.</summary>

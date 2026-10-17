@@ -36,7 +36,7 @@ public readonly record struct StepRead(string Planner, ConcernId Concern, Tick T
     public override string ToString() => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"step-{Planner}-{Concern.Value}-{Tick.Value}-{Seq}");
 }
 
-public static partial class SnapshotPackage
+public static class SnapshotStepReplay
 {
     private static readonly object StepLock = new();
     private static readonly Dictionary<string, int> StepSeq = new(StringComparer.Ordinal);
@@ -49,7 +49,7 @@ public static partial class SnapshotPackage
         var tick = reading.Identity.Tick;
         var step = new SnapshotStep
         {
-            Recorded = Provenance(current, tick) + " standard " + goal.Value,
+            Recorded = SnapshotRecorder.Provenance(current, tick) + " standard " + goal.Value,
             Snapshot = current,
             Tick = tick,
             Concern = goal,
@@ -63,6 +63,6 @@ public static partial class SnapshotPackage
             seq = StepSeq.GetValueOrDefault(key) + 1;
             StepSeq[key] = seq;
         }
-        Write(dir, "step", new StepRead(planner, goal, tick, seq).ToString(), step);
+        SnapshotRecorder.Write(dir, "step", new StepRead(planner, goal, tick, seq).ToString(), step);
     }
 }

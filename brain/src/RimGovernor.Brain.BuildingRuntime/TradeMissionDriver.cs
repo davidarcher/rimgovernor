@@ -359,7 +359,7 @@ public sealed partial class RoundsTradePlanner
             throw new ControlException("missionPurchases: frame tables carry no catalog");
         }
         var catalog = await definitions.DefinitionCatalogAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
-        var projection = ObservationApi.DecodeColony(
+        var projection = ColonyDecodeReads.DecodeColony(
             reply,
             new Observation.Identity
             {

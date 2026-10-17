@@ -71,7 +71,7 @@ public sealed record DeliveryLedger
     public IReadOnlyList<Butcher> Butchers { get; init; } = [];
 }
 
-public static partial class ObservationPackage
+public static class DeliveryLedgerReads
 {
     private static DeliveryKind DeliveryKindOf(O.DeliverySourceKind kind) => kind switch
     {

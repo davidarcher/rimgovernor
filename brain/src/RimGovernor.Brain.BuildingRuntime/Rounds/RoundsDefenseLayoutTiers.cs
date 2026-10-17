@@ -347,7 +347,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 return (new DefenseLayout(), [], result.Verdict, false);
             }
         }
-        DefenseRecorder.RecordLayoutSnapshot(state.Snapshot, projection.Identity.Tick, new SnapshotLayout { Point = SnapshotApi.LayoutPropose, Request = request }, call);
+        DefenseRecorder.RecordLayoutSnapshot(state.Snapshot, projection.Identity.Tick, new SnapshotLayout { Point = SnapshotLayoutReplay.LayoutPropose, Request = request }, call);
         DefenseLayout layout;
         try
         {

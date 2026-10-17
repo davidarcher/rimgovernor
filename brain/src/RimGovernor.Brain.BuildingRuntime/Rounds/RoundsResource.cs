@@ -213,7 +213,7 @@ public sealed partial class RoundsResourcePlanner
         }
 
         var request = new ResourceMethodRequest { Resource = resource, Target = target, Benches = Known<EquatableArray<GearBench>>([.. benches]) };
-        SnapshotPackage.NoteResourceMethod(request);
+        SnapshotPlannerReplay.NoteResourceMethod(request);
         return (PolicyFunctions.SelectResourceMethod(request), supply);
     }
 
@@ -384,7 +384,7 @@ public sealed partial class RoundsResourcePlanner
     internal async Task<RemoteWorkRequest> MiningReachAsync(ControlState state, Tick tick, CancellationToken ct)
     {
         var last = await reviewer.Native.IdentityAsync(ct).ConfigureAwait(false);
-        var expected = ObservationPackage.DecodeIdentity(last);
+        var expected = DecodeReads.DecodeIdentity(last);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, tick))
         {
             throw new ControlException("miningReach: boundary moved");

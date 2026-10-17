@@ -19,7 +19,7 @@ public interface IPlanExtentSource : IPlanningWindowSource
     Task<Rectangle> PlanExtentAsync(CancellationToken cancellationToken);
 }
 
-public static partial class ObservationPackage
+public static class PlanningWindowReads
 {
     private static readonly AsyncLocal<IPlanningWindowSource?> PlanningWindowScope = new();
 

@@ -233,11 +233,11 @@ public sealed class ForecastConstructionTests
             Construction = new O.ConstructionState { WorkLeft = 123, ResourcesComplete = false,
                 Resources = [new O.MaterialDeficit { DefName = Material.Value, StillNeeded = 7 }] },
         };
-        var observed = ObservationPackage.ConstructionFromCensus(new(null, Buildings.Of(row))).Construction.Value;
+        var observed = ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(row))).Construction.Value;
         Assert.Equal(123, observed.Sites[0].WorkLeft.Value);
         Assert.Equal(7, observed.Sites[0].MaterialsOwed.Value[0].Count);
         var missing = row with { Construction = new O.ConstructionState() };
-        var unknown = ObservationPackage.ConstructionFromCensus(new(null, Buildings.Of(missing))).Construction.Value;
+        var unknown = ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(missing))).Construction.Value;
         Assert.False(unknown.Sites[0].WorkLeft.IsKnown);
         Assert.Empty(unknown.Sites[0].MaterialsOwed.Value);
     }

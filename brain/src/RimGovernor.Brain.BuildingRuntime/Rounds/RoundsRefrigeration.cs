@@ -34,8 +34,8 @@ public sealed partial class RoundsBuildingPlanner
             return (null, BuildingReasonNoDeficit);
         }
 
-        var coolers = await ObservationPackage.ReadRefrigerationCoolers((IRefrigerationSource)Native, facts.Identity, facts.PowerPlanning, ct).ConfigureAwait(false);
-        var fact = ObservationPackage.RefrigerationFacts(facts, coolers);
+        var coolers = await RefrigerationReads.ReadRefrigerationCoolers((IRefrigerationSource)Native, facts.Identity, facts.PowerPlanning, ct).ConfigureAwait(false);
+        var fact = RefrigerationReads.RefrigerationFacts(facts, coolers);
         var proposal = PolicyFunctions.SelectRefrigerationMethod(review, fact, Reviewer.Policy.FoodStorage, allowance);
         switch (proposal.Method)
         {
@@ -73,7 +73,7 @@ public sealed partial class RoundsBuildingPlanner
             return BuildingReasonNoReview;
         }
         var identity = await Native.IdentityAsync(call).ConfigureAwait(false);
-        var expected = ObservationPackage.DecodeIdentity(identity);
+        var expected = DecodeReads.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException(string.Create(CultureInfo.InvariantCulture, $"refrigeration step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) observed tick={expected.Tick.Value} review tick={review.Tick.Value}"));

@@ -11,7 +11,7 @@ public interface IGroundClearanceSource : IClearanceSource
     Task<O.ClearanceTargetsReply> ReadClearanceTargetsOnGroundAsync(C.Identity identity, bool includeSalvage, IReadOnlyList<O.Rectangle> ground, CancellationToken cancellationToken);
 }
 
-public static partial class ObservationPackage
+public static class ClearanceReads
 {
     // The clearance classes a target carries.
     public const string ClearanceAncientWallDoor = "ancient_wall_door";
@@ -35,7 +35,7 @@ public static partial class ObservationPackage
             throw new ObservationContractException("missing clearance source");
         }
         expected.Validate();
-        if (!SameColonyContext(expected, expected))
+        if (!ColonyReads.SameColonyContext(expected, expected))
         {
             throw new ObservationContractException("expected identity lacks a native generation");
         }
@@ -83,8 +83,8 @@ public static partial class ObservationPackage
             return unknown;
         }
         var v = reply.Outcome?.Observed ?? throw new ObservationContractException("missing clearance targets");
-        var actual = ContextIdentity(v.Context);
-        if (!SameColonyContext(actual, expected))
+        var actual = DecodeReads.ContextIdentity(v.Context);
+        if (!ColonyReads.SameColonyContext(actual, expected))
         {
             throw new ObservationChangedException();
         }
@@ -96,8 +96,8 @@ public static partial class ObservationPackage
                 EntityId = row.EntityId ?? "",
                 DefName = row.DefName ?? "",
                 Class = ClearanceClassName(row.Class),
-                Minimum = CellOf(row.Occupied?.Minimum),
-                Maximum = CellOf(row.Occupied?.Maximum),
+                Minimum = ColonyDecodeReads.CellOf(row.Occupied?.Minimum),
+                Maximum = ColonyDecodeReads.CellOf(row.Occupied?.Maximum),
                 Deconstructible = row.Deconstructible.GetValueOrDefault(),
                 AncientDanger = row.AncientDanger.GetValueOrDefault(),
                 RoofBlocker = row.RoofBlocker ?? "",
@@ -121,7 +121,7 @@ public static partial class ObservationPackage
         var floors = new List<ClearanceFloor>(v.Floors.Count);
         foreach (var row in v.Floors)
         {
-            floors.Add(new ClearanceFloor { Cell = CellOf(row.Cell), DefName = row.DefName ?? "", Designated = row.Designated.GetValueOrDefault() });
+            floors.Add(new ClearanceFloor { Cell = ColonyDecodeReads.CellOf(row.Cell), DefName = row.DefName ?? "", Designated = row.Designated.GetValueOrDefault() });
         }
         cancellationToken.ThrowIfCancellationRequested();
         return Known(new ClearanceCensus { Targets = EquatableArray.From(rows), Floors = EquatableArray.From(floors) });

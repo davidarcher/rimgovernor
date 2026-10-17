@@ -28,7 +28,7 @@ internal static class EquipCandidates
             Drafted = Fact.Known(row.Drafted),
             MentalState = row.MentalState is not null,
         };
-        var work = ObservationApi.WorkPawnRow(row, catalog, things);
+        var work = RoundsWorkReads.WorkPawnRow(row, catalog, things);
         facts = facts with { Profile = PolicyApi.BuildProfile(work) };
         if (work.Work.TryGetValue(out var rows))
         {

@@ -31,8 +31,8 @@ public sealed class BurialOwner : IStoreOwner
         var output = new List<Store>();
         var roles = new (PlannedRole Role, string Prefix, StockpileFilter Filter, StockpilePriority Priority)[]
         {
-            (PlannedRole.Tomb, DomainConstants.TombRolePrefix, StockpileFilter.TombCorpsesFilter(), StockpilePriority.Critical),
-            (PlannedRole.Morgue, DomainConstants.MorgueRolePrefix, StockpileFilter.MorgueCorpsesFilter(), PolicyFunctions.MorguePriority),
+            (PlannedRole.Tomb, StockpileRolesConstants.TombRolePrefix, StockpileFilter.TombCorpsesFilter(), StockpilePriority.Critical),
+            (PlannedRole.Morgue, StockpileRolesConstants.MorgueRolePrefix, StockpileFilter.MorgueCorpsesFilter(), PolicyFunctions.MorguePriority),
         };
         foreach (var s in roles)
         {

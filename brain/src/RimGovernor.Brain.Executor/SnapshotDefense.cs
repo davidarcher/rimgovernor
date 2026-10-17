@@ -52,8 +52,8 @@ public sealed class SnapshotDefense
     public MethodId Method { get; set; }
 }
 
-public static partial class SnapshotPackage
+public static class SnapshotDefenseReplay
 {
     /// <summary>Writes d into dir as defense-&lt;tick&gt;-&lt;reason&gt;; a later step at the same tick with the same result replaces it.</summary>
-    public static void RecordDefense(string dir, SnapshotDefense d) => Write(dir, "defense", $"defense-{d.Tick.Value}-{d.Reason}", d);
+    public static void RecordDefense(string dir, SnapshotDefense d) => SnapshotRecorder.Write(dir, "defense", $"defense-{d.Tick.Value}-{d.Reason}", d);
 }

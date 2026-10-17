@@ -46,7 +46,7 @@ public sealed partial class RoundsDefensePlanner
 {
     internal async Task<RoundsDefenseResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
-        var dir = Environment.GetEnvironmentVariable(SnapshotApi.DirEnv) ?? "";
+        var dir = Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv) ?? "";
         if (dir == "")
         {
             return await DecideAsync(arbiter, call, epoch).ConfigureAwait(false);
@@ -59,7 +59,7 @@ public sealed partial class RoundsDefensePlanner
             try
             {
                 var d = DefenseSnapshot(recorder, result, call);
-                SnapshotApi.RecordDefense(dir, d);
+                SnapshotDefenseReplay.RecordDefense(dir, d);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -132,7 +132,7 @@ partial class DefenseRecorder
     /// <summary>Records the layout request and record for the snapshot replay tests when the snapshot directory is set; a failed record only logs.</summary>
     internal static void RecordLayoutSnapshot(GenerationSnapshot current, Tick tick, SnapshotLayout l, CancellationToken ct)
     {
-        var dir = Environment.GetEnvironmentVariable(SnapshotApi.DirEnv) ?? "";
+        var dir = Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv) ?? "";
         if (dir == "")
         {
             return;
@@ -142,7 +142,7 @@ partial class DefenseRecorder
         l.Tick = tick;
         try
         {
-            SnapshotApi.RecordLayout(dir, l);
+            SnapshotLayoutReplay.RecordLayout(dir, l);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

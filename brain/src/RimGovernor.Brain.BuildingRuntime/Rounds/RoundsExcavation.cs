@@ -44,7 +44,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("readExcavationSite: err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) < tick");
         }
-        SnapshotApi.NoteSite(purpose, target, cells, site);
+        SnapshotPlannerReplay.NoteSite(purpose, target, cells, site);
         return site;
     }
 
@@ -126,7 +126,7 @@ public sealed partial class RoundsBuildingPlanner
         Identity actual;
         try
         {
-            actual = ObservationApi.DecodeIdentity(last);
+            actual = DecodeReads.DecodeIdentity(last);
         }
         catch (ControlException)
         {

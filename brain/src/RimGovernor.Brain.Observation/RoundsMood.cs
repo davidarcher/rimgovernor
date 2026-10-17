@@ -78,7 +78,7 @@ public sealed record RoundsPawns
     public long Armed { get; init; }
 }
 
-public static partial class ObservationPackage
+public static class RoundsMoodReads
 {
     // rounds_sections.go: the reading's sections, every one has the frame's tick, except the room census read beside it.
     internal static RoundsSections BuildRoundsSections(RoundsFrame frame, ColonyProjection projection, O.RoomsSnapshot? rooms)
@@ -141,7 +141,7 @@ public static partial class ObservationPackage
 
     // rounds_mood.go
 
-    private static Fact<EquatableArray<MoodPawn>> RoundsMood(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot)
+    internal static Fact<EquatableArray<MoodPawn>> RoundsMood(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot)
     {
         var unknown = Unknown<EquatableArray<MoodPawn>>();
         if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || snapshot is null
@@ -197,21 +197,21 @@ public static partial class ObservationPackage
             {
                 p = p with
                 {
-                    Mood = Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
+                    Mood = ColonyDecodeReads.Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
                     Threshold = Known(n.BreakThresholdMinor),
-                    Food = Optional(n.Food is not null, n.Food.GetValueOrDefault()),
-                    Rest = Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
-                    Joy = Optional(n.Joy is not null, n.Joy.GetValueOrDefault()),
+                    Food = ColonyDecodeReads.Optional(n.Food is not null, n.Food.GetValueOrDefault()),
+                    Rest = ColonyDecodeReads.Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
+                    Joy = ColonyDecodeReads.Optional(n.Joy is not null, n.Joy.GetValueOrDefault()),
                 };
             }
-            if (forecasts.TryGetValue(pawn.Id.Value, out var f) && !HasIssue(f.Issues, "mood_target"))
+            if (forecasts.TryGetValue(pawn.Id.Value, out var f) && !ColonyDecodeReads.HasIssue(f.Issues, "mood_target"))
             {
-                p = p with { Target = Optional(f.MoodTarget is not null, f.MoodTarget.GetValueOrDefault()) };
+                p = p with { Target = ColonyDecodeReads.Optional(f.MoodTarget is not null, f.MoodTarget.GetValueOrDefault()) };
             }
             p = p with { Thoughts = MoodThoughts(r) };
             if (r.Social is { } social)
             {
-                p = p with { HighExpectations = Optional(social.HighExpectations is not null, social.HighExpectations.GetValueOrDefault()) };
+                p = p with { HighExpectations = ColonyDecodeReads.Optional(social.HighExpectations is not null, social.HighExpectations.GetValueOrDefault()) };
             }
             rows.Add(p);
         }
@@ -260,7 +260,7 @@ public static partial class ObservationPackage
     /// unread biography, policy or social block) stays unknown, so MinExpectation thoughts of such a pawn stay
     /// unverified.
     /// </summary>
-    private static Fact<MoodLedger> RoundsMoodLedger(Fact<EquatableArray<MoodPawn>> census, O.PawnSnapshot? snapshot, IReadOnlyDictionary<string, ThoughtFacts> facts)
+    internal static Fact<MoodLedger> RoundsMoodLedger(Fact<EquatableArray<MoodPawn>> census, O.PawnSnapshot? snapshot, IReadOnlyDictionary<string, ThoughtFacts> facts)
     {
         if (!census.TryGetValue(out var moods))
         {
@@ -314,7 +314,7 @@ public static partial class ObservationPackage
     /// equipped (or a weapon crafted) for every one of them, not only the first two. A row without its biography
     /// leaves it unknown.
     /// </summary>
-    private static (Fact<long> Armed, Fact<long> Unarmed) RoundsArmed(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns, CreepJoinerDownsides downsides)
+    internal static (Fact<long> Armed, Fact<long> Unarmed) RoundsArmed(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns, CreepJoinerDownsides downsides)
     {
         var unknown = Unknown<long>();
         if (colony is null || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
@@ -380,7 +380,7 @@ public static partial class ObservationPackage
     /// MeleeDPS times summary health and the observed ranged DPS. A row the census does not match leaves the
     /// roster unknown; a missing stat leaves that fact unknown.
     /// </summary>
-    private static Fact<EquatableArray<SquadDefenderFacts>> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns)
+    internal static Fact<EquatableArray<SquadDefenderFacts>> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns)
     {
         var unknown = Unknown<EquatableArray<SquadDefenderFacts>>();
         if (colony is null || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
@@ -415,7 +415,7 @@ public static partial class ObservationPackage
             }
             if (row.Equipment is { } e)
             {
-                d = d with { RangedDPS = Optional(e.RangedDps is not null, e.RangedDps.GetValueOrDefault()) };
+                d = d with { RangedDPS = ColonyDecodeReads.Optional(e.RangedDps is not null, e.RangedDps.GetValueOrDefault()) };
                 if (e.MeleeDps is not null && row.Health is { } health)
                 {
                     d = d with { MeleePower = Known(e.MeleeDps.GetValueOrDefault() * health.SummaryFraction) };

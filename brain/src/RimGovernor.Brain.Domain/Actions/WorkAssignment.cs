@@ -3,10 +3,10 @@ using System.Text;
 
 namespace RimGovernor.Brain.Domain;
 
-/// <summary>One work type and its manual priority (0 disabled, 1 first to <see cref="DomainConstants.MaxPriority"/> last).</summary>
+/// <summary>One work type and its manual priority (0 disabled, 1 first to <see cref="WorkAssignmentConstants.MaxPriority"/> last).</summary>
 public readonly record struct WorkSetting(string Definition, int Priority);
 
-public static partial class DomainConstants
+public static class WorkAssignmentConstants
 {
     /// <summary>The timetable length: one TimeAssignmentDef per hour. Kept: a game day is fixed at 24 hours.</summary>
     public const int ScheduleHours = 24;
@@ -33,7 +33,7 @@ public sealed record WorkAssignment : IActionPayload
         DomainException.Require(rows.Count != 0 || hasArea || schedule.Count != 0, "invalid work assignment");
         if (schedule.Count > 0)
         {
-            DomainException.Require(schedule.Count == DomainConstants.ScheduleHours && schedule.All(Identity.IsValidText), "invalid schedule assignment");
+            DomainException.Require(schedule.Count == WorkAssignmentConstants.ScheduleHours && schedule.All(Identity.IsValidText), "invalid schedule assignment");
         }
         if (hasArea)
         {
@@ -50,7 +50,7 @@ public sealed record WorkAssignment : IActionPayload
             DomainException.Require(
                 Identity.IsValidText(row.Definition)
                     && row.Priority >= 0
-                    && row.Priority <= DomainConstants.MaxPriority
+                    && row.Priority <= WorkAssignmentConstants.MaxPriority
                     && !(i > 0 && string.Equals(rows[i - 1].Definition, row.Definition, StringComparison.Ordinal)),
                 "invalid work priority"
             );

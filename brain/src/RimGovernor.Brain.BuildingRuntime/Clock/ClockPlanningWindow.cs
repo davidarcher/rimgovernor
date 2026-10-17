@@ -89,8 +89,8 @@ internal static class ClockPlanning
     /// source, when source serves one and no step refresher is attached.
     /// </summary>
     public static IDisposable? StandaloneWindow(object source) =>
-        source is IPlanningWindowNative native && ObservationApi.PlanningWindowFrom() is null
-            ? ObservationApi.WithPlanningWindow(new DirectWindow(native))
+        source is IPlanningWindowNative native && PlanningWindowReads.PlanningWindowFrom() is null
+            ? PlanningWindowReads.WithPlanningWindow(new DirectWindow(native))
             : null;
 }
 

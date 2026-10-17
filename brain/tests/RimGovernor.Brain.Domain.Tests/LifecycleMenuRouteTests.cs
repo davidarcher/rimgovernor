@@ -165,10 +165,10 @@ public sealed class LifecycleMenuRouteTests
     public void ATickReadAtTheMainMenuIsTheExpectedNotLoadedState()
     {
         var reply = new PbLifecycle.TickReply { Outcome = new PbCommon.Unavailable { Reason = PbCommon.UnavailableReason.NotLoaded, Detail = "No current colony map is loaded." } };
-        _ = Assert.Throws<NotLoadedException>(() => ObservationPackage.DecodeTick(reply));
+        _ = Assert.Throws<NotLoadedException>(() => DecodeReads.DecodeTick(reply));
 
         var other = new PbLifecycle.TickReply { Outcome = new PbCommon.Unavailable { Reason = PbCommon.UnavailableReason.Stale } };
-        var thrown = Assert.ThrowsAny<BridgeUnavailableException>(() => ObservationPackage.DecodeTick(other));
+        var thrown = Assert.ThrowsAny<BridgeUnavailableException>(() => DecodeReads.DecodeTick(other));
         Assert.IsNotType<NotLoadedException>(thrown);
     }
 }

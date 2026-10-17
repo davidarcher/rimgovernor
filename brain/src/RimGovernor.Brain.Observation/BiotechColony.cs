@@ -278,13 +278,13 @@ public sealed record BabyCare
 
 public sealed record BabyAutofeeder(string PawnID, string Mode);
 
-public static partial class ObservationPackage
+public static class BiotechColonyReads
 {
     private static GeneTotals GeneTotalsOf(bool hasComplexity, int complexity, bool hasMetabolism, int metabolism, bool hasArchites, int archites) =>
-        new(Optional(hasComplexity, complexity), Optional(hasMetabolism, metabolism), Optional(hasArchites, archites));
+        new(ColonyDecodeReads.Optional(hasComplexity, complexity), ColonyDecodeReads.Optional(hasMetabolism, metabolism), ColonyDecodeReads.Optional(hasArchites, archites));
 
     private static T WithRow<T>(T row, string id, string def, C.Cell? at)
-        where T : BuildingRow => row with { ID = id, Definition = def, Position = CellOf(at) };
+        where T : BuildingRow => row with { ID = id, Definition = def, Position = ColonyDecodeReads.CellOf(at) };
 
     /// <summary>Projects a validated section; an absent or unavailable one is an unknown fact.</summary>
     internal static Fact<BiotechColony> ColonyBiotech(O.BiotechSection? section)
@@ -298,7 +298,7 @@ public static partial class ObservationPackage
         var polluters = new List<Polluter>();
         foreach (var x in f.Polluters)
         {
-            polluters.Add(WithRow(new Polluter { Polluting = Optional(x.Polluting is not null, x.Polluting.GetValueOrDefault()), CellsPerDay = Optional(x.CellsPerDay is not null, x.CellsPerDay.GetValueOrDefault()) }, x.ThingId ?? "", x.DefName ?? "", x.Position));
+            polluters.Add(WithRow(new Polluter { Polluting = ColonyDecodeReads.Optional(x.Polluting is not null, x.Polluting.GetValueOrDefault()), CellsPerDay = ColonyDecodeReads.Optional(x.CellsPerDay is not null, x.CellsPerDay.GetValueOrDefault()) }, x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var wastepacks = new List<Wastepack>();
         foreach (var x in f.Wastepacks)
@@ -307,12 +307,12 @@ public static partial class ObservationPackage
                 new Wastepack
                 {
                     Count = x.Count.GetValueOrDefault(),
-                    Frozen = Optional(x.Frozen is not null, x.Frozen.GetValueOrDefault()),
-                    Outdoors = Optional(x.Outdoors is not null, x.Outdoors.GetValueOrDefault()),
-                    InAtomizer = Optional(x.InAtomizer is not null, x.InAtomizer.GetValueOrDefault()),
-                    CanDissolveNow = Optional(x.CanDissolveNow is not null, x.CanDissolveNow.GetValueOrDefault()),
-                    Forbidden = Optional(x.Forbidden is not null, x.Forbidden.GetValueOrDefault()),
-                    DeteriorationRate = Optional(x.DeteriorationRate is not null, x.DeteriorationRate.GetValueOrDefault()),
+                    Frozen = ColonyDecodeReads.Optional(x.Frozen is not null, x.Frozen.GetValueOrDefault()),
+                    Outdoors = ColonyDecodeReads.Optional(x.Outdoors is not null, x.Outdoors.GetValueOrDefault()),
+                    InAtomizer = ColonyDecodeReads.Optional(x.InAtomizer is not null, x.InAtomizer.GetValueOrDefault()),
+                    CanDissolveNow = ColonyDecodeReads.Optional(x.CanDissolveNow is not null, x.CanDissolveNow.GetValueOrDefault()),
+                    Forbidden = ColonyDecodeReads.Optional(x.Forbidden is not null, x.Forbidden.GetValueOrDefault()),
+                    DeteriorationRate = ColonyDecodeReads.Optional(x.DeteriorationRate is not null, x.DeteriorationRate.GetValueOrDefault()),
                 },
                 x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
@@ -322,11 +322,11 @@ public static partial class ObservationPackage
             atomizers.Add(WithRow(
                 new WastepackAtomizer
                 {
-                    Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
-                    AutoLoad = Optional(x.AutoLoad is not null, x.AutoLoad.GetValueOrDefault()),
-                    SpaceLeft = Optional(x.SpaceLeft is not null, x.SpaceLeft.GetValueOrDefault()),
-                    TicksLeft = Optional(x.TicksLeft is not null, x.TicksLeft.GetValueOrDefault()),
-                    FillPercent = Optional(x.FillPercent is not null, x.FillPercent.GetValueOrDefault()),
+                    Powered = ColonyDecodeReads.Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
+                    AutoLoad = ColonyDecodeReads.Optional(x.AutoLoad is not null, x.AutoLoad.GetValueOrDefault()),
+                    SpaceLeft = ColonyDecodeReads.Optional(x.SpaceLeft is not null, x.SpaceLeft.GetValueOrDefault()),
+                    TicksLeft = ColonyDecodeReads.Optional(x.TicksLeft is not null, x.TicksLeft.GetValueOrDefault()),
+                    FillPercent = ColonyDecodeReads.Optional(x.FillPercent is not null, x.FillPercent.GetValueOrDefault()),
                 },
                 x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
@@ -334,7 +334,7 @@ public static partial class ObservationPackage
         foreach (var x in f.Pumps)
         {
             pumps.Add(WithRow(
-                new PollutionPump { Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()), DisabledByArtificialBuildings = Optional(x.DisabledByArtificialBuildings is not null, x.DisabledByArtificialBuildings.GetValueOrDefault()) },
+                new PollutionPump { Powered = ColonyDecodeReads.Optional(x.Powered is not null, x.Powered.GetValueOrDefault()), DisabledByArtificialBuildings = ColonyDecodeReads.Optional(x.DisabledByArtificialBuildings is not null, x.DisabledByArtificialBuildings.GetValueOrDefault()) },
                 x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var gestators = new List<MechGestator>();
@@ -343,15 +343,15 @@ public static partial class ObservationPackage
             gestators.Add(WithRow(
                 new MechGestator
                 {
-                    Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
-                    BillID = Optional(x.BillId is not null, x.BillId ?? ""),
-                    State = Optional(x.State is not null, x.State ?? ""),
-                    MechKind = Optional(x.MechKind is not null, x.MechKind ?? ""),
-                    BoundPawnID = Optional(x.BoundPawnId is not null, x.BoundPawnId ?? ""),
-                    CyclesCompleted = Optional(x.CyclesCompleted is not null, x.CyclesCompleted.GetValueOrDefault()),
-                    WasteCount = Optional(x.WasteCount is not null, x.WasteCount.GetValueOrDefault()),
-                    BandwidthCost = Optional(x.BandwidthCost is not null, x.BandwidthCost.GetValueOrDefault()),
-                    FormingPercent = Optional(x.FormingPercent is not null, x.FormingPercent.GetValueOrDefault()),
+                    Powered = ColonyDecodeReads.Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
+                    BillID = ColonyDecodeReads.Optional(x.BillId is not null, x.BillId ?? ""),
+                    State = ColonyDecodeReads.Optional(x.State is not null, x.State ?? ""),
+                    MechKind = ColonyDecodeReads.Optional(x.MechKind is not null, x.MechKind ?? ""),
+                    BoundPawnID = ColonyDecodeReads.Optional(x.BoundPawnId is not null, x.BoundPawnId ?? ""),
+                    CyclesCompleted = ColonyDecodeReads.Optional(x.CyclesCompleted is not null, x.CyclesCompleted.GetValueOrDefault()),
+                    WasteCount = ColonyDecodeReads.Optional(x.WasteCount is not null, x.WasteCount.GetValueOrDefault()),
+                    BandwidthCost = ColonyDecodeReads.Optional(x.BandwidthCost is not null, x.BandwidthCost.GetValueOrDefault()),
+                    FormingPercent = ColonyDecodeReads.Optional(x.FormingPercent is not null, x.FormingPercent.GetValueOrDefault()),
                 },
                 x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
@@ -361,10 +361,10 @@ public static partial class ObservationPackage
             chargers.Add(WithRow(
                 new MechChargerRow
                 {
-                    Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
-                    FullOfWaste = Optional(x.FullOfWaste is not null, x.FullOfWaste.GetValueOrDefault()),
-                    ChargingMechID = Optional(x.ChargingMechId is not null, x.ChargingMechId ?? ""),
-                    WasteCount = Optional(x.WasteCount is not null, x.WasteCount.GetValueOrDefault()),
+                    Powered = ColonyDecodeReads.Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
+                    FullOfWaste = ColonyDecodeReads.Optional(x.FullOfWaste is not null, x.FullOfWaste.GetValueOrDefault()),
+                    ChargingMechID = ColonyDecodeReads.Optional(x.ChargingMechId is not null, x.ChargingMechId ?? ""),
+                    WasteCount = ColonyDecodeReads.Optional(x.WasteCount is not null, x.WasteCount.GetValueOrDefault()),
                 },
                 x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
@@ -379,10 +379,10 @@ public static partial class ObservationPackage
             babies.Add(new BabyCare
             {
                 PawnID = x.PawnId ?? "",
-                WantsSuckle = Optional(x.WantsSuckle is not null, x.WantsSuckle.GetValueOrDefault()),
-                CanSuckleNow = Optional(x.CanSuckleNow is not null, x.CanSuckleNow.GetValueOrDefault()),
-                BeingPlayedWith = Optional(x.BeingPlayedWith is not null, x.BeingPlayedWith.GetValueOrDefault()),
-                InBed = Optional(x.InBed is not null, x.InBed.GetValueOrDefault()),
+                WantsSuckle = ColonyDecodeReads.Optional(x.WantsSuckle is not null, x.WantsSuckle.GetValueOrDefault()),
+                CanSuckleNow = ColonyDecodeReads.Optional(x.CanSuckleNow is not null, x.CanSuckleNow.GetValueOrDefault()),
+                BeingPlayedWith = ColonyDecodeReads.Optional(x.BeingPlayedWith is not null, x.BeingPlayedWith.GetValueOrDefault()),
+                InBed = ColonyDecodeReads.Optional(x.InBed is not null, x.InBed.GetValueOrDefault()),
                 Autofeeders = feeders,
             });
         }
@@ -390,7 +390,7 @@ public static partial class ObservationPackage
         foreach (var x in f.GeneBanks)
         {
             banks.Add(WithRow(
-                new GeneBank { Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()), AutoLoad = Optional(x.AutoLoad is not null, x.AutoLoad.GetValueOrDefault()), Capacity = Optional(x.Capacity is not null, x.Capacity.GetValueOrDefault()), PackIDs = [.. x.PackIds] },
+                new GeneBank { Powered = ColonyDecodeReads.Optional(x.Powered is not null, x.Powered.GetValueOrDefault()), AutoLoad = ColonyDecodeReads.Optional(x.AutoLoad is not null, x.AutoLoad.GetValueOrDefault()), Capacity = ColonyDecodeReads.Optional(x.Capacity is not null, x.Capacity.GetValueOrDefault()), PackIDs = [.. x.PackIds] },
                 x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var assemblers = new List<GeneAssembler>();
@@ -399,13 +399,13 @@ public static partial class ObservationPackage
             assemblers.Add(WithRow(
                 new GeneAssembler
                 {
-                    Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
-                    Working = Optional(x.Working is not null, x.Working.GetValueOrDefault()),
-                    CanWorkNow = Optional(x.CanWorkNow is not null, x.CanWorkNow.GetValueOrDefault()),
-                    Progress = Optional(x.Progress is not null, x.Progress.GetValueOrDefault()),
-                    TotalWork = Optional(x.TotalWork is not null, x.TotalWork.GetValueOrDefault()),
-                    ArchitesOwed = Optional(x.ArchitesOwed is not null, x.ArchitesOwed.GetValueOrDefault()),
-                    MaxComplexity = Optional(x.MaxComplexity is not null, x.MaxComplexity.GetValueOrDefault()),
+                    Powered = ColonyDecodeReads.Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
+                    Working = ColonyDecodeReads.Optional(x.Working is not null, x.Working.GetValueOrDefault()),
+                    CanWorkNow = ColonyDecodeReads.Optional(x.CanWorkNow is not null, x.CanWorkNow.GetValueOrDefault()),
+                    Progress = ColonyDecodeReads.Optional(x.Progress is not null, x.Progress.GetValueOrDefault()),
+                    TotalWork = ColonyDecodeReads.Optional(x.TotalWork is not null, x.TotalWork.GetValueOrDefault()),
+                    ArchitesOwed = ColonyDecodeReads.Optional(x.ArchitesOwed is not null, x.ArchitesOwed.GetValueOrDefault()),
+                    MaxComplexity = ColonyDecodeReads.Optional(x.MaxComplexity is not null, x.MaxComplexity.GetValueOrDefault()),
                     PackIDs = [.. x.PackIds],
                     LinkedBankIDs = [.. x.LinkedBankIds],
                 },
@@ -417,12 +417,12 @@ public static partial class ObservationPackage
             extractors.Add(WithRow(
                 new GeneExtractor
                 {
-                    Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
-                    Working = Optional(x.Working is not null, x.Working.GetValueOrDefault()),
-                    SelectedPawnID = Optional(x.SelectedPawnId is not null, x.SelectedPawnId ?? ""),
-                    OccupantID = Optional(x.OccupantId is not null, x.OccupantId ?? ""),
-                    TicksRemaining = Optional(x.TicksRemaining is not null, x.TicksRemaining.GetValueOrDefault()),
-                    PowerCutTicks = Optional(x.PowerCutTicks is not null, x.PowerCutTicks.GetValueOrDefault()),
+                    Powered = ColonyDecodeReads.Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
+                    Working = ColonyDecodeReads.Optional(x.Working is not null, x.Working.GetValueOrDefault()),
+                    SelectedPawnID = ColonyDecodeReads.Optional(x.SelectedPawnId is not null, x.SelectedPawnId ?? ""),
+                    OccupantID = ColonyDecodeReads.Optional(x.OccupantId is not null, x.OccupantId ?? ""),
+                    TicksRemaining = ColonyDecodeReads.Optional(x.TicksRemaining is not null, x.TicksRemaining.GetValueOrDefault()),
+                    PowerCutTicks = ColonyDecodeReads.Optional(x.PowerCutTicks is not null, x.PowerCutTicks.GetValueOrDefault()),
                 },
                 x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
@@ -435,11 +435,11 @@ public static partial class ObservationPackage
                 Definition = x.DefName ?? "",
                 Genes = [.. x.Genes],
                 Totals = GeneTotalsOf(x.Complexity is not null, x.Complexity.GetValueOrDefault(), x.Metabolism is not null, x.Metabolism.GetValueOrDefault(), x.Archites is not null, x.Archites.GetValueOrDefault()),
-                BankID = Optional(x.BankId is not null, x.BankId ?? ""),
-                Deteriorating = Optional(x.Deteriorating is not null, x.Deteriorating.GetValueOrDefault()),
-                AutoLoad = Optional(x.AutoLoad is not null, x.AutoLoad.GetValueOrDefault()),
-                HitPoints = Optional(x.HitPoints is not null, x.HitPoints.GetValueOrDefault()),
-                Position = x.Position is null ? default : Known(CellOf(x.Position)),
+                BankID = ColonyDecodeReads.Optional(x.BankId is not null, x.BankId ?? ""),
+                Deteriorating = ColonyDecodeReads.Optional(x.Deteriorating is not null, x.Deteriorating.GetValueOrDefault()),
+                AutoLoad = ColonyDecodeReads.Optional(x.AutoLoad is not null, x.AutoLoad.GetValueOrDefault()),
+                HitPoints = ColonyDecodeReads.Optional(x.HitPoints is not null, x.HitPoints.GetValueOrDefault()),
+                Position = x.Position is null ? default : Known(ColonyDecodeReads.CellOf(x.Position)),
             });
         }
         var xenogerms = new List<Xenogerm>();
@@ -448,27 +448,27 @@ public static partial class ObservationPackage
             var implants = new List<ImplantMetabolism>();
             foreach (var m in x.ImplantMetabolism)
             {
-                implants.Add(new ImplantMetabolism(m.PawnId ?? "", Optional(m.MetabolismAfter is not null, m.MetabolismAfter.GetValueOrDefault())));
+                implants.Add(new ImplantMetabolism(m.PawnId ?? "", ColonyDecodeReads.Optional(m.MetabolismAfter is not null, m.MetabolismAfter.GetValueOrDefault())));
             }
             xenogerms.Add(WithRow(
                 new Xenogerm
                 {
                     Genes = [.. x.Genes],
                     Totals = GeneTotalsOf(x.Complexity is not null, x.Complexity.GetValueOrDefault(), x.Metabolism is not null, x.Metabolism.GetValueOrDefault(), x.Archites is not null, x.Archites.GetValueOrDefault()),
-                    TargetPawnID = Optional(x.TargetPawnId is not null, x.TargetPawnId ?? ""),
-                    Forbidden = Optional(x.Forbidden is not null, x.Forbidden.GetValueOrDefault()),
+                    TargetPawnID = ColonyDecodeReads.Optional(x.TargetPawnId is not null, x.TargetPawnId ?? ""),
+                    Forbidden = ColonyDecodeReads.Optional(x.Forbidden is not null, x.Forbidden.GetValueOrDefault()),
                     ImplantMetabolism = implants,
                 },
                 x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         return Known(new BiotechColony
         {
-            TotalPollution = Optional(p.TotalPollution is not null, p.TotalPollution.GetValueOrDefault()),
-            PollutableCells = Optional(p.PollutableCells is not null, p.PollutableCells.GetValueOrDefault()),
-            ClearAreaID = Optional(p.ClearAreaId is not null, p.ClearAreaId ?? ""),
-            ClearAreaCells = Optional(p.ClearAreaCells is not null, p.ClearAreaCells.GetValueOrDefault()),
-            PollutedCells = Optional(p.PollutedCells is not null, p.PollutedCells.GetValueOrDefault()),
-            PollutedUncoveredCells = Optional(p.PollutedUncoveredCells is not null, p.PollutedUncoveredCells.GetValueOrDefault()),
+            TotalPollution = ColonyDecodeReads.Optional(p.TotalPollution is not null, p.TotalPollution.GetValueOrDefault()),
+            PollutableCells = ColonyDecodeReads.Optional(p.PollutableCells is not null, p.PollutableCells.GetValueOrDefault()),
+            ClearAreaID = ColonyDecodeReads.Optional(p.ClearAreaId is not null, p.ClearAreaId ?? ""),
+            ClearAreaCells = ColonyDecodeReads.Optional(p.ClearAreaCells is not null, p.ClearAreaCells.GetValueOrDefault()),
+            PollutedCells = ColonyDecodeReads.Optional(p.PollutedCells is not null, p.PollutedCells.GetValueOrDefault()),
+            PollutedUncoveredCells = ColonyDecodeReads.Optional(p.PollutedUncoveredCells is not null, p.PollutedUncoveredCells.GetValueOrDefault()),
             Breastfeeders = [.. f.Breastfeeders],
             Polluters = polluters,
             Wastepacks = wastepacks,

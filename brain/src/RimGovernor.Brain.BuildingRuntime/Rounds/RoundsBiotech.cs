@@ -378,7 +378,7 @@ partial class BiotechRounds
         var names = catalog.MechChargers();
         read = read with { Reading = read.Reading with { Projection = read.Projection.AddDefinitions(read.Frame, catalog, names) } };
         var output = new List<PlanningDefinition>();
-        foreach (var d in ObservationPackage.MechChargerDefs(read.Projection.Definitions))
+        foreach (var d in BiotechColonyReads.MechChargerDefs(read.Projection.Definitions))
         {
             if (d.Available.TryGetValue(out var available) && available)
             {

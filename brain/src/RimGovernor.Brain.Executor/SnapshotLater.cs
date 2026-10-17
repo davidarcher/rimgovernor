@@ -10,7 +10,7 @@ using System.Threading.Channels;
 
 namespace RimGovernor.Brain.Executor;
 
-public static partial class SnapshotPackage
+public static class SnapshotLaterReplay
 {
     // Recording is evidence for replay, never part of a decision, and encoding a 250x250 planning window costs
     // seconds: Later runs a recording job on one background consumer, in submission order, so the facts store's lock,
@@ -77,5 +77,5 @@ public static partial class SnapshotPackage
     /// its next table is a keyframe and no line refers to it meanwhile; the sink owns that bookkeeping.
     /// </summary>
     public static Recorder MirrorRecorder(string dir) =>
-        published => Write(dir, "section", published.Section, published);
+        published => SnapshotRecorder.Write(dir, "section", published.Section, published);
 }

@@ -19,7 +19,7 @@ public static class Zones
         {
             case ZoneKind.Fishing:
                 command = command with { Kind = Op.ZoneType.Fishing };
-                command = command with { Fishing = new Op.FishingSettings { PopulationFloor = DomainConstants.FishingPopulationFloor } };
+                command = command with { Fishing = new Op.FishingSettings { PopulationFloor = ZoneCreateConstants.FishingPopulationFloor } };
                 if (zone.ExtendId.Length != 0)
                 {
                     command = command with { Zone = IntentActionRules.NewRef(zone.ExtendId) };

@@ -95,7 +95,7 @@ internal sealed class ConstructionState
                 {
                     _dirty = true;
                 }
-                var (site, ok, error) = ObservationPackage.ConstructionSiteOf(row);
+                var (site, ok, error) = ConstructionReads.ConstructionSiteOf(row);
                 if (ok || error is not null)
                 {
                     var next = new SiteEntry(site, error);
@@ -109,7 +109,7 @@ internal sealed class ConstructionState
                 {
                     UnsetSite(id);
                 }
-                foreach (var n in ObservationPackage.SiteNeeds(row))
+                foreach (var n in ConstructionReads.SiteNeeds(row))
                 {
                     _deficit[n.Resource] = _deficit.GetValueOrDefault(n.Resource) + n.Count;
                 }
@@ -125,7 +125,7 @@ internal sealed class ConstructionState
     {
         try
         {
-            return new BuiltEntry(ObservationPackage.CurrentBuildingOf(row), null);
+            return new BuiltEntry(ConstructionReads.CurrentBuildingOf(row), null);
         }
         catch (DomainException e)
         {
@@ -154,7 +154,7 @@ internal sealed class ConstructionState
     // Removes a replaced or removed row's share of the deficit.
     private void DropNeeds(string id, O.BuildingState row)
     {
-        foreach (var n in ObservationPackage.SiteNeeds(row))
+        foreach (var n in ConstructionReads.SiteNeeds(row))
         {
             var left = _deficit.GetValueOrDefault(n.Resource) - n.Count;
             if (left == 0)
@@ -215,7 +215,7 @@ internal sealed class ConstructionState
 
 internal readonly record struct SiteNeed(Resource Resource, long Count);
 
-public static partial class ObservationPackage
+public static class ConstructionReads
 {
     /// <summary>Maps a native cardinal rotation onto the domain's; any other value is refused by the building constructor.</summary>
     internal static Rotation RotationOf(Placement.Rotation r) => r switch
@@ -237,7 +237,7 @@ public static partial class ObservationPackage
     /// <summary>Projects one built row for the construction census.</summary>
     internal static CurrentBuilding CurrentBuildingOf(O.BuildingState row)
     {
-        var building = new Building(row.Building.DefName, CellOf(row.Building.Position), RotationOf(row.Rotation), row.Stuff ?? "");
+        var building = new Building(row.Building.DefName, ColonyDecodeReads.CellOf(row.Building.Position), RotationOf(row.Rotation), row.Stuff ?? "");
         return new CurrentBuilding { Id = row.Building.Id, Building = building, Cells = EquatableArray.From(CellsRules.RectCells(row.Occupied)) };
     }
 
@@ -252,7 +252,7 @@ public static partial class ObservationPackage
             {
                 return (site, false, null);
             }
-            var b = new Building(buildDefName, CellOf(row.Building.Position), RotationOf(row.Rotation), row.Stuff ?? "");
+            var b = new Building(buildDefName, ColonyDecodeReads.CellOf(row.Building.Position), RotationOf(row.Rotation), row.Stuff ?? "");
             var state = row.Construction;
             site = new ConstructionSite { Building = b, Stage = stage, Id = row.Building.Id };
             if (state is not null)
@@ -260,7 +260,7 @@ public static partial class ObservationPackage
                 site = site with
                 {
                     ResourcesComplete = Known(state.ResourcesComplete),
-                    QualitySensitive = Optional(state.QualitySensitive is not null, state.QualitySensitive.GetValueOrDefault()),
+                    QualitySensitive = ColonyDecodeReads.Optional(state.QualitySensitive is not null, state.QualitySensitive.GetValueOrDefault()),
                     MaterialsOwed = Known(EquatableArray.From(SiteNeeds(row).Select(n => new Amount(n.Resource, n.Count)))),
                 };
                 if (state.WorkLeft is { } work)

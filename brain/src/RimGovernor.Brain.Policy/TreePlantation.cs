@@ -29,7 +29,7 @@ public static partial class PolicyFunctions
             return (0, 0, 0, false);
         }
         var wood = yield * 0.5;
-        return (minGrowth, wood, wood / (DomainConstants.TreeCellsPerTree * days * minGrowth), true);
+        return (minGrowth, wood, wood / (ZoneCreateConstants.TreeCellsPerTree * days * minGrowth), true);
     }
 
     // Why crop cannot be sown as a plantation here, empty when it can: not researched, no colonist at the sow

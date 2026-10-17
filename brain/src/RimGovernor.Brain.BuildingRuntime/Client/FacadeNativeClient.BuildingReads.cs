@@ -11,7 +11,7 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go's <c>ReadZoneSection</c>: reads the whole zone census. A failure never silently replaces a held census.</summary>
     internal async Task<ZonesRead> ReadZoneSectionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        var reply = await Facade.ListZonesAsync(PlacementReads.ZoneSectionRequest(identity), cancellationToken).ConfigureAwait(false);
+        var reply = await Facade.ListZonesAsync(PlacementChecks.ZoneSectionRequest(identity), cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
         {
             throw Failure(failure);
@@ -20,7 +20,7 @@ public sealed partial class FacadeNativeClient
         {
             throw Unavailable(unavailable);
         }
-        return PlacementReads.DecodeZones(reply.Outcome.Observed!);
+        return BuildingDecode.DecodeZones(reply.Outcome.Observed!);
     }
 
     /// <summary>
@@ -77,9 +77,9 @@ public sealed partial class FacadeNativeClient
                 throw BridgeContractException.Contract("invalid requested building identity");
             }
         }
-        var request = PlacementReads.ConstructionBuildingsRequest(identity, ids);
+        var request = PlacementChecks.ConstructionBuildingsRequest(identity, ids);
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        PlacementReads.UnwrapBuildings(reply);
+        BuildingDecode.UnwrapBuildings(reply);
         return reply;
     }
 
@@ -100,7 +100,7 @@ public sealed partial class FacadeNativeClient
             Statuses = [PbObservations.BuildingStatus.Built],
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        var v = PlacementReads.UnwrapBuildings(reply);
+        var v = BuildingDecode.UnwrapBuildings(reply);
         return new StorageBuildingTarget { Context = v.Context, Thing = thing, Present = v.Buildings.Count != 0 };
     }
 
@@ -150,7 +150,7 @@ public sealed partial class FacadeNativeClient
             AnyFaction = true,
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        var v = PlacementReads.UnwrapBuildings(reply);
+        var v = BuildingDecode.UnwrapBuildings(reply);
         if (v.Buildings.Count != 1)
         {
             throw BridgeContractException.Contract("claim building target missing or ambiguous");
@@ -197,7 +197,7 @@ public sealed partial class FacadeNativeClient
             Statuses = [PbObservations.BuildingStatus.Blueprint, PbObservations.BuildingStatus.Frame],
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        var observed = PlacementReads.UnwrapBuildings(reply);
+        var observed = BuildingDecode.UnwrapBuildings(reply);
         var stillNeed = new Dictionary<string, long>(StringComparer.Ordinal);
         var structures = 0;
         foreach (var row in observed.Buildings)
@@ -235,7 +235,7 @@ public sealed partial class FacadeNativeClient
         }
         var observed = reply.Outcome.Observed!;
         var buildings = await PlacementFrameBuildingsAsync(identity, cancellationToken).ConfigureAwait(false);
-        var sites = PlacementReads.DecodeWallUpgradeSites(observed, buildings);
+        var sites = BuildingDecode.DecodeWallUpgradeSites(observed, buildings);
         return new WallUpgradeSites { Context = observed.Context, Sites = sites };
     }
 
@@ -248,10 +248,10 @@ public sealed partial class FacadeNativeClient
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
         };
         var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        return Buildings.FromSnapshot(PlacementReads.UnwrapBuildings(reply));
+        return Buildings.FromSnapshot(BuildingDecode.UnwrapBuildings(reply));
     }
 
-    internal static partial class PlacementReads
+    internal static class BuildingDecode
     {
         /// <summary>Go's <c>decodeZones</c>: decodes a complete zone census, rows in id order.</summary>
         internal static ZonesRead DecodeZones(PbObservations.ZonesSnapshot value)

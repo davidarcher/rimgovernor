@@ -8,7 +8,7 @@ using RimGovernor.Brain.Telemetry;
 namespace RimGovernor.Brain.Acceptance;
 
 // The raw-store sections of the digest (Go postmortem.go parts 3, 4 and 6).
-public static partial class Postmortems
+public static class PostmortemStore
 {
     private static readonly Lock ProviderGate = new();
     private static bool _providerReady;
@@ -34,7 +34,7 @@ public static partial class Postmortems
     /// Opens dir/service.sqlite read-only without the store's schema checks; the note explains a null connection.
     /// The caller disposes the connection.
     /// </summary>
-    private static (SqliteConnection? Db, string Note) OpenRaw(string dir)
+    internal static (SqliteConnection? Db, string Note) OpenRaw(string dir)
     {
         var path = Path.Combine(dir, "service.sqlite");
         if (!File.Exists(path))
@@ -135,7 +135,7 @@ public static partial class Postmortems
     /// <summary>
     /// Reads rounds raw: the review's revision and tick, and every Need with a live method and its live method count.
     /// </summary>
-    private static DigestSection RoundsSection(SqliteConnection? db, string note)
+    internal static DigestSection RoundsSection(SqliteConnection? db, string note)
     {
         var s = new DigestSection("rounds");
         if (db is null)
@@ -182,7 +182,7 @@ public static partial class Postmortems
             while (reader.Read())
             {
                 count++;
-                if (s.Lines.Count >= 2 * MaxLines)
+                if (s.Lines.Count >= 2 * Postmortems.MaxLines)
                 {
                     continue;
                 }
@@ -209,7 +209,7 @@ public static partial class Postmortems
     // --- 4. unsuccessful stages (raw store) --------------------------------
 
     /// <summary>Lists every observe transition that ended an attempt unsuccessful, with the action's kind and the native reason.</summary>
-    private static DigestSection UnsuccessfulStages(SqliteConnection? db, string note)
+    internal static DigestSection UnsuccessfulStages(SqliteConnection? db, string note)
     {
         var s = new DigestSection("unsuccessful plan stages");
         if (db is null)
@@ -282,7 +282,7 @@ public static partial class Postmortems
                     }
 
                     total++;
-                    if (s.Lines.Count >= MaxLines)
+                    if (s.Lines.Count >= Postmortems.MaxLines)
                     {
                         continue;
                     }
@@ -330,7 +330,7 @@ public static partial class Postmortems
     /// How an authority row moved the grant: "changed" for native's clock_authority row (an AuthorityChanged event), else
     /// the brain's authority row's change field ("lost", "retaken").
     /// </summary>
-    private static string? AuthorityMovement(LogRecordRow row)
+    private static string? AuthorityMovement(Postmortems.LogRecordRow row)
     {
         if (row.Rec.Kind == TelemetryKinds.ClockAuthority.Name)
         {
@@ -342,7 +342,7 @@ public static partial class Postmortems
             return null;
         }
 
-        var change = FirstText(row.Fields(), "change");
+        var change = Postmortems.FirstText(row.Fields(), "change");
         return change.Length > 0 ? change : "changed";
     }
 
@@ -351,7 +351,7 @@ public static partial class Postmortems
     /// order, the authority rows (changed, lost, retaken) and the Rounder steps that failed on a lost control, and the
     /// report's own reacquisition count. A thrashing generation invalidates every open attempt.
     /// </summary>
-    private static DigestSection AuthorityGenerations(SqliteConnection? db, string note, List<LogRecordRow> rows, JsonObject report)
+    internal static DigestSection AuthorityGenerations(SqliteConnection? db, string note, List<Postmortems.LogRecordRow> rows, JsonObject report)
     {
         var s = new DigestSection("authority generations");
         if (report.TryGetPropertyValue("authority_reacquisitions", out var reacquisitions))
@@ -388,7 +388,7 @@ public static partial class Postmortems
                     if (last >= 0)
                     {
                         flips++;
-                        if (flips <= MaxLines / 2)
+                        if (flips <= Postmortems.MaxLines / 2)
                         {
                             s.Lines.Add(new DigestLine(
                                 string.Create(CultureInfo.InvariantCulture, $"generation {last} -> {native}"),
@@ -421,9 +421,9 @@ public static partial class Postmortems
         }
 
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-        var lastRow = new Dictionary<string, LogRecordRow>(StringComparer.Ordinal);
+        var lastRow = new Dictionary<string, Postmortems.LogRecordRow>(StringComparer.Ordinal);
         var controlLost = 0;
-        LogRecordRow? lastControlLost = null;
+        Postmortems.LogRecordRow? lastControlLost = null;
         foreach (var row in rows)
         {
             if (AuthorityMovement(row) is { } change)
@@ -432,7 +432,7 @@ public static partial class Postmortems
                 lastRow[change] = row;
             }
 
-            if (row.Rec.Kind == TelemetryKinds.PlannerStep.Name && FirstText(row.Fields(), "reason") == "control_lost")
+            if (row.Rec.Kind == TelemetryKinds.PlannerStep.Name && Postmortems.FirstText(row.Fields(), "reason") == "control_lost")
             {
                 controlLost++;
                 lastControlLost = row;
@@ -448,13 +448,13 @@ public static partial class Postmortems
 
             var f = lastRow[change].Fields();
             var text = string.Create(CultureInfo.InvariantCulture, $"{counts[change]} authority rows {change}; last");
-            var generation = FirstText(f, "generation");
+            var generation = Postmortems.FirstText(f, "generation");
             if (generation.Length > 0)
             {
                 text += " generation " + generation;
             }
 
-            var reason = FirstText(f, "reason");
+            var reason = Postmortems.FirstText(f, "reason");
             if (reason.Length > 0)
             {
                 text += " (" + reason + ")";
@@ -503,7 +503,7 @@ public static partial class Postmortems
 
             if (json.TryGetValue<double>(out var d))
             {
-                return FormatNumber(d);
+                return Postmortems.FormatNumber(d);
             }
         }
 

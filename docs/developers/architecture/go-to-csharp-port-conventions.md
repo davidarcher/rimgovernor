@@ -90,7 +90,7 @@ solution is turned off once, in `brain/.editorconfig`, with a one-line reason.
 | interface | interface, same name with an `I` prefix |
 | generics `func F[T any]` | C# generics; `constraints.Ordered` becomes `IComparable<T>` / `INumber<T>` |
 | `init()` registration | explicit `Register...` call at startup (see `ActionKindExtensions.RegisterIntentKind`); no static constructor side effects |
-| package-level `var` / `const` | `const` / `static readonly` on the owning type; with no owner, on `static partial class DomainConstants` (add a part per file) |
+| package-level `var` / `const` | `const` / `static readonly` on the owning type; with no owner, on a small named static class beside its consumer (no shared per-package partial) |
 | package-level function `FooBar(x T)` | `static` method on the type it operates on (`ReviewStandard` becomes `Standard.Review`), or an extension method when `T` is an enum/struct; name kept otherwise |
 | methods on a defined string type | extension methods on the enum |
 | build tags | `#if` only for genuine platform splits; none exist in `domain` |

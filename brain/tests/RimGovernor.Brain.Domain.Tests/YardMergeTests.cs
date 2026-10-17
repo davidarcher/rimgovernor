@@ -35,7 +35,7 @@ public sealed class YardMergeTests
     public void TheYardStoreUsesTheOutdoorSafeWastePreset()
     {
         var plan = new LayoutPlan { Rooms = [Storeroom, Yard], NextRoomId = 3 };
-        var yard = Assert.Single(DeclareStores(new StoreView { Layout = plan }).Stores, s => s.Role == DomainConstants.YardRole);
+        var yard = Assert.Single(DeclareStores(new StoreView { Layout = plan }).Stores, s => s.Role == StockpileRolesConstants.YardRole);
         var filter = Assert.IsType<StockpileFilter>(yard.Site.Filter);
         Assert.Equal(StockpileFilter.YardFilter(), filter);
         Assert.Equal(FilterBase.OutdoorSafeWaste, filter.Base);

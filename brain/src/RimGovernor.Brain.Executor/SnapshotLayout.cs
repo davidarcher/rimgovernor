@@ -26,7 +26,7 @@ public sealed class SnapshotLayout
 
     public Tick Tick { get; set; }
 
-    /// <summary>One of <see cref="SnapshotPackage.LayoutPropose"/>, <see cref="SnapshotPackage.LayoutTurrets"/>, <see cref="SnapshotPackage.LayoutCover"/>.</summary>
+    /// <summary>One of <see cref="SnapshotLayoutReplay.LayoutPropose"/>, <see cref="SnapshotLayoutReplay.LayoutTurrets"/>, <see cref="SnapshotLayoutReplay.LayoutCover"/>.</summary>
     public string Point { get; set; } = "";
 
     public DefenseRequest Request { get; set; } = new();
@@ -42,7 +42,7 @@ public sealed class SnapshotLayout
     public IReadOnlyList<NativeLine> NativeLines { get; set; } = [];
 }
 
-public static partial class SnapshotPackage
+public static class SnapshotLayoutReplay
 {
     /// <summary>The chokepoint choice: Request carries the lines of fire the proposal verified, replayed by DefenseLayouts.</summary>
     public const string LayoutPropose = "propose";
@@ -54,5 +54,5 @@ public static partial class SnapshotPackage
     public const string LayoutCover = "cover";
 
     /// <summary>Writes l into dir as layout-&lt;point&gt;-&lt;tick&gt;.</summary>
-    public static void RecordLayout(string dir, SnapshotLayout l) => Write(dir, "layout", $"layout-{l.Point}-{l.Tick.Value}", l);
+    public static void RecordLayout(string dir, SnapshotLayout l) => SnapshotRecorder.Write(dir, "layout", $"layout-{l.Point}-{l.Tick.Value}", l);
 }

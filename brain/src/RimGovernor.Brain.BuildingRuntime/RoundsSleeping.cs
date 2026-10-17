@@ -249,7 +249,7 @@ public sealed partial class RoundsBuildingPlanner
             return new RoundsBuildingResult { Verdict = BuildingReasonBunksOpen };
         }
         var identity = await r.Native.IdentityAsync(call).ConfigureAwait(false);
-        var expected = ObservationPackage.DecodeIdentity(identity);
+        var expected = DecodeReads.DecodeIdentity(identity);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             // A bare control error reads as a lost writer gate in the diagnosis; name the boundary that actually failed.
@@ -897,7 +897,7 @@ public sealed partial class RoundsBuildingPlanner
         Observation.Identity actual;
         try
         {
-            actual = ObservationPackage.DecodeIdentity(last);
+            actual = DecodeReads.DecodeIdentity(last);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

@@ -324,7 +324,7 @@ public static partial class PolicyFunctions
         var skill = new Dictionary<GearRole, int>();
         foreach (var w in p.Work.Work.ValueOrDefault)
         {
-            if (w.Disabled || w.Priority <= 0 || w.Priority > DomainConstants.MaxPriority)
+            if (w.Disabled || w.Priority <= 0 || w.Priority > WorkAssignmentConstants.MaxPriority)
             {
                 continue;
             }
@@ -447,7 +447,7 @@ public static partial class PolicyFunctions
         var medic = false;
         foreach (var w in p.Role.Work.Work.ValueOrDefault)
         {
-            if (w.Disabled || w.Priority <= 0 || w.Priority > DomainConstants.MaxPriority)
+            if (w.Disabled || w.Priority <= 0 || w.Priority > WorkAssignmentConstants.MaxPriority)
             {
                 continue;
             }

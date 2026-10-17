@@ -123,7 +123,7 @@ public sealed class ColonyStatus
         using var done = Player.Observe(ct);
         var call = done.Token;
         var identityReply = await Native.IdentityAsync(call).ConfigureAwait(false);
-        var decoded = ObservationApi.DecodeIdentity(identityReply);
+        var decoded = DecodeReads.DecodeIdentity(identityReply);
         var identity = new PbCommon.Identity { ColonyId = decoded.Colony.Value, LoadToken = decoded.Load.Value, MapId = decoded.Map.Value };
         var colony = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
         var observed = colony.Outcome?.Observed ?? throw new ControlException("Read: observed == nil");

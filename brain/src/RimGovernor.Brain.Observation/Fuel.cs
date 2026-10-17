@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class FuelReads
 {
     /// <summary>
     /// The power census row as a refuelable building: refuelable is false when its def has no refuelable comp (or

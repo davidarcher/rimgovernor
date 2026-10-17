@@ -175,11 +175,11 @@ public static partial class PolicyFunctions
                 }
             }
             var prefix = StockpileRolePrefix(store.Role);
-            if (prefix == DomainConstants.GeneralRole)
+            if (prefix == StockpileRolesConstants.GeneralRole)
             {
                 options.AddRange(RoomOptions(r, StorageOptionKind.SuccessorRoom, PlannedRole.Storage, prefix, stranded, census));
             }
-            else if (prefix == DomainConstants.YardRole)
+            else if (prefix == StockpileRolesConstants.YardRole)
             {
                 options.AddRange(RoomOptions(r, StorageOptionKind.FurtherRoom, PlannedRole.Yard, prefix, stranded, census));
             }

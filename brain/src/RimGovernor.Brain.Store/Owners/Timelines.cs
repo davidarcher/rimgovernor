@@ -409,7 +409,7 @@ internal static class LooseJson
         };
 }
 
-internal static partial class StoreSchema
+internal static class TimelinesSchema
 {
     internal static readonly SchemaPart TimelinePart = new(
         """

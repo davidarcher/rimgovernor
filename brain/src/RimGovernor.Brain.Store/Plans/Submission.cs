@@ -215,7 +215,7 @@ public sealed partial class Store
     public Task<IReadOnlyDictionary<PlanId, ulong>> PlayerPlansAsync(World w, CancellationToken cancellationToken) => Task.Run(() => PlayerPlans(w, cancellationToken), cancellationToken);
 }
 
-internal static partial class StoreSchema
+internal static class SubmissionSchema
 {
     internal static readonly SchemaPart SubmissionPart = new(
         """

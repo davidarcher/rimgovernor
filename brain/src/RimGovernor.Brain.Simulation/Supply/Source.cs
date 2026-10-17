@@ -183,7 +183,7 @@ public sealed record Source
 
     /// <summary>
     /// A fishing region: population regenerating 0.025 x max per day, paused below
-    /// <see cref="DomainConstants.FishingPopulationFloor"/>, with catch limited by fishers.
+    /// <see cref="ZoneCreateConstants.FishingPopulationFloor"/>, with catch limited by fishers.
     /// </summary>
     public static Source NewFishing(string id, double population, double max, int fishers, double nutritionPerFish) =>
         new()
@@ -196,7 +196,7 @@ public sealed record Source
             Stock = population,
             Max = max,
             Regen = SupplyConstants.FishingRegenFraction * max,
-            Floor = DomainConstants.FishingPopulationFloor,
+            Floor = ZoneCreateConstants.FishingPopulationFloor,
         };
 
     /// <summary>A food crop field growing inside window; the first harvest comes growDays growing days after the first planting.</summary>

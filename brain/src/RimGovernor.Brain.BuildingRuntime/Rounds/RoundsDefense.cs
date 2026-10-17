@@ -397,7 +397,7 @@ internal sealed class CombatInputs
         Profiles = [];
         foreach (var pawn in colonists)
         {
-            var work = ObservationApi.WorkPawnRow(Rows[pawn.Id.Value], arms.Catalog, arms.Things);
+            var work = RoundsWorkReads.WorkPawnRow(Rows[pawn.Id.Value], arms.Catalog, arms.Things);
             Profiles[pawn.Id] = PolicyApi.BuildProfile(work);
         }
     }
@@ -565,7 +565,7 @@ partial class RoundsDefensePlanner
         }
         return new CombatView
         {
-            SiteExit = ObservationApi.CombatSiteExitOf(combat.World, new MapId(combat.Context?.Identity?.MapId ?? 0)),
+            SiteExit = QuestReads.CombatSiteExitOf(combat.World, new MapId(combat.Context?.Identity?.MapId ?? 0)),
             Hunt = inp.Prey.Count > 0,
             HuntHunters = [.. inp.Hunters.Select(h => new PawnId(h))],
             Tick = new Tick(combat.Context?.Tick ?? 0),

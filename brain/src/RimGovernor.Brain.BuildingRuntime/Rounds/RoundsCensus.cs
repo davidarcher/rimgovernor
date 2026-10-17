@@ -291,7 +291,7 @@ public sealed partial class Rounder
     {
         if (ClockScheduler.ImmediateReview())
         {
-            return await ObservationApi.ObserveRoundsProtection(source, Clock, expected, MaxAge, ct).ConfigureAwait(false);
+            return await RoundsReads.ObserveRoundsProtection(source, Clock, expected, MaxAge, ct).ConfigureAwait(false);
         }
         using var window = ClockPlanning.StandaloneWindow(source);
         if (Census.Lookup(source, Native, expected, false, claims, definitions, out var cached))
@@ -311,8 +311,8 @@ public sealed partial class Rounder
     internal async Task<RoundsReading> ObserveRoundsAsync(IRoundsSource source, Identity expected, bool rooms, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken ct)
     {
         var reading = rooms
-            ? await ObservationApi.ObserveRoundsRooms(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false)
-            : await ObservationApi.ObserveRoundsOwned(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false);
+            ? await RoundsReads.ObserveRoundsRooms(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false)
+            : await RoundsReads.ObserveRoundsOwned(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false);
         var choices = GearChoices.Get(Player.Session.State().Snapshot);
         return reading.WithFacts(f => WithGearChoices(f, choices));
     }
@@ -358,7 +358,7 @@ public sealed partial class Rounder
     {
         if (ClockScheduler.ImmediateReview())
         {
-            return await ObservationApi.ObserveRoundsProtection(source, Clock, expected, MaxAge, ct).ConfigureAwait(false);
+            return await RoundsReads.ObserveRoundsProtection(source, Clock, expected, MaxAge, ct).ConfigureAwait(false);
         }
         using var window = ClockPlanning.StandaloneWindow(source);
         if (Census.Lookup(source, Native, expected, true, claims, definitions, out var cached))
@@ -373,7 +373,7 @@ public sealed partial class Rounder
     {
         if (ClockScheduler.ImmediateReview())
         {
-            return (await ObservationApi.ObserveRoundsProtection(Native, Clock, expected, MaxAge, ct).ConfigureAwait(false)).Reading;
+            return (await RoundsReads.ObserveRoundsProtection(Native, Clock, expected, MaxAge, ct).ConfigureAwait(false)).Reading;
         }
         using var window = ClockPlanning.StandaloneWindow(source);
         if (definitions is { Count: > 0 })
@@ -388,7 +388,7 @@ public sealed partial class Rounder
         {
             return cached.Reading;
         }
-        var reading = await ObservationApi.ObserveColony(source, Clock, expected, MaxAge, true, ct).ConfigureAwait(false);
+        var reading = await ColonyReads.ObserveColony(source, Clock, expected, MaxAge, true, ct).ConfigureAwait(false);
         return reading with { Projection = ServeAndReview(reading.Projection) };
     }
 }

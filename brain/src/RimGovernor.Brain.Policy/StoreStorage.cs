@@ -25,7 +25,7 @@ internal sealed class StorageOwner : IStoreOwner
             {
                 Site = new StoreSite
                 {
-                    Role = DomainConstants.GeneralRole,
+                    Role = StockpileRolesConstants.GeneralRole,
                     Interior = room.Region.Bounds(),
                     Region = room.Region,
                     Avoid = gear,
@@ -40,7 +40,7 @@ internal sealed class StorageOwner : IStoreOwner
             {
                 Site = new StoreSite
                 {
-                    Role = DomainConstants.YardRole,
+                    Role = StockpileRolesConstants.YardRole,
                     Interior = room.Region.Bounds(),
                     Region = room.Region,
                     Filter = StockpileFilter.YardFilter(),

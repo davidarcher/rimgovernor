@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Observation;
 // The planning rows are views over the catalog's generated def rows and stat table: nothing here is read from a
 // native planning writer. A row a view needs and the catalog lacks is an error, never a default.
 
-public static partial class ObservationPackage
+public static class PlanningViewReads
 {
     /// <summary>
     /// Name's planning row, null when the catalog has no player-catalog def of that name: a buildable ThingDef,

@@ -92,7 +92,7 @@ public sealed partial class FacadeNativeClient
     {
         foreach (var rect in planned)
         {
-            if (!PlacementReads.RectangleValid(rect, 4096))
+            if (!PlacementChecks.RectangleValid(rect, 4096))
             {
                 throw BridgeContractException.Contract("invalid planned ground rectangle");
             }
@@ -101,10 +101,10 @@ public sealed partial class FacadeNativeClient
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
             IncludeSalvage = includeSalvage,
-            SalvageMaxAgeTicks = PlacementReads.SalvageMaxAgeTicks,
-            SalvageFrameBudgetMs = PlacementReads.SalvageFrameBudgetMs,
-            SalvageInlineBudgetMs = PlacementReads.SalvageInlineBudgetMs,
-            SalvageCensusBudgetMs = PlacementReads.SalvageCensusBudgetMs,
+            SalvageMaxAgeTicks = SiteBudgets.SalvageMaxAgeTicks,
+            SalvageFrameBudgetMs = SiteBudgets.SalvageFrameBudgetMs,
+            SalvageInlineBudgetMs = SiteBudgets.SalvageInlineBudgetMs,
+            SalvageCensusBudgetMs = SiteBudgets.SalvageCensusBudgetMs,
             PlannedGround = [.. planned],
         };
         var reply = await Facade.ReadClearanceTargetsAsync(request, cancellationToken).ConfigureAwait(false);
@@ -119,7 +119,7 @@ public sealed partial class FacadeNativeClient
         return reply;
     }
 
-    internal static partial class PlacementReads
+    internal static class SiteBudgets
     {
         // Salvage evidence tunables sent on every clearance read (Go SalvageMaxAgeTicks and friends). Native computes
         // about 1 ms of colonist pathing per ruin, so these are main-thread guards: a cached row older than

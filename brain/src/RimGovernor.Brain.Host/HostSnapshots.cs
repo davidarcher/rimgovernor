@@ -40,7 +40,7 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
             Reading reading;
             try
             {
-                reading = await ObservationPackage.Observe(source, clock, cancellationToken).ConfigureAwait(false);
+                reading = await ObservationReads.Observe(source, clock, cancellationToken).ConfigureAwait(false);
                 reading.Snapshot.CheckFresh(clock.Now(), maxAge, reading.Snapshot.Identity);
             }
             catch (NotLoadedException e)

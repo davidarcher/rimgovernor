@@ -66,7 +66,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var p = Reviewer.Player;
         var started = Reviewer.Clock.Now();
         var identity = await Native.IdentityAsync(call).ConfigureAwait(false);
-        var expected = ObservationPackage.DecodeIdentity(identity);
+        var expected = DecodeReads.DecodeIdentity(identity);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("decide: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class RitualSitesReads
 {
     /// <summary>
     /// The finished buildings of the frame's building table whose ThingDef a held ritual's pattern requires: the

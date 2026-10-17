@@ -16,7 +16,7 @@ public sealed class YardRunwayTests
 
     private static readonly Rectangle YardRoom = new() { X = 10, Z = 10, Width = 10, Height = 10 };
 
-    private static readonly Policy.Store Yard = new() { Site = new StoreSite { Role = DomainConstants.YardRole, Interior = YardRoom } };
+    private static readonly Policy.Store Yard = new() { Site = new StoreSite { Role = StockpileRolesConstants.YardRole, Interior = YardRoom } };
 
     /// <summary>A yard of 100 stacks holding used, gaining perDay stacks a day over the last three days (null: no ring read).</summary>
     private static StockpileRequest Request(int used, double? perDay, params LootItem[] loot) => new()
@@ -27,7 +27,7 @@ public sealed class YardRunwayTests
             new StockpileZone
             {
                 Id = "Zone_yard",
-                Role = DomainConstants.YardRole,
+                Role = StockpileRolesConstants.YardRole,
                 Cells = RectCells(YardRoom),
                 Capacity = Known(100),
                 Used = Known(used),

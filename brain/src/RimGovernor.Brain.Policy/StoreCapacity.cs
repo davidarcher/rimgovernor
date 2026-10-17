@@ -96,7 +96,7 @@ public static partial class PolicyFunctions
         var runwayKnown = true;
         foreach (var s in request.Stores)
         {
-            if (s.Retired || s.Role != DomainConstants.YardRole)
+            if (s.Retired || s.Role != StockpileRolesConstants.YardRole)
             {
                 continue;
             }

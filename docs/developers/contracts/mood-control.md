@@ -214,7 +214,7 @@ corpse's `everBuriedInSarcophagus` false, because `Notify_HauledTo` returns unle
 The probe for `DeadMansApparel` is `apparel/dead_mans` (#3283). The fixture op `test/deadmans_wear` dresses the first
 colonist in five fresh, compatible garments, marks the first n `WornByCorpse` and adds or removes `Bloodlust`. For each
 step the case reads the pawn's situational thought rows once the cache is clean, lifts them as the brain's mood thoughts
-do (`ObservationPackage.MoodThoughts`), and compares the thought's offset with `CardStageOffset` for the same pawn and
+do (`RoundsMoodReads.MoodThoughts`), and compares the thought's offset with `CardStageOffset` for the same pawn and
 outfit: none for n = 0, -5/-8/-11/-14 for n = 1-4 and none with Bloodlust at n = 2. For n = 5 it requires the thought
 and records the observed stage against the card's clamp. With Bloodlust the situational row stays in the cache at
 offset 0 (`ThoughtUtility.ThoughtNullified` zeroes `MoodOffset`), so the lifted mood thoughts omit it. It is a typed case, whose waits run the game through RunAt, so it

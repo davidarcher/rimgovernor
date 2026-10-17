@@ -177,7 +177,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             var hosts = defs.Catalog.RecipeHosts(product.ToString(), finished);
             var request = new Pol.WorkshopRequest { Resource = product, Benches = Known<EquatableArray<Pol.GearBench>>([.. benches]), Hosts = hosts, Further = selection.Further };
-            SnapshotPackage.NoteWorkshop(request);
+            SnapshotPlannerReplay.NoteWorkshop(request);
             var choice = SelectWorkshopBench(request);
             if (choice.Method == Pol.WorkshopMethod.Existing)
             {
@@ -281,7 +281,7 @@ public sealed partial class RoundsBuildingPlanner
                 BuilderSkill = BuilderSkill(facts.WorkPawns),
                 Further = Workshop.Further,
             };
-            SnapshotPackage.NoteWorkshop(request);
+            SnapshotPlannerReplay.NoteWorkshop(request);
             var candidate = SelectWorkshopBench(request);
             if (candidate.Method == Pol.WorkshopMethod.Build || candidate.Method == Pol.WorkshopMethod.Existing)
             {

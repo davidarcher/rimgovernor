@@ -124,7 +124,7 @@ public sealed record Reading
 
 }
 
-public static partial class ObservationPackage
+public static class ObservationReads
 {
     /// <summary>
     /// One lifecycle_read_tick call: the reply's ObservationContext carries the colony, load, map, tick and
@@ -139,7 +139,7 @@ public static partial class ObservationPackage
         }
         var startedAt = clock.Now();
         var reply = await source.TickAsync(cancellationToken).ConfigureAwait(false);
-        var identity = DecodeTick(reply);
+        var identity = DecodeReads.DecodeTick(reply);
         var observedAt = clock.Now();
         if (startedAt == default || observedAt < startedAt)
         {

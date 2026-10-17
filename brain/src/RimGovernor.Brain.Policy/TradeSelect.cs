@@ -394,7 +394,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static HashSet<string> SaleGear(IReadOnlyList<TradeSheetRowFact> rows, IReadOnlySet<string> warehouses)
     {
-        var floor = DomainConstants.GearQualityFloor.Rank();
+        var floor = StockpileRolesConstants.GearQualityFloor.Rank();
         var output = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in rows)
         {
@@ -402,7 +402,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (row.HitPoints < DomainConstants.GearHitPointFloor || row.Quality < floor)
+            if (row.HitPoints < StockpileRolesConstants.GearHitPointFloor || row.Quality < floor)
             {
                 output.Add(row.ThingID);
             }

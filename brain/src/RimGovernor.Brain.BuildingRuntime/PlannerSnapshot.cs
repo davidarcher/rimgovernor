@@ -6,11 +6,11 @@ internal static class PlannerSnapshot
     /// <summary>Records the store's tables into the serve's snapshot stream when recording is on.</summary>
     public static void RecordTables(FactStore store)
     {
-        var dir = Environment.GetEnvironmentVariable(Snap.DirEnv);
+        var dir = Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv);
         if (!string.IsNullOrEmpty(dir))
         {
-            var record = Snap.MirrorRecorder(dir);
-            store.SetRecorder(published => Snap.Later(() => record(published)));
+            var record = SnapshotLaterReplay.MirrorRecorder(dir);
+            store.SetRecorder(published => SnapshotLaterReplay.Later(() => record(published)));
         }
     }
 
@@ -21,16 +21,16 @@ internal static class PlannerSnapshot
     /// </summary>
     public static void RecordStepRead(string planner, ConcernId goal, GenerationSnapshot current, ColonyProjection reading)
     {
-        var dir = Environment.GetEnvironmentVariable(Snap.DirEnv);
+        var dir = Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv);
         if (string.IsNullOrEmpty(dir))
         {
             return;
         }
-        Snap.Later(() =>
+        SnapshotLaterReplay.Later(() =>
         {
             try
             {
-                Snap.RecordStep(dir, planner, goal, current, reading);
+                SnapshotStepReplay.RecordStep(dir, planner, goal, current, reading);
             }
             catch (Exception)
             {
@@ -46,7 +46,7 @@ internal static class PlannerSnapshot
     /// </summary>
     public static PlannerRecording RecordPlannerStep(ConcernId goal, GenerationSnapshot current, Tick tick)
     {
-        var recording = Snap.StartPlanner(goal);
+        var recording = SnapshotPlannerReplay.StartPlanner(goal);
         return new PlannerRecording(recording, current, tick);
     }
 }
@@ -58,7 +58,7 @@ internal sealed class PlannerRecording(IDisposable recording, GenerationSnapshot
     {
         try
         {
-            Snap.Finish(recording, current, tick);
+            SnapshotPlannerReplay.Finish(recording, current, tick);
         }
         catch (Exception)
         {

@@ -1,11 +1,11 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class FacilityUpkeepReads
 {
     internal static Fact<HomeCoverageObservation> ColonyHomeCoverage(O.ColonyFactsSnapshot v)
     {
         var u = v.Upkeep?.Outcome;
-        if (u is null || HasIssue(u.Issues, "home_coverage"))
+        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "home_coverage"))
         {
             return Unknown<HomeCoverageObservation>();
         }
@@ -16,22 +16,22 @@ public static partial class ObservationPackage
         }
         var targets = new List<HomeCoverageTarget>(h.Targets.Count);
         var r = new HomeCoverageObservation { Revision = h.Revision.GetValueOrDefault() };
-        if (u.AutoHomeArea is not null && !HasIssue(u.Issues, "auto_home_area"))
+        if (u.AutoHomeArea is not null && !ColonyDecodeReads.HasIssue(u.Issues, "auto_home_area"))
         {
             r = r with { AutoHome = Known(u.AutoHomeArea.GetValueOrDefault()) };
         }
-        if (!HasIssue(u.Issues, "home_cells"))
+        if (!ColonyDecodeReads.HasIssue(u.Issues, "home_cells"))
         {
-            r = r with { Home = Known(EquatableArray.From(CellsOf(u.HomeCells))) };
+            r = r with { Home = Known(EquatableArray.From(ColonyDecodeReads.CellsOf(u.HomeCells))) };
         }
         foreach (var row in h.Targets)
         {
             var t = new HomeCoverageTarget
             {
                 Id = row.Id ?? "",
-                Shape = Optional(row.ShapeToken is not null, row.ShapeToken ?? ""),
+                Shape = ColonyDecodeReads.Optional(row.ShapeToken is not null, row.ShapeToken ?? ""),
                 Blocker = row.Blocker ?? "",
-                Cells = CellsOf(row.Cells),
+                Cells = ColonyDecodeReads.CellsOf(row.Cells),
             };
             if (row.MissingCells is not null)
             {
@@ -47,9 +47,9 @@ public static partial class ObservationPackage
                 {
                     ExtentGeometry = Known(new HomeExtentGeometry
                     {
-                        EnclosedInterior = EquatableArray.From(CellsOf(geometry.EnclosedInterior)),
-                        Corridor = EquatableArray.From(CellsOf(geometry.Corridor)),
-                        Zone = EquatableArray.From(CellsOf(geometry.Zone)),
+                        EnclosedInterior = EquatableArray.From(ColonyDecodeReads.CellsOf(geometry.EnclosedInterior)),
+                        Corridor = EquatableArray.From(ColonyDecodeReads.CellsOf(geometry.Corridor)),
+                        Zone = EquatableArray.From(ColonyDecodeReads.CellsOf(geometry.Zone)),
                     }),
                 };
             }
@@ -61,7 +61,7 @@ public static partial class ObservationPackage
     internal static Fact<EquatableArray<StoneStructure>> ColonyStoneStructures(O.ColonyFactsSnapshot v, Buildings buildings, DefinitionCatalog? catalog)
     {
         var u = v.Upkeep?.Outcome;
-        if (u is null || HasIssue(u.Issues, "structures"))
+        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "structures"))
         {
             return Unknown<EquatableArray<StoneStructure>>();
         }

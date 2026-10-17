@@ -131,7 +131,7 @@ public static class Production
             RecipeDef = v.Recipe,
             AcknowledgeViolation = v.AcknowledgeViolation,
         };
-        if (v.Part != DomainConstants.NoSurgeryPart)
+        if (v.Part != SurgeryConstants.NoSurgeryPart)
         {
             intent = intent with { PartIndex = v.Part };
         }

@@ -158,7 +158,7 @@ public sealed partial record StockpileFilter
     /// Buildings category adds the packed furniture, benches and art clearance leaves behind.
     /// </summary>
     public static StockpileFilter GeneralFilter() =>
-        new(FilterBase.IndoorOnly, [FilterSelector.CategoryDef("Buildings")], [FilterSelector.SpecialFilter(DomainConstants.BurnableFilterDef)]);
+        new(FilterBase.IndoorOnly, [FilterSelector.CategoryDef("Buildings")], [FilterSelector.SpecialFilter(ZoneCreateConstants.BurnableFilterDef)]);
 
     /// <summary>The opening outdoor store's: every non-perishable storable except chunks.</summary>
     public static StockpileFilter OpeningStoreFilter() => new(FilterBase.Nonperishables, null, [FilterSelector.CategoryDef("Chunks")]);

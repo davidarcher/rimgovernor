@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Observation;
 
 /// <summary>
 /// The planner-side colony read. Identity is the paused identity a planner observes before it plans;
-/// <see cref="ObservationPackage.ObserveColony"/> itself reads only the facts and validates them by their
+/// <see cref="ColonyReads.ObserveColony"/> itself reads only the facts and validates them by their
 /// ObservationContext.
 /// </summary>
 public interface IColonySource : ISource
@@ -29,7 +29,7 @@ public sealed record ColonyReading
 
 }
 
-public static partial class ObservationPackage
+public static class ColonyReads
 {
     /// <summary>
     /// The rule every routine read applies to a reply's context: the expected load, map and native generation.
@@ -70,14 +70,14 @@ public static partial class ObservationPackage
         var catalog = source is IDefinitionSource definitionSource
             ? await definitionSource.DefinitionCatalogAsync(id, cancellationToken).ConfigureAwait(false)
             : null;
-        var projection = DecodeColony(reply, expected, tables, catalog);
+        var projection = ColonyDecodeReads.DecodeColony(reply, expected, tables, catalog);
         if (planning)
         {
-            projection = await FillPlanningWindow(reply, id, projection, cancellationToken).ConfigureAwait(false);
-            var facts = await ReadDefinitionFacts(source, id, reply.Outcome?.Observed?.Planning?.Outcome?.Observed, cancellationToken).ConfigureAwait(false);
+            projection = await PlanningWindowReads.FillPlanningWindow(reply, id, projection, cancellationToken).ConfigureAwait(false);
+            var facts = await DefinitionsReads.ReadDefinitionFacts(source, id, reply.Outcome?.Observed?.Planning?.Outcome?.Observed, cancellationToken).ConfigureAwait(false);
             if (facts is not null)
             {
-                var definitions = facts.AppendDefinitions([.. projection.Definitions], StarterDefinitions);
+                var definitions = facts.AppendDefinitions([.. projection.Definitions], DefinitionsReads.StarterDefinitions);
                 // The dining table, chair and recreation foothold are the catalog's rules, not names
                 // (DefinitionCatalog.DiningFurniture).
                 var dining = facts.Catalog.DiningFurniture();
@@ -86,19 +86,19 @@ public static partial class ObservationPackage
                 var shapes = facts.Catalog.PieceShapes();
                 definitions = facts.AppendDefinitions(definitions, shapes.Furniture.Definitions());
                 var gearDefs = new GearDefinitions { Catalog = facts.Catalog, Finished = facts.Finished };
-                var gear = GearFacts(reply.Outcome?.Observed!, tables, gearDefs);
+                var gear = ColonyGearReads.GearFacts(reply.Outcome?.Observed!, tables, gearDefs);
                 projection = projection with
                 {
                     Definitions = definitions,
                     Shapes = shapes,
-                    Facts = projection.Facts with { Gear = gear, Garments = EquatableArray.From(ClothingGarments(gearDefs, gear)) },
+                    Facts = projection.Facts with { Gear = gear, Garments = EquatableArray.From(ColonyGearReads.ClothingGarments(gearDefs, gear)) },
                 };
             }
         }
-        projection = await FillZones(source as IZonesNative, id, expected, projection, cancellationToken).ConfigureAwait(false);
+        projection = await ZonesReads.FillZones(source as IZonesNative, id, expected, projection, cancellationToken).ConfigureAwait(false);
         if (planning)
         {
-            projection = projection with { Facts = projection.Facts with { Blight = BlightCensus(projection) } };
+            projection = projection with { Facts = projection.Facts with { Blight = ColonyFramesReads.BlightCensus(projection) } };
         }
         // Colony facts do not carry pause state; that fact is the caller's.
         var observed = projection.Identity with { Paused = expected.Paused };

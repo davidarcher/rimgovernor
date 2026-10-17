@@ -41,7 +41,7 @@ internal static class MoodProbe
                 continue;
             }
 
-            if (!ObservationPackage.MoodThoughts(state).TryGetValue(out var thoughts))
+            if (!RoundsMoodReads.MoodThoughts(state).TryGetValue(out var thoughts))
             {
                 throw new AcceptanceException($"{label}: the pawn's mood thoughts are unknown");
             }

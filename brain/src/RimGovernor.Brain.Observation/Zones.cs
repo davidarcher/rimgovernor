@@ -10,7 +10,7 @@ public interface IZonesSource
     Task<Held<ZonesRead>> ZonesAsync(C.Identity identity, CancellationToken cancellationToken);
 }
 
-public static partial class ObservationPackage
+public static class ZonesReads
 {
     private static readonly AsyncLocal<IZonesSource?> ZonesScope = new();
 
@@ -52,8 +52,8 @@ public static partial class ObservationPackage
         {
             return p;
         }
-        var actual = ContextIdentity(held.Value.Context) with { Paused = expected.Paused };
-        if (!SameColonyContext(actual, expected))
+        var actual = DecodeReads.ContextIdentity(held.Value.Context) with { Paused = expected.Paused };
+        if (!ColonyReads.SameColonyContext(actual, expected))
         {
             throw new ObservationChangedException();
         }
@@ -69,16 +69,16 @@ public static partial class ObservationPackage
             if (row.Farm is { } farm)
             {
                 farms.Add(farm);
-                zoneFacts.Add(new FarmZoneFact { Id = row.Id ?? "", Crop = farm.Crop ?? "", UsableCells = Optional(farm.UsableCells is not null, farm.UsableCells.GetValueOrDefault()) });
+                zoneFacts.Add(new FarmZoneFact { Id = row.Id ?? "", Crop = farm.Crop ?? "", UsableCells = ColonyDecodeReads.Optional(farm.UsableCells is not null, farm.UsableCells.GetValueOrDefault()) });
             }
         }
         p = p with { Farms = zoneFacts };
-        p = p with { Facts = ZoneProduction(farms, p.Definitions, p.Facts) };
+        p = p with { Facts = ColonyProductionReads.ZoneProduction(farms, p.Definitions, p.Facts) };
         return p with
         {
-            FieldCrops = ColonyFieldCrops(farms, p.Definitions),
-            FoodFields = ColonyFoodFields(farms, p.Definitions, p.Facts.Calendar, p.Cells),
-            FieldCapacityCrops = ColonyFieldCrops(farms, p.Definitions, true),
+            FieldCrops = ColonyProductionReads.ColonyFieldCrops(farms, p.Definitions),
+            FoodFields = ColonyProductionReads.ColonyFoodFields(farms, p.Definitions, p.Facts.Calendar, p.Cells),
+            FieldCapacityCrops = ColonyProductionReads.ColonyFieldCrops(farms, p.Definitions, true),
         };
     }
 

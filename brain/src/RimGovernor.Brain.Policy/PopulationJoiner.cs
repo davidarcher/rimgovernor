@@ -164,7 +164,7 @@ public sealed record JoinerChoice
 /// The population facts one more colonist is admitted against: every living person the colony already hosts
 /// (admitted colonists, guests and prisoners, from the same population census CustodyFacts reads), the
 /// sleeping census for a spare non-medical bed and the food runway in days. The target is the bot's own
-/// DomainConstants.PopulationTarget; there is no player knob.
+/// FindingConstants.PopulationTarget; there is no player knob.
 /// </summary>
 public sealed record JoinerCapacityFacts
 {
@@ -273,7 +273,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Reports whether the colony can host one more colonist: hosted population below
-    /// DomainConstants.PopulationTarget, the food runway at or above JoinerFoodFloorDays and a spare bed. Any
+    /// FindingConstants.PopulationTarget, the food runway at or above JoinerFoodFloorDays and a spare bed. Any
     /// unknown ingredient leaves it unknown.
     /// </summary>
     public static Fact<bool> JoinerCapacity(JoinerCapacityFacts f)
@@ -285,7 +285,7 @@ public static partial class PolicyFunctions
         {
             return Unknown<bool>();
         }
-        return Known(hosted < DomainConstants.PopulationTarget && food >= JoinerFoodFloorDays(hosted) && bed);
+        return Known(hosted < FindingConstants.PopulationTarget && food >= JoinerFoodFloorDays(hosted) && bed);
     }
 
     /// <summary>

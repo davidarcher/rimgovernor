@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class ColonyProductionReads
 {
     /// <summary>The bill's allowed defs; a butcher bill's filter is the corpse selection, not an ingredient list, so it stays unknown.</summary>
     private static Fact<EquatableArray<string>> BillIngredients(O.BillState b, RecipeRole role) =>
@@ -23,7 +23,7 @@ public static partial class ObservationPackage
             double? per;
             try
             {
-                per = RequireCatalog(catalog).RaceMeatNutrition((m.Race ?? ""));
+                per = ColonyDecodeReads.RequireCatalog(catalog).RaceMeatNutrition((m.Race ?? ""));
             }
             catch (DomainException)
             {
@@ -51,11 +51,11 @@ public static partial class ObservationPackage
         }
         return new CropGrowth
         {
-            Planted = CountFact(farm.PlantedCells is not null, farm.PlantedCells.GetValueOrDefault()),
-            FertilePlanted = CountFact(farm.FertilePlantedCells is not null, farm.FertilePlantedCells.GetValueOrDefault()),
-            GrowthMean = Optional(farm.GrowthMean is not null, farm.GrowthMean.GetValueOrDefault()),
-            FertilityMean = Optional(farm.FertilityFactorMean is not null, farm.FertilityFactorMean.GetValueOrDefault()),
-            Temperature = Optional(farm.Temperature is not null, farm.Temperature.GetValueOrDefault()),
+            Planted = ColonyDecodeReads.CountFact(farm.PlantedCells is not null, farm.PlantedCells.GetValueOrDefault()),
+            FertilePlanted = ColonyDecodeReads.CountFact(farm.FertilePlantedCells is not null, farm.FertilePlantedCells.GetValueOrDefault()),
+            GrowthMean = ColonyDecodeReads.Optional(farm.GrowthMean is not null, farm.GrowthMean.GetValueOrDefault()),
+            FertilityMean = ColonyDecodeReads.Optional(farm.FertilityFactorMean is not null, farm.FertilityFactorMean.GetValueOrDefault()),
+            Temperature = ColonyDecodeReads.Optional(farm.Temperature is not null, farm.Temperature.GetValueOrDefault()),
             MinGrowth = lo,
             MinOptimal = loOptimal,
             MaxOptimal = hiOptimal,
@@ -84,7 +84,7 @@ public static partial class ObservationPackage
             {
                 return Unknown<EquatableArray<FoodField>>();
             }
-            var crop = new CropChoice { Name = farm.Crop ?? "", Edible = Optional(farm.EdibleCrop is not null, farm.EdibleCrop.GetValueOrDefault()) };
+            var crop = new CropChoice { Name = farm.Crop ?? "", Edible = ColonyDecodeReads.Optional(farm.EdibleCrop is not null, farm.EdibleCrop.GetValueOrDefault()) };
             var work = Unknown<double>();
             foreach (var d in definitions)
             {
@@ -116,8 +116,8 @@ public static partial class ObservationPackage
                 {
                     ZoneCells = roof.Cells,
                     UnroofedCells = roof.Unroofed,
-                    Planted = CountFact(farm.PlantedCells is not null, farm.PlantedCells.GetValueOrDefault()),
-                    Blighted = CountFact(farm.BlightedPlants is not null, farm.BlightedPlants.GetValueOrDefault()),
+                    Planted = ColonyDecodeReads.CountFact(farm.PlantedCells is not null, farm.PlantedCells.GetValueOrDefault()),
+                    Blighted = ColonyDecodeReads.CountFact(farm.BlightedPlants is not null, farm.BlightedPlants.GetValueOrDefault()),
                 },
             });
         }
@@ -177,10 +177,10 @@ public static partial class ObservationPackage
         var rows = new List<FieldCrop>(farms.Count);
         foreach (var farm in farms)
         {
-            var row = new FieldCrop { Edible = Optional(farm.EdibleCrop is not null, farm.EdibleCrop.GetValueOrDefault()), GrowingCells = FarmGrowth(farm, definitions).GrowingCells() };
+            var row = new FieldCrop { Edible = ColonyDecodeReads.Optional(farm.EdibleCrop is not null, farm.EdibleCrop.GetValueOrDefault()), GrowingCells = FarmGrowth(farm, definitions).GrowingCells() };
             if (usable)
             {
-                row = row with { GrowingCells = CountFact(farm.UsableCells is not null, farm.UsableCells.GetValueOrDefault()) };
+                row = row with { GrowingCells = ColonyDecodeReads.CountFact(farm.UsableCells is not null, farm.UsableCells.GetValueOrDefault()) };
             }
             foreach (var definition in definitions)
             {
@@ -197,7 +197,7 @@ public static partial class ObservationPackage
 
     internal static RoundsFacts ColonyProduction(O.ColonyFactsSnapshot v, RoundsFacts facts)
     {
-        if (HasIssue(v.Issues, "cooking"))
+        if (ColonyDecodeReads.HasIssue(v.Issues, "cooking"))
         {
             return facts;
         }
@@ -249,8 +249,8 @@ public static partial class ObservationPackage
         var row = new ProductionProduct
         {
             Name = name,
-            Edible = Optional(product.Edible is not null, product.Edible.GetValueOrDefault()),
-            Storable = Optional(product.Storable is not null, product.Storable.GetValueOrDefault()),
+            Edible = ColonyDecodeReads.Optional(product.Edible is not null, product.Edible.GetValueOrDefault()),
+            Storable = ColonyDecodeReads.Optional(product.Storable is not null, product.Storable.GetValueOrDefault()),
         };
         if (catalog is null)
         {
@@ -282,24 +282,24 @@ public static partial class ObservationPackage
 
     internal static Fact<EquatableArray<ProductionBench>> ColonyProductionBenches(O.ColonyFactsSnapshot v, Buildings buildings, Pawns pawns, DefinitionCatalog? catalog)
     {
-        if (HasIssue(v.Issues, "cooking") || HasIssue(v.Issues, "butchering") || !Headed(buildings, v.Cooking, b => b.Bench) || !Headed(buildings, v.Butchering, b => b.Bench))
+        if (ColonyDecodeReads.HasIssue(v.Issues, "cooking") || ColonyDecodeReads.HasIssue(v.Issues, "butchering") || !ColonyDecodeReads.Headed(buildings, v.Cooking, b => b.Bench) || !ColonyDecodeReads.Headed(buildings, v.Butchering, b => b.Bench))
         {
             return Unknown<EquatableArray<ProductionBench>>();
         }
         var rows = new List<ProductionBench>();
         ProductionBench Add(C.Ref? bench, O.SnapshotRef? snapshot, Fact<bool> usable, IEnumerable<O.RecipeState> recipes, IEnumerable<O.BillState> bills, IEnumerable<O.FoodProduction> production, bool butcher, C.Ref? room)
         {
-            var row = new ProductionBench { Id = bench?.Id ?? "", Definition = buildings.Entity(bench)?.DefName ?? "", Usable = usable, Butcher = butcher, Room = OptionalRef(room) };
+            var row = new ProductionBench { Id = bench?.Id ?? "", Definition = buildings.Entity(bench)?.DefName ?? "", Usable = usable, Butcher = butcher, Room = ColonyDecodeReads.OptionalRef(room) };
             if (snapshot is not null)
             {
-                row = row with { Token = Optional(snapshot.Token is not null, (snapshot.Token ?? "")) };
+                row = row with { Token = ColonyDecodeReads.Optional(snapshot.Token is not null, (snapshot.Token ?? "")) };
             }
             var recipeRows = new List<ProductionRecipe>();
             foreach (var r in recipes)
             {
                 var name = r.Recipe?.DefName ?? "";
-                var recipe = new ProductionRecipe { Name = name, Role = RequireCatalog(catalog).RecipeRoleOf(name), Bulk = RequireCatalog(catalog).RecipeBulk(name) };
-                var meal = RequireCatalog(catalog).RecipeMealFacts(name, row.Definition);
+                var recipe = new ProductionRecipe { Name = name, Role = ColonyDecodeReads.RequireCatalog(catalog).RecipeRoleOf(name), Bulk = ColonyDecodeReads.RequireCatalog(catalog).RecipeBulk(name) };
+                var meal = ColonyDecodeReads.RequireCatalog(catalog).RecipeMealFacts(name, row.Definition);
                 recipe = recipe with
                 {
                     Mood = meal.Mood,
@@ -334,19 +334,19 @@ public static partial class ObservationPackage
             var billRows = new List<ExistingProductionBill>();
             foreach (var b in bills)
             {
-                var role = RequireCatalog(catalog).RecipeRoleOf(b.Recipe?.DefName ?? "");
+                var role = ColonyDecodeReads.RequireCatalog(catalog).RecipeRoleOf(b.Recipe?.DefName ?? "");
                 billRows.Add(new ExistingProductionBill
                 {
                     Role = role,
-                    DefaultIngredients = Optional(b.DefaultIngredients is not null, b.DefaultIngredients.GetValueOrDefault()),
-                    UnrestrictedWorker = Optional(b.UnrestrictedWorker is not null, b.UnrestrictedWorker.GetValueOrDefault()),
+                    DefaultIngredients = ColonyDecodeReads.Optional(b.DefaultIngredients is not null, b.DefaultIngredients.GetValueOrDefault()),
+                    UnrestrictedWorker = ColonyDecodeReads.Optional(b.UnrestrictedWorker is not null, b.UnrestrictedWorker.GetValueOrDefault()),
                     Worker = Known(b.Worker?.Id ?? ""),
                     RepeatMode = RepeatModeFact(b.RepeatMode is not null, b.RepeatMode.GetValueOrDefault()),
                     Ingredients = BillIngredients(b, role),
                     Id = b.Id ?? "",
                     Active = BillActive(b.Suspended is not null, b.Suspended.GetValueOrDefault()),
                     Recipe = b.Recipe?.DefName ?? "",
-                    TargetCount = Optional(b.TargetCount is not null, b.TargetCount.GetValueOrDefault()),
+                    TargetCount = ColonyDecodeReads.Optional(b.TargetCount is not null, b.TargetCount.GetValueOrDefault()),
                     Forever = BillForever(b.RepeatMode is not null, b.RepeatMode.GetValueOrDefault()),
                     Humanlike = butcher && (b.IngredientFilter?.AllowedDefNames.Count ?? 0) > 0,
                 });
@@ -355,25 +355,25 @@ public static partial class ObservationPackage
         }
         foreach (var b in v.Cooking)
         {
-            rows.Add(Add(b.Bench, b.BenchSnapshot, Optional(b.Usable is not null, b.Usable.GetValueOrDefault()), b.Recipes, b.Bills, b.Production, false, b.Room));
+            rows.Add(Add(b.Bench, b.BenchSnapshot, ColonyDecodeReads.Optional(b.Usable is not null, b.Usable.GetValueOrDefault()), b.Recipes, b.Bills, b.Production, false, b.Room));
         }
         foreach (var b in v.Butchering)
         {
-            var row = Add(b.Bench, b.BenchSnapshot, Optional(b.Usable is not null, b.Usable.GetValueOrDefault()), b.Recipes, b.Bills, [], true, b.Room);
+            var row = Add(b.Bench, b.BenchSnapshot, ColonyDecodeReads.Optional(b.Usable is not null, b.Usable.GetValueOrDefault()), b.Recipes, b.Bills, [], true, b.Room);
             var butchers = new List<HumanButcherCandidate>();
             foreach (var candidate in b.HumanButchers)
             {
                 var traits = new List<PawnTrait>();
                 foreach (var t in candidate.PawnTraits)
                 {
-                    traits.Add(ResolveTrait(catalog, new PawnTrait { Name = t.DefName, Degree = (int)t.Degree }));
+                    traits.Add(RoundsWorkReads.ResolveTrait(catalog, new PawnTrait { Name = t.DefName, Degree = (int)t.Degree }));
                 }
                 butchers.Add(new HumanButcherCandidate
                 {
                     ID = new PawnId(candidate.PawnId),
                     Traits = Known(EquatableArray.From(traits)),
                     Held = HeldPreceptsOf(pawns, candidate.PawnId),
-                    CanWork = Optional(candidate.CanWork is not null, candidate.CanWork.GetValueOrDefault()),
+                    CanWork = ColonyDecodeReads.Optional(candidate.CanWork is not null, candidate.CanWork.GetValueOrDefault()),
                 });
             }
             rows.Add(row with { HumanCorpseNutrition = HumanCorpseNutrition(b.HumanCorpseMeat, catalog), HumanButchers = butchers });

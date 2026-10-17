@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class RoundsContainmentReads
 {
     /// <summary>
     /// The containment cell's inputs from the frame: the entities' demand from the pawn table, the standing holders
@@ -15,7 +15,7 @@ public static partial class ObservationPackage
             Defs = Unknown<ContainmentDefs>(),
             Entities = Unknown<EquatableArray<CapturableEntity>>(),
         };
-        if (!RequireCatalog(catalog).HasAnomaly())
+        if (!ColonyDecodeReads.RequireCatalog(catalog).HasAnomaly())
         {
             return output;
         }
@@ -47,7 +47,7 @@ public static partial class ObservationPackage
             {
                 // The shell is one stuff: the wall's cheapest, which the door must be makeable from too
                 // (an unstuffed pair has no stuff).
-                if (!SharedStuff(wall!, door!, out var stuff))
+                if (!StuffChoiceReads.SharedStuff(wall!, door!, out var stuff))
                 {
                     reason = "the shell's wall and door are built from different stuff";
                 }
@@ -240,7 +240,7 @@ public static partial class ObservationPackage
                 continue;
             }
             var id = new PawnId(row.Pawn.Id ?? "");
-            var cell = RowCell(row.Pawn.Position);
+            var cell = RitualSitesReads.RowCell(row.Pawn.Position);
             if (bt.Mechanitor.TryGetValue(out var m) && m is not null && row.Colonist)
             {
                 mechanitors.Add(new MechanitorInput { Id = id, Mechanitor = m, Cell = cell });
@@ -259,11 +259,11 @@ public static partial class ObservationPackage
     }
 
     /// <summary>The pawn row's position.</summary>
-    public static Fact<Cell> RowCellOf(O.PawnState row) => RowCell(row.Pawn.Position);
+    public static Fact<Cell> RowCellOf(O.PawnState row) => RitualSitesReads.RowCell(row.Pawn.Position);
 
     // rounds_medical.go
 
-    private static Fact<EquatableArray<CarePawn>> RoundsMedical(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot, DefinitionCatalog catalog)
+    internal static Fact<EquatableArray<CarePawn>> RoundsMedical(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot, DefinitionCatalog catalog)
     {
         var unknown = Unknown<EquatableArray<CarePawn>>();
         var parts = new DefinitionPartCatalog(catalog);
@@ -294,7 +294,7 @@ public static partial class ObservationPackage
             var p = new CarePawn { Id = pawn.Id, Dead = Known(dead) };
             if (row.Settings is { } settings)
             {
-                p = p with { Care = CareName(settings.MedicalCare) };
+                p = p with { Care = RoundsWorkReads.CareName(settings.MedicalCare) };
             }
             if (row.Health is { } h)
             {

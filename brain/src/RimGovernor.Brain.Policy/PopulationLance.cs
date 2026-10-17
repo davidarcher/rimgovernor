@@ -39,13 +39,13 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The standing hostile humanlike a lance should down while the colony is below
-    /// DomainConstants.PopulationTarget: known recruitable, not downed, not a prisoner, and the best skills;
+    /// FindingConstants.PopulationTarget: known recruitable, not downed, not a prisoner, and the best skills;
     /// ties go to the lowest pawn ID. Null when the colony is at target, its size is unknown or no row
     /// qualifies. Who wears a lance is the planner's combat read (SelectLanceUse).
     /// </summary>
     public static PawnId? LanceCandidate(RoundsFacts f)
     {
-        if (!f.PrisonerColony.TryGetValue(out var colony) || colony.Colonists >= DomainConstants.PopulationTarget)
+        if (!f.PrisonerColony.TryGetValue(out var colony) || colony.Colonists >= FindingConstants.PopulationTarget)
         {
             return null;
         }

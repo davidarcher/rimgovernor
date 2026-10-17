@@ -186,7 +186,7 @@ public sealed partial class Rounder
             return;
         }
         TechTierLogged = projection.TechTier;
-        var evidence = PolicyApi.TechTierEvidence(ObservationApi.FinishedResearch(projection.Facts.Research), projection.PlayerTechLevel);
+        var evidence = PolicyApi.TechTierEvidence(RoundsReads.FinishedResearch(projection.Facts.Research), projection.PlayerTechLevel);
         var message = "tech tier " + tier;
         if (evidence != "")
         {
@@ -395,7 +395,7 @@ public sealed partial class Rounder
                 Buildings = reading.Catalog is { } buildingCatalog ? Known(buildingCatalog.WorkBuildingCosts()) : default,
                 Recipes = reading.Catalog is { } batchCatalog ? Known(batchCatalog.ProductionRecipeInputs(
                 reading.Frame.Tables.Buildings.Table.Values().Select(b => b.Building?.DefName ?? ""))) : default,
-                Bills = ObservationApi.ProductionBatchStates(reading.Frame.Bills),
+                Bills = ConstructionReads.ProductionBatchStates(reading.Frame.Bills),
             }
         });
         var batches = await p.Journal.ProductionBatchesAsync(state.Snapshot, reading.Projection.Identity.Tick, ct).ConfigureAwait(false);
@@ -619,7 +619,7 @@ public sealed partial class Rounder
                 throw new ControlException("step: !ok");
             }
             var ground = PlannedGround(reading.Projection);
-            var clearance = await ObservationApi.ObserveClearanceCensusOnGround(clearanceSource, expected, true, ground, ct).ConfigureAwait(false);
+            var clearance = await ClearanceReads.ObserveClearanceCensusOnGround(clearanceSource, expected, true, ground, ct).ConfigureAwait(false);
             if (clearance.TryGetValue(out var census))
             {
                 var (others, player) = PolicyApi.SplitGroundRows(census.Targets);
@@ -834,18 +834,18 @@ partial class Rounder
     /// </summary>
     internal static void RecordRoundsSnapshot(GenerationSnapshot current, Tick tick, RoundsResult result, ColonyProjection reading, CancellationToken ct)
     {
-        var dir = Environment.GetEnvironmentVariable(SnapshotApi.DirEnv) ?? "";
+        var dir = Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv) ?? "";
         if (dir == "")
         {
             return;
         }
-        SnapshotApi.Later(() =>
+        SnapshotLaterReplay.Later(() =>
         {
-            if (SnapshotApi.FromReview(current, tick, result, reading) is { } recorded)
+            if (SnapshotRoundsReplay.FromReview(current, tick, result, reading) is { } recorded)
             {
                 try
                 {
-                    SnapshotApi.Record(dir, recorded);
+                    SnapshotRecorder.Record(dir, recorded);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {

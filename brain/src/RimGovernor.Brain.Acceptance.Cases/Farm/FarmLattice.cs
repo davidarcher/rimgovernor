@@ -64,7 +64,7 @@ internal static class FarmLattice
     {
         var oakId = s.Staged!.Zones[OakZone];
         var riceId = s.Staged.Zones[RiceZone];
-        var pitch = DomainConstants.TreeLatticePitch;
+        var pitch = ZoneCreateConstants.TreeLatticePitch;
         var wantTrees = (Width + pitch - 1) / pitch * ((Height + pitch - 1) / pitch);
         var wantRice = Width * Height;
 

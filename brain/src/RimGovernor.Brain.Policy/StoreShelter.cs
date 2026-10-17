@@ -22,7 +22,7 @@ internal sealed class ShelterOwner : IStoreOwner
         {
             return [];
         }
-        var retired = new Store { Retired = true, Site = new StoreSite { Role = DomainConstants.ShelterRole } };
+        var retired = new Store { Retired = true, Site = new StoreSite { Role = StockpileRolesConstants.ShelterRole } };
         if (v.StorageRoomStands())
         {
             return [retired];
@@ -49,7 +49,7 @@ internal sealed class ShelterOwner : IStoreOwner
                 {
                     Site = new StoreSite
                     {
-                        Role = DomainConstants.ShelterRole,
+                        Role = StockpileRolesConstants.ShelterRole,
                         Interior = patch,
                         Filter = StockpileFilter.GeneralFilter(),
                         Priority = StockpilePriority.Low,

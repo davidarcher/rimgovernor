@@ -86,7 +86,7 @@ public sealed class SnapshotRounds
     }
 }
 
-public static partial class SnapshotPackage
+public static class SnapshotRoundsReplay
 {
     /// <summary>The snapshot of an enabled review's result; null when the review detected nothing (disabled).</summary>
     public static SnapshotRounds? FromReview(GenerationSnapshot current, Tick tick, StoreRoundsResult result, ColonyProjection reading)
@@ -104,7 +104,7 @@ public static partial class SnapshotPackage
         return new SnapshotRounds
         {
             Projection = reading,
-            Recorded = Provenance(current, tick),
+            Recorded = SnapshotRecorder.Provenance(current, tick),
             Snapshot = current,
             Tick = tick,
             Immediate = review.Immediate,

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class AcquisitionReads
 {
     /// <summary>
     /// Decodes the native-approved harvest/hunt source census of one colony facts read; unknown when the
@@ -16,7 +16,7 @@ public static partial class ObservationPackage
     internal static (Fact<EquatableArray<AcquisitionSource>> Sources, IReadOnlyList<HuntHold> Holds) DecodeAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? definitions)
     {
         var unknown = (Unknown<EquatableArray<AcquisitionSource>>(), (IReadOnlyList<HuntHold>)[]);
-        if (HasIssue(v.Issues, "acquisition") || !Headed(tables, v.Acquisition, row => row.Source))
+        if (ColonyDecodeReads.HasIssue(v.Issues, "acquisition") || !ColonyDecodeReads.Headed(tables, v.Acquisition, row => row.Source))
         {
             return unknown;
         }
@@ -25,7 +25,7 @@ public static partial class ObservationPackage
         DefinitionCatalog catalog;
         try
         {
-            catalog = RequireCatalog(definitions);
+            catalog = ColonyDecodeReads.RequireCatalog(definitions);
             races = catalog.AnimalRaces();
             census = HuntCensusOf(v.HuntCensus, catalog);
         }
@@ -45,7 +45,7 @@ public static partial class ObservationPackage
                 Resource = row.Resource ?? "",
                 Token = row.SourceSnapshot?.Token ?? "",
                 Definition = source?.DefName ?? "",
-                Cell = CellOf(source?.Position),
+                Cell = ColonyDecodeReads.CellOf(source?.Position),
                 Hunt = row.Hunt.GetValueOrDefault(),
                 Food = row.Food.GetValueOrDefault(),
                 Designated = row.Designated.GetValueOrDefault(),
@@ -177,7 +177,7 @@ public static partial class ObservationPackage
             hunters.Add(new HuntHunter
             {
                 ID = h.PawnId ?? "",
-                Cell = CellOf(h.Position),
+                Cell = ColonyDecodeReads.CellOf(h.Position),
                 Downed = h.Downed.GetValueOrDefault(),
                 MentalState = h.InMentalState,
                 HuntingActive = h.HuntingActive.GetValueOrDefault(),
@@ -194,21 +194,21 @@ public static partial class ObservationPackage
 
     internal static HashSet<string> Set(IEnumerable<string> values) => new(values, StringComparer.Ordinal);
 
-    private static void ApplyAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog, ref ColonyProjection r)
+    internal static void ApplyAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog, ref ColonyProjection r)
     {
         var (sources, holds) = DecodeAcquisition(v, tables, catalog);
         r = r with { Acquisition = sources, HuntHolds = holds };
-        if (!HasIssue(v.Issues, "pending_food_nutrition"))
+        if (!ColonyDecodeReads.HasIssue(v.Issues, "pending_food_nutrition"))
         {
-            r = r with { PendingFoodNutrition = Optional(v.PendingFoodNutrition is not null, v.PendingFoodNutrition.GetValueOrDefault()) };
+            r = r with { PendingFoodNutrition = ColonyDecodeReads.Optional(v.PendingFoodNutrition is not null, v.PendingFoodNutrition.GetValueOrDefault()) };
         }
-        if (!HasIssue(v.Issues, "pending_hunts") && v.PendingHunts is not null)
+        if (!ColonyDecodeReads.HasIssue(v.Issues, "pending_hunts") && v.PendingHunts is not null)
         {
             r = r with { PendingHunts = Known((int)v.PendingHunts.GetValueOrDefault()) };
         }
-        if (!HasIssue(v.Issues, "pending_wood_units"))
+        if (!ColonyDecodeReads.HasIssue(v.Issues, "pending_wood_units"))
         {
-            r = r with { PendingWoodUnits = Optional(v.PendingWoodUnits is not null, v.PendingWoodUnits.GetValueOrDefault()) };
+            r = r with { PendingWoodUnits = ColonyDecodeReads.Optional(v.PendingWoodUnits is not null, v.PendingWoodUnits.GetValueOrDefault()) };
         }
     }
 }

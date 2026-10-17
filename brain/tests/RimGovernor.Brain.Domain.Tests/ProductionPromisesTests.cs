@@ -127,11 +127,11 @@ public sealed class ProductionPromisesTests
     {
         var bill = new O.BillState { Id = "bill", ManagedUnchanged = true, Suspended = false, Finished = false, RepeatMode = Ops.RepeatMode.Count, RepeatCount = 3 };
         O.BillsSnapshot Snapshot(O.BillState row) => new() { Benches = [new() { Bills = [row] }] };
-        var census = ObservationPackage.ProductionBatchStates(Snapshot(bill));
+        var census = ConstructionReads.ProductionBatchStates(Snapshot(bill));
         Assert.Equal(30, Promises(Placed, census).Value[0].MaterialClaims[0].Units.Value);
-        Assert.False(ObservationPackage.ProductionBatchStates(Snapshot(bill with { RepeatCount = null })).Value[0].Remaining.IsKnown);
-        Assert.False(ObservationPackage.ProductionBatchStates(null).IsKnown);
-        Assert.False(ObservationPackage.ProductionBatchStates(Snapshot(bill with { Id = null })).IsKnown);
+        Assert.False(ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatCount = null })).Value[0].Remaining.IsKnown);
+        Assert.False(ConstructionReads.ProductionBatchStates(null).IsKnown);
+        Assert.False(ConstructionReads.ProductionBatchStates(Snapshot(bill with { Id = null })).IsKnown);
     }
 
     [Fact]

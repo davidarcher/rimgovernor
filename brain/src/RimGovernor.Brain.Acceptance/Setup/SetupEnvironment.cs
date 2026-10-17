@@ -98,7 +98,7 @@ public sealed class SetupSummary
 /// game copy under .rimgovernor/native-rimworld, the root under .rimgovernor/bridge and the fixture mod build installed
 /// into the copy. The Go controller binaries step is gone: the harness and the brain are one C# process now.
 /// </summary>
-public static partial class SetupEnvironment
+public static class SetupEnvironment
 {
     /// <summary>
     /// Bounds the copy's path: the deepest Core Defs path under it is ~120 characters and the engine's memory-mapped

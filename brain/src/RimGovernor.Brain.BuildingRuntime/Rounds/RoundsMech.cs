@@ -26,7 +26,7 @@ internal static class RoundsMech
 
     internal static MechGuardPlan CombatMechGuards(Combat combat, IReadOnlyList<string> hostileIds, IReadOnlyDictionary<string, O.PawnState> rows)
     {
-        var fleet = ObservationPackage.MechFleetOf(combat.Detail.Table.Values());
+        var fleet = RoundsContainmentReads.MechFleetOf(combat.Detail.Table.Values());
         if (fleet.Mechanitors.Count == 0 || fleet.Mechs.Count == 0)
         {
             return new MechGuardPlan();
@@ -40,7 +40,7 @@ internal static class RoundsMech
                 continue;
             }
 
-            if (ObservationPackage.RowCellOf(row).TryGetValue(out var cell))
+            if (RoundsContainmentReads.RowCellOf(row).TryGetValue(out var cell))
             {
                 hostiles.Add(new MechHostile { Id = new PawnId(id), Cell = cell });
             }

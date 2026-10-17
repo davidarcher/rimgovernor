@@ -9,7 +9,7 @@ public interface IRefrigerationSource
     Task<O.ListBuildingsReply> ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken);
 }
 
-public static partial class ObservationPackage
+public static class RefrigerationReads
 {
     /// <summary>
     /// Joins the colony power census's Cooler rows with a typed building read of those exact IDs. A cooler the
@@ -58,8 +58,8 @@ public static partial class ObservationPackage
             {
                 return unknown;
             }
-            cooler = cooler with { Rotation = RotationOf(row.Rotation) };
-            cooler = cooler with { Target = Optional(row.Settings.TargetTemperatureC is not null, row.Settings.TargetTemperatureC.GetValueOrDefault()) };
+            cooler = cooler with { Rotation = ConstructionReads.RotationOf(row.Rotation) };
+            cooler = cooler with { Target = ColonyDecodeReads.Optional(row.Settings.TargetTemperatureC is not null, row.Settings.TargetTemperatureC.GetValueOrDefault()) };
             coolers.Add(cooler);
         }
         coolers.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));

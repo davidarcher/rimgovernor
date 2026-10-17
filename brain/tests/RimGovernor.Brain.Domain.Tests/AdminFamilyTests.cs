@@ -24,7 +24,7 @@ public sealed class AdminFamilyTests
 
     private static Inspections Inspect(params string[] pawns) => new()
     {
-        Orders = EquatableArray.From(pawns.Select(p => new InspectionOrder(new PawnId(p), Inspection, DomainConstants.NoSurgeryPart))),
+        Orders = EquatableArray.From(pawns.Select(p => new InspectionOrder(new PawnId(p), Inspection, SurgeryConstants.NoSurgeryPart))),
         Record = new CreepJoinerRecord { Inspections = pawns.ToDictionary(p => new PawnId(p), _ => InspectionStage.Ordered) },
     };
 
@@ -288,7 +288,7 @@ public sealed class AdminFamilyTests
         using var colony = Open();
         var plan = PlanIds.MintPlanId();
         var held = colony.Journal.CommitClaimedMethod(HomeUpkeepFamily.Repairs, World, new MethodId("other"), "",
-            new PlanSpec(plan, new PlanRevision(1), [DomainAction.NewSurgeryAction(new(plan.Value + "-0"), new Surgery(new("b"), Inspection, DomainConstants.NoSurgeryPart, false))]), ct);
+            new PlanSpec(plan, new PlanRevision(1), [DomainAction.NewSurgeryAction(new(plan.Value + "-0"), new Surgery(new("b"), Inspection, SurgeryConstants.NoSurgeryPart, false))]), ct);
         Assert.Equal(ClaimOutcome.Admitted, held.Outcome);
 
         colony.Work = new CreepJoinerWork { Owed = Known(true), Inspections = Inspect("b") };

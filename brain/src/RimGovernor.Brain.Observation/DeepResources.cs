@@ -61,7 +61,7 @@ public sealed record DeepResources
     public IReadOnlyList<DeepDrill> Drills { get; init; } = [];
 }
 
-public static partial class ObservationPackage
+public static class DeepResourcesReads
 {
     /// <summary>Validates the census before projection. Missing sections remain unknown; an observed empty census establishes that no lumps/scanners exist.</summary>
     internal static Fact<DeepResources> ColonyDeepResources(O.DeepResourcesSection? section, DefinitionCatalog? catalog)
@@ -86,10 +86,10 @@ public static partial class ObservationPackage
                     ID = row.BuildingId ?? "",
                     Definition = row.DefName ?? "",
                     Position = new Cell(row.Position?.X ?? 0, row.Position?.Z ?? 0),
-                    Built = Optional(row.Built is not null, row.Built.GetValueOrDefault()),
-                    Powered = Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
-                    Working = Optional(row.Working is not null, row.Working.GetValueOrDefault()),
-                    TicksToNextFind = Optional(row.TicksToNextFind is not null, row.TicksToNextFind.GetValueOrDefault()),
+                    Built = ColonyDecodeReads.Optional(row.Built is not null, row.Built.GetValueOrDefault()),
+                    Powered = ColonyDecodeReads.Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
+                    Working = ColonyDecodeReads.Optional(row.Working is not null, row.Working.GetValueOrDefault()),
+                    TicksToNextFind = ColonyDecodeReads.Optional(row.TicksToNextFind is not null, row.TicksToNextFind.GetValueOrDefault()),
                     TargetResource = TargetResource(row, catalog),
                 });
             }
@@ -103,11 +103,11 @@ public static partial class ObservationPackage
                 ID = row.BuildingId ?? "",
                 Definition = row.DefName ?? "",
                 Position = new Cell(row.Position?.X ?? 0, row.Position?.Z ?? 0),
-                Powered = Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
-                Depleted = Optional(row.Depleted is not null, row.Depleted.GetValueOrDefault()),
-                Designated = Optional(row.Designated is not null, row.Designated.GetValueOrDefault()),
-                Resource = Optional(row.Resource is not null, row.Resource ?? ""),
-                Remaining = Optional(row.Remaining is not null, row.Remaining.GetValueOrDefault()),
+                Powered = ColonyDecodeReads.Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
+                Depleted = ColonyDecodeReads.Optional(row.Depleted is not null, row.Depleted.GetValueOrDefault()),
+                Designated = ColonyDecodeReads.Optional(row.Designated is not null, row.Designated.GetValueOrDefault()),
+                Resource = ColonyDecodeReads.Optional(row.Resource is not null, row.Resource ?? ""),
+                Remaining = ColonyDecodeReads.Optional(row.Remaining is not null, row.Remaining.GetValueOrDefault()),
             });
         }
         return Known(new DeepResources { Lumps = lumps, GroundScanners = Scanners(f.GroundScanners), LongRangeScanners = Scanners(f.LongRangeScanners), Drills = drills });
@@ -120,7 +120,7 @@ public static partial class ObservationPackage
         {
             return default;
         }
-        var yield = RequireCatalog(catalog).MineableYield((row.TargetMineable ?? ""));
+        var yield = ColonyDecodeReads.RequireCatalog(catalog).MineableYield((row.TargetMineable ?? ""));
         return yield != "" ? Known(yield) : default;
     }
 }

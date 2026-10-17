@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class RoundsWorkReads
 {
     /// <summary>
     /// Go's <c>DefinitionCatalog.PrimaryWeapon</c>: the def facts of the primary weapon a pawn's equipment names. A gear
@@ -100,7 +100,7 @@ public static partial class ObservationPackage
         }
         if (row.Equipment is { } e)
         {
-            if (PrimaryWeapon(RequireCatalog(catalog), e, things, out var weapon))
+            if (PrimaryWeapon(ColonyDecodeReads.RequireCatalog(catalog), e, things, out var weapon))
             {
                 w = w with { Ranged = Known(weapon.Ranged), Hunts = Known(weapon.Hunts()) };
             }
@@ -110,11 +110,11 @@ public static partial class ObservationPackage
             var resolved = new List<WorkPriority>(work.Count);
             foreach (var entry in work)
             {
-                resolved.Add(RequireCatalog(catalog).ResolveWorkRow(entry));
+                resolved.Add(ColonyDecodeReads.RequireCatalog(catalog).ResolveWorkRow(entry));
             }
             w = w with { Work = Known(EquatableArray.From(resolved)) };
         }
-        w = w with { SeriousBloodLoss = RequireCatalog(catalog).SeriousBloodLoss() };
+        w = w with { SeriousBloodLoss = ColonyDecodeReads.RequireCatalog(catalog).SeriousBloodLoss() };
         if (w.Traits.TryGetValue(out var traits))
         {
             var resolved = new List<PawnTrait>(traits.Count);
@@ -139,7 +139,7 @@ public static partial class ObservationPackage
 
     private static WorkPawn WorkPawnRowFrom(O.PawnState row)
     {
-        var w = new WorkPawn { Id = new PawnId(row.Pawn.Id ?? ""), ConstructionAble = Optional(row.ConstructionCapable is not null, row.ConstructionCapable.GetValueOrDefault()) };
+        var w = new WorkPawn { Id = new PawnId(row.Pawn.Id ?? ""), ConstructionAble = ColonyDecodeReads.Optional(row.ConstructionCapable is not null, row.ConstructionCapable.GetValueOrDefault()) };
         w = w with { Available = Known(!row.Dead && !row.Downed && !row.Drafted && row.MentalState is null) };
         if (row.Settings is { } s)
         {
@@ -154,11 +154,11 @@ public static partial class ObservationPackage
                 {
                     Body = Known(new PawnBody
                     {
-                        ComfortableMinC = Optional(b.ComfortableMinC is not null, b.ComfortableMinC.GetValueOrDefault()),
-                        ComfortableMaxC = Optional(b.ComfortableMaxC is not null, b.ComfortableMaxC.GetValueOrDefault()),
-                        MoveSpeed = Optional(b.MoveSpeed is not null, b.MoveSpeed.GetValueOrDefault()),
-                        CellTemperatureC = Optional(b.CellTemperatureC is not null, b.CellTemperatureC.GetValueOrDefault()),
-                        Hypothermia = Optional(b.Hypothermia is not null, b.Hypothermia.GetValueOrDefault()),
+                        ComfortableMinC = ColonyDecodeReads.Optional(b.ComfortableMinC is not null, b.ComfortableMinC.GetValueOrDefault()),
+                        ComfortableMaxC = ColonyDecodeReads.Optional(b.ComfortableMaxC is not null, b.ComfortableMaxC.GetValueOrDefault()),
+                        MoveSpeed = ColonyDecodeReads.Optional(b.MoveSpeed is not null, b.MoveSpeed.GetValueOrDefault()),
+                        CellTemperatureC = ColonyDecodeReads.Optional(b.CellTemperatureC is not null, b.CellTemperatureC.GetValueOrDefault()),
+                        Hypothermia = ColonyDecodeReads.Optional(b.Hypothermia is not null, b.Hypothermia.GetValueOrDefault()),
                     }),
                 };
             }
@@ -166,7 +166,7 @@ public static partial class ObservationPackage
             {
                 w = w with { MedicalCare = Known(WireEnums.MedicalCareName(s.MedicalCare.GetValueOrDefault())) };
             }
-            w = w with { Applies = Optional(s.WorkApplies is not null, s.WorkApplies.GetValueOrDefault()), Manual = Optional(s.ManualWorkPriorities is not null, s.ManualWorkPriorities.GetValueOrDefault()) };
+            w = w with { Applies = ColonyDecodeReads.Optional(s.WorkApplies is not null, s.WorkApplies.GetValueOrDefault()), Manual = ColonyDecodeReads.Optional(s.ManualWorkPriorities is not null, s.ManualWorkPriorities.GetValueOrDefault()) };
             // Native sends the 24 hourly slots hour 0 first, or none for a pawn without a timetable.
             if (s.Schedule.Count == 24)
             {
@@ -179,11 +179,11 @@ public static partial class ObservationPackage
                 foreach (var entry in s.Work)
                 {
                     // Another mod's work type has no planner meaning and nothing to write back: it is left out of the rows.
-                    if (WireParseOpen(entry.DefName, WorkType.Unrecognized) == WorkType.Unrecognized)
+                    if (ColonyDecodeReads.WireParseOpen(entry.DefName, WorkType.Unrecognized) == WorkType.Unrecognized)
                     {
                         continue;
                     }
-                    work.Add(new WorkPriority { Work = WireParse<WorkType>(entry.DefName), Priority = entry.Priority, Disabled = entry.Disabled });
+                    work.Add(new WorkPriority { Work = ColonyDecodeReads.WireParse<WorkType>(entry.DefName), Priority = entry.Priority, Disabled = entry.Disabled });
                 }
                 w = w with { Work = Known(EquatableArray.From(work)) };
             }
@@ -196,7 +196,7 @@ public static partial class ObservationPackage
             {
                 Job = Known(j.DefName is null
                     ? new PawnJob()
-                    : new PawnJob { Def = j.DefName, Work = WireParseOpen(j.WorkTypeDefName, WorkType.Unrecognized), Target = JobTarget(j.TargetA, j.TargetACell) }),
+                    : new PawnJob { Def = j.DefName, Work = ColonyDecodeReads.WireParseOpen(j.WorkTypeDefName, WorkType.Unrecognized), Target = JobTarget(j.TargetA, j.TargetACell) }),
             };
         }
         if (row.Biography is { } bio)
@@ -210,11 +210,11 @@ public static partial class ObservationPackage
             var incapable = new List<WorkType>();
             foreach (var name in bio.IncapableWorkTypes)
             {
-                incapable.Add(WireParseOpen(name, WorkType.Unrecognized));
+                incapable.Add(ColonyDecodeReads.WireParseOpen(name, WorkType.Unrecognized));
             }
             w = w with { Incapable = Known(EquatableArray.From(incapable)), Age = Known(bio.BiologicalAgeYears) };
         }
-        w = w with { Inspiration = Optional(row.Inspiration is not null, (row.Inspiration ?? "")), Biotech = BiotechFactsRules.PawnBiotech(row.Biotech) };
+        w = w with { Inspiration = ColonyDecodeReads.Optional(row.Inspiration is not null, (row.Inspiration ?? "")), Biotech = BiotechFactsRules.PawnBiotech(row.Biotech) };
         if (w.Biotech.TryGetValue(out var bt) && bt.IsDeathresting())
         {
             w = w with { Available = Known(false) };
@@ -241,15 +241,15 @@ public static partial class ObservationPackage
             // A psylink level is known only for a psycaster: an absent psyfocus is no psylink (Psylink.cs).
             w = w with
             {
-                Rest = Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
-                Mood = Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
+                Rest = ColonyDecodeReads.Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
+                Mood = ColonyDecodeReads.Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
                 BreakThreshold = Known(n.BreakThresholdMinor),
-                PsylinkLevel = Optional(n.Psyfocus is not null, n.Psyfocus?.PsylinkLevel ?? 0),
+                PsylinkLevel = ColonyDecodeReads.Optional(n.Psyfocus is not null, n.Psyfocus?.PsylinkLevel ?? 0),
             };
         }
         if (row.Social is { } social)
         {
-            w = w with { HighExpectations = Optional(social.HighExpectations is not null, social.HighExpectations.GetValueOrDefault()) };
+            w = w with { HighExpectations = ColonyDecodeReads.Optional(social.HighExpectations is not null, social.HighExpectations.GetValueOrDefault()) };
         }
         return w;
     }

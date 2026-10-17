@@ -86,7 +86,7 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
     }
 }
 
-public static partial class ObservationPackage
+public static class RoundsReads
 {
     public static Task<RoundsReading> ObserveRoundsOwned(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
         ObserveRounds(source, clock, expected, maxAge, claims, false, true, definitions, cancellationToken);
@@ -124,10 +124,10 @@ public static partial class ObservationPackage
             throw new ObservationContractException("rounds frame lacks colony or emergency context");
         }
         var colonySource = new FrameColony(source, frame);
-        using var zoneScope = planning ? null : WithZones(colonySource);
+        using var zoneScope = planning ? null : ZonesReads.WithZones(colonySource);
         // Protection uses only this coherent frame, never the ordinary scheduler's zone refresher and its
         // potentially blocked census.
-        var reading = await ObserveColony(colonySource, clock, expected, maxAge, planning, cancellationToken).ConfigureAwait(false);
+        var reading = await ColonyReads.ObserveColony(colonySource, clock, expected, maxAge, planning, cancellationToken).ConfigureAwait(false);
         var p = reading.Projection;
         var colony = frame.Colony;
         var emergency = frame.Emergency.Facts;
@@ -152,7 +152,7 @@ public static partial class ObservationPackage
                 },
             };
         }
-        p = p with { Facts = p.Facts with { Containment = ContainmentPlanningOf(frame, catalog, p.Definitions) } };
+        p = p with { Facts = p.Facts with { Containment = RoundsContainmentReads.ContainmentPlanningOf(frame, catalog, p.Definitions) } };
         if (p.Facts.Sleeping.TryGetValue(out var sleeping))
         {
             sleeping = sleeping with { BedBuildable = p.DefinitionAvailable(p.Shapes.Furniture.PrimaryBed()) };
@@ -161,10 +161,10 @@ public static partial class ObservationPackage
         p = p with { Facts = p.Facts with { CurrentConstruction = Unknown<CurrentConstruction>(), ConstructionDeficit = Unknown<IReadOnlyDictionary<Resource, long>>() } };
         if (frame.Buildings is { } census)
         {
-            var (current, deficit) = ConstructionFromCensus(census);
+            var (current, deficit) = ConstructionReads.ConstructionFromCensus(census);
             p = p with { Facts = p.Facts with { CurrentConstruction = current, ConstructionDeficit = deficit } };
         }
-        p = p with { Facts = p.Facts with { BillReservations = BillReservations(frame.Bills) } };
+        p = p with { Facts = p.Facts with { BillReservations = ConstructionReads.BillReservations(frame.Bills) } };
         if (p.PowerPlanning.TryGetValue(out var topology))
         {
             p = p with { Facts = p.Facts with { ForecastObserved = p.Facts.ForecastObserved with { Power = topology.Networks } } };
@@ -177,23 +177,23 @@ public static partial class ObservationPackage
         };
         if (pawns is not null)
         {
-            var (armed, unarmed) = RoundsArmed(colony, emergency, pawns, RequireCatalog(catalog).CreepJoinerDownsides());
+            var (armed, unarmed) = RoundsMoodReads.RoundsArmed(colony, emergency, pawns, ColonyDecodeReads.RequireCatalog(catalog).CreepJoinerDownsides());
             p = p with
             {
                 Facts = p.Facts with
                 {
                     Armed = armed,
                     Unarmed = unarmed,
-                    DefenseCapacity = DefenseCapacityPolicy.DefenseCapacity(RoundsDefenders(colony, emergency, pawns), p.DefenseTurrets),
+                    DefenseCapacity = DefenseCapacityPolicy.DefenseCapacity(RoundsMoodReads.RoundsDefenders(colony, emergency, pawns), p.DefenseTurrets),
                 },
                 MechCatalog = catalog?.Biotech?.MechCatalog() ?? new(),
-                WorkPawns = RoundsWork(colony, emergency, pawns, catalog, frame.Tables.Things),
-                MeditateAvailable = Optional(pawns.MeditateAssignmentAvailable is not null, pawns.MeditateAssignmentAvailable.GetValueOrDefault()),
+                WorkPawns = RoundsWorkReads.RoundsWork(colony, emergency, pawns, catalog, frame.Tables.Things),
+                MeditateAvailable = ColonyDecodeReads.Optional(pawns.MeditateAssignmentAvailable is not null, pawns.MeditateAssignmentAvailable.GetValueOrDefault()),
             };
-            p = p with { Facts = p.Facts with { MedicalPawns = RoundsMedical(colony, emergency, pawns, RequireCatalog(catalog)) } };
-            p = p with { Facts = p.Facts with { MoodPawns = RoundsMood(colony, emergency, pawns) } };
+            p = p with { Facts = p.Facts with { MedicalPawns = RoundsContainmentReads.RoundsMedical(colony, emergency, pawns, ColonyDecodeReads.RequireCatalog(catalog)) } };
+            p = p with { Facts = p.Facts with { MoodPawns = RoundsMoodReads.RoundsMood(colony, emergency, pawns) } };
             var thoughtFacts = catalog?.AllThoughtFacts() ?? new Dictionary<string, ThoughtFacts>();
-            p = p with { Facts = p.Facts with { MoodLedger = RoundsMoodLedger(p.Facts.MoodPawns, pawns, thoughtFacts) } };
+            p = p with { Facts = p.Facts with { MoodLedger = RoundsMoodReads.RoundsMoodLedger(p.Facts.MoodPawns, pawns, thoughtFacts) } };
         }
         else if (emergency.ColonistsComplete.TryGetValue(out var complete) && complete && emergency.Colonists.Count == 0 && colony.ColonistCount == 0)
         {
@@ -206,15 +206,15 @@ public static partial class ObservationPackage
                 },
             };
         }
-        p = p with { Mechs = frame.Tables.Pawns.Count > 0 ? Known(MechFleetOf(frame.Tables.Pawns.Table.Values())) : Unknown<MechFleet>() };
+        p = p with { Mechs = frame.Tables.Pawns.Count > 0 ? Known(RoundsContainmentReads.MechFleetOf(frame.Tables.Pawns.Table.Values())) : Unknown<MechFleet>() };
         p = p with
         {
             Facts = p.Facts with
             {
-                MechChargerOwed = PolicyFunctions.MechChargerNeed(p.Mechs, MechChargerFact(p.Biotech)),
-                GeneBankOwed = PolicyFunctions.GeneBankNeed(GeneBankFact(p.Biotech)),
-                RecoveryWorkers = RecoveryWorkers(p.Facts.MoodPawns),
-                Gear = RoundsGear(p.Facts.Gear, emergency),
+                MechChargerOwed = PolicyFunctions.MechChargerNeed(p.Mechs, BiotechColonyReads.MechChargerFact(p.Biotech)),
+                GeneBankOwed = PolicyFunctions.GeneBankNeed(BiotechColonyReads.GeneBankFact(p.Biotech)),
+                RecoveryWorkers = ColonyFramesReads.RecoveryWorkers(p.Facts.MoodPawns),
+                Gear = ColonyGearReads.RoundsGear(p.Facts.Gear, emergency),
                 Research = FrameResearch(frame.Research),
             },
         };
@@ -225,18 +225,18 @@ public static partial class ObservationPackage
             {
                 Traders = FrameTraders(frame.Traders),
                 QuestOffers = FrameQuests(frame.Quests, expected.Map, catalog),
-                QuestSites = FrameWorldSites(frame.Quests),
-                QuestExpeditionTrips = FrameExpeditionTrips(frame.Quests, expected.Map),
+                QuestSites = WorldSitesReads.FrameWorldSites(frame.Quests),
+                QuestExpeditionTrips = QuestReads.FrameExpeditionTrips(frame.Quests, expected.Map),
                 QuestWorkers = p.WorkPawns,
                 ForecastObserved = p.Facts.ForecastObserved with { WorkPawns = p.WorkPawns, Needs = colony.Forecast?.Outcome?.Needs, Coupled = colony.Forecast?.Outcome?.Coupled },
                 EssentialInputs = new() { Benches = p.ProductionBenches, Power = p.PowerPlanning },
             },
         };
-        var (capacity, departures) = FrameQuestWorkerCapacity(frame.Quests, expected.Map);
+        var (capacity, departures) = QuestReads.FrameQuestWorkerCapacity(frame.Quests, expected.Map);
         p = p with { Facts = p.Facts with { QuestWorkCapacity = capacity, QuestDeparturePawns = departures } };
         if (pawns is not null)
         {
-            p = p with { Facts = p.Facts with { QuestDeparturePawns = ProjectDepartureStrength(p.Facts.QuestDeparturePawns, RoundsDefenders(colony, emergency, pawns)) } };
+            p = p with { Facts = p.Facts with { QuestDeparturePawns = QuestReads.ProjectDepartureStrength(p.Facts.QuestDeparturePawns, RoundsMoodReads.RoundsDefenders(colony, emergency, pawns)) } };
         }
         if (frame.Quests?.Context is { } questContext)
         {
@@ -246,13 +246,13 @@ public static partial class ObservationPackage
         {
             Facts = p.Facts with
             {
-                QuestColonistsAtHome = FrameQuestColonistsAtHome(frame.Quests, expected.Map, emergency),
+                QuestColonistsAtHome = QuestReads.FrameQuestColonistsAtHome(frame.Quests, expected.Map, emergency),
                 Ideology = FrameIdeology(frame.Ideology),
                 IdeologyInstalled = frame.IdeologyActive,
             },
         };
-        p = p with { Facts = p.Facts with { RitualSites = RitualSitesOf(frame.Buildings, p.Facts.Ideology) } };
-        var ideologyDefs = RequireCatalog(catalog).IdeologyDefs();
+        p = p with { Facts = p.Facts with { RitualSites = RitualSitesReads.RitualSitesOf(frame.Buildings, p.Facts.Ideology) } };
+        var ideologyDefs = ColonyDecodeReads.RequireCatalog(catalog).IdeologyDefs();
         p = p with
         {
             Facts = p.Facts with
@@ -265,7 +265,7 @@ public static partial class ObservationPackage
         Fact<RoyaltyFacts> royalty;
         try
         {
-            royalty = p.RoyaltyOf(pawns, RequireCatalog(catalog));
+            royalty = p.RoyaltyOf(pawns, ColonyDecodeReads.RequireCatalog(catalog));
         }
         catch (DomainException)
         {
@@ -307,7 +307,7 @@ public static partial class ObservationPackage
         {
             if (p.Facts.Sleeping.TryGetValue(out var bedded))
             {
-                bedded = bedded with { Rooms = UpkeepRooms(frameRooms, bedded.Beds) };
+                bedded = bedded with { Rooms = SleepingUpkeepReads.UpkeepRooms(frameRooms, bedded.Beds) };
                 p = p with { Facts = p.Facts with { Sleeping = Known(bedded) } };
             }
         }
@@ -318,7 +318,7 @@ public static partial class ObservationPackage
             var temperature = Unknown<RoomObservation>();
             if (roomCensus is not null)
             {
-                temperature = TemperatureRooms(roomCensus, frame.RoomCells, p.Facts.Sleeping);
+                temperature = TemperatureRoomsReads.TemperatureRooms(roomCensus, frame.RoomCells, p.Facts.Sleeping);
                 if (temperature.TryGetValue(out var planned) && catalog is not null)
                 {
                     planned = planned with { Dining = catalog.DiningFurniture(), Shapes = p.Shapes };
@@ -339,14 +339,14 @@ public static partial class ObservationPackage
             throw new ObservationStaleException();
         }
         cancellationToken.ThrowIfCancellationRequested();
-        p = StampGearCreepjoinersOn(p, pawns, RequireCatalog(catalog).CreepJoinerDownsides());
-        p = p with { Facts = StampQuestGuestProtection(p.Facts) };
-        p = p with { Facts = StampQuestRefugees(p.Facts) };
+        p = ColonyGearReads.StampGearCreepjoinersOn(p, pawns, ColonyDecodeReads.RequireCatalog(catalog).CreepJoinerDownsides());
+        p = p with { Facts = QuestReads.StampQuestGuestProtection(p.Facts) };
+        p = p with { Facts = QuestReads.StampQuestRefugees(p.Facts) };
         return new RoundsReading
         {
             Reading = reading with { Projection = p, StartedAt = started, ObservedAt = observedAt },
             Emergency = emergency,
-            Sections = BuildRoundsSections(frame, p, roomCensus),
+            Sections = RoundsMoodReads.BuildRoundsSections(frame, p, roomCensus),
             Frame = frame,
             Catalog = catalog,
         };
@@ -376,8 +376,8 @@ public static partial class ObservationPackage
         new()
         {
             Catalog = catalog,
-            Crops = CropRows(frame.Colony?.Planning?.Outcome?.Observed),
-            Finished = frame.Research is { } research ? FinishedSet(research.Finished) : default,
+            Crops = DefinitionsReads.CropRows(frame.Colony?.Planning?.Outcome?.Observed),
+            Finished = frame.Research is { } research ? DefinitionsReads.FinishedSet(research.Finished) : default,
         };
 
     /// <summary>
@@ -442,7 +442,7 @@ public static partial class ObservationPackage
                 DeparturePawnIds = [.. quest.DeparturePawnIds.Select(i => new PawnId(i))],
                 AskerFactionPlayer = quest.AskerFactionPlayer is { } player ? Known(player) : default,
                 ViolentQuestsAllowed = quest.ViolentQuestsAllowed is { } violent ? Known(violent) : default,
-                ThreatPoints = Optional(quest.ThreatPoints.HasValue, quest.ThreatPoints.GetValueOrDefault()),
+                ThreatPoints = ColonyDecodeReads.Optional(quest.ThreatPoints.HasValue, quest.ThreatPoints.GetValueOrDefault()),
             };
             var rewards = new List<QuestReward>();
             foreach (var reward in quest.Rewards)
@@ -473,31 +473,31 @@ public static partial class ObservationPackage
                     Kind = objective.Kind,
                     Def = objective.Def,
                     Stuff = objective.Stuff,
-                    MinimumMood = Optional(objective.MinimumMood.HasValue, objective.MinimumMood.GetValueOrDefault()),
-                    Monument = QuestMonumentOf(objective.Monument, catalog),
-                    GravEngine = QuestGravEngineOf(objective.GravEngine),
-                    SurveyScanner = QuestSurveyScannerOf(objective.SurveyScanner),
-                    DurationTicks = Optional(objective.DurationTicks.HasValue, objective.DurationTicks.GetValueOrDefault()),
-                    Workload = QuestWorkloadOf(objective.Workload, objective.Kind, catalog),
-                    LodgerMoods = [.. objective.LodgerMoods.Select(m => new QuestLodgerMood(Optional(m.Mood.HasValue, m.Mood.GetValueOrDefault())))],
+                    MinimumMood = ColonyDecodeReads.Optional(objective.MinimumMood.HasValue, objective.MinimumMood.GetValueOrDefault()),
+                    Monument = QuestReads.QuestMonumentOf(objective.Monument, catalog),
+                    GravEngine = WorldSitesReads.QuestGravEngineOf(objective.GravEngine),
+                    SurveyScanner = WorldSitesReads.QuestSurveyScannerOf(objective.SurveyScanner),
+                    DurationTicks = ColonyDecodeReads.Optional(objective.DurationTicks.HasValue, objective.DurationTicks.GetValueOrDefault()),
+                    Workload = QuestReads.QuestWorkloadOf(objective.Workload, objective.Kind, catalog),
+                    LodgerMoods = [.. objective.LodgerMoods.Select(m => new QuestLodgerMood(ColonyDecodeReads.Optional(m.Mood.HasValue, m.Mood.GetValueOrDefault())))],
                     Count = objective.Count is { } count ? Known(count) : default,
                     Active = objective.Active is { } active ? Known(active) : default,
                     Produced = objective.Produced is { } produced ? Known(produced) : default,
                     DeadlineTicks = objective.DeadlineTicks is { } deadline ? Known(deadline) : default,
                     PawnIds = [.. objective.PawnIds.Select(i => new PawnId(i))],
                 };
-                objectives.Add(QuestHackGift(objective, row));
+                objectives.Add(QuestReads.QuestHackGift(objective, row));
             }
             var shuttles = new List<QuestShuttleState>();
             foreach (var shuttle in quest.Shuttles)
             {
                 shuttles.Add(new QuestShuttleState
                 {
-                    AutoloadAvailable = Optional(shuttle.AutoloadAvailable.HasValue, shuttle.AutoloadAvailable.GetValueOrDefault()),
-                    Autoload = Optional(shuttle.Autoload.HasValue, shuttle.Autoload.GetValueOrDefault()),
-                    Loading = Optional(shuttle.Loading.HasValue, shuttle.Loading.GetValueOrDefault()),
-                    AllRequiredLoaded = Optional(shuttle.AllRequiredLoaded.HasValue, shuttle.AllRequiredLoaded.GetValueOrDefault()),
-                    ManualLaunchAvailable = Optional(shuttle.ManualLaunchAvailable.HasValue, shuttle.ManualLaunchAvailable.GetValueOrDefault()),
+                    AutoloadAvailable = ColonyDecodeReads.Optional(shuttle.AutoloadAvailable.HasValue, shuttle.AutoloadAvailable.GetValueOrDefault()),
+                    Autoload = ColonyDecodeReads.Optional(shuttle.Autoload.HasValue, shuttle.Autoload.GetValueOrDefault()),
+                    Loading = ColonyDecodeReads.Optional(shuttle.Loading.HasValue, shuttle.Loading.GetValueOrDefault()),
+                    AllRequiredLoaded = ColonyDecodeReads.Optional(shuttle.AllRequiredLoaded.HasValue, shuttle.AllRequiredLoaded.GetValueOrDefault()),
+                    ManualLaunchAvailable = ColonyDecodeReads.Optional(shuttle.ManualLaunchAvailable.HasValue, shuttle.ManualLaunchAvailable.GetValueOrDefault()),
                     LoadedPawnIds = [.. shuttle.LoadedPawnIds.Select(i => new PawnId(i))],
                     PendingPawnIds = [.. shuttle.PendingPawnIds.Select(i => new PawnId(i))],
                 });
@@ -568,5 +568,5 @@ public sealed partial record ColonyProjection
     public ColonyProjection AddDefinitions(RoundsFrame frame, DefinitionCatalog? catalog, IEnumerable<string> names) =>
         catalog is null
             ? this
-            : this with { Definitions = ObservationPackage.FrameDefinitionFacts(frame, catalog).AppendDefinitions([.. Definitions], names) };
+            : this with { Definitions = RoundsReads.FrameDefinitionFacts(frame, catalog).AppendDefinitions([.. Definitions], names) };
 }

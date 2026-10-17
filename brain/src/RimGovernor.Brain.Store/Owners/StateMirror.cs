@@ -363,7 +363,7 @@ public sealed partial class Store
     public Task SnapshotReplaceAsync(string path, CancellationToken cancellationToken) => Task.Run(() => SnapshotReplace(path, cancellationToken), cancellationToken);
 }
 
-internal static partial class StoreSchema
+internal static class StateMirrorSchema
 {
     internal static readonly SchemaPart OwnersPart = new(
         """

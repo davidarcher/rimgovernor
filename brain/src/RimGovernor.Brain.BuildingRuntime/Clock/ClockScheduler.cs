@@ -203,9 +203,9 @@ public sealed partial class ClockScheduler
             }
             var reviews = StepReviews(reason);
             var zones = new ZoneRefresher(_native, _facts.Store);
-            using var zoneScope = ObservationApi.WithZones(zones);
+            using var zoneScope = ZonesReads.WithZones(zones);
             var window = new PlanningWindow(_native, _facts.Store);
-            using var windowScope = ObservationApi.WithPlanningWindow(window);
+            using var windowScope = PlanningWindowReads.WithPlanningWindow(window);
             var started = _clock.Now();
             // Taken before the clock read: evidence the consumer delivers from here on is evidence this step missed.
             result.EventsSeen = ColonyEventsSeen?.Invoke();
@@ -384,7 +384,7 @@ public sealed partial class ClockScheduler
                 await ClockEntities.RefreshEntitySectionsAsync(_native, _facts, stepIdentity, FactScope(stepContext), call).ConfigureAwait(false);
                 try
                 {
-                    _ = await ObservationApi.ReadZoneSection(_native, stepIdentity, call).ConfigureAwait(false);
+                    _ = await ZonesReads.ReadZoneSection(_native, stepIdentity, call).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {

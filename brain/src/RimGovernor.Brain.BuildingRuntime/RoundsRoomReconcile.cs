@@ -461,7 +461,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
             }
-            var read = await ObservationPackage.ObserveClearanceCensusOnGround(source, facts.Identity, false, [rr.Room.RoomGround()], call).ConfigureAwait(false);
+            var read = await ClearanceReads.ObserveClearanceCensusOnGround(source, facts.Identity, false, [rr.Room.RoomGround()], call).ConfigureAwait(false);
             if (!read.TryGetValue(out var census))
             {
                 return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };

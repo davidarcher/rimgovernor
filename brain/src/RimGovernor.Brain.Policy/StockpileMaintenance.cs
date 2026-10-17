@@ -493,7 +493,7 @@ public static partial class PolicyFunctions
         var shelfZones = new List<ShelfZone>();
         foreach (var z in zones)
         {
-            if (z.Role != DomainConstants.GeneralRole || (r.ShelfSpent.TryGetValue(z.Id, out var spent) && spent))
+            if (z.Role != StockpileRolesConstants.GeneralRole || (r.ShelfSpent.TryGetValue(z.Id, out var spent) && spent))
             {
                 continue;
             }

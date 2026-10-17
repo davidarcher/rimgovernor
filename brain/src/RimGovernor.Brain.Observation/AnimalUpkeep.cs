@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class AnimalUpkeepReads
 {
     /// <summary>
     /// Decodes the player herd, each animal joined to its pawn table row; an animal the table does not hold, or
@@ -9,7 +9,7 @@ public static partial class ObservationPackage
     internal static Fact<EquatableArray<UpkeepAnimal>> ColonyAnimals(O.ColonyFactsSnapshot v, Pawns pawns, AnimalRaceCatalog races)
     {
         var u = v.Upkeep?.Outcome;
-        if (u is null || HasIssue(u.Issues, "animals"))
+        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "animals"))
         {
             return Unknown<EquatableArray<UpkeepAnimal>>();
         }
@@ -41,14 +41,14 @@ public static partial class ObservationPackage
             }
             var animal = new UpkeepAnimal
             {
-                SupportsAreas = Optional(state.SupportsAllowedAreas is not null, state.SupportsAllowedAreas.GetValueOrDefault()),
+                SupportsAreas = ColonyDecodeReads.Optional(state.SupportsAllowedAreas is not null, state.SupportsAllowedAreas.GetValueOrDefault()),
                 AllowedArea = area,
                 Id = new PawnId(pawn.Pawn.Id ?? ""),
                 Label = pawn.Pawn.Label ?? "",
                 Gender = state.Gender,
                 Definition = new Resource(pawn.Pawn.DefName ?? ""),
-                RequiresPen = Optional(a.RequiresPen is not null, a.RequiresPen.GetValueOrDefault()),
-                Contained = Optional(state.Contained is not null, state.Contained.GetValueOrDefault()),
+                RequiresPen = ColonyDecodeReads.Optional(a.RequiresPen is not null, a.RequiresPen.GetValueOrDefault()),
+                Contained = ColonyDecodeReads.Optional(state.Contained is not null, state.Contained.GetValueOrDefault()),
                 Release = Known(state.Release),
                 Slaughter = Known(state.Slaughter),
                 Pen = Known((state.PenId ?? "")),
@@ -59,21 +59,21 @@ public static partial class ObservationPackage
                     InMentalState = Known(state.InMentalState),
                     Pregnant = Known(state.Pregnant),
                     Mastered = Mastered(state),
-                    ColonistBonded = Optional(state.ColonistBonded is not null, state.ColonistBonded.GetValueOrDefault()),
-                    Designatable = Optional(state.SlaughterDesignatable is not null, state.SlaughterDesignatable.GetValueOrDefault()),
+                    ColonistBonded = ColonyDecodeReads.Optional(state.ColonistBonded is not null, state.ColonistBonded.GetValueOrDefault()),
+                    Designatable = ColonyDecodeReads.Optional(state.SlaughterDesignatable is not null, state.SlaughterDesignatable.GetValueOrDefault()),
                 },
-                SafeToRelease = Optional(state.SafeToRelease is not null, state.SafeToRelease.GetValueOrDefault()),
+                SafeToRelease = ColonyDecodeReads.Optional(state.SafeToRelease is not null, state.SafeToRelease.GetValueOrDefault()),
                 Herd = HerdFactsOf(pawn, races),
                 Training = EquatableArray.From(training),
-                Care = CareName(state.MedicalCare is not null ? state.MedicalCare.GetValueOrDefault() : null),
-                Bonded = Optional(state.Bonded is not null, state.Bonded.GetValueOrDefault()),
+                Care = RoundsWorkReads.CareName(state.MedicalCare is not null ? state.MedicalCare.GetValueOrDefault() : null),
+                Bonded = ColonyDecodeReads.Optional(state.Bonded is not null, state.Bonded.GetValueOrDefault()),
                 BondedPawns = EquatableArray.From(state.BondedPawnIds),
-                Master = Optional(state.MasterId is not null, (state.MasterId ?? "")),
-                FollowDrafted = Optional(state.FollowDrafted is not null, state.FollowDrafted.GetValueOrDefault()),
-                FollowFieldwork = Optional(state.FollowFieldwork is not null, state.FollowFieldwork.GetValueOrDefault()),
-                Obedient = Optional(state.Obedient is not null, state.Obedient.GetValueOrDefault()),
-                Sterilized = Optional(state.Sterilized is not null, state.Sterilized.GetValueOrDefault()),
-                SterilizeQueued = Optional(state.SterilizeQueued is not null, state.SterilizeQueued.GetValueOrDefault()),
+                Master = ColonyDecodeReads.Optional(state.MasterId is not null, (state.MasterId ?? "")),
+                FollowDrafted = ColonyDecodeReads.Optional(state.FollowDrafted is not null, state.FollowDrafted.GetValueOrDefault()),
+                FollowFieldwork = ColonyDecodeReads.Optional(state.FollowFieldwork is not null, state.FollowFieldwork.GetValueOrDefault()),
+                Obedient = ColonyDecodeReads.Optional(state.Obedient is not null, state.Obedient.GetValueOrDefault()),
+                Sterilized = ColonyDecodeReads.Optional(state.Sterilized is not null, state.Sterilized.GetValueOrDefault()),
+                SterilizeQueued = ColonyDecodeReads.Optional(state.SterilizeQueued is not null, state.SterilizeQueued.GetValueOrDefault()),
             };
             if (state.Conditions is not null)
             {
@@ -89,7 +89,7 @@ public static partial class ObservationPackage
     internal static Fact<EquatableArray<UpkeepAnimal>> ColonyWildAnimals(O.ColonyFactsSnapshot v, Pawns pawns, AnimalRaceCatalog races)
     {
         var u = v.Upkeep?.Outcome;
-        if (u is null || HasIssue(u.Issues, "wild_animals"))
+        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "wild_animals"))
         {
             return Unknown<EquatableArray<UpkeepAnimal>>();
         }
@@ -158,13 +158,13 @@ public static partial class ObservationPackage
             AgeYears = Known(state.AgeYears),
             LifeExpectancy = race.LifeExpectancy,
             ManhunterOnTameFail = race.ManhunterOnTameFail,
-            Sick = Optional(state.Sick is not null, state.Sick.GetValueOrDefault()),
+            Sick = ColonyDecodeReads.Optional(state.Sick is not null, state.Sick.GetValueOrDefault()),
             Adult = Known(state.Adult),
-            Venerated = Optional(state.Venerated is not null, state.Venerated.GetValueOrDefault()),
+            Venerated = ColonyDecodeReads.Optional(state.Venerated is not null, state.Venerated.GetValueOrDefault()),
             Predator = race.Predator,
-            TicksToBirth = Optional(state.TicksToBirth is not null, state.TicksToBirth.GetValueOrDefault()),
+            TicksToBirth = ColonyDecodeReads.Optional(state.TicksToBirth is not null, state.TicksToBirth.GetValueOrDefault()),
             LifeStageIndex = Known(state.LifeStageIndex),
-            TicksToNextLifeStage = Optional(state.TicksToNextLifeStage is not null, state.TicksToNextLifeStage.GetValueOrDefault()),
+            TicksToNextLifeStage = ColonyDecodeReads.Optional(state.TicksToNextLifeStage is not null, state.TicksToNextLifeStage.GetValueOrDefault()),
         };
     }
 

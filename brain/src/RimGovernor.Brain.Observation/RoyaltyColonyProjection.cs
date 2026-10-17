@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Observation;
 
-public static partial class ObservationPackage
+public static class RoyaltyColonyProjectionReads
 {
     /// <summary>Projects a validated Royalty section; an absent or unavailable one is an unknown fact.</summary>
     internal static Fact<RoyaltyColony> ColonyRoyalty(O.RoyaltySection? section)
@@ -27,7 +27,7 @@ public static partial class ObservationPackage
             {
                 throw new BridgeContractException("invalid royalty neuroformer");
             }
-            if (!neuroformers.TryAdd(name, new Neuroformer { Held = Optional(row.Held is not null, (int)row.Held.GetValueOrDefault()), Craftable = Optional(row.Craftable is not null, row.Craftable.GetValueOrDefault()) }))
+            if (!neuroformers.TryAdd(name, new Neuroformer { Held = ColonyDecodeReads.Optional(row.Held is not null, (int)row.Held.GetValueOrDefault()), Craftable = ColonyDecodeReads.Optional(row.Craftable is not null, row.Craftable.GetValueOrDefault()) }))
             {
                 throw new BridgeContractException($"duplicate royalty neuroformer {name}");
             }
@@ -48,9 +48,9 @@ public static partial class ObservationPackage
                 Quest = new QuestId((row.Quest ?? "")),
                 Pawn = new PawnId(pawn),
                 Title = row.Title is not null ? (row.Title ?? "") : "",
-                Accepted = Optional(row.Accepted is not null, row.Accepted.GetValueOrDefault()),
-                BestowerWaiting = Optional(row.BestowerWaiting is not null, row.BestowerWaiting.GetValueOrDefault()),
-                Started = Optional(row.Started is not null, row.Started.GetValueOrDefault()),
+                Accepted = ColonyDecodeReads.Optional(row.Accepted is not null, row.Accepted.GetValueOrDefault()),
+                BestowerWaiting = ColonyDecodeReads.Optional(row.BestowerWaiting is not null, row.BestowerWaiting.GetValueOrDefault()),
+                Started = ColonyDecodeReads.Optional(row.Started is not null, row.Started.GetValueOrDefault()),
             });
         }
         var thrones = new List<RoyalThrone>();

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Domain;
 
-public static partial class DomainConstants
+public static class StockpileRolesConstants
 {
     // Stockpile role keys. A planner claims the zones it creates by role; parameterized roles append ":<key>".
 
@@ -42,8 +42,8 @@ public sealed partial record StockpileFilter
 {
     private static StockpileFilter GearFilter(IEnumerable<FilterSelector> allow, IEnumerable<FilterSelector> disallow) =>
         new StockpileFilter(FilterBase.Nothing, allow, disallow)
-            .WithHitPoints(DomainConstants.GearHitPointFloor, 1)
-            .WithQuality(DomainConstants.GearQualityFloor, Quality.Legendary);
+            .WithHitPoints(StockpileRolesConstants.GearHitPointFloor, 1)
+            .WithQuality(StockpileRolesConstants.GearQualityFloor, Quality.Legendary);
 
     /// <summary>Go <c>IsArmoryFilter</c>: recognises the armory's filter by its shape (a gear floor over weapons).</summary>
     public static bool IsArmoryFilter(StockpileFilter f) =>
@@ -89,7 +89,7 @@ public sealed partial record StockpileFilter
                 FilterSelector.SpecialFilter("AllowBiocodedWeapons"),
                 FilterSelector.SpecialFilter("AllowBiocodedApparel"),
                 FilterSelector.SpecialFilter("AllowDeadmansApparel"),
-                FilterSelector.SpecialFilter(DomainConstants.BurnableFilterDef),
+                FilterSelector.SpecialFilter(ZoneCreateConstants.BurnableFilterDef),
             ]
         );
     }
@@ -104,7 +104,7 @@ public sealed partial record StockpileFilter
         {
             FilterSelector.SpecialFilter("AllowDeadmansApparel"),
             FilterSelector.SpecialFilter("AllowBiocodedApparel"),
-            FilterSelector.SpecialFilter(DomainConstants.BurnableFilterDef),
+            FilterSelector.SpecialFilter(ZoneCreateConstants.BurnableFilterDef),
         };
         disallow.AddRange(armor.Select(FilterSelector.ThingDef));
         return GearFilter([FilterSelector.CategoryDef("Apparel")], disallow);
