@@ -21,7 +21,7 @@ public interface IAcceptHost
     string OutputDir(string name);
 
     /// <summary>Runs the case windowed to completion (<paramref name="ct"/> stops it); returns the acceptance command's exit code.</summary>
-    Task<int> RunAsync(string name, string output, bool fresh, TextWriter console, CancellationToken ct);
+    Task<int> RunAsync(string name, string output, TextWriter console, CancellationToken ct);
 
     void Log(string line);
 }
@@ -93,7 +93,7 @@ public sealed class AcceptRunner(IAcceptHost host, CaseRegistry registry)
     /// Starts one case. Refuses while a run is in flight, while the registry does not know the case, and while the
     /// guard refuses.
     /// </summary>
-    public async Task RunAsync(string name, bool fresh)
+    public async Task RunAsync(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
         lock (_mu)
@@ -129,7 +129,7 @@ public sealed class AcceptRunner(IAcceptHost host, CaseRegistry registry)
             (_cts, _stopping) = (cts, false);
         }
 
-        _ = Task.Run(() => ExecuteAsync(name, dir, fresh, cts), CancellationToken.None);
+        _ = Task.Run(() => ExecuteAsync(name, dir, cts), CancellationToken.None);
     }
 
     /// <summary>Ends the run in flight. Throws when none is.</summary>
@@ -150,12 +150,12 @@ public sealed class AcceptRunner(IAcceptHost host, CaseRegistry registry)
         cts.Cancel();
     }
 
-    private async Task ExecuteAsync(string name, string dir, bool fresh, CancellationTokenSource cts)
+    private async Task ExecuteAsync(string name, string dir, CancellationTokenSource cts)
     {
         string failure = "";
         try
         {
-            var code = await host.RunAsync(name, dir, fresh, new LineSink(Append), cts.Token).ConfigureAwait(false);
+            var code = await host.RunAsync(name, dir, new LineSink(Append), cts.Token).ConfigureAwait(false);
             if (code != 0)
             {
                 failure = $"the acceptance command exited with code {code}";

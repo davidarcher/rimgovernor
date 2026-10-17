@@ -28,7 +28,7 @@ may default an unknown verdict to success. #376 owns this shared vocabulary;
 | #379 planner, `selection.json` | `schema_version`, `run` reference, `planner_commit` (equals tested commit), `cases` (`name`, nonempty `reasons` array), `algorithm`, `shards` (`id`, ordered `cases` list). Reasons are `smoke`, `requested` (the `cases` tier) or `nightly`. |
 | #381 executor with #378 bootstrap, `attempts.json` | `schema_version`, `run` and `selection` references, `shard_id`, `runner`, `attempts`. `runner` records `os`, `image_version`, `arch`, `cpu_count`, `memory_bytes`, `free_disk_bytes`, `bootstrap` report reference. Each attempt has `case`, one-based `number`, `status`, `classification`, `retry_of` (null or previous number), UTC RFC3339 `started_at`/`finished_at`, `exit` (integer or null if never started), `error` (string or null), `evidence` reference. |
 | #380 aggregator/importer, `aggregate.json` | `schema_version`, `run` and `selection` references, `shards` (`id`, `status`, `attempts` reference or null), `status`, `passed`, `cases` (`name`, `shard_id`, `attempt_count`, `final_attempt`, `status`), `error` (string or null). |
-| #380 local importer, `result.json` | Existing suite envelope: `tier`, `passed`, `error`, `cases`; each row retains native suite fields, including `name`, `passed`, `exit`, metrics and provenance. Add `remote` containing `schema_version`, `aggregate` reference, `tested_commit`, `bundle_sha256`. Preserve `resumed_from`, `staged_from`, `postmortem_only` when present; never erase them to pass the gate. |
+| #380 local importer, `result.json` | Existing suite envelope: `tier`, `passed`, `error`, `cases`; each row retains native suite fields, including `name`, `passed`, `exit`, metrics and provenance. Add `remote` containing `schema_version`, `aggregate` reference, `tested_commit`, `bundle_sha256`. |
 
 A reference is `{path, sha256}`. Paths are relative to the evidence root, use
 forward slashes, and cannot be absolute, contain `..`, escape via links, or
@@ -114,10 +114,8 @@ case bodies; `fixture_ops` alone is not a complete build allowlist. Production
 rows require a fixture-free build. An executor must support switching private
 layouts for these roles or reject the complete plan before running it.
 
-The hosted Windows runner has no usable GPU. The planner excludes cases with
-the `Rendered` trait before sharding and budget checks, recording them in
-`skipped` as `{name, reason: "rendered"}`. The aggregate preserves this list
-without treating skips as passes or failures. Rendered cases run locally by name and open the windowed profile. No paid GPU runner fallback is authorized.
+The hosted Windows runner has no usable GPU; every case runs headless, so the
+planner selects every case of the tier. No paid GPU runner fallback is authorized.
 Each shard's sum of declared case budgets times `max_attempts` must fit its
 suite allowance. This is a necessary bound, not a prediction that boot and
 cleanup will fit; executors enforce the actual deadline. No historical timings
@@ -236,8 +234,7 @@ is null and cannot authorize retry; the remote exporter must reject missing
 required evidence. Other diagnostics remain beside each native result. The
 final row retains the existing output/provenance fields; wall and boot totals
 include both attempts. The first output stays in its usual location; the second
-uses `attempts/2/<area>/<case>`, after stopping the worker-owned game, with fresh
-staging and checkpoint resume disabled. Resumed suites never retry.
+uses `attempts/2/<area>/<case>`, after stopping the worker-owned game.
 
 The installed policy is `native-read-v1-empty`: no production classifiers are
 enabled, so nothing retries. Neither nested diagnostics nor a caller-provided

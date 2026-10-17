@@ -12,22 +12,14 @@ public static class RunCommand
 {
     /// <summary>The usage lines for the command's help text.</summary>
     public const string Usage = """
-          acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -restage -no-doctor -no-heal -repeat <n> -seed <s> -postmortem-only [-from <bundle>] -break stage=<name>|tick=<n>|minute=<m> -through <stage>]
-            -through <stage> ends the run once that stage's bundle is cached (a suite -stages worker; the report carries staged_through);
-            a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
-            -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off;
-            a case that declares Stages opens on its newest cached stage bundle (printed on the first line);
-            -restage discards the bundles and stages again, RIMGOVERNOR_ACCEPT_STAGES=0 turns the cache off;
-            -postmortem-only reloads the failed bundle (or -from <label|dir>) and runs only the case's Postmortem phase, ring untouched;
-            -repeat <n> runs each case n times fresh and reports the pass rate and seeds (<output>/<case>.repeat.json);
-            -seed <s> pins a debug or scenario start's world seed (result.json "world".seed) to reproduce a run;
-            -break stops the run after a declared stage, at a game tick or at a run-phase minute, bundles it into the ring
-            and leaves the game loaded and paused on the kept process (BREAK, exit 3); acceptance resume continues it
+          acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -series <metrics.jsonl> -no-series -evidence capped|full -no-doctor -no-heal -repeat <n> -seed <s>]
+            -repeat <n> runs each case n times and reports the pass rate and seeds (<output>/<case>.repeat.json);
+            -seed <s> pins a debug or scenario start's world seed (result.json "world".seed) to reproduce a run
         """;
 
     /// <summary>
     /// The subcommand with the arguments after <c>run</c>, over <see cref="RunDependencies.Current"/>; returns the process
-    /// exit code (2 usage or a refused preflight, 1 a failed case, <see cref="Report.ExitBreak"/> a paused one).
+    /// exit code (2 usage or a refused preflight, 1 a failed case).
     /// </summary>
     public static Task<int> RunAsync(
         IReadOnlyList<string> args,
@@ -90,69 +82,16 @@ public static class RunCommand
         var budget = fs.Duration("budget", TimeSpan.Zero);
         var stall = fs.Duration("stall", TimeSpan.Zero);
         var evidence = fs.String("evidence", "");
-        var fresh = fs.Bool("fresh", false);
-        var rewind = fs.Int("rewind", 0);
-        var restage = fs.Bool("restage", false);
-        var checkpointEvery = fs.Duration("checkpoint-every", Checkpoints.DefaultCheckpointEvery);
         var series = fs.String("series", "");
         var noSeries = fs.Bool("no-series", false);
         var noDoctor = fs.Bool("no-doctor", false);
         var noHeal = fs.Bool("no-heal", false);
         var repeat = fs.Int("repeat", 1);
         var seed = fs.String("seed", "");
-        var postmortemOnly = fs.Bool("postmortem-only", false);
-        var from = fs.String("from", "");
-        var through = fs.String("through", "");
-        var breakSpec = fs.String("break", "");
         var names = fs.ParseAfterPositionals(args);
-
-        var breakpoint = new Breakpoint();
-        if (breakSpec.Value.Length > 0)
-        {
-            breakpoint = Breakpoint.Parse(breakSpec.Value);
-            if (postmortemOnly.Value || repeat.Value > 1)
-            {
-                throw new UsageException("-break takes a plain run: none of -postmortem-only, -repeat");
-            }
-
-            if (checkpointEvery.Value <= TimeSpan.Zero)
-            {
-                throw new UsageException("-break needs the checkpoint ring: drop -checkpoint-every 0");
-            }
-        }
-
-        if (through.Value.Length > 0 && (postmortemOnly.Value || repeat.Value > 1 || breakSpec.Value.Length > 0))
-        {
-            throw new UsageException("-through takes a plain run: none of -postmortem-only, -repeat, -break");
-        }
-
-        if (from.Value.Length > 0 && !postmortemOnly.Value)
-        {
-            throw new UsageException("-from names the bundle of a -postmortem-only run");
-        }
-
-        if (postmortemOnly.Value && (fresh.Value || rewind.Value != 0 || repeat.Value > 1 || seed.Value.Length > 0))
-        {
-            throw new UsageException("-postmortem-only reads the ring as it is: it takes none of -fresh, -rewind, -repeat, -seed");
-        }
-
         if (repeat.Value < 1)
         {
             throw new UsageException(string.Create(CultureInfo.InvariantCulture, $"-repeat must be at least 1: {repeat.Value}"));
-        }
-
-        var freshRun = fresh.Value;
-        var every = checkpointEvery.Value;
-        if (repeat.Value > 1)
-        {
-            // A resumed attempt measures nothing: every attempt starts over.
-            freshRun = true;
-            every = TimeSpan.Zero;
-        }
-
-        if (seed.Value.Length > 0)
-        {
-            freshRun = true;
         }
 
         EvidenceMode? mode;
@@ -186,11 +125,6 @@ public static class RunCommand
             throw new UsageException($"-root must be absolute: {root.Value}");
         }
 
-        if (rewind.Value < 0)
-        {
-            throw new UsageException(string.Create(CultureInfo.InvariantCulture, $"-rewind must not be negative: {rewind.Value}"));
-        }
-
         var outputDir = Path.GetFullPath(output.Value.Length == 0 ? Path.Combine(root.Value, "acceptance") : output.Value);
         var options = new RunOptions
         {
@@ -202,20 +136,12 @@ public static class RunCommand
             Budget = budget.Value,
             Stall = stall.Value,
             Evidence = mode,
-            Fresh = freshRun,
-            Rewind = rewind.Value,
-            Restage = restage.Value,
-            CheckpointEvery = every,
             Series = series.Value.Length == 0 ? "" : Path.GetFullPath(series.Value),
             NoSeries = noSeries.Value,
             NoDoctor = noDoctor.Value,
             NoHeal = noHeal.Value,
             Repeat = repeat.Value,
             Seed = seed.Value,
-            PostmortemOnly = postmortemOnly.Value,
-            From = from.Value,
-            Through = through.Value,
-            Break = breakpoint,
         };
         var selected = new List<AcceptanceCase>(names.Count);
         foreach (var name in names)
@@ -223,22 +149,21 @@ public static class RunCommand
             selected.Add(registry.Lookup(name) ?? throw new UsageException($"unknown case \"{name}\" (see `acceptance list`)"));
         }
 
-        return new ParsedRun(selected, options.Fresh, options.Repeat, options.PostmortemOnly, options.Seed, options);
+        return new ParsedRun(selected, options);
     }
 
     /// <summary>
     /// Executes the parsed cases in order on one game after the doctor preflight (each Repeat times, with its repeat
     /// summary after the attempts). The exit code is non-zero when any case failed, 2 when the preflight refused the
-    /// run, <see cref="Report.ExitBreak"/> when a case paused at its breakpoint (the cases after it do not run). A stale
-    /// or fixture-less install is healed by the preflight unless -no-heal, and every case's result.json says so under
-    /// "healed".
+    /// run. A stale or fixture-less install is healed by the preflight unless -no-heal, and every case's result.json
+    /// says so under "healed".
     /// </summary>
     public static async Task<int> RunCasesAsync(ParsedRun run, RunDependencies dependencies, TextWriter stdout, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(run);
         ArgumentNullException.ThrowIfNull(dependencies);
         ArgumentNullException.ThrowIfNull(stdout);
-        var opts = (RunOptions)run.Options;
+        var opts = run.Options;
         var selected = run.Cases;
         if (!opts.NoDoctor && dependencies.Preflight is { } preflight)
         {
@@ -253,7 +178,6 @@ public static class RunCommand
 
         var runner = new CaseRunner(dependencies);
         var exit = 0;
-        opts = opts with { Log = stdout };
         foreach (var c in selected)
         {
             var attempts = new List<RepeatAttempt>();
@@ -263,22 +187,13 @@ public static class RunCommand
                 var started = Stopwatch.StartNew();
                 var outcome = await runner.ExecuteAsync(c, opts, cancellationToken).ConfigureAwait(false);
                 var code = outcome.Code;
-                if (code == Report.ExitBreak && exit == 0)
-                {
-                    exit = Report.ExitBreak;
-                }
-                else if (code != 0 && code != Report.ExitBreak)
+                if (code != 0)
                 {
                     exit = 1;
                 }
 
                 await PrintCaseAsync(stdout, c, opts, outcome, started.Elapsed).ConfigureAwait(false);
                 attempts.Add(RepeatAttempt.From(attempt, opts.CaseOutput(c), outcome.Report, code, started.Elapsed));
-                if (code == Report.ExitBreak)
-                {
-                    // The game is paused for inspection; nothing else runs on it.
-                    return exit;
-                }
             }
 
             if (opts.Repeat > 1)
@@ -305,24 +220,13 @@ public static class RunCommand
     // Prints one attempt's verdict line, error, postmortem digest and drift flags.
     private static async Task PrintCaseAsync(TextWriter stdout, AcceptanceCase c, RunOptions opts, CaseOutcome outcome, TimeSpan wall)
     {
-        var status = outcome.Code switch
-        {
-            Report.ExitBreak => "BREAK",
-            0 => "PASS",
-            _ => "FAIL",
-        };
+        var status = outcome.Code == 0 ? "PASS" : "FAIL";
         var rounded = TimeSpan.FromMilliseconds(Math.Round(wall.TotalMilliseconds));
         await stdout.WriteLineAsync($"{status}\t{c.Name}\t{GoDuration.Format(rounded)}\t{Path.Combine(opts.CaseOutput(c), "result.json")}").ConfigureAwait(false);
         var error = outcome.Report["error"].AsString();
         if (error.Length > 0)
         {
             await stdout.WriteLineAsync($"\t{error}").ConfigureAwait(false);
-        }
-
-        var note = outcome.Report["checkpoint_note"].AsString();
-        if (note.Length > 0 && outcome.Code == Report.ExitBreak)
-        {
-            await stdout.WriteLineAsync($"\t{note}").ConfigureAwait(false);
         }
 
         // The digest is the first thing anyone reads after a failure; under suite it lands in the case log.
@@ -340,24 +244,5 @@ public static class RunCommand
     }
 }
 
-/// <summary><see cref="IResumeRunner"/> over <see cref="RunCommand"/>: what `acceptance resume` runs the paused case with.</summary>
-public sealed class RunCommandResumeRunner : IResumeRunner
-{
-    private readonly CaseRegistry _registry;
-    private readonly RunDependencies _dependencies;
-
-    public RunCommandResumeRunner(CaseRegistry registry, RunDependencies dependencies)
-    {
-        ArgumentNullException.ThrowIfNull(registry);
-        ArgumentNullException.ThrowIfNull(dependencies);
-        _registry = registry;
-        _dependencies = dependencies;
-    }
-
-    /// <inheritdoc />
-    public ParsedRun ParseRun(IReadOnlyList<string> args, TextWriter stderr) => RunCommand.Parse(args, _registry);
-
-    /// <inheritdoc />
-    public Task<int> RunCasesAsync(ParsedRun run, TextWriter stdout, CancellationToken cancellationToken) =>
-        RunCommand.RunCasesAsync(run, _dependencies, stdout, cancellationToken);
-}
+/// <summary>What <see cref="RunCommand.Parse"/> resolved: the cases in order and the options every case runs with.</summary>
+public sealed record ParsedRun(IReadOnlyList<AcceptanceCase> Cases, RunOptions Options);

@@ -159,6 +159,13 @@ public sealed record Wait
         return DefaultStall;
     }
 
+    /// <summary>
+    /// The one pacing point of every acceptance wait that has no game tick to wait on (#3410): probe rounds here, and
+    /// process, channel and load readiness, service polls and the keep-alive elsewhere. Each round awaits the next tick
+    /// of a <see cref="PeriodicTimer"/>, so a slow round does not stretch the cadence; dispose it when the loop ends.
+    /// </summary>
+    public static Pacer Pace(TimeSpan interval) => new(interval);
+
     /// <summary>Joins parts into a progress signature for a <see cref="Probe"/>.</summary>
     public static string Signature(params object?[] parts)
     {
@@ -182,6 +189,7 @@ public sealed record Wait
         // The longest the signature stayed unchanged, including the final span when the wait ends; Finalize reports the run's maximum.
         var longest = TimeSpan.Zero;
         var stalled = false;
+        using var pace = Pace(interval);
         try
         {
             while (true)
@@ -250,7 +258,7 @@ public sealed record Wait
                     lastChange += took;
                 }
 
-                await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
+                await pace.NextAsync(cancellationToken).ConfigureAwait(false);
             }
         }
         finally
@@ -309,4 +317,24 @@ public sealed record Wait
         duration = TimeSpan.FromSeconds(total);
         return true;
     }
+}
+
+/// <summary>A <see cref="Wait.Pace"/> cadence: <see cref="NextAsync"/> completes on the timer's next tick.</summary>
+public sealed class Pacer : IDisposable
+{
+    private readonly PeriodicTimer _timer;
+
+    internal Pacer(TimeSpan interval)
+    {
+        _timer = new PeriodicTimer(interval > TimeSpan.Zero ? interval : TimeSpan.FromMilliseconds(1));
+    }
+
+    /// <summary>Waits for the next round; throws <see cref="OperationCanceledException"/> when <paramref name="cancellationToken"/> fires.</summary>
+    public async Task NextAsync(CancellationToken cancellationToken)
+    {
+        var ticked = await _timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false);
+        ObjectDisposedException.ThrowIf(!ticked, this);
+    }
+
+    public void Dispose() => _timer.Dispose();
 }

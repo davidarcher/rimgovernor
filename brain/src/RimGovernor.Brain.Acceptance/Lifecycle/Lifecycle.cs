@@ -216,7 +216,7 @@ public static class StartOps
 
         await LoadSaveModsAsync(session.Harness, save.Name, save.Timeout, save.IgnoreModCompatibility, cancellationToken).ConfigureAwait(false);
         var apply = QuietDecision(session.Names, quiet);
-        var quietReply = await DebugGame.ApplyQuietAsync(session.Harness, apply, save.QuietAction, cancellationToken).ConfigureAwait(false);
+        var quietReply = await DebugGame.ApplyQuietAsync(session.Harness, apply, cancellationToken).ConfigureAwait(false);
         session.Report["quiet"] = quietReply is not null;
         return new JsonObject { ["kind"] = "save", ["save"] = save.Name };
     }
@@ -237,16 +237,9 @@ public static class StartOps
         using var phase = LaunchTrace.Span("start.load");
         try
         {
-            await harness.CallAsync(
+            await harness.LoadGameReadyAsync(
                 "load-save",
-                "rimgovernor/load_game_ready",
-                new JsonObject
-                {
-                    ["saveName"] = name,
-                    ["readiness"] = "visual",
-                    ["timeoutMs"] = (long)timeout.TotalMilliseconds,
-                    ["ignoreModCompatibility"] = ignoreMods,
-                },
+                new() { SaveName = name, TimeoutMs = (long)timeout.TotalMilliseconds, IgnoreModCompatibility = ignoreMods },
                 cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
@@ -477,7 +470,7 @@ public sealed class Session
 
     /// <summary>Pauses the game.</summary>
     public Task PauseAsync(CancellationToken cancellationToken) =>
-        Harness.CallAsync("pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken);
+        Harness.PauseClockAsync("pause", cancellationToken);
 
     /// <summary>Re-reads the loaded identity into <see cref="Identity"/>, recording the read under <paramref name="label"/>.</summary>
     public async Task RefreshIdentityAsync(string label, CancellationToken cancellationToken) =>

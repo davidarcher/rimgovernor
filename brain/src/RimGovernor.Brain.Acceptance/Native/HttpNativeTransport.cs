@@ -258,6 +258,7 @@ public sealed class HttpNativeTransport : INativeTransport
     private async Task<string> ResolveAddressAsync(CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
+        using var pace = Wait.Pace(TimeSpan.FromMilliseconds(100));
         while (true)
         {
             if (EndpointFile.Read(_endpointDirectory) is { } endpoint && endpoint.Address.Length > 0)
@@ -270,7 +271,7 @@ public sealed class HttpNativeTransport : INativeTransport
                 throw new NativeTransportException($"native transport failure: no {EndpointFile.FileName} appeared in {_endpointDirectory}: the game has not started its channel");
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 }

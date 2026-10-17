@@ -31,8 +31,7 @@ public static class Checkpoints
     public const string CheckpointRingFile = "ring.json";
 
     /// <summary>
-    /// The label of the bundle taken as a failed run ends, after the periodic ring; <see cref="Breakpoint.BreakCheckpoint"/>
-    /// is its counterpart for a run paused at a breakpoint.
+    /// The label of the bundle taken as a failed window ends, after the periodic ring.
     /// </summary>
     public const string FailedCheckpoint = "failed";
 
@@ -64,15 +63,6 @@ public static class Checkpoints
         var ring = Active;
         return ring is null ? null : await ring.CaptureAsync(label, cancellationToken).ConfigureAwait(false);
     }
-
-    /// <summary>
-    /// Records key on the active ring's case state, carried by every later capture (a phase the Run body completed,
-    /// the fixture coordinates it chose); a null value deletes the key. Nothing happens when no ring is active.
-    /// </summary>
-    public static void SetState(string key, JsonNode? value) => Active?.SetState(key, value);
-
-    /// <summary>Reads the sidecar of the bundle at dir, with Path set.</summary>
-    public static Checkpoint ReadCheckpoint(string dir) => Ring.ReadCheckpoint(dir);
 
     /// <summary>Reads dir's index; a missing ring is null.</summary>
     public static Ring? ReadRing(string dir) => Ring.Read(dir);
@@ -109,51 +99,6 @@ public static class Checkpoints
     /// </summary>
     public static string CheckpointSaveName(string caseName) =>
         "RimGovernor-checkpoint-" + (caseName ?? throw new ArgumentNullException(nameof(caseName))).Replace('/', '-');
-
-    /// <summary>Copies the regular files under src into dst, recreating the directory layout.</summary>
-    public static void CopyTree(string src, string dst)
-    {
-        Directory.CreateDirectory(dst);
-        foreach (var directory in Directory.EnumerateDirectories(src, "*", SearchOption.AllDirectories))
-        {
-            Directory.CreateDirectory(Path.Combine(dst, Path.GetRelativePath(src, directory)));
-        }
-
-        foreach (var file in Directory.EnumerateFiles(src, "*", SearchOption.AllDirectories))
-        {
-            CopyFile(file, Path.Combine(dst, Path.GetRelativePath(src, file)));
-        }
-    }
-
-    /// <summary>
-    /// Copies the bundle's save into root/profile/Saves (the durable location Prepare mirrors into the game's
-    /// profile), replacing any earlier copy, and the bundle's store to <paramref name="storePath"/> when it carries
-    /// one. It returns the save name the resumed session loads.
-    /// </summary>
-    public static string StageCheckpoint(string root, Checkpoint c, string storePath)
-    {
-        ArgumentNullException.ThrowIfNull(c);
-        var src = Path.Combine(c.Path, c.Save + ".rws");
-        if (!File.Exists(src))
-        {
-            throw new AcceptanceException($"checkpoint {c.Label}: {src} is missing");
-        }
-
-        CopyFile(src, Path.Combine(root, "profile", "Saves", c.Save + ".rws"));
-        if (c.Store && storePath.Length > 0)
-        {
-            try
-            {
-                CopyFile(Path.Combine(c.Path, CheckpointStoreFile), storePath);
-            }
-            catch (IOException e)
-            {
-                throw new AcceptanceException($"checkpoint {c.Label} store: {e.Message}", e);
-            }
-        }
-
-        return c.Save;
-    }
 
     /// <summary>Copies one file, creating the destination directory and replacing any earlier copy.</summary>
     internal static void CopyFile(string src, string dst)

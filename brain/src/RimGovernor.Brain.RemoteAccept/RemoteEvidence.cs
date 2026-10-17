@@ -10,7 +10,7 @@ public sealed class Evaluation
 {
     internal Evaluation(Ref run, Ref selection, IReadOnlyList<Shard> shards)
     {
-        Aggregate = new Aggregate([], 1, run, selection, shards, "passed", true, [], null);
+        Aggregate = new Aggregate(1, run, selection, shards, "passed", true, [], null);
         Report = new Report("", false, null, [], new Remote(0, null, "", "", null));
     }
 
@@ -199,23 +199,6 @@ public static class RemoteEvidence
             budgets[c.Name] = c.BudgetNs;
         }
 
-        var selected = new HashSet<string>(names, StringComparer.Ordinal);
-        for (var i = 0; i < s.Skipped.Count; i++)
-        {
-            var c = s.Skipped[i];
-            if (!EvidenceRules.ValidPath(c.Name) || c.Name.Count(static ch => ch == '/') != 1 || c.Reason != "rendered"
-                || (i > 0 && string.CompareOrdinal(s.Skipped[i - 1].Name, c.Name) >= 0))
-            {
-                throw new RemoteAcceptException($"invalid skipped case {c.Name}");
-            }
-
-            if (selected.Contains(c.Name))
-            {
-                throw new RemoteAcceptException($"skipped case {c.Name} is also selected");
-            }
-        }
-
-        e.Aggregate = e.Aggregate with { Skipped = s.Skipped };
         var wantShards = RemotePlanning.PlanShards(names, l.Shards, s.Algorithm, budgets);
         if (!SameShards(s.Shards, wantShards))
         {
@@ -331,7 +314,6 @@ public static class RemoteEvidence
                 var name = StrictJson.OptStr(native, "name");
                 var caseField = StrictJson.OptStr(native, "case");
                 var exitField = StrictJson.OptNullableInt(native, "exit");
-                var postmortem = StrictJson.OptBool(native, "postmortem_only");
                 _ = StrictJson.OptBool(native, "fixture_only");
                 List<Ref> files = [];
                 if (native.TryGetPropertyValue("evidence_files", out var filesNode))
@@ -381,12 +363,6 @@ public static class RemoteEvidence
                 }
 
                 var status = passed ? "passed" : "failed";
-                if (postmortem || Present(native, "staged_from") || Present(native, "resumed_from"))
-                {
-                    status = "failed";
-                    e.Problem("failed", "nonfresh/staged/postmortem evidence: " + attempt.Case);
-                }
-
                 // Retain each native report untouched. The projected row adds only links to the original report and its complete attempt history.
                 var row = new JsonObject();
                 foreach (var (key, value) in native)
@@ -445,8 +421,6 @@ public static class RemoteEvidence
 
         return true;
     }
-
-    private static bool Present(JsonObject o, string key) => o.TryGetPropertyValue(key, out var n) && n is not null;
 
     private static JsonObject RefNode(Ref r) => new() { ["path"] = r.Path, ["sha256"] = r.Sha256 };
 

@@ -153,9 +153,7 @@ an injected red native assertion, missing/corrupt diagnostics, content rejection
 limits, aggregation/import and schedule provenance. These are synthetic tooling
 checks; no game is launched. Validate workflow syntax with actionlint v1.7.12.
 
-The remote tiers exclude rendered cases because hosted Windows has no
-usable GPU. The plan and aggregate record these as `skipped` with reason
-`rendered`; they run locally by name. There is no automatic paid GPU
+Hosted Windows has no usable GPU; every case runs headless. There is no automatic paid GPU
 fallback. Known runnable case budgets must still fit the bounded shards.
 
 Before claiming hosted operation, retain cold and warm smoke runs, a native

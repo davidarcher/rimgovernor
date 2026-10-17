@@ -19,8 +19,9 @@ public sealed class FoodActivityContinuationTests
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new()
     { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 110 }, Options = EquatableArray.From(options) };
     private static PawnActivities Harvest() => ActivityContinuationFixtures.Harvest();
-    private static FoodActivityRead Terminal(PawnActivities batch, string state, params FoodActivityOption[] options) => Read(options) with
-    { Execution = new("method/pawn", "method", batch.Orders[0].Revision, 0, state, "", null, 110) };
+    private static Observed Terminal(PawnActivities batch, string state, params FoodActivityOption[] options) => new(Read(options),
+        new("method/pawn", "method", batch.Orders[0].Revision, 0, state, "", null, 110));
+    private sealed record Observed(FoodActivityRead Food, RimGovernor.Contracts.Wire.Operations.PawnActivityExecution Execution);
 
     [Theory]
     [InlineData(false)]
@@ -73,32 +74,32 @@ public sealed class FoodActivityContinuationTests
         Assert.True(journal.LoadPlan(cleanup.Id, ct).Spec.Actions[0].PawnActivities!.Orders[0].Release);
     }
 
-    private static ActivityTaskRead TaskRead(PawnActivities batch, FoodActivityRead food) => new()
+    private static ActivityTaskRead TaskRead(PawnActivities batch, Observed read) => new()
     {
-        Context = food.Context, Known = food.Known, Food = food,
-        Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn, food.Execution))),
+        Context = read.Food.Context, Known = read.Food.Known, Food = read.Food,
+        Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn, read.Execution))),
         Bindings = EquatableArray.From(batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Deliver)
-            .SelectMany(t => food.Options.Where(o => o.Pawn == t.Pawn && o.Resource == t.Resource)
+            .SelectMany(t => read.Food.Options.Where(o => o.Pawn == t.Pawn && o.Resource == t.Resource)
                 .Select(o => new ActivityTaskBinding(t.Id, t.Step with { Target = o.Target, Count = Math.Min(t.Step.Count, o.Count) })))),
     };
     private sealed class Worlds : IWorldSource
     {
         public Task<World> ReadWorldAsync(CancellationToken ct) => Task.FromResult(new World(Root.Colony, Root.Load, Root.Map));
     }
-    private sealed class Reads(FoodActivityRead read) : IArrivalPawns, IActivityTaskSource
+    private sealed class Reads(Observed read) : IArrivalPawns, IActivityTaskSource
     {
         public Task<ActivityTaskRead> ReadActivityTasksAsync(ActivityTaskRequest request, CancellationToken ct) => Task.FromResult(
             TaskRead(request.Batch, read) with
             {
                 Bindings = EquatableArray.From(request.Batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Deliver)
-                    .SelectMany(task => read.Options.Where(o => o.Pawn == task.Pawn && o.Resource == task.Resource)
+                    .SelectMany(task => read.Food.Options.Where(o => o.Pawn == task.Pawn && o.Resource == task.Resource)
                         .Select(observed => new ActivityTaskBinding(task.Id, task.Step with
                             { Target = observed.Target, Count = Math.Min(task.Step.Count, observed.Count) })))),
             });
         public Task<RecipeActivityRead> ReadRecipeActivityAsync(RecipeActivityRequest request, CancellationToken ct) => Task.FromResult(new RecipeActivityRead());
         public Task<ConstructionActivityRead> ReadConstructionActivityAsync(ConstructionActivityRequest request, CancellationToken ct) => Task.FromResult(new ConstructionActivityRead());
         public Task<ListPawnsReply> ReadCombatPawnsAsync(RimGovernor.Contracts.Wire.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
-            Task.FromResult(new ListPawnsReply { Outcome = new PawnSnapshot { Context = read.Context } });
+            Task.FromResult(new ListPawnsReply { Outcome = new PawnSnapshot { Context = read.Food.Context } });
     }
     private sealed class DispatchSession(Journal journal) : IWorkerSession
     {
@@ -139,8 +140,9 @@ public sealed class FoodActivityContinuationTests
         journal.RecordReceipt(plan.Id, plan.Actions[0].Id, dispatched.View.Attempt, Receipt.Accepted, ct);
         var session = new DispatchSession(journal);
         using var player = Player.Create(new(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10)), journal, session, new Worlds(), ct);
-        var read = Terminal(batch, "completed", Option("live-observed-food", 2)) with
-        { Context = new() { Identity = Boundary.Identity(Root), NativeGeneration = 1, Tick = 200 } };
+        var terminal = Terminal(batch, "completed", Option("live-observed-food", 2));
+        var read = terminal with { Food = terminal.Food with
+        { Context = new() { Identity = Boundary.Identity(Root), NativeGeneration = 1, Tick = 200 } } };
         var worker = Worker.CreateInternal(new() { RoundsMethods = true, Pawns = new Reads(read),
             StepInterval = TimeSpan.FromMinutes(1), MaxBackoff = TimeSpan.FromMinutes(1), StepTimeout = TimeSpan.FromSeconds(5) }, player, session, ct);
         try

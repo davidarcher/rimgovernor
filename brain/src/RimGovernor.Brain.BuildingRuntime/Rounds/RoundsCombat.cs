@@ -609,7 +609,7 @@ internal static partial class BuildingRuntimePackage
             var v = (item.Result.Progress ?? throw new ControlException("combat dispatch returned no progress")).View;
             Tel.Decide(new Decision
             {
-                Kind = "dispatch",
+                Kind = TelemetryKinds.DispatchKind,
                 Component = "routine-defense",
                 Target = item.Action.Value,
                 Verdict = "dispatched",

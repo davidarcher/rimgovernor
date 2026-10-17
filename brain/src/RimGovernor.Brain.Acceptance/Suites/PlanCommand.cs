@@ -376,8 +376,6 @@ public static partial class PlanCommand
             chosen = RequestedCases(all, r.Cases);
         }
 
-        var skipped = new List<SkippedCase>();
-
         var selected = chosen.OrderBy(c => c.Name, StringComparer.Ordinal).ToList();
         if (selected.Count == 0)
         {
@@ -483,14 +481,9 @@ public static partial class PlanCommand
             ["run"] = new JsonObject { ["path"] = reference.Path, ["sha256"] = reference.Sha256 },
             ["planner_commit"] = r.Head,
             ["cases"] = rows,
+            ["algorithm"] = algorithm,
+            ["shards"] = plannedShards,
         };
-        if (skipped.Count > 0)
-        {
-            plan["skipped"] = new JsonArray([.. skipped.Select(s => (JsonNode?)new JsonObject { ["name"] = s.Name, ["reason"] = s.Reason })]);
-        }
-
-        plan["algorithm"] = algorithm;
-        plan["shards"] = plannedShards;
         return plan;
     }
 

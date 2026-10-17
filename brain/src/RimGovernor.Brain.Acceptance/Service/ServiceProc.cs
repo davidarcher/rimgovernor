@@ -148,13 +148,13 @@ public sealed partial class ServiceProcess
     {
         var health = await ApiAsync("GET", "/api/health", null, "", cancellationToken).ConfigureAwait(false);
         var body = health.Body;
-        if (health.Status != 200 || body.Member("service").AsString() != "rimgovernor" || body.Member("backend").AsString() != "csharp" || (int)body.Member("pid").AsNumber() != Pid)
+        if (health.Status != 200 || ServiceJson.Health(body) is not { Service: "rimgovernor", Backend: "csharp" } served || served.Pid != Pid)
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"unexpected /api/health: status={health.Status} body={body.ToJson()}"));
         }
 
         var session = await ApiAsync("GET", "/api/player/session", null, "", cancellationToken).ConfigureAwait(false);
-        if (session.Status != 200 || session.Body.Member("mode").AsString() != "explicit-player")
+        if (session.Status != 200 || ServiceJson.Session(session.Body)?.Mode != "explicit-player")
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"unexpected /api/player/session: status={session.Status} body={session.Body.ToJson()}"));
         }
@@ -169,6 +169,7 @@ public sealed partial class ServiceProcess
     public async Task<JsonObject> WaitAttachedAsync(JsonObject identity, TimeSpan timeout, CancellationToken cancellationToken)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;
+        using var pace = Wait.Pace(TimeSpan.FromMilliseconds(500));
         while (true)
         {
             var reply = await ApiAsync("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
@@ -188,7 +189,7 @@ public sealed partial class ServiceProcess
                 throw new AcceptanceException($"service did not attach to the fixture's identity in time: {reply.Body.ToJson()}");
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -342,6 +343,7 @@ public sealed partial class ServiceProcess
     {
         var name = speed.Length > 0 ? speed : ClockSpeed();
         var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(90);
+        using var pace = Wait.Pace(TimeSpan.FromMilliseconds(500));
         while (true)
         {
             var reply = await ApiAsync("POST", "/api/player/clock-speed", new JsonObject { ["speed"] = name }, "", cancellationToken).ConfigureAwait(false);
@@ -360,7 +362,7 @@ public sealed partial class ServiceProcess
                 throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"POST /api/player/clock-speed {name}: status {reply.Status} body={reply.Body.ToJson()}"));
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -493,11 +495,12 @@ public sealed class AuthorityKeepAlive : IDisposable
 
     private async Task RunAsync(CancellationToken cancellationToken)
     {
+        using var pace = Wait.Pace(KeepAliveInterval);
         while (true)
         {
             try
             {
-                await Task.Delay(KeepAliveInterval, cancellationToken).ConfigureAwait(false);
+                await pace.NextAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

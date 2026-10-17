@@ -97,7 +97,6 @@ public sealed record SelectedCase(
 
 /// <summary>selection.json: the planned cases and their shards.</summary>
 public sealed record Selection(
-    [property: JsonPropertyName("skipped")] IReadOnlyList<SkippedCase> Skipped,
     [property: JsonPropertyName("schema_version")] int Version,
     [property: JsonPropertyName("run")] Ref Run,
     [property: JsonPropertyName("planner_commit")] string Planner,
@@ -108,18 +107,7 @@ public sealed record Selection(
     internal static Selection Parse(JsonNode? n)
     {
         var o = n as JsonObject ?? throw new RemoteAcceptException("null or malformed selection");
-        List<SkippedCase> skipped = [];
-        if (o.TryGetPropertyValue("skipped", out var sk))
-        {
-            skipped = StrictJson.Elements(sk as JsonArray ?? throw new RemoteAcceptException("skipped: expected an array"), item =>
-            {
-                var c = StrictJson.ElementObj(item);
-                return new SkippedCase(StrictJson.Str(c, "name"), StrictJson.Str(c, "reason"));
-            });
-        }
-
         return new Selection(
-            skipped,
             StrictJson.Int(o, "schema_version"),
             Ref.Parse(StrictJson.Obj(o, "run")),
             StrictJson.Str(o, "planner_commit"),
@@ -358,7 +346,6 @@ public sealed record CaseRow(
 
 /// <summary>aggregate.json: the recomputed verdict over all shards.</summary>
 public sealed record Aggregate(
-    [property: JsonPropertyName("skipped")] IReadOnlyList<SkippedCase> Skipped,
     [property: JsonPropertyName("schema_version")] int Version,
     [property: JsonPropertyName("run")] Ref Run,
     [property: JsonPropertyName("selection")] Ref Selection,
@@ -371,18 +358,7 @@ public sealed record Aggregate(
     internal static Aggregate Parse(JsonNode? n)
     {
         var o = n as JsonObject ?? throw new RemoteAcceptException("null or malformed aggregate");
-        List<SkippedCase> skipped = [];
-        if (o.TryGetPropertyValue("skipped", out var sk))
-        {
-            skipped = StrictJson.Elements(sk as JsonArray ?? throw new RemoteAcceptException("skipped: expected an array"), item =>
-            {
-                var c = StrictJson.ElementObj(item);
-                return new SkippedCase(StrictJson.Str(c, "name"), StrictJson.Str(c, "reason"));
-            });
-        }
-
         return new Aggregate(
-            skipped,
             StrictJson.Int(o, "schema_version"),
             Ref.Parse(StrictJson.Obj(o, "run")),
             Ref.Parse(StrictJson.Obj(o, "selection")),
@@ -393,30 +369,15 @@ public sealed record Aggregate(
             StrictJson.NullableStr(o, "error"));
     }
 
-    /// <summary>Field-by-field equality (Go <c>reflect.DeepEqual</c>); lists compare by content, an absent skipped list equals an empty one.</summary>
+    /// <summary>Field-by-field equality (Go <c>reflect.DeepEqual</c>); lists compare by content.</summary>
     internal bool SameAs(Aggregate other) =>
         Version == other.Version && Run == other.Run && Selection == other.Selection && Status == other.Status
         && Passed == other.Passed && Error == other.Error
-        && Skipped.SequenceEqual(other.Skipped) && Shards.SequenceEqual(other.Shards) && Cases.SequenceEqual(other.Cases);
+        && Shards.SequenceEqual(other.Shards) && Cases.SequenceEqual(other.Cases);
 
     internal void Write(Utf8JsonWriter w)
     {
         w.WriteStartObject();
-        if (Skipped.Count > 0)
-        {
-            w.WritePropertyName("skipped");
-            w.WriteStartArray();
-            foreach (var s in Skipped)
-            {
-                w.WriteStartObject();
-                w.WriteString("name", s.Name);
-                w.WriteString("reason", s.Reason);
-                w.WriteEndObject();
-            }
-
-            w.WriteEndArray();
-        }
-
         w.WriteNumber("schema_version", Version);
         w.WritePropertyName("run");
         Run.Write(w);

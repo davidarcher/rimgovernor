@@ -166,6 +166,28 @@ activates (all installed ones when nothing narrows them). A lab save carries a
 Suite and sweep worker roots receive copies of these files, so workers load the
 cache instead of generating a start.
 
+### Harness helpers
+
+Runner and case code use these helpers instead of raw JSON and fixed sleeps:
+
+- **Host tools:** `Harness.SetTimeSpeedAsync(label, TimeSpeedRequest)`, `PauseClockAsync(label)` and
+  `LoadGameReadyAsync(label, LoadGameRequest)` call `rimgovernor/set_time_speed` and `rimgovernor/load_game_ready`
+  with the request and reply records in `RimGovernor.Contracts.Host` (`Brain.Contracts/HostTools.cs`). A load
+  request without its own `TimeoutMs` waits `Harness.LoadWait`.
+- **Service replies:** `ServiceJson.State`, `Health` and `Session` (`Service/ServiceReplies.cs`) read the service's
+  `/api` replies into harness-side records (`ServiceState`, `ServiceHealth`, `PlayerSession`) and throw an
+  `AcceptanceException` on a bad shape. The service's PlayerApi DTOs stay internal to the host.
+- **Output documents:** `OutputJson` (`Harness/OutputJson.cs`) builds result.json blocks, summaries and digests
+  without string indexers: `Array`, `Fields` (ordered key/value pairs), `AddIfPresent` (an optional field left out
+  when absent) and `Node` (a typed record through its source-generated type info). A `new JsonObject { ... }`
+  initializer works too.
+- **Pacing:** `Wait.Pace(interval)` returns a `Pacer` over one `PeriodicTimer`. It is the harness's only pacing
+  point: a poll loop holds one with `using var pace = Wait.Pace(...)` and awaits `pace.NextAsync(token)` between
+  probes, instead of `Task.Delay`. Prefer a real event wait (a task, a process exit, a telemetry row) whenever one
+  exists.
+- **Telemetry rows:** readers select log rows by `TelemetryKinds` (`Brain.Telemetry/TelemetryKinds.cs`), never by a
+  kind string. A kind a reader needs is added there with its emitter's constant.
+
 ## Tiers
 
 - **smoke**: runner-proving cases over a kept debug game plus one short service-driven case (`smoke/identity`
@@ -242,49 +264,6 @@ exited (exit code and `game.log` tail), or two consecutive native calls got no r
 `acceptance warm -root <root>` prepares the menu before a run.
 Use the suite runner for worker isolation and parallel cases rather than
 sharing one profile between independent runners.
-
-## Checkpointing a slow precondition
-
-A failed run normally resumes from its latest checkpoint on the next run in the
-same root. `-fresh` starts over; `-rewind N` chooses an earlier checkpoint.
-Keep the report's `resumed_from` with the result.
-
-A resumable body must recognize `s.Resumed()`, restore recorded fixture state
-and avoid repeating writes already represented by the bundle. Use
-`RequestID(base)` for request IDs; resumed attempts get a distinct suffix.
-Declare `NoCheckpoint` if the body cannot safely resume, or
-a checkpoint cap with a reason after its last resumable point.
-
-### Postmortem-only and dev iteration
-
-`acceptance run <case> -postmortem-only [-from <label|directory>]` loads a retained
-bundle and runs only `Postmortem`. It requires a fresh output directory and
-cannot combine with fresh/repeat/seed options or a suite.
-
-`acceptance dev <case> -root <root> [-from <label|directory>] [-watch]` rebuilds
-the brain, reloads the bundle and runs `Run` plus `Postmortem`.
-It waits for Enter, or a brain-file change with `-watch`, between iterations.
-Outputs are separate; the checkpoint ring and metrics series are unchanged.
-
-### Breakpoints
-
-`acceptance run <case> -break stage=<name>|tick=<n>|minute=<m>
--headless=false` stops at the chosen boundary, bundles state and leaves the game
-visible and paused. It prints `BREAK` and exits 3, not a pass.
-
-Continue with `acceptance resume -root <root>`; discard with `acceptance stop`.
-Breakpoints require checkpoint support and cannot combine with repeat,
-postmortem-only or dev mode.
-
-### Staging a slow Run body
-
-Declare ordered `Stages` and wrap setup blocks in `s.Stage(ctx, name, fn)`.
-Each block must stop its services before returning. The runner stores a bundle
-and reuses the newest matching native package, start, expansions and stage key.
-
-The stage key covers the area's brain files and stage names, not shared helpers. Use `-restage` when those affect the precondition.
-`-fresh` retains stages; `-restage` discards them. A pending resume takes
-precedence. `RIMGOVERNOR_ACCEPT_STAGES=0` disables caching.
 
 ## Colony generator
 
@@ -370,8 +349,3 @@ is smoke-only: recorded, but not a tactics signal.
 
 `acceptance sweep hunting-grid-<cell>` runs a hunting qualification cell; see
 [hunting prediction qualification](hunting-prediction-qualification.md).
-
-`acceptance suite -stages` schedules missing stages and their dependent tails
-for iteration. The ordinary suite restages from scratch. Preserve
-`staged_from` when reporting cached evidence; see
-[result provenance](choose-tests.md#full-cached-and-resumed-runs).

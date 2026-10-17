@@ -47,11 +47,6 @@ public sealed partial class CheckpointRing
     private bool _busy;
     private Checkpoint? _failed;
 
-    // Why the breakpoint fired; _nextBreakTick throttles a tick breakpoint's reads under a service.
-    private string _tripped = "";
-    private long _nextBreakTick;
-    private bool _breakReading;
-
     public CheckpointRing(string dir, string caseName, Config config)
     {
         Dir = dir;
@@ -68,9 +63,6 @@ public sealed partial class CheckpointRing
 
     /// <summary>How many periodic entries the ring retains (<see cref="Checkpoints.CheckpointKeep"/> when unset).</summary>
     public int Keep { get; set; }
-
-    /// <summary>The run-phase offset the run resumed at (0 from scratch).</summary>
-    public TimeSpan Base { get; set; }
 
     /// <summary>The run's configuration; the save lands in its game profile.</summary>
     public Config Config { get; }
@@ -101,35 +93,8 @@ public sealed partial class CheckpointRing
 
     public string SourceRevision { get; set; } = "";
 
-    /// <summary>
-    /// The case's own progress record, carried into every capture (<see cref="Checkpoints.SetState"/> adds to it; a
-    /// resumed run starts from the entry's).
-    /// </summary>
-    public JsonObject State { get; set; } = [];
-
-    /// <summary>When set, marks every capture a stage bundle of the stage its label names, under this staging-code hash.</summary>
-    public string StageKey { get; set; } = "";
-
-    /// <summary>
-    /// The entries of the timeline this run resumed into (the previous ring's up to the resume point); the
-    /// provisional index a capture writes lists them before this run's own.
-    /// </summary>
-    public IReadOnlyList<Checkpoint> Prior { get; set; } = [];
-
     /// <summary>When set, replaces the bridge and service save paths (tests only).</summary>
     public CheckpointSaver? Saver { get; set; }
-
-    /// <summary>The run's breakpoint, zero when none.</summary>
-    public Breakpoint Break { get; set; }
-
-    /// <summary>Runs once when the breakpoint trips (<see cref="Trip"/>), with the reason.</summary>
-    public Action<string>? OnBreak { get; set; }
-
-    /// <summary>
-    /// Hook for a bridge-only case's tick breakpoint: the newest game tick a decoded reply carried since the last
-    /// load (Go <c>lastObservedTick</c>; wire it to the harness's TickStats).
-    /// </summary>
-    public Func<ulong?>? ObservedTick { get; set; }
 
     /// <summary>Starts the ring's run phase and installs it for the hooks.</summary>
     public void Activate()
@@ -175,7 +140,7 @@ public sealed partial class CheckpointRing
         }
     }
 
-    /// <summary>The current run-phase offset: Base plus the time since Activate.</summary>
+    /// <summary>The current run-phase offset: the time since Activate.</summary>
     public TimeSpan Offset()
     {
         lock (_gate)
@@ -184,7 +149,7 @@ public sealed partial class CheckpointRing
         }
     }
 
-    private TimeSpan OffsetLocked() => _activated ? Base + Stopwatch.GetElapsedTime(_started) : Base;
+    private TimeSpan OffsetLocked() => _activated ? Stopwatch.GetElapsedTime(_started) : TimeSpan.Zero;
 
     /// <summary>
     /// A bundle's label for a run-phase offset: "t+7m" for whole minutes, "t+1m30s" or "t+45s" otherwise. An offset
@@ -226,8 +191,6 @@ public sealed partial class CheckpointRing
     /// </summary>
     internal async Task<TimeSpan> MaybeAsync(CancellationToken cancellationToken)
     {
-        // A breakpoint is checked at every natural pause, on its own clock.
-        await CheckBreakAsync(cancellationToken).ConfigureAwait(false);
         string label;
         lock (_gate)
         {
@@ -303,23 +266,17 @@ public sealed partial class CheckpointRing
                 _entries.RemoveAt(0);
             }
 
-            // A provisional index after every capture: a run the harness never closes (killed with its tool shell)
-            // still resumes from its last bundle, with no failure tick to compare against.
+            // A provisional index after every capture: a window the harness never closes (killed with its tool shell)
+            // still leaves its newest bundle to publish.
             var provisional = new Ring
             {
                 Case = Case,
                 SourceRevision = SourceRevision,
                 Next = entry.Label,
-                Note = "the last run of " + Case + " ended without closing its ring",
             };
-            foreach (var e in Prior.Concat(_entries))
+            foreach (var e in _entries)
             {
                 provisional.Entries.Add(e);
-            }
-
-            while (provisional.Entries.Count > Keep)
-            {
-                provisional.Entries.RemoveAt(0);
             }
 
             try
@@ -379,9 +336,6 @@ public sealed partial class CheckpointRing
         }
     }
 
-    /// <summary>Whether a side holds the game for a capture: the harness, a running service, or a Saver.</summary>
-    public bool Held() => Saver is not null || Bridge?.Invoke() is not null || Service?.Invoke() is not null;
-
     /// <summary>
     /// Takes the final bundle of a failed run (<see cref="Checkpoints.FailedCheckpoint"/>), pausing the game if it
     /// still runs; it never fails the run further.
@@ -434,7 +388,6 @@ public sealed partial class CheckpointRing
             OffsetMs = (long)Offset().TotalMilliseconds,
             Save = Checkpoints.CheckpointSaveName(Case),
             Prepared = Prepared,
-            State = StateSnapshot(),
             Serve = Serve,
             SourceRevision = SourceRevision,
             Package = Fingerprint.Package,
@@ -443,12 +396,6 @@ public sealed partial class CheckpointRing
             At = DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
             Path = dir,
         };
-        if (StageKey.Length > 0)
-        {
-            entry.Stage = label;
-            entry.StageKey = StageKey;
-        }
-
         try
         {
             var holder = Bridge?.Invoke();
@@ -499,32 +446,6 @@ public sealed partial class CheckpointRing
     private static readonly JsonSerializerOptions SidecarOptions = new() { WriteIndented = true };
 
     /// <summary>
-    /// Copies the case state (for a sidecar, or for a stage bundle taken beside the ring); the case may keep adding
-    /// to it while the capture writes. Null when empty.
-    /// </summary>
-    public JsonObject? StateSnapshot()
-    {
-        lock (_gate)
-        {
-            return State.Count == 0 ? null : State.DeepCloneObject();
-        }
-    }
-
-    internal void SetState(string key, JsonNode? value)
-    {
-        lock (_gate)
-        {
-            if (value is null)
-            {
-                State.Remove(key);
-                return;
-            }
-
-            State[key] = value.DeepClone();
-        }
-    }
-
-    /// <summary>
     /// Saves through lifecycle_save on the harness session: the game must be paused (force pauses it), and the
     /// save must complete at the tick the identity read observed.
     /// </summary>
@@ -538,7 +459,7 @@ public sealed partial class CheckpointRing
                 throw new CaptureDeclinedException(notPaused: true);
             }
 
-            await h.CallAsync($"checkpoint-{label}-pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
+            await h.PauseClockAsync($"checkpoint-{label}-pause", cancellationToken).ConfigureAwait(false);
             loaded = await h.LoadedAsync($"checkpoint-{label}-identity-paused", cancellationToken).ConfigureAwait(false);
         }
 

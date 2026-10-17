@@ -57,7 +57,7 @@ internal sealed class MainForm : Form
             ["getAcceptRun"] = _ => Result(app.Accept.View()),
             ["runAcceptCase"] = async a =>
             {
-                await app.Accept.RunAsync(Arg<string>(a, 0), a.GetArrayLength() > 1 && a[1].ValueKind == JsonValueKind.True).ConfigureAwait(true);
+                await app.Accept.RunAsync(Arg<string>(a, 0)).ConfigureAwait(true);
                 return null;
             },
             ["stopAcceptCase"] = _ => Run(app.Accept.Stop),

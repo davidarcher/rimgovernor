@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Data.Sqlite;
+using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -50,7 +51,6 @@ public static partial class Postmortems
         var sections = new List<DigestSection>();
         var rows = LogRows(dir);
         sections.Add(Revision(report, cancellationToken));
-        sections.Add(StageGraph(report));
         sections.Add(Refusals(dir, rows));
         var (db, storeNote) = OpenRaw(dir);
         using (db)
@@ -405,7 +405,7 @@ public static partial class Postmortems
     }
 
     /// <summary>Whether <paramref name="kind"/> is the Worker's per-action outcome row. (The per-run worker_dispatch tally is not an outcome.)</summary>
-    private static bool IsOutcomeKind(string kind) => kind == "dispatch";
+    private static bool IsOutcomeKind(string kind) => kind == TelemetryKinds.Dispatch.Name;
 
     /// <summary>One outcome row read under the v2 decision shape (target, verdict, reason, attrs.error, attrs.refused) or the legacy payload (action, outcome, refused, err).</summary>
     private readonly record struct Outcome(string Action, string Verdict, string Reason, string Refused, string Err, string Stage);

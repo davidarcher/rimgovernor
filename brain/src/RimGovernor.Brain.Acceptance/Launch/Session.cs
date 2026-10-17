@@ -216,6 +216,7 @@ public static class GameSessions
         var clock = Stopwatch.StartNew();
         var lastProblem = "the game has not announced its channel yet";
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        using var pace = Wait.Pace(TimeSpan.FromMilliseconds(500));
         while (true)
         {
             if (!game.Alive)
@@ -239,7 +240,7 @@ public static class GameSessions
                 throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"connect: the game (pid {game.Pid}) was not reachable within {budget.TotalSeconds:0}s: {lastProblem}"));
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 

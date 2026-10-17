@@ -268,11 +268,12 @@ public sealed class GameProcess
 
             using var bound = CancellationTokenSource.CreateLinkedTokenSource(ct);
             bound.CancelAfter(StopBound);
+            using var pace = Wait.Pace(TimeSpan.FromMilliseconds(50));
             try
             {
                 while (Alive)
                 {
-                    await Task.Delay(50, bound.Token).ConfigureAwait(false);
+                    await pace.NextAsync(bound.Token).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -285,10 +286,13 @@ public sealed class GameProcess
         {
             // The launcher's reaper writes exit.json after the process dies; wait for it so nothing writes under the
             // state dir after Stop.
-            var done = await Task.WhenAny(_reaped, Task.Delay(StopBound, ct)).ConfigureAwait(false);
-            if (done != _reaped)
+            try
             {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"gamehost: pid {Record.Pid} not reaped"));
+                await _reaped.WaitAsync(StopBound, ct).ConfigureAwait(false);
+            }
+            catch (TimeoutException e)
+            {
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"gamehost: pid {Record.Pid} not reaped"), e);
             }
         }
 

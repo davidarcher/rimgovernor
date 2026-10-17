@@ -61,7 +61,7 @@ public sealed partial class ClockScheduler
     /// </summary>
     internal static Decision StepDecision(ClockSchedulerResult result, Exception? error, StepCause cause, TimeSpan elapsed, Dictionary<string, object?> attrs)
     {
-        var d = new Decision { Kind = "clock_step", Component = "clock-scheduler", Target = Wire.Name(cause), Dur = elapsed, Attrs = attrs };
+        var d = new Decision { Kind = TelemetryKinds.ClockStepKind, Component = "clock-scheduler", Target = Wire.Name(cause), Dur = elapsed, Attrs = attrs };
         if (error is not null)
         {
             attrs["error"] = error.Message;

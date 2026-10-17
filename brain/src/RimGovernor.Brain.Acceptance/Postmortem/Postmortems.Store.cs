@@ -432,7 +432,7 @@ public static partial class Postmortems
                 lastRow[change] = row;
             }
 
-            if (row.Rec.Kind == "planner_step" && FirstText(row.Fields(), "reason") == "control_lost")
+            if (row.Rec.Kind == TelemetryKinds.PlannerStep.Name && FirstText(row.Fields(), "reason") == "control_lost")
             {
                 controlLost++;
                 lastControlLost = row;

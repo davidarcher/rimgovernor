@@ -65,6 +65,7 @@ public static class NewColony
         var rerolls = 0;
         var reply = await harness.CallAsync(label + "-start", NativeOps.StartNewColony, request, cancellationToken).ConfigureAwait(false);
         var last = -1;
+        using var pace = Wait.Pace(PollInterval);
         for (var attempt = 0; attempt < PollBudget; attempt++)
         {
             if (reply.Outcome?.Failure is { } failure)
@@ -106,7 +107,7 @@ public static class NewColony
             }
 
             rerolls = (int)(pending.RerollCount ?? 0);
-            await Task.Delay(PollInterval, cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
             reply = await harness.CallAsync(
                 string.Create(CultureInfo.InvariantCulture, $"{label}-poll-{attempt}"),
                 NativeOps.PollNewColony,

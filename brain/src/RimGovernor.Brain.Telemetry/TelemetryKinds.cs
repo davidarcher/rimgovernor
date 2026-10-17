@@ -64,4 +64,22 @@ public static class TelemetryKinds
 
     /// <summary>A pending hold's pause did not take; the hold stays armed (<see cref="ColonyEventTelemetry.PauseFailedKind"/>).</summary>
     public static readonly TelemetryKind ClockPauseFailed = new(ColonyEventTelemetry.PauseFailedKind);
+
+    /// <summary>The clock scheduler's step decision row's kind.</summary>
+    public const string ClockStepKind = "clock_step";
+
+    /// <summary>One clock scheduler step (<see cref="ClockStepKind"/>).</summary>
+    public static readonly TelemetryKind ClockStep = new(ClockStepKind);
+
+    /// <summary>The clock run driver's decision row's kind.</summary>
+    public const string ClockRunKind = "clock_run";
+
+    /// <summary>A scheduler step that changed or refused the clock (<see cref="ClockRunKind"/>).</summary>
+    public static readonly TelemetryKind ClockRun = new(ClockRunKind);
+
+    /// <summary>An action run's decision row's kind.</summary>
+    public const string DispatchKind = "dispatch";
+
+    /// <summary>One action run that acted (<see cref="DispatchKind"/>).</summary>
+    public static readonly TelemetryKind Dispatch = new(DispatchKind);
 }

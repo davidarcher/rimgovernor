@@ -171,17 +171,7 @@ public sealed class ProfileStartCache : IStartCache
         using var phase = LaunchTrace.Span("start.load");
         try
         {
-            await harness.CallAsync(
-                "cached-start-load",
-                "rimgovernor/load_game_ready",
-                new JsonObject
-                {
-                    ["saveName"] = name,
-                    ["readiness"] = "visual",
-                    ["timeoutMs"] = 90000,
-                    ["ignoreModCompatibility"] = false,
-                },
-                cancellationToken).ConfigureAwait(false);
+            await harness.LoadGameReadyAsync("cached-start-load", new() { SaveName = name }, cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {

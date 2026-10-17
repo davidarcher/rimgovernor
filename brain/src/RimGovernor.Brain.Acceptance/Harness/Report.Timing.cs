@@ -157,7 +157,7 @@ public static class TickStats
     /// <summary>Feeds <see cref="Observe"/> with the tick a reply carried and re-baselines after a load or start.</summary>
     public static void ObserveReply(string tool, ulong? tick)
     {
-        if (tool is "rimgovernor/load_game_ready" or "rimgovernor/lifecycle_load")
+        if (tool is Harness.LoadGameReadyTool or "rimgovernor/lifecycle_load")
         {
             ResetBaseline();
             return;

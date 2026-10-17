@@ -49,11 +49,6 @@ public sealed partial class Config
     public bool KeepLoaded { get; set; }
 
     /// <summary>
-    /// Marks a run restored from a checkpoint bundle: the open relaunches a kept process rather than reuse it.
-    /// </summary>
-    public bool Resumed { get; set; }
-
-    /// <summary>
     /// The environment entries a fresh game launch under this configuration adds: <c>RIMGOVERNOR_STATE</c> (the brain's
     /// state database, <c>&lt;Output&gt;/service.sqlite</c>) and the case's serve flags (<c>ServeSpec.Env</c> entries named
     /// like environment variables). A kept process launched without them is replaced (relaunch reason "env").

@@ -27,5 +27,4 @@ public sealed record FoodActivityRead
     public bool Truncated { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<FoodActivityOption>))]
     public EquatableArray<FoodActivityOption> Options { get; init; }
-    public RimGovernor.Contracts.Wire.Operations.PawnActivityExecution? Execution { get; init; }
 }

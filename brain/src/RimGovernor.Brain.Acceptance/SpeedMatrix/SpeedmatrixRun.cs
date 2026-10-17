@@ -319,12 +319,8 @@ internal sealed partial class SpeedmatrixRun
         try
         {
             var h = HarnessFor(output);
-            _ = await h.CallAsync(
-                "load-stage",
-                "rimgovernor/load_game_ready",
-                new JsonObject { ["saveName"] = _profile.Save, ["readiness"] = "visual", ["timeoutMs"] = 90000, ["ignoreModCompatibility"] = false },
-                cancellationToken).ConfigureAwait(false);
-            _ = await h.CallAsync("pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
+            _ = await h.LoadGameReadyAsync("load-stage", new() { SaveName = _profile.Save }, cancellationToken).ConfigureAwait(false);
+            _ = await h.PauseClockAsync("pause", cancellationToken).ConfigureAwait(false);
             var identity = await ReadIdentityAsync(h, cancellationToken).ConfigureAwait(false);
             report["frozen_needs"] = (await Needs.FreezeNeedsAsync(h, null, [], cancellationToken).ConfigureAwait(false)).DeepClone();
             var before = await ControlAsync(h, identity, "control-before", cancellationToken).ConfigureAwait(false);
@@ -473,7 +469,7 @@ internal sealed partial class SpeedmatrixRun
 
             // Independent native read after the service released the slot.
             h = HarnessFor(output);
-            _ = await h.CallAsync("pause-after", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
+            _ = await h.PauseClockAsync("pause-after", cancellationToken).ConfigureAwait(false);
 
             // The service was stopped, not shut down: its authority grant lingers until its authority is released, and the
             // next reload would carry it.

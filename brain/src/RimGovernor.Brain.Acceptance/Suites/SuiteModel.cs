@@ -21,9 +21,6 @@ public sealed record SuiteEntry
     /// <summary>The registry case the row resolves to.</summary>
     public AcceptanceCase? Registered { get; init; }
 
-    /// <summary>Under <c>-stages</c>, makes the row one stage item of its case (<c>run -through</c>) rather than the run to its verdict.</summary>
-    public string Through { get; init; } = "";
-
     /// <summary>Whether the row hosts the brain service itself.</summary>
     public bool ServeDriven => Registered is not null && Tiers.ServeDriven(Registered);
 
@@ -85,15 +82,6 @@ public sealed record SuiteOptions
 
     /// <summary>The tier the set came from (<c>-tier</c>), recorded in the report; empty for -all, -cases and -suite.</summary>
     public string Tier { get; init; } = "";
-
-    /// <summary>Carries each case's checkpoint ring from Root into its worker and lets the row resume from it instead of forcing -fresh.</summary>
-    public bool Resume { get; init; }
-
-    /// <summary>
-    /// Schedules each staged case's declared stages as their own work items from the bundles cached in Root
-    /// (see <see cref="SuiteStages"/>); rows that opened on a stage bundle pass and are listed.
-    /// </summary>
-    public bool Stages { get; init; }
 }
 
 /// <summary>What an earlier suite's result.json contributes: wall and boot times and the flake record by case name (Go <c>baseline</c>).</summary>

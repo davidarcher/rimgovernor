@@ -556,15 +556,15 @@ public sealed class PhaseSummary
                     clock.LastTick = tick;
                     break;
 
-                case "clock_step":
+                case TelemetryKinds.ClockStepKind:
                     StepRow(summary.Steps, SpeedMatrix.StepFields(row), ref holdWakeMs, ref maxHoldWakeMs, ref latencySamples);
                     break;
 
-                case "clock_run":
+                case TelemetryKinds.ClockRunKind:
                     RunRow(summary.Steps, LogRow.From(row, 0).Fields());
                     break;
 
-                case "dispatch":
+                case TelemetryKinds.DispatchKind:
                     var payload = LogRow.From(row, 0).Fields();
 
                     // An outcome-change row with no native run carries no receipt: it is not one of the Worker's native dispatches.

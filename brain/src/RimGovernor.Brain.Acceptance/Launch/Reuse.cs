@@ -314,7 +314,7 @@ public sealed class GameReuse : IAsyncDisposable
 
         try
         {
-            _ = await h.CallAsync("reuse-pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
+            _ = await h.PauseClockAsync("reuse-pause", cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {
@@ -526,17 +526,7 @@ public sealed class GameReuse : IAsyncDisposable
     // the mod carries no persisted colony id, so native mints a fresh one per load and lifecycle_load reports the load as
     // superseded. loadaccept covers that path with a save it wrote itself.
     private static async Task LoadAsync(Harness h, string save, CancellationToken cancellationToken) =>
-        _ = await h.CallAsync(
-            "reuse-load",
-            "rimgovernor/load_game_ready",
-            new JsonObject
-            {
-                ["saveName"] = save,
-                ["readiness"] = "visual",
-                ["timeoutMs"] = 90000,
-                ["ignoreModCompatibility"] = false,
-            },
-            cancellationToken).ConfigureAwait(false);
+        _ = await h.LoadGameReadyAsync("reuse-load", new() { SaveName = save }, cancellationToken).ConfigureAwait(false);
 
     /// <summary>
     /// Samples the loaded game's <see cref="ResetState"/> (identity, tick, pause, authority, owned drafts and the

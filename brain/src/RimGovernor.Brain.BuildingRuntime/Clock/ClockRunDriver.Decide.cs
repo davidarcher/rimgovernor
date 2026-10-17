@@ -94,7 +94,7 @@ public sealed partial class ClockRunDriver
         {
             attrs["combat_fallback_speed"] = true;
         }
-        var decision = new Decision { Kind = "clock_run", Component = "clock-scheduler", Target = "clock", Dur = elapsed, Attrs = attrs };
+        var decision = new Decision { Kind = TelemetryKinds.ClockRunKind, Component = "clock-scheduler", Target = "clock", Dur = elapsed, Attrs = attrs };
         if (failure is not null)
         {
             attrs["error"] = failure.Message;

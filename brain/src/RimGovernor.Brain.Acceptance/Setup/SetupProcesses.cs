@@ -173,6 +173,7 @@ public static class SetupProcesses
 
         StopPids(pids);
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        using var pace = Wait.Pace(TimeSpan.FromMilliseconds(500));
         while (true)
         {
             var left = await RunningGamesAsync(gameCopy, cancellationToken).ConfigureAwait(false);
@@ -186,7 +187,7 @@ public static class SetupProcesses
                 throw new SetupException(string.Create(CultureInfo.InvariantCulture, $"pids [{string.Join(' ', left)}] still run from {gameCopy} after the stop"));
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 

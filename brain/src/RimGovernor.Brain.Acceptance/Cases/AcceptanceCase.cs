@@ -60,9 +60,6 @@ public sealed record AcceptanceCase
     /// <summary>The hang guard (<see cref="TypedCase.HangGuard"/>): the wall time after which the body is cut as hung.</summary>
     public TimeSpan Budget { get; init; }
 
-    /// <summary>The staging blocks the runner's stage bundles key on, in order; a typed case declares none.</summary>
-    public IReadOnlyList<string> Stages { get; init; } = [];
-
     /// <summary>The assertion over the runner's session (<see cref="TypedSession"/> around it).</summary>
     internal Func<CaseSession, CancellationToken, Task>? Run { get; init; }
 
@@ -71,9 +68,6 @@ public sealed record AcceptanceCase
 
     /// <summary>Stops the process after Run instead of leaving it at the main menu for the next case.</summary>
     public bool NoKeep { get; init; }
-
-    /// <summary>Opts the case out of the runner's checkpoint ring.</summary>
-    public bool NoCheckpoint { get; init; }
 
     /// <summary>The pass that runs the case (charter rule 8).</summary>
     public CaseTier Tier { get; init; }

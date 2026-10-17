@@ -14,9 +14,6 @@ public sealed partial class Report
     /// <summary>The report field <see cref="Expect"/> appends to.</summary>
     public const string SoftFailuresKey = "soft_failures";
 
-    /// <summary>The exit code of a run paused at a breakpoint: the report carries <c>break</c>, neither <c>passed</c> nor <c>error</c>.</summary>
-    public const int ExitBreak = 3;
-
     private static readonly JsonSerializerOptions WriteOptions = new()
     {
         WriteIndented = true,
@@ -64,7 +61,7 @@ public sealed partial class Report
     /// <summary>
     /// Fills the timing fields and applies the budget (a passing run over its budget fails), computes the artifact
     /// hash manifest for <paramref name="output"/> and the metrics block, writes result.json, and returns the process
-    /// exit code: 0 when the report passed, <see cref="ExitBreak"/> when the run paused at a breakpoint, 1 otherwise.
+    /// exit code: 0 when the report passed, 1 otherwise.
     /// </summary>
     public int Finalize(string output)
     {
@@ -92,12 +89,7 @@ public sealed partial class Report
 
         this[Metrics.MetricsKey] = Metrics.Compute(this, output).ToJson();
         Write(output);
-        if (Passed)
-        {
-            return 0;
-        }
-
-        return Has("break") ? ExitBreak : 1;
+        return Passed ? 0 : 1;
     }
 
     /// <summary>

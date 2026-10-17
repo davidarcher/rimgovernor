@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Telemetry;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -84,7 +85,7 @@ public sealed class ResponseEvidence
             }
 
             var fields = row.Fields();
-            if (row.Kind == "clock_step")
+            if (row.Kind == TelemetryKinds.ClockStep.Name)
             {
                 if (fields.TryGetValue("critical_wave_ms", out var wave))
                 {
@@ -92,7 +93,7 @@ public sealed class ResponseEvidence
                 }
             }
 
-            if (row.Kind == "planner_step" && RowValue.Text(fields.GetValueOrDefault("scope")) == "immediate" && RowValue.Text(fields.GetValueOrDefault("verdict")) != "failed")
+            if (row.Kind == TelemetryKinds.PlannerStep.Name && RowValue.Text(fields.GetValueOrDefault("scope")) == "immediate" && RowValue.Text(fields.GetValueOrDefault("verdict")) != "failed")
             {
                 if (RowValue.Text(fields.GetValueOrDefault("target")) == "rounds")
                 {
@@ -114,7 +115,7 @@ public sealed class ResponseEvidence
                 }
             }
 
-            if (row.Kind == "dispatch" && DispatchTick is null && fields.TryGetValue("dispatch_tick", out var dispatch) && AfterOnset(dispatch))
+            if (row.Kind == TelemetryKinds.Dispatch.Name && DispatchTick is null && fields.TryGetValue("dispatch_tick", out var dispatch) && AfterOnset(dispatch))
             {
                 DispatchTick = (long)RowValue.Number(dispatch);
             }

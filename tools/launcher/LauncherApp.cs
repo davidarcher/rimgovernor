@@ -920,9 +920,9 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
     public string OutputDir(string name) =>
         Path.Combine(Layout.Root, "acceptance", "launcher", DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture));
 
-    public Task<int> RunAsync(string name, string output, bool fresh, TextWriter console, CancellationToken ct)
+    public Task<int> RunAsync(string name, string output, TextWriter console, CancellationToken ct)
     {
-        string[] args = ["run", name, "-root", Layout.Root, "-output", output, "-headless=false", "-no-series", .. fresh ? new[] { "-fresh" } : []];
+        string[] args = ["run", name, "-root", Layout.Root, "-output", output, "-headless=false", "-no-series"];
         Log("acceptance: " + string.Join(' ', args));
         return AcceptanceCommand.RunAsync(args, _registry, console, console, ct);
     }

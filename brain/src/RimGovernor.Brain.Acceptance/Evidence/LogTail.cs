@@ -100,7 +100,7 @@ public static class RowKinds
     public static bool IsWorkerStep(LogRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
-        return row.Kind == "planner_step" && RowValue.Text(row.Payload.GetValueOrDefault(Decision.TargetKey)) == WorkerStepTarget;
+        return row.Kind == TelemetryKinds.PlannerStep.Name && RowValue.Text(row.Payload.GetValueOrDefault(Decision.TargetKey)) == WorkerStepTarget;
     }
 
     /// <summary>
@@ -111,7 +111,7 @@ public static class RowKinds
     public static bool WorkerOutcome(LogRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
-        return row.Kind == "dispatch" && row.Fields().GetValueOrDefault("changed") is true;
+        return row.Kind == TelemetryKinds.Dispatch.Name && row.Fields().GetValueOrDefault("changed") is true;
     }
 }
 

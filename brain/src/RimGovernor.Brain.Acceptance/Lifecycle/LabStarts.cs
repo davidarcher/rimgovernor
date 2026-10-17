@@ -153,7 +153,7 @@ public static class LabStarts
 
         // The lab is quiet by construction and the save persists it; applying again marks the harness quiet and
         // covers a lab made before a change to the quiet op.
-        await DebugGame.ApplyQuietAsync(harness, Session.HasTool(session.Names, DebugGame.QuietStorytellerTool), "apply", cancellationToken).ConfigureAwait(false);
+        await DebugGame.ApplyQuietAsync(harness, Session.HasTool(session.Names, DebugGame.QuietStorytellerTool), cancellationToken).ConfigureAwait(false);
         session.Report["quiet"] = HarnessQuiet.Get(harness);
         return row;
     }

@@ -293,6 +293,7 @@ public sealed partial class ServiceProcess : ICheckpointService
     private static async Task<(string Url, int Pid)> ResolveEndpointAsync(string endpointDir, JsonObject entry, CancellationToken cancellationToken)
     {
         var deadline = DateTime.UtcNow + EndpointWait;
+        using var pace = Wait.Pace(TimeSpan.FromMilliseconds(250));
         while (true)
         {
             if (RimGovernor.Brain.HttpChannel.EndpointFile.Read(endpointDir) is { Address.Length: > 0 } endpoint)
@@ -306,7 +307,7 @@ public sealed partial class ServiceProcess : ICheckpointService
                 throw new AcceptanceException($"start player API: no {RimGovernor.Brain.HttpChannel.EndpointFile.FileName} appeared in {endpointDir}: the game has not started its channel");
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -670,14 +671,8 @@ public sealed partial class ServiceProcess : ICheckpointService
     public static async Task LoadSaveAsync(Harness harness, string save, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
-        await harness.CallAsync("load-save", "rimgovernor/load_game_ready", new JsonObject
-        {
-            ["saveName"] = save,
-            ["readiness"] = "visual",
-            ["timeoutMs"] = 90000,
-            ["ignoreModCompatibility"] = false,
-        }, cancellationToken).ConfigureAwait(false);
-        await harness.CallAsync("pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
+        await harness.LoadGameReadyAsync("load-save", new() { SaveName = save }, cancellationToken).ConfigureAwait(false);
+        await harness.PauseClockAsync("pause", cancellationToken).ConfigureAwait(false);
     }
 
     // The game tick of the first state read once automating: a later, larger tick means a window ran.

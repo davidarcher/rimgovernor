@@ -41,8 +41,7 @@ An optional attempt `log` reference and native `evidence_files` array of
 references are verified too. Native `log`, `output` paths,
 when supplied, must exist inside the collected root. Exporters must include
 required diagnostic references; absent optional fields do not assert that a
-diagnostic was captured. Resumed, staged and postmortem-only rows retain their
-markers and cannot become a fresh remote pass.
+diagnostic was captured.
 
 An eligible infrastructure failure followed by a pass is represented and
 checked without losing its first evidence. Import enforces the production

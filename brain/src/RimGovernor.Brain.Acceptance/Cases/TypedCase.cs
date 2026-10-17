@@ -139,9 +139,6 @@ public sealed record TypedCase
         Expansions = Expansions,
         NoKeep = NoKeep || Expansions.Count > 0 || Start is OwnedStart,
         Quiet = ClaimsStart is { KeepsStoryteller: true } ? QuietMode.Loud : QuietMode.Required,
-
-        // The ring skips a slow precondition; a typed case stages its precondition instead of playing into it.
-        NoCheckpoint = true,
         Budget = HangGuard,
         Tier = Tier,
         Typed = this,

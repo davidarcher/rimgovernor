@@ -206,10 +206,9 @@ public static class ColonyCommand
             StorePath = Path.Combine(opts.Output, "service.sqlite"),
             SnapshotStore = StoreBackup.SnapshotAsync,
             Output = opts.Output,
-            Fingerprint = RingPlanning.Fingerprint(start, [], cfg.Configuration),
+            Fingerprint = Fingerprint(start, cfg.Configuration),
             SourceRevision = MetricSeries.SourceRevision(),
             Bridge = () => session.Harness,
-            ObservedTick = () => TickStats.Last,
             Service = () => ServiceProcess.LatestService(),
             Serve = new JsonObject { ["families"] = null, ["env"] = new JsonArray(), ["resume"] = spec.Resume },
             Prepared = session.Prepared?.DeepCloneObject(),
@@ -269,6 +268,35 @@ public static class ColonyCommand
         return error;
     }
 
+    // What the sidecars stamp: the installed native package, the Start's description and the environment's expansions.
+    // An unreadable package leaves the package hash "".
+    private static Fingerprint Fingerprint(Start start, string configDir)
+    {
+        var config = Path.Combine(HeadlessProfile.MustAbs(configDir), "config.json");
+        if (!File.Exists(config))
+        {
+            throw new FileNotFoundException($"{config} does not exist", config);
+        }
+
+        var game = HeadlessProfile.GameSection(HeadlessProfile.LoadConfig(config))["workingDir"].AsString();
+        if (game.Length == 0)
+        {
+            throw new AcceptanceException($"{config}: the game has no workingDir");
+        }
+
+        IReadOnlyDictionary<string, string>? files = null;
+        try
+        {
+            files = Harness.StampFiles(game);
+        }
+        catch (AcceptanceException)
+        {
+            // The package hash stays "".
+        }
+
+        return new Fingerprint(Checkpoints.PackageHash(files), Checkpoints.StartHash(start.Describe()), Expansions.FromEnvironment() ?? []);
+    }
+
     // Writes the ring index whether the window passed or failed (a failed window adds its final bundle, taken here while
     // the game is still open), so the factory always has the window's newest bundle to publish.
     private static async Task CloseRingAsync(CheckpointRing ring, AcceptanceException? error, Report report)
@@ -289,12 +317,13 @@ public static class ColonyCommand
             FailedOffsetMs = error is null ? 0 : (long)ring.Offset().TotalMilliseconds,
             FailedOutput = error is null ? "" : ring.Output,
         };
-        foreach (var entry in ring.Entries().Where(e => e.Label is not (Checkpoints.FailedCheckpoint or Breakpoint.BreakCheckpoint)).OrderBy(e => e.OffsetMs))
+        foreach (var entry in ring.Entries().Where(e => e.Label != Checkpoints.FailedCheckpoint).OrderBy(e => e.OffsetMs))
         {
             index.Entries.Add(entry);
         }
 
-        index.Plan(null, "", index.FailedTick);
+        // The factory and profile-capture take the newest entry.
+        index.Next = index.Entries.Count == 0 ? "" : index.Entries[^1].Label;
         report["checkpoints"] = new JsonArray([.. index.Entries.Select(e => (JsonNode?)JsonValue.Create(e.Label))]);
         var errors = ring.Errors().ToList();
         try

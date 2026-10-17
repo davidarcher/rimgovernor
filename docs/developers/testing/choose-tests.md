@@ -45,20 +45,10 @@ proves a decision on its recorded facts, and a native case proves only its
 asserted effects. An accepted order is not completed pawn work. Measure native
 postconditions for construction, production, recovery and combat outcomes.
 
-### Full, cached and resumed runs
+### Reused evidence
 
-Keep `result.json` provenance with a reported verdict:
-
-| Execution | Claim |
-| --- | --- |
-| Fresh run | Setup, behavior and assertions ran in this attempt. |
-| Cached precondition (`staged_from`) | Behavior ran from a retained stage; setup was reused. |
-| Resumed suffix (`resumed_from`) | Only the suffix after the checkpoint ran. |
-| `-postmortem-only` | Reads/assertions ran over a retained outcome. |
-| `acceptance dev` | Edited code ran from a retained bundle. |
-
-Do not present cached, resumed or postmortem evidence as a fresh full run.
-The ordinary suite uses fresh execution. Reuse evidence when relevant source,
+Every acceptance run executes setup, behavior and assertions in that attempt;
+keep `result.json` provenance with a reported verdict. Reuse evidence when relevant source,
 inputs and environment have not changed; record skipped coverage in the commit.
 
 ### Deadlines, ordering and latency

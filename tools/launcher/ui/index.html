@@ -219,10 +219,9 @@
   <div class="view" id="view-acceptance" role="tabpanel" aria-labelledby="tab-acceptance" hidden>
     <section class="events" aria-label="Acceptance cases">
       <div class="evbar"><h2>Acceptance cases</h2><span class="pbstatus" id="acCount"></span></div>
-      <p class="note">Runs one native acceptance case in a visible game window, on this checkout's game copy, so you can watch it. Stop the controller and close the game first. The first run installs the test build of the mod; it is replaced by the normal one once the game closes. A case that failed last time resumes from its checkpoint unless From scratch is ticked.</p>
+      <p class="note">Runs one native acceptance case in a visible game window, on this checkout's game copy, so you can watch it. Stop the controller and close the game first. The first run installs the test build of the mod; it is replaced by the normal one once the game closes.</p>
       <div class="pbbar">
         <input type="text" id="acFilter" placeholder="Filter by area, case or scope" spellcheck="false">
-        <span class="check"><input type="checkbox" id="acFresh"><label for="acFresh">From scratch</label></span>
       </div>
       <div class="ncprogress" id="acProgress" role="status" hidden>
         <div class="row"><b id="acState"></b><span id="acTimer"></span></div>
@@ -510,7 +509,7 @@ $('acList').addEventListener('click', async e => {
   const b = e.target.closest('[data-run]');
   if (!b) return;
   $('acErr').textContent = '';
-  try { await runAcceptCase(b.dataset.run, $('acFresh').checked); }
+  try { await runAcceptCase(b.dataset.run); }
   catch (err) { $('acErr').textContent = String(err.message || err); }
   pollAcceptRun();
 });

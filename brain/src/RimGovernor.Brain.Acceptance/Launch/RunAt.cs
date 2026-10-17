@@ -216,7 +216,7 @@ public static class RunAt
             throw new AcceptanceException($"{label}: a tick budget is required");
         }
 
-        await h.CallAsync(label + "-run", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = RunSpeed, ["ultraSpeedBoost"] = RunBoost }, cancellationToken).ConfigureAwait(false);
+        await h.SetTimeSpeedAsync(label + "-run", new() { Speed = RunSpeed, UltraSpeedBoost = RunBoost }, cancellationToken).ConfigureAwait(false);
 
         // A probe is a ~100 ms round trip and the game runs thousands of ticks a second here, so the default 2 s poll is
         // most of a short harness's run in overshoot; poll often instead.
@@ -280,7 +280,7 @@ public static class RunAt
         using var pauseBound = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         try
         {
-            await h.CallAsync(label + "-pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, pauseBound.Token).ConfigureAwait(false);
+            await h.PauseClockAsync(label + "-pause", pauseBound.Token).ConfigureAwait(false);
         }
         catch (AcceptanceException) when (failure is not null)
         {
@@ -341,7 +341,7 @@ public static class RunAt
 
         if (dismiss.Count > 0)
         {
-            await h.CallAsync(label + "-resume", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = RunSpeed, ["ultraSpeedBoost"] = RunBoost }, cancellationToken).ConfigureAwait(false);
+            await h.SetTimeSpeedAsync(label + "-resume", new() { Speed = RunSpeed, UltraSpeedBoost = RunBoost }, cancellationToken).ConfigureAwait(false);
         }
     }
 }

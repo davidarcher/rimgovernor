@@ -208,6 +208,7 @@ public sealed class TypedSession : ITypedSession
         ArgumentNullException.ThrowIfNull(held);
         var heldAt = held.HeldAtUnixMs ?? throw new AcceptanceException($"{label}: the status is not held: {held}");
         var deadline = DateTime.UtcNow + HoldRowWait;
+        using var pace = Wait.Pace(TimeSpan.FromMilliseconds(100));
         while (true)
         {
             if (Telemetry(TelemetryKinds.ClockHold).LastOrDefault(row => ClockRows.Whole(row, ColonyEventTelemetry.StopAtMsKey) == heldAt) is { } row)
@@ -220,7 +221,7 @@ public sealed class TypedSession : ITypedSession
                 throw new AcceptanceException($"{label}: no clock_hold row with stop_at_ms {heldAt} within {HoldRowWait} ({held.Reason}: {held.Detail})");
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -307,6 +308,7 @@ public sealed class TypedSession : ITypedSession
                 ExpectedPlayer = player with { RequestId = loadId },
             },
             cancellationToken).ConfigureAwait(false);
+        using var pace = Wait.Pace(LoadPollInterval);
         for (var poll = 0; reply.Outcome?.Completed is null; poll++)
         {
             if (reply.Outcome?.Pending is null || poll >= LoadPolls)
@@ -314,7 +316,7 @@ public sealed class TypedSession : ITypedSession
                 throw new AcceptanceException($"{label}: lifecycle_load did not complete: {reply.Outcome}");
             }
 
-            await Task.Delay(LoadPollInterval, cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
             reply = await CallAsync(
                 string.Create(CultureInfo.InvariantCulture, $"{label}-load-{poll}"),
                 NativeOps.PollLoad,

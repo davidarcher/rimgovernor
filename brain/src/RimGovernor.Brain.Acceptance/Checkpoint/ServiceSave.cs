@@ -83,42 +83,30 @@ public sealed partial class CheckpointRing
     /// Says whether a service's /api/state body admits a periodic capture: automating, with a fresh (non-stale) game
     /// read, since /api/lifecycle/save refuses until the service knows the game's tick and identity.
     /// </summary>
-    internal static bool ServiceCanCapture(JsonObject? state)
+    internal static bool ServiceCanCapture(JsonObject? body)
     {
-        if (!string.Equals(state.Member("mode").AsString(), "automate", StringComparison.Ordinal))
+        try
+        {
+            return ServiceJson.State(body) is { Mode: "automate", Game: { Stale: false, Tick: not null } };
+        }
+        catch (AcceptanceException)
         {
             return false;
         }
-
-        var game = state.Member("game").AsMap();
-        if (game?["stale"].AsBool() == true)
-        {
-            return false;
-        }
-
-        return IsJsonNumber(game?["tick"]);
     }
 
     /// <summary>Reads the live game tick from the service's /api/state.</summary>
     internal static async Task<ulong?> ServiceTickAsync(ServiceApiCall apiCall, CancellationToken cancellationToken)
     {
-        ServiceApiReply reply;
         try
         {
-            reply = await apiCall("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
+            var reply = await apiCall("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
+            return reply.Status == 200 && ServiceJson.State(reply.Body)?.Game?.Tick is long tick and >= 0 ? (ulong)tick : null;
         }
         catch (AcceptanceException)
         {
             return null;
         }
-
-        if (reply.Status != 200 || reply.Body?["game"].AsMap()?["tick"] is not JsonValue value || !IsJsonNumber(value))
-        {
-            return null;
-        }
-
-        var tick = value.AsNumber();
-        return tick < 0 ? null : (ulong)tick;
     }
 
     /// <summary>
@@ -203,16 +191,18 @@ public sealed partial class CheckpointRing
         while (true)
         {
             ServiceApiReply? state = null;
+            var manual = false;
             try
             {
                 state = await apiCall("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
+                manual = state.Status == 200 && ServiceJson.State(state.Body)?.Mode == "manual";
             }
             catch (AcceptanceException)
             {
                 // Polled again until the deadline.
             }
 
-            if (state is { Status: 200 } && string.Equals(state.Body?["mode"].AsString(), "manual", StringComparison.Ordinal))
+            if (manual)
             {
                 break;
             }
@@ -242,6 +232,4 @@ public sealed partial class CheckpointRing
 
     private static JsonObject RequestBody(string requestId, JsonObject? identity) =>
         new() { ["requestId"] = requestId, ["expected"] = identity?.DeepClone() };
-
-    private static bool IsJsonNumber(JsonNode? value) => value is JsonValue json && json.TryGetValue<double>(out _);
 }

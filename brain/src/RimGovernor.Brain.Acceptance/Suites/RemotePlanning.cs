@@ -23,9 +23,6 @@ public static class SuiteFiles
     public static IReadOnlyList<SuiteEntry> ReadSuite(string fileName) => SuiteCommand.ParseSuiteText(ReadText(fileName));
 }
 
-/// <summary>One case skipped from a remote selection and why (Go <c>remoteaccept.SkippedCase</c>).</summary>
-public sealed record SkippedCase(string Name, string Reason);
-
 /// <summary>One planned shard: its id and its cases in run order (Go <c>remoteaccept.PlannedShard</c>).</summary>
 public sealed record PlannedShard(string Id, IReadOnlyList<string> Cases);
 

@@ -36,12 +36,8 @@ internal sealed partial class SpeedmatrixRun
     private async Task RunGovernorOffCoreAsync(SpeedCase c, string output, Report report, CancellationToken cancellationToken)
     {
         var h = HarnessFor(output);
-        _ = await h.CallAsync(
-            "load-stage",
-            "rimgovernor/load_game_ready",
-            new JsonObject { ["saveName"] = _profile.Save, ["readiness"] = "visual", ["timeoutMs"] = 90000, ["ignoreModCompatibility"] = false },
-            cancellationToken).ConfigureAwait(false);
-        _ = await h.CallAsync("pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
+        _ = await h.LoadGameReadyAsync("load-stage", new() { SaveName = _profile.Save }, cancellationToken).ConfigureAwait(false);
+        _ = await h.PauseClockAsync("pause", cancellationToken).ConfigureAwait(false);
         var identity = await ReadIdentityAsync(h, cancellationToken).ConfigureAwait(false);
         report["frozen_needs"] = (await Needs.FreezeNeedsAsync(h, null, [], cancellationToken).ConfigureAwait(false)).DeepClone();
         var before = await ControlAsync(h, identity, "control-before", cancellationToken).ConfigureAwait(false);
@@ -53,7 +49,7 @@ internal sealed partial class SpeedmatrixRun
 
         var startTick = (ulong)before["tick"].AsNumber();
         var accountingStart = await ClockAccounting.ReadAsync(h, "clock-accounting-start", cancellationToken).ConfigureAwait(false);
-        _ = await h.CallAsync("play", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = c.Speed, ["ultraSpeedBoost"] = c.TestAcceleration }, cancellationToken).ConfigureAwait(false);
+        _ = await h.SetTimeSpeedAsync("play", new() { Speed = c.Speed, UltraSpeedBoost = c.TestAcceleration }, cancellationToken).ConfigureAwait(false);
         var resumedAt = DateTimeOffset.UtcNow;
         var lastTick = startTick;
         var reads = 0;
@@ -79,7 +75,7 @@ internal sealed partial class SpeedmatrixRun
         var wallSeconds = (DateTimeOffset.UtcNow - resumedAt).TotalSeconds;
         try
         {
-            _ = await h.CallAsync("pause-after", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
+            _ = await h.PauseClockAsync("pause-after", cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e) when (waitErr is null)
         {

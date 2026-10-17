@@ -213,7 +213,6 @@ internal static class LifecycleReuse
                     FixtureOps = cfg.FixtureOps,
                     QuietWorld = cfg.QuietWorld,
                     KeepLoaded = cfg.KeepLoaded,
-                    Resumed = cfg.Resumed,
                 },
                 new ServiceLaunch(),
                 serviceReport,

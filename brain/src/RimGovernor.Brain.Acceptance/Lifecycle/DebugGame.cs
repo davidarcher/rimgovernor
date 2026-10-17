@@ -172,7 +172,7 @@ public static class DebugGame
         {
             await cache.LoadAsync(harness, name, cancellationToken).ConfigureAwait(false);
             cache.Save = name;
-            return await ApplyQuietAsync(harness, apply, "apply", cancellationToken).ConfigureAwait(false);
+            return await ApplyQuietAsync(harness, apply, cancellationToken).ConfigureAwait(false);
         }
 
         await GenerateDebugStartAsync(harness, cache, start, quietDef, name, cancellationToken).ConfigureAwait(false);
@@ -191,7 +191,7 @@ public static class DebugGame
             cache.Save = name;
         }
 
-        return await ApplyQuietAsync(harness, apply, "apply", cancellationToken).ConfigureAwait(false);
+        return await ApplyQuietAsync(harness, apply, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The new-colony spec of the debug start: <paramref name="seed"/> is the pinned one or the one the caller drew, <paramref name="saveName"/> the save the op writes.</summary>
@@ -237,7 +237,7 @@ public static class DebugGame
     /// Applies the quiet storyteller when the mode asked for it; the result is the op's reply, or null when it was
     /// not applied. The harness is marked quiet only when the op succeeded.
     /// </summary>
-    public static async Task<JsonObject?> ApplyQuietAsync(Harness harness, bool apply, string action, CancellationToken cancellationToken)
+    public static async Task<JsonObject?> ApplyQuietAsync(Harness harness, bool apply, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
         HarnessQuiet.Set(harness, false);
@@ -249,7 +249,7 @@ public static class DebugGame
         JsonObject quiet;
         try
         {
-            quiet = await harness.CallAsync("quiet-storyteller", QuietStorytellerTool, new JsonObject { ["action"] = action }, cancellationToken).ConfigureAwait(false);
+            quiet = await harness.CallAsync("quiet-storyteller", QuietStorytellerTool, new JsonObject { ["action"] = "apply" }, cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {

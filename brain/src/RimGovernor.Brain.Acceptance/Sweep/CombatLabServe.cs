@@ -32,7 +32,7 @@ public static class CombatServe
 
     /// <summary>Pauses the game after a served window.</summary>
     public static async Task PauseAfterAsync(Harness h, CancellationToken cancellationToken) =>
-        _ = await h.CallAsync("pause-after", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
+        _ = await h.PauseClockAsync("pause-after", cancellationToken).ConfigureAwait(false);
 
     /// <summary>A lab_stage read or other action that must succeed (Go <c>rawRead</c>).</summary>
     public static async Task<JsonObject> RawReadAsync(Harness h, JsonObject args, CancellationToken cancellationToken)

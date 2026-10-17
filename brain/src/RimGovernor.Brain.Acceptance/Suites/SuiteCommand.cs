@@ -14,11 +14,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// The set is the registry (<c>-all</c>), registry names (<c>-cases a,b</c>), a JSON suite file (<c>-suite</c>) whose rows
 /// name registry cases, or a tier (<c>-tier nightly|smoke</c>, <see cref="Tiers"/>; the report records "tier"); every row
 /// runs through <c>acceptance run</c>. "acceptance" labels the criterion a row stands for and is echoed into its report
-/// row. Every row runs fresh (<c>-fresh</c>, no checkpoint ring) unless <c>-resume</c>, which carries each case's
-/// checkpoint ring from <c>-root</c> into its worker (the ring a failed <c>acceptance run</c> in that root left) so the row
-/// resumes as the run would: the row passes and carries resumed_from, and the report lists "resumed". Without
-/// <c>-resume</c> a row whose result.json carries resumed_from fails the suite. A resumed pass proves the fix only past the
-/// resume point; the landing records it rather than refusing it.
+/// row.
 /// </para>
 /// <para>
 /// Scheduling and baseline/regression/drift flagging are described on <see cref="SuiteRunner"/>.
@@ -28,7 +24,7 @@ public static class SuiteCommand
 {
     /// <summary>The usage lines for the command's help text.</summary>
     public const string Usage = """
-          acceptance suite (-all | -cases a,b,... | -suite file.json | -tier nightly|smoke) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full -resume -stages]
+          acceptance suite (-all | -cases a,b,... | -suite file.json | -tier nightly|smoke) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full]
             -tier nightly runs the end-to-end cases, smoke the runner-proving set (acceptance list -tier <name> prints a tier)
         """;
 
@@ -84,8 +80,6 @@ public static class SuiteCommand
         var budget = fs.Duration("budget", TimeSpan.Zero);
         var stall = fs.Duration("stall", TimeSpan.Zero);
         var evidence = fs.String("evidence", "");
-        var resume = fs.Bool("resume", false);
-        var stages = fs.Bool("stages", false);
         fs.Parse(args);
         if (fs.Args.Count > 0)
         {
@@ -111,11 +105,6 @@ public static class SuiteCommand
         if (workers.Value < 1)
         {
             throw new UsageException("-workers must be at least 1");
-        }
-
-        if (stages.Value && resume.Value)
-        {
-            throw new UsageException("-stages and -resume are exclusive: a ring resume is later on the timeline than any stage");
         }
 
         var fullOutput = Path.GetFullPath(output.Value);
@@ -164,8 +153,6 @@ public static class SuiteCommand
             Stall = stall.Value,
             Evidence = evidence.Value,
             Tier = tier.Value,
-            Resume = resume.Value,
-            Stages = stages.Value,
         };
         return (ResolveEntries(list, registry), opts);
     }

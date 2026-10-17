@@ -106,8 +106,7 @@ its own).
 The case list is the registry linked into the launcher
 (`RimGovernor.Brain.Acceptance.Cases`). Runs go through the acceptance command
 in this process: its private root, a fresh output directory and
-`-headless=false -no-series`. **From scratch** adds `-fresh`; otherwise a
-failed run can resume from its checkpoint.
+`-headless=false -no-series`. Every run starts the case from scratch.
 
 The tab refuses while the game is running. A run installs the required fixture
 build; after the game closes, the poll restores the production build. Stop

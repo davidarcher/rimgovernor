@@ -211,100 +211,55 @@ public static class SuiteRunner
 
         report["worker_roots"] = new JsonArray([.. roots.Select(r => (JsonNode?)JsonValue.Create(r))]);
 
-        Func<SuiteEntry, string> cached = _ => "";
-        if (opts.Stages)
-        {
-            cached = e => StagePlanning.CachedStage(e.Registered!, opts.Root);
-        }
-
-        var items = SuiteStages.Expand(list, cached);
         var rows = new JsonObject?[list.Count];
-        var index = new Dictionary<string, int>(StringComparer.Ordinal);
-        for (var i = 0; i < list.Count; i++)
-        {
-            index[list[i].Name] = i;
-        }
-
-        var itemRows = new JsonObject?[items.Count];
         var gate = new Lock();
+        var next = -1;
         var clock = Stopwatch.StartNew();
-        var blocked = await SuiteStages.DispatchAsync(
-            items,
-            workers,
-            async (worker, i) =>
+
+        // One shared queue: each worker takes the next row in schedule order until none is left, then stops its game.
+        async Task WorkerAsync(int worker)
+        {
+            try
             {
-                JsonObject row;
-                try
+                for (var i = Interlocked.Increment(ref next); i < list.Count; i = Interlocked.Increment(ref next))
                 {
-                    row = await SuiteStages.RunItemAsync(items[i], opts, roots[worker - 1], worker, stderr, ctx).ConfigureAwait(false);
-                }
-                catch (AcceptanceException e)
-                {
-                    row = new JsonObject { ["name"] = items[i].Entry.Name, ["worker"] = worker, ["passed"] = false, ["error"] = e.Message };
-                }
+                    JsonObject row;
+                    try
+                    {
+                        row = await SuiteRetry.RunEntryAsync(list[i], opts, roots[worker - 1], worker, stderr, ctx).ConfigureAwait(false);
+                    }
+                    catch (AcceptanceException e)
+                    {
+                        row = new JsonObject { { "name", list[i].Name }, { "worker", worker }, { "passed", false }, { "error", e.Message } };
+                    }
 
-                lock (gate)
-                {
-                    itemRows[i] = row;
+                    rows[i] = row;
                 }
-
-                return row["passed"].AsBool() == true;
-            },
-            async worker =>
+            }
+            finally
             {
                 using var stopCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+                string? stopError = null;
                 try
                 {
                     _ = await Game.StopGameAsync(roots[worker - 1], opts.GameId, stopCts.Token).ConfigureAwait(false);
                 }
-                catch (AcceptanceException e)
+                catch (Exception e) when (e is AcceptanceException or OperationCanceledException)
+                {
+                    stopError = e.Message;
+                }
+
+                if (stopError is not null)
                 {
                     lock (gate)
                     {
-                        report[string.Create(CultureInfo.InvariantCulture, $"worker_{worker}_stop_error")] = e.Message;
+                        report[string.Create(CultureInfo.InvariantCulture, $"worker_{worker}_stop_error")] = stopError;
                     }
                 }
-                catch (OperationCanceledException e)
-                {
-                    lock (gate)
-                    {
-                        report[string.Create(CultureInfo.InvariantCulture, $"worker_{worker}_stop_error")] = e.Message;
-                    }
-                }
-            }).ConfigureAwait(false);
-
-        var stageRuns = new JsonArray();
-        for (var i = 0; i < items.Count; i++)
-        {
-            if (blocked.TryGetValue(i, out var cause))
-            {
-                itemRows[i] = SuiteStages.BlockedRow(items[i], items[cause]);
             }
         }
 
-        var finalItemRows = itemRows.Select(r => r ?? new JsonObject { ["passed"] = false }).ToList();
-        if (opts.Stages)
-        {
-            report["stages"] = SuiteStages.StageGraph(items, finalItemRows);
-        }
-
-        for (var i = 0; i < items.Count; i++)
-        {
-            if (items[i].Through.Length == 0)
-            {
-                rows[index[items[i].Entry.Name]] = finalItemRows[i];
-            }
-            else
-            {
-                stageRuns.Add(finalItemRows[i].DeepClone());
-            }
-        }
-
-        if (opts.Stages)
-        {
-            report["stage_runs"] = stageRuns;
-        }
-
+        await Task.WhenAll(Enumerable.Range(1, workers).Select(w => Task.Run(() => WorkerAsync(w), CancellationToken.None))).ConfigureAwait(false);
         report["wall_ms"] = clock.ElapsedMilliseconds;
         var caseRows = rows.Select(r => r ?? new JsonObject { ["passed"] = false }).ToList();
         var passed = 0;
@@ -325,20 +280,6 @@ public static class SuiteRunner
                     await stderr.WriteLineAsync($"{row["name"].AsString()} failed and is a known flake: {flake} before this run").ConfigureAwait(false);
                 }
             }
-        }
-
-        var resumed = NamesWith(caseRows, "resumed_from");
-        if (resumed.Count > 0)
-        {
-            report["resumed"] = new JsonArray([.. resumed.Select(n => (JsonNode?)JsonValue.Create(n))]);
-            await stderr.WriteLineAsync($"resumed from a checkpoint (passes prove the fix past the resume point only): {string.Join(", ", resumed)}").ConfigureAwait(false);
-        }
-
-        var staged = NamesWith(caseRows, "staged_from");
-        if (staged.Count > 0)
-        {
-            report["staged"] = new JsonArray([.. staged.Select(n => (JsonNode?)JsonValue.Create(n))]);
-            await stderr.WriteLineAsync($"opened on a cached stage bundle (passes prove the fix past the stage only): {string.Join(", ", staged)}").ConfigureAwait(false);
         }
 
         report["cases_passed"] = passed;
@@ -386,9 +327,6 @@ public static class SuiteRunner
         return report.Finalize(opts.Output);
     }
 
-    private static List<string> NamesWith(IReadOnlyList<JsonObject> rows, string key) =>
-        [.. rows.Where(r => r.ContainsKey(key)).Select(r => r["name"].AsString())];
-
     /// <summary>Where a case's evidence and result.json go under a run's output directory (Go <c>cases.Options.CaseOutput</c> for a plain run).</summary>
     internal static string CaseOutput(string output, string caseName) =>
         Path.Combine(output, caseName.Replace('/', Path.DirectorySeparatorChar));
@@ -400,22 +338,7 @@ public static class SuiteRunner
     /// </summary>
     internal static (List<string> Argv, string Output) EntryCommand(SuiteEntry e, SuiteOptions opts, string workerRoot)
     {
-        var tail = new List<string> { "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameId };
-        if (!opts.Resume)
-        {
-            tail.AddRange(["-fresh", "-checkpoint-every", "0"]);
-            if (!opts.Stages)
-            {
-                tail.Add("-restage");
-            }
-        }
-
-        if (e.Through.Length > 0)
-        {
-            tail.AddRange(["-through", e.Through]);
-        }
-
-        tail.Add("-no-doctor");
+        var tail = new List<string> { "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameId, "-no-doctor" };
         if (opts.NoSeries)
         {
             tail.Add("-no-series");
@@ -464,32 +387,9 @@ public static class SuiteRunner
             ["serve"] = e.ServeDriven,
             ["passed"] = false,
         };
-        if (e.Through.Length > 0)
-        {
-            row["stage"] = e.Through;
-        }
-
         if (e.Acceptance.Length > 0)
         {
             row["acceptance"] = e.Acceptance;
-        }
-
-        if (opts.Resume)
-        {
-            try
-            {
-                CarryRing(opts.Root, workerRoot, e.Name);
-            }
-            catch (IOException ex)
-            {
-                row["error"] = "carry checkpoint ring: " + ex.Message;
-                return row;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                row["error"] = "carry checkpoint ring: " + ex.Message;
-                return row;
-            }
         }
 
         var logPath = output + ".log";
@@ -503,7 +403,7 @@ public static class SuiteRunner
             return row;
         }
 
-        var label = e.Through.Length > 0 ? e.Name + "@" + e.Through : e.Name;
+        var label = e.Name;
         await stderr.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"[worker {worker}] {label}")).ConfigureAwait(false);
         var clock = Stopwatch.StartNew();
 
@@ -555,7 +455,7 @@ public static class SuiteRunner
 
         if (parsed is not null)
         {
-            ApplyResult(row, parsed, opts, runFailed);
+            ApplyResult(row, parsed, runFailed);
         }
         else if (readError is not null && row["error"] is null)
         {
@@ -574,44 +474,12 @@ public static class SuiteRunner
     }
 
     /// <summary>Folds the run's own result.json into the row: the verdict, and the blocks a suite report carries per case.</summary>
-    private static void ApplyResult(JsonObject row, JsonObject result, SuiteOptions opts, bool runFailed)
+    private static void ApplyResult(JsonObject row, JsonObject result, bool runFailed)
     {
         row["passed"] = result["passed"].AsBool() == true && !runFailed;
         if (result["error"].AsString() is { Length: > 0 } error)
         {
             row["error"] = error;
-        }
-
-        if (result.TryGetPropertyValue("resumed_from", out var resumedFrom))
-        {
-            row["resumed_from"] = resumedFrom?.DeepClone();
-            if (!opts.Resume)
-            {
-                row["passed"] = false;
-                row["error"] = "resumed from a checkpoint: a landing run must pass from scratch";
-            }
-        }
-
-        if (result["postmortem_only"].AsBool() == true)
-        {
-            row["passed"] = false;
-            row["postmortem_only"] = true;
-            row["error"] = "postmortem-only: a landing run must pass from scratch";
-        }
-
-        if (result.TryGetPropertyValue("staged_from", out var stagedFrom))
-        {
-            row["staged_from"] = stagedFrom?.DeepClone();
-            if (!opts.Stages)
-            {
-                row["passed"] = false;
-                row["error"] = "opened on a cached stage bundle: a landing run must stage from scratch";
-            }
-        }
-
-        if (result.TryGetPropertyValue("staged_through", out var stagedThrough))
-        {
-            row["staged_through"] = stagedThrough?.DeepClone();
         }
 
         row["game_reuse"] = result["game_reuse"]?.DeepClone();
@@ -639,27 +507,6 @@ public static class SuiteRunner
         if (result["drift"] is JsonArray { Count: > 0 } flags)
         {
             row["drift"] = flags.DeepClone();
-        }
-    }
-
-    /// <summary>
-    /// Copies the case's checkpoint ring from the shared root into the worker root, replacing any ring an earlier row left
-    /// there, so the worker's <c>acceptance run</c> resumes exactly as a run in the shared root would. A root without a ring
-    /// for the case carries nothing: the row runs fresh.
-    /// </summary>
-    internal static void CarryRing(string root, string workerRoot, string name)
-    {
-        var rel = Path.Combine("checkpoints", name.Replace('/', Path.DirectorySeparatorChar));
-        var src = Path.Combine(root, rel);
-        var dst = Path.Combine(workerRoot, rel);
-        if (Directory.Exists(dst))
-        {
-            Directory.Delete(dst, recursive: true);
-        }
-
-        if (Directory.Exists(src))
-        {
-            Checkpoints.CopyTree(src, dst);
         }
     }
 }

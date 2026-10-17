@@ -3,6 +3,7 @@ Acceptance/CaseKit/SustainedFood.cs|SustainedFood.WatchAsync
 Acceptance/Checkpoint/Checkpoints.cs|Checkpoints.TryDeleteTree
 Acceptance/Checkpoint/ServiceSave.cs|CheckpointRing.ServiceSaveCoreAsync
 Acceptance/Checkpoint/ServiceSave.cs|CheckpointRing.ServiceSaveWhilePausedAsync
+Acceptance/Colony/ColonyCommand.cs|ColonyCommand.Fingerprint
 Acceptance/Evidence/EvidenceBudget.cs|EvidenceBudget.Artifacts
 Acceptance/Evidence/EvidenceBudget.cs|EvidenceBudget.NoteFile
 Acceptance/Evidence/EvidenceBudget.cs|EvidenceBudget.WriteEvidence
@@ -33,8 +34,6 @@ Acceptance/Setup/SetupDiscovery.cs|SetupDiscovery.ReadSteamRegistry
 Acceptance/Setup/SetupEnvironment.cs|SetupEnvironment.BridgeRoot
 Acceptance/Setup/SetupEnvironment.cs|SetupEnvironment.InstallModAsync
 Acceptance/Setup/SetupProcesses.cs|SetupProcesses.StopPids
-Acceptance/Stages/RingPlanning.cs|RingPlanning.Fingerprint
-Acceptance/Stages/StagePlanning.cs|StagePlanning.CachedStage
 Acceptance/Suites/ChildProcess.cs|ChildProcess.KillTree
 Acceptance/Suites/SuiteRunner.cs|SuiteRunner.RunEntryOnceAsync
 Bridge/Catalog/CreepJoinerDisarm.cs|DefinitionCatalog.BuildCreepJoinerDisarm

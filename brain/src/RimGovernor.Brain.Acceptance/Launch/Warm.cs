@@ -47,7 +47,7 @@ public sealed class Game : IGameHold
 
     /// <summary>
     /// Why <see cref="OpenGameAsync"/> stopped a running process instead of reusing it ("expansions", "package",
-    /// "unrecorded", "checkpoint", "graphics"; see <see cref="HeadlessProfile.LaunchedMismatch"/>), or empty when nothing
+    /// "unrecorded", "graphics"; see <see cref="HeadlessProfile.LaunchedMismatch"/>), or empty when nothing
     /// was running or the process was reused.
     /// </summary>
     public string Relaunched { get; private set; } = "";
@@ -70,8 +70,8 @@ public sealed class Game : IGameHold
     /// returns it to the main menu so the harness starts from the state a fresh launch would give it (unless
     /// <see cref="Config.KeepLoaded"/>). A running process launched with a different mod list than the configuration
     /// prepared (ModsConfig.xml only applies at launch, so a Core-only process cannot load a DLC save) or with a package
-    /// other than the one now installed (a rebuilt mod's fixtures are not in the old DLL's catalog), or one a resumed run
-    /// (<see cref="Config.Resumed"/>) or a graphics case (<see cref="Config.Graphics"/>) must relaunch, is stopped and
+    /// other than the one now installed (a rebuilt mod's fixtures are not in the old DLL's catalog), or one a graphics case
+    /// (<see cref="Config.Graphics"/>) must relaunch, is stopped and
     /// launched fresh instead; <see cref="Relaunched"/> and the report's game_reuse.relaunched say so. The configuration
     /// must have been prepared.
     /// </summary>
@@ -95,11 +95,6 @@ public sealed class Game : IGameHold
             {
                 // The game reads its environment once: serve flags a case asks for need a fresh process.
                 reason = HeadlessProfile.LaunchedEnvMismatch(config.Configuration, config.LaunchEnv);
-            }
-
-            if (config.Resumed)
-            {
-                reason = "checkpoint";
             }
 
             if (config.Graphics)

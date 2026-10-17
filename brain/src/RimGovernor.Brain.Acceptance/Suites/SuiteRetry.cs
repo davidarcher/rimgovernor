@@ -80,7 +80,7 @@ internal static class SuiteRetry
             var current = opts;
             if (number == 2)
             {
-                current = opts with { Resume = false, Output = Path.Combine(opts.Output, "attempts", "2") };
+                current = opts with { Output = Path.Combine(opts.Output, "attempts", "2") };
             }
 
             var started = DateTimeOffset.UtcNow;
@@ -128,7 +128,7 @@ internal static class SuiteRetry
             attempts.Add(attempt);
             total += (long)row["wall_ms"].AsNumber();
             boot += (long)row["boot_ms"].AsNumber();
-            if (passed || number == 2 || opts.Resume || !decision.Eligible || decision.Classification != "infrastructure"
+            if (passed || number == 2 || !decision.Eligible || decision.Classification != "infrastructure"
                 || ctx.IsCancellationRequested || !haveEvidence)
             {
                 break;

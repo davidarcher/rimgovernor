@@ -721,7 +721,7 @@ public sealed partial class Worker
                             await _player.Journal.CancelAsync(v.Plan, v.Action, call).ConfigureAwait(false);
                             Tel.Decide(new Decision
                             {
-                                Kind = "dispatch",
+                                Kind = TelemetryKinds.DispatchKind,
                                 Component = "worker",
                                 Level = TelemetryLevel.Warn,
                                 Target = v.Action.Value,
@@ -873,7 +873,7 @@ public sealed partial class Worker
         };
         var d = new Decision
         {
-            Kind = "dispatch",
+            Kind = TelemetryKinds.DispatchKind,
             Component = "worker",
             Target = before.Action.Value,
             Verdict = "waiting",
