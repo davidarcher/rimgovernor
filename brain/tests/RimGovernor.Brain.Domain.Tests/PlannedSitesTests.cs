@@ -111,19 +111,93 @@ public sealed class PlannedSitesTests
         Assert.Equal(["planned_quality_minimum_unset", "planned_site_read_unknown"], facts.Findings);
     }
 
+    /// <summary>A truncated read hides only the answers a cap cut (#3312): its other sites' rows are kept.</summary>
     [Fact]
-    public void ATruncatedReadAnswersNoneOfItsSites()
+    public void ATruncatedReadKeepsTheAnswersNoCapCut()
     {
         var sites = Sites([Owed()]);
         var (batches, findings) = PlannedSiteBatches(sites);
         var truncated = new O.ConstructionActivityRead
         {
             Known = true, Truncated = true,
-            Planned = [new O.PlannedSiteAnswer("planned/room1/wall/Steel", Known(true))],
+            Planned =
+            [
+                new O.PlannedSiteAnswer("planned/room1/wall/WoodLog", Known(true)) { Verdict = O.PlannedSiteVerdict.Feasible },
+                new O.PlannedSiteAnswer("planned/room1/wall/Steel", Known(true)) { Truncated = true },
+            ],
         };
         var facts = JoinPlannedSites(sites, findings, [(batches[0], truncated)]);
         Assert.False(facts.Sites.Single(s => s.Id == "planned/room1/wall/Steel").CanPlace.IsKnown);
+        Assert.Equal(Known(true), facts.Sites.Single(s => s.Id == "planned/room1/wall/WoodLog").CanPlace);
         Assert.Contains("planned_site_read_truncated", facts.Findings);
+    }
+
+    private static O.ConstructionActivityOption Row(string site, string pawn) => new(site, "Wall", new Cell(-1, 0), pawn, "WoodLog", "Thing_Wood1",
+        new Cell(5, 5), 15, 75, "ConstructFinishFrames", Known(10d), Known(20d), Known(300d));
+
+    /// <summary>
+    /// Twenty colonists (#3312): the reads page them sixteen and four, each batch once per page, and the join merges the
+    /// pages, so every site carries a row and a clearing row for each of the twenty instead of staying unknown.
+    /// </summary>
+    [Fact]
+    public void TwentyColonistsArePagedAndEverySiteJoinsRowsForAllOfThem()
+    {
+        var colonists = Enumerable.Range(1, 20).Select(i => "Thing_Human" + i.ToString("D2", System.Globalization.CultureInfo.InvariantCulture)).Reverse().ToArray();
+        var pages = PlannedPawnPages(colonists);
+        Assert.Equal([16, 4], pages.Select(p => p.Count));
+        Assert.Equal(colonists.Order(StringComparer.Ordinal), pages.SelectMany(p => p));
+        var sites = Sites([Owed()]);
+        var (batches, findings) = PlannedSiteBatches(sites);
+        // Native answers a page with rows for its own pawns only; legality, verdict and clearing are the same on every page.
+        O.ConstructionActivityRead Answer(EquatableArray<O.PlannedConstructionSite> batch, EquatableArray<string> page) => new()
+        {
+            Known = true,
+            Planned = EquatableArray.From(batch.Select(site => new O.PlannedSiteAnswer(site.Id, Known(true))
+            {
+                Verdict = O.PlannedSiteVerdict.Feasible,
+                Options = EquatableArray.From(page.Select(pawn => Row(site.Id, pawn))),
+                Clearing = [new O.PlannedSiteClearing(site.Id + "/cut", O.PlannedClearingKind.Cut, [new Cell(3, 0)])
+                    { Options = EquatableArray.From(page.Select(pawn => Row(site.Id + "/cut", pawn))) }],
+            })),
+        };
+        var reads = batches.SelectMany(batch => pages.Select(page => (batch, (O.ConstructionActivityRead?)Answer(batch, page)))).ToArray();
+        Assert.Equal(batches.Count * 2, reads.Length);
+        var facts = JoinPlannedSites(sites, findings, reads);
+        Assert.Empty(facts.Findings);
+        foreach (var site in facts.Sites.Where(s => s.Op != OpKind.RoofIn))
+        {
+            Assert.Equal(Known(true), site.CanPlace);
+            Assert.Equal(colonists.Order(StringComparer.Ordinal), site.Options.Select(o => o.Pawn));
+            Assert.Equal(20, Assert.Single(site.Clearing).Options.Count);
+        }
+    }
+
+    /// <summary>A site is answered only when every page answered it whole and alike; otherwise it stays unknown, saying why.</summary>
+    [Fact]
+    public void AMissingCutOrDisagreeingPageLeavesTheSiteUnknown()
+    {
+        var sites = Sites([Owed()]);
+        var (batches, findings) = PlannedSiteBatches(sites);
+        var batch = batches[0];
+        O.ConstructionActivityRead Read(string pawn, Func<O.PlannedSiteAnswer, O.PlannedSiteAnswer> edit) => new()
+        {
+            Known = true,
+            Planned = EquatableArray.From(batch.Select(site => edit(new O.PlannedSiteAnswer(site.Id, Known(true))
+                { Verdict = O.PlannedSiteVerdict.Feasible, Options = [Row(site.Id, pawn)] }))),
+        };
+        var whole = Read("Pawn_1", a => a);
+        var missing = JoinPlannedSites(sites, findings, [(batch, whole), (batch, null)]);
+        Assert.All(missing.Sites, s => Assert.False(s.CanPlace.IsKnown));
+        Assert.Contains("planned_site_read_unknown", missing.Findings);
+        var cut = JoinPlannedSites(sites, findings, [(batch, whole), (batch, Read("Pawn_2", a => a with { Truncated = true }) with { Truncated = true })]);
+        Assert.All(cut.Sites, s => Assert.False(s.CanPlace.IsKnown));
+        Assert.Contains("planned_site_read_truncated", cut.Findings);
+        var moved = JoinPlannedSites(sites, findings, [(batch, whole), (batch, Read("Pawn_2", a => a with { CanPlace = Known(false) }))]);
+        Assert.All(moved.Sites, s => Assert.False(s.CanPlace.IsKnown));
+        Assert.Contains("planned_site_pages_disagree", moved.Findings);
+        var agreed = JoinPlannedSites(sites, findings, [(batch, whole), (batch, Read("Pawn_2", a => a))]);
+        Assert.Equal(["Pawn_1", "Pawn_2"], agreed.Sites[0].Options.Select(o => o.Pawn));
+        Assert.Empty(PlannedPawnPages([]));
     }
 
     [Fact]

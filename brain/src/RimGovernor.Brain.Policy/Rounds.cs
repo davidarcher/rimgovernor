@@ -188,7 +188,7 @@ public sealed record RoundsFacts
 
     /// <summary>
     /// The same owed operations as hypothetical sites, one per op x stuff, plus the unplaced shelf candidates, each joined to
-    /// the native planned-site read (PlannedSitesOf, JoinPlannedSites); unknown while the plan or the construction census is.
+    /// the native planned-site read (PlannedSitesOf, JoinPlannedSites); unknown while the plan, the construction census or the colonists are.
     /// </summary>
     public Fact<PlannedSiteFacts> PlannedSites { get; init; }
 

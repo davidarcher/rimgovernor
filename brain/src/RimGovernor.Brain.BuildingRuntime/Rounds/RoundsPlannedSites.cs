@@ -6,16 +6,18 @@ public sealed partial class Rounder
     /// The round's planned-site facts (#3275): the plan's owed operations as sites, one per op x ring stuff, and the
     /// unplaced shelf candidates as one-piece sites, each joined to the native planned-site read. The read is asked
     /// PlannedSitesPerRead sites at a time through the construction activity read, then the routes between each room's
-    /// answered sites (PlannedRouteBatches, #3313); without that read every site and route stays unknown. Unknown while
-    /// the plan or the construction census is.
+    /// answered sites (PlannedRouteBatches, #3313), each batch once per page of the colonists (PlannedPawnPages, #3312);
+    /// without that read every site and route stays unknown. Unknown while the plan, the construction census or the
+    /// colonists are.
     /// </summary>
     internal async Task<Fact<PlannedSiteFacts>> PlannedSitesAsync(GenerationSnapshot snapshot, ColonyProjection colony, FlooringPolicy flooring,
         IReadOnlyList<ShelfCandidate> shelves, CancellationToken ct)
     {
-        if (PlannedRoomSitesOf(colony, flooring) is not { } roomSites)
+        if (PlannedRoomSitesOf(colony, flooring) is not { } roomSites || !colony.WorkPawns.TryGetValue(out var colonists))
         {
             return Unknown<PlannedSiteFacts>();
         }
+        var pages = PolicyApi.PlannedPawnPages(colonists.Select(p => p.Id.Value));
         var sites = new List<PlannedBuildSite>(roomSites);
         if (shelves.Count > 0)
         {
@@ -23,20 +25,26 @@ public sealed partial class Rounder
             sites.AddRange(PolicyApi.ShelfPlannedSites(shelves, PlannedRingPrice(colony, PolicyApi.ShelfDefinition, stuff)));
         }
         var (batches, findings) = PolicyApi.PlannedSiteBatches(sites);
-        var reads = new List<(EquatableArray<O.PlannedConstructionSite>, O.ConstructionActivityRead?)>(batches.Count);
+        var reads = new List<(EquatableArray<O.PlannedConstructionSite>, O.ConstructionActivityRead?)>(batches.Count * pages.Count);
         foreach (var batch in batches)
         {
-            reads.Add((batch, await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Planned = batch }, ct)
-                .ConfigureAwait(false)));
+            foreach (var page in pages)
+            {
+                reads.Add((batch, await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Planned = batch, Pawns = page }, ct)
+                    .ConfigureAwait(false)));
+            }
         }
         var joined = PolicyApi.JoinPlannedSites(sites, findings, reads);
         // Routes between the answered sites (#3313): their sources and clearing are known only once the sites are.
         var (probes, routeFindings) = PolicyApi.PlannedRouteBatches(joined.Sites);
-        var routes = new List<(EquatableArray<O.PlannedRouteProbe>, O.ConstructionActivityRead?)>(probes.Count);
+        var routes = new List<(EquatableArray<O.PlannedRouteProbe>, O.ConstructionActivityRead?)>(probes.Count * pages.Count);
         foreach (var batch in probes)
         {
-            routes.Add((batch, await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Routes = batch }, ct)
-                .ConfigureAwait(false)));
+            foreach (var page in pages)
+            {
+                routes.Add((batch, await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Routes = batch, Pawns = page }, ct)
+                    .ConfigureAwait(false)));
+            }
         }
         return Known(PolicyApi.JoinPlannedRoutes(joined, routeFindings, routes));
     }

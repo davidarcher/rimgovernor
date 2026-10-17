@@ -66,6 +66,9 @@ public static partial class PolicyFunctions
     /// <summary>The native read's per-site position cap: a longer site is not asked for and stays unknown.</summary>
     public const int PlannedSitePositionCap = 128;
 
+    /// <summary>Colonists one construction activity read covers (the read's own cap); a larger colony is paged (#3312).</summary>
+    public const int PlannedPawnsPerRead = 16;
+
     /// <summary>Route probes one construction activity read carries (the read's own cap, 16 probes x 16 colonists).</summary>
     public const int PlannedRoutesPerRead = 16;
 
@@ -267,35 +270,72 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The sites with each read's answers joined back by id. A read that is missing or unknown (planned_site_read_unknown)
-    /// or truncated (planned_site_read_truncated: its row budget may have cut any of its sites' rows) answers none of its
-    /// sites, so they stay unknown; a site no answer names stays unknown. The reads' own findings are kept.
+    /// The colonists the planned reads page over (#3312), PlannedPawnsPerRead to a page, ordered by id. Every colonist is
+    /// named, since any free one may build, cut, mine or haul for a site; native gives a pawn that cannot no row. Each
+    /// site and probe batch is read once per page. No colonist, no page: nothing is read and every site stays unknown.
+    /// </summary>
+    public static IReadOnlyList<EquatableArray<string>> PlannedPawnPages(IEnumerable<string> pawns) =>
+        [.. pawns.Where(p => p.Length > 0).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Chunk(PlannedPawnsPerRead).Select(c => EquatableArray.From(c))];
+
+    /// <summary>
+    /// The sites with the reads' answers joined back by id, merging the pawn pages (#3312) of each site: its rows and
+    /// clearing rows from every page, the rest from any page. A site is answered only when every read that asked it
+    /// answered it whole: a read that is missing or unknown (planned_site_read_unknown), an answer a cap cut
+    /// (planned_site_read_truncated), no answer, or pages that disagree on its legality, verdict, blockers or clearing
+    /// (planned_site_pages_disagree, the world moved between reads) leave it unknown. Another site's answer in a
+    /// truncated read is kept. The reads' own findings are kept.
     /// </summary>
     public static PlannedSiteFacts JoinPlannedSites(IReadOnlyList<PlannedBuildSite> sites, IEnumerable<string> findings,
         IEnumerable<(EquatableArray<PlannedConstructionSite> Asked, ConstructionActivityRead? Read)> reads)
     {
         var all = new SortedSet<string>(findings, StringComparer.Ordinal);
-        var answers = new Dictionary<string, PlannedSiteAnswer>(StringComparer.Ordinal);
+        var pages = new Dictionary<string, List<PlannedSiteAnswer?>>(StringComparer.Ordinal);
         foreach (var (asked, read) in reads)
         {
             if (read is not { Known: true })
             {
                 all.Add("planned_site_read_unknown");
-                continue;
             }
-            all.UnionWith(read.Findings);
-            if (read.Truncated)
+            else
             {
-                all.Add("planned_site_read_truncated");
-                continue;
+                all.UnionWith(read.Findings);
+                if (read.Truncated)
+                {
+                    all.Add("planned_site_read_truncated");
+                }
             }
-            var names = asked.Select(a => a.Id).ToHashSet(StringComparer.Ordinal);
-            foreach (var answer in read.Planned.Where(a => names.Contains(a.Site)))
+            foreach (var site in asked)
             {
-                answers[answer.Site] = answer;
+                var answer = read is { Known: true } ? read.Planned.FirstOrDefault(a => a.Site == site.Id && !a.Truncated) : null;
+                (pages.TryGetValue(site.Id, out var list) ? list : pages[site.Id] = []).Add(answer);
             }
         }
-        var joined = sites.Select(site => answers.TryGetValue(site.Id, out var a)
+        PlannedSiteAnswer? Merged(string id)
+        {
+            if (!pages.TryGetValue(id, out var answers) || answers.Any(a => a is null))
+            {
+                return null;
+            }
+            static PlannedSiteAnswer Shape(PlannedSiteAnswer a) => a with
+            {
+                Options = default, Clearing = EquatableArray.From(a.Clearing.Select(c => c with { Options = default })),
+            };
+            var first = answers[0]!;
+            if (answers.Any(a => Shape(a!) != Shape(first)))
+            {
+                all.Add("planned_site_pages_disagree");
+                return null;
+            }
+            return first with
+            {
+                Options = EquatableArray.From(answers.SelectMany(a => a!.Options)),
+                Clearing = EquatableArray.From(first.Clearing.Select((c, i) => c with
+                {
+                    Options = EquatableArray.From(answers.SelectMany(a => a!.Clearing[i].Options)),
+                })),
+            };
+        }
+        var joined = sites.Select(site => Merged(site.Id) is { } a
             ? site with
             {
                 CanPlace = a.CanPlace,
@@ -305,7 +345,7 @@ public static partial class PolicyFunctions
                 Verdict = a.Verdict,
                 Clearing = a.Clearing,
             }
-            : site);
+            : site).ToArray();
         return new PlannedSiteFacts { Sites = EquatableArray.From(joined), Findings = EquatableArray.From(all) };
     }
 

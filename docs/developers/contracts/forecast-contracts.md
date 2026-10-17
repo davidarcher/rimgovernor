@@ -326,10 +326,18 @@ probe's `To`, `FromStart`, and `Ticks`, the native path cost (`FindPathNow`, tou
 to the `Reach` cell nearest the origin, else `To`. No path leaves `Ticks` unknown; a
 probe out of bounds has no row (finding `planned_route_out_of_bounds`).
 
+`ConstructionActivityRequest.Pawns` names the colonists a read covers (#3312), at
+most 16; a named pawn that is not a free spawned colonist has no row (finding
+`construction_pawn_absent`). Empty covers the map's free colonists, the first 16 by
+id. Rounds name every colonist, paging a larger colony over several reads.
+
 Caps per read: 16 planned sites, 16 colonists, 16 sources per site, 128 positions
 per site, 32 rejections and 32 blockers per site and 128 rows over all planned
 sites (placed sites have their own 128, and clearing rows another 128); 16 route
-probes and 256 route rows. Excess sets `Truncated`; the caller batches. Verdicts classify every footprint thing, including
+probes and 256 route rows. Excess sets `Truncated`; the caller batches. A planned
+answer a cap cut (its rows, clearing rows, sources, rejections or blockers, or more
+than 16 colonists) also sets its own `PlannedSiteAnswer.Truncated`, so the read's
+other answers stay usable. Verdicts classify every footprint thing, including
 those past the 32 reported. The coupled census passes no planned sites; Rounds ask
 them per round ([planned-site facts](../architecture/colony-forecast.md#planned-site-facts)).
 The prepared `observations/planned-site` case checks open-ground walls, a door and a

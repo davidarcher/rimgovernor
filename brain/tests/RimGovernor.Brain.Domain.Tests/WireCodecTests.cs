@@ -137,10 +137,15 @@ public sealed class WireCodecTests
         var request = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest(new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, default)
         {
             Planned = [new("walls", "Wall", "WoodLog", RimGovernor.Brain.Domain.Rotation.East, [new(1, 1), new(2, 1)])],
+            Pawns = ["Thing_Human17", "Thing_Human18"],
         };
         var decodedRequest = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(WireJson.Serialize(request));
         Assert.Equal(request.Planned, decodedRequest.Planned);
         Assert.Equal(RimGovernor.Brain.Domain.Rotation.East, decodedRequest.Planned[0].Rotation);
+        // The page of colonists the read covers (#3312); none named reads the map's own.
+        Assert.Equal(request.Pawns, decodedRequest.Pawns);
+        Assert.Empty(WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(
+            WireJson.Serialize(request with { Pawns = default })).Pawns);
 
         var read = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead
         {
@@ -151,6 +156,7 @@ public sealed class WireCodecTests
                 new("on-water", RimGovernor.Brain.Domain.Fact.Known(false)) { Rejections = [new(new(7, 5), "Terrain lacks affordance")],
                     Blockers = [new(new(7, 5), "Wall_1", "Wall", "Building")] },
                 new("unresolved", default),
+                new("cut", RimGovernor.Brain.Domain.Fact.Known(true)) { Truncated = true },
             ],
             Findings = ["planned_site_definition_unresolved"],
         };
@@ -168,6 +174,8 @@ public sealed class WireCodecTests
         Assert.Equal("Wall_1", Assert.Single(water.Blockers).Thing);
         Assert.False(decoded.Planned[2].CanPlace.IsKnown);
         Assert.Empty(decoded.Planned[2].Options);
+        Assert.False(decoded.Planned[0].Truncated);
+        Assert.True(decoded.Planned[3].Truncated);
         Assert.Equal(read.Planned, decoded.Planned);
     }
 

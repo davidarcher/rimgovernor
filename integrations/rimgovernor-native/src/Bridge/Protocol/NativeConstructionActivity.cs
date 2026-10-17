@@ -27,13 +27,15 @@ public sealed class NativeConstructionActivity
     }
 
     // One read's row budget, truncation and findings. Placed and planned sites each get their own,
-    // so a full placed census cannot erase every planned estimate.
+    // so a full placed census cannot erase every planned estimate. SiteTruncated marks a cut since the
+    // caller last cleared it: the planned site being answered (#3312).
     private sealed class Budget
     {
         internal int Rows = RowBudget;
-        internal bool Truncated;
+        internal bool Truncated, SiteTruncated;
         internal readonly HashSet<string> Findings = new(StringComparer.Ordinal);
-        internal bool Take() { if (--Rows >= 0) return true; Truncated = true; return false; }
+        internal void Cut() => Truncated = SiteTruncated = true;
+        internal bool Take() { if (--Rows >= 0) return true; Cut(); return false; }
     }
 
     // A site the rows estimate. Placed: a blueprint or frame (Thing set). Planned: unplaced cells, where a route
@@ -45,8 +47,13 @@ public sealed class NativeConstructionActivity
     {
         if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out _)) return new();
         var options = new List<Obs.ConstructionActivityOption>();
-        var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-        var placed = new Budget { Truncated = request.Buildings.Count > SiteCap || roster.Length > PawnCap };
+        // The named colonists (#3312), else the map's: a named pawn that is no free spawned colonist has no row.
+        var named = new HashSet<string>(request.Pawns, StringComparer.Ordinal);
+        var roster = map.mapPawns.FreeColonistsSpawned.Where(p => named.Count == 0 || named.Contains(p.GetUniqueLoadID()))
+            .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        var pawnsCut = Math.Max(named.Count, roster.Length) > PawnCap;
+        var placed = new Budget { Truncated = request.Buildings.Count > SiteCap || pawnsCut };
+        if (roster.Length < named.Count) placed.Findings.Add("construction_pawn_absent");
         var finishGiver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_ConstructFinishFrames);
         foreach (var building in request.Buildings.Take(SiteCap))
         {
@@ -60,10 +67,16 @@ public sealed class NativeConstructionActivity
             Rows(map, roster, new Site(thing.GetUniqueLoadID(), definition, thing.Position, _ => thing.Position, thing, owed, work,
                 p => !thing.IsForbidden(p), p => floorKnown && ConstructionSkillGuard.Allows(thing, p)), finishGiver, placed, options);
         }
-        var planned = new Budget { Truncated = request.Planned.Count > SiteCap || roster.Length > PawnCap };
+        var planned = new Budget { Truncated = request.Planned.Count > SiteCap || pawnsCut };
         var clearing = new Budget();
-        var answers = request.Planned.Take(SiteCap).Select(s => Planned(map, roster, s, finishGiver, planned, clearing)).ToArray();
-        var routed = new Budget { Rows = RouteBudget, Truncated = request.Routes.Count > SiteCap || roster.Length > PawnCap };
+        // Each answer says whether a cap cut it, so the read's other answers stay usable (#3312).
+        var answers = request.Planned.Take(SiteCap).Select(s =>
+        {
+            planned.SiteTruncated = clearing.SiteTruncated = false;
+            var answer = Planned(map, roster, s, finishGiver, planned, clearing);
+            return answer with { Truncated = pawnsCut || planned.SiteTruncated || clearing.SiteTruncated };
+        }).ToArray();
+        var routed = new Budget { Rows = RouteBudget, Truncated = request.Routes.Count > SiteCap || pawnsCut };
         var routes = Routes(map, roster, request.Routes, routed);
         return new() { Context = context, Known = true, Truncated = placed.Truncated || planned.Truncated || clearing.Truncated || routed.Truncated,
             Options = EquatableArray.From(options), Planned = EquatableArray.From(answers), Routes = EquatableArray.From(routes),
@@ -105,7 +118,7 @@ public sealed class NativeConstructionActivity
     {
         var unknown = new Obs.PlannedSiteAnswer(request.Id, default);
         if (request.Positions.Count == 0) { budget.Findings.Add("planned_site_empty"); return unknown; }
-        if (request.Positions.Count > PositionCap) { budget.Findings.Add("planned_site_positions_exceeded"); budget.Truncated = true; return unknown; }
+        if (request.Positions.Count > PositionCap) { budget.Findings.Add("planned_site_positions_exceeded"); budget.Cut(); return unknown; }
         if (!PlacementPreviewOperation.TryResolveBuildable(request.Definition, out var definition, out _)
             || !definition.BuildableByPlayer || definition.blueprintDef == null) { budget.Findings.Add("planned_site_definition_unresolved"); return unknown; }
         ThingDef? stuff = null;
@@ -309,7 +322,7 @@ public sealed class NativeConstructionActivity
     private static bool Report(int count, Budget budget)
     {
         if (count < ReportCap) return true;
-        budget.Truncated = true;
+        budget.Cut();
         return false;
     }
 
@@ -321,7 +334,7 @@ public sealed class NativeConstructionActivity
         var sources = site.Owed.Length == 0 ? new Thing?[] { null }
             : map.listerThings.ThingsOfDef(site.Owed[0].Def).Where(t => t.Spawned && t.stackCount >= site.Owed[0].Count)
                 .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(SourceCap + 1).Cast<Thing?>().ToArray();
-        if (sources.Length > SourceCap) budget.Truncated = true;
+        if (sources.Length > SourceCap) budget.Cut();
         if (sources.Length == 0) budget.Findings.Add("whole_source_stack_unavailable");
         LocalTargetInfo To(IntVec3 origin) => site.Thing != null ? new LocalTargetInfo(site.Thing) : new LocalTargetInfo(site.Target(origin));
         foreach (var pawn in roster.Take(PawnCap))

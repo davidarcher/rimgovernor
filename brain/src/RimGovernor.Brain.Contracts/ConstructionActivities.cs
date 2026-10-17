@@ -13,6 +13,12 @@ namespace RimGovernor.Contracts.Wire.Observations;
 public sealed record ConstructionActivityRequest(Identity Identity,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Building>))] EquatableArray<Building> Buildings)
 {
+    /// <summary>
+    /// The colonists the read covers, by id (#3312): at most 16, so a larger colony is paged over several reads. A
+    /// named pawn that is not a free spawned colonist has no row. Empty covers the map's free colonists, the first 16
+    /// by id, and truncates above.
+    /// </summary>
+    public EquatableArray<string> Pawns { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedConstructionSite>))]
     public EquatableArray<PlannedConstructionSite> Planned { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRouteProbe>))]
@@ -129,6 +135,11 @@ public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind,
 /// </summary>
 public sealed record PlannedSiteAnswer(string Site, Fact<bool> CanPlace)
 {
+    /// <summary>
+    /// The read's caps cut this site's rows, rejections or blockers (#3312), so a pawn without a row may yet do it. The
+    /// read's other answers stay complete.
+    /// </summary>
+    public bool Truncated { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteRejection>))]
     public EquatableArray<PlannedSiteRejection> Rejections { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteBlocker>))]

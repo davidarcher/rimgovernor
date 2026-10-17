@@ -450,15 +450,20 @@ Shared ring cells go to the lowest room id. Ring cells and pieces with a bluepri
 as `PlannedOwedCost` counts them. `Material` is the op's cost list times its pieces. The stockpile review's
 unplaced `ShelfCandidates` are added as one-piece sites (`ShelfPlannedSites`, room 0, the candidate's zone).
 
-`PlannedSiteBatches` asks native `PlannedSitesPerRead` (4) sites per construction activity read.
-`JoinPlannedSites` attaches each answer's `CanPlace`, `Rejections`, `Blockers` (unclassified, as native reports
-them), per pawn x source `Options`, `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul and mine
-prerequisites) by site id. A site stays unknown when:
+`PlannedSiteBatches` asks native `PlannedSitesPerRead` (4) sites per construction activity read. A read covers
+at most 16 colonists, so `PlannedPawnPages` pages the round's colonists (`WorkPawns`, by id) `PlannedPawnsPerRead`
+(16) to a page, and each batch is read once per page (#3312). Every colonist is named, since any free one may
+build, cut, mine or haul; native gives a pawn that cannot no row. The facts are unknown while the colonists are.
+`JoinPlannedSites` merges the pages of each site: per pawn x source `Options` and each clearing op's rows from every
+page; `CanPlace`, `Rejections`, `Blockers` (unclassified, as native reports them), `Verdict` (feasibility once
+cleared) and `Clearing` (its cut, haul and mine prerequisites) from any, by site id. A site stays unknown when:
 
-- no answer names it;
-- its read is missing or unknown (`planned_site_read_unknown`);
-- its read is truncated (`planned_site_read_truncated`), because the shared row budget may have cut any site's
-  rows;
+- no answer on some page names it;
+- a read that asked it is missing or unknown (`planned_site_read_unknown`);
+- a cap cut its answer on some page (`planned_site_read_truncated`, the answer's `Truncated`). The read's other
+  answers are kept;
+- its pages disagree on legality, verdict, blockers or clearing ops (`planned_site_pages_disagree`): the world
+  moved between the reads;
 - it has more positions than the read takes (`planned_site_positions_exceeded`). Such a site is not asked.
 
 The roof has no native placement and is never asked. Its work per cell is the coupled read's
@@ -474,7 +479,7 @@ starts:
 - the roof also from each pawn's own start (`FromStart`), since no native row routes to it.
 
 The probed sites are those with rows, plus the roof. `PlannedRoutesPerRead` (16) probes go to a construction
-activity read, at most `PlannedRouteProbeCap` (128) a round (`planned_route_probes_exceeded`). Native answers a
+activity read, once per colonist page, at most `PlannedRouteProbeCap` (128) a round (`planned_route_probes_exceeded`). Native answers a
 `CoupledRoute` per probe x free pawn, unknown where no path is found. `JoinPlannedRoutes` keeps each read's rows
 for its own probes in `PlannedSiteFacts.Routes`; a missing, unknown or truncated read adds none
 (`planned_route_read_unknown`, `planned_route_read_truncated`), so those routes stay unknown.
