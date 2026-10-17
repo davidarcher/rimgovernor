@@ -32,7 +32,7 @@ public static partial class PolicyFunctions
         {
             foreach (var g in l.Gaps)
             {
-                if (g.Source != GearSource.Stored || g.Gain <= GearGapThreshold(l.Role))
+                if (g.Source != GearSource.Stored || !GearGapWanted(l.Role, g))
                 {
                     continue;
                 }

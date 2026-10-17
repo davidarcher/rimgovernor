@@ -45,8 +45,8 @@ public sealed partial class Rounder
     /// <summary>The latest review's derived resource demand (derived state, empty until the first review after a restart).</summary>
     internal ReviewMemory<DerivedDemand> Demand = new(new());
 
-    /// <summary>The pawns whose outfit filter the latest review with a coupled selection left allowing tainted apparel (GearFilterChoices; derived state, none until the first such review after a restart).</summary>
-    internal ReviewMemory<EquatableArray<string>> GearFilters = new([]);
+    /// <summary>The per-pawn outfit filter and insulation floor the latest review with a coupled selection chose (GearChoices; derived state, none until the first such review after a restart).</summary>
+    internal ReviewMemory<EquatableArray<GearChoice>> GearChoices = new([]);
 
     /// <summary>
     /// The latest known coupled comparison's planned-room selection (#3278; derived state, empty until the first comparison
@@ -666,7 +666,7 @@ public sealed partial class Rounder
         Demand.Set(result.Review.Snapshot, result.Needs.ResourceDemand);
         TradeMemory.Set(result.Review.Snapshot, result.Needs.Trade);
         WorkAssignments.Set(result.Review.Snapshot, result.Needs.WorkAssignments);
-        NoteGearFilters(GearFilters, result.Review.Snapshot, reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection);
+        NoteGearChoices(GearChoices, result.Review.Snapshot, reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection);
         RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Projection, result.Needs.CoupledSelection));
         AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value) };

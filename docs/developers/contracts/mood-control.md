@@ -228,19 +228,21 @@ body stats (`cell_temperature_c` against `comfortable_min_c`/`max_c`), which mus
 then compares the offset with the card's stage band: none in the band, -4/-8/-12/-16 at deficits 5/15/25/35, none at 15
 with `Temperature_Tough`. Without Ideology the Tough step is skipped and reported as not observed.
 
-`PolicyFunctions.GenerateEffectSources` (pure, #3224; prevention branch #3284) turns a verified negative count card
-into per-pawn apparel filter candidates. A card matches a pawn when it is `Live`, every site maps to a
-`disallow-counted` `SiteActions` row, its count guards count one bound decl, and `CardStageOffset` for the pawn's worn
-apparel (its `GearLoadoutInput.Worn`, primary weapon excluded) is known and negative. The candidate is always the
-disallow variant, whatever the pawn's current filter (decided 2026-10-16): the gear planner predicts its outfit, with
-`PlanGearLoadout`'s `disallowed` predicate dropping matching worn items (unless locked) and options. It is one
-labor-free `ForecastCommitment` `gear-filter/<pawn>/disallow-<def>` with `ExclusiveOutcome` `gear-filter/<pawn>`, so a
-pawn's card changes never combine (#3282 makes two changes to one thought unassessed). It carries the card's offset for
-the predicted outfit minus the worn one as a `ForecastSituationalChange`, and the summed quality-scaled insulation
-change as a `ForecastComfortShift` (minimum by minus the cold change, maximum by the heat change). Candidates are in
-pawn, then card order; a budget reports `effect_source_generation_truncated`. A card that is not live, an unknown
-offset or an unknown counted item gives a finding and no candidate. The comparator, not the generator, decides whether
-the mood change is worth the warmth.
+`PolicyFunctions.GenerateEffectSources` (pure, #3224; prevention branch #3284; gear warmth #3329) turns the verified
+prevention and temperature cards into per-pawn gear candidates. A prevention card matches a pawn when it is `Live`,
+every site maps to a `disallow-counted` `SiteActions` row, its count guards count one bound decl, and `CardStageOffset`
+for the pawn's worn apparel (its `GearLoadoutInput.Worn`, primary weapon excluded) is known. For each pawn the gear
+planner predicts an outfit per (tainted filter, insulation floor) pair: tainted disallowed, plus allowed when a prevention
+card is Live and a worn or physical option is tainted (the `disallowed` predicate drops matching worn items unless
+locked); per filter, the worn insulation floor, plus, when a temperature card is Live, the distinct insulation levels of
+the warmest, coolest and unfloored outfits over physical options, at most 3 (`effect_source_floors_truncated`). Each is
+one labor-free `ForecastCommitment` `gear/<pawn>/<allow-tainted|disallow-tainted>/cold<c>-heat<h>` with
+`ExclusiveOutcome` `gear/<pawn>`, so a pawn's pairs never combine. It carries each card's offset for the predicted outfit
+minus the worn one as a `ForecastSituationalChange`, and the summed quality-scaled insulation change as a
+`ForecastComfortShift` (minimum by minus the cold change, maximum by the heat change). A pair is offered only when a Live
+card prices it: a situational change, or a comfort shift on a side a Live `EnvironmentCold`/`EnvironmentHot` card reads.
+Candidates are in pawn order; a budget reports `effect_source_generation_truncated`. An unknown offset or counted item
+gives a finding and no candidate. The comparator, not the generator, decides whether the mood change is worth the warmth.
 
 ##### Mechanic cards: now live
 
@@ -248,13 +250,13 @@ Since #3285 (epic #3217 Gate 1) the cards drive play. `GenerateCoupledActivities
 next to the clothing family, behind the same `military/equipment` Need enablement and gear census
 (`EffectSourceFactsOf`: every unblocked pawn with a loadout model, under its climate, its trait def names from the
 work facts and its hediff def names from the medical read's `CareConditions`; an unread list leaves the offset unknown,
-so the pawn gets `effect_source_offset_unknown` and no candidate). After the review, `GearFilterChoices` reads the
-comparator's outcome per pawn: the disallow candidate selected keeps tainted disallowed; held by an assessed portfolio
-the comparator rejected allows it; absent or never assessed keeps the default (disallowed). The Rounder keeps that set
-in derived memory for the review's world (a review with no coupled selection leaves it standing) and the rounds census
-read stamps it onto `GearPawn.AllowTainted` for every gear reader, which drives
-the outfit filter ([tainted apparel](equipment-upkeep.md#tainted-apparel)). Nothing else decides tainted apparel: the
-gear planner's hand mood curve, its constraint-mode mood tier, the `TaintFree` trait flag and the always-exclude rule
+so the pawn gets `effect_source_offset_unknown` and no candidate). After the review, `GearChoices` reads the
+comparator's outcome per pawn: a selected pair gives its filter and floor; a rejected assessed pair that removed a
+tainted item keeps the worn outfit (tainted allowed, worn floor); absent or never assessed keeps the default (tainted
+disallowed, worn insulation floor). The Rounder keeps that outcome in derived memory for the review's world (a review
+with no coupled selection leaves it standing) and the rounds census read stamps it onto `GearPawn.AllowTainted`,
+`ColdFloor` and `HeatFloor` for every gear reader, which drives the outfit filter and the planner's floor ([tainted apparel](equipment-upkeep.md#tainted-apparel-and-warmth)). Nothing else decides tainted apparel or warmth: the
+gear planner's thermal scalar (#3329), its hand mood curve, its constraint-mode mood tier, the `TaintFree` trait flag and the always-exclude rule
 are deleted. What came from the card: the stage offsets, the count predicate (`Apparel.WornByCorpse`) and the
 nullifying traits and hediffs. What came from generic machinery: the gear planner's outfit prediction, the
 comparator's break-risk and cold-exposure ranking and the apparel policy write.

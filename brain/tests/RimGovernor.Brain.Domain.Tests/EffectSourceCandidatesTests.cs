@@ -16,7 +16,7 @@ public sealed class EffectSourceCandidatesTests
     private static readonly MechanicCard Shipped = MechanicCards.ByDef[Def];
     private static readonly MechanicCard Verified = Shipped with { Status = MechanicCardStatus.Verified };
 
-    private static GearOption Garment(string id, GearSlot slot, string layer, string group, double cold = 0, bool tainted = false,
+    internal static GearOption Garment(string id, GearSlot slot, string layer, string group, double cold = 0, bool tainted = false,
         GearSource source = GearSource.Worn) => new()
     {
         ID = id, Definition = new("Apparel_" + id), Quality = 2, Slot = slot, Layers = [layer], Groups = [group], Source = source,
@@ -36,11 +36,39 @@ public sealed class EffectSourceCandidatesTests
             Traits = Known<EquatableArray<string>>([.. traits ?? []]), Hediffs = Known<EquatableArray<string>>([]), AnomalyActive = Known(false),
         });
 
+    // #3329: a pawn in a shirt and pants (no insulation) with a parka (cold insulation 30, tainted or not) loose.
+    internal static EffectSourcePawn WarmPawn(bool tainted) => Pawn() with
+    {
+        Gear = Pawn().Gear with
+        {
+            Worn = [Garment("shirt", GearSlot.SkinTorso, "OnSkin", "Torso"), Garment("pants", GearSlot.SkinLegs, "OnSkin", "Legs")],
+            Options = [Garment("parka", GearSlot.Outer, "Shell", "Torso", 30, tainted, GearSource.Loose)],
+        },
+    };
+
+    /// <summary>The gear census of one pawn, as the rounds read it.</summary>
+    internal static GearObservation Census(EffectSourcePawn pawn) => new()
+    {
+        Stored = Known<EquatableArray<GearStock>>([]),
+        Pawns = [new GearPawn { Pawn = new(pawn.Pawn), LoadoutModel = Known(pawn.Gear), Candidates = Known<EquatableArray<GearCandidate>>([]) }],
+    };
+
     internal static EffectSourceFacts Facts(int budget = 32, params EffectSourcePawn[] pawns) =>
         new() { Pawns = pawns.Length == 0 ? [Pawn()] : pawns, Budget = budget };
 
-    internal static EffectSourceResult Generate(EffectSourceFacts facts, MechanicCard? card = null) =>
-        GenerateEffectSources(facts, new Dictionary<string, MechanicCard> { [Def] = card ?? Verified });
+    /// <summary>Generates with the DeadMansApparel card and, when <paramref name="temperature"/> is set, the shipped EnvironmentCold and EnvironmentHot cards at that status.</summary>
+    internal static EffectSourceResult Generate(EffectSourceFacts facts, MechanicCard? card = null, MechanicCardStatus? temperature = null)
+    {
+        var cards = new Dictionary<string, MechanicCard> { [Def] = card ?? Verified };
+        if (temperature is { } status)
+        {
+            foreach (var def in new[] { "EnvironmentCold", "EnvironmentHot" })
+            {
+                cards[def] = MechanicCards.ByDef[def] with { Status = status };
+            }
+        }
+        return GenerateEffectSources(facts, cards);
+    }
 
     [Fact]
     public void TaintedParkaGivesOneLaborFreeDisallowCandidateWithItsMoodAndInsulationChange()
@@ -48,9 +76,9 @@ public sealed class EffectSourceCandidatesTests
         var result = Generate(Facts());
 
         var root = Assert.Single(result.Roots);
-        Assert.Equal("gear-filter/pawn/disallow-" + Def, root.Id);
+        Assert.Equal("gear/pawn/disallow-tainted/cold30-heat0", root.Id);
         Assert.Empty(root.ActivityCompletions);
-        Assert.Equal("gear-filter/pawn", root.ExclusiveOutcome);
+        Assert.Equal("gear/pawn", root.ExclusiveOutcome);
         // The -5 stage goes away; the thin parka insulates 20 less, so the comfortable minimum rises by 20.
         Assert.Equal([new ForecastSituationalChange("pawn", Def, 5)], root.SituationalChanges);
         Assert.Equal([new ForecastComfortShift("pawn", 20, 0)], root.ComfortShifts);
@@ -115,7 +143,7 @@ public sealed class EffectSourceCandidatesTests
         var one = Signature(Generate(facts));
         Assert.Equal(one, Signature(Generate(facts)));
         Assert.Equal(one, Signature(Generate(shuffled)));
-        Assert.Equal(["gear-filter/a/disallow-" + Def, "gear-filter/b/disallow-" + Def], Generate(facts).Roots.Select(r => r.Id));
+        Assert.Equal(["gear/a/disallow-tainted/cold30-heat0", "gear/b/disallow-tainted/cold30-heat0"], Generate(facts).Roots.Select(r => r.Id));
     }
 
     [Fact]
@@ -125,7 +153,7 @@ public sealed class EffectSourceCandidatesTests
 
         Assert.True(result.Truncated);
         Assert.Equal(["effect_source_generation_truncated"], result.Findings);
-        Assert.Equal("gear-filter/a/disallow-" + Def, Assert.Single(result.Roots).Id);
+        Assert.Equal("gear/a/disallow-tainted/cold30-heat0", Assert.Single(result.Roots).Id);
     }
 
     // #3285: the census facts the coupled generator builds. Hediffs come from the medical read; unread, the card's offset is
@@ -141,7 +169,7 @@ public sealed class EffectSourceCandidatesTests
         var facts = EffectSourceFactsOf(gear, Known<EquatableArray<CarePawn>>([care]));
         var read = Assert.Single(facts.Pawns);
         Assert.Equal(Known<EquatableArray<string>>(["Flu"]), read.Card.Hediffs);
-        Assert.Equal("gear-filter/pawn/disallow-" + Def, Assert.Single(Generate(facts).Roots).Id);
+        Assert.Equal("gear/pawn/disallow-tainted/cold30-heat0", Assert.Single(Generate(facts).Roots).Id);
 
         var unread = Generate(EffectSourceFactsOf(gear, Unknown<EquatableArray<CarePawn>>()));
         Assert.Empty(unread.Roots);
@@ -183,16 +211,64 @@ public sealed class EffectSourceCandidatesTests
         };
         var facts = new RoundsFacts { Gear = Known(gear) };
 
-        var standing = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearFilters(facts, []).Gear;
+        var standing = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, []).Gear;
         Assert.NotEmpty(GearReplacementNeeds(standing));
 
-        var allowed = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearFilters(facts, ["pawn"]).Gear;
+        var allowed = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, [new GearChoice("pawn", true)]).Gear;
         Assert.True(Assert.Single(allowed.Value.Pawns).AllowTainted);
         Assert.Equal(Known(true), ReviewGear(allowed).Recovered);
         Assert.Empty(GearReplacementNeeds(allowed));
         var (wanted, known) = GearBillsWanted(allowed);
         Assert.True(known);
         Assert.Empty(wanted!);
+    }
+
+    // #3329: with Live temperature cards each filter offers the distinct insulation levels of the planner's predicted outfits
+    // over physical options: the dead man's parka pawn, tainted disallowed, gets the worn floor (the thin parka is the
+    // closest, 20 less) and the unfloored outfit (no parka, 30 less); allowing tainted predicts the worn outfit, so nothing.
+    [Fact]
+    public void LiveTemperatureCardsOfferTheDistinctFloorsOfEachFilter()
+    {
+        var result = Generate(Facts(), temperature: MechanicCardStatus.Verified);
+
+        Assert.Equal(["gear/pawn/disallow-tainted/cold30-heat0", "gear/pawn/disallow-tainted/cold0-heat0"], result.Roots.Select(r => r.Id));
+        Assert.All(result.Roots, r => Assert.Equal("gear/pawn", r.ExclusiveOutcome));
+        Assert.Equal([new ForecastComfortShift("pawn", 30, 0)], result.Roots[1].ComfortShifts);
+        Assert.Equal(new GearChoice("pawn", false, 30, 0), EffectSourceCandidates.Choice("pawn", result.Roots[0].Id));
+        Assert.DoesNotContain(result.Findings, f => f.StartsWith("effect_source_site_unreached:", StringComparison.Ordinal));
+    }
+
+    // #3329 acceptance: Cold and Hot not Live give no warmth candidate, and the worn floor applies.
+    [Fact]
+    public void WithoutLiveTemperatureCardsThereIsNoWarmthCandidateAndTheWornFloorApplies()
+    {
+        var warm = WarmPawn(tainted: false);
+        Assert.NotEmpty(Generate(Facts(pawns: warm), temperature: MechanicCardStatus.Verified).Roots);
+        Assert.Empty(Generate(Facts(pawns: warm), temperature: MechanicCardStatus.Extracted).Roots);
+        Assert.Equal("gear/pawn/disallow-tainted/cold30-heat0", Assert.Single(Generate(Facts(), temperature: MechanicCardStatus.Extracted).Roots).Id);
+        Assert.DoesNotContain(PlanColonyGear(Census(warm).Pawns).Loadouts[0].Target, o => o.ID == "parka");
+    }
+
+    // #3329 acceptance: with no candidate the floor is the worn insulation and tainted stays disallowed. The pawn in the dead
+    // man's parka (30) takes the clean parka (30) over the armored thin one (10) the unfloored planner prefers; with no option
+    // at the floor it takes the closest and records the finding.
+    [Fact]
+    public void WithNoCandidateTheWornInsulationFloorAppliesAndTaintedStaysDisallowed()
+    {
+        var thin = Garment("thin-parka", GearSlot.Outer, "Shell", "Torso", 10, source: GearSource.Stored) with { Sharp = .5 };
+        var model = Pawn().Gear with { Options = [Garment("clean-parka", GearSlot.Outer, "Shell", "Torso", 30, source: GearSource.Stored), thin] };
+        var pawn = new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model) };
+
+        var floored = PlanColonyGear([pawn]).Loadouts[0];
+        Assert.Contains(floored.Target, o => o.ID == "clean-parka");
+        Assert.DoesNotContain(floored.Target, o => o.ID == "parka");
+        Assert.False(floored.FloorUnmet);
+        Assert.True(Assert.Single(floored.Gaps).Floor);
+        Assert.Contains(PlanGearLoadout(model, o => o.Tainted).Target, o => o.ID == "thin-parka");
+
+        var closest = PlanColonyGear([pawn with { LoadoutModel = Known(model with { Options = [thin] }) }]).Loadouts[0];
+        Assert.Contains(closest.Target, o => o.ID == "thin-parka");
+        Assert.True(closest.FloorUnmet);
     }
 
     private static string Signature(EffectSourceResult result) => string.Join("\n",

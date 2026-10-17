@@ -122,7 +122,7 @@ public static partial class PolicyFunctions
         {
             AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivityRequirements(gear).Alternatives,
                 checked(read.Tick + (long)horizon), resources));
-            // The effect-source family (#3285): one labor-free apparel-filter candidate per pawn a verified card prices (GearFilterChoices).
+            // The effect-source family (#3285): labor-free (tainted filter, insulation floor) candidates per pawn that verified cards price (GearChoices, #3329).
             var effects = GenerateEffectSources(EffectSourceFactsOf(gear, facts.MedicalPawns, facts.IdeologyInstalled));
             alternatives.AddRange(effects.Roots); findings.UnionWith(effects.Findings); truncated |= effects.Truncated;
         }

@@ -3,8 +3,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>
 /// A value the latest review of one world derived: derived state the Rounder keeps in memory, <c>empty</c> until the first
 /// review after a restart and for another world. The resource demand (<c>ResourceDemandOf</c>, as the detectors read it;
-/// every planner and the work coverage read it) and the per-pawn gear-filter outcome (GearFilterChoices, #3285;
-/// ObserveRoundsAsync stamps it onto GearPawn.AllowTainted) are two.
+/// every planner and the work coverage read it) and the per-pawn gear outcome (GearChoices, #3285, #3329;
+/// ObserveRoundsAsync stamps it onto GearPawn.AllowTainted, ColdFloor and HeatFloor) are two.
 /// </summary>
 internal sealed class ReviewMemory<T>(T empty)
 {
@@ -71,14 +71,14 @@ public sealed partial class Rounder
     internal ReviewMemory<Fact<bool>> WorkAssignments { get; } = new(Unknown<bool>());
 
     /// <summary>
-    /// Keeps a review's per-pawn gear-filter outcome when its comparator ran (#3325). A review with no coupled selection
-    /// compared nothing, so the last outcome stands until a review with one replaces it.
+    /// Keeps a review's per-pawn gear outcome (filter and floor) when its comparator ran (#3325). A review with no coupled
+    /// selection compared nothing, so the last outcome stands until a review with one replaces it.
     /// </summary>
-    internal static void NoteGearFilters(ReviewMemory<EquatableArray<string>> memory, GenerationSnapshot snapshot, ForecastCoupledCandidates? candidates, ForecastCoupledSelection? selection)
+    internal static void NoteGearChoices(ReviewMemory<EquatableArray<GearChoice>> memory, GenerationSnapshot snapshot, ForecastCoupledCandidates? candidates, ForecastCoupledSelection? selection)
     {
         if (selection is not null)
         {
-            memory.Set(snapshot, PolicyApi.GearFilterChoices(candidates, selection));
+            memory.Set(snapshot, PolicyApi.GearChoices(candidates, selection));
         }
     }
 

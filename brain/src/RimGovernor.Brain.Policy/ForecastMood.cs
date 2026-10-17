@@ -142,6 +142,9 @@ public static partial class PolicyFunctions
     internal static bool TemperatureCard(MechanicCard card) => card.Live && card.Sites.Count > 0
         && card.Sites.All(s => s.Stage is { } band && Reads(band.Input, "Thing.AmbientTemperature"));
 
+    /// <summary>Whether a Live temperature card's stage input reads the comfort bound <paramref name="decl"/>, so a comfort shift on it moves its offset (#3329).</summary>
+    internal static bool TemperatureCardReads(MechanicCard card, string decl) => TemperatureCard(card) && card.Sites.All(s => Reads(s.Stage!.Input, decl));
+
     private static bool Reads(MechanicCardExpr e, string decl) => e.Decl == decl || (e.Args ?? []).Any(a => Reads(a, decl));
 
     /// <summary>

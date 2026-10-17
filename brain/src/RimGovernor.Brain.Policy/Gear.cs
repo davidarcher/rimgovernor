@@ -56,10 +56,15 @@ public sealed record GearPawn
     public PawnId Pawn { get; init; }
 
     /// <summary>
-    /// Whether the pawn's outfit allows tainted apparel: the latest review's coupled comparator compared disallowing it
-    /// for this pawn and rejected that (GearFilterChoices, stamped once on the rounds census). False otherwise, the default.
+    /// Whether the pawn's outfit allows tainted apparel, as the latest review's coupled comparator chose it (GearChoices,
+    /// stamped once on the rounds census). False otherwise, the default.
     /// </summary>
     public bool AllowTainted { get; init; }
+
+    /// <summary>The pawn's insulation floor as the comparator chose it (GearChoices, #3329); null is its worn insulation, the default.</summary>
+    public double? ColdFloor { get; init; }
+
+    public double? HeatFloor { get; init; }
     public string Loadout { get; init; } = "";
     public bool Blocked { get; init; }
 
@@ -366,7 +371,7 @@ public static partial class PolicyFunctions
             {
                 foreach (var gap in l.Gaps)
                 {
-                    deficit = deficit || gap.Gain > GearGapThreshold(l.Role);
+                    deficit = deficit || GearGapWanted(l.Role, gap);
                 }
             }
             var policyNeeded = DesiredApparelPolicy(p, out _);

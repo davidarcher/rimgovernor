@@ -21,12 +21,14 @@ base plus its hard requirements:
   gender) are listed.
 - Tainted apparel is excluded unless `allowTainted` is set: the coupled
   comparator rejected disallowing it for this pawn
-  ([tainted apparel](equipment-upkeep.md#tainted-apparel)); hit points 51-100%
+  ([tainted apparel](equipment-upkeep.md#tainted-apparel-and-warmth)); hit points 51-100%
   (swap before the tattered thought); the quality floor rises Awful -> Normal ->
   Good while every slot the pawn wears still has an allowed garment at that
   quality worn or on hand.
 
-Pawns still choose by temperature inside the filter. Autonomous control replaces
+Pawns still choose by temperature inside the filter; the policy writes no
+insulation rule. Warmth is the comparator's insulation floor on the gear planner
+(#3329), which acts through equip candidates and bills, not through the filter. Autonomous control replaces
 manual assignments and clears forced/locked apparel. It is an intent-mode kind:
 native finds the pawn's outfit through its assignment (its current outfit when no
 other pawn holds it, else an unheld outfit carrying its name, else a new one),

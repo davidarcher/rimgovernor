@@ -55,13 +55,13 @@ retain their owners. Shared admission protects construction and other committed
 materials. The clothing runway below remains an acquisition estimate; it does
 not pin the material of a later executable recipe.
 Equipment needs include the loadout model gaps:
-replacements for damaged apparel, and definition/stuff options that improve an
-observed thermal deficit (`cold`, `heat`). A core body-part group (Torso, Legs)
+replacements for damaged apparel, and definition/stuff options the pawn's
+insulation floor needs ([warmth](#tainted-apparel-and-warmth)). A core body-part group (Torso, Legs)
 the pawn wears nothing over is a deficit in any weather, found by the brain from the
 worn garments' groups. The native producer sends no deficit flag and no
 replacement list (`GearLoadout.deficit` and `replacement_needs` are reserved);
 every gap is the model's. A definition-level
-thermal estimate is a procurement candidate, not proof of the eventual garment's
+insulation estimate is a procurement candidate, not proof of the eventual garment's
 quality, eligibility or sufficient protection.
 
 The review's apparel-condition census (`GearReview.WornOut`, `Uncovered`) is the
@@ -137,31 +137,34 @@ The optional seasonal observation carries 12 outdoor temperatures sampled at loc
 twelfth midpoints and indexed by native Twelfth, the current twelfth and ticks to
 its next boundary, and at most one
 ColdSnap/HeatWave row with its native temperature offset and remaining ticks
-(-1 for permanent). Loadout scoring covers the current and next two twelfths
-for both cold and heat, retaining current ambient extremes. Weather extends
-the target only over twelfths it overlaps, including beyond the normal lookahead
-when its duration is longer. Missing seasonal fields retain ambient-only scoring.
-The complete product-catalog requirement still applies to modeled loadouts.
+(-1 for permanent). The clothing family's temperature range covers the current
+and next two twelfths for both cold and heat, retaining current ambient extremes.
+Weather extends the range only over twelfths it overlaps, including beyond the
+normal lookahead when its duration is longer. Missing seasonal fields retain the
+ambient-only range. The complete product-catalog requirement still applies to
+modeled loadouts.
 
 Targets cover skin torso, skin legs, middle torso, outer, belt, headgear and
 primary weapon. An exact bounded ensemble search rejects shared layer AND body
-group conflicts and preserves locked items. It scores armor, current ambient
-thermal needs, condition and coverage. Coverage requires
+group conflicts and preserves locked items. It scores armor, condition and
+coverage, and prices neither mood nor warmth. Coverage requires
 legs for men and legs plus chest for women; nudists prefer no body apparel.
-The planner prices no mood: it plans inside the pawn's outfit filter, which
-excludes tainted apparel unless the coupled comparator left it allowed
-([tainted apparel](#tainted-apparel)). Replacements cannot assume a separate strip order.
+It plans inside the pawn's outfit filter, which excludes tainted apparel unless
+the coupled comparator allowed it, and above the pawn's insulation floor: an
+ensemble whose summed quality-scaled cold or heat insulation is below the floor
+is ineligible, and when none meets it the search returns the closest (least
+summed shortfall) and sets `GearLoadout.FloorUnmet`
+([tainted apparel and warmth](#tainted-apparel-and-warmth)). Replacements cannot assume a separate strip order.
 
 Roles use existing work priorities, skills and trait facts plus explicit child,
 slave, prisoner, unrevealed-creepjoiner, incapable-of-violence and drafted-squad
 status. Precedence is child, slave, prisoner, non-combatant, soldier, then highest-priority work (stable role-name tie
-break). Hunters require ranged range at least 25 and favor warm outerwear;
-workers reject movement penalties, indoor workers reduce thermal weight,
+break). Hunters require ranged range at least 25;
+workers and indoor workers reject movement penalties,
 soldiers favor sharp then blunt armor with helmets gated by Smithing and
 shields restricted to melee, children select Kid/Apparel_Kid definitions, and
 slaves, prisoners and unrevealed creepjoiners take the constraint mode:
-cover legs and torso and meet min(thermal need, item capacity) from the comfort
-band against the seasonal range (ties keep worn gear). Slave-only apparel (the def's `slaveApparel`) goes only to slaves,
+cover legs and torso, then the lowest cost (ties keep worn gear). Slave-only apparel (the def's `slaveApparel`) goes only to slaves,
 and weapons are never planned. Garment stats and conflict metadata determine combinations
 such as a flak vest beneath a duster; definitions are not hard-coded.
 
@@ -179,7 +182,9 @@ smokepop belts are never planned.
 
 Each target purchase produces a gap with slot, exact product, source
 (loose/stored/bill) and marginal ensemble gain against the current worn slot.
-Gaps sort by descending gain then slot. Recovery means no gap above the role
+Gaps sort by descending gain then slot. A gap the insulation floor needs (the
+ensemble with that slot left as worn falls further short, `GearGap.Floor`) is
+acted on whatever its gain. Recovery means no such gap and no gap above the role
 threshold: soldier 0.05, hunter 0.1, slave and prisoner 0.5, others 0.2. Equal scores retain
 worn gear and minimize purchases; otherwise supply preference is loose, stored,
 then bill, with stable item IDs. The pruned exact search visits at most `policy.GearSearchBudget` (200000) nodes per pawn; past it the best ensemble found is kept (`GearLoadout.SearchBudgetExhausted`), no option is dropped, and the review journals a `gear_search` row. `PlanColonyGear` visits pawn IDs in order and
@@ -193,27 +198,41 @@ candidate list; native gain admits the item, while model gain orders it. An
 unavailable admission stays blocked. Existing production resource checks and
 shared Hands execution remain authoritative.
 
-### Tainted apparel
+### Tainted apparel and warmth
 
-Whether a pawn's outfit allows tainted (dead man's) apparel is the coupled
-comparator's choice, not a planner rule (#3285, epic #3217 Gate 1). Behind the
-equipment Need, the coupled generator offers one labor-free candidate per pawn
-that a verified count card (`DeadMansApparel`) prices negative for its worn
-apparel: `gear-filter/<pawn>/disallow-<def>`, carrying the card's mood change and
-the gear planner's predicted insulation change
-([mood control](mood-control.md#mechanic-cards-now-live)). After the review,
-`GearFilterChoices` reads the outcome: a selected candidate keeps tainted
-disallowed; one an assessed portfolio held and the comparator rejected allows it;
-no candidate, or one never assessed, keeps the default (disallowed). The Rounder
-keeps that per-pawn set in derived memory for the review's world (`ReviewMemory`,
-empty after a restart). A review with no coupled selection compared nothing and
-leaves the last set standing. The rounds census read (`ObserveRoundsAsync`, taken
-by the review and by a planner's own read) is the one place that stamps it onto
-`GearPawn.AllowTainted`, so every gear reader plans inside the same filter:
+Whether a pawn's outfit allows tainted (dead man's) apparel, and how warm it is,
+are the coupled comparator's choice, not planner rules (#3285, #3329, epic #3217).
+Behind the equipment Need, the coupled generator offers labor-free
+(tainted filter, insulation floor) pairs per pawn under one exclusive outcome,
+`gear/<pawn>`, with ids `gear/<pawn>/<allow-tainted|disallow-tainted>/cold<c>-heat<h>`
+([mood control](mood-control.md#mechanic-cards-now-live)):
+
+- Filters: tainted disallowed, and allowed when the `DeadMansApparel` card is Live
+  and a worn or physical option is tainted.
+- Floors, per filter, over physical options only (worn, loose, stored; bill-sourced
+  warmth is the clothing family's): the worn insulation always, and, when a
+  temperature card is Live, the distinct insulation levels of the planner's warmest,
+  coolest and unfloored outfits, at most 3 (`effect_source_floors_truncated`).
+- Each pair carries, against the worn outfit, the card's mood change and the
+  predicted insulation change as a comfort shift, which the forecast prices with the
+  `EnvironmentCold`/`EnvironmentHot` cards along the projected exposure. A pair is
+  offered only when a Live card prices it.
+
+After the review, `GearChoices` reads the outcome: a selected pair gives its filter
+and floor; otherwise, a rejected assessed pair that removed a tainted item keeps the
+worn outfit (tainted allowed, worn floor); no pair, or one never assessed, keeps the
+default: tainted disallowed and the worn insulation as the floor, so warmth never
+drops without the comparator. The Rounder keeps that per-pawn outcome in derived
+memory for the review's world (`ReviewMemory`, empty after a restart). A review with
+no coupled selection compared nothing and leaves the last outcome standing. The rounds
+census read (`ObserveRoundsAsync`, taken by the review and by a planner's own read) is
+the one place that stamps it onto `GearPawn.AllowTainted`, `ColdFloor` and
+`HeatFloor`, so every gear reader plans inside the same filter and floor:
 `DesiredApparelPolicy` (`ApparelPolicyIntent.allowTainted`),
-`ApparelQualityFloor`, `OutfitKeep`, the planner's filter in `PlanColonyGear`,
-and through it the replacement bill demand, the gear declarers and the gear
-search log.
+`ApparelQualityFloor`, `OutfitKeep`, `PlanColonyGear`, and through it the equip
+candidates, the replacement bill demand, the gear declarers and the gear search log.
+The floor has no action of its own: vanilla dresses by temperature inside the
+outfit filter, and the planner's floor gaps become equip candidates and bills.
 
 ## Dispatch, completion and interruption
 

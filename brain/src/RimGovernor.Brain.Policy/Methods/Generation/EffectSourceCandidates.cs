@@ -1,16 +1,19 @@
+using System.Globalization;
+
 namespace RimGovernor.Brain.Policy.Methods.Generation;
 
-// The effect-source generator (#3224, #3217 Gate 1), prevention branch (#3284, live since #3285): from a verified negative
-// count card that is active for a pawn, to the existing action that makes its guard false, to one labor-free coupled
-// candidate per pawn.
-// - Match: the card is Live; MechanicCardGuards.CardStageOffset for the pawn's worn apparel is known and negative; every
-//   site maps, in MechanicCardGuards.SiteActions, to a DisallowCounted row (the apparel filter disallows the counted items).
-// - Candidate: the pawn's apparel filter disallows the items the card counts, whatever the current filter (decided
-//   2026-10-16): the comparator selects it, or rejects it and the pawn's filter allows them (GearFilterChoices). A pawn has
-//   at most one candidate per card and every candidate of a pawn shares one ExclusiveOutcome, because two changes to one
-//   situational thought leave the pawn unassessed (#3282).
-// - Consequences, relative to the worn outfit: the card's offset for the gear planner's predicted outfit minus the worn
-//   one (ForecastSituationalChange), and the predicted insulation change as a comfort shift (ForecastComfortShift).
+// The effect-source generator (#3224, #3217 Gate 1), prevention branch (#3284, live since #3285), gear warmth (#3329): per
+// pawn, labor-free coupled candidates that change how the pawn dresses, priced by verified cards.
+// - Candidate: a (tainted filter, insulation floor) pair, under one exclusive outcome per pawn, gear/<pawn>, because two
+//   changes to one pawn's outfit cannot both hold (#3282). The comparator selects one pair, or none and the pawn keeps its
+//   worn outfit (GearChoices).
+// - Prevention: a verified negative count card's offset changes when the filter disallows the items it counts; every site
+//   maps, in MechanicCardGuards.SiteActions, to a DisallowCounted row.
+// - Consequences, relative to the worn outfit: each prevention card's offset for the gear planner's predicted outfit minus
+//   the worn one (ForecastSituationalChange), and the predicted insulation change as a comfort shift (ForecastComfortShift),
+//   which Live temperature cards price along the forecast's exposure (#3327).
+// - Gating: a pair is offered only when a Live card prices it: a prevention card's offset changes, or a Live stage card reads
+//   the comfort bound the insulation change moves.
 // The comparator decides whether the change matters now; nothing here values mood against warmth. No def is named here.
 
 /// <summary>One pawn's facts: its gear planner input and its pawn facts for the cards.</summary>
@@ -25,31 +28,31 @@ internal sealed record EffectSourceFacts
     public int Budget { get; init; } = 32;
 }
 
-/// <summary>What the pawn wears now, or its apparel filter disallowing the items a card counts.</summary>
-internal enum EffectSourceVariant
-{
-    Worn,
-    Disallow,
-}
-
-/// <summary>An outfit (worn, or the gear planner's prediction under a variant), the card's offset for it, and its summed quality-scaled insulation minus the worn outfit's.</summary>
-internal sealed record EffectSourceOutfit(EquatableArray<GearOption> Items, Fact<double> Offset, double ColdDelta, double HeatDelta);
+/// <summary>
+/// An outfit under a tainted filter and an insulation floor: the gear planner's predicted items (or the worn ones), each
+/// prevention card's offset for them, and their summed quality-scaled insulation.
+/// </summary>
+internal sealed record EffectSourceOutfit(bool AllowTainted, double ColdFloor, double HeatFloor, EquatableArray<GearOption> Items,
+    IReadOnlyDictionary<string, Fact<double>> Offsets, double Cold, double Heat);
 
 /// <summary>The labor-free root commitments, the findings and whether the budget truncated the search.</summary>
 internal sealed record EffectSourceResult(EquatableArray<ForecastCommitment> Roots, EquatableArray<string> Findings, bool Truncated);
 
 internal static class EffectSourceCandidates
 {
-    /// <summary>The ExclusiveOutcome prefix of a pawn's apparel-filter candidates: <c>gear-filter/&lt;pawn&gt;</c>.</summary>
-    internal const string FilterOutcome = "gear-filter/";
+    /// <summary>The ExclusiveOutcome prefix of a pawn's gear candidates: <c>gear/&lt;pawn&gt;</c>.</summary>
+    internal const string GearOutcome = "gear/";
+
+    private const string Allow = "allow-tainted", Disallow = "disallow-tainted";
 
     /// <summary>
-    /// The search over precomputed facts (the Methods stage calls no policy function): <paramref name="outfits"/> holds the
-    /// worn outfit and the gear planner's predicted outfit under the disallow variant, with the card's offset for each,
-    /// keyed by (card, pawn, variant). PolicyFunctions.GenerateEffectSources computes it.
+    /// The search over precomputed facts (the Methods stage calls no planner): <paramref name="outfits"/> holds, per pawn, its
+    /// worn outfit first and then the gear planner's predicted outfit for each (filter, floor) pair, with each prevention
+    /// card's offset. PolicyFunctions.GenerateEffectSources computes it, and whether a Live temperature card prices a shift of
+    /// the comfortable minimum (<paramref name="cold"/>) or maximum (<paramref name="heat"/>).
     /// </summary>
     internal static EffectSourceResult Generate(EffectSourceFacts facts, IEnumerable<MechanicCard> cards,
-        IReadOnlyDictionary<(string Card, string Pawn, EffectSourceVariant Variant), EffectSourceOutfit> outfits)
+        IReadOnlyDictionary<string, IReadOnlyList<EffectSourceOutfit>> outfits, bool cold = false, bool heat = false)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var usable = new List<MechanicCard>();
@@ -59,7 +62,8 @@ internal static class EffectSourceCandidates
             {
                 findings.Add((card.Status == MechanicCardStatus.Unreachable ? "effect_source_card_unreachable:" : "effect_source_card_unverified:") + card.Def);
             }
-            else if (Prevention(card, findings))
+            // A stage card prices comfort shifts in the forecast (#3327); it has no prevention row.
+            else if (!(card.Sites.Count > 0 && card.Sites.All(s => s.Stage is not null)) && Prevention(card, findings))
             {
                 usable.Add(card);
             }
@@ -68,39 +72,72 @@ internal static class EffectSourceCandidates
         var truncated = false;
         var budget = facts.Budget;
         foreach (var pawn in facts.Pawns.OrderBy(p => p.Pawn, StringComparer.Ordinal))
-        foreach (var card in usable)
         {
-            var key = card.Def + "/" + pawn.Pawn;
-            if (!outfits.TryGetValue((card.Def, pawn.Pawn, EffectSourceVariant.Worn), out var worn) || !worn.Offset.TryGetValue(out var now))
-            {
-                findings.Add("effect_source_offset_unknown:" + key);
-                continue;
-            }
-            if (now >= 0)
+            if (!outfits.TryGetValue(pawn.Pawn, out var options) || options.Count == 0)
             {
                 continue;
             }
-            if (!outfits.TryGetValue((card.Def, pawn.Pawn, EffectSourceVariant.Disallow), out var outfit) || !outfit.Offset.TryGetValue(out var then))
+            var worn = options[0];
+            var unknown = usable.Where(c => !worn.Offsets.GetValueOrDefault(c.Def).IsKnown).ToArray();
+            foreach (var card in unknown)
             {
-                findings.Add("effect_source_variant_unknown:" + key);
+                findings.Add("effect_source_offset_unknown:" + card.Def + "/" + pawn.Pawn);
+            }
+            if (unknown.Length > 0)
+            {
                 continue;
             }
-            if (budget-- == 0)
+            foreach (var outfit in options.Skip(1))
             {
-                truncated = true;
-                findings.Add("effect_source_generation_truncated");
-                goto done;
+                var id = GearOutcome + pawn.Pawn + "/" + (outfit.AllowTainted ? Allow : Disallow) + "/" + FloorId(outfit.ColdFloor, outfit.HeatFloor);
+                var changes = new List<ForecastSituationalChange>();
+                foreach (var card in usable)
+                {
+                    if (!outfit.Offsets.GetValueOrDefault(card.Def).TryGetValue(out var then))
+                    {
+                        findings.Add("effect_source_variant_unknown:" + id);
+                        goto next;
+                    }
+                    if (then != worn.Offsets[card.Def].Value)
+                    {
+                        changes.Add(new(pawn.Pawn, card.Def, then - worn.Offsets[card.Def].Value));
+                    }
+                }
+                var (dc, dh) = (Math.Round(outfit.Cold - worn.Cold, 6), Math.Round(outfit.Heat - worn.Heat, 6));
+                if (changes.Count == 0 && !(cold && dc != 0) && !(heat && dh != 0))
+                {
+                    continue;
+                }
+                if (budget-- == 0)
+                {
+                    truncated = true;
+                    findings.Add("effect_source_generation_truncated");
+                    goto done;
+                }
+                roots.Add(new(id, [])
+                {
+                    ExclusiveOutcome = GearOutcome + pawn.Pawn,
+                    SituationalChanges = EquatableArray.From(changes),
+                    // More cold insulation lowers the comfortable minimum; more heat insulation raises the maximum.
+                    ComfortShifts = dc == 0 && dh == 0 ? [] : [new(pawn.Pawn, -dc, dh)],
+                });
+            next:;
             }
-            roots.Add(new(FilterOutcome + pawn.Pawn + "/disallow-" + card.Def, [])
-            {
-                ExclusiveOutcome = FilterOutcome + pawn.Pawn,
-                SituationalChanges = [new(pawn.Pawn, card.Def, then - now)],
-                // More cold insulation lowers the comfortable minimum; more heat insulation raises the maximum.
-                ComfortShifts = [new(pawn.Pawn, -outfit.ColdDelta, outfit.HeatDelta)],
-            });
         }
     done:
         return new(EquatableArray.From(roots), EquatableArray.From(findings), truncated);
+    }
+
+    /// <summary>The floor segment of a candidate id, <c>cold&lt;c&gt;-heat&lt;h&gt;</c>, rounded to 6 decimals; <see cref="Choice"/> reads it back.</summary>
+    internal static string FloorId(double cold, double heat) =>
+        "cold" + Math.Round(cold, 6).ToString("0.######", CultureInfo.InvariantCulture) + "-heat" + Math.Round(heat, 6).ToString("0.######", CultureInfo.InvariantCulture);
+
+    /// <summary>The (filter, floor) pair a selected candidate of <paramref name="pawn"/> stands for.</summary>
+    internal static GearChoice Choice(string pawn, string id)
+    {
+        var parts = id[(GearOutcome.Length + pawn.Length + 1)..].Split('/');
+        var floor = parts[1]["cold".Length..].Split("-heat");
+        return new(pawn, parts[0] == Allow, double.Parse(floor[0], CultureInfo.InvariantCulture), double.Parse(floor[1], CultureInfo.InvariantCulture));
     }
 
     /// <summary>
