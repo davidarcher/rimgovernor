@@ -15,7 +15,10 @@ namespace HomeBridge.BridgeTools;
 public sealed partial class PawnControlFixture
 {
     private static bool productiveActive, productivePatched, productiveOutput;
-    private static int productiveStart, productiveInitialRaw;
+    private static int productiveStart, productiveInitialRaw, productiveUrgeTick = -1, productiveUrgeCompletions;
+    private static bool productiveSlept;
+    private static int productiveCommitted;
+    private static readonly HashSet<string> productiveTiredCooks = new(StringComparer.Ordinal), productiveRestedCooks = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, int> productiveCompletions = new(StringComparer.Ordinal);
     private static readonly HashSet<string> productiveMethods = new(StringComparer.Ordinal);
 
@@ -68,6 +71,7 @@ public sealed partial class PawnControlFixture
                 }
             }
             productiveCompletions.Clear(); productiveMethods.Clear(); productiveOutput = false;
+            productiveUrgeTick = -1; productiveUrgeCompletions = 0; productiveSlept = false; productiveTiredCooks.Clear(); productiveRestedCooks.Clear();
             productiveStart = Find.TickManager.TicksGame; productiveInitialRaw = RawCount();
             SkillLearningVerifier.Start();
             if (!productivePatched)
@@ -90,14 +94,47 @@ public sealed partial class PawnControlFixture
         var execution = NativePawnActivities.Read(__instance.Pawn);
         if (execution?.Method.StartsWith("coupled-", StringComparison.Ordinal) != true) return;
         productiveMethods.Add(execution.Method);
+        if (productiveUrgeTick >= 0) (__instance.Pawn.needs.rest.CurLevel < .15f ? productiveTiredCooks : productiveRestedCooks).Add(__instance.Pawn.GetUniqueLoadID() + ":" + __instance.Pawn.CurJob.loadID);
         var id = __instance.Pawn.GetUniqueLoadID();
         productiveCompletions[id] = productiveCompletions.GetValueOrDefault(id) + 1;
     }
     private static void ProductiveOutput(Pawn ___pawn)
     {
+        if (productiveActive && productiveUrgeTick >= 0 && ___pawn.CurJobDef == JobDefOf.LayDown && !___pawn.Awake()) productiveSlept = true;
         if (productiveActive && ___pawn == worker && ___pawn.Map.listerThings.AllThings.Any(t => t.def == selectedBill.recipe.products[0].thingDef && t.stackCount > 0))
             productiveOutput = true;
     }
+    [Tool("test/productive_cooking_urge", Description="UNSAFE FOR MODEL EXECUTION. Make every colonist critically tired mid-run so an urgent rest obligation competes with prepared cooking development. Issues no work.")]
+    public async Task<object> ProductiveCookingUrge(IRimBridgeContext ctx, CancellationToken ct)
+        => await ctx.MainThread.InvokeAsync<object>(() =>
+        {
+            foreach (var pawn in worker!.Map.mapPawns.FreeColonistsSpawned) { pawn.needs.rest.CurLevelPercentage = .08f; pawn.needs.food.CurLevelPercentage = .9f; } // only rest is urgent, so eating cannot compete with the claim under test
+            // The cooking lab has no bed; rest is only a servable need where a player bed exists.
+            var map = worker!.Map;
+            if (!map.listerBuildings.allBuildingsColonist.OfType<Building_Bed>().Any())
+            {
+                var bedCell = GenRadial.RadialCellsAround(worker.Position, 10, false).First(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null && c.GetThingList(map).Count == 0 && c.DistanceTo(worker.Position) > 3);
+                GenSpawn.Spawn(ThingDefOf.Bed, bedCell, map).SetFaction(Faction.OfPlayer);
+            }
+            productiveUrgeTick = Find.TickManager.TicksGame; productiveUrgeCompletions = productiveCompletions.Values.Sum(); productiveSlept = false; productiveTiredCooks.Clear(); productiveRestedCooks.Clear();
+            productiveCommitted = worker!.Map.mapPawns.FreeColonistsSpawned.Count(p => NativePawnActivities.Read(p) != null); // tasks already handed out may finish
+            selectedBill.repeatCount = Math.Min(selectedBill.repeatCount, 4); // finite demand: tasks already handed out may use up to 3, leaving one to resume and retire
+            return new { success = true, tick = productiveUrgeTick, completions = productiveUrgeCompletions };
+        }, ct).ConfigureAwait(false);
+    [Tool("test/productive_cooking_recover", Description="UNSAFE FOR MODEL EXECUTION. Restore colonist rest after sleep was observed, standing in for hours of natural recovery so the case does not wait them out. Issues no work.")]
+    public async Task<object> ProductiveCookingRecover(IRimBridgeContext ctx, CancellationToken ct)
+        => await ctx.MainThread.InvokeAsync<object>(() =>
+        {
+            foreach (var pawn in worker!.Map.mapPawns.FreeColonistsSpawned) pawn.needs.rest.CurLevelPercentage = .9f;
+            return new { success = true, tick = Find.TickManager.TicksGame };
+        }, ct).ConfigureAwait(false);
+    [Tool("test/productive_cooking_satisfy", Description="UNSAFE FOR MODEL EXECUTION. Withdraw the colony's remaining meal demand (the finite bill is deleted) after resumed development was observed, so retirement of the Method can be observed without waiting for the last repeat. Issues no work.")]
+    public async Task<object> ProductiveCookingSatisfy(IRimBridgeContext ctx, CancellationToken ct)
+        => await ctx.MainThread.InvokeAsync<object>(() =>
+        {
+            if (cookingBench.BillStack.Bills.Contains(selectedBill)) cookingBench.BillStack.Delete(selectedBill);
+            return new { success = true, tick = Find.TickManager.TicksGame };
+        }, ct).ConfigureAwait(false);
     [Tool("test/productive_cooking_read", Description="Read observed normal-planner recipe completions, food output, input consumption and actual Cooking skill. No work is issued.")]
     public async Task<object> ProductiveCookingRead(IRimBridgeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() => new
@@ -108,6 +145,11 @@ public sealed partial class PawnControlFixture
             rawConsumed = productiveInitialRaw - RawCount(), required = firstCount + secondCount,
             skills = worker!.Map.mapPawns.FreeColonistsSpawned.Select(p => new { pawn = p.GetUniqueLoadID(), level = p.skills.GetSkill(SkillDefOf.Cooking).Level,
                 xp = p.skills.GetSkill(SkillDefOf.Cooking).xpSinceLastLevel }).ToArray(),
+            urgeTick = productiveUrgeTick, urgeCompletions = productiveUrgeCompletions, slept = productiveSlept, tiredCooks = productiveTiredCooks.Count, committedAtUrge = productiveCommitted, restedCooksAfterUrge = productiveRestedCooks.Count,
+            minRest = worker!.Map.mapPawns.FreeColonistsSpawned.Min(p => p.needs.rest.CurLevel),
+            billActive = cookingBench.BillStack.Bills.Contains(selectedBill), repeatLeft = selectedBill.repeatCount,
+            owned = worker!.Map.mapPawns.FreeColonistsSpawned.Count(p => NativePawnActivities.Read(p) != null),
+            cooking = worker!.Map.mapPawns.FreeColonistsSpawned.Count(p => p.CurJob?.bill == selectedBill),
             learningFailures = SkillLearningVerifier.Failures.ToArray()
         }, ct).ConfigureAwait(false);
 }

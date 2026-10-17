@@ -23,6 +23,7 @@ public static class CaseCatalog
         registry.Register(NeedTargetCapacityCase.Case());
         registry.Register(PortfolioThermalCase.Case());
         registry.Register(ProductiveCookingCase.Case());
+        registry.Register(DevelopmentLifecycleCase.Case());
         registry.Register(MaintenancePracticeCase.Case(false));
         registry.Register(MaintenancePracticeCase.Case(true));
         registry.Register(ServiceInvestmentCase.Case());

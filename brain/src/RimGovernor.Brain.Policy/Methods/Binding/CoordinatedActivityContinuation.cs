@@ -72,6 +72,18 @@ internal static partial class CoordinatedActivityBinding
                     Steps = [], Task = "", Preparing = false, OutputDelivery = null });
                 changed = true; continue;
             }
+            // A task in flight is never interrupted; at this boundary (a task just ended, or the pawn is waiting to depart) a participant already at or below a rest or food
+            // threshold is not handed more work. Its order is released and the next review compares the need service
+            // against the remaining work. Tasks others wait on stay, so no participant is stranded.
+            if (NeedsService(read, order.Pawn)
+                && !remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p))))
+            {
+                if (order.Revision == long.MaxValue) return new(null, false);
+                remaining.RemoveAll(t => t.Pawn == order.Pawn);
+                orders.Add(order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1, Release = true,
+                    Steps = [], Task = "", Preparing = false, OutputDelivery = null });
+                changed = true; continue;
+            }
             if (next.Prerequisites.Count != 0 || next.DepartTick > tick)
             {
                 if (order.Preparing) { orders.Add(order); continue; }
@@ -102,6 +114,11 @@ internal static partial class CoordinatedActivityBinding
         if (!changed) return new(null, false);
         return new(new(batch.AuthorityGeneration, orders.ToArray()) { Tasks = EquatableArray.From(remaining) }, false);
     }
+
+    private static bool NeedsService(ActivityTaskRead read, string pawn) =>
+        read.Needs?.Pawns.FirstOrDefault(p => p.Pawn == pawn) is { } observed
+        && observed.Needs.Any(n => n.Kind is "rest" or "food" && n.Level.TryGetValue(out var level)
+            && n.Threshold.TryGetValue(out var threshold) && level <= threshold);
 
     private static bool CompatibleActivityBinding(SelectedActivityTask task, PawnActivityStep bound) =>
         bound.Kind == task.Step.Kind && bound.Deadline == task.Step.Deadline && bound.WorkGiver == task.Step.WorkGiver
