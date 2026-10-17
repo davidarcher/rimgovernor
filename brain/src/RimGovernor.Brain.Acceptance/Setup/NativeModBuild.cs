@@ -48,8 +48,8 @@ public static class NativeModBuild
     /// <summary>The brain assemblies the package must carry beside the Bridge.</summary>
     private static readonly string[] BrainAssemblies =
     [
-        "Domain", "Policy", "Contracts", "Bridge", "Bridge.Contracts", "NativeFacade", "HttpChannel", "Telemetry", "Host",
-        "Snapshot", "Observation", "Store", "Executor", "BuildingRuntime", "PlayerApi", "Simulation",
+        "Domain", "Policy", "Contracts", "Bridge", "Bridge.Contracts", "HttpChannel", "Telemetry", "Host",
+        "Observation", "Store", "Executor", "BuildingRuntime", "PlayerApi", "Simulation",
     ];
 
     /// <summary>The fixture list a build asked for <paramref name="wanted"/> records: none, or those plus <see cref="AlwaysFixtures"/>, sorted.</summary>
@@ -265,6 +265,10 @@ public static class NativeModBuild
             {
                 log.WriteLine("native build: the previous build of this work directory died; rebuilding over its output");
             }
+            if (DiscardBuildStateOnContractChange(work, copied))
+            {
+                log.WriteLine("native build: the contracts differ from this work directory's last build; recompiling from scratch");
+            }
             SyncWork(source, work, copied);
             var published = Path.Combine(work, "_out", "published");
             var workCompiled = Path.Combine(work, "_out", "compiled");
@@ -318,6 +322,44 @@ public static class NativeModBuild
             }
         }
     }
+
+    /// <summary>The contract projects every other assembly compiles against; a change to any of them is a change to what the incremental state was built from.</summary>
+    private static readonly string[] ContractRoots =
+    [
+        "brain/src/RimGovernor.Brain.Contracts/", "brain/src/RimGovernor.Brain.Bridge.Contracts/", "brain/src/RimGovernor.Fixtures.Contracts/",
+    ];
+
+    /// <summary>
+    /// The work directory is shared by every worktree, and MSBuild's up-to-date check does not reliably notice that the
+    /// contract assemblies it copied in came from a different worktree (#3430: CS0009, and builds against stale
+    /// contracts). So the build state (obj, bin, _out) is kept only while the contract sources are the ones the last
+    /// build used; when they differ it is deleted and the build starts clean. Returns true when it was discarded.
+    /// </summary>
+    internal static bool DiscardBuildStateOnContractChange(string work, IReadOnlyDictionary<string, string> copied)
+    {
+        var identity = HashContracts(copied);
+        var recordPath = Path.Combine(work, "_out", "contracts-identity.txt");
+        _ = Directory.CreateDirectory(work);
+        // A directory with build state but no record predates this check: its contracts are unknown, so it is discarded too.
+        var discard = File.Exists(recordPath) ? File.ReadAllText(recordPath) != identity : Directory.Exists(Path.Combine(work, "_out"));
+        if (discard)
+        {
+            foreach (var dir in Directory.EnumerateDirectories(work, "*", SearchOption.AllDirectories).ToList())
+            {
+                if (Directory.Exists(dir) && Path.GetFileName(dir) is "obj" or "bin")
+                {
+                    Directory.Delete(dir, recursive: true);
+                }
+            }
+            Directory.Delete(Path.Combine(work, "_out"), recursive: true);
+        }
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(recordPath)!);
+        File.WriteAllText(recordPath, identity);
+        return discard;
+    }
+
+    private static string HashContracts(IReadOnlyDictionary<string, string> copied) =>
+        NativeSourceInputs.HashLines(copied.Where(c => ContractRoots.Any(r => c.Key.StartsWith(r, StringComparison.Ordinal))).ToDictionary());
 
     /// <summary>
     /// Mirrors the pristine copy into the work directory, leaving its build output (obj, bin, _out) alone. A file whose

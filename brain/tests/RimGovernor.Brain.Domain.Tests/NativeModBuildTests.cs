@@ -77,6 +77,40 @@ public sealed class NativeModBuildTests : IDisposable
     }
 
     /// <summary>
+    /// Two worktrees whose contracts differ share one work directory (#3430): the second build must not inherit the
+    /// first's obj/bin/_out. The same contracts keep the state; non-contract changes do not discard it.
+    /// </summary>
+    [Fact]
+    public void BuildStateSurvivesOnlyWhileTheContractsAreUnchanged()
+    {
+        var work = Path.Combine(repo, "work");
+        var contract = "brain/src/RimGovernor.Brain.Contracts/Ops.cs";
+        var a = new Dictionary<string, string> { [contract] = "aa", ["brain/src/RimGovernor.Brain.Domain/X.cs"] = "11" };
+        var obj = Path.Combine(work, "brain", "src", "RimGovernor.Brain.Contracts", "obj", "stale.dll");
+        void Build()
+        {
+            _ = Directory.CreateDirectory(Path.GetDirectoryName(obj)!);
+            File.WriteAllText(obj, "x");
+            File.WriteAllText(Path.Combine(work, "_out", "published.txt"), "x");
+        }
+
+        Assert.False(NativeModBuild.DiscardBuildStateOnContractChange(work, a));
+        Build();
+        Assert.False(NativeModBuild.DiscardBuildStateOnContractChange(work, a));
+        Assert.True(File.Exists(obj));
+
+        var otherNonContract = new Dictionary<string, string>(a) { ["brain/src/RimGovernor.Brain.Domain/X.cs"] = "22" };
+        Assert.False(NativeModBuild.DiscardBuildStateOnContractChange(work, otherNonContract));
+        Assert.True(File.Exists(obj));
+
+        var otherContracts = new Dictionary<string, string>(a) { [contract] = "bb" };
+        Assert.True(NativeModBuild.DiscardBuildStateOnContractChange(work, otherContracts));
+        Assert.False(File.Exists(obj));
+        Assert.False(File.Exists(Path.Combine(work, "_out", "published.txt")));
+        Assert.False(NativeModBuild.DiscardBuildStateOnContractChange(work, otherContracts));
+    }
+
+    /// <summary>
     /// The production check (#3393) reads an assembly's fixture surface from metadata: the contracts assembly carries
     /// its records, an assembly with a <c>[Tool("test/...")]</c> op carries that op, and the harness assembly neither.
     /// </summary>
