@@ -27,6 +27,22 @@ public sealed class LandTests
     }
 
     [Fact]
+    public async Task SquashCarriesTheFeatureMessageWhenTheBranchEndsInACustomTitledMerge()
+    {
+        using var s = new Sandbox();
+        Write(s.Worktree, "a.txt", "a\n");
+        Commit(s.Worktree, "Add a, the milestone\n\nChecks: all green");
+        s.PushFromElsewhere("other.txt", "x\n", "Someone else's landing");
+        Git(s.Worktree, "fetch", "-q", "origin");
+        Git(s.Worktree, "merge", "--no-ff", "-q", "-m", "Merge main into task: keep both sides", "origin/main");
+
+        await s.LandAsync();
+
+        Assert.Equal("Add a, the milestone", Git(s.Origin, "log", "-1", "--format=%s", "main"));
+        Assert.Contains("Checks: all green", Git(s.Origin, "log", "-1", "--format=%b", "main"));
+    }
+
+    [Fact]
     public async Task LandsAgainOnTopWhenOriginMovesBeforeThePush()
     {
         using var s = new Sandbox();

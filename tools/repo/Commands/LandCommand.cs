@@ -309,13 +309,13 @@ internal static partial class LandCommand
 
     /// <summary>
     /// Builds the squash commit message: the given message, or the branch's one titled commit message, or the newest
-    /// title with the others listed; then the branch's Co-Authored-By trailers. A title is a commit subject, merges
-    /// included (a merge renamed to the milestone subject titles the squash), that is neither git's default merge
-    /// subject nor a placeholder such as "wip"; a branch with none needs -m.
+    /// title with the others listed; then the branch's Co-Authored-By trailers. Merge commits (more than one parent,
+    /// whatever their subject) never title or fill the squash. A title is a non-merge commit subject that is not a
+    /// placeholder such as "wip"; a branch with none needs -m.
     /// </summary>
     private static async Task<string> SquashMessageAsync(string worktree, string branch, string message, CancellationToken ct)
     {
-        var messages = await Git.OutputAsync(worktree, ct, "log", "--format=%B%x1e", "main..HEAD").ConfigureAwait(false);
+        var messages = await Git.OutputAsync(worktree, ct, "log", "--no-merges", "--format=%B%x1e", "main..HEAD").ConfigureAwait(false);
         var commits = new List<string>();
         foreach (var m in messages.Split('\u001e'))
         {
@@ -375,11 +375,11 @@ internal static partial class LandCommand
         return trailerLines.Count == 0 ? body + "\n" : body + "\n\n" + string.Join('\n', trailerLines) + "\n";
     }
 
-    /// <summary>True for a subject that cannot title a squash: git's default merge subjects and checkpoint placeholders.</summary>
+    /// <summary>True for a subject that cannot title a squash: autosquash markers and checkpoint placeholders.</summary>
     internal static bool Untitled(string subject)
     {
         var s = subject.Trim().ToLowerInvariant();
-        string[] prefixes = ["merge branch ", "merge remote-tracking branch ", "merge commit ", "fixup!", "squash!", "amend!"];
+        string[] prefixes = ["fixup!", "squash!", "amend!"];
         if (prefixes.Any(p => s.StartsWith(p, StringComparison.Ordinal)))
         {
             return true;

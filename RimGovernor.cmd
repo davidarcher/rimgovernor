@@ -19,9 +19,10 @@ set "CUR="
 if exist "%TOOLS%\current" set /p CUR=<"%TOOLS%\current"
 if not defined CUR goto :build
 if not exist "%TOOLS%\%CUR%\repo.exe" goto :build
-"%TOOLS%\%CUR%\repo.exe" %*
-if "%ERRORLEVEL%"=="75" goto :build
-exit /b %ERRORLEVEL%
+rem One line: cmd reads a running batch file by byte offset, and a land that merges a newer RimGovernor.cmd rewrites this
+rem file under us, so any line read after repo.exe returns is garbage (#3319: "'CUR*' is not recognized"). The line is
+rem parsed before repo.exe starts; its exit code is captured at run time (call re-expands) and read with delayed expansion.
+"%TOOLS%\%CUR%\repo.exe" %* & call set "RC=%%ERRORLEVEL%%" & setlocal EnableDelayedExpansion & if "!RC!"=="75" (endlocal & goto :build) else exit /b !RC!
 
 :build
 if defined REBUILT (

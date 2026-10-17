@@ -92,7 +92,6 @@ public sealed class LandRefusalTests
     }
 
     [Theory]
-    [InlineData("Merge branch 'main' into task", true)]
     [InlineData("wip", true)]
     [InlineData("WIP: half done", true)]
     [InlineData("fixup! Add a", true)]
