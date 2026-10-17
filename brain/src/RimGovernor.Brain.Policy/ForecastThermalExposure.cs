@@ -7,7 +7,13 @@ public sealed record ForecastThermalExposure(string Pawn, double AssessedTicks, 
 {
     public Fact<double> ColdDegreeTicks => UnknownTicks == 0 ? Known(AssessedColdDegreeTicks) : default;
     public Fact<double> HotDegreeTicks => UnknownTicks == 0 ? Known(AssessedHotDegreeTicks) : default;
+
+    /// <summary>The assessed spans the degree-ticks integrate (#3327): temperature linear inside each, comfort range constant.</summary>
+    public EquatableArray<ForecastThermalSpan> Spans { get; init; }
 }
+
+/// <summary>One assessed stationary span: the projected temperature runs linearly from Initial to Final, under the pawn's comfort range with its shifts applied.</summary>
+public sealed record ForecastThermalSpan(double Start, double End, double Initial, double Final, double ComfortableMin, double ComfortableMax);
 
 public static partial class PolicyFunctions
 {
@@ -20,7 +26,8 @@ public static partial class PolicyFunctions
         var results = new List<ForecastThermalExposure>();
         foreach (var pawn in context.Needs.Pawns)
         {
-            double assessed = 0, cold = 0, hot = 0;
+            double assessed = 0;
+            var spans = new List<ForecastThermalSpan>();
             if (pawn.ComfortableMin.IsKnown && pawn.ComfortableMax.IsKnown)
                 foreach (var allocation in schedule.Allocations.Where(a => a.Pawn == pawn.Pawn))
                 {
@@ -54,7 +61,10 @@ public static partial class PolicyFunctions
                         }
                     }
                 }
-            results.Add(new(pawn.Pawn, assessed, Math.Max(0, horizon - assessed), cold, hot));
+            results.Add(new(pawn.Pawn, assessed, Math.Max(0, horizon - assessed),
+                spans.Sum(s => Area(s.ComfortableMin - s.Initial, s.ComfortableMin - s.Final, s.End - s.Start)),
+                spans.Sum(s => Area(s.Initial - s.ComfortableMax, s.Final - s.ComfortableMax, s.End - s.Start)))
+            { Spans = EquatableArray.From(spans) });
             void Integrate(double from, double to, double initial, double final)
             {
                 assessed += to - from;
@@ -64,11 +74,8 @@ public static partial class PolicyFunctions
                 for (var i = 0; i < cuts.Length - 1; i++)
                 {
                     var a = cuts[i]; var b = cuts[i + 1];
-                    var ta = At(a); var tb = At(b);
-                    var min = pawn.ComfortableMin.Value + shifts.Where(s => s.Start <= a).Sum(s => s.MinDelta);
-                    var max = pawn.ComfortableMax.Value + shifts.Where(s => s.Start <= a).Sum(s => s.MaxDelta);
-                    cold += Area(min - ta, min - tb, b - a);
-                    hot += Area(ta - max, tb - max, b - a);
+                    spans.Add(new(a, b, At(a), At(b), pawn.ComfortableMin.Value + shifts.Where(s => s.Start <= a).Sum(s => s.MinDelta),
+                        pawn.ComfortableMax.Value + shifts.Where(s => s.Start <= a).Sum(s => s.MaxDelta)));
                 }
                 double At(double tick) => tick == from ? initial : tick == to ? final : initial + (final - initial) * (tick - from) / (to - from);
             }

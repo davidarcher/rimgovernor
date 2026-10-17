@@ -174,7 +174,8 @@ public static partial class PolicyFunctions
     public static ForecastNeedsResult ForecastNeedsTimeline(NeedsForecastPawn pawn, ForecastCapacityInput input,
         IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
         IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
-        IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null)
+        IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null,
+        IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null)
     {
         NeedHorizon(input.HorizonTicks);
         if (input.Pawn.Id.Value != pawn.Pawn || selected.Any(c => c.Pawn != pawn.Pawn)
@@ -304,7 +305,7 @@ public static partial class PolicyFunctions
         findings.UnionWith(capacity.Findings);
         findings.Add("need_rates_constant_current_conditions");
         findings.Add("need_category_and_room_mood_changes_unassessed");
-        var mood = ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted, situational);
+        var mood = ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted, situational, banded);
         if (!mood.BreakRisk.IsKnown) findings.Add("mental_break_probability_unassessed");
         return new(EquatableArray.From(metrics), thoughtDelta, target, capacity, EquatableArray.From(findings))
         { Mood = mood, UsefulFoodGain = usefulFood };

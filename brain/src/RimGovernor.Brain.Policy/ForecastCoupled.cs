@@ -56,6 +56,12 @@ public sealed record ForecastCoupledContext
     public EquatableArray<string> NonproductiveOccupancy { get; init; }
     internal IReadOnlyDictionary<(string Task, string Pawn), Methods.ActivityTaskCandidate> Bindings { get; init; } = new Dictionary<(string, string), Methods.ActivityTaskCandidate>();
     public EquatableArray<string> Findings { get; init; }
+    /// <summary>Per pawn, what the temperature cards are evaluated against (#3327); a pawn without a row keeps their thoughts constant.</summary>
+    public IReadOnlyDictionary<string, CardPawnFacts> CardPawns { get; init; } = new Dictionary<string, CardPawnFacts>();
+    /// <summary>Per pawn, the observed thought rows (MoodPawn.Thoughts) a temperature card's offset replaces (#3327).</summary>
+    public IReadOnlyDictionary<string, Fact<EquatableArray<MoodThought>>> ObservedThoughts { get; init; } = new Dictionary<string, Fact<EquatableArray<MoodThought>>>();
+    /// <summary>The mechanic cards; null is the shipped catalog. Only Live cards price.</summary>
+    public IReadOnlyDictionary<string, MechanicCard>? Cards { get; init; }
 }
 public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool> Feasible,
     EquatableArray<ForecastStockTrajectory> Stocks,
@@ -400,6 +406,13 @@ public static partial class PolicyFunctions
                 if (!at.IsKnown) comfortUnknown.Add(row.Pawn);
                 else if (at.Value <= horizon) Add(comfort, row.Pawn, (row.MinDelta, row.MaxDelta, at.Value));
         }
+        var shelters = ForecastShelters(context.Shelters, plan with
+        { Allocations = plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity) == Known(true)).ToArray() }, horizon);
+        // Comfort shifts change the pawn's own exposure, not what a shelter relieves (relief below is outfit-neutral).
+        var exposure = EquatableArray.From(ForecastThermalExposureOf(context, problem, plan, shelters, horizon, comfort: comfort)
+            .Select(t => comfortUnknown.Contains(t.Pawn) ? new ForecastThermalExposure(t.Pawn, 0, horizon, 0, 0) : t));
+        // Temperature mood (#3327): each Live temperature card along the pawn's assessed exposure spans, comfort shifts included.
+        var temperatureCards = (context.Cards ?? MechanicCards.ByDef).Values.Where(TemperatureCard).OrderBy(c => c.Def, StringComparer.Ordinal).ToArray();
         var needs = new Dictionary<string, ForecastNeedsResult>(StringComparer.Ordinal);
         var rejectedWork = new HashSet<string>(unavailableWork, StringComparer.Ordinal);
         foreach (var pawn in context.Needs.Pawns)
@@ -443,8 +456,11 @@ public static partial class PolicyFunctions
             else foreach (var work in productive)
                 if (!able.Any(w => w.Start <= work.Depart && w.End >= work.End))
                 { rejectedWork.Add(work.Activity); completed[work.Activity] = Known(false); Refuse("work_outside_recovered_capacity", work.Activity, work.Start); }
+            var spans = exposure.Single(t => t.Pawn == pawn.Pawn).Spans;
             var projected = ForecastNeedsTimeline(pawn, input, choices, granted: granted.GetValueOrDefault(pawn.Pawn),
-                situational: situational.GetValueOrDefault(pawn.Pawn));
+                situational: situational.GetValueOrDefault(pawn.Pawn),
+                banded: temperatureCards.Select(card => TemperatureThought(card, context.CardPawns.GetValueOrDefault(pawn.Pawn),
+                    context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), spans)).ToArray());
             var mealsUnknown = context.NeedTasks.Any(n => n.Pawn == pawn.Pawn && !n.ThoughtsComplete && allocations.ContainsKey(n.Task));
             if (mealsUnknown || grantUnknown.Contains(pawn.Pawn))
                 projected = projected with
@@ -474,11 +490,6 @@ public static partial class PolicyFunctions
         { ["coupled/timed-effects"] = new("coupled/timed-effects", EquatableArray.From(effects)) };
         var inventory = ForecastInventory(request.Facts.Stock, accounting, request.HorizonDays);
         findings.AddRange(inventory.Findings);
-        var shelters = ForecastShelters(context.Shelters, plan with
-        { Allocations = plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity) == Known(true)).ToArray() }, horizon);
-        // Comfort shifts change the pawn's own exposure, not what a shelter relieves (relief below is outfit-neutral).
-        var exposure = EquatableArray.From(ForecastThermalExposureOf(context, problem, plan, shelters, horizon, comfort: comfort)
-            .Select(t => comfortUnknown.Contains(t.Pawn) ? new ForecastThermalExposure(t.Pawn, 0, horizon, 0, 0) : t));
         var existingRooms = EquatableArray.From(context.Shelters.Where(r => r.Prerequisites.Count == 0 && r.AlternativePrerequisites.Count == 0));
         var use = plan with { Allocations = plan.Allocations.Where(a => context.NeedTasks.Any(n => n.Task == a.Activity)).ToArray() };
         var changedUse = ForecastThermalExposureOf(context, problem, use, shelters, horizon, plan);

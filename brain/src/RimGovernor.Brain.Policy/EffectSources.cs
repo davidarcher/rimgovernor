@@ -42,7 +42,7 @@ public static partial class PolicyFunctions
     /// its observed trait names and its hediff names from the medical read. Hediffs are unknown when the medical read, the
     /// pawn's row or a condition's def is; the card's offset is then unknown and the generator records a finding.
     /// </summary>
-    internal static EffectSourceFacts EffectSourceFactsOf(GearObservation gear, Fact<EquatableArray<CarePawn>> medical)
+    internal static EffectSourceFacts EffectSourceFactsOf(GearObservation gear, Fact<EquatableArray<CarePawn>> medical, Fact<bool> ideologyActive = default)
     {
         var pawns = new List<EffectSourcePawn>();
         foreach (var pawn in gear.Pawns)
@@ -51,18 +51,29 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            input = input with { Climate = pawn.Climate ?? input.Climate };
-            var hediffs = Unknown<EquatableArray<string>>();
-            if (medical.TryGetValue(out var rows) && rows.FirstOrDefault(r => r.Id == pawn.Pawn) is { } care
-                && care.Conditions.TryGetValue(out var conditions) && conditions.All(c => c.DefName.IsKnown))
-            {
-                hediffs = Known(EquatableArray.From(conditions.Select(c => c.DefName.Value).Distinct().Order(StringComparer.Ordinal)));
-            }
-            var traits = input.Role.Work.Traits.TryGetValue(out var observed)
-                ? Known(EquatableArray.From(observed.Select(t => t.Name))) : Unknown<EquatableArray<string>>();
-            pawns.Add(new(pawn.Pawn.Value, input, new CardPawnFacts { Traits = traits, Hediffs = hediffs, AnomalyActive = Unknown<bool>() }));
+            pawns.Add(new(pawn.Pawn.Value, input with { Climate = pawn.Climate ?? input.Climate }, CardPawnFactsOf(pawn.Pawn, input, medical, ideologyActive)));
         }
         return new() { Pawns = pawns };
+    }
+
+    /// <summary>
+    /// A pawn's card facts from its loadout model's work row and the medical read: trait names, hediff names (unknown when
+    /// the medical read, the pawn's row or a condition's def is), whether Ideology is active and its ideo's precepts
+    /// (Known(empty) when its policy inputs name no ideo, #3327).
+    /// </summary>
+    internal static CardPawnFacts CardPawnFactsOf(PawnId pawn, GearLoadoutInput input, Fact<EquatableArray<CarePawn>> medical, Fact<bool> ideologyActive)
+    {
+        var hediffs = Unknown<EquatableArray<string>>();
+        if (medical.TryGetValue(out var rows) && rows.FirstOrDefault(r => r.Id == pawn) is { } care
+            && care.Conditions.TryGetValue(out var conditions) && conditions.All(c => c.DefName.IsKnown))
+        {
+            hediffs = Known(EquatableArray.From(conditions.Select(c => c.DefName.Value).Distinct().Order(StringComparer.Ordinal)));
+        }
+        var traits = input.Role.Work.Traits.TryGetValue(out var observed)
+            ? Known(EquatableArray.From(observed.Select(t => t.Name))) : Unknown<EquatableArray<string>>();
+        var precepts = input.Role.Work.PolicyInputs.TryGetValue(out var policy)
+            ? Known<EquatableArray<string>>(policy.Ideo.Length == 0 ? [] : EquatableArray.From(policy.Precepts)) : Unknown<EquatableArray<string>>();
+        return new CardPawnFacts { Traits = traits, Hediffs = hediffs, AnomalyActive = Unknown<bool>(), IdeologyActive = ideologyActive, Precepts = precepts };
     }
 
     /// <summary>

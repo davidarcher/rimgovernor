@@ -17,19 +17,26 @@ public static partial class PolicyFunctions
     /// <summary>Conditional thoughts are native mechanics, independent of candidate family or trait names.
     /// Target and actual mood remain separate; threshold exposure is not itself a break probability. Granted
     /// memories (a commitment's MoodMemories) start at their tick like a completed meal's thoughts. A situational
-    /// change adds its offset delta from its tick; every other situational thought stays inside MoodUnclampedTarget.</summary>
+    /// change adds its offset delta from its tick. A banded thought (#3327) adds its delta inside each of its spans and
+    /// stays at the observed constant outside them, naming itself in a finding when they do not cover the horizon.
+    /// Every other situational thought stays inside MoodUnclampedTarget.</summary>
     public static ForecastMoodResult ForecastMoodTimeline(NeedsForecastPawn pawn, double horizon,
         IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
         IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
-        IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null)
+        IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null,
+        IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null)
     {
         NeedHorizon(horizon);
         situational ??= [];
+        banded ??= [];
         // Changing one thought twice is not additive evidence.
-        if (situational.Select(s => s.Thought).Distinct(StringComparer.Ordinal).Count() != situational.Count
-            || situational.Any(s => !double.IsFinite(s.OffsetDelta)))
+        var changed = situational.Select(s => s.Thought).Concat(banded.Select(b => b.Thought)).ToArray();
+        if (changed.Distinct(StringComparer.Ordinal).Count() != changed.Length
+            || situational.Any(s => !double.IsFinite(s.OffsetDelta)) || banded.Any(b => b.Spans.Any(s => !double.IsFinite(s.OffsetDelta))))
             return new([], default, default, default, default, default, ["unsupported_situational_change_stacking"]);
         var unknown = new SortedSet<string>(StringComparer.Ordinal) { "unmodeled_situational_thoughts_constant" };
+        foreach (var thought in banded.Where(b => b.Spans.Sum(s => s.End - s.Start) < horizon))
+            unknown.Add("situational_thought_constant_outside_exposure:" + thought.Thought);
         var trajectory = new List<ForecastMoodPoint>();
         var events = new SortedSet<double> { 0, horizon };
         var intervals = selected.Select(c => (Choice: c, End: interruptedAt is not null && interruptedAt.TryGetValue(c.Id, out var at)
@@ -58,6 +65,8 @@ public static partial class PolicyFunctions
             if (!meal.Thought.Permanent && meal.Start + meal.Thought.RemainingTicks.Value < horizon)
                 events.Add(meal.Start + meal.Thought.RemainingTicks.Value);
         foreach (var change in situational) if (change.Start > 0 && change.Start < horizon) events.Add(change.Start);
+        foreach (var bound in banded.SelectMany(b => b.Spans).SelectMany(s => new[] { s.Start, s.End }))
+            if (bound > 0 && bound < horizon) events.Add(bound);
         var actualKnown = pawn.Mood.IsKnown && pawn.MoodRisePerTick.IsKnown && pawn.MoodFallPerTick.IsKnown
             && pawn.MoodFreezesWhileAsleep.IsKnown;
         var actual = pawn.Mood.ValueOrDefault;
@@ -97,6 +106,7 @@ public static partial class PolicyFunctions
                 if (meal.Start <= time) mealMemories += Memory(meal.Thought, time - meal.Start);
             changedMemories += mealMemories;
             foreach (var change in situational) if (change.Start <= time) changedMemories += change.OffsetDelta;
+            foreach (var span in banded.SelectMany(b => b.Spans)) if (span.Start <= time && time < span.End) changedMemories += span.OffsetDelta;
             return Math.Clamp(pawn.MoodUnclampedTarget.Value + (conditional - currentConditionalOffset + changedMemories) / 100, 0, 1);
         }
         for (var i = 0; i < points.Length; i++)
@@ -126,6 +136,49 @@ public static partial class PolicyFunctions
             thresholdKnown ? Known(targetDepth) : default, actualKnown && thresholdKnown ? Known(actualExposure) : default,
             actualKnown && thresholdKnown ? Known(actualDepth) : default, actualKnown ? Known(actual) : default, EquatableArray.From(unknown))
         { PressureTicks = Known(pressure), BreakRisk = breakKnown ? Known(MoodBreakModel.Breaks(tierTicks)) : default };
+    }
+
+    /// <summary>Whether a card prices temperature mood (#3327): Live, and every site's stage input reads the ambient temperature.</summary>
+    internal static bool TemperatureCard(MechanicCard card) => card.Live && card.Sites.Count > 0
+        && card.Sites.All(s => s.Stage is { } band && Reads(band.Input, "Thing.AmbientTemperature"));
+
+    private static bool Reads(MechanicCardExpr e, string decl) => e.Decl == decl || (e.Args ?? []).Any(a => Reads(a, decl));
+
+    /// <summary>
+    /// A temperature card's offset along a pawn's assessed exposure spans (#3327), as deltas from the thought's observed
+    /// contribution (its <c>MoodPawn.Thoughts</c> rows; none is 0). Each span is cut where the stage input, linear in the
+    /// span's temperature, crosses a literal the card compares against, and each piece is evaluated at its midpoint. No
+    /// spans (the observed constant stays) when the facts, the observed thoughts or any piece's offset are unknown.
+    /// </summary>
+    internal static (string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans) TemperatureThought(MechanicCard card,
+        CardPawnFacts? pawn, Fact<EquatableArray<MoodThought>> observed, IReadOnlyList<ForecastThermalSpan> exposure)
+    {
+        var none = (card.Def, (IReadOnlyList<(double, double, double)>)[]);
+        if (pawn is null || !observed.TryGetValue(out var thoughts)) return none;
+        var current = thoughts.Where(t => t.Def == card.Def).Sum(t => t.Offset);
+        var cuts = MechanicCardGuards.StageCuts(card).ToArray();
+        var rows = new List<(double Start, double End, double OffsetDelta)>();
+        foreach (var span in exposure)
+        {
+            CardStageFacts At(double tick) => new(span.ComfortableMin, span.ComfortableMax,
+                span.Initial + (span.Final - span.Initial) * (tick - span.Start) / (span.End - span.Start));
+            var times = new SortedSet<double> { span.Start, span.End };
+            foreach (var site in card.Sites)
+            {
+                if (!MechanicCardGuards.StageInput(site, pawn, At(span.Start)).TryGetValue(out var from)
+                    || !MechanicCardGuards.StageInput(site, pawn, At(span.End)).TryGetValue(out var to)) return none;
+                if (from == to) continue;
+                foreach (var cut in cuts)
+                    if ((cut - from) / (to - from) is var f and > 0 and < 1) times.Add(span.Start + f * (span.End - span.Start));
+            }
+            var points = times.ToArray();
+            for (var i = 0; i < points.Length - 1; i++)
+            {
+                if (!MechanicCardGuards.CardStageOffset(card, pawn, At((points[i] + points[i + 1]) / 2)).TryGetValue(out var offset)) return none;
+                rows.Add((points[i], points[i + 1], offset - current));
+            }
+        }
+        return (card.Def, rows);
     }
 
     internal static IEnumerable<double> ConditionalThoughtTransitions(NeedsForecastPawn pawn, double horizon)

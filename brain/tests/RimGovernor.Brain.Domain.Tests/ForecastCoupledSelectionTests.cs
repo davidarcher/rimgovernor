@@ -430,6 +430,94 @@ public sealed class ForecastCoupledSelectionTests
         return (facts, Select(facts), root);
     }
 
+    // #3327: a pawn comfortable from 10 C at -10 C outdoor work observes EnvironmentCold at -12 (a deficit of 20). A labor-free
+    // -20 comfort shift (a warmer outfit) makes the deficit 0 during the work, so the card's offset there is 0 (+12).
+    private static (RoundsFacts Facts, ForecastCommitment Work, ForecastCommitment Gear) ColdWorkReview(double mood, MechanicCardStatus status = MechanicCardStatus.Verified)
+    {
+        var facts = Review(level: 1, fall: 0);
+        var candidates = facts.CoupledAlternatives!;
+        var pawn = candidates.Context.Needs.Pawns[0] with
+        { Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood), ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) };
+        var cells = candidates.Context.Activities.Activities.SelectMany(t => new[] { t.Location, t.EndLocation })
+            .Where(l => l.StartsWith("cell/", StringComparison.Ordinal)).Distinct().Select(l => l.Split('/'))
+            .Select(p => new Cell(int.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture), int.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture)));
+        var gear = new ForecastCommitment("gear", []) { ComfortShifts = [new("pawn", -20, 0)] };
+        facts = facts with { CoupledAlternatives = candidates with
+        {
+            Alternatives = [gear],
+            Context = candidates.Context with
+            {
+                Needs = candidates.Context.Needs with { Pawns = [pawn] },
+                Shelters = [],
+                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, false, "", "", false, false, 0, false))) },
+                Cards = new Dictionary<string, MechanicCard> { ["EnvironmentCold"] = MechanicCards.ByDef["EnvironmentCold"] with { Status = status } },
+                CardPawns = new Dictionary<string, CardPawnFacts> { ["pawn"] = new()
+                {
+                    Traits = Known<EquatableArray<string>>([]), Hediffs = Known<EquatableArray<string>>([]),
+                    IdeologyActive = Known(false), Precepts = Known<EquatableArray<string>>([])
+                } },
+                ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = Known<EquatableArray<MoodThought>>([new("EnvironmentCold", -12)]) },
+            }
+        } };
+        var work = candidates.Alternatives.Where(c => c.ActivityCompletions.Count > 0)
+            .First(c => Outcome(facts, c).ThermalExposure.Single().AssessedTicks > 0);
+        return (facts, work, gear);
+    }
+
+    private static ForecastCoupledOutcome Outcome(RoundsFacts facts, params ForecastCommitment[] add) =>
+        ForecastColony(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, new(), new() { Work = ForecastWorkInputsOf(facts) },
+            [], new() { Add = EquatableArray.From(add) })).Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
+
+    [Fact]
+    public void AComfortShiftRaisesTemperatureMoodAlongTheOutdoorWork()
+    {
+        var (facts, work, gear) = ColdWorkReview(.28);
+        var cold = Outcome(facts, work).Needs["pawn"].Mood!;
+        var warm = Outcome(facts, work, gear).Needs["pawn"].Mood!;
+        // Without the shift the card along the work matches the observed -12: today's constant.
+        Assert.All(cold.Trajectory, p => Assert.Equal(.28, p.Target.Value, 9));
+        Assert.Contains(warm.Trajectory, p => Math.Abs(p.Target.Value - .40) < 1e-9);
+        Assert.All(warm.Trajectory, p => Assert.True(p.Target.Value >= .28 - 1e-9));
+        Assert.True(warm.BreakRisk.Value < cold.BreakRisk.Value);
+        // The work covers part of the horizon: the thought stays at the observed constant elsewhere, and says so.
+        Assert.Contains("situational_thought_constant_outside_exposure:EnvironmentCold", warm.Findings);
+    }
+
+    [Theory]
+    [InlineData(.28, true)]
+    [InlineData(.9, false)]
+    public void TheComparatorTakesTheWarmerOutfitOnlyNearABreak(double mood, bool wins)
+    {
+        var (facts, work, _) = ColdWorkReview(mood);
+        var result = Select(facts, 16384, work);
+        Assert.Contains(result.Selected.Plan.Allocations, a => work.ActivityCompletions.Contains(a.Activity));
+        if (!wins)
+        {
+            Assert.Empty(result.Selection.Selected);
+            return;
+        }
+        Assert.Equal(["gear"], result.Selection.Selected);
+        Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+    }
+
+    [Fact]
+    public void NoAssessedSpanOrNoLiveCardLeavesTemperatureMoodAsToday()
+    {
+        var (facts, work, gear) = ColdWorkReview(.28);
+        var today = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { Cards = new Dictionary<string, MechanicCard>() } } };
+        // No outdoor work: the shift has no span to act on; the mood is today's and names the constant thought.
+        var idle = Outcome(facts, gear).Needs["pawn"].Mood!;
+        var plain = Outcome(today, gear).Needs["pawn"].Mood!;
+        Assert.Equal(0, Outcome(facts, gear).ThermalExposure.Single().AssessedTicks);
+        Assert.Equal(plain.Trajectory, idle.Trajectory);
+        Assert.Equal(plain.BreakRisk, idle.BreakRisk);
+        Assert.Contains("situational_thought_constant_outside_exposure:EnvironmentCold", idle.Findings);
+        Assert.DoesNotContain(plain.Findings, f => f.StartsWith("situational_thought_constant_outside_exposure:", StringComparison.Ordinal));
+        // A card no probe verified prices nothing, even along the work.
+        var (extracted, _, _) = ColdWorkReview(.28, MechanicCardStatus.Extracted);
+        Assert.Equal(Outcome(today, work, gear).Needs["pawn"].Mood, Outcome(extracted, work, gear).Needs["pawn"].Mood);
+    }
+
     [Fact]
     public void TheCoupledGeneratorOffersTheShippedCardsFilterCandidateBesideTheClothingFamily()
     {

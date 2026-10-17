@@ -122,7 +122,7 @@ public static partial class PolicyFunctions
             AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivityRequirements(gear).Alternatives,
                 checked(read.Tick + (long)horizon), resources));
             // The effect-source family (#3285): one labor-free apparel-filter candidate per pawn a verified card prices (GearFilterChoices).
-            var effects = GenerateEffectSources(EffectSourceFactsOf(gear, facts.MedicalPawns));
+            var effects = GenerateEffectSources(EffectSourceFactsOf(gear, facts.MedicalPawns, facts.IdeologyInstalled));
             alternatives.AddRange(effects.Roots); findings.UnionWith(effects.Findings); truncated |= effects.Truncated;
         }
         else findings.Add("unknown_clothing_requirements");
@@ -255,7 +255,16 @@ public static partial class PolicyFunctions
             InitialLots = EquatableArray.From(lots),
             Bindings = bindings,
             NeedTasks = EquatableArray.From(needTasks),
-            Findings = EquatableArray.From(findings)
+            Findings = EquatableArray.From(findings),
+            // Temperature mood (#3327): the gear census's card facts and the mood census's observed thoughts.
+            CardPawns = facts.Gear.TryGetValue(out var census)
+                ? EffectSourceFactsOf(census, facts.MedicalPawns, facts.IdeologyInstalled).Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
+                    .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Card, StringComparer.Ordinal)
+                : new Dictionary<string, CardPawnFacts>(),
+            // Two rows for one pawn are contradictory evidence: unknown.
+            ObservedThoughts = facts.MoodPawns.TryGetValue(out var moods)
+                ? moods.GroupBy(m => m.Id.Value, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count() == 1 ? g.Single().Thoughts : default, StringComparer.Ordinal)
+                : new Dictionary<string, Fact<EquatableArray<MoodThought>>>(),
         },
             EquatableArray.From(DistinctAlternatives(alternatives)), EquatableArray.From(findings), truncated)
         { CompositionExpansions = composed.Expansions };

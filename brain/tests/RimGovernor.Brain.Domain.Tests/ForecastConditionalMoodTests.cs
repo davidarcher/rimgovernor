@@ -58,6 +58,56 @@ public sealed class ForecastConditionalMoodTests
         Assert.Equal(controlDay.TerminalMood.Value, controlNight.TerminalMood.Value, 8);
     }
 
+    [Fact]
+    public void ABandedThoughtVariesInsideItsSpansAndStaysObservedOutside()
+    {
+        // #3327: EnvironmentCold at -12 is observed; an assessed warm span from hour 2 to 4 removes it (+12).
+        var pawn = Pawn(false);
+        var plain = ForecastMoodTimeline(pawn, Day, []);
+        var banded = ForecastMoodTimeline(pawn, Day, [], banded: [("EnvironmentCold", [(2 * Hour, 4 * Hour, 12.0)])]);
+        Assert.Equal(.5, At(banded, 0).Target.Value, 9);
+        Assert.Equal(.62, At(banded, 2 * Hour).Target.Value, 9);
+        Assert.Equal(.5, At(banded, 4 * Hour).Target.Value, 9);
+        Assert.True(banded.PressureTicks.Value < plain.PressureTicks.Value);
+        Assert.Contains("situational_thought_constant_outside_exposure:EnvironmentCold", banded.Findings);
+        Assert.Contains("unmodeled_situational_thoughts_constant", banded.Findings);
+        // A span covering the horizon leaves nothing at the observed constant; no span changes nothing but names the thought.
+        Assert.DoesNotContain("situational_thought_constant_outside_exposure:EnvironmentCold",
+            ForecastMoodTimeline(pawn, Day, [], banded: [("EnvironmentCold", [(0, Day, 0.0)])]).Findings);
+        var none = ForecastMoodTimeline(pawn, Day, [], banded: [("EnvironmentCold", [])]);
+        Assert.Equal(plain.Trajectory, none.Trajectory);
+        Assert.Equal(plain.BreakRisk, none.BreakRisk);
+        Assert.Equal(plain.Findings.Append("situational_thought_constant_outside_exposure:EnvironmentCold").Order(StringComparer.Ordinal), none.Findings);
+        // One thought changed both ways is stacking.
+        Assert.Equal(["unsupported_situational_change_stacking"], ForecastMoodTimeline(pawn, Day, [], situational: [("EnvironmentCold", 4, 0)],
+            banded: [("EnvironmentCold", [])]).Findings);
+    }
+
+    [Fact]
+    public void ATemperatureCardIsCutWhereItsInputCrossesABand()
+    {
+        // Comfortable from 10 C; a span cooling from 5 C to -25 C is a deficit of 5 rising to 35: stages 0..3 (-4..-16).
+        var card = MechanicCards.ByDef["EnvironmentCold"] with { Status = MechanicCardStatus.Verified };
+        var facts = new CardPawnFacts { Traits = Known<EquatableArray<string>>([]), Hediffs = Known<EquatableArray<string>>([]), IdeologyActive = Known(false) };
+        var observed = Known<EquatableArray<MoodThought>>([new("EnvironmentCold", -4)]);
+        var (thought, spans) = TemperatureThought(card, facts, observed, [new(0, 30 * Hour, 5, -25, 10, 30)]);
+        Assert.Equal("EnvironmentCold", thought);
+        double Delta(double tick) => spans.Single(s => s.Start <= tick && tick < s.End).OffsetDelta;
+        Assert.Equal(0, Delta(4 * Hour));
+        Assert.Equal(-4, Delta(6 * Hour));
+        Assert.Equal(-8, Delta(16 * Hour));
+        Assert.Equal(-12, Delta(26 * Hour));
+        Assert.Equal(30 * Hour, spans.Sum(s => s.End - s.Start), 6);
+        // Unknown facts or observations give no spans: the observed constant stays.
+        Assert.Empty(TemperatureThought(card, facts with { IdeologyActive = Known(true) }, observed, [new(0, Hour, 5, 5, 10, 30)]).Spans);
+        Assert.Empty(TemperatureThought(card, facts, default, [new(0, Hour, 5, 5, 10, 30)]).Spans);
+        Assert.Empty(TemperatureThought(card, null, observed, [new(0, Hour, 5, 5, 10, 30)]).Spans);
+        // Only a Live card prices: the shipped extracted card waits for its probe (#3328).
+        Assert.True(TemperatureCard(card));
+        Assert.False(TemperatureCard(card with { Status = MechanicCardStatus.Extracted }));
+        Assert.False(TemperatureCard(MechanicCards.ByDef["DeadMansApparel"]));
+    }
+
     [Theory]
     [InlineData(.5, 0)]
     [InlineData(.4, 1 / 4.25)]

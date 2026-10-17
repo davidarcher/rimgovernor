@@ -164,6 +164,32 @@ unknown completion leaves that pawn's mood, or thermal exposure, unassessed.
   Shifts for one pawn add. They change the pawn's own exposure, not
   `StationaryThermalRelief`, which stays outfit-neutral shelter relief.
 
+### Temperature mood from banded cards
+
+Temperature mood is priced from the Live stage-band cards whose input reads the
+ambient temperature (`EnvironmentCold`, `EnvironmentHot`; #3327). There are no
+hand-written temperature-mood constants, and mood is valued only as `BreakRisk`.
+
+- `ForecastThermalExposure.Spans` is the exposure integrator's per-span output:
+  start, end, initial and final temperature, and the comfort range with the
+  pawn's comfort shifts applied. The degree-ticks are integrated from the same
+  spans.
+- `MechanicCardGuards.CardStageOffset` prices a stage card at one moment from the
+  comfort range, the ambient temperature, Ideology's state and the pawn's ideo
+  precepts. A nullifier gives 0, as for count cards. An unknown fact the
+  evaluation needs gives unknown, never 0: for example the precepts while
+  Ideology is active, or whether Ideology is active when the precepts are
+  unknown.
+- Along each assessed span, the card is cut where its input crosses a literal it
+  compares against and evaluated on each piece. Its offset replaces the
+  thought's observed contribution (`MoodPawn.Thoughts`) as a delta inside the
+  span. Outside assessed spans the observed constant stays, and
+  `situational_thought_constant_outside_exposure:<thought>` names it. Unknown
+  card facts, observed thoughts or offsets leave the whole thought constant.
+- A thought changed both by a card and by a `SituationalChanges` row is
+  `unsupported_situational_change_stacking`. Hypothermia and heatstroke stay
+  unmodelled; the exposure degree-ticks consequence is unchanged.
+
 ## Coherent coupled observation frame
 
 The routine forecast read includes `CoupledForecastRead` alongside needs in one
