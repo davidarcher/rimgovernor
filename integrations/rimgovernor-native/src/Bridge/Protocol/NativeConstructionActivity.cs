@@ -144,7 +144,7 @@ internal static class NativeConstructionActivity
                 Clear.Illegal => Obs.PlannedBlockerVerdict.Illegal,
                 _ => ops.ContainsKey(thing) ? Obs.PlannedBlockerVerdict.Cleared : Obs.PlannedBlockerVerdict.Unspecified,
             };
-            blockers.Add(new(new(thing.Position.x, thing.Position.z), thing.GetUniqueLoadID(), thing.def.defName, blocker.category)
+            blockers.Add(new(new(thing.Position.x, thing.Position.z), thing.GetUniqueLoadID(), thing.def.defName)
                 { Verdict = verdict, Clearing = ops.TryGetValue(thing, out var op) ? op : "" });
         }
         var siteVerdict = illegal ? Obs.PlannedSiteVerdict.Illegal

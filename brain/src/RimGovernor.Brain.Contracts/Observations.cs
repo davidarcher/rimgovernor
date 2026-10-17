@@ -656,14 +656,6 @@ public sealed record Quantity
     public long? Units { get; init; }
 }
 
-public sealed record Amount
-{
-    public string? DefName { get; init; }
-
-    [JsonPropertyName("amount")]
-    public double? Value { get; init; }
-}
-
 /// <summary>
 /// The pawn's job tracker: the current job (def_name, load_id and target_a absent when it has none),
 /// whether the player forced it and how many jobs are queued behind it.
@@ -1860,8 +1852,6 @@ public sealed record CorpseState
 {
     public Common.Ref Corpse { get; init; } = new();
 
-    public string Race { get; init; } = "";
-
     public bool Humanlike { get; init; }
 }
 
@@ -1887,11 +1877,7 @@ public sealed record ResourceStock
 
     public long PlayerFaction { get; init; }
 
-    public long OtherFaction { get; init; }
-
     public long Fogged { get; init; }
-
-    public long Reserved { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<StockItem>))]
     public EquatableArray<StockItem> Items { get; init; }
@@ -1991,27 +1977,6 @@ public abstract record ListSuppliesReplyOutcome
     public static implicit operator ListSuppliesReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
-/// <summary>
-/// alternatives: required units per allowed definition when the count depends on the material chosen.
-/// </summary>
-public sealed record IngredientRequirement
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> AllowedDefNames { get; init; }
-
-    public double? Required { get; init; }
-
-    public double? Available { get; init; }
-
-    public double? Missing { get; init; }
-
-    public bool? Complete { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-
-}
-
 public sealed record FilterSpecialRule
 {
     public string? DefName { get; init; }
@@ -2075,9 +2040,6 @@ public sealed record BillState
     public Common.Ref? Worker { get; init; }
 
     public StockpileFilter? IngredientFilter { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Blockers { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
@@ -2789,8 +2751,6 @@ public sealed record ResearchProject
     public bool Finished { get; init; }
 
     public bool Current { get; init; }
-
-    public bool? Available { get; init; }
 
     public bool? CanStart { get; init; }
 
@@ -3974,8 +3934,6 @@ public sealed record PopulationPerson
 
     public string? Interaction { get; init; }
 
-    public double? NutritionPerDay { get; init; }
-
     public long? PrisonerTicks { get; init; }
 
     /// <summary>
@@ -4158,8 +4116,6 @@ public sealed record WorldTile
     public double? Longitude { get; init; }
 
     public double? TemperatureC { get; init; }
-
-    public double? GrowingDays { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
@@ -6446,8 +6402,6 @@ public sealed record FarmFacts
     public uint? PlantedCells { get; init; }
 
     public bool? EdibleCrop { get; init; }
-
-    public bool? SowingNow { get; init; }
 
     public double? GrowthMin { get; init; }
 

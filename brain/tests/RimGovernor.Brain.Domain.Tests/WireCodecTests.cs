@@ -149,7 +149,7 @@ public sealed class WireCodecTests
                 new("walls", RimGovernor.Brain.Domain.Fact.Known(true)) { Options = [new("walls", "Wall", new(1, 1), "pawn", "WoodLog", "stack", new(5, 5), 10, 75, "ConstructFinishFrames",
                     default, default, RimGovernor.Brain.Domain.Fact.Known(270.0)) { SiteApproachTicks = RimGovernor.Brain.Domain.Fact.Known(0.0) }] },
                 new("on-water", RimGovernor.Brain.Domain.Fact.Known(false)) { Rejections = [new(new(7, 5), "Terrain lacks affordance")],
-                    Blockers = [new(new(7, 5), "Wall_1", "Wall", "Building")] },
+                    Blockers = [new(new(7, 5), "Wall_1", "Wall")] },
                 new("unresolved", default),
             ],
             Findings = ["planned_site_definition_unresolved"],
@@ -253,8 +253,8 @@ public sealed class WireCodecTests
                     Verdict = RimGovernor.Contracts.Wire.Observations.PlannedSiteVerdict.Feasible,
                     Rejections = [new(new(6, 7), "Space already occupied")],
                     Blockers = [
-                        new(new(1, 7), "Plant_TreeOak_1", "Plant_TreeOak", "Plant") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.Cleared, Clearing = "clearable/cut" },
-                        new(new(0, 7), "Plant_Grass_2", "Plant_Grass", "Plant") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.NoClearing },
+                        new(new(1, 7), "Plant_TreeOak_1", "Plant_TreeOak") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.Cleared, Clearing = "clearable/cut" },
+                        new(new(0, 7), "Plant_Grass_2", "Plant_Grass") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.NoClearing },
                     ],
                     Clearing = [
                         new("clearable/cut", RimGovernor.Contracts.Wire.Observations.PlannedClearingKind.Cut, [new(1, 7)])
@@ -266,18 +266,18 @@ public sealed class WireCodecTests
                     ],
                 },
                 new("no-storage", RimGovernor.Brain.Domain.Fact.Known(true))
-                { Blockers = [new(new(4, 7), "Steel_4", "Steel", "Item")] },
+                { Blockers = [new(new(4, 7), "Steel_4", "Steel")] },
                 new("on-wall", RimGovernor.Brain.Domain.Fact.Known(false))
                 {
                     Verdict = RimGovernor.Contracts.Wire.Observations.PlannedSiteVerdict.Unestimable,
                     Rejections = [new(new(4, 5), "Identical thing exists")],
-                    Blockers = [new(new(4, 5), "Wall_5", "Wall", "Building") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.Unestimable }],
+                    Blockers = [new(new(4, 5), "Wall_5", "Wall") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.Unestimable }],
                 },
                 new("on-water", RimGovernor.Brain.Domain.Fact.Known(false))
                 {
                     Verdict = RimGovernor.Contracts.Wire.Observations.PlannedSiteVerdict.Illegal,
                     Rejections = [new(new(7, 5), "Terrain lacks affordance") { Illegal = true }],
-                    Blockers = [new(new(7, 5), "Hive_6", "Hive", "Building") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.Illegal }],
+                    Blockers = [new(new(7, 5), "Hive_6", "Hive") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.Illegal }],
                 },
             ],
             Findings = ["planned_clearing_haul_destination_unknown"],

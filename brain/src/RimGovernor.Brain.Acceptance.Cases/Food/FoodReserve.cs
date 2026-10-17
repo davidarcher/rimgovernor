@@ -1,225 +1,104 @@
-using System.Diagnostics;
 using System.Globalization;
-using System.Text.Json.Nodes;
 using RimGovernor.Brain.Policy;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>food/reserve</c> (Go <c>reserve.go</c>).</summary>
+/// <summary>
+/// <c>food/reserve</c>: the served food-stores/storage Need holds the seeded pemmican and tops it up with a target-count
+/// pemmican bill that pauses at the reserve while simple meals feed the colony (#428); once every other food is gone the
+/// reserve is released and the colonists eat it.
+/// </summary>
 internal static class FoodReserve
 {
-    private const string PrepareOp = "test/food_reserve_prepare";
-    private const string ProbeOp = "test/food_reserve_probe";
-
-    // The share of the default reserve target the fixture seeds as unforbidden pemmican in the food room (0.9: the bill
-    // has less to cook, so the fill finishes in fewer rounds): the stock stays short of the target, so the goal must both
-    // hold it and refill the rest with a preserve bill.
+    // The share of the reserve target seeded as unforbidden pemmican: short of the target, so the Need must both hold the
+    // stock and fill the rest with a bill, with little left to cook.
     private const double SeedShare = 0.9;
-
-    // The reserve the service runs with at every stage.
     private const double ReserveDays = PolicyFunctions.DefaultFoodReserveDays;
+    private const int FillTicks = 35000;
 
-    // The game time one service round runs before the case stops it to read native state: the bill, the holds and the
-    // meals all move within a quarter day.
-    private const ulong RoundTicks = 15000;
+    private static readonly FixtureOp<NoArgs, Fx.ReservePrepared> Prepare = new(
+        "test/food_reserve_prepare",
+        _ => ServedOps.Args(("reserveDays", ReserveDays), ("seedShare", SeedShare)),
+        ServedOps.Reply<Fx.ReservePrepared>("test/food_reserve_prepare"));
 
-    internal static AcceptanceCase Case() => new()
+    private static readonly FixtureOp<bool, Fx.ReserveProbe> Probe = new(
+        "test/food_reserve_probe",
+        drain => ServedOps.Args(("drain", drain)),
+        ServedOps.Reply<Fx.ReserveProbe>("test/food_reserve_probe"));
+
+    internal static TypedCase Case() => new()
     {
         Name = "food/reserve",
+        Scope = "On the stripped tribal baseline with 200 simple meals and a stove room seeded with pemmican short of the reserve "
+            + "target, the served bill and food-storage-upkeep families hold the pemmican (the held count never falls) and fill it "
+            + "with a TargetCount Make_Pemmican bill that pauses once the held units reach its target; after test/food_reserve_probe "
+            + "destroys every other food, the served Need releases every held stack and the colonists eat pemmican (#428).",
+        Ticks = TypedCase.TickCap,
         Tier = CaseTier.Nightly,
-        Scope = "The food-stores/storage Need holds unforbidden pemmican and fills the rest with a target-count pemmican bill that stops at the reserve while simple meals feed the colony (#428); deleting every other food releases the reserve and the colonists eat it.",
-        Start = FoodFixture.EmptyChannels("MealSimple", 200),
-        RequiredOps = [PrepareOp, ProbeOp],
+        Start = FoodOps.Baseline,
+        Ops = [FoodOps.EmptyChannels.Tool, Prepare.Tool, Probe.Tool],
         Keep = ["Food"],
-        Service = true,
-        Budget = TimeSpan.FromMinutes(12),
-        Crew = new Crew { Size = 3 },
-        Stall = TimeSpan.FromMinutes(2),
+
+        // The cooking family stays out: its meal bill sits above the reserve bill on the single stove and, with meals eaten
+        // as fast as they are cooked, never lets the cook reach the pemmican.
+        Serve = new ServeSpec { Families = ["bill", "food-storage-upkeep"], Prefix = "food-reserve" },
         Run = RunAsync,
     };
 
     // The pemmican count the reserve asks for: ReserveDays of 1.6 nutrition per colonist at 0.05 per unit.
     private static int TargetUnits(int colonists) => (int)Math.Ceiling(ReserveDays * colonists * 1.6 / 0.05);
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static int Held(Fx.ReserveProbe probe) => probe.Pemmican.Where(p => p.Forbidden).Sum(p => p.Units);
+
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var report = s.Report;
-        var h = s.Harness;
-
-        // A resume from the ring reloads a mid-run save that already holds the food room and the seeded runway:
-        // preparing again would stack a second runway on it and push the upkeep items census over its bound, so the
-        // resumed run reads the fresh run's result.
-        var prepared = NativeReads.RestoredState(s, "fixture").AsMap();
-        if (prepared is null)
+        _ = await s.FixtureAsync("empty-channels", FoodOps.EmptyChannels, new FoodStock("MealSimple", 200), cancellationToken).ConfigureAwait(false);
+        var prepared = await s.FixtureAsync("reserve-prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        var expected = TargetUnits(prepared.Colonists);
+        s.Record("expected_target_units", expected);
+        if (!prepared.Success || prepared.Colonists < 1 || prepared.Pemmican < 1 || prepared.Pemmican >= expected)
         {
-            prepared = await h.CallAsync("reserve-prepare", PrepareOp, new JsonObject { ["reserveDays"] = ReserveDays, ["seedShare"] = SeedShare }, cancellationToken).ConfigureAwait(false);
-            Checkpoints.SetState("fixture", prepared.DeepClone());
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the fixture must seed pemmican short of the {expected}-unit target: {prepared}"));
         }
 
-        var seeded = prepared["pemmican"].Strict() ?? 0;
-        var colonists = prepared["colonists"].Strict() ?? 0;
-        var expected = TargetUnits((int)colonists);
-        if (colonists < 1 || seeded < 1 || (int)seeded >= expected)
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"fixture must seed pemmican short of the {expected}-unit reserve target: {prepared.ToJson()}"));
-        }
-
-        report["expected_target_units"] = expected;
-        report["fixture"] = prepared.DeepClone();
-
-        // round runs the service for RoundTicks of game time (and until the clock parks), stops it and reads the native
-        // state through the probe. The durable review persists only the pending reserve identities, which the player
-        // API does not show, so the native probe is the assertion and the attempt loops below absorb a round that
-        // stopped before a hold or release finished.
-        async Task<JsonObject> Round(string prefix, JsonObject? args)
-        {
-            try
-            {
-                // The cooking family stays out: its meal bill sits above the reserve bill on the single stove and, with
-                // meals eaten as fast as they are cooked, never lets the cook reach the pemmican.
-                var run = await BrainRun.StartAsync(s, ["bill", "food-storage-upkeep"], prefix, keepPrefix: prefix, cancellationToken).ConfigureAwait(false);
-                try
-                {
-                    // A round ends once either the round's game time elapsed or the clock parked (no_work: the planners
-                    // have nothing left, so the tick stops moving); the review keeps revising at a parked tick, so the
-                    // tick alone is the stall signature.
-                    ulong start = 0, lastTick = 0;
-                    var parkedSince = Stopwatch.StartNew();
-                    var wait = new Wait { Stall = Wait.StallBudget(), Terminal = run.Service.Exited };
-                    await wait.WaitProgressAsync(
-                        async ct =>
-                        {
-                            var tick = await run.TickAsync(ct).ConfigureAwait(false) ?? 0;
-                            if (start == 0)
-                            {
-                                start = tick;
-                            }
-
-                            if (tick != lastTick)
-                            {
-                                lastTick = tick;
-                                parkedSince.Restart();
-                            }
-
-                            var parked = tick > 0 && parkedSince.Elapsed > TimeSpan.FromSeconds(20);
-                            return (Wait.Signature(tick), tick >= start + RoundTicks || parked);
-                        },
-                        cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    await run.StopAsync(cancellationToken).ConfigureAwait(false);
-                }
-            }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"{prefix}: {e.Message}", e);
-            }
-
-            await FoodFixture.PauseForProbeAsync(h, prefix + "-probe", cancellationToken).ConfigureAwait(false);
-            var probe = await h.CallAsync(prefix + "-probe", ProbeOp, args, cancellationToken).ConfigureAwait(false);
-            report[prefix] = probe.DeepClone();
-            return probe;
-        }
-
-        // Fill: the seeded pemmican is held, the bill tops the stock up to its target and stacks are held until the
-        // target is covered; the bill then pauses. Whole stacks are held, so the last batch may leave a free surplus.
-        // The held count never falls: no colonist eats the reserve.
-        JsonObject probe;
+        // Fill: the seeded stock is held, the bill tops it up and pauses at its target; no colonist eats the reserve.
+        var probe = new Fx.ReserveProbe();
         var lastHeld = 0;
-        for (var attempt = 1; ; attempt++)
+        _ = await s.ServeUntilAsync("fill", FillTicks, async ct =>
         {
-            probe = await Round(string.Create(CultureInfo.InvariantCulture, $"fill-{attempt}"), null).ConfigureAwait(false);
-            var (held, free) = PemmicanUnits(probe);
+            probe = await s.FixtureAsync("fill-probe", Probe, false, ct).ConfigureAwait(false);
+            var held = Held(probe);
             if (held < lastHeld)
             {
-                throw new AcceptanceException($"held pemmican fell from {lastHeld} to {held} units while other food existed: {probe.ToJson()}");
+                throw new AcceptanceException($"held pemmican fell from {lastHeld} to {held} units while other food existed");
             }
 
             lastHeld = held;
-            var bill = ReserveBill(probe);
-            if (bill is not null)
-            {
-                var target = bill["target"].Strict() ?? 0;
-                var paused = bill["paused"].AsBool() == true;
-                if (bill["repeat"].AsString() == "TargetCount" && paused && held >= (int)target && held >= (int)seeded && target > seeded)
-                {
-                    break;
-                }
-            }
-
-            if (attempt == 8)
-            {
-                var detail = bill is null ? $"native Make_Pemmican(Bulk) bill missing: {probe["bills"].ToJson()}" : "<nil>";
-                throw new AcceptanceException($"reserve never filled and held: {held} held, {free} free, bill {bill.ToJson()}: {detail}");
-            }
-        }
-
-        if ((probe["otherFood"].Strict() ?? 0) <= 0)
+            var bill = probe.Bills.FirstOrDefault(b => b.Recipe is "Make_PemmicanBulk" or "Make_Pemmican");
+            var filled = bill is { Repeat: "TargetCount", Paused: true } && held >= bill.Target && held >= prepared.Pemmican && bill.Target > prepared.Pemmican;
+            return (Wait.Signature(held, bill?.Target, bill?.Paused, probe.OtherFood), filled);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("filled", ServedOps.Json(probe));
+        if (probe.OtherFood <= 0)
         {
-            throw new AcceptanceException($"simple meals vanished before the drain: {probe.ToJson()}");
+            throw new AcceptanceException("simple meals vanished before the drain");
         }
 
-        // Drain: every other food goes and the colonists are hungry. The runway falls under the seasonal minimum, the
-        // review releases every held stack and the colonists eat it.
-        JsonObject? args = new JsonObject { ["drain"] = true };
-        for (var attempt = 1; ; attempt++)
+        // Drain: every other food goes and the colonists are hungry; the Need releases the held stacks.
+        probe = await s.FixtureAsync("drain", Probe, true, cancellationToken).ConfigureAwait(false);
+        _ = await s.ServeUntilAsync("release", s.TicksLeft, async ct =>
         {
-            probe = await Round(string.Create(CultureInfo.InvariantCulture, $"release-{attempt}"), args).ConfigureAwait(false);
-            args = null;
-            var (held, _) = PemmicanUnits(probe);
+            probe = await s.FixtureAsync("release-probe", Probe, false, ct).ConfigureAwait(false);
+            return (Wait.Signature(Held(probe), probe.ReserveEaten), Held(probe) == 0);
+        }, cancellationToken).ConfigureAwait(false);
 
-            // Released: eating needs game time the parked service clock no longer gives, so the harness ticks the game
-            // itself before re-reading.
-            for (var tick = 0; held == 0 && tick < 4; tick++)
-            {
-                if ((probe["reserveEaten"].Strict() ?? 0) > 0)
-                {
-                    return;
-                }
-
-                _ = await s.AdvanceAsync(2500, null, cancellationToken).ConfigureAwait(false);
-                probe = await h.CallAsync(string.Create(CultureInfo.InvariantCulture, $"release-{attempt}-eat-{tick}"), ProbeOp, null, cancellationToken).ConfigureAwait(false);
-                report[string.Create(CultureInfo.InvariantCulture, $"release-{attempt}-eat")] = probe.DeepClone();
-            }
-
-            if (held == 0 && (probe["reserveEaten"].Strict() ?? 0) > 0)
-            {
-                return;
-            }
-
-            if (attempt == 4)
-            {
-                throw new AcceptanceException($"reserve not released and eaten after the drain: {held} held: {probe.ToJson()}");
-            }
-        }
+        // Released: eating takes game time the parked service clock no longer gives.
+        _ = await s.RunUntilAsync("eaten", s.TicksLeft, async ct =>
+        {
+            probe = await s.FixtureAsync("eat-probe", Probe, false, ct).ConfigureAwait(false);
+            return (Wait.Signature(probe.ReserveEaten), probe.ReserveEaten > 0);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("eaten", ServedOps.Json(probe));
     }
-
-    // Sums the probe's pemmican stacks into forbidden (held) and unforbidden units.
-    private static (int Held, int Free) PemmicanUnits(JsonObject probe)
-    {
-        if (probe["pemmican"] is not JsonArray rows)
-        {
-            throw new AcceptanceException($"pemmican stacks unobserved: {probe.ToJson()}");
-        }
-
-        int held = 0, free = 0;
-        foreach (var row in rows.Rows())
-        {
-            var units = (int)(row["units"].Strict() ?? 0);
-            if (row["forbidden"].AsBool() == true)
-            {
-                held += units;
-            }
-            else
-            {
-                free += units;
-            }
-        }
-
-        return (held, free);
-    }
-
-    private static JsonObject? ReserveBill(JsonObject probe) =>
-        probe["bills"].Rows().FirstOrDefault(row => row["recipe"].AsString() is "Make_PemmicanBulk" or "Make_Pemmican");
 }

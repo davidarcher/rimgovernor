@@ -372,7 +372,6 @@ Kept, reason recorded:
 | EntityRef | message | 197 | 5 | state | Instance id def name label map id and position |  |  |
 | TargetRef | message | 204 | 3 | state | Oneof entity or cell or unavailable |  |  |
 | Quantity | message | 205 | 2 | state | Def name with unit count |  |  |
-| Amount | message | 206 | 2 | state | Def name with amount |  |  |
 | JobEvidence | message | 207 | 12 | state | Pawn current job def load id target and priority |  |  |
 | PawnNeeds | message | 225 | 13 | mixed | Pawn need levels hunger category break risk thresholds | break_threshold_minor; break_threshold_major; break_threshold_extreme | Pawn-computed (traits genes) so effectively code; MentalBreakDef thresholds only the base |
 | Hediff | message | 235 | 17 | state | One health condition on a pawn with severity tend and immunity state (label, part label, isBad read from the catalog row, #2656) |  |  |
@@ -415,18 +414,17 @@ Kept, reason recorded:
 | BenchUnusableReason | enum | 607 | 6 | state | Why a bench takes no bills |  |  |
 | StockItem | message | 614 | 7 | mixed | One stack in a stock row | market_value (of packed item) | ThingDef.statBases MarketValue with quality factor via Go rule over rows |
 | HeldStock | message | 618 | 3 | state | Holder of a held stack |  |  |
-| CorpseState | message | 619 | 6 | state | Corpse with inner pawn race rot stage |  |  |
-| ResourceStock | message | 620 | 20 | mixed | Per-def stock counts and items | definition.label | XDef.label of the ThingDef |
+| CorpseState | message | 619 | 5 | state | Corpse with inner pawn rot stage |  |  |
+| ResourceStock | message | 620 | 18 | mixed | Per-def stock counts and items | definition.label | XDef.label of the ThingDef |
 | StockCategory | enum | 634 | 6 | state | Supplies read category tag |  |  |
 | StockOwnership | enum | 635 | 3 | state | Supplies read ownership tag |  |  |
 | StockFilter | message | 636 | 8 | state | Supplies query filter |  |  |
 | SuppliesSnapshot | message | 637 | 3 | state | Supplies snapshot |  |  |
 | ListSuppliesRequest | message | 638 | 2 | state | List supplies request |  |  |
 | ListSuppliesReply | message | 639 | 3 | state | List supplies reply envelope |  |  |
-| IngredientRequirement | message | 640 | 7 | code | Required available and missing ingredient amounts for a bill |  |  |
 | FilterSpecialRule | message | 641 | 2 | state | Special filter rule toggle |  |  |
 | StockpileFilter | message | 642 | 8 | state | Bill or zone thing filter |  |  |
-| BillState | message | 647 | 26 | mixed | One bill on a bench | recipe.label | RecipeDef.label |
+| BillState | message | 647 | 25 | mixed | One bill on a bench | recipe.label | RecipeDef.label |
 | IngredientReservation | message | 662 | 2 | state | Live bill job promised ingredients |  |  |
 | BillStack | message | 664 | 7 | state | Bench bill stack with usability and work speed |  |  |
 | RecipeState | message | 666 | 3 | mixed | Whether a bench offers a recipe now | recipe.label | RecipeDef.label |
@@ -457,7 +455,7 @@ Kept, reason recorded:
 | GetCellsRequest | message | 806 | 2 | state | Read request parameters |  |  |
 | GetCellsReply | message | 810 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | ResearchUnlock | message | 811 | 3 | static | What a research project unlocks (def, native type, label) | def_name;native_type;label | Go rule over ThingDef.researchPrerequisites, RecipeDef.researchPrerequisite(s), TerrainDef.researchPrerequisites rows keyed by ResearchProjectDef.defName |
-| ResearchProject | message | 814 | 9 | state | Research project row: progress, availability and lock reasons (definition facts are catalog rows) |  |  |
+| ResearchProject | message | 814 | 8 | state | Research project row: progress and lock reasons (definition facts are catalog rows) |  |  |
 | ResearchSlot | message | 826 | 2 | state | Current project per research category |  |  |
 | ResearchSnapshot | message | 828 | 5 | state | Research snapshot: slots, projects, finished |  |  |
 | ResearchRequest | message | 833 | 6 | state | Read request parameters |  |  |
@@ -513,13 +511,13 @@ Kept, reason recorded:
 | RecoverySnapshot | message | 978 | 3 | state | Recovery restrictions and buildings |  |  |
 | RecoveryRequest | message | 979 | 1 | state | Read request parameters |  |  |
 | RecoveryReply | message | 980 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
-| PopulationPerson | message | 983 | 25 | state | Prisoner/guest/colonist population facts |  |  |
+| PopulationPerson | message | 983 | 24 | state | Prisoner/guest/colonist population facts |  |  |
 | PopulationSnapshot | message | 1015 | 11 | state | Population persons, ideology flags and storyteller outlook |  |  |
 | OwnedName | message | 1032 | 3 | state | Owned pawn short name and thing id |  |  |
 | PopulationRequest | message | 1033 | 1 | state | Read request parameters |  |  |
 | PopulationReply | message | 1034 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | Settlement | message | 1035 | 13 | state | World settlement row |  |  |
-| WorldTile | message | 1036 | 17 | state | World tile climate and geography row |  |  |
+| WorldTile | message | 1036 | 16 | state | World tile climate and geography row |  |  |
 | WorldSnapshot | message | 1043 | 3 | state | World tile plus settlements |  |  |
 | WorldRequest | message | 1044 | 3 | state | Read request parameters |  |  |
 | WorldReply | message | 1045 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
@@ -605,7 +603,7 @@ Kept, reason recorded:
 | FoodLarderFacts | message | 1350 | 4 | code | Raw meat and cook demand nutrition, cold sites |  |  |
 | FoodSupplyFacts | message | 1351 | 3 | code | Food consumers, stocks and larder |  |  |
 | CropForecast | message | 1352 | 9 | code | Per-zone crop work and yield forecast |  |  |
-| PatientForecast | message | 1353 | 9 | code | Patient bleed and mood break forecast |  |  |
+| PatientForecast | message | 1353 | 8 | code | Patient bleed and mood break forecast |  |  |
 | ForecastFacts | message | 1354 | 4 | code | Forecast facts bundle |  |  |
 | ComfortSurface | message | 1355 | 3 | state | Comfort surface cells |  |  |
 | ComfortFacility | message | 1356 | 5 | code | Dining or recreation facility with users |  |  |
@@ -633,7 +631,7 @@ Kept, reason recorded:
 | DevelopmentFacts | message | 1432 | 5 | state | Development power, furniture, networks, geysers |  |  |
 | EnvironmentCondition | message | 1433 | 4 | state | Active game condition with id, def name and ticks left (class and label deleted, #2657) |  |  |
 | FoodClimate | message | 1444 | 8 | code | Growing-day calendar computed from biome temperatures and season |  |  |
-| FarmFacts | message | 1452 | 19 | mixed | Per-growing-zone plant growth state plus the crop's static growth range and yield | edible_crop; nutrition_per_harvest_cell; min_growth_temperature; min_optimal_growth_temperature; max_optimal_growth_temperature; max_growth_temperature | PlantProperties.minGrowthTemperature, minOptimalGrowthTemperature, maxOptimalGrowthTemperature, maxGrowthTemperature; nutrition_per_harvest_cell = PlantProperties.harvestYield x harvestedThingDef nutrition stat (Go rule over crop row); edible_crop = harvestedThingDef ingestible (Go rule) |
+| FarmFacts | message | 1452 | 18 | mixed | Per-growing-zone plant growth state plus the crop's static growth range and yield | edible_crop; nutrition_per_harvest_cell; min_growth_temperature; min_optimal_growth_temperature; max_optimal_growth_temperature; max_growth_temperature | PlantProperties.minGrowthTemperature, minOptimalGrowthTemperature, maxOptimalGrowthTemperature, maxGrowthTemperature; nutrition_per_harvest_cell = PlantProperties.harvestYield x harvestedThingDef nutrition stat (Go rule over crop row); edible_crop = harvestedThingDef ingestible (Go rule) |
 | GrowLight | message | 1466 | 8 | mixed | Sun lamp state: powered, lit, grown cells, net | power_w | CompProperties_Power.basePowerConsumption on the building def |
 | PlantGrower | message | 1467 | 11 | mixed | Hydroponics basin state: powered, fertility, cells, sow tag | power_w; sow_tag | power_w = CompProperties_Power.basePowerConsumption; sow_tag = building def sowTag (verify field in ThingDef) |
 | GrowRoom | message | 1468 | 7 | state | Roofed grow room temperature, cell and lit counts |  |  |

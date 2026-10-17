@@ -173,8 +173,7 @@ internal static class NativeProtoSuppliesProbe
         {
             var list = Activator.CreateInstance(typeof(List<>).MakeGenericType(entryType))!;
             foreach (var e in entries) ((IList)list).Add(e);
-            var reservedTyped = Activator.CreateInstance(typeof(HashSet<>).MakeGenericType(game.GetType("Verse.Thing", true)!))!;
-            return projectM.Invoke(null, new object?[] { list, reservedTyped })!;
+            return projectM.Invoke(null, new object?[] { list })!;
         }
 
         // ---- Item 5: a modded (non-vanilla) ThingDef fixture round-trips like a vanilla one ----
@@ -222,7 +221,7 @@ internal static class NativeProtoSuppliesProbe
         });
         Check(((IList)Get(corpseRow, "Corpses")).Count == 1, "Corpse traversal descends into held inventory and reports one corpse");
         var corpseState = ((IList)Get(corpseRow, "Corpses"))[0]!;
-        Check((string)Get(corpseState, "Race") == "Human_Test" && (bool)Get(corpseState, "Humanlike"), "Corpse race and intelligence facts observed");
+        Check((bool)Get(corpseState, "Humanlike"), "Corpse intelligence fact observed");
         Check(((IList)Get(corpseRow, "Holders")).Count == 1, "Corpse-held ration surfaces as one held-stock row");
         var corpseIssues = (IList)Get(corpseRow, "Issues");
         Check(corpseIssues.Count == 1, "Corpse without a rot component reads without a rot issue, not a crash");

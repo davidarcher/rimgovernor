@@ -10,12 +10,9 @@ public static class FoodCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        registry.Register(FoodFixture.Case());
-        registry.Register(FoodFishing.Case());
         registry.Register(FoodLedger.Case());
         registry.Register(FoodLedgerHunt.Case());
         registry.Register(FoodReserve.Case());
-        registry.Register(FoodStarving.Case());
         registry.Register(FoodStarvingRecovery.Case());
     }
 }

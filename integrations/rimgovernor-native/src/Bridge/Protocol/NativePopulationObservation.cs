@@ -98,7 +98,6 @@ namespace HomeBridge.BridgeTools
                             person = person with { HarvestGoodwillChange = Math.Max(player.CalculateAdjustedGoodwillChange(home, -70), -100 - player.GoodwillWith(home)) };
                     }
                 }
-                if (p.needs?.food != null) person = person with { NutritionPerDay = Number(GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true))) };
                 person = person with { WillJoinIfRescued = p.mindState.WillJoinColonyIfRescued };
                 // The prisoner custody and interaction settings token
                 // (NativePrisonerInteractionOperations.Settings).

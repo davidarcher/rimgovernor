@@ -259,7 +259,7 @@ public static partial class ObservationPackage
                 {
                     continue;
                 }
-                plants.Add(new BlightedPlant { ID = thing.LoadId(), Definition = thing.Def, Cell = cell.Cell, Zone = zone, Designated = thing.Has(ThingMarks.Designated), Eligible = true });
+                plants.Add(new BlightedPlant { ID = thing.LoadId(), Definition = thing.Def, Cell = cell.Cell, Designated = thing.Has(ThingMarks.Designated), Eligible = true });
             }
         }
         return Known(EquatableArray.From(plants));

@@ -200,7 +200,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        [Tool("test/food_starving_prepare", Description = "UNSAFE FOR MODEL EXECUTION. On the empty-channel fixture, make the colony a starving tribal one for the food/starving-tribal diagnosis (#2141) and the food/starving-tribal-recovery case (#2173; also starts counting meat eaten and wild kills with the killer's next job): destroy every colonist's weapons (worn and carried), delete every butcher bill, enable Hunting for every colonist who can, drop colonists to a hungry food level, and spawn animalCount wild animalKind at fixed offsets from the colonists' centre.")]
+        [Tool("test/food_starving_prepare", Description = "UNSAFE FOR MODEL EXECUTION. On the empty-channel fixture, make the colony a starving tribal one for the food/starving-tribal-recovery case (#2173; also starts counting meat eaten and wild kills with the killer's next job): destroy every colonist's weapons (worn and carried), delete every butcher bill, enable Hunting for every colonist who can, drop colonists to a hungry food level, and spawn animalCount wild animalKind at fixed offsets from the colonists' centre.")]
         public async Task<object> StarvingPrepare(IRimBridgeContext ctx, CancellationToken cancellationToken, string animalKind = "Deer", int animalCount = 6, double foodLevel = 0.3)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

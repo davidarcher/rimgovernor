@@ -31,14 +31,13 @@ namespace HomeBridge.BridgeTools
                 if (filter.Region != null && (!NativeCell(filter.Region.Minimum).InBounds(map) || !NativeCell(filter.Region.Maximum).InBounds(map)))
                     return new Obs.ListSuppliesReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map.") };
                 var entries = new Census(map, player, filter).Read();
-                var reserved = new HashSet<Thing>(map.reservationManager.AllReservedThings());
                 var groups = entries.GroupBy(e => Id(e.Thing.def.defName), StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
                 var selected = groups.Where(g => Ownership(filter) == Obs.StockOwnership.All || g.Any(e => e.Ours)).ToList();
                 var snapshot = new Obs.SuppliesSnapshot { Context = context, Completeness = Complete(selected.Count) };
                 foreach (var group in selected)
                 {
                     var entriesForDefinition = group.ToList();
-                    var row = Project(entriesForDefinition, reserved);
+                    var row = Project(entriesForDefinition);
                     var items = row.Items.ToList();
                     for (var index = 0; index < items.Count; index++)
                     {
@@ -194,12 +193,11 @@ namespace HomeBridge.BridgeTools
         internal static bool IsOurs(bool fogged, bool held, bool playerFaction, bool otherFaction, bool deadHolder)
             => !fogged && (held ? playerFaction && !deadHolder : !otherFaction);
 
-        internal static Obs.ResourceStock Project(List<StockEntry> entries, HashSet<Thing> reservedThings)
+        internal static Obs.ResourceStock Project(List<StockEntry> entries)
         {
             var first = entries[0].Thing.def;
             var row = new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = Id(first.defName) }, Stacks = entries.Count };
-            long totalUnits = 0, spawned = 0, ours = 0, oursUnforbidden = 0, forbidden = 0,
-                playerFaction = 0, otherFaction = 0, fogged = 0, reserved = 0;
+            long totalUnits = 0, spawned = 0, ours = 0, oursUnforbidden = 0, forbidden = 0, playerFaction = 0, fogged = 0;
             foreach (var entry in entries)
             {
                 var units = entry.Thing.stackCount;
@@ -211,9 +209,7 @@ namespace HomeBridge.BridgeTools
                     if (entry.Ours && !entry.Forbidden) oursUnforbidden += units;
                     if (entry.Forbidden) forbidden += units;
                     if (entry.PlayerFaction) playerFaction += units;
-                    if (entry.OtherFaction) otherFaction += units;
                     if (entry.Fogged) fogged += units;
-                    if (entry.Ours && reservedThings.Contains(entry.Thing)) reserved += units;
                 }
                 row = row with { Items = [.. row.Items, Item(entry.Thing, entry.Position)] };
                 if (entry.Thing.def.IsWeapon) {
@@ -225,13 +221,13 @@ namespace HomeBridge.BridgeTools
                 if (entry.Thing is Corpse corpse)
                 {
                     var pawn = corpse.InnerPawn ?? throw new InvalidOperationException("Corpse pawn unavailable.");
-                    var detail = new Obs.CorpseState { Corpse = NativeRef.Thing(corpse), Race = Id(pawn.def.defName), Humanlike = pawn.RaceProps.Humanlike };
+                    var detail = new Obs.CorpseState { Corpse = NativeRef.Thing(corpse), Humanlike = pawn.RaceProps.Humanlike };
                     row = row with { Corpses = [.. row.Corpses, detail] };
                 }
             }
             row = row with { Issues = [.. row.Issues, Issue("items.snapshot", Common.UnavailableReason.Unsupported, "One or more items lack an Allow snapshot; only eligible loose supplies support Allow.")] };
             return row with { Units = totalUnits, Spawned = spawned, Ours = ours, OursUnforbidden = oursUnforbidden, Forbidden = forbidden,
-                PlayerFaction = playerFaction, OtherFaction = otherFaction, Fogged = fogged, Reserved = reserved };
+                PlayerFaction = playerFaction, Fogged = fogged };
         }
 
         // Held/container/corpse items have no Allow snapshot; give them a stateless CAS token

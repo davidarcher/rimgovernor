@@ -79,7 +79,7 @@ public sealed class PlannedSitesTests
         var sites = Sites([Owed()]);
         var row = new O.ConstructionActivityOption("planned/room1/wall/Steel", ShellWallDefinition, new Cell(-1, 0), "Pawn_1", "Steel", "Thing_Steel1",
             new Cell(5, 5), 6, 75, "ConstructFinishFrames", Known(10d), Known(20d), Known(300d));
-        var blocker = new O.PlannedSiteBlocker(new Cell(3, 0), "Plant_1", "Plant_TreeOak", "Plant");
+        var blocker = new O.PlannedSiteBlocker(new Cell(3, 0), "Plant_1", "Plant_TreeOak");
         var clearing = new O.PlannedSiteClearing("planned/room1/wall/Steel/clear/cut", O.PlannedClearingKind.Cut, [new Cell(3, 0)]);
         var answered = new O.ConstructionActivityRead
         {

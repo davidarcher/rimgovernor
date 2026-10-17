@@ -328,6 +328,9 @@ public sealed record StagePlant
     public required IReadOnlyList<StageCell> Cells { get; init; }
 
     public float Growth { get; init; } = 1f;
+
+    /// <summary>Marks each plant sown by a colonist (a growing zone's crop or plantation tree) instead of wild.</summary>
+    public bool Sown { get; init; }
 }
 
 /// <summary>

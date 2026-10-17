@@ -319,10 +319,6 @@ namespace HomeBridge.BridgeTools
                 case Operations.HusbandryOrder.Slaughter:
                 case Operations.HusbandryOrder.CancelSlaughter: effect = effect with { SlaughterDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.Slaughter) }; break;
                 case Operations.HusbandryOrder.Tame: effect = effect with { TameDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.Tame) }; break;
-                case Operations.HusbandryOrder.Sterilize:
-                    effect = effect with { Sterilized = NativeHusbandryOperations.Sterilized(animal) };
-                    effect = effect with { SterilizeQueued = NativeHusbandryOperations.SterilizeBill(animal) != null };
-                    break;
                 case Operations.HusbandryOrder.Release:
                 case Operations.HusbandryOrder.CancelRelease: effect = effect with { ReleaseDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.ReleaseAnimalToWild) }; break;
                 case Operations.HusbandryOrder.AllowedArea: effect = effect with { AllowedAreaId = NativeHusbandryOperations.AreaId(animal) }; break;

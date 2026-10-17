@@ -1,124 +1,63 @@
-using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>food/starving-tribal-recovery</c> (Go <c>starvingrecovery.go</c>).</summary>
+/// <summary>
+/// <c>food/starving-tribal-recovery</c> (#2173): a starving tribal colony with no food, no weapons and no butcher bill, under
+/// the autonomous brain, crafts a bow a colonist wields, kills designated wild prey, chains the hunt to the next live prey
+/// instead of hauling the corpse, butchers the meat and eats it. The old case also waited out malnutrition recovery, days of
+/// vanilla physics past the cap; the chain to eaten meat is the claim.
+/// </summary>
 internal static class FoodStarvingRecovery
 {
-    // The day budget: the colony is sampled each game day and the case fails when the chain below has not completed by
-    // the last. The malnutrition severity is what the recovered colony must be at or under; the hunger is the food level
-    // the colonists start at, low enough that malnutrition really builds before the first meat.
-    private const int Days = 8;
-    private const double RecoveryMalnutrition = 0.3;
+    // Low enough that the colony is starving from the first tick.
     private const double Hunger = 0.05;
 
-    internal static AcceptanceCase Case() => new()
+    private static readonly FixtureOp<NoArgs, Fx.FixtureDone> Starve = new(
+        "test/food_starving_prepare",
+        _ => ServedOps.Args(("foodLevel", Hunger)),
+        ServedOps.Done("test/food_starving_prepare"));
+
+    private static readonly FixtureOp<NoArgs, Fx.StarvingObserved> Observe = ServedOps.Read<Fx.StarvingObserved>("test/food_starving_observe");
+
+    internal static TypedCase Case() => new()
     {
         Name = "food/starving-tribal-recovery",
+        Scope = "On the stripped tribal baseline (no food, every weapon destroyed, no butcher bill, six wild deer) at food level 0.05, "
+            + "the served autonomous brain gets a crafted ranged weapon into a colonist's hands, a colonist kills wild prey and its "
+            + "job two ticks later is Hunt on the next live designated prey, the delivery ledger records a butcher, and colonists "
+            + "eat meat (the fixture's ingest counter), within one game day.",
+        Ticks = TypedCase.TickCap,
         Tier = CaseTier.Nightly,
-        Scope = "Native postconditions and end-to-end signal (#2173; a Go snapshot test cannot cover the vanilla physics): the starving tribal colony of food/starving-tribal (tribal8, no food, no weapons, no butcher bill, six wild deer, Core only) under the autonomous controller "
-            + "crafts a bow that a colonist wields, designates and kills prey, the killer's job after a kill is Hunt on the next live designated prey and not a haul of its own corpse, "
-            + "the meat is butchered (delivery ledger) and eaten (native ingest counter), malnutrition has recovered to 0.3 or below and the food runway is positive, all within eight game days.",
-        Start = FoodFixture.EmptyChannels("MealSurvivalPack", 0),
-        RequiredOps = [FoodStarving.PrepareOp, FoodStarving.ObserveOp],
+        Start = FoodOps.Baseline,
+        Ops = [FoodOps.EmptyChannels.Tool, Starve.Tool, Observe.Tool],
         Keep = ["Food"],
-        NoCheckpoint = true,
-        Service = true,
-        Budget = TimeSpan.FromMinutes(20),
-        Crew = new Crew { Size = 3 },
-        Stall = TimeSpan.FromMinutes(2),
-        Reason = "up to eight native days of a bow craft, hunts, butchering and recovery from malnutrition, like food/fishing's fifteen; the start is already the starving fixture",
+        Serve = new ServeSpec { Prefix = "starving-recovery" },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var report = s.Report;
-        await FoodStarving.PrepareAsync(s, new JsonObject { ["foodLevel"] = Hunger }, cache: false, cancellationToken).ConfigureAwait(false);
-        double peak = 0;
-        bool chained = false, armed = false;
-        var samples = new JsonArray();
-        var missing = new List<string>();
-        await FoodStarving.ServeAsync(
-            s,
-            null,
-            Wait.TicksPerDay,
-            Days,
-            async r =>
-            {
-                var o = r.Observed;
-                peak = Math.Max(peak, o["malnutrition"].AsNumber());
-                foreach (var c in o["colonists"].Rows())
-                {
-                    // Every weapon was destroyed at the start: a ranged one in hand was crafted.
-                    if (c["ranged"].AsBool() == true)
-                    {
-                        armed = true;
-                    }
-                }
+        _ = await s.FixtureAsync("empty-channels", FoodOps.EmptyChannels, new FoodStock("MealSurvivalPack", 0), cancellationToken).ConfigureAwait(false);
+        _ = await s.FixtureAsync("starve", Starve, NoArgs.Value, cancellationToken).ConfigureAwait(false);
 
-                foreach (var k in o["killJobs"].Rows())
-                {
-                    if (k["targetLive"].AsBool() == true && k["jobDef"].AsString() == "Hunt" && k["targetDesignated"].AsBool() == true)
-                    {
-                        chained = true;
-                    }
-                }
-
-                var butchered = 0.0;
-                try
-                {
-                    var ledger = await FoodLedger.ReadAsync(s, r.Prefix + "-ledger", cancellationToken).ConfigureAwait(false);
-                    butchered = ledger.Raw["butchersTotal"].AsNumber();
-                }
-                catch (AcceptanceException e)
-                {
-                    report[r.Prefix + "_ledger_error"] = e.Message;
-                }
-
-                var runway = r.Colony["foodRunwayDays"].AsNumber();
-                var sample = new JsonObject
-                {
-                    ["round"] = r.N,
-                    ["clockParked"] = r.Parked,
-                    ["malnutrition"] = o["malnutrition"].Copy(),
-                    ["peakMalnutrition"] = peak,
-                    ["bowWielded"] = armed,
-                    ["wildKills"] = o["wildKills"].Copy(),
-                    ["huntChain"] = chained,
-                    ["butchers"] = butchered,
-                    ["meatEaten"] = o["meatEaten"].Copy(),
-                    ["foodRunwayDays"] = r.Colony["foodRunwayDays"].Copy(),
-                    ["pendingHunts"] = o["pendingHunts"].Copy(),
-                    ["killJobs"] = o["killJobs"].Copy(),
-                };
-                samples.Add(sample);
-                report["samples"] = samples;
-                report["latest"] = sample;
-                missing.Clear();
-                foreach (var (name, ok) in new (string, bool)[]
-                {
-                    ("a bow was crafted and wielded", armed),
-                    ("prey was killed", o["wildKills"].AsNumber() > 0),
-                    ("the killer's next job was Hunt on live designated prey", chained),
-                    ("meat was butchered", butchered > 0),
-                    ("meat was eaten", o["meatEaten"].AsNumber() > 0),
-                    ($"malnutrition is at most {RecoveryMalnutrition}", o["malnutrition"].AsNumber() <= RecoveryMalnutrition),
-                    ("the food runway is positive", runway > 0),
-                })
-                {
-                    if (!ok)
-                    {
-                        missing.Add(name);
-                    }
-                }
-
-                return missing.Count == 0;
-            },
-            cancellationToken).ConfigureAwait(false);
-        if (missing.Count > 0)
+        bool armed = false, chained = false;
+        var butchers = 0;
+        var observed = new Fx.StarvingObserved();
+        _ = await s.ServeUntilAsync("recover", s.TicksLeft, async ct =>
         {
-            throw new AcceptanceException($"the starving colony did not recover within {Days} days; unmet: [{string.Join(' ', missing)}]");
-        }
+            observed = await s.FixtureAsync("observe", Observe, NoArgs.Value, ct).ConfigureAwait(false);
+
+            // Every weapon was destroyed at the start: a ranged one in hand was crafted.
+            armed |= observed.Colonists.Any(c => c.Ranged);
+            chained |= observed.KillJobs.Any(k => k is { TargetLive: true, JobDef: "Hunt", TargetDesignated: true });
+            butchers = (await FoodLedger.ReadAsync(s, "ledger", ct).ConfigureAwait(false)).Butchers.Count;
+            var done = armed && observed.WildKills > 0 && chained && butchers > 0 && observed.MeatEaten > 0;
+
+            // The colonists' jobs move while the served clock runs, so only a parked game stalls the wait.
+            return (Wait.Signature(armed, observed.WildKills, chained, butchers, observed.MeatEaten, string.Join(",", observed.Colonists.Select(c => c.Job))), done);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("observed", ServedOps.Json(observed));
+        s.Record("butchers", butchers);
     }
 }

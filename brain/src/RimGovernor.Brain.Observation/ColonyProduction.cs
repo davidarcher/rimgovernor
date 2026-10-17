@@ -382,12 +382,12 @@ public static partial class ObservationPackage
     }
 
     /// <summary>
-    /// Projects the native food climate into the routine calendar fact. Every day count and the sowing flag
+    /// Projects the native food climate into the routine calendar fact. Every day count
     /// must be present; the season name and day of year are informational and default when absent.
     /// </summary>
     internal static Fact<Calendar> ColonyCalendar(O.FoodClimate climate)
     {
-        if (climate.GrowingDays is null || climate.GrowingDaysRemaining is null || climate.GrowingDaysUntil is null || climate.NonGrowingDays is null || climate.SowingNow is null)
+        if (climate.GrowingDays is null || climate.GrowingDaysRemaining is null || climate.GrowingDaysUntil is null || climate.NonGrowingDays is null)
         {
             return Unknown<Calendar>();
         }
@@ -399,7 +399,6 @@ public static partial class ObservationPackage
             GrowingDaysRemaining = climate.GrowingDaysRemaining.GetValueOrDefault(),
             GrowingDaysUntil = climate.GrowingDaysUntil.GetValueOrDefault(),
             NonGrowingDays = climate.NonGrowingDays.GetValueOrDefault(),
-            Sowing = climate.SowingNow.GetValueOrDefault(),
         };
         return c.Valid() ? Known(c) : Unknown<Calendar>();
     }

@@ -15,8 +15,6 @@ public sealed record BlightedPlant
 
     public Cell Cell { get; init; }
 
-    public string Zone { get; init; } = "";
-
     public bool Designated { get; init; }
 
     public bool Eligible { get; init; }

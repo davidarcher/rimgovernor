@@ -69,7 +69,6 @@
     <Compile Include="../../../../scripts/fixtures/SleepingFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(SleepingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/WallUpgradeFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(WallUpgradeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ClearanceFixture.cs" Condition="'$(WallUpgradeFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/AnimalContainmentFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(AnimalContainmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/TradeFixture.cs" Condition="'$(TradeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EmergencyDevelopmentFixture.cs" Condition="'$(EmergencyDevelopmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DraftFaultFixture.cs" Condition="'$(DraftFaultFixture)' == 'true'" />
@@ -100,16 +99,11 @@
     <Compile Include="../../../../scripts/fixtures/BuriedSteelFixture.cs" Condition="'$(BuriedSteelFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ApplyRefusalFixture.cs" Condition="'$(ApplyRefusalFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BlightFixture.cs" Condition="'$(BlightFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/PlantationFixture.cs" Condition="'$(PlantationFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/LatticeSowFixture.cs" Condition="'$(LatticeSowFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/NonFoodFieldFixture.cs" Condition="'$(NonFoodFieldFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RefrigerationFixture.cs" Condition="'$(RefrigerationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FoodChannelFixture.cs" Condition="'$(FoodChannelFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DeepResourcesFixture.cs" Condition="'$(DeepResourcesFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/FishingFixture.cs" Condition="'$(FishingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LedgerFixture.cs" Condition="'$(LedgerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HuntLedgerFixture.cs" Condition="'$(HuntLedgerFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/FarmEnvironmentFixture.cs" Condition="'$(FarmEnvironmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LayoutGridFixture.cs" Condition="'$(LayoutGridFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MaintenancePracticeFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/TrainingFixture.cs" Condition="'$(TrainingFixture)' == 'true' Or '$(PawnControlFixture)' == 'true'" />

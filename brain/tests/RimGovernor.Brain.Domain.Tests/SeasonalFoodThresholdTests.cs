@@ -23,7 +23,6 @@ public sealed class SeasonalFoodThresholdTests
         GrowingDaysRemaining = 1,
         GrowingDaysUntil = 0,
         NonGrowingDays = NonGrowing,
-        Sowing = true,
     };
 
     private static RoundsPolicy Seasonal(Calendar calendar) => DefaultRoundsPolicy().Seasonal(Known(calendar), NoConditions);
@@ -31,7 +30,7 @@ public sealed class SeasonalFoodThresholdTests
     [Fact]
     public void ThresholdsDoNotJumpAtTheFrost()
     {
-        var firstNonGrowingDay = LastGrowingDay with { DayOfYear = 40, GrowingDaysRemaining = 0, GrowingDaysUntil = NonGrowing, Sowing = false };
+        var firstNonGrowingDay = LastGrowingDay with { DayOfYear = 40, GrowingDaysRemaining = 0, GrowingDaysUntil = NonGrowing };
 
         var before = Seasonal(LastGrowingDay);
         var after = Seasonal(firstNonGrowingDay);

@@ -1,246 +1,103 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>animals/containment</c> (Go <c>containment.go</c>): the animals/containment native dispatch vertical end to
-/// end. One <c>operations_apply</c> batch of building intents authors a durable Fence/FenceGate enclosure and one
-/// PenMarker inside it, then real game ticks build it and carry a genuinely uncontained, pen-requiring herd animal into
-/// that pen, observed through <c>observations_read_colony_facts</c> (Contained=true, a non-empty PenId), not just a
-/// receipt. A non-pen-requiring pet confirms RequiresPen=false is left alone. It uses the private disposable fixture
-/// <c>test/containment_construct_prepare</c>, since a deterministic legal 6x6 pen-shell room with reachable WoodLog and a
-/// capable Construction/Handling colonist cannot be relied on from native random pawn generation.
+/// <c>animals/containment</c>: a handler ropes an uncontained pen animal into a standing pen, and the husbandry read then
+/// shows it contained with a pen id; the colony facts' upkeep census reads a pet as not requiring a pen, with none. The pen
+/// is staged finished (the 8-day build the old case played is construction, covered elsewhere).
 /// </summary>
 internal static class AnimalsContainment
 {
-    private const string SessionOwner = "native-animal-containment-acceptance";
+    private const string Cow = "cow";
+    private const string Pet = "pet";
+    private const int Side = 6;
 
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "animals/containment",
-        Scope = "Native animals/containment dispatch: a real Fence/FenceGate enclosure and "
-            + "PenMarker authored as Actions/Apply building intents, then a genuinely uncontained "
-            + "pen-requiring herd animal carried into that pen by real native ticks (observed via "
-            + "observations_read_colony_facts, not just a receipt), while a non-pen-requiring pet is left alone.",
-
-        // Sited on the audited baseline: an unpinned debug start draws a fresh world each run and may offer no legal pen room.
-        Start = new FixtureStart { Op = "test/containment_construct_prepare", On = new LabStart() },
-        Keep = [NeedDef.LiveNeeds.Value],
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Scope = "Over a staged finished 6x6 WoodLog Fence ring with a FenceGate and a PenMarker, a colonist on Handling ropes a "
+            + "staged uncontained player Cow into the pen: observations_read_husbandry reads it Contained with a pen id and no "
+            + "release or slaughter designation, and observations_read_colony_facts' upkeep animals read the staged Husky "
+            + "RequiresPen=false with no pen.",
+        Ticks = 15000,
+        Tier = CaseTier.Nightly,
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            Site = new Fx.StageSite
+            {
+                Width = 14,
+                Height = 10,
+                Near = Fx.StageAnchor.Colonist,
+                OffsetX = 4,
+                Radius = 40,
+                Require = [Fx.StageGround.Standable, Fx.StageGround.Unzoned, Fx.StageGround.Unfogged, Fx.StageGround.Unroofed],
+            },
+            Clear = [new Fx.StageClear { Rect = new Fx.StageRect(0, 0, 14, 10), Kinds = [Fx.StageClearKind.Things] }],
+            Cells = [new Fx.StageCells { Rect = new Fx.StageRect(0, 0, 14, 10), Terrain = "Soil" }],
+            Buildings =
+            [
+                new Fx.StageBuilding { Name = "fence", Def = "Fence", Stuff = "WoodLog", Cells = Ring() },
+                new Fx.StageBuilding { Name = "gate", Def = "FenceGate", Stuff = "WoodLog", Cells = [new(2 + (Side / 2), 2)] },
+                new Fx.StageBuilding { Name = "marker", Def = "PenMarker", Cells = [new(3, 3)] },
+            ],
+            Pawns =
+            [
+                new Fx.StagePawn
+                {
+                    Name = "handler",
+                    Colonist = 0,
+                    Cell = new(10, 1),
+                    AllWork = 0,
+                    Work = new Dictionary<string, int> { ["Handling"] = 1 },
+                    Timetable = Fx.StageTimeAssignment.Work,
+                },
+                new Fx.StagePawn { Name = "idle-1", Colonist = 1, AllWork = 0 },
+                new Fx.StagePawn { Name = "idle-2", Colonist = 2, AllWork = 0 },
+                new Fx.StagePawn { Name = Cow, Kind = "Cow", Faction = Fx.StageFaction.Player, Age = 4, Cell = new(11, 6) },
+                new Fx.StagePawn { Name = Pet, Kind = "Husky", Faction = Fx.StageFaction.Player, Age = 4, Cell = new(12, 3) },
+            ],
+        },
         Run = RunAsync,
     };
 
-    private sealed record CellPlan(string DefName, string Stuff, int X, int Z);
+    // The pen's ring, its south-west corner at (2, 2), less the gate cell at the south side's centre.
+    private static List<Fx.StageCell> Ring() =>
+        [.. Enumerable.Range(0, Side).SelectMany(x => Enumerable.Range(0, Side).Select(z => (x, z)))
+            .Where(c => (c.x is 0 or Side - 1 || c.z is 0 or Side - 1) && c != (Side / 2, 0))
+            .Select(c => new Fx.StageCell(2 + c.x, 2 + c.z))];
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        // Fixture: clears a legal 6x6 room, spawns just enough WoodLog for the full shell, spawns the uncontained herd
-        // animal + non-pen pet, and enables one colonist's Construction/Handling. Run this BEFORE granting Auto so the
-        // fixture's own direct spawning bumps the native generation before the first WritePrecondition reads it. Needs
-        // stay live: with every colonist's needs pinned the PenMarker blueprint never gets built within its day budget,
-        // while the unfrozen colony finishes it as it always has.
-        var report = s.Report;
-        var h = s.Harness;
-        var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        if (!Dyn.Contains(s.Names, "rimgovernor/operations_apply"))
+        var cowId = s.Staged!.Pawns[Cow].Id;
+        var petId = s.Staged.Pawns[Pet].Id;
+
+        Observations.AnimalState? cow = null;
+        _ = await s.RunUntilAsync("roped-in", s.TicksLeft, async ct =>
         {
-            throw new AcceptanceException("missing rimgovernor/operations_apply in discovery");
+            var reply = await s.CallAsync("husbandry", NativeOps.ReadHusbandry, new Observations.HusbandryRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
+            cow = TypedReads.Observed("husbandry", NativeOps.ReadHusbandry, reply, reply.Outcome?.Observed).Animals.FirstOrDefault(a => a.Pawn?.Id == cowId)?.Animal
+                ?? throw new AcceptanceException($"husbandry: the staged cow {cowId} is not in the census");
+            return (Wait.Signature(cow.Contained, cow.PenId), cow is { Contained: true, PenId.Length: > 0 });
+        }, cancellationToken).ConfigureAwait(false);
+        s.RecordWire("cow", cow);
+        if (cow!.Release || cow.Slaughter)
+        {
+            throw new AcceptanceException($"the contained cow carries a release or slaughter designation: {cow}");
         }
 
-        var animalId = prepared["animal"].AsString();
-        var petId = prepared["pet"].AsString();
-        if (animalId.Length == 0 || petId.Length == 0)
+        var facts = await s.CallAsync("pet-upkeep", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var upkeep = TypedReads.Observed("pet-upkeep", NativeOps.ReadColonyFacts, facts, facts.Outcome?.Observed).Upkeep?.Outcome?.Observed
+            ?? throw new AcceptanceException("pet-upkeep: the upkeep section is unavailable");
+        var pet = upkeep.Animals.FirstOrDefault(a => a.Pawn?.Id == petId)
+            ?? throw new AcceptanceException($"pet-upkeep: the staged pet {petId} is not in the upkeep census");
+        s.RecordWire("pet", pet);
+        if (pet.RequiresPen != false || pet.SuitablePen is not null)
         {
-            throw new AcceptanceException($"prepare: missing fixture animal/pet ids: {prepared.ToJson()}");
+            throw new AcceptanceException($"pet-upkeep: the pet should need no pen and have none: {pet}");
         }
-
-        report["fixture_animal"] = animalId;
-        report["fixture_pet"] = petId;
-        var room = prepared["room"].AsMap() ?? [];
-        var roomX = (int)room["x"].AsNumber();
-        var roomZ = (int)room["z"].AsNumber();
-        var roomWidth = (int)room["width"].AsNumber();
-        var roomHeight = (int)room["height"].AsNumber();
-        if (roomWidth != 6 || roomHeight != 6)
-        {
-            throw new AcceptanceException($"prepare: unexpected pen shell room: {room.ToJson()}");
-        }
-
-        report["fixture_room"] = room;
-
-        // Authority is a single Auto/Manual mode switch (SIMP02): Actions/Apply applies under current native authority,
-        // so Auto is granted once.
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "grant-auto", identity, cancellationToken).ConfigureAwait(false);
-
-        // Author the whole pen in one Actions/Apply batch: 19 Fence + 1 FenceGate matching the pen ring's perimeter/door
-        // layout (door anchoring the south wall's center, Fence elsewhere), and the PenMarker at the shell's
-        // nearest-northwest interior corner.
-        var door = new CellPlan("FenceGate", "WoodLog", roomX + (roomWidth / 2), roomZ);
-        var pen = new List<CellPlan> { door };
-        for (var x = roomX; x < roomX + roomWidth; x++)
-        {
-            for (var z = roomZ; z < roomZ + roomHeight; z++)
-            {
-                if (x == door.X && z == door.Z)
-                {
-                    continue;
-                }
-
-                if (x == roomX || x == roomX + roomWidth - 1 || z == roomZ || z == roomZ + roomHeight - 1)
-                {
-                    pen.Add(new CellPlan("Fence", "WoodLog", x, z));
-                }
-            }
-        }
-
-        if (pen.Count != 20)
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"expected a 20-cell pen shell perimeter (19 Fence + 1 FenceGate), got {pen.Count}"));
-        }
-
-        pen.Add(new CellPlan("PenMarker", "", roomX + 1, roomZ + 1));
-        var actions = new JsonArray();
-        for (var i = 0; i < pen.Count; i++)
-        {
-            var cell = pen[i];
-            var placement = new JsonObject { ["defName"] = cell.DefName, ["x"] = cell.X, ["z"] = cell.Z, ["rotation"] = "ROTATION_NORTH" };
-            if (cell.Stuff.Length > 0)
-            {
-                placement["stuff"] = cell.Stuff;
-            }
-
-            actions.Add(new JsonObject
-            {
-                ["key"] = string.Create(CultureInfo.InvariantCulture, $"{SessionOwner}-pen-{i}"),
-                ["building"] = new JsonObject { ["placement"] = placement },
-            });
-        }
-
-        var request = new JsonObject { ["identity"] = identity.DeepClone(), ["actions"] = actions };
-        var reply = await h.WireAsync("apply-pen", "operations_apply", request, cancellationToken).ConfigureAwait(false);
-        var results = reply["results"].AsSlice();
-        if (results.Count != pen.Count)
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"apply-pen: expected {pen.Count} results, got {reply.ToJson()}"));
-        }
-
-        for (var i = 0; i < results.Count; i++)
-        {
-            var result = results[i].AsMap();
-            var observed = result?["applied"].AsMap()?["applied"].AsMap()?["observed"].AsMap();
-            var construction = observed?["construction"].AsMap()
-                ?? throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"apply-pen {i} ({pen[i].DefName}): expected an applied construction effect, got {result.ToJson()}"));
-            if (construction["stage"].AsString() != "CONSTRUCTION_STAGE_BLUEPRINT")
-            {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"apply-pen {i} ({pen[i].DefName}): expected an initial Blueprint stage, got {construction.ToJson()}"));
-            }
-        }
-
-        report["pen_cells_placed"] = results.Count;
-
-        // Replay: resending the same keys returns the first results unchanged.
-        var replay = await h.WireAsync("replay-pen", "operations_apply", request, cancellationToken).ConfigureAwait(false);
-        if (!Dyn.DeepEqual(replay, reply))
-        {
-            throw new AcceptanceException("replay-pen: resent keys returned different results");
-        }
-
-        // --- Observe real containment: run ticks forward until the fixture's prepared handler is independently
-        // observed to have actually carried the herd animal into the new pen (Contained=true, a real PenId), not merely
-        // inferred from the shell/marker construction finishing. The budget covers building the shell (up to 4 days) and
-        // marker as well. ---
-        async Task<JsonObject> AnimalRow(string label, string id)
-        {
-            var facts = await h.WireAsync(
-                label,
-                "observations_read_colony_facts",
-                new JsonObject { ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() } },
-                cancellationToken).ConfigureAwait(false);
-            var (_, observedSnapshot) = Harness.Outcome(facts, "observed");
-            var upkeepSection = observedSnapshot["upkeep"].AsMap() ?? [];
-            JsonObject upkeep;
-            try
-            {
-                (_, upkeep) = Harness.Outcome(upkeepSection, "observed");
-            }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"{label}: upkeep section unavailable: {e.Message}", e);
-            }
-
-            foreach (var raw in upkeep["animals"].AsSlice())
-            {
-                var row = raw.AsMap();
-                if (row is not null && PawnTable.PawnRef(row) == id)
-                {
-                    // The herd facts ride the pawn table row.
-                    await h.JoinPawnAsync(label, identity, row, cancellationToken).ConfigureAwait(false);
-                    return row;
-                }
-            }
-
-            throw new AcceptanceException($"{label}: animal {id} not found in upkeep census");
-        }
-
-        JsonObject? animalContained = null;
-        try
-        {
-            _ = await RunAt.RunUntilAsync(
-                h,
-                "observe-contain",
-                8UL * Wait.TicksPerDay,
-                new Wait { Stall = Wait.StallBudget() },
-                async ct =>
-                {
-                    var row = await AnimalRow("contain-poll", animalId).ConfigureAwait(false);
-                    var state = row["pawn"].AsMap()?["animalState"].AsMap();
-                    if (state?["contained"].AsBool() == true && state["penId"].AsString().Length > 0)
-                    {
-                        animalContained = row;
-                        return ("", true);
-                    }
-
-                    return ("", false);
-                },
-                quiet: true,
-                report,
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"observe-contain: animal did not become contained: {e.Message}", e);
-        }
-
-        var animalState = animalContained?["pawn"].AsMap()?["animalState"].AsMap() ?? [];
-        report["animal_contained"] = true;
-        report["animal_pen_id"] = animalState["penId"].AsString();
-        if (animalState["release"].AsBool() == true)
-        {
-            throw new AcceptanceException("observe-contain: expected the contained animal to have no release designation");
-        }
-
-        if (animalState["slaughter"].AsBool() == true)
-        {
-            throw new AcceptanceException("observe-contain: expected the contained animal to have no slaughter designation");
-        }
-
-        // Independently confirm the fixture's non-pen-requiring pet was left alone: no pen was ever assigned to it.
-        var petRowFinal = await AnimalRow("pet-after", petId).ConfigureAwait(false);
-        var petAnimalState = petRowFinal["pawn"].AsMap()?["animalState"].AsMap() ?? [];
-        if (petRowFinal["requiresPen"].AsBool() == true)
-        {
-            throw new AcceptanceException($"pet-after: expected the fixture pet to not require a pen: {petRowFinal.ToJson()}");
-        }
-
-        var penId = petAnimalState["penId"].AsString();
-        if (penId.Length > 0)
-        {
-            throw new AcceptanceException($"pet-after: expected the non-pen pet to have no pen assigned, got \"{penId}\"");
-        }
-
-        report["pet_requires_pen"] = false;
     }
 }

@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// The harness side of the mod's read-only acceptance tools (<c>rimgovernor/acceptance_read_*</c>, registered by the mod
-/// from <c>AcceptanceReads</c>): the decoded colony facts, blight census, first layout plan and map survey, and two
+/// from <c>AcceptanceReads</c>): the decoded colony facts, first layout plan and map survey, and two
 /// catalog tables exist only inside the game process, so each seam calls its tool through the generic native route and
 /// parses the JSON in the reply's <c>payload</c>. <see cref="HostSeams.Install"/> assigns them.
 /// </summary>
@@ -20,32 +20,6 @@ internal static class HostReads
         _ = identity;
         var read = await ReadAsync(harness, label, "colony_facts", null, cancellationToken).ConfigureAwait(false);
         return new ColonyFactsReading(Number(read, "sleepingMin"), Number(read, "sleepingMax"), Flag(read, "powerRequired"), Number(read, "powerHeadroom"), Flag(read, "disabledConsumers"));
-    }
-
-    internal static async Task<BlightSurvey> BlightAsync(Harness harness, CancellationToken cancellationToken)
-    {
-        var read = await ReadAsync(harness, "blight-census", "blight", null, cancellationToken).ConfigureAwait(false);
-        if (Flag(read, "unavailable") == true)
-        {
-            throw new AcceptanceException("the controller's blighted-plant census is unread on this load");
-        }
-
-        var plants = new List<BlightedPlant>();
-        foreach (var raw in read["plants"] as JsonArray ?? [])
-        {
-            var row = (JsonObject)raw!;
-            plants.Add(new BlightedPlant
-            {
-                ID = Text(row, "id"),
-                Definition = Text(row, "def"),
-                Cell = new Cell((int)Number(row, "x")!.Value, (int)Number(row, "z")!.Value),
-                Zone = Text(row, "zone"),
-                Designated = Flag(row, "designated") == true,
-                Eligible = Flag(row, "eligible") == true,
-            });
-        }
-
-        return new BlightSurvey((long)Number(read, "tick")!.Value, plants);
     }
 
     internal static async Task<StarterSiteSurvey> SurveyAsync(Harness harness, CancellationToken cancellationToken)
@@ -100,26 +74,6 @@ internal static class HostReads
             SlightlyImpressive = Number(read, "slightlyImpressive") ?? 0,
             Stages = new([.. (read["stages"] as JsonArray ?? []).Select(s => s!.GetValue<double>())]),
         };
-    }
-
-    internal static async Task<IReadOnlyList<AnimalRaceRow>> AnimalRacesAsync(Harness harness, JsonObject identity, CancellationToken cancellationToken)
-    {
-        _ = identity;
-        var read = await ReadAsync(harness, "catalog-animal-races", "animal_races", null, cancellationToken).ConfigureAwait(false);
-        var rows = new List<AnimalRaceRow>();
-        foreach (var raw in read["races"] as JsonArray ?? [])
-        {
-            var row = (JsonObject)raw!;
-            var milk = row["milk"] as JsonObject;
-            rows.Add(new AnimalRaceRow(
-                Text(row, "def"),
-                Number(row, "wildness"),
-                Number(row, "bodySize"),
-                Number(row, "minimumHandlingSkill") is { } skill ? (int)skill : null,
-                milk is null ? null : new AnimalMilk(Number(milk, "amount")!.Value, Number(milk, "intervalDays")!.Value)));
-        }
-
-        return rows;
     }
 
     internal static async Task<IReadOnlyDictionary<string, FloorTerrainRow>> FloorTerrainsAsync(Harness harness, JsonObject identity, CancellationToken cancellationToken)

@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Host;
 
 /// <summary>
 /// The game-side reads the out-of-process acceptance harness cannot decode itself (#3117): the decoded colony facts,
-/// the blight census, the first layout plan and map survey, and two catalog tables. Each read runs the in-process
+/// the first layout plan and map survey, and the catalog tables. Each read runs the in-process
 /// observation layer over the published native facade (the same decode the brain's reviews use) and returns the
 /// small JSON the harness's host seams parse. The mod registers one read-only tool per method; nothing here writes.
 /// </summary>
@@ -44,38 +44,6 @@ public sealed class AcceptanceReads
             Optional(w, "powerRequired", f.PowerRequired.TryGetValue(out var required), required);
             Optional(w, "powerHeadroom", f.PowerHeadroom.TryGetValue(out var headroom), headroom);
             Optional(w, "disabledConsumers", f.DisabledConsumers.TryGetValue(out var disabled), disabled);
-        });
-    }
-
-    /// <summary>The blighted-plant census of the planning window and the tick it was read at (<c>unavailable</c> when the census is unread).</summary>
-    public async Task<string> BlightAsync(CancellationToken cancellationToken)
-    {
-        var (_, _, reading) = await ReadColonyAsync(cancellationToken).ConfigureAwait(false);
-        var projection = reading.Projection;
-        return Write(w =>
-        {
-            w.WriteNumber("tick", projection.Identity.Tick.Value);
-            if (!projection.Facts.Blight.TryGetValue(out var census))
-            {
-                w.WriteBoolean("unavailable", true);
-                return;
-            }
-
-            w.WriteStartArray("plants");
-            foreach (var plant in census)
-            {
-                w.WriteStartObject();
-                w.WriteString("id", plant.ID);
-                w.WriteString("def", plant.Definition);
-                w.WriteNumber("x", plant.Cell.X);
-                w.WriteNumber("z", plant.Cell.Z);
-                w.WriteString("zone", plant.Zone);
-                w.WriteBoolean("designated", plant.Designated);
-                w.WriteBoolean("eligible", plant.Eligible);
-                w.WriteEndObject();
-            }
-
-            w.WriteEndArray();
         });
     }
 
@@ -167,40 +135,6 @@ public sealed class AcceptanceReads
             foreach (var stage in levels.Stages)
             {
                 w.WriteNumberValue(stage);
-            }
-
-            w.WriteEndArray();
-        });
-    }
-
-    /// <summary>One row per animal race of the loaded game's catalog: wildness, body size, minimum handling skill and the milk product.</summary>
-    public async Task<string> AnimalRacesAsync(CancellationToken cancellationToken)
-    {
-        var (_, catalog) = await ReadIdentityAndCatalogAsync(cancellationToken).ConfigureAwait(false);
-        var races = catalog.AnimalRaces().Races;
-        return Write(w =>
-        {
-            w.WriteStartArray("races");
-            foreach (var (def, race) in races.OrderBy(r => r.Key.Value, StringComparer.Ordinal))
-            {
-                w.WriteStartObject();
-                w.WriteString("def", def.Value);
-                Optional(w, "wildness", race.Wildness.TryGetValue(out var wildness), wildness);
-                Optional(w, "bodySize", race.BodySize.TryGetValue(out var size), size);
-                Optional(w, "minimumHandlingSkill", race.MinimumHandlingSkill.TryGetValue(out var skill), skill);
-                foreach (var product in race.Products)
-                {
-                    if (product.Kind == "milk" && product.Amount.TryGetValue(out var amount) && product.IntervalDays.TryGetValue(out var interval) && interval > 0)
-                    {
-                        w.WriteStartObject("milk");
-                        w.WriteNumber("amount", amount);
-                        w.WriteNumber("intervalDays", interval);
-                        w.WriteEndObject();
-                        break;
-                    }
-                }
-
-                w.WriteEndObject();
             }
 
             w.WriteEndArray();

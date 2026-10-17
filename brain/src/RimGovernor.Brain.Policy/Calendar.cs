@@ -9,8 +9,7 @@ namespace RimGovernor.Brain.Policy;
 /// until it next re-enters it (0 while crops grow now, YearDays when the tile never grows);
 /// <see cref="NonGrowingDays"/> the length of the current or coming non-growing stretch on the same walk (0
 /// while the tile never leaves the range, equal to GrowingDaysUntil while crops do not grow).
-/// <see cref="Sowing"/> is the native growth-season flag for the starter crops. GrowingDays, Season and
-/// DayOfYear are informational.
+/// GrowingDays, Season and DayOfYear are informational.
 /// </summary>
 public sealed record Calendar
 {
@@ -26,11 +25,8 @@ public sealed record Calendar
 
     public double NonGrowingDays { get; init; }
 
-    public bool Sowing { get; init; }
-
     /// <summary>
-    /// Whether every day count is a finite value inside one year and the flags agree: crops grow now exactly
-    /// when there is no wait.
+    /// Whether every day count is a finite value inside one year and the day of year is inside it.
     /// </summary>
     public bool Valid()
     {

@@ -6,9 +6,6 @@ dotnet_diagnostic.RS0030.severity = error
 # records each use in banned-api.sarif. It only shrinks: the gate's banned-API job fails a section whose file no
 # longer uses a banned API (delete the section). Never add one; port the case to TypedCase instead.
 
-[/Animals/AnimalsContainment.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Anomaly/AnomalyHoldStudy.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -144,58 +141,13 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Explain/ExplainAudit.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Farm/FarmBlight.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Farm/FarmCalendar.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Farm/FarmLattice.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Farm/FarmNonFood.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Farm/FarmPlantation.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Farm/FarmSelectHydroponics.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Floor/FloorKitchen.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Floor/FloorStandingRoom.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Food/FoodFishing.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Food/FoodFixture.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Food/FoodLedger.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Food/FoodLedgerHunt.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Food/FoodReserve.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Food/FoodStarving.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Food/FoodStarvingRecovery.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Hazard/HazardCases.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Husbandry/HusbandryDispatch.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Husbandry/HusbandryPlan.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Ideology/IdeologyReform.cs]
@@ -291,9 +243,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Quest/QuestTitle.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Refrigeration/RefrigerationBuild.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Review/ReviewColonyWeek.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -334,9 +283,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Storage/StorageYardShelf.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Supplies/SuppliesReads.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Support/CaseStore.cs]

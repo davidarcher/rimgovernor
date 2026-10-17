@@ -1,359 +1,116 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.NativeFacade;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>farm/blight</c> (Go <c>blight.go</c>) is the blight responder vertical: a live game and a live service composed with
-/// the blight family. The private test/blight_prepare fixture sows a small rice zone near the colonists and blights a few
-/// plants. The controller's blight census (plant things in the planning window) must list exactly those plants
-/// undesignated; the food family derives the food/blight Need unmet on the census and admits Methods of CutPlant
-/// designations on the blighted plants only, the colonist cuts them within a stall-bounded window, and the Need is met
-/// on the census emptying, never on the receipt. After the service releases the game slot an independent native census confirms no
-/// blighted plant stands.
-/// </summary>
-/// <remarks>
-/// Adaptations: the service is the serve lifecycle of <see cref="ISession.ServeAsync"/> (the brain is in-process), so the
-/// journal reads are the <see cref="IWatchStore"/> projections: one poll reads every plan (<c>PlanHistoryAsync("*")</c>) and
-/// the food/blight Need (<c>SampleNeedAsync</c>, met once its progress row is pruned)
-/// instead of Go's per-plan waits; the checks on each plan (cut_plant rows only, 1 to 8 of them, fixture plants, each once)
-/// are the same. The blight census comes from <see cref="StarterSiteHost.BlightSurveyAsync"/> (the controller's projection
-/// is not buildable out of process).
+/// <c>farm/blight</c> (#245): vanilla never cuts a blighted plant undesignated, so the served blight family is what
+/// clears a blighted crop. test/blight_prepare sows a 4x4 rice zone on a plant-free soil buffer and blights a few plants;
+/// under the served brain every blighted plant leaves the ground and no plant is cut while healthy. The old case also read
+/// the plan journal and waited for a second field to be sown: planner choices, dropped.
 /// </summary>
 internal static class FarmBlight
 {
-    private const string PrepareOp = "test/blight_prepare";
+    // Vanilla blight spreads to crops within this radius; the fixture cleared every plant within it of the zone.
+    private const int SpreadRadius = 4;
 
-    internal static AcceptanceCase Case() => new()
+    private static readonly FixtureOp<NoArgs, Fx.BlightPrepared> Prepare = new(
+        "test/blight_prepare",
+        _ => ServedOps.Args(("blighted", 3)),
+        ServedOps.Reply<Fx.BlightPrepared>("test/blight_prepare"));
+
+    internal static TypedCase Case() => new()
     {
         Name = "farm/blight",
-        Scope = "Native blight responder: the planning-window blight census leaves the food family's food/blight Need unmet "
-            + "and it admits CutPlant designations on the blighted plants only; the colonists cut them within a "
-            + "stall-bounded window and the Need is met on the census emptying, confirmed by an independent native read (#245).",
-        Start = new FixtureStart { Op = PrepareOp, On = new LabStart() },
-        Serve = new ServeSpec
-        {
-            Families = ["blight", "work", "field"],
-            NativeTimeout = TimeSpan.FromSeconds(60),
-            Prefix = "blight-accept",
-        },
-        Budget = TimeSpan.FromMinutes(6),
+        Scope = "On the lab test/blight_prepare sows a 4x4 rice zone and blights three plants: the cells read around the zone "
+            + "shows exactly those plants blighted, and under the served blight, work and field families every blighted plant "
+            + "leaves the ground while no plant vanishes without first being read blighted (#245).",
+        Ticks = 20000,
+        Tier = CaseTier.Nightly,
+        Ops = [Prepare.Tool],
         Crew = new Crew { Size = 3 },
+
+        // "work" rides along so the colony's work priorities keep plant cutting on the fixture's cutter.
+        Serve = new ServeSpec { Families = ["blight", "work", "field"], NativeTimeout = TimeSpan.FromSeconds(60), Prefix = "blight-accept" },
         Run = RunAsync,
-        Postmortem = PostmortemAsync,
     };
 
-    /// <summary>Failure evidence: the same independent census a pass ends with.</summary>
-    private static async Task PostmortemAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        if (s.Report.Has("blight_after"))
+        var prepared = await s.FixtureAsync("prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        var fixture = prepared.Plants.Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+        if (!prepared.Success || fixture.Count == 0 || prepared.ZoneCells.Count == 0)
         {
-            return;
+            throw new AcceptanceException($"the fixture blighted no plants: {fixture.Count} plants, {prepared.ZoneCells.Count} zone cells");
         }
 
-        try
+        var rect = await RectAsync(s, prepared.ZoneCells, cancellationToken).ConfigureAwait(false);
+        var before = await CensusAsync(s, "census-before", rect, cancellationToken).ConfigureAwait(false);
+        s.Record("blighted_before", before.Evidence());
+        if (!before.Blighted.SetEquals(fixture))
         {
-            s.Report["blight_postmortem"] = (await NativeCensusAsync(s, "blight-postmortem", cancellationToken).ConfigureAwait(false)).Evidence();
+            throw new AcceptanceException($"census-before: blighted [{string.Join(", ", before.Blighted.Order(StringComparer.Ordinal))}], the fixture blighted [{string.Join(", ", fixture.Order(StringComparer.Ordinal))}]");
         }
-        catch (AcceptanceException e)
-        {
-            s.Report["blight_postmortem_error"] = e.Message;
-        }
-    }
 
-    private sealed record Row(Cell Cell, string Zone, bool Designated);
-
-    private sealed record Census(long Tick, SortedDictionary<string, Row> Rows)
-    {
-        public JsonObject Evidence() => new()
+        var everBlighted = new HashSet<string>(before.Blighted, StringComparer.Ordinal);
+        var standing = new HashSet<string>(before.Plants, StringComparer.Ordinal);
+        var census = before;
+        _ = await s.ServeUntilAsync("cleared", s.TicksLeft, async ct =>
         {
-            ["tick"] = Tick,
-            ["plants"] = new JsonArray([.. Rows.Select(kv => (JsonNode?)new JsonObject
+            census = await CensusAsync(s, "census", rect, ct).ConfigureAwait(false);
+            everBlighted.UnionWith(census.Blighted);
+            if (standing.Except(census.Plants).FirstOrDefault(p => !everBlighted.Contains(p)) is { } healthy)
             {
-                ["id"] = kv.Key,
-                ["x"] = kv.Value.Cell.X,
-                ["z"] = kv.Value.Cell.Z,
-                ["zone"] = kv.Value.Zone,
-                ["designated"] = kv.Value.Designated,
-            })]),
-        };
-    }
-
-    private static async Task<Census> ReadCensusAsync(Harness h, string label, CancellationToken cancellationToken)
-    {
-        BlightSurvey survey;
-        try
-        {
-            survey = await StarterSiteHost.BlightSurveyAsync(h, cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"{label}: {e.Message}", e);
-        }
-
-        var rows = new SortedDictionary<string, Row>(StringComparer.Ordinal);
-        foreach (var plant in survey.Plants)
-        {
-            rows[plant.ID] = new Row(plant.Cell, plant.Zone, plant.Designated);
-        }
-
-        return new Census(survey.Tick, rows);
-    }
-
-    /// <summary>
-    /// The food/blight Need is met: the review exists and the Need has no progress row (a met Need's row is pruned,
-    /// an unmet one carries its blocker). With a completed cut seen first, that is the census emptying.
-    /// </summary>
-    private static bool Settled(JsonObject? sample) =>
-        sample is not null && sample["concern_bound"].AsBool() == true && !sample.ContainsKey("blocked");
-
-    private static JsonArray Names(IEnumerable<string> values) => new([.. values.Order(StringComparer.Ordinal).Select(v => (JsonNode?)v)]);
-
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var report = s.Report;
-        var h = s.Harness;
-        var prepared = s.Prepared ?? [];
-        var fixture = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var raw in prepared["plants"].AsSlice())
-        {
-            fixture.Add((raw.AsMap() ?? [])["id"].AsString());
-        }
-
-        if (fixture.Count == 0)
-        {
-            throw new AcceptanceException($"fixture blighted no plants: {prepared.ToJson()}");
-        }
-
-        report["fixture_plants"] = Names(fixture);
-        report["fixture_zone"] = prepared["zoneId"].Copy();
-        report["fixture_cutter"] = prepared["cutter"].Copy();
-
-        // Before: the census lists every fixture plant, undesignated, and nothing else blighted stands on the map.
-        var before = await ReadCensusAsync(h, "blight-before", cancellationToken).ConfigureAwait(false);
-        report["blight_before"] = before.Evidence();
-        if (before.Rows.Count != fixture.Count)
-        {
-            throw new AcceptanceException($"blight-before: census lists {before.Rows.Count} blighted plants, the fixture blighted {fixture.Count}");
-        }
-
-        foreach (var (id, row) in before.Rows)
-        {
-            if (!fixture.Contains(id) || row.Designated)
-            {
-                throw new AcceptanceException($"blight-before: census row {id} designated={row.Designated} is not an undesignated fixture plant");
-            }
-        }
-
-        // "work" rides along so the colony's work priorities match the controller's own assignment, which keeps plant
-        // cutting enabled on the fixture's cutter.
-        var observed = ObservedSession.Of(s);
-        var service = await observed.ServeAsync(s.Spec, cancellationToken).ConfigureAwait(false);
-        IWatchStore? journal = null;
-        var cut = new HashSet<string>(StringComparer.Ordinal);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        JsonObject? settled = null;
-        try
-        {
-            _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
-            service.KeepAuthority(cancellationToken);
-            journal = await service.StoreAsync(cancellationToken).ConfigureAwait(false);
-            var store = journal;
-            var plansSeen = 0;
-            var zoneCreated = false;
-            var wait = new Wait { Ceiling = TimeSpan.FromMinutes(5), Stall = Wait.StallBudget(), Terminal = service.Exited };
-            var concern = PolicyFunctions.BlightNeed.Value;
-
-            // Each plan is CutPlant designations on fixture plants only, each plant once. Vanilla never cuts blight
-            // undesignated, yet on the lab the other blighted plants leave the census within a few thousand ticks of the first
-            // designation, so a plant can vanish before its own designation dispatches (an absent cancel, incidental); the
-            // vertical is proven by at least one designation the executor observed through to completion and the goal
-            // settling on the census, never on the receipt.
-            try
-            {
-                await wait.WaitProgressAsync(
-                    async ct =>
-                    {
-                        if (await store.RoundsRevisionAsync(ct).ConfigureAwait(false) == 0)
-                        {
-                            return (Wait.Signature("no-review"), false);
-                        }
-
-                        var plans = await store.PlanHistoryAsync(64, "*", ct).ConfigureAwait(false);
-                        var batches = 0;
-                        cut.Clear();
-                        zoneCreated = false;
-                        foreach (var plan in plans.Reverse<JsonObject>())
-                        {
-                            var rows = plan["progress"].AsSlice().Select(r => r.AsMap() ?? []).ToList();
-                            if (rows.Any(r => r["kind"].AsString() == "zone_create" && r["stage"].AsString() == "completed"))
-                            {
-                                zoneCreated = true;
-                            }
-
-                            var cuts = rows.Where(r => r["kind"].AsString() == "cut_plant").ToList();
-                            if (cuts.Count == 0)
-                            {
-                                continue;
-                            }
-
-                            if (cuts.Count != rows.Count || cuts.Count > 8)
-                            {
-                                throw new AcceptanceException($"blight plan {plan["plan"].AsString()} has {rows.Count} actions, {cuts.Count} of them cuts");
-                            }
-
-                            batches++;
-                            var batch = new HashSet<string>(StringComparer.Ordinal);
-                            foreach (var row in cuts)
-                            {
-                                var plant = row["plant"].AsString();
-                                if (!fixture.Contains(plant) || !batch.Add(plant))
-                                {
-                                    throw new AcceptanceException($"cut of {plant}: not a unique fixture plant");
-                                }
-
-                                seen.Add(plant);
-                                if (row["stage"].AsString() == "completed" && row["receipt"].AsString().Length > 0)
-                                {
-                                    if (!cut.Add(plant))
-                                    {
-                                        throw new AcceptanceException($"cut of {plant}: already cut by an earlier plan");
-                                    }
-
-                                    report["blight_completed_tick"] = row["tick"].AsNumber();
-                                }
-                            }
-                        }
-
-                        plansSeen = batches;
-                        var goal = await store.SampleNeedAsync(concern, ct).ConfigureAwait(false);
-                        settled = goal;
-                        var done = Settled(goal) && cut.Count > 0 && zoneCreated;
-                        return (Wait.Signature(batches, cut.Count, zoneCreated, Settled(goal)), done);
-                    },
-                    cancellationToken).ConfigureAwait(false);
-            }
-            catch (WaitError e)
-            {
-                throw new AcceptanceException(
-                    $"food/blight was neither met on the emptied census with a completed cut nor was followed by a second field (plans={plansSeen} cut={cut.Count} second_field={zoneCreated} goal={settled.ToJson()}): {e.Message}",
-                    e);
+                throw new AcceptanceException($"plant {healthy} left the ground without ever being read blighted");
             }
 
-            report["concern_id"] = concern;
-            report["blight_plans"] = plansSeen;
-            report["plants_cut"] = cut.Count;
-            if (cut.Count == 0)
-            {
-                throw new AcceptanceException($"no cut designation completed under the executor across {plansSeen} plans");
-            }
-
-            report["blight_standard"] = settled.Copy();
-            report["plants_designated"] = Names(seen);
-        }
-        catch
-        {
-            (journal as IDisposable)?.Dispose();
-            _ = await service.StopAsync().ConfigureAwait(false);
-            throw;
-        }
-
-        (journal as IDisposable)?.Dispose();
-        report["service"] = await service.StopAsync().ConfigureAwait(false);
-        h = await observed.ReattachAsync(cancellationToken).ConfigureAwait(false);
-        _ = await h.CallAsync("pause-after", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
-
-        // Ordinary growers must sow the new zone; its creation receipt is not proof of planting. Advance a bounded window
-        // before the native audit, in steps, each with its own advance wall timeout (120 s by default): a Superfast
-        // advance under box load (338 tps) took about 35 s for 12000 ticks.
-        for (var i = 0; i < 4; i++)
-        {
-            _ = await s.AdvanceAsync(3000, null, cancellationToken).ConfigureAwait(false);
-        }
-
-        var native = await NativeCensusAsync(s, "blight-after-native", cancellationToken).ConfigureAwait(false);
-        report["blight_after_native"] = native.Evidence();
-        SeparatedPlantedField(native.Zones, prepared);
-        if (native.Blighted.Count != 0)
-        {
-            throw new AcceptanceException($"blight-after: {native.Blighted.Count} blighted plants still stand natively: {native.Evidence()["blighted"].ToJson()}");
-        }
-
-        var after = await ReadCensusAsync(h, "blight-after", cancellationToken).ConfigureAwait(false);
-        report["blight_after"] = after.Evidence();
-        if (after.Rows.Count != 0)
-        {
-            throw new AcceptanceException($"blight-after: census still lists {after.Rows.Count} plants");
-        }
+            standing.IntersectWith(census.Plants);
+            return (Wait.Signature(census.Blighted.Count, census.Plants.Count), census.Blighted.Count == 0);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("blighted_after", census.Evidence());
     }
 
-    private static Cell CellOf(JsonNode? raw)
+    /// <summary>The rice plant ids on the read rectangle and those of them blighted.</summary>
+    private sealed record Census(HashSet<string> Plants, HashSet<string> Blighted)
     {
-        var c = raw.AsMap() ?? [];
-        return new Cell((int)c["x"].AsNumber(), (int)c["z"].AsNumber());
+        /// <summary>The blighted ids, sorted.</summary>
+        public JsonArray Evidence() => new([.. Blighted.Order(StringComparer.Ordinal).Select(id => (JsonNode?)id)]);
     }
 
-    /// <summary>The independent native census: every blighted plant on the map and each growing zone, from the cells and zones reads.</summary>
-    private sealed record NativeCensus(IReadOnlyList<(string Id, Cell Cell)> Blighted, IReadOnlyList<GrowingZone> Zones)
+    /// <summary>The zone's bounding rectangle widened by the spread radius, clamped to the map.</summary>
+    private static async Task<Observations.Rectangle> RectAsync(ITypedSession s, IReadOnlyList<Fx.StageCell> zone, CancellationToken cancellationToken)
     {
-        public JsonObject Evidence() => new()
-        {
-            ["blighted"] = new JsonArray([.. Blighted.Select(p => (JsonNode?)new JsonObject { ["id"] = p.Id, ["x"] = p.Cell.X, ["z"] = p.Cell.Z })]),
-            ["zones"] = new JsonArray([.. Zones.Select(z => (JsonNode?)new JsonObject { ["id"] = z.Id, ["crop"] = z.Crop, ["cells"] = z.Cells.Count, ["planted"] = z.Planted.Count })]),
-        };
+        var anchor = await ReadAsync(s, "map-size", Rect(0, 0, 0, 0), cancellationToken).ConfigureAwait(false);
+        var width = checked((int)anchor.MapSize.Width);
+        var height = checked((int)anchor.MapSize.Height);
+        return Rect(
+            Math.Max(0, zone.Min(c => c.X) - SpreadRadius),
+            Math.Max(0, zone.Min(c => c.Z) - SpreadRadius),
+            Math.Min(width - 1, zone.Max(c => c.X) + SpreadRadius),
+            Math.Min(height - 1, zone.Max(c => c.Z) + SpreadRadius));
     }
 
-    private static async Task<NativeCensus> NativeCensusAsync(ISession s, string label, CancellationToken cancellationToken)
+    private static Observations.Rectangle Rect(int minX, int minZ, int maxX, int maxZ) => new()
     {
-        var zones = await s.Harness.ZonesAsync(label + "-zones", TypedReads.Scope(s.Identity), cancellationToken).ConfigureAwait(false);
-        var grid = await s.Harness.MapCellsAsync(label + "-cells", s.Identity, cancellationToken).ConfigureAwait(false);
-        var cells = grid.Cells();
-        var things = grid.Things();
-        var blighted = new List<(string Id, Cell Cell)>();
-        for (var i = 0; i < cells.Count; i++)
-        {
-            blighted.AddRange(things[i].Where(t => t.Plant.Blighted).Select(t => (t.LoadId(), cells[i].Cell)));
-        }
+        Minimum = new Common.Cell { X = minX, Z = minZ },
+        Maximum = new Common.Cell { X = maxX, Z = maxZ },
+    };
 
-        return new NativeCensus(blighted, TypedReads.GrowingZones(zones, grid));
+    private static async Task<Observations.CellsSnapshot> ReadAsync(ITypedSession s, string label, Observations.Rectangle rect, CancellationToken cancellationToken)
+    {
+        var reply = await s.CallAsync(label, NativeOps.GetCells, new Observations.GetCellsRequest { Scope = s.Scope, Rectangle = rect }, cancellationToken).ConfigureAwait(false);
+        return TypedReads.Observed(label, NativeOps.GetCells, reply, reply.Outcome?.Observed);
     }
 
-    /// <summary>The new field is a separate zone (no shared edge with the original) and holds a natively sown crop.</summary>
-    private static void SeparatedPlantedField(IReadOnlyList<GrowingZone> zones, JsonObject prepared)
+    private static async Task<Census> CensusAsync(ITypedSession s, string label, Observations.Rectangle rect, CancellationToken cancellationToken)
     {
-        var old = new HashSet<Cell>(prepared["zoneCells"].AsSlice().Select(CellOf));
-        if (old.Count == 0)
-        {
-            throw new AcceptanceException("fixture omitted field cells");
-        }
-
-        var planted = false;
-        foreach (var zone in zones)
-        {
-            if (zone.Id == prepared["zoneId"].AsString())
-            {
-                continue;
-            }
-
-            foreach (var cell in zone.Cells)
-            {
-                foreach (var n in new[] { new Cell(cell.X - 1, cell.Z), new Cell(cell.X + 1, cell.Z), new Cell(cell.X, cell.Z - 1), new Cell(cell.X, cell.Z + 1) })
-                {
-                    if (old.Contains(n))
-                    {
-                        throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"second field at {cell} shares an edge with the original field"));
-                    }
-                }
-            }
-
-            planted = planted || zone.Planted.Count > 0;
-        }
-
-        if (!planted)
-        {
-            throw new AcceptanceException("no separate second field contains a natively sown crop");
-        }
+        var grid = MapCellGrid.Of((await ReadAsync(s, label, rect, cancellationToken).ConfigureAwait(false)).Grid);
+        var plants = grid.Things().SelectMany(t => t).Where(t => t.Def == "Plant_Rice").ToList();
+        return new Census(
+            plants.Select(t => t.LoadId()).ToHashSet(StringComparer.Ordinal),
+            plants.Where(t => t.Plant.Blighted).Select(t => t.LoadId()).ToHashSet(StringComparer.Ordinal));
     }
 }

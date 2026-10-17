@@ -8,8 +8,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 /// <remarks>
 /// The seams that need the game's own data (<c>StarterSite.Planner</c>, <c>LayoutSiteHost.Surveyor</c>,
-/// <c>ColonyFactsSource.Reader</c>, <c>GameCatalogReader.ImpressivenessReader</c>/<c>AnimalRacesReader</c>/<c>FloorTerrainsReader</c> and
-/// <c>StarterSiteHost.BlightReader</c>) call the mod's read-only <c>rimgovernor/acceptance_read_*</c> tools through the
+/// <c>ColonyFactsSource.Reader</c>, <c>GameCatalogReader.ImpressivenessReader</c>/<c>FloorTerrainsReader</c>)
+/// call the mod's read-only <c>rimgovernor/acceptance_read_*</c> tools through the
 /// generic native route (<see cref="HostReads"/>); the decode runs in the game process (<c>AcceptanceReads</c>).
 /// </remarks>
 internal static class HostSeams
@@ -25,11 +25,9 @@ internal static class HostSeams
         var planner = new HostReads.StarterSiteReader();
         StarterSite.Planner = planner;
         StarterSiteHost.Planner = planner;
-        StarterSiteHost.BlightReader = HostReads.BlightAsync;
         LayoutSiteHost.Surveyor = HostReads.SurveyAsync;
         ColonyFactsSource.Reader = HostReads.ColonyFactsAsync;
         GameCatalogReader.ImpressivenessReader = HostReads.ImpressivenessAsync;
-        GameCatalogReader.AnimalRacesReader = HostReads.AnimalRacesAsync;
         GameCatalogReader.FloorTerrainsReader = HostReads.FloorTerrainsAsync;
     }
 }

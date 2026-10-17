@@ -85,7 +85,7 @@ public sealed record PlannedSiteRejection(Cell Position, string Reason)
 /// A thing in a planned footprint, with its clearing <see cref="Verdict"/>. A <see cref="PlannedBlockerVerdict.Cleared"/>
 /// blocker names the clearing op in <see cref="Clearing"/>; the others leave it empty.
 /// </summary>
-public sealed record PlannedSiteBlocker(Cell Position, string Thing, string Definition, string Category)
+public sealed record PlannedSiteBlocker(Cell Position, string Thing, string Definition)
 {
     public PlannedBlockerVerdict Verdict { get; init; }
     public string Clearing { get; init; } = "";

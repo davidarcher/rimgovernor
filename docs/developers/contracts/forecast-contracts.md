@@ -315,7 +315,7 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   the refusal outlasts clearing: native re-checks the piece with every removable
   footprint thing skipped, and the reason is then the one that still refuses
   (terrain affordance or water, map edge, research, interaction spots).
-- `Blockers`: every thing in the footprint (cell, thing id, definition, category)
+- `Blockers`: every thing in the footprint (cell, thing id, definition)
   with a `Verdict`, in `GenConstruct.HandleBlockingThingJob`'s kinds:
   `NoClearing` (a pawn, something blueprint placement wipes, or something
   `CanPlaceBlueprintOver` allows that does not `BlocksConstruction`); `Cleared`
@@ -758,11 +758,8 @@ superset in the same water body. Both set ordinary `DoForever` fishing with
 as population regrows; bursts above daily regeneration are allowed. Receipt
 verification checks actual cells and settings, separately from catch outcomes.
 
-`food/fishing` starts a two-pawn no-soil coast with Odyssey declared in the case
-profile (including `knownExpansions`). It checks the live Open portfolio rate,
-the brain-created zone's body, cells and population floor, then native
-feeding over 15 days. It does not require population to end at 90% of its start.
-The nightly tier runs this case.
+`FoodChannelPolicyTests` own the fishing rate (the lesser of regeneration and
+fisher capacity); `food/ledger` counts native catches on an Odyssey coast.
 
 The [observed survival-deadline adapter](../architecture/colony-forecast.md#observed-deadlines-for-shelter-and-food)
 uses the existing eligibility/rot-aware food forecast and per-pawn cold model in

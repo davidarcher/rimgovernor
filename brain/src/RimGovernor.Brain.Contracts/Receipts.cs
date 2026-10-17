@@ -333,10 +333,6 @@ public abstract record EffectEvidenceEffect
 
     public static implicit operator EffectEvidenceEffect(BillEffect value) => new BillCase(value);
 
-    /// <summary>The <c>Research</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ResearchEffect? Research => (this as ResearchCase)?.Value;
-
     public sealed record ResearchCase(ResearchEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(ResearchEffect value) => new ResearchCase(value);
@@ -575,8 +571,6 @@ public sealed record SnapshotEvidence
 
 public sealed record AcquisitionEffect
 {
-    public string? SourceId { get; init; }
-
     public Common.Cell? Cell { get; init; }
 
     public bool? Designated { get; init; }
@@ -670,7 +664,6 @@ public sealed record FieldResult
 /// <summary>The <c>entry</c> choice of <see cref="FieldResult"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(FieldResultEntry.WorkTypeDefCase), "workTypeDef")]
-[JsonDerivedType(typeof(FieldResultEntry.TrainableDefCase), "trainableDef")]
 public abstract record FieldResultEntry
 {
     private protected FieldResultEntry() { }
@@ -680,12 +673,6 @@ public abstract record FieldResultEntry
     public string? WorkTypeDef => (this as WorkTypeDefCase)?.Value;
 
     public sealed record WorkTypeDefCase(string Value) : FieldResultEntry;
-
-    /// <summary>The <c>TrainableDef</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public string? TrainableDef => (this as TrainableDefCase)?.Value;
-
-    public sealed record TrainableDefCase(string Value) : FieldResultEntry;
 }
 
 public sealed record SettingsEffect
@@ -1010,10 +997,6 @@ public sealed record AnimalEffect
     public bool? FollowDrafted { get; init; }
 
     public bool? FollowFieldwork { get; init; }
-
-    public bool? Sterilized { get; init; }
-
-    public bool? SterilizeQueued { get; init; }
 }
 
 /// <summary>

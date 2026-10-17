@@ -192,7 +192,7 @@ the world to change, and successful requests never consume it.
 | `slaughter` | player animal | `Slaughter` designation | designation present |
 | `release` | player animal | `ReleaseAnimalToWild` designation | designation present |
 | `tame` | wild animal | `Tame` designation | designation present, or the animal now reads as a player animal (the taming job consumed it) |
-| `sterilize` | player animal | `HealthCardUtility.CreateSurgeryBill` of the sterilize recipe, found live on the animal's `def.AllRecipes` (whole-body, adds `HediffDefOf.Sterilized`); no argument, no fallback recipe | bill queued; the animal's `sterilized` reads back once the surgery has run (receipt: `AnimalEffect.sterilized`, `sterilize_queued`) |
+| `sterilize` | player animal | `HealthCardUtility.CreateSurgeryBill` of the sterilize recipe, found live on the animal's `def.AllRecipes` (whole-body, adds `HediffDefOf.Sterilized`); no argument, no fallback recipe | bill queued; the animal's `sterilized` reads back once the surgery has run |
 | `allowed_area` | player animal | `AreaRestrictionInPawnCurrentMap` (argument: area id, empty clears) | animal's allowed area reads back equal |
 | `master` | player animal | `PlayerSettings.Master` (argument: colonist id, empty clears) | master reads back equal |
 | `follow_drafted` | player animal | `followDrafted` (argument: `true`/`false`) | flag reads back equal |
@@ -359,20 +359,10 @@ does not establish indefinite herd sustainability.
 
 ## Acceptance
 
-`husbandry/dispatch` proves each method's native write on a fixture colony.
-`husbandry/plan` proves the herd plan end to end on the lab: the race
-catalog read (cows with a milk product, wild and tame races, minimum handling
-skill); a lone cow founder kept beside an old milk race; the brain-built
-hospital ward (its planned ring is staged finished from `LayoutPlan.HospitalCells`;
-beds, the medical flag, the `Hospital` area and the sterilize writes are the
-brain's) and an old male read back sterilized; a wild bull tamed as the
-cow's mate, after which the old race retires one animal per review. Snapshot
-tests own the planner decisions; the case owns native bed and room use,
-surgery and the tame and designation ops. Its scope lists the native
-semantics still unconfirmed (wildness stat, combat power and trainables
-approximation, animal bed medical flag, surgery in the ward bed, bedroom role
-with a sleeping spot, the `Hospital` area, native master ids equal pawn ids);
-a failure there names the one it hit.
+`husbandry/dispatch` proves each method's native write on a fixture colony,
+read back through `observations_read_husbandry`. `animals/containment` proves
+a staged pen contains a player cow and that a pet needs no pen. Snapshot tests
+own the herd planner's decisions (founders, sterilization, taming, retirement).
 
 ## Food channel planning
 

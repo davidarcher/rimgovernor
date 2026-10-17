@@ -124,7 +124,7 @@ namespace HomeBridge.BridgeTools
                     var slim = Project(def, manager, progress, knowledge, anomaly, reached, cost, finished, selectedRow);
                     var kept = new Obs.ResearchProject { Project = slim.Project, Finished = slim.Finished, Current = slim.Current, Progress = slim.Progress };
                     if (slim.ProgressFraction is not null) kept = kept with { ProgressFraction = slim.ProgressFraction };
-                    if (selectedRow || knowledgeRow) { kept = kept with { LockReasons = [.. kept.LockReasons, .. slim.LockReasons] }; kept = kept with { CanStart = slim.CanStart }; kept = kept with { Available = slim.Available }; }
+                    if (selectedRow || knowledgeRow) { kept = kept with { LockReasons = [.. kept.LockReasons, .. slim.LockReasons] }; kept = kept with { CanStart = slim.CanStart }; }
                     points[def.defName] = reached;
                     built.Add(kept);
                     continue;
@@ -174,7 +174,7 @@ namespace HomeBridge.BridgeTools
             // Native CanStartNow's predicates with dictionary-only progress reads,
             // plus the bench: a selectable project nobody can research is not
             // available to the controller.
-            row = row with { CanStart = row.LockReasons.Count == 0 }; row = row with { Available = row.CanStart };
+            row = row with { CanStart = row.LockReasons.Count == 0 };
             return row;
         }
 

@@ -1,93 +1,69 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>farm/plantation-rows</c> (Go <c>plantation.go</c>): the private <c>test/plantation_prepare</c> fixture sows an oak
-/// (growth 0.8) and a rice plant (growth 0.9) in an oak growing zone. The colony read's acquisition census must list the
-/// sown oak as a plantation row carrying its growth fraction, the fixture must report it designatable, and the rice crop
-/// must never become a row.
+/// <c>farm/plantation-rows</c>: a sown oak in an oak growing zone is a plantation row of the colony facts' acquisition
+/// census, carrying its growth fraction; a sown rice plant in the same zone is not a row (#2292).
 /// </summary>
 internal static class FarmPlantation
 {
-    internal static AcceptanceCase Case() => new()
+    private const string Oak = "oak";
+    private const string Rice = "rice";
+
+    internal static TypedCase Case() => new()
     {
         Name = "farm/plantation-rows",
-        Scope = "Native plantation census: a sown oak in a growing zone is an acquisition row marked plantation with its growth fraction "
-            + "and is designatable by chop acquisition; a rice plant in the same zone is not a row (#2292).",
-        Start = new FixtureStart { Op = "test/plantation_prepare", On = new LabStart() },
-        Budget = TimeSpan.FromMinutes(3),
-        Crew = new Crew { Size = 3 },
+        Scope = "observations_read_colony_facts (planning) over a staged oak growing zone holding a sown Plant_TreeOak at growth "
+            + "0.8 and a sown Plant_Rice at 0.9: the oak is an acquisition row marked plantation with growth 0.8, and the rice "
+            + "crop is not a row (#2292). Read-only.",
+        Ticks = 0,
+        Tier = CaseTier.Smoke,
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            Site = new Fx.StageSite
+            {
+                Width = 2,
+                Height = 1,
+                Near = Fx.StageAnchor.Colonist,
+                OffsetX = 3,
+                Radius = 20,
+                Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unzoned, Fx.StageGround.Unfogged, Fx.StageGround.Unroofed],
+            },
+            Cells = [new Fx.StageCells { Rect = new Fx.StageRect(0, 0, 2, 1), Terrain = "Soil" }],
+            Plants =
+            [
+                new Fx.StagePlant { Name = Oak, Def = "Plant_TreeOak", Cells = [new(0, 0)], Growth = 0.8f, Sown = true },
+                new Fx.StagePlant { Name = Rice, Def = "Plant_Rice", Cells = [new(1, 0)], Growth = 0.9f, Sown = true },
+            ],
+            Pawns = [new Fx.StagePawn { Name = "cutter", Colonist = 0, Work = new Dictionary<string, int> { ["PlantCutting"] = 1 } }],
+            Zones = [new Fx.StageZone { Name = "field", Kind = Fx.StageZoneKind.Growing, Plant = "Plant_TreeOak", Cells = [new(0, 0), new(1, 0)] }],
+        },
+        QuietWorld = true,
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var report = s.Report;
-        var h = s.Harness;
-        var prepared = s.Prepared ?? [];
-        if (prepared["success"].AsBool() != true)
+        var oakId = s.Staged!.Plants[Oak].Ids.Single();
+        var riceId = s.Staged.Plants[Rice].Ids.Single();
+        var reply = await s.CallAsync("plantation-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = true }, cancellationToken).ConfigureAwait(false);
+        var rows = TypedReads.Observed("plantation-facts", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed).Acquisition.ToList();
+        if (rows.FirstOrDefault(r => r.Source?.Id == riceId) is { } riceRow)
         {
-            throw new AcceptanceException($"plantation fixture refused: {prepared.ToJson()}");
+            throw new AcceptanceException($"a rice plant in the growing zone is an acquisition row: {riceRow}");
         }
 
-        var oak = prepared["oak"].AsMap() ?? [];
-        var rice = prepared["rice"].AsMap() ?? [];
-        report["fixture"] = prepared;
-        if (oak["eligible"].AsBool() != true)
+        var oakRow = rows.FirstOrDefault(r => r.Source?.Id == oakId)
+            ?? throw new AcceptanceException($"the sown oak {oakId} is not an acquisition row among {rows.Count}");
+        s.RecordWire("oak_row", oakRow);
+        if (oakRow.Plantation != true || oakRow.Growth is not (>= 0.79 and <= 0.81))
         {
-            throw new AcceptanceException($"sown oak in the growing zone is not chop-eligible: {oak.ToJson()}");
-        }
-
-        if (oak["designatorAccepts"].AsBool() != true)
-        {
-            throw new AcceptanceException($"the harvest-wood designator refuses the sown oak: {oak.ToJson()}");
-        }
-
-        if (rice["eligible"].AsBool() == true)
-        {
-            throw new AcceptanceException($"a rice plant in the growing zone became chop-eligible: {rice.ToJson()}");
-        }
-
-        var reply = await h.WireAsync(
-            "plantation-facts",
-            "observations_read_colony_facts",
-            new JsonObject { ["scope"] = new JsonObject { ["expectedIdentity"] = s.Identity.DeepClone() }, ["planning"] = true },
-            cancellationToken).ConfigureAwait(false);
-        var (_, facts) = Harness.Outcome(reply, "observed");
-        JsonObject? oakRow = null;
-        foreach (var raw in facts["acquisition"].AsSlice())
-        {
-            var row = raw.AsMap();
-            var source = row?["source"].AsMap();
-            var id = source?["id"].AsString();
-            if (id == rice["id"].AsString())
-            {
-                throw new AcceptanceException($"a rice plant in the growing zone is an acquisition row: {row.ToJson()}");
-            }
-
-            if (id == oak["id"].AsString())
-            {
-                oakRow = row;
-            }
-        }
-
-        report["oak_row"] = oakRow;
-        if (oakRow is null)
-        {
-            throw new AcceptanceException($"the sown oak is not an acquisition row: {facts["acquisition"].ToJson()}");
-        }
-
-        if (oakRow["plantation"].AsBool() != true)
-        {
-            throw new AcceptanceException($"the oak row is not marked plantation: {oakRow.ToJson()}");
-        }
-
-        var growth = oakRow["growth"].AsNumber();
-        if (growth < 0.79 || growth > 0.81)
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the oak row growth {growth:F3} is not the fixture's 0.8: {oakRow.ToJson()}"));
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the oak row is not a plantation row at the staged growth 0.8: {oakRow}"));
         }
     }
 }

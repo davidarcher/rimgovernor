@@ -194,6 +194,7 @@ namespace HomeBridge.BridgeTools
                         foreach (var old in cell.GetThingList(map).OfType<Plant>().ToList()) old.Destroy();
                         var plant = (Plant)GenSpawn.Spawn(def, cell, map);
                         plant.Growth = p.Growth;
+                        plant.sown = p.Sown;
                         made.Add(plant);
                     }
                     Add(plants, p.Name, new StagedThings(Ids(made), made.Select(x => Out(x.Position)).ToList()));
