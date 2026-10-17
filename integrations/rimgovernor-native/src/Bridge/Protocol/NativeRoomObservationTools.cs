@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
                     && lo.X.GetValueOrDefault() <= hi.X.GetValueOrDefault() && lo.Z.GetValueOrDefault() <= hi.Z.GetValueOrDefault());
         }
         internal static bool Selected(Obs.ListRoomsRequest request, string id, bool psychologicallyOutdoors, bool doorway)
-            => (request.IncludeOutdoors.GetValueOrDefault() || !psychologicallyOutdoors && !doorway) && (request.RoomIds.Count == 0 || request.RoomIds.Contains(id));
+            => !psychologicallyOutdoors && !doorway && (request.RoomIds.Count == 0 || request.RoomIds.Contains(id));
         internal static bool HasPhysicalRegions(Room room)
         {
             if (!room.Dereferenced) return true;

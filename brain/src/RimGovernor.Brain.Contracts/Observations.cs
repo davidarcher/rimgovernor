@@ -2401,15 +2401,6 @@ public sealed record RoomStat
     public Common.Unavailable? Unavailable { get; init; }
 }
 
-public sealed record RoomBedMembership
-{
-    public Common.Ref? Building { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Owners { get; init; }
-
-}
-
 public sealed record StockpileMembership
 {
     public Common.Ref? Zone { get; init; }
@@ -2526,8 +2517,6 @@ public sealed record ListRoomsRequest
     public ReadScope? Scope { get; init; }
 
     public Rectangle? Region { get; init; }
-
-    public bool? IncludeOutdoors { get; init; }
 
     public bool? IncludeBoundary { get; init; }
 
@@ -3984,8 +3973,6 @@ public sealed record PopulationPerson
     public double? Resistance { get; init; }
 
     public string? Interaction { get; init; }
-
-    public Common.Ref? OwnedBed { get; init; }
 
     public double? NutritionPerDay { get; init; }
 

@@ -1,152 +1,122 @@
-using System.Text.Json.Nodes;
+using System.Globalization;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>mood/ancient-arrest</c> and <c>mood/arrest</c> (Go <c>arrest.go</c>): vanilla Arrest custody through the Arrest
-/// GiveJobIntent on Actions/Apply, refusals first, then the legal arrest through to the exact prisoner bed.
+/// <c>mood/arrest</c>: vanilla Arrest custody through the Arrest GiveJobIntent on Actions/Apply. Each row stages an armed
+/// Social-20 warden, a target and a roofed room holding one prisoner bed; the drafted warden is ordered to arrest, and the
+/// target ends a living colony prisoner, out of any mental state, lying in that exact bed (the production pawn read).
+/// First the native guards refuse an undrafted warden, an unarmed drafted arrester, a calm colonist target and an
+/// ordinary bed; after the legal order a resend applies again on the running job.
 /// </summary>
 internal static class Arrest
 {
-    internal static IEnumerable<AcceptanceCase> All()
+    /// <summary>One arrestable target: a sad-wandering colonist, or a standing neutral pawn of the ancients.</summary>
+    private sealed record Row(string Name, Fx.StageFaction Faction, string? MentalState);
+
+    private static readonly Row[] Rows =
+    [
+        new("sad-wander", Fx.StageFaction.Player, "Wander_Sad"),
+        new("ancient", Fx.StageFaction.Ancients, null),
+    ];
+
+    internal static IEnumerable<TypedCase> All() => Rows.Select(Case);
+
+    private static TypedCase Case(Row row) => new()
     {
-        yield return new AcceptanceCase
-        {
-            Name = "mood/ancient-arrest",
-            Scope = "The Arrest GiveJobIntent delivers a standing neutral Faction.OfAncients pawn to its exact prisoner bed under owned draft; ordinary colonists still require a legal mental state.",
-            Start = Starter(),
-            Keep = ["Rest"],
-            Budget = TimeSpan.FromMinutes(2),
-            Crew = new Crew { Size = 3 },
-            Run = (s, ct) => RunTargetAsync(s, "ancient", ct),
-        };
-        yield return new AcceptanceCase
-        {
-            Name = "mood/arrest",
-            Scope = "Vanilla Arrest custody through the Arrest GiveJobIntent on Actions/Apply: refuse normal targets, unarmed arresters, hostile Berserk and non-prisoner beds; require owned draft; a resend applies again; a living sad-wander target ends in the exact prisoner bed with its mental state ended.",
-            Start = Starter(),
-            Keep = ["Rest"],
-            Budget = TimeSpan.FromMinutes(2),
-            Crew = new Crew { Size = 3 },
-            Run = (s, ct) => RunTargetAsync(s, "legal", ct),
-        };
-    }
+        Name = row.Name == "sad-wander" ? "mood/arrest" : "mood/ancient-arrest",
+        Scope = row.Name == "sad-wander"
+            ? "The Arrest GiveJobIntent on Actions/Apply takes a sad-wandering colonist into custody: the drafted, armed warden's "
+                + "arrest ends with the target a living prisoner, its mental state ended, in the exact staged prisoner bed. Before it "
+                + "the native guards refuse an undrafted warden, an unarmed arrester, a calm target and an ordinary bed."
+            : "The Arrest GiveJobIntent on Actions/Apply takes a standing neutral Faction.OfAncients pawn into custody: the "
+                + "drafted, armed warden's arrest ends with the target a living prisoner in the exact staged prisoner bed, after the "
+                + "same native guard refusals.",
+        Ticks = 6000,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = 1 },
+        Stage = Spec(row),
+        Crew = new Crew { Size = 1 },
+        Keep = ["Rest"],
+        QuietWorld = true,
+        Run = RunAsync,
+    };
 
-    private static FixtureStart Starter() => new() { On = new LabStart(), Op = "test/arrest_prepare", ArgsFrom = StarterSiteHost.ArgsFor(7) };
-
-    private sealed record Scenario(string Name, string Fixture, string Reason, bool Draft);
-
-    private static async Task RunTargetAsync(ISession s, string legalFixture, CancellationToken cancellationToken)
+    // A 5x5 roofed wooden room (a 3x3 interior) with the prisoner bed inside and its door east; the warden and the target
+    // stand outside it.
+    private static Fx.StageSpec Spec(Row row) => new()
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        var pawnId = prepared["pawn"].AsString();
-        var targetId = prepared["target"].AsString();
-        var bedId = prepared["bed"].AsString();
-        var ordinaryBedId = prepared["ordinaryBed"].AsString();
-        if (pawnId.Length == 0 || targetId.Length == 0 || bedId.Length == 0 || ordinaryBedId.Length == 0)
+        Paused = true,
+        Site = new Fx.StageSite
         {
-            throw new AcceptanceException($"arrest fixture lacks identities: {prepared.ToJson()}");
-        }
-
-        async Task<JsonObject> ReadAsync(string label)
-        {
-            var reply = await h.WireAsync(
-                label,
-                "observations_list_pawns",
-                new JsonObject
-                {
-                    ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                    ["filter"] = new JsonObject { ["ids"] = NativeReads.Strings(pawnId) },
-                },
-                cancellationToken).ConfigureAwait(false);
-            return Draft.PawnRow(reply, identity, pawnId);
-        }
-
-        Scenario[] scenarios =
+            Width = 10,
+            Height = 6,
+            OffsetX = 4,
+            Radius = 12,
+            Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Heavy, Fx.StageGround.Unroofed],
+        },
+        Rooms = [new Fx.StageRoom { Name = "cell", Rect = new(0, 0, 5, 5), Stuff = "WoodLog", Doors = [new(4, 2)], Roof = true }],
+        Buildings =
         [
-            new("normal", "normal", "not living in a mental state", true),
-            new("unarmed", "unarmed", "unarmed or incapable of violence", true),
-            new("berserk", "berserk", "native arrest eligibility", true),
-            new("ordinary-bed", "legal", "prisoner bed", true),
-            new("unowned", "legal", "eligible drafted pawn", false),
-            new("legal", legalFixture, string.Empty, true),
-        ];
-        foreach (var scenario in scenarios)
-        {
-            var staged = await h.CallAsync(
-                "stage-" + scenario.Name,
-                "test/arrest_stage",
-                new JsonObject { ["pawnId"] = pawnId, ["targetId"] = targetId, ["scenario"] = scenario.Fixture },
-                cancellationToken).ConfigureAwait(false);
-            if (!staged["success"].Flag())
+            new Fx.StageBuilding { Name = "bed", Def = "Bed", Stuff = "WoodLog", Cells = [new(2, 2)], ForPrisoners = true },
+            new Fx.StageBuilding { Name = "plain", Def = "Bed", Stuff = "WoodLog", Cells = [new(9, 0)] },
+        ],
+        Pawns =
+        [
+            new Fx.StagePawn
             {
-                throw new AcceptanceException($"stage {scenario.Name}: {staged.ToJson()}");
-            }
-
-            _ = await Authority.GrantAutoAsync(h.WireFunc(), "grant-" + scenario.Name, identity, cancellationToken).ConfigureAwait(false);
-            var row = await ReadAsync("before-" + scenario.Name).ConfigureAwait(false);
-            if (scenario.Draft)
-            {
-                _ = await ApplyIntents.ApplyDraftAsync(h, "draft-" + scenario.Name, identity, "draft-" + scenario.Name, pawnId, true, cancellationToken).ConfigureAwait(false);
-                row = await ReadAsync("drafted-" + scenario.Name).ConfigureAwait(false);
-            }
-
-            var bed = scenario.Name == "ordinary-bed" ? ordinaryBedId : bedId;
-            var intent = ApplyIntents.GiveJob(pawnId, "Arrest", targetId, bed);
-            var executed = await ApplyIntents.ApplyOneAsync(h, "apply-" + scenario.Name, identity, "arrest-" + scenario.Name, intent, cancellationToken).ConfigureAwait(false);
-            if (scenario.Reason.Length > 0)
-            {
-                ApplyIntents.Refused(scenario.Name, executed, scenario.Reason);
-                s.Report["refused_" + scenario.Name] = executed.DeepClone();
-                var after = await ReadAsync("after-refusal-" + scenario.Name).ConfigureAwait(false);
-                try
-                {
-                    Draft.SameControl(row, after);
-                }
-                catch (AcceptanceException e)
-                {
-                    throw new AcceptanceException($"refusal mutated arrester: {e.Message}");
-                }
-
-                continue;
-            }
-
-            var job = ApplyIntents.AppliedJob("arrest", executed);
-            if (!job["issued"].Flag() || job["jobDef"].AsString() != "Arrest")
-            {
-                throw new AcceptanceException($"arrest was not issued: {executed.ToJson()}");
-            }
-
-            // A resend while the arrest runs applies again without a second order.
-            var again = await ApplyIntents.ApplyOneAsync(h, "apply-legal-again", identity, "arrest-legal-again", intent, cancellationToken).ConfigureAwait(false);
-            if (ApplyIntents.AppliedJob("arrest resend", again)["issued"].Flag())
-            {
-                throw new AcceptanceException($"arrest resend issued a second job: {again.ToJson()}");
-            }
-        }
-
-        JsonObject? inspected = null;
-        _ = await NativeReads.RunUntilAsync(
-            s,
-            "arrest-custody",
-            6000,
-            async ct =>
-            {
-                var got = await h.CallAsync("custody-inspect", "test/arrest_inspect", new JsonObject { ["targetId"] = targetId }, ct).ConfigureAwait(false);
-                inspected = got;
-                if (!got["alive"].Flag() || got["deadColonists"].AsNumber() != 0)
-                {
-                    throw new AcceptanceException($"arrest cost a life: {got.ToJson()}");
-                }
-
-                var mental = got["mental"].Flag();
-                var prisoner = got["prisoner"].Flag();
-                return ($"{(mental ? "true" : "false")} {(prisoner ? "true" : "false")} {got["bed"].ToText()}", !mental && prisoner && got["bed"].AsString() == bedId);
+                Name = "warden",
+                Kind = "Colonist",
+                SkillLevel = 20,
+                ClearTraits = true,
+                Gear = new Fx.StageGear { Weapon = "MeleeWeapon_Knife", WeaponStuff = "Steel" },
+                Cell = new(7, 2),
             },
-            quiet: true,
-            cancellationToken).ConfigureAwait(false);
-        s.Report["custody"] = inspected?.DeepClone();
+            new Fx.StagePawn { Name = "brawler", Kind = "Colonist", ClearTraits = true, Gear = new Fx.StageGear(), Cell = new(6, 4) },
+            new Fx.StagePawn
+            {
+                Name = "target",
+                Kind = "Colonist",
+                Faction = row.Faction,
+                ClearTraits = true,
+                Gear = new Fx.StageGear(),
+                Cell = new(8, 3),
+                Needs = new Dictionary<string, float> { ["Rest"] = 0.1f },
+                MentalState = row.MentalState,
+            },
+        ],
+    };
+
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    {
+        var staged = s.Staged!;
+        var warden = staged.Pawns["warden"].Id;
+        var target = staged.Pawns["target"].Id;
+        var bed = staged.Buildings["bed"].Ids.Single();
+        var brawler = staged.Pawns["brawler"].Id;
+        var plain = staged.Buildings["plain"].Ids.Single();
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        await TypedPawnOps.RefusedAsync(s, "undrafted", TypedPawnOps.GiveJob(warden, "Arrest", target, bed), "drafted pawn", cancellationToken).ConfigureAwait(false);
+        _ = await TypedPawnOps.ApplyAsync(s, "draft-warden", TypedPawnOps.Draft(warden), cancellationToken).ConfigureAwait(false);
+        _ = await TypedPawnOps.ApplyAsync(s, "draft-brawler", TypedPawnOps.Draft(brawler), cancellationToken).ConfigureAwait(false);
+        await TypedPawnOps.RefusedAsync(s, "unarmed", TypedPawnOps.GiveJob(brawler, "Arrest", target, bed), "unarmed", cancellationToken).ConfigureAwait(false);
+        await TypedPawnOps.RefusedAsync(s, "calm-target", TypedPawnOps.GiveJob(warden, "Arrest", brawler, bed), "mental state", cancellationToken).ConfigureAwait(false);
+        await TypedPawnOps.RefusedAsync(s, "plain-bed", TypedPawnOps.GiveJob(warden, "Arrest", target, plain), "prisoner bed", cancellationToken).ConfigureAwait(false);
+        _ = await TypedPawnOps.ApplyAsync(s, "arrest", TypedPawnOps.GiveJob(warden, "Arrest", target, bed), cancellationToken).ConfigureAwait(false);
+        _ = await TypedPawnOps.ApplyAsync(s, "arrest-resend", TypedPawnOps.GiveJob(warden, "Arrest", target, bed), cancellationToken).ConfigureAwait(false);
+        _ = await s.RunUntilAsync("arrest-custody", s.TicksLeft, async ct =>
+        {
+            var row = await TypedPawnOps.PawnAsync(s, "custody", target, ct).ConfigureAwait(false);
+            if (row is null || row.Dead)
+            {
+                throw new AcceptanceException($"the arrest cost the target's life: {row}");
+            }
+
+            var mental = row.MentalState?.DefName ?? "";
+            var inBed = row.Health?.BedId ?? "";
+            s.RecordWire("custody", row);
+            return (string.Create(CultureInfo.InvariantCulture, $"{row.Prisoner} {mental} {inBed} {row.Pawn.Position}"), row.Prisoner && mental.Length == 0 && inBed == bed);
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

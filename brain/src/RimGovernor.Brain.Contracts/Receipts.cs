@@ -265,7 +265,6 @@ public sealed record EffectEvidence
 [JsonDerivedType(typeof(EffectEvidenceEffect.BillCase), "bill")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.ResearchCase), "research")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.ZoneCase), "zone")]
-[JsonDerivedType(typeof(EffectEvidenceEffect.AssignCase), "assign")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.WallCase), "wall")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.PawnActivitiesCase), "pawnActivities")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.JobCase), "job")]
@@ -291,7 +290,6 @@ public sealed record EffectEvidence
 [JsonDerivedType(typeof(EffectEvidenceEffect.HackDesignationCase), "hackDesignation")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.GiveItemCase), "giveItem")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.CommsTradeRequestCase), "commsTradeRequest")]
-[JsonDerivedType(typeof(EffectEvidenceEffect.GatheringCase), "gathering")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.BuildRoofCase), "buildRoof")]
 public abstract record EffectEvidenceEffect
 {
@@ -350,14 +348,6 @@ public abstract record EffectEvidenceEffect
     public sealed record ZoneCase(ZoneEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(ZoneEffect value) => new ZoneCase(value);
-
-    /// <summary>The <c>Assign</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public AssignEffect? Assign => (this as AssignCase)?.Value;
-
-    public sealed record AssignCase(AssignEffect Value) : EffectEvidenceEffect;
-
-    public static implicit operator EffectEvidenceEffect(AssignEffect value) => new AssignCase(value);
 
     /// <summary>The <c>Wall</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -538,14 +528,6 @@ public abstract record EffectEvidenceEffect
     public sealed record CommsTradeRequestCase(CommsTradeRequestEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(CommsTradeRequestEffect value) => new CommsTradeRequestCase(value);
-
-    /// <summary>The <c>Gathering</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public GatheringEffect? Gathering => (this as GatheringCase)?.Value;
-
-    public sealed record GatheringCase(GatheringEffect Value) : EffectEvidenceEffect;
-
-    public static implicit operator EffectEvidenceEffect(GatheringEffect value) => new GatheringCase(value);
 
     public sealed record BuildRoofCase(BuildRoofEffect Value) : EffectEvidenceEffect;
 
@@ -763,17 +745,6 @@ public sealed record ZoneEffect
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<CreatedZone>))]
     public EquatableArray<CreatedZone> Created { get; init; }
-}
-
-public sealed record AssignEffect
-{
-    public string? PawnId { get; init; }
-
-    public string? ThingId { get; init; }
-
-    public bool? Assigned { get; init; }
-
-    public bool? Sleeping { get; init; }
 }
 
 public sealed record DeconstructEffect
@@ -1291,13 +1262,5 @@ public abstract record ProgressEffect
     public sealed record UnsuccessfulCase(UnsuccessfulEffect Value) : ProgressEffect;
 
     public static implicit operator ProgressEffect(UnsuccessfulEffect value) => new UnsuccessfulCase(value);
-}
-
-/// <summary>
-/// Applied means the lord was created; spot is the cell the game chose.
-/// </summary>
-public sealed record GatheringEffect
-{
-    public string? GatheringDef { get; init; }
 }
 

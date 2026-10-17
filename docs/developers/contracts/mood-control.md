@@ -349,7 +349,7 @@ Any violence-capable responder is legal whatever it wields. The job prefers a
 legal blunt verb, including fists, without changing native damage. It ends when the
 target is downed or its aggressive break ends. Death is failure, never successful
 containment. Progress requires the same order on a still-drafted responder. The
-mood/subdue case covers native refusal, resend and living containment.
+mood/subdue case covers living containment.
 
 ## Recreation
 
@@ -443,30 +443,22 @@ the existing shared forecast and Method path.
 
 The independent native operation still checks the exact `GatheringDef`, organizer,
 `PawnCanStartOrContinueGathering`, game conditions and `CanExecute`, then calls
-`GatheringWorker.TryExecute`. `GatheringEffect` reports the organizer and selected
-spot. Applied means a lord was created, not that guests attended. Repeating the
+`GatheringWorker.TryExecute`. Applied means a lord was created, not that guests attended. Repeating the
 operation while that gathering already runs reports the existing lord. Native
 participation outside Governor control remains game-owned; this is not evidence
 of planner-owned coordination. Ideology rituals use their distinct native operation
 and have the same unsupported ordinary participation boundary.
 
-### Native cases for the margins, ledger and party
+### Where the margins, ledger and party are proven
 
-The nightly-tier cases in `mood/` observe separate mechanics, each at the layer its
-claim lives in. They use the test-only `MoodFixture` ops `test/mood_headroom` (holds a
-colonist's mood a given distance above its native minor-break threshold with a calibrating
-memory), `test/mood_thoughts` (a named memory scaled to a mood size), `test/party_spot` and
-`test/gathering_lords` (running lord jobs of one `GatheringDef`).
-
-- `mood/headroom` reads the review's `people/mood/<pawn>` progress row: it stands (unmet) at
-  0.07 above the threshold and, after a native lift to 0.22 and a service restart, goes (met;
-  needs frozen, so the margin alone decides). The 0.10 to 0.15 stay-unmet band needs history a restart drops and is not
-  covered by this case.
-- `mood/ledger` reads `moodLedger` from `GET /api/player/colony`: an owned thought carries its
-  owner, an unowned one is alone in `unowned`. Native only confirms the memories exist.
-- mood/gathering requires migration from its obsolete automatic-party assertion
-  to explicit native gathering mechanics and the unsupported planner outcome.
-  It is not current evidence of planner-owned attendance.
+The relief margin and the ledger's owner routing are policy, held by xUnit:
+`PeopleFamilyTests` (the one 0.15 threshold above the minor-break line, and the unmet
+`people/mood/<pawn>` Need it gives) and `MoodLedgerTests` (thoughts routed by owner and
+ranked by mood lost; an unowned thought alone in `unowned`). `RoomsFamilyTests` holds that an
+owed party stays an unsupported held Method. The nightly `mood/gathering` acceptance case owns
+only the native half: an explicit `GatheringIntent` starts a Party whose lord the named
+organizer joins, read as `PawnState.lordJobClass`. It is not evidence of planner-owned
+attendance.
 
 ## Observations
 

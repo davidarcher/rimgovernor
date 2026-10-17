@@ -1,93 +1,73 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
 using RimGovernor.Brain.Policy;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>Explicit native Party mechanics after normal review declines unsupported gathering labor.</summary>
+/// <summary>
+/// <c>mood/gathering</c>: the native Party mechanics behind the explicit GatheringIntent on Actions/Apply. Five colonists
+/// and one PartySpot at mid-afternoon; a rested, fed organizer is named and the game's own gathering worker starts a Party
+/// the organizer joins (its lord job, read through the production pawn read). That normal review leaves gathering labor
+/// unsupported is policy, held by RoomsFamilyTests.
+/// </summary>
 internal static class Gathering
 {
-    private const string PartySpotOp = "test/party_spot";
-    private const string LordsOp = "test/gathering_lords";
-    private const double DipLoss = 9.0;
+    /// <summary>The LordJob class the vanilla Party gathering runs.</summary>
+    private const string PartyLordJob = "LordJob_Joinable_Party";
 
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "mood/gathering",
+        Scope = "An explicit GatheringIntent on Actions/Apply starts a native Party at the colony's PartySpot with the named "
+            + "organizer in its lord. This proves native mechanics, not automatic participant choice.",
+        Ticks = 600,
         Tier = CaseTier.Nightly,
-        Scope = "Normal review explicitly leaves gathering labor unsupported and admits no gathering action. An explicit native gathering intent starts exactly one Party at the prepared spot with a legal organizer; this proves native mechanics, not automatic participant choice.",
-        Start = new LabStart { Colonists = 5 },
-        Serve = new ServeSpec { Families = [.. MoodDrive.EpicFamilies("gathering")], Prefix = "mood-gathering" },
-        RequiredOps = [Ledger.ThoughtsOp, PartySpotOp, LordsOp],
-        Budget = TimeSpan.FromMinutes(8),
-        Crew = new Crew { Size = 5 },
+        Start = new LabStart { Colonists = PolicyFunctions.GatheringMinColonists + 1 },
+        Crew = new Crew { Size = PolicyFunctions.GatheringMinColonists + 1 },
+        QuietWorld = true,
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            World = new Fx.StageWorld { Hour = 14 },
+            Site = new Fx.StageSite
+            {
+                Width = 5,
+                Height = 5,
+                OffsetX = 4,
+                Radius = 12,
+                Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unroofed],
+            },
+            Buildings = [new Fx.StageBuilding { Name = "spot", Def = "PartySpot", Cells = [new(2, 2)] }],
+            Pawns =
+            [
+                new Fx.StagePawn
+                {
+                    Name = "organizer",
+                    Colonist = 0,
+                    Cell = new(0, 0),
+                    Needs = new Dictionary<string, float> { ["Food"] = 1f, ["Rest"] = 1f },
+                },
+            ],
+        },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var report = s.Report;
-        var h = s.Harness;
-        var spot = await MoodDrive.FixtureCallAsync(h, "party-spot", PartySpotOp, null, cancellationToken).ConfigureAwait(false);
-        report["party_spot"] = spot.DeepClone();
-        var dip = await MoodDrive.FixtureCallAsync(h, "dip", Ledger.ThoughtsOp, new JsonObject { ["pawn"] = string.Empty, ["thought"] = Ledger.FreeThought, ["loss"] = DipLoss }, cancellationToken).ConfigureAwait(false);
-        report["dip"] = dip.DeepClone();
-        foreach (var row in dip["pawns"].Rows())
+        var organizer = s.Staged!.Pawns["organizer"].Id;
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        _ = await TypedPawnOps.ApplyAsync(s, "explicit-party", new Operations.GatheringIntent
         {
-            var found = false;
-            foreach (var memory in row["memories"].Rows())
-            {
-                found = found || (memory["def"].AsString() == Ledger.FreeThought && MoodDrive.Near(memory["offset"].AsNumber(), -DipLoss, .05));
-            }
-
-            if (!found)
-            {
-                throw new AcceptanceException($"a colonist lacks the {DipLoss.ToString("F0", CultureInfo.InvariantCulture)}-point dip: {row.ToJson()}");
-            }
-        }
-
-        // The preconditions the case needs, read natively before the controller starts: a refused gathering then names
-        // its gate, never the planner.
-        var before = await MoodDrive.FixtureCallAsync(h, "lords-before", LordsOp, new JsonObject { ["def"] = PolicyFunctions.PartyGatheringDef }, cancellationToken).ConfigureAwait(false);
-        report["lords_before"] = before.DeepClone();
-        if (before["colonists"].AsNumber() < PolicyFunctions.GatheringMinColonists || before["spots"].AsNumber() != 1
-            || before["lords"].AsNumber() != 0 || before["attendedMemories"].AsNumber() != 0)
+            GatheringDef = PolicyFunctions.PartyGatheringDef,
+            Organizer = new Common.Ref { Id = organizer },
+        }, cancellationToken).ConfigureAwait(false);
+        _ = await s.RunUntilAsync("party-lord", s.TicksLeft, async ct =>
         {
-            throw new AcceptanceException($"gathering fixture is not set: {before.ToJson()}");
-        }
-
-        if (!before["canExecute"].Flag())
-        {
-            throw new AcceptanceException($"the game cannot hold a Party now (hour {before["hour"].ToText()}, game conditions ok: {before["acceptable"].ToText()}): {before.ToJson()}");
-        }
-
-        h = await UnsupportedLabor.ReviewAsync(s, "unsupported_forecast_gathering",
-            RimGovernor.Brain.Domain.ActionKind.Gathering, cancellationToken).ConfigureAwait(false);
-        var nativeBefore = await MoodDrive.FixtureCallAsync(h, "explicit-organizer", LordsOp,
-            new JsonObject { ["def"] = PolicyFunctions.PartyGatheringDef }, cancellationToken).ConfigureAwait(false);
-        var organizer = nativeBefore["eligibleOrganizer"].AsString();
-        if (organizer.Length == 0) throw new AcceptanceException("No native legal explicit gathering organizer.");
-        var receipt = await ApplyIntents.ApplyOneAsync(h, "explicit-party", s.Identity, "explicit-party",
-            new JsonObject { ["gathering"] = new JsonObject { ["gatheringDef"] = PolicyFunctions.PartyGatheringDef,
-                ["organizer"] = new JsonObject { ["id"] = organizer } } }, cancellationToken).ConfigureAwait(false);
-        if (receipt["refused"] is not null) throw new AcceptanceException("Explicit gathering refused: " + receipt.ToJson());
-        report["explicit_receipt"] = receipt.DeepClone();
-        _ = await Authority.ReleaseAuthorityAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
-        var after = await MoodDrive.FixtureCallAsync(h, "lords-after", LordsOp, new JsonObject { ["def"] = PolicyFunctions.PartyGatheringDef }, cancellationToken).ConfigureAwait(false);
-        report["lords_after"] = after.DeepClone();
-        if (after["lords"].AsNumber() != 1)
-        {
-            throw new AcceptanceException($"expected exactly one running Party lord job, got {after["lords"].ToText()}: {after.ToJson()}");
-        }
-
-        if (after["spotX"].AsNumber() != spot["x"].AsNumber() || after["spotZ"].AsNumber() != spot["z"].AsNumber())
-        {
-            throw new AcceptanceException($"the party is not on the PartySpot {spot["x"].ToText()},{spot["z"].ToText()}: {after.ToJson()}");
-        }
-
-        if (after["organizer"].AsString().Length == 0)
-        {
-            throw new AcceptanceException($"the party has no organizer: {after.ToJson()}");
-        }
+            var row = await TypedPawnOps.PawnAsync(s, "organizer", organizer, ct).ConfigureAwait(false)
+                ?? throw new AcceptanceException($"organizer {organizer} is gone");
+            s.RecordWire("organizer", row);
+            return ($"{row.LordJobClass} {row.Pawn.Position}", row.LordJobClass == PartyLordJob);
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

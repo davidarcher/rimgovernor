@@ -27,9 +27,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Authority/AuthorityWarm.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Bed/BedAssign.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Caravan/CaravanDeparture.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -324,24 +321,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Medical/TendGates.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Mood/Arrest.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Mood/Gathering.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Mood/Headroom.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Mood/Ledger.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Mood/MoodDrive.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Mood/Subdue.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Movement/MovementArrival.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -403,42 +382,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Shared/RoutineService.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Shelter/Bunks.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Shelter/Climate.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Shelter/Retirement.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Shelter/Shell.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Shelter/Sheltering.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Shelter/Siting.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Shelter/Solo.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Shelter/Stage.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Sleeping/SleepingBedrooms.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Sleeping/SleepingSelectedBedroom.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Sleeping/SleepingSuites.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Solo/SoloSeaIce.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/SpeedMatrix/GovernorOff.cs]

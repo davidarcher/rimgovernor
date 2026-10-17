@@ -9,18 +9,22 @@ one honest end-to-end path, and staged fixtures for recovery.
 ## Below the game boundary
 
 The shelter planners are pure policy functions over recorded or built facts
-(`brain/src/RimGovernor.Brain.Policy`, `brain/src/RimGovernor.Brain.BuildingRuntime`). The ported brain has no
-shelter unit tests yet (`brain/tests` holds only a few bug-driven xUnit tests), so the native cases below carry
-these claims: style selection by tier, shells standing on the planned room, whole-ring admission in one wave,
-refusal of partial or unknown inputs, the roofing budget, adoption and retirement per capability.
+(`brain/src/RimGovernor.Brain.Policy`, `brain/src/RimGovernor.Brain.BuildingRuntime`). xUnit in
+`brain/tests/RimGovernor.Brain.Domain.Tests` holds the plan-level claims: `ShelterLayoutPlanTests` (the first plan
+latches Cold or Hot from the outdoor curve, holds one shelter sized for the colony and clear of every other room and
+no laboratory, and the shelter template holds the climate's campfires or cooler on its interior, the building going
+to the room that owns it) and `SleepingPlannerTests` (bedroom-wing moves once everyone owns a shelter bed; a Greedy
+or titled colonist's suite and its larger successor). A one-colonist cold start's later replans and the sixty-day
+solo year have no native case: a year cannot be staged inside the acceptance tick cap.
 
 ## Native acceptance (`acceptance run shelter/<case>`)
 
 | Case | What only a real game proves | Staged |
 | --- | --- | --- |
-| `shelter/bunks-first` | The complete path: an unhoused colony, the brain discovers the deficit, places spots, builds beds, raises the whole ring by ordinary pawn work, the game roofs it, and the native census then holds one bed per colonist inside. The precondition is asserted not to satisfy the outcome. | nothing |
-| `shelter/solo-cold` | One colonist on a cold ice-sheet start: the plan latches Cold, holds the shelter and plans no laboratory, and the shelter's campfire stands on its interior. A cold start needs a real world. | nothing |
-| `solo/sea-ice-stock`, `solo/sea-ice-rhadamant` | Epic #2745's year: one colonist on a very cold ice sheet under Randy at the top difficulty (the second with Rhadamant's parts, `RhadamantParts`). Played in ten-day segments; each boundary probes the game for the colonist alive, Hypothermia at most serious (0.35), Malnutrition at most hungry, sleeping temperature inside the policy band (after the first segment) and, at the end, power on; the census food runway must never reach zero. The target is the 60-day RimWorld year (`PolicyFunctions.YearDays`, 3.6M ticks), the nightly default: at the measured 899 ticks/s Ultrafast it is about 67 minutes of play, so each case budgets 92 minutes (six segments at 3 minutes plus 7 fixed), 184 with the retry, inside the 345-minute suite allowance. `RIMGOVERNOR_ACCEPT_SOLO_DAYS` sets another length and the budget scales with it; 365 days exceeds the allowance, so it is a by-hand run only. | a scenario start |
+| `shelter/bunks-first` | The complete path: on a lab that houses nobody (asserted), with ComplexFurniture finished and wood beside the colonists, the served brain raises the shelter by ordinary pawn work, the game roofs it, and the native room census then holds a built Bed per colonist inside a roofed proper room. | research, wood |
+| `shelter/retirement` | A retired shelter hut (its footprint the injected plan's `RetiredGround`) with its spots is cleared by pawns: walls, door and spots deconstructed until nothing of the colony's stands there. | the hut, its spots and the plan |
+| `shelter/manhunter_waitout`, `shelter/toxic_fallout` | A real threat beside a roofed hut: the served brain restricts every colonist (and, under fallout, a tame dog) to the Safe area, where they stand unhurt in the hut; once the threat ends the restrictions are lifted. | the hut, the pawns and the threat |
+| `shelter/service-investment` | A cold occupied room's partly funded heater frame is finished, powered and warms the room while a competing lower-tier wall frame stays unbuilt. | the room, frames and plan |
 
 ## Composition
 

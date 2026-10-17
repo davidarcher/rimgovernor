@@ -86,9 +86,7 @@ public static class CaseCatalog
         ShelterCases.Register(registry);
         RouteCases.Register(registry);
         ServiceCases.Register(registry);
-        SleepingCases.Register(registry);
         SmokeCases.Register(registry);
-        SoloCases.Register(registry);
         SpeedmatrixCases.Register(registry);
         StatsCases.Register(registry);
         StorageCases.Register(registry);

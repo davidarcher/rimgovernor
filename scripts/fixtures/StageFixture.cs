@@ -53,6 +53,7 @@ namespace HomeBridge.BridgeTools
                 StageFaction.Hostile => hostile ??= FixtureKit.HostileFaction(),
                 StageFaction.Insect => Faction.OfInsects,
                 StageFaction.Mechanoid => Faction.OfMechanoids,
+                StageFaction.Ancients => Faction.OfAncients,
                 _ => null,
             };
             IntVec3 At(StageCell c) => FixtureKit.InBounds(map, new IntVec3(origin.x + c.X, 0, origin.z + c.Z));
@@ -135,6 +136,14 @@ namespace HomeBridge.BridgeTools
                             if (refuelable == null) throw new ArgumentException($"Building {b.Name}: only a finished refuelable building takes fuel.");
                             refuelable.Refuel(Math.Max(0f, Math.Min(fuel, refuelable.Props.fuelCapacity) - refuelable.Fuel));
                         }
+                        if (b.ForPrisoners)
+                        {
+                            if (b.State != StageBuildState.Complete || !(thing is Building_Bed bed) || !bed.def.building.bed_humanlike) throw new ArgumentException($"Building {b.Name}: only a finished humanlike bed is for prisoners.");
+                            bed.ForPrisoners = true;
+                            // Setting the flag alone leaves a paused room outside native prison custody.
+                            bed.GetDistrict()?.Notify_RoomShapeOrContainedBedsChanged();
+                            bed.GetRoom()?.Notify_RoomShapeChanged();
+                        }
                         made.Add(thing);
                     }
                     Add(buildings, b.Name, new StagedThings(Ids(made), made.Select(t => Out(t.Position)).ToList()));
@@ -202,6 +211,7 @@ namespace HomeBridge.BridgeTools
                     var cell = at ?? pawn.Position;
                     Equip(pawn, p);
                     Set(pawn, p);
+                    if (p.Bed != null) Claim(pawn, p, tables);
                     if (staged.Any(x => x.Name == p.Name)) throw new ArgumentException($"Two pawns are named {p.Name}.");
                     staged.Add((p.Name, pawn));
                     if (arrival != null && pawn.Faction != Faction.OfPlayer && arrivalCenter == null) arrivalCenter = cell;
@@ -385,6 +395,14 @@ namespace HomeBridge.BridgeTools
                 if (pawn.mindState?.inspirationHandler == null || !pawn.mindState.inspirationHandler.TryStartInspiration(inspiration) || pawn.InspirationDef != inspiration)
                     throw new InvalidOperationException($"Pawn {p.Name}: {inspiration.defName} did not start.");
             }
+        }
+
+        // Claim bed: the pawn owns the first bed of the named staged building.
+        private static void Claim(Pawn pawn, StagePawn p, Dictionary<string, List<Thing>> built)
+        {
+            if (!built.TryGetValue(p.Bed, out var made) || !(made.FirstOrDefault() is Building_Bed bed)) throw new ArgumentException($"Pawn {p.Name}: {p.Bed} is not a staged bed.");
+            if (pawn.ownership == null || !pawn.ownership.ClaimBedIfNonMedical(bed) || pawn.ownership.OwnedBed != bed)
+                throw new InvalidOperationException($"Pawn {p.Name} could not claim {p.Bed}.");
         }
 
         private static int Priority(int value) => value >= 0 && value <= 4 ? value : throw new ArgumentException($"Work priority {value} is not within 0..4.");

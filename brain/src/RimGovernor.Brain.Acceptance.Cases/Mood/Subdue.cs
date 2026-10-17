@@ -1,87 +1,76 @@
-using System.Text.Json.Nodes;
+using System.Globalization;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>mood/subdue</c> (Go <c>subdue.go</c>): ordinary melee containment through a GiveJobIntent AttackMelee on
-/// Actions/Apply, ending with the target living, downed or recovered and never converted to a prisoner.
+/// <c>mood/subdue</c>: ordinary melee containment through a GiveJobIntent AttackMelee on Actions/Apply. A Melee-20 colonist
+/// is ordered against an unarmed Berserk colonist; the target ends alive, downed or out of the aggressive break, and never
+/// a prisoner (the production pawn read).
 /// </summary>
 internal static class Subdue
 {
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "mood/subdue",
-        Scope = "Ordinary melee containment through a GiveJobIntent AttackMelee on Actions/Apply: draft and order a blunt attack, resend applies again, and the colonist ends living, downed or recovered, without prisoner conversion.",
-        Start = new FixtureStart { On = new LabStart(), Op = "test/subdue_prepare", ArgsFrom = StarterSiteHost.ArgsFor(7) },
-        Budget = TimeSpan.FromMinutes(2),
-        Crew = new Crew { Size = 3 },
+        Scope = "Ordinary melee containment through a GiveJobIntent AttackMelee on Actions/Apply: the ordered colonist contains an "
+            + "unarmed Berserk colonist, who ends alive, downed or out of the aggressive break, without prisoner conversion.",
+        Ticks = 6000,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = 1 },
+        Crew = new Crew { Size = 1 },
+        QuietWorld = true,
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            Site = new Fx.StageSite
+            {
+                Width = 6,
+                Height = 4,
+                OffsetX = 4,
+                Radius = 12,
+                Require = [Fx.StageGround.Standable, Fx.StageGround.Empty],
+            },
+            Pawns =
+            [
+                new Fx.StagePawn { Name = "subduer", Kind = "Colonist", SkillLevel = 20, ClearTraits = true, Gear = new Fx.StageGear(), Cell = new(0, 1) },
+                new Fx.StagePawn
+                {
+                    Name = "target",
+                    Kind = "Colonist",
+                    SkillLevel = 0,
+                    ClearTraits = true,
+                    Gear = new Fx.StageGear(),
+                    Cell = new(3, 1),
+                    MentalState = "Berserk",
+                },
+            ],
+        },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
-        var pawnId = prepared["pawn"].AsString();
-        var targetId = prepared["target"].AsString();
-        if (pawnId.Length == 0 || targetId.Length == 0)
+        var subduer = s.Staged!.Pawns["subduer"].Id;
+        var target = s.Staged.Pawns["target"].Id;
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        _ = await TypedPawnOps.ApplyAsync(s, "subdue", TypedPawnOps.GiveJob(subduer, "AttackMelee", target), cancellationToken).ConfigureAwait(false);
+        _ = await s.RunUntilAsync("subdue-contained", s.TicksLeft, async ct =>
         {
-            throw new AcceptanceException($"subdue fixture lacks identities: {prepared.ToJson()}");
-        }
-
-        var intent = ApplyIntents.GiveJob(pawnId, "AttackMelee", targetId);
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "grant", identity, cancellationToken).ConfigureAwait(false);
-        var staged = await h.CallAsync("stage-legal", "test/subdue_stage", new JsonObject { ["pawnId"] = pawnId, ["targetId"] = targetId, ["scenario"] = "legal" }, cancellationToken).ConfigureAwait(false);
-        if (!staged["success"].Flag())
-        {
-            throw new AcceptanceException($"stage legal: {staged.ToJson()}");
-        }
-
-        var executed = await ApplyIntents.ApplyOneAsync(h, "apply-legal", identity, "subdue-legal", intent, cancellationToken).ConfigureAwait(false);
-        var job = ApplyIntents.AppliedJob("subdue", executed);
-        if (!job["issued"].Flag() || job["jobDef"].AsString() != "AttackMelee")
-        {
-            throw new AcceptanceException($"subdue was not ordered: {executed.ToJson()}");
-        }
-
-        var blunt = await h.CallAsync("blunt-preference", "test/subdue_inspect", new JsonObject { ["targetId"] = targetId, ["pawnId"] = pawnId }, cancellationToken).ConfigureAwait(false);
-        if (!blunt["blunt"].Flag())
-        {
-            throw new AcceptanceException($"subdue did not prefer a legal blunt attack: {blunt.ToJson()}");
-        }
-
-        var again = await ApplyIntents.ApplyOneAsync(h, "apply-legal-again", identity, "subdue-legal-again", intent, cancellationToken).ConfigureAwait(false);
-        if (ApplyIntents.AppliedJob("subdue resend", again)["issued"].Flag())
-        {
-            throw new AcceptanceException($"subdue resend issued a second job: {again.ToJson()}");
-        }
-
-        JsonObject? facts = null;
-        _ = await NativeReads.RunUntilAsync(
-            s,
-            "subdue-contained",
-            6000,
-            async ct =>
+            var row = await TypedPawnOps.PawnAsync(s, "contained", target, ct).ConfigureAwait(false);
+            if (row is null || row.Dead)
             {
-                var got = await h.CallAsync("subdue-inspect", "test/subdue_inspect", new JsonObject { ["targetId"] = targetId, ["pawnId"] = pawnId }, ct).ConfigureAwait(false);
-                facts = got;
-                if (!got["alive"].Flag())
-                {
-                    throw new AcceptanceException($"subdue killed the colonist: {got.ToJson()}");
-                }
+                throw new AcceptanceException($"the subdue killed the colonist: {row}");
+            }
 
-                var downed = got["downed"].Flag();
-                var aggro = got["aggro"].Flag();
-                return ($"{(downed ? "true" : "false")} {(aggro ? "true" : "false")}", downed || !aggro);
-            },
-            quiet: true,
-            cancellationToken).ConfigureAwait(false);
-        if (facts?["prisoner"].AsBool() is not false)
-        {
-            throw new AcceptanceException($"containment failed: {facts.ToJson()}");
-        }
+            if (row.Prisoner)
+            {
+                throw new AcceptanceException($"the subdue made the colonist a prisoner: {row}");
+            }
 
-        s.Report["containment"] = facts.DeepClone();
+            var aggro = row.MentalState?.IsAggro == true;
+            s.RecordWire("contained", row);
+            return (string.Create(CultureInfo.InvariantCulture, $"{row.Downed} {aggro} {row.Pawn.Position}"), row.Downed || !aggro);
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

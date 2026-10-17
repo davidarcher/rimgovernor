@@ -267,6 +267,9 @@ public sealed record StageBuilding
 
     /// <summary>A finished refuelable building's fuel, at most its capacity; null leaves it as it spawns (a wood-fired generator spawns empty).</summary>
     public float? Fuel { get; init; }
+
+    /// <summary>A finished humanlike bed set for prisoners, its room's custody caches refreshed.</summary>
+    public bool ForPrisoners { get; init; }
 }
 
 /// <summary>
@@ -398,6 +401,9 @@ public sealed record StagePawn
 
     /// <summary>An InspirationDef the pawn starts; its failing to start refuses the staging.</summary>
     public string? Inspiration { get; init; }
+
+    /// <summary>The name of a staged building whose first bed the pawn claims as its own; its failing to claim refuses the staging.</summary>
+    public string? Bed { get; init; }
 }
 
 public enum StageTimeAssignment
@@ -438,6 +444,9 @@ public enum StageFaction
     Mechanoid,
 
     None,
+
+    /// <summary>Faction.OfAncients: neutral, not hostile, not the colony's.</summary>
+    Ancients,
 }
 
 /// <summary>Zone: a stockpile or growing zone over the cells.</summary>

@@ -57,17 +57,11 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(Operations.GatheringIntent command, Plan plan)
+        private static Receipts.EffectEvidence Evidence(Plan plan)
         {
             var job = plan.Running ?? FindRunning(plan.Def);
             if (job == null) throw new InvalidOperationException("Native gathering start readback did not apply.");
-            return new Receipts.EffectEvidence
-            {
-                Effect = new Receipts.GatheringEffect
-                {
-                    GatheringDef = command.GatheringDef,
-                }
-            };
+            return new Receipts.EffectEvidence();
         }
 
         internal static Common.Failure? Validate(Operations.GatheringIntent command) => Resolve(command, out _);
@@ -76,10 +70,10 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(command, out var plan);
             if (failure != null || plan == null) throw new InvalidOperationException("Gathering start prerequisites changed before apply: " + (failure?.Detail ?? ""));
-            if (plan.Running != null) return Evidence(command, plan);
+            if (plan.Running != null) return Evidence(plan);
             if (!plan.Def.Worker.TryExecute(plan.Organizer.MapHeld, plan.Organizer))
                 throw new InvalidOperationException("The game declined to start the gathering.");
-            return Evidence(command, plan);
+            return Evidence(plan);
         }
     }
 

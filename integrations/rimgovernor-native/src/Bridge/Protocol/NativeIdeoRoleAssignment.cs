@@ -60,8 +60,7 @@ namespace HomeBridge.BridgeTools
                 role.Assign(pawn, true);
             }
             if (!role.IsAssigned(pawn)) throw new InvalidOperationException("Native role assignment did not take effect.");
-            var effect = new Receipts.AssignEffect { PawnId = pawn.GetUniqueLoadID(), ThingId = role.GetUniqueLoadID(), Assigned = true };
-            return new Receipts.EffectEvidence { Effect = effect };
+            return new Receipts.EffectEvidence();
         }
     }
 }

@@ -441,7 +441,6 @@ Kept, reason recorded:
 | ListBuildingsRequest | message | 728 | 9 | state | Read request parameters |  |  |
 | ListBuildingsReply | message | 729 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | RoomStat | message | 730 | 6 | code | One room stat (value, display) computed by RoomStatDef workers |  |  |
-| RoomBedMembership | message | 731 | 4 | state | Which pawns own/use/can access a bed in a room |  |  |
 | StockpileMembership | message | 732 | 2 | state | Stockpile zone in a room with its contents |  |  |
 | RoomState | message | 733 | 28 | state | Room census row: role, temperature, cells, pawns, beds, doors |  |  |
 | RoomDoor | message | 751 | 9 | state | Door in a room boundary with open/forbidden state |  |  |

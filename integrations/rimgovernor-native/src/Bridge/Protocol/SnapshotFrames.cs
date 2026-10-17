@@ -258,7 +258,7 @@ namespace HomeBridge.BridgeTools
                 ObservationWork.Captured("ideology", Now() - began, observed.Ideology != null ? observed.Ideology.Precepts.Count : 0);
             }
             {
-                var rooms = new Obs.ListRoomsRequest { Scope = Scope(), IncludeOutdoors = false, IncludeBoundary = false };
+                var rooms = new Obs.ListRoomsRequest { Scope = Scope(), IncludeBoundary = false };
                 var began = Now();
                 var census = NativeRoomObservationTools.Read(map, rooms, context).Outcome?.Observed;
                 ObservationWork.Captured("rooms", Now() - began, census != null ? census.Rooms.Count : 0);

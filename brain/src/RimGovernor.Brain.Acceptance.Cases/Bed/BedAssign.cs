@@ -1,248 +1,96 @@
-using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>bed/assign</c> (Go <c>assign.go</c>): the AssignIntent on Actions/Apply. AssignActionHandler drives the same
-/// CompAssignableToPawn.TryAssignPawn write the Assign tab uses. A colonist who genuinely owns one bed actually has their
-/// bed ownership reassigned to a different, real, previously-unclaimed compliant bed, observed via a real
-/// observations_list_pawns readback (not just a result). TryAssignPawn is synchronous, so the case does not poll game
-/// ticks. Uses the disposable test/bed_assign_prepare fixture since a deterministic pre-owned bed and a second,
-/// unclaimed, compliant target bed cannot be relied on from native random colony bed layout.
+/// <c>bed/assign</c>: the AssignIntent on Actions/Apply drives the native CompAssignableToPawn.TryAssignPawn write the
+/// Assign tab uses. A roofed room holds three staged beds: the sleeper owns one, a second colonist owns another and the
+/// third is vacant. Assigning the sleeper to the vacant bed moves its ownership there; assigning it, flagged as a swap, to
+/// the other colonist's bed evicts that owner. Both are read back through the production pawn read. First an assign
+/// whose expected previous bed has drifted is refused natively and changes nothing.
 /// </summary>
 internal static class BedAssign
 {
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "bed/assign",
-        Scope = "Native CompAssignableToPawn.TryAssignPawn (AssignIntent on Actions/Apply): a colonist who "
-            + "genuinely owns one bed actually has their bed ownership reassigned to a different real, previously-"
-            + "unclaimed compliant bed, a drifted previous-bed expectation is refused without mutation, the real "
-            + "bed-ownership change is observed via native readback (not just a result), and a resent intent "
-            + "applies again.",
-
-        // Sited on the audited baseline, not a fresh random world.
-        Start = new FixtureStart { Op = "test/bed_assign_prepare", On = new LabStart() },
-        Quiet = QuietMode.Required,
-        Budget = TimeSpan.FromMinutes(5),
-        Crew = new Crew { Size = 3 },
+        Scope = "Native CompAssignableToPawn.TryAssignPawn through the AssignIntent on Actions/Apply: a colonist who owns one bed "
+            + "is reassigned to a vacant compliant bed, then, flagged as a swap, to another colonist's bed, evicting that owner; "
+            + "each ownership change is read back natively, not taken from the result. An assign whose expected previous bed has "
+            + "drifted is refused and changes nothing.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = 1 },
+        Crew = new Crew { Size = 1 },
+        QuietWorld = true,
+        Stage = new Fx.StageSpec
+        {
+            Paused = true,
+            Site = new Fx.StageSite
+            {
+                Width = 8,
+                Height = 5,
+                OffsetX = 4,
+                Radius = 12,
+                Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Heavy, Fx.StageGround.Unroofed],
+            },
+            Rooms = [new Fx.StageRoom { Name = "bedroom", Rect = new(0, 0, 8, 5), Stuff = "WoodLog", Doors = [new(0, 2)], Roof = true }],
+            Buildings =
+            [
+                new Fx.StageBuilding { Name = "previous", Def = "Bed", Stuff = "WoodLog", Cells = [new(1, 1)] },
+                new Fx.StageBuilding { Name = "vacant", Def = "Bed", Stuff = "WoodLog", Cells = [new(3, 1)] },
+                new Fx.StageBuilding { Name = "held", Def = "Bed", Stuff = "WoodLog", Cells = [new(5, 1)] },
+            ],
+            Pawns =
+            [
+                new Fx.StagePawn { Name = "sleeper", Kind = "Colonist", Cell = new(2, 3), Bed = "previous" },
+                new Fx.StagePawn { Name = "holder", Kind = "Colonist", Cell = new(4, 3), Bed = "held" },
+            ],
+        },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var report = s.Report;
+        var staged = s.Staged!;
+        var sleeper = staged.Pawns["sleeper"].Id;
+        var holder = staged.Pawns["holder"].Id;
+        var previous = staged.Buildings["previous"].Ids.Single();
+        var vacant = staged.Buildings["vacant"].Ids.Single();
+        var held = staged.Buildings["held"].Ids.Single();
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        // The fixture edits pawn/building state directly outside any authority scope, so authority is granted after it ran.
-        var h = s.Harness;
-        var identity = s.Identity;
-        var names = s.Names;
-        var prepared = s.Prepared ?? [];
-        if (!Dyn.Contains(names, "rimgovernor/operations_apply"))
+        async Task OwnsAsync(string label, string pawn, string bed, bool owns)
         {
-            throw new AcceptanceException("missing rimgovernor/operations_apply in discovery");
-        }
-
-        if (!Dyn.Contains(names, "rimgovernor/observations_list_pawns"))
-        {
-            throw new AcceptanceException("missing rimgovernor/observations_list_pawns in discovery");
-        }
-
-        var pawnId = prepared["pawn"].AsString();
-        var previousBedId = prepared["previousBed"].AsString();
-        var bedId = prepared["bed"].AsString();
-        if (pawnId.Length == 0 || previousBedId.Length == 0 || bedId.Length == 0)
-        {
-            throw new AcceptanceException($"prepare: missing fixture pawn/previousBed/bed ids: {prepared.ToJson()}");
-        }
-
-        report["fixture_pawn"] = pawnId;
-        report["fixture_previous_bed"] = previousBedId;
-        report["fixture_bed"] = bedId;
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "acquire", identity, cancellationToken).ConfigureAwait(false);
-
-        // ownedBed reads the pawn's current ownedBedId through observations_list_pawns.
-        async Task<string> OwnedBed(string label)
-        {
-            var reply = await h.WireAsync(
-                label,
-                "observations_list_pawns",
-                new JsonObject
-                {
-                    ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                    ["filter"] = new JsonObject { ["ids"] = new JsonArray(pawnId) },
-                    ["details"] = new JsonObject(),
-                },
-                cancellationToken).ConfigureAwait(false);
-            var observed = Harness.Outcome(reply, "observed").Value;
-            var rows = observed["pawns"].AsSlice();
-            if (rows.Count != 1)
+            var row = await TypedPawnOps.PawnAsync(s, label, pawn, cancellationToken).ConfigureAwait(false)
+                ?? throw new AcceptanceException($"{label}: no row for {pawn}");
+            s.RecordWire(label, row);
+            if ((row.OwnedBed?.Id == bed) != owns)
             {
-                throw new AcceptanceException($"{label}: expected exactly one observed pawn, got {observed.ToJson()}");
-            }
-
-            var row = rows[0].AsMap();
-            if (row?["pawn"].AsMap()?["id"].AsString() != pawnId)
-            {
-                throw new AcceptanceException($"{label}: unexpected pawn row: {row.ToJson()}");
-            }
-
-            return row!["ownedBed"].RefId();
-        }
-
-        // apply sends one AssignIntent and returns the action's result.
-        async Task<JsonObject> Apply(string label, string key, string expectedPrevious)
-        {
-            var reply = await h.WireAsync(
-                label,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject
-                    {
-                        ["key"] = key,
-                        ["assign"] = new JsonObject
-                        {
-                            ["pawnId"] = pawnId,
-                            ["thingId"] = bedId,
-                            ["expectedPrevious"] = new JsonObject { ["entityId"] = expectedPrevious },
-                        },
-                    }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            return OneResult(label, reply);
-        }
-
-        var before = await OwnedBed("pawn-before").ConfigureAwait(false);
-        if (before != previousBedId)
-        {
-            throw new AcceptanceException($"pawn-before: expected the fixture colonist to own \"{previousBedId}\", got \"{before}\"");
-        }
-
-        report["pawn_before_owned_bed"] = before;
-
-        // Refusal: a previous-bed expectation that no longer holds is refused and leaves ownership alone.
-        var drifted = await Apply("apply-drifted-previous", "bed-drifted", "Thing_NotThePreviousBed").ConfigureAwait(false);
-        if (drifted["refused"].AsMap() is null)
-        {
-            throw new AcceptanceException($"apply-drifted-previous: expected a refusal, got {drifted.ToJson()}");
-        }
-
-        var owned = await OwnedBed("pawn-after-refusal").ConfigureAwait(false);
-        if (owned != previousBedId)
-        {
-            throw new AcceptanceException($"pawn-after-refusal: expected an unchanged owned bed, got \"{owned}\"");
-        }
-
-        // Apply, then resend: both apply, the second as the ownership stands.
-        foreach (var label in new[] { "apply-bed", "resend-bed" })
-        {
-            var result = await Apply(label, "bed-assign", previousBedId).ConfigureAwait(false);
-            var effect = result["applied"].Member("applied").Member("observed").Member("assign").AsMap();
-            if (effect is null || effect["pawnId"].AsString() != pawnId || effect["thingId"].AsString() != bedId)
-            {
-                throw new AcceptanceException($"{label}: expected applied bed evidence, got {result.ToJson()}");
-            }
-
-            if (effect["assigned"].AsBool() != true)
-            {
-                throw new AcceptanceException($"{label}: expected assigned=true, got {effect.ToJson()}");
-            }
-
-            var after = await OwnedBed("pawn-after-" + label).ConfigureAwait(false);
-            if (after != bedId)
-            {
-                throw new AcceptanceException($"pawn-after-{label}: expected the native colonist to now own \"{bedId}\", got \"{after}\"");
-            }
-
-            report["pawn_after_owned_bed"] = after;
-        }
-
-        report["bed_reassigned"] = true;
-
-        // Swap: another colonist's plain claim on the now-owned bed is refused as already assigned; flagged as a swap it
-        // evicts the owner.
-        var listed = await h.WireAsync(
-            "list-colonists",
-            "observations_list_pawns",
-            new JsonObject
-            {
-                ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() },
-                ["filter"] = new JsonObject { ["colonist"] = true, ["downed"] = false, ["drafted"] = false },
-                ["details"] = new JsonObject(),
-            },
-            cancellationToken).ConfigureAwait(false);
-        var observedColonists = Harness.Outcome(listed, "observed").Value;
-        var otherId = "";
-        var otherBed = "";
-        foreach (var raw in observedColonists["pawns"].AsSlice())
-        {
-            var row = raw.AsMap();
-            var id = row?["pawn"].AsMap()?["id"].AsString() ?? "";
-            if (id.Length > 0 && id != pawnId)
-            {
-                otherId = id;
-                otherBed = row!["ownedBed"].RefId();
-                break;
+                throw new AcceptanceException($"{label}: {pawn} owns \"{row.OwnedBed?.Id}\", want {(owns ? "" : "not ")}{bed}");
             }
         }
 
-        if (otherId.Length == 0)
+        static Operations.ActionIntent Assign(string pawn, string bed, string expected, bool swap) => new Operations.AssignIntent
         {
-            throw new AcceptanceException($"list-colonists: no second colonist to swap in: {observedColonists.ToJson()}");
-        }
+            PawnId = pawn,
+            ThingId = bed,
+            ExpectedPrevious = new Operations.Assignment { Value = new Operations.AssignmentValue.EntityIdCase(expected) },
+            Swap = swap ? true : null,
+        };
 
-        report["swap_pawn"] = otherId;
+        await OwnsAsync("sleeper-before", sleeper, previous, owns: true).ConfigureAwait(false);
+        await OwnsAsync("holder-before", holder, held, owns: true).ConfigureAwait(false);
 
-        async Task<JsonObject> Claim(string label, string key, bool swap)
-        {
-            var previous = otherBed.Length > 0
-                ? new JsonObject { ["entityId"] = otherBed }
-                : new JsonObject { ["clear"] = new JsonObject() };
-            var intent = new JsonObject { ["pawnId"] = otherId, ["thingId"] = bedId, ["expectedPrevious"] = previous };
-            if (swap)
-            {
-                intent["swap"] = true;
-            }
+        await TypedPawnOps.RefusedAsync(s, "assign-drifted", Assign(sleeper, vacant, held, swap: false), "Previous assignment changed", cancellationToken).ConfigureAwait(false);
+        await OwnsAsync("sleeper-kept", sleeper, previous, owns: true).ConfigureAwait(false);
 
-            var reply = await h.WireAsync(
-                label,
-                "operations_apply",
-                new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["actions"] = new JsonArray(new JsonObject { ["key"] = key, ["assign"] = intent }),
-                },
-                cancellationToken).ConfigureAwait(false);
-            return OneResult(label, reply);
-        }
+        _ = await TypedPawnOps.ApplyAsync(s, "assign-vacant", Assign(sleeper, vacant, previous, swap: false), cancellationToken).ConfigureAwait(false);
+        await OwnsAsync("sleeper-reassigned", sleeper, vacant, owns: true).ConfigureAwait(false);
 
-        var plain = await Claim("apply-owned-plain", "bed-owned-plain", swap: false).ConfigureAwait(false);
-        if (plain["refused"].AsMap() is null)
-        {
-            throw new AcceptanceException($"apply-owned-plain: expected an already-assigned refusal, got {plain.ToJson()}");
-        }
-
-        var swapped = await Claim("apply-owned-swap", "bed-owned-swap", swap: true).ConfigureAwait(false);
-        if (swapped["applied"].AsMap() is null)
-        {
-            throw new AcceptanceException($"apply-owned-swap: expected the swap to apply, got {swapped.ToJson()}");
-        }
-
-        if (await OwnedBed("pawn-after-swap").ConfigureAwait(false) == bedId)
-        {
-            throw new AcceptanceException($"pawn-after-swap: expected the evicted colonist to lose \"{bedId}\"");
-        }
-
-        report["swap_evicted"] = true;
-    }
-
-    private static JsonObject OneResult(string label, JsonObject reply)
-    {
-        var results = reply["results"].AsSlice();
-        return results.Count != 1
-            ? throw new AcceptanceException($"{label}: expected one result, got {reply.ToJson()}")
-            : results[0].AsMap() ?? [];
+        _ = await TypedPawnOps.ApplyAsync(s, "assign-swap", Assign(sleeper, held, vacant, swap: true), cancellationToken).ConfigureAwait(false);
+        await OwnsAsync("sleeper-swapped", sleeper, held, owns: true).ConfigureAwait(false);
+        await OwnsAsync("holder-evicted", holder, held, owns: false).ConfigureAwait(false);
     }
 }

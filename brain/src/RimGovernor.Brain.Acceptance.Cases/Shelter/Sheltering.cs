@@ -1,366 +1,153 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
-using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Policy;
-using Journal = RimGovernor.Brain.Store.Store;
-using ReviewRounds = RimGovernor.Brain.Store.Rounds;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// The sheltering cases (Go <c>shelter/sheltering.go</c>) prove the shelter family's safe-area Need and the sheltering planner end to
-/// end on the lab: the ShelterFixture hut at the centre is the only roofed room, so the Safe area covers it. The assertion is
-/// the native allowed-area writes landing on colonists and a tame animal, the Safe area the game holds and the pawns
-/// physically sheltering from a real condition or a real manhunter pack. The trigger ends between two service runs: the planner keeps no history, so the restarted service restores from the
-/// facts alone.
+/// <c>shelter/manhunter_waitout</c> and <c>shelter/toxic_fallout</c>, one row each: the served shelter family's safe-area Need and the sheltering planner on a real threat. A
+/// roofed hut is the lab's only room, so the Safe area covers it; the colonists (and, under fallout, a tame dog) stand ten
+/// cells south of it when the trigger starts. Each row's served brain moves every one of them into the Safe area, where
+/// they stand in the hut unhurt (the colony facts' allowed areas and the production pawn read); then test/shelter_end ends
+/// the trigger and the brain lifts every restriction again.
 /// </summary>
 internal static class ShelterSheltering
 {
-    private static readonly string[] ShelteringFamilies = ["recovery", "sheltering"];
+    private const string EndOp = "test/shelter_end";
 
-    private static readonly TimeSpan ShelterWait = TimeSpan.FromMinutes(4);
+    private const string PackPrefix = "pack-";
 
-    /// <summary>The game-time budget for the walk from the staging row (ten cells from the hut) into it.</summary>
-    private const ulong ShelterWalkTicks = 6000;
+    private static readonly FixtureOp<NoArgs, Fx.FixtureDone> End = ServedOps.Inject(EndOp);
 
-    private sealed record Kind(string Name, string Trigger, string Scope, bool Animal);
+    /// <summary>The injury hediffs a fight or a bite leaves; an old scar carries the same def, so a pawn's count at the first read is its baseline.</summary>
+    private static readonly HashSet<string> Injuries = new(StringComparer.Ordinal) { "Bite", "Scratch", "Cut", "Stab", "Bruise", "Crush", "Crack", "Scratch_Claw" };
 
-    internal static IEnumerable<AcceptanceCase> Cases()
+    /// <summary>One trigger: a manhunter pack at the west, or toxic fallout with a tame dog to shelter too.</summary>
+    private sealed record Row(string Name, string Trigger, bool Dog, string Threat);
+
+    private static readonly Row[] Rows =
+    [
+        new("shelter/manhunter_waitout", "manhunter", false, "a manhunter pack entering from the west, none of the colonists drafted"),
+        new("shelter/toxic_fallout", "fallout", true, "toxic fallout, with a tame pen-free dog to shelter too"),
+    ];
+
+    internal static IEnumerable<TypedCase> Cases() => Rows.Select(row => new TypedCase
     {
-        Kind[] kinds =
+        Name = row.Name,
+        Scope = $"On the lab beside a roofed hut, the only room the Safe area covers, {row.Threat}: under the served brain every "
+            + "colonist (and the dog) is moved into the Safe area and stands in the hut unhurt; once test/shelter_end ends the "
+            + "threat, every restriction is lifted. Native area writes, the native Safe area and a real threat are the signal, "
+            + "not a planner decision.",
+        Ticks = 12000,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = 3 },
+        Stage = Spec(row),
+        Crew = new Crew { Size = 3 },
+        Ops = [EndOp],
+        QuietWorld = true,
+        Serve = new ServeSpec { Families = ["recovery", "sheltering"], NativeTimeout = TimeSpan.FromSeconds(60), Prefix = "sheltering" },
+        Run = (s, ct) => RunAsync(s, row, ct),
+    });
+
+    // A 9x9 roofed wooden hut (door south) on the north of a 9x16 site; the colonists and the dog stand on its south row.
+    private static Fx.StageSpec Spec(Row row) => new()
+    {
+        Paused = true,
+        Site = new Fx.StageSite
+        {
+            Width = 9,
+            Height = 16,
+            Radius = 12,
+            Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Heavy, Fx.StageGround.Unroofed],
+        },
+        Rooms = [new Fx.StageRoom { Name = "hut", Rect = new(0, 7, 9, 9), Stuff = "WoodLog", Doors = [new(4, 7)], Roof = true }],
+        Pawns = Pawns(row),
+        Incidents = row.Trigger == "fallout" ? [new Fx.StageIncident { Name = "fallout", Def = "ToxicFallout" }] : [],
+    };
+
+    private static List<Fx.StagePawn> Pawns(Row row)
+    {
+        List<Fx.StagePawn> pawns =
         [
-            new(
-                "shelter/manhunter_waitout",
-                "manhunter",
-                "A manhunter pack enters the lab from the west edge: the colonists, none drafted, are moved into the " +
-                "Safe area (the roofed hut) and no one is injured; once the pack has left the map, everyone still " +
-                "restricted to the Safe area is unrestricted again. Native area writes, the native Safe area and a " +
-                "real manhunter pack are the signal, not a planner decision.",
-                false),
-            new(
-                "shelter/toxic_fallout",
-                "fallout",
-                "Toxic fallout starts on the lab: every colonist and the tame pen-free dog are moved into the Safe area " +
-                "(the roofed hut) and stand in it; once the fallout ends, all of them are unrestricted again. Native " +
-                "area writes, the native Safe area and a real game condition are the signal, not a planner decision.",
-                true),
+            new Fx.StagePawn { Name = "colonist-0", Colonist = 0, Cell = new(1, 0) },
+            new Fx.StagePawn { Name = "colonist-1", Colonist = 1, Cell = new(3, 0) },
+            new Fx.StagePawn { Name = "colonist-2", Colonist = 2, Cell = new(5, 0) },
         ];
-        foreach (var c in kinds)
+        if (row.Dog)
         {
-            yield return new AcceptanceCase
-            {
-                Name = c.Name,
-                Scope = c.Scope,
-                Start = new FixtureStart { On = new LabStart(), Op = "test/shelter_prepare", Args = new JsonObject { ["trigger"] = c.Trigger } },
-                RequiredOps = ["test/shelter_prepare", "test/shelter_stage"],
-                Serve = new ServeSpec { Families = ShelteringFamilies, NativeTimeout = TimeSpan.FromSeconds(60), Prefix = "sheltering" },
-                Budget = TimeSpan.FromMinutes(12),
-                Crew = new Crew { Size = 3 },
-                Run = (s, ct) => RunAsync(s, c.Animal, ct),
-            };
+            pawns.Add(new Fx.StagePawn { Name = "dog", Kind = "Husky", Cell = new(7, 0) });
         }
+
+        if (row.Trigger == "manhunter")
+        {
+            // The pack stands well west of the hut, so the brain has the walk in hand before it arrives.
+            for (var i = 0; i < 3; i++)
+            {
+                pawns.Add(new Fx.StagePawn { Name = PackPrefix + i.ToString(CultureInfo.InvariantCulture), Kind = "Tortoise", Faction = Fx.StageFaction.None, Manhunter = true, Cell = new(-25, 6 + (2 * i)) });
+            }
+        }
+
+        return pawns;
     }
 
-    private static async Task RunAsync(ISession s, bool withAnimal, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, Row row, CancellationToken cancellationToken)
     {
-        var report = s.Report;
-        var prepared = s.Prepared ?? [];
-        var expected = new List<string>();
-        foreach (var raw in prepared["colonists"].AsSlice())
+        var staged = s.Staged!;
+        var hut = staged.Rooms["hut"].Interior.Select(c => (c.X, c.Z)).ToHashSet();
+        var sheltered = staged.Pawns.Where(p => !p.Key.StartsWith(PackPrefix, StringComparison.Ordinal)).Select(p => p.Value.Id).ToList();
+        var ended = false;
+        var scars = new Dictionary<string, int>(StringComparer.Ordinal);
+        _ = await s.ServeUntilAsync("sheltering-" + row.Trigger, s.TicksLeft, async ct =>
         {
-            expected.Add(raw.AsString());
-        }
-
-        if (withAnimal)
-        {
-            expected.Add(prepared["animal"].AsString());
-        }
-
-        if (expected.Count == 0 || expected[0].Length == 0)
-        {
-            throw new AcceptanceException("prepare: no colonists to shelter: " + prepared.ToJson());
-        }
-
-        report["sheltered_pawns"] = new JsonArray([.. expected.Select(e => (JsonNode?)JsonValue.Create(e))]);
-
-        // 1. The trigger holds: every expected pawn is moved into the Safe area.
-        var service = await ShelterShell.StartAsync(s, null, cancellationToken).ConfigureAwait(false);
-        try
-        {
-            using var st = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
-            await WaitAreasAsync(st, expected, true, ShelterShell.WaitOf(ShelterWait, service), report, "shelter", cancellationToken).ConfigureAwait(false);
-        }
-        catch
-        {
-            _ = await service.StopAsync().ConfigureAwait(false);
-            throw;
-        }
-
-        report["shelter_service"] = await service.StopAsync().ConfigureAwait(false);
-        var h = s.Reattach();
-
-        // The journal settles when the area writes complete; the walk into the hut takes game time the stopped service no longer runs.
-        JsonObject sheltered = [];
-        _ = await RunAt.RunUntilAsync(
-            h,
-            "shelter-walk",
-            ShelterWalkTicks,
-            new Wait { Stall = Wait.StallBudget() },
-            async ct =>
+            var safe = await SafePawnsAsync(s, row.Trigger + "-safe", ct).ConfigureAwait(false);
+            var states = new List<string>();
+            var allIn = true;
+            var noneIn = true;
+            foreach (var id in sheltered)
             {
-                var got = await StageAsync(h, "status", ct).ConfigureAwait(false);
-                sheltered = got;
-                return (got["pawns"].ToText(), CheckPawns(got, expected, true) is null);
-            },
-            cancellationToken).ConfigureAwait(false);
-        report["sheltered"] = sheltered.DeepClone();
-        if (CheckPawns(sheltered, expected, true) is { } failed)
-        {
-            throw new AcceptanceException(failed);
-        }
-
-        // 2. The trigger ends: the restarted service restores every pawn.
-        var ended = await StageAsync(h, "end", cancellationToken).ConfigureAwait(false);
-        report["ended"] = ended.DeepClone();
-        if (ended["fallout"].AsBool() == true || ended["packOnMap"].AsNumber() != 0)
-        {
-            throw new AcceptanceException("the trigger did not end: " + ended.ToJson());
-        }
-
-        service = await ShelterShell.StartAsync(s, service, cancellationToken).ConfigureAwait(false);
-        try
-        {
-            using var st = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
-            await WaitAreasAsync(st, expected, false, ShelterShell.WaitOf(ShelterWait, service), report, "restore", cancellationToken).ConfigureAwait(false);
-        }
-        catch
-        {
-            _ = await service.StopAsync().ConfigureAwait(false);
-            throw;
-        }
-
-        report["restore_service"] = await service.StopAsync().ConfigureAwait(false);
-        h = s.Reattach();
-        var restored = await StageAsync(h, "status", cancellationToken).ConfigureAwait(false);
-        report["restored"] = restored.DeepClone();
-        if (CheckPawns(restored, expected, false) is { } bad)
-        {
-            throw new AcceptanceException(bad);
-        }
-    }
-
-    /// <summary>Calls <c>test/shelter_stage</c>.</summary>
-    private static async Task<JsonObject> StageAsync(Harness h, string op, CancellationToken cancellationToken)
-    {
-        var reply = await h.CallAsync("shelter-" + op, "test/shelter_stage", new JsonObject { ["op"] = op }, cancellationToken).ConfigureAwait(false);
-        if (reply["success"].AsBool() != true)
-        {
-            throw new AcceptanceException($"shelter_stage {op} refused: {reply.ToJson()}");
-        }
-
-        return reply;
-    }
-
-    /// <summary>
-    /// Asserts the native postcondition: sheltered, every expected pawn is restricted to the Safe area, stands in the hut and is
-    /// unhurt; restored, none is restricted to it. Returns the failure text, or null when the status holds.
-    /// </summary>
-    private static string? CheckPawns(JsonObject status, IReadOnlyList<string> expected, bool sheltered)
-    {
-        var rows = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
-        foreach (var raw in status["pawns"].AsSlice())
-        {
-            var row = raw.AsMap() ?? [];
-            rows[row["id"].AsString()] = row;
-        }
-
-        foreach (var id in expected)
-        {
-            if (!rows.TryGetValue(id, out var row))
-            {
-                return $"{id} is missing from the fixture status";
-            }
-
-            if (row["dead"].AsBool() == true)
-            {
-                return $"{id} died: {row.ToJson()}";
-            }
-
-            if (row["injuries"].AsNumber() != 0)
-            {
-                return $"{id} was harmed: {row.ToJson()}";
-            }
-
-            var area = row["area"].AsString();
-            if (!sheltered)
-            {
-                if (area == PolicyFunctions.SafeAreaLabel)
+                var pawn = await TypedPawnOps.PawnAsync(s, row.Trigger + "-pawn", id, ct).ConfigureAwait(false);
+                if (pawn is null || pawn.Dead)
                 {
-                    return $"{id} is still restricted to the Safe area: {row.ToJson()}";
+                    throw new AcceptanceException($"{row.Trigger}: {id} died or left the map: {pawn}");
                 }
 
-                continue;
-            }
-
-            if (area != PolicyFunctions.SafeAreaLabel)
-            {
-                return $"{id} is restricted to \"{area}\", not the Safe area: {row.ToJson()}";
-            }
-
-            if (row["inHut"].AsBool() != true)
-            {
-                return $"{id} is restricted to the Safe area but stands outside the hut: {row.ToJson()}";
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Polls the journal until every pawn's latest completed allowed-area action shelters it (a non-empty area) or, restoring,
-    /// clears it. The plans are the disaster/sheltering Need's methods; restoring, a completed delete of the
-    /// Safe area after the pawn's last move (the safe-area Need resets its areas in a new service) also unrestricts it. The native
-    /// readback after the service stops is the assertion.
-    /// </summary>
-    private static async Task WaitAreasAsync(Journal st, IReadOnlyList<string> pawns, bool shelter, Wait w, Report report, string label, CancellationToken cancellationToken)
-    {
-        var last = new SortedDictionary<string, string>(StringComparer.Ordinal);
-        try
-        {
-            await w.WaitProgressAsync(
-                async ct =>
+                var injuries = pawn.Health?.Hediffs.Items.Count(h => Injuries.Contains(h.DefName)) ?? 0;
+                if (injuries > (scars.TryAdd(id, injuries) ? injuries : scars[id]))
                 {
-                    ReviewRounds review;
-                    try
-                    {
-                        review = await st.LoadRoundsAsync(ct).ConfigureAwait(false);
-                    }
-                    catch (Exception e) when (e is not OperationCanceledException)
-                    {
-                        return (Wait.Signature("no-review", e.Message), false);
-                    }
+                    throw new AcceptanceException($"{row.Trigger}: {id} was harmed ({injuries} injuries, {scars[id]} at the start): {pawn}");
+                }
 
-                    var history = st.OwnerMethodHistory(st.LoadNeed(DisasterFamily.Sheltering, review.Snapshot, ct), ct);
-                    var areas = new Dictionary<string, string>(StringComparer.Ordinal);
-                    var ticks = new Dictionary<string, long>(StringComparer.Ordinal);
-                    {
-                        foreach (var m in history)
-                        {
-                            var plan = await st.LoadPlanAsync(m.Plan, ct).ConfigureAwait(false);
-                            for (var i = 0; i < plan.Spec.Actions.Count; i++)
-                            {
-                                var a = plan.Spec.Actions[i];
-                                string pawn;
-                                string area;
-                                if (a.WorkAssignment is { HasArea: true } work)
-                                {
-                                    pawn = work.Pawn.Value;
-                                    area = work.AreaClear ? string.Empty : work.Area;
-                                }
-                                else if (a.Husbandry is { Method: HusbandryMethod.AllowedArea } hb)
-                                {
-                                    pawn = hb.Animal.Value;
-                                    area = hb.Argument;
-                                }
-                                else
-                                {
-                                    continue;
-                                }
+                var restricted = safe.Contains(id);
+                var inHut = pawn.Pawn.Position is { X: int x, Z: int z } && hut.Contains((x, z));
+                allIn &= restricted && inHut;
+                noneIn &= !restricted;
+                states.Add(string.Create(CultureInfo.InvariantCulture, $"{id}:{restricted}:{inHut}:{pawn.Pawn.Position}"));
+            }
 
-                                var v = plan.Progress[i].View;
-                                var known = ticks.GetValueOrDefault(pawn);
-                                if (v.Stage != Stage.Completed || (known != 0 && v.Tick.Value < known))
-                                {
-                                    continue;
-                                }
+            if (!ended && allIn)
+            {
+                s.Record(row.Trigger + "-sheltered", string.Join(' ', states));
+                _ = await s.FixtureAsync(row.Trigger + "-end", End, NoArgs.Value, ct).ConfigureAwait(false);
+                ended = true;
+                return ("ended " + string.Join(' ', states), false);
+            }
 
-                                areas[pawn] = area;
-                                ticks[pawn] = v.Tick.Value;
-                            }
-                        }
-                    }
-
-                    long reset = 0;
-                    var resetKnown = false;
-                    if (review.Revision != 0)
-                    {
-                        foreach (var m in st.OwnerMethodHistory(st.LoadNeed(ShelterFamily.SafeArea, review.Snapshot, ct), ct))
-                        {
-                            var plan = await st.LoadPlanAsync(m.Plan, ct).ConfigureAwait(false);
-                            for (var i = 0; i < plan.Spec.Actions.Count; i++)
-                            {
-                                var v = plan.Progress[i].View;
-                                if (plan.Spec.Actions[i].Area is { } edit
-                                    && edit.Key == PolicyFunctions.SafeAreaKey
-                                    && edit.Operation == AreaOperation.Delete
-                                    && v.Stage == Stage.Completed
-                                    && (!resetKnown || v.Tick.Value > reset))
-                                {
-                                    reset = v.Tick.Value;
-                                    resetKnown = true;
-                                }
-                            }
-                        }
-                    }
-
-                    last = new SortedDictionary<string, string>(areas, StringComparer.Ordinal);
-                    if (!AreasSettled(areas, ticks, reset, resetKnown, pawns, shelter))
-                    {
-                        return (Wait.Signature(history.Count, AreasText(last), reset, resetKnown), false);
-                    }
-
-                    return ("", true);
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            report[label + "_areas"] = AreasJson(last);
-            throw new AcceptanceException($"{label}: pawns' allowed areas did not settle (last {AreasText(last)}): {e.Message}", e);
-        }
-
-        report[label + "_areas"] = AreasJson(last);
+            return ($"{ended} {string.Join(' ', states)}", ended && noneIn);
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record(row.Trigger + "-restored", true);
     }
 
-    private static string AreasText(SortedDictionary<string, string> areas) =>
-        "map[" + string.Join(' ', areas.Select(e => string.Create(CultureInfo.InvariantCulture, $"{e.Key}:{e.Value}"))) + "]";
-
-    private static JsonObject AreasJson(SortedDictionary<string, string> areas)
+    /// <summary>The pawns the colony facts list as restricted to the Safe area; none when the area is gone.</summary>
+    private static async Task<HashSet<string>> SafePawnsAsync(ITypedSession s, string label, CancellationToken cancellationToken)
     {
-        var json = new JsonObject();
-        foreach (var (key, value) in areas)
-        {
-            json[key] = value;
-        }
-
-        return json;
-    }
-
-    /// <summary>
-    /// Reports whether the journal shows every pawn sheltered (its latest completed move names an area) or restored: its latest
-    /// move clears it, or the Safe area was deleted (<paramref name="resetKnown"/>, at <paramref name="reset"/>) after it. A pawn
-    /// with no move at all is neither: an empty journal proves nothing.
-    /// </summary>
-    private static bool AreasSettled(Dictionary<string, string> areas, Dictionary<string, long> ticks, long reset, bool resetKnown, IReadOnlyList<string> pawns, bool shelter)
-    {
-        foreach (var p in pawns)
-        {
-            if (!areas.TryGetValue(p, out var area))
-            {
-                return false;
-            }
-
-            if (shelter && area.Length == 0)
-            {
-                return false;
-            }
-
-            if (!shelter && area.Length != 0 && !(resetKnown && reset > ticks.GetValueOrDefault(p)))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+        var policies = facts.Policies?.Outcome?.Observed ?? throw new AcceptanceException($"{label}: policy facts unavailable");
+        return policies.AllowedAreas.Items
+            .Where(a => a.Label == PolicyFunctions.SafeAreaLabel)
+            .SelectMany(a => a.PawnIds.Items)
+            .ToHashSet(StringComparer.Ordinal);
     }
 }
