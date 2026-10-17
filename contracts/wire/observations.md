@@ -353,8 +353,7 @@ separate read tool. Both are absent without Biotech (`ModsConfig.BiotechActive`)
 life stage, race, gene, xenotype, mech kind and work mode defs are read from the Defs
 themselves (`LifeStageDef`, `RaceProperties.lifeStageAges` and
 `lifeStageWorkSettings`, `GeneDef`, `XenotypeDef`, `PawnKindDef`,
-`MechWorkModeDef`). `mech_work_modes` (`MechWorkModeRoles`) names the
-`MechWorkModeDef` the game picks as `MechWorkModeDefOf.Work` and `.Escort`. `gene_tuning` (`GeneTuningFacts`) is a singleton of the game's own
+`MechWorkModeDef`). `gene_tuning` (`GeneTuningFacts`) is a singleton of the game's own
 `GeneTuning` constants: the biostat (metabolism) range, base max complexity, the
 complexity to assembler hours curve, the extractor regrow days range, and the
 extractor's private `TicksToExtract` and power-cut eject limit (absent when

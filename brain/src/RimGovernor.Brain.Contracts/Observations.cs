@@ -9530,25 +9530,12 @@ public sealed record GeneTuningFacts
 }
 
 /// <summary>
-/// The def names the game picks by role from MechWorkModeDefOf: the mech work
-/// modes of work, escort and recharge. A def row cannot say which is which.
-/// </summary>
-public sealed record MechWorkModeRoles
-{
-    public string? Work { get; init; }
-
-    public string? Escort { get; init; }
-
-}
-
-/// <summary>
 /// The Biotech facts the def mirror (defs.proto) cannot give. The life stage,
 /// race, gene, xenotype, mech kind and work mode defs are the mirror's rows;
 /// the decoded BiotechCatalog is built from them. Absent without Biotech.
 /// </summary>
 public sealed record BiotechCatalog
 {
-    public MechWorkModeRoles? MechWorkModes { get; init; }
 }
 
 

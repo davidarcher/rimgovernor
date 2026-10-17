@@ -46,16 +46,6 @@ namespace HomeBridge.BridgeTools
                         outfits = Current.Game.outfitDatabase.AllOutfits.Select(o => o.GetUniqueLoadID()).ToArray(),
                         areas = map.areaManager.AllAreas.OfType<Area_Allowed>().Select(a => a.GetUniqueLoadID()).ToArray() };
                 }
-                if (mode == "outfits") {
-                    // apparel/tainted-filter: every free colonist's outfit
-                    // and the whole outfit database.
-                    return new { success = true,
-                        pawns = Find.CurrentMap.mapPawns.FreeColonistsSpawned.Select(p => new { pawn = p.GetUniqueLoadID(), shortName = NativeApparelPolicyOperations.ShortName(p),
-                            outfit = p.outfits?.CurrentApparelPolicy?.GetUniqueLoadID() ?? "", label = p.outfits?.CurrentApparelPolicy?.label ?? "",
-                            tainted = p.outfits?.CurrentApparelPolicy?.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel) ?? false,
-                            wornTainted = p.apparel?.WornApparel.Count(a => a.WornByCorpse) ?? 0 }).ToArray(),
-                        outfits = Current.Game.outfitDatabase.AllOutfits.Select(o => o.GetUniqueLoadID()).ToArray() };
-                }
                 if (mode == "policy_setup" || mode == "policy_edit") {
                     // production/apparel-policy: a player outfit and forced,
                     // locked apparel the primitives cannot stage.
@@ -207,51 +197,11 @@ namespace HomeBridge.BridgeTools
                 pawn.mindState.nextApparelOptimizeTick = Find.TickManager.TicksGame + 600000;
                 pawn.needs?.mood?.thoughts?.situational?.Notify_SituationalThoughtsDirty();
                 var worn = pawn.apparel.WornApparel;
-                return new { success = true, tick = Find.TickManager.TicksGame, pawn = pawn.GetUniqueLoadID(),
+                return new { success = true, pawn = pawn.GetUniqueLoadID(),
                     worn = worn.Count, tainted = worn.Count(a => a.WornByCorpse),
-                    apparel = worn.Select(a => new { def = a.def.defName, wornByCorpse = a.WornByCorpse }).ToList(),
                     bloodlust = pawn.story.traits.HasTrait(TraitDefOf.Bloodlust),
                     inhumanized = pawn.health.hediffSet.hediffs.Any(h => h.def.defName == "Inhumanized"),
                     traits = pawn.story.traits.allTraits.Select(t => t.def.defName).ToList() };
-            }, cancellationToken);
-
-        // apparel/tainted_filter (#3285): the first colonist wears a clean shirt and pants under a dead man's parka, without
-        // Bloodlust (spareParkas reports any other parka on the map); ordinary ColdSnap conditions (ramp complete) hold the outdoor temperature under
-        // freezing for the run. The optimizer is deferred so the parka stays on until the brain's outfit decides.
-        [Tool("test/tainted_parka_wear", Description = "Disposable fixture (#3285): redress the first colonist in a shirt, pants and a parka worn by a corpse, remove Bloodlust, and register ColdSnap conditions. Test builds only.")]
-        public async Task<object> Parka(IRimBridgeContext ctx, CancellationToken cancellationToken)
-            => await ctx.MainThread.InvokeAsync<object>(() =>
-            {
-                var map = Find.CurrentMap;
-                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).First();
-                foreach (var old in pawn.apparel.WornApparel.ToList()) old.Destroy();
-                foreach (var name in new[] { "Apparel_BasicShirt", "Apparel_Pants", "Apparel_Parka" })
-                {
-                    var def = DefDatabase<ThingDef>.GetNamed(name);
-                    var apparel = (Apparel)ThingMaker.MakeThing(def, def.MadeFromStuff ? GenStuff.DefaultStuffFor(def) : null);
-                    apparel.WornByCorpse = name == "Apparel_Parka";
-                    pawn.apparel.Wear(apparel, false, true);
-                }
-                var trait = pawn.story.traits.GetTrait(TraitDefOf.Bloodlust);
-                if (trait != null) pawn.story.traits.RemoveTrait(trait);
-                var snapDef = DefDatabase<GameConditionDef>.GetNamedSilentFail("ColdSnap");
-                if (snapDef == null) throw new System.InvalidOperationException("ColdSnap unavailable in this ruleset.");
-                // The sun cycle swings +-7C: size the snaps (-20C each) on the day's peak.
-                var peak = map.mapTemperature.OutdoorTemp - GenTemperature.OffsetFromSunCycle(Find.TickManager.TicksAbs, map.Tile) + 7f;
-                var snaps = System.Math.Max(0, System.Math.Min(3, (int)System.Math.Ceiling((peak + 5f) / 20f)));
-                for (var i = 0; i < snaps; i++)
-                {
-                    var snap = GameConditionMaker.MakeCondition(snapDef, 4 * 60000 + 12000);
-                    map.gameConditionManager.RegisterCondition(snap);
-                    snap.startTick = Find.TickManager.TicksGame - 12000;
-                }
-                Find.World.tileTemperatures.ClearCaches();
-                pawn.mindState.nextApparelOptimizeTick = Find.TickManager.TicksGame + 600000;
-                pawn.needs?.mood?.thoughts?.situational?.Notify_SituationalThoughtsDirty();
-                return new { success = true, tick = Find.TickManager.TicksGame, pawn = pawn.GetUniqueLoadID(), coldSnaps = snaps,
-                    outdoor = map.mapTemperature.OutdoorTemp, tainted = pawn.apparel.WornApparel.Count(a => a.WornByCorpse),
-                    spareParkas = map.listerThings.ThingsOfDef(DefDatabase<ThingDef>.GetNamed("Apparel_Parka")).Count,
-                    bloodlust = pawn.story.traits.HasTrait(TraitDefOf.Bloodlust) };
             }, cancellationToken);
     }
 }

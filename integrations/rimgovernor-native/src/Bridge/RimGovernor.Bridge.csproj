@@ -109,7 +109,6 @@
     <Compile Include="../../../../scripts/fixtures/FlooringFixture.cs" Condition="'$(FlooringFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RoutesFixture.cs" Condition="'$(RoutesFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BabyCareFixture.cs" Condition="'$(BabyCareFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/MechGestationFixture.cs" Condition="'$(MechGestationFixture)' == 'true'" />
     <ProjectReference Include="../Runtime/RimGovernor.Runtime.csproj"><Private>false</Private></ProjectReference>
     <!-- The host (integrations/rimgovernor-host) ships the SDK and Newtonsoft.Json in the mod's Assemblies/. -->
     <ProjectReference Include="../../../rimgovernor-host/src/Sdk/RimGovernor.Host.Sdk.csproj"><Private>false</Private></ProjectReference>

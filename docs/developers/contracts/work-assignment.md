@@ -273,10 +273,9 @@ worker, any other kind a guard. With two or more control groups (vanilla default
 2) workers go to the group already holding most of them, guards to the busiest
 other group; workers run `Work`, guards `Escort` (the wiki's "do available work
 tasks" and "follow the mechanitor and fight enemies"; `MechWorkModeDefOf` also has
-`SelfShutdown`, unused here). The modes are never named in the brain: the catalog's
-`MechWorkModeRoles` names the `MechWorkModeDef` the game picks as
-`MechWorkModeDefOf.Work`, `.Escort` and `.Recharge` (native reflection); the
-catalog fails to decode if one is not a def of the mirror. The plan fails without those modes or any mech's kind. A mech with no overseer among the
+`SelfShutdown`, unused here). The brain resolves `Work`, `Escort` and `Recharge`
+as rows of the def mirror's `MechWorkModeDef`s; the catalog fails to decode if one
+is missing. The plan fails without those modes or any mech's kind. A mech with no overseer among the
 inputs, or an unread group, is left alone.
 
 Colonist need versus bandwidth, decided from the read: control never changes

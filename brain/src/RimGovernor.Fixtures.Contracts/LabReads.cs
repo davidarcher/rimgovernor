@@ -181,6 +181,22 @@ public sealed record EnvironmentTemperatureHeld
     public IReadOnlyList<string> Traits { get; init; } = [];
 }
 
+/// <summary><c>test/deadmans_wear</c>: the redressed colonist, its worn and corpse-worn garment counts and its traits.</summary>
+public sealed record DeadMansWorn
+{
+    public string Pawn { get; init; } = "";
+
+    public int Worn { get; init; }
+
+    public int Tainted { get; init; }
+
+    public bool Bloodlust { get; init; }
+
+    public bool Inhumanized { get; init; }
+
+    public IReadOnlyList<string> Traits { get; init; } = [];
+}
+
 /// <summary>
 /// The payload of the production <c>rimgovernor/acceptance_read_capture_profile</c> read (snake-case spans, as the
 /// native profile writes them).

@@ -6,19 +6,7 @@ dotnet_diagnostic.RS0030.severity = error
 # records each use in banned-api.sarif. It only shrinks: the gate's banned-API job fails a section whose file no
 # longer uses a banned API (delete the section). Never add one; port the case to TypedCase instead.
 
-[/Apparel/DeadMans.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Apparel/TaintedFilter.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Authority/AuthorityWarm.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Child/ChildFirstChild.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Child/ChildMechGestation.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Clearance/ClearanceKit.cs]
@@ -120,9 +108,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/CombatLab/Wild.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Custody/CustodyPopulation.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Floor/FloorKitchen.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -166,9 +151,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Shared/CaseJson.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Shared/MoodProbe.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Shared/RoutineService.cs]

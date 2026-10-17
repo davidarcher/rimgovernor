@@ -40,17 +40,6 @@ public static class NativeAssert
         }
     }
 
-    /// <summary>Asserts a populated <c>social</c> block on a pawn row (Go <c>RequireSocial</c>).</summary>
-    public static void RequireSocial(JsonObject row)
-    {
-        ArgumentNullException.ThrowIfNull(row);
-        // Empty thought lists and a false staleness flag are omitted from the wire, so only the block itself is required.
-        if (row["social"].AsMap() is null)
-        {
-            throw new AcceptanceException($"expected a populated \"social\" block, found {row["social"].ToJson()}");
-        }
-    }
-
     /// <summary>
     /// Asserts <paramref name="value"/> is a populated SnapshotRef {context, entityId, token}: a non-empty CAS token
     /// proving the row can be used as an operation EntityPrecondition. It does not require the context to match a

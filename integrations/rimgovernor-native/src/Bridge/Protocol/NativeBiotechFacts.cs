@@ -22,10 +22,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.BiotechCatalog? Catalog()
         {
             if (!ModsConfig.BiotechActive) return null;
-            return new Obs.BiotechCatalog
-            {
-                MechWorkModes = new Obs.MechWorkModeRoles { Work = MechWorkModeDefOf.Work.defName, Escort = MechWorkModeDefOf.Escort.defName },
-            };
+            return new Obs.BiotechCatalog();
         }
 
         private static Obs.ReadIssue Failed(string field, Exception ex) => new Obs.ReadIssue { Field = field,

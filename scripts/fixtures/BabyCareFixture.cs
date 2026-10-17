@@ -85,13 +85,12 @@ namespace HomeBridge.BridgeTools
                 }
                 zone.settings.filter.SetDisallowAll(); zone.settings.filter.SetAllow(ThingCategoryDefOf.Foods, true);
                 zone.settings.Priority = StoragePriority.Important;
-                var seeded = new List<object>(); var next = 0;
+                var next = 0;
                 foreach (var ingredient in recipe.ingredients) {
                     var def = ingredient.filter.AllowedThingDefs.Where(d => d.category == ThingCategory.Item && d.ingestible != null && d.ingestible.HumanEdible && !d.IsDrug && !d.IsCorpse)
                         .OrderBy(d => d.defName, StringComparer.Ordinal).FirstOrDefault();
                     if (def == null) return Refuse("No edible item satisfies an ingredient of " + recipe.defName + ".");
                     var remaining = (int)Math.Ceiling(ingredient.GetBaseCount() * 40);
-                    var total = remaining;
                     while (remaining > 0) {
                         if (next >= free.Count) return Refuse("No room left in the kitchen for the ingredients of " + recipe.defName + ".");
                         var stack = ThingMaker.MakeThing(def);
@@ -99,7 +98,6 @@ namespace HomeBridge.BridgeTools
                         GenSpawn.Spawn(stack, free[next++], map);
                         stack.SetForbidden(false, false);
                     }
-                    seeded.Add(new { def = def.defName, count = total });
                 }
                 foreach (var p in colonists.Where(p => !p.WorkTypeIsDisabled(Cooking))) {
                     p.workSettings.EnableAndInitialize();
@@ -122,16 +120,11 @@ namespace HomeBridge.BridgeTools
                 baby.needs.food.CurLevelPercentage = 0.45f;
                 if (ChildcareUtility.CanBreastfeedPlayerPawns.Any()) return Refuse("A colonist can breastfeed after staging.");
 
-                var identity = Current.Game.GetComponent<ColonyIdentity>();
                 return new {
-                    success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
-                    tick = Find.TickManager.TicksGame,
-                    babyId = baby.GetUniqueLoadID(), benchId = stove.GetUniqueLoadID(), recipe = recipe.defName,
+                    success = true, babyId = baby.GetUniqueLoadID(), benchId = stove.GetUniqueLoadID(),
                     // Every baby-edible recipe of the stove: the controller picks one (its bulk recipe over the single-item one).
                     recipes = stove.def.AllRecipes.Where(r => r.products.Count == 1 && BabyEdible(r.products[0].thingDef)).Select(r => r.defName).ToList(),
-                    product = recipe.products[0].thingDef.defName, ingredients = seeded,
-                    childMinAgeYears = childStage.minAge, babyAgeTicks = ticks, daysToChild,
-                    foodLevel = baby.needs.food.CurLevelPercentage, colonists = colonists.Count,
+                    foodLevel = baby.needs.food.CurLevelPercentage,
                 };
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -146,16 +139,11 @@ namespace HomeBridge.BridgeTools
                 var bench = map.listerBuildings.allBuildingsColonist.OfType<Building_WorkTable>().FirstOrDefault(b => b.GetUniqueLoadID() == benchId);
                 if (baby == null) return Refuse("The baby is not on the map.");
                 var bills = bench == null ? new List<object>() : bench.BillStack.Bills.OfType<Bill_Production>()
-                    .Select(b => (object)new { recipe = b.recipe.defName, repeatMode = b.repeatMode.defName, suspended = b.suspended,
-                        babyEdible = b.recipe.products.Any(p => BabyEdible(p.thingDef)) }).ToList();
-                var stock = map.listerThings.ThingsInGroup(ThingRequestGroup.FoodSourceNotPlantOrTree).Where(t => t.Spawned && BabyEdible(t.def))
-                    .Sum(t => t.stackCount * t.GetStatValue(StatDefOf.Nutrition));
+                    .Select(b => (object)new { recipe = b.recipe.defName, babyEdible = b.recipe.products.Any(p => BabyEdible(p.thingDef)) }).ToList();
                 var malnutrition = baby.health.hediffSet.GetFirstHediffOfDef(HediffDefOf.Malnutrition);
                 return new {
-                    success = true, tick = Find.TickManager.TicksGame, dead = baby.Dead, stage = baby.DevelopmentalStage.ToString(),
-                    lifeStage = baby.ageTracker.CurLifeStage.defName, ageTicks = baby.ageTracker.AgeBiologicalTicks,
-                    foodLevel = baby.needs.food.CurLevelPercentage, malnutrition = malnutrition?.Severity ?? 0f,
-                    bills, babyEdibleNutrition = (float)stock, breastfeeders = ChildcareUtility.CanBreastfeedPlayerPawns.Count(),
+                    success = true, dead = baby.Dead, stage = baby.DevelopmentalStage.ToString(),
+                    foodLevel = baby.needs.food.CurLevelPercentage, malnutrition = malnutrition?.Severity ?? 0f, bills,
                 };
             }, cancellationToken).ConfigureAwait(false);
         }

@@ -61,3 +61,73 @@ public sealed record MedicalSetup
 
     public string? PrisonerId { get; init; }
 }
+
+/// <summary><c>test/baby_care_prepare</c>: the staged baby, the kitchen's stove, its baby-edible recipes and the baby's staged food level.</summary>
+public sealed record BabyCarePrepared
+{
+    public bool Success { get; init; }
+
+    public string? Reason { get; init; }
+
+    public string BabyId { get; init; } = "";
+
+    public string BenchId { get; init; } = "";
+
+    public IReadOnlyList<string> Recipes { get; init; } = [];
+
+    public double FoodLevel { get; init; }
+}
+
+/// <summary><c>test/baby_care_inspect</c>: the baby's stage, food and malnutrition, and the stove's production bills.</summary>
+public sealed record BabyCareRead
+{
+    public bool Success { get; init; }
+
+    public string? Reason { get; init; }
+
+    public bool Dead { get; init; }
+
+    public string Stage { get; init; } = "";
+
+    public double FoodLevel { get; init; }
+
+    public double Malnutrition { get; init; }
+
+    public IReadOnlyList<BabyCareBill> Bills { get; init; } = [];
+}
+
+/// <summary>One production bill on the first-child stove.</summary>
+public sealed record BabyCareBill
+{
+    public string Recipe { get; init; } = "";
+
+    public bool BabyEdible { get; init; }
+}
+
+/// <summary><c>test/population_setup</c>: the downed hostile candidate, the downed friendly visitor, the prisoner bed and each worker's bed check.</summary>
+public sealed record PopulationSetup
+{
+    public bool Success { get; init; }
+
+    public string Candidate { get; init; } = "";
+
+    public string Visitor { get; init; } = "";
+
+    public string Prison { get; init; } = "";
+
+    public IReadOnlyList<PopulationBedCheck> BedChecks { get; init; } = [];
+}
+
+/// <summary>Whether one worker can carry the candidate to the prisoner bed native would pick.</summary>
+public sealed record PopulationBedCheck
+{
+    public string Pawn { get; init; } = "";
+
+    public bool Usable { get; init; }
+
+    public bool Reachable { get; init; }
+
+    public bool Reservable { get; init; }
+
+    public string? NativeBed { get; init; }
+}

@@ -2,14 +2,20 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Contracts.Wire;
 using static RimGovernor.Brain.Domain.Fact;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>apparel/dead_mans</c>: the DeadMansApparel probe, the native stage of the thought for each tainted count.</summary>
+/// <summary>
+/// <c>apparel/dead_mans</c>: the DeadMansApparel probe (#3283), the native stage of the thought for each tainted count.
+/// test/deadmans_wear stays a bespoke op: it marks garments natively WornByCorpse and sets or strips Bloodlust, which the
+/// stage primitives cannot express.
+/// </summary>
 internal static class DeadMans
 {
-    private const string WearOp = "test/deadmans_wear";
+    private const string WearTool = "test/deadmans_wear";
     private const string Thought = "DeadMansApparel";
 
     // The fixture always dresses the pawn in this many garments; only the tainted count varies.
@@ -19,7 +25,14 @@ internal static class DeadMans
     private static readonly (int Tainted, bool Bloodlust, bool Assert)[] Steps =
         [(0, false, true), (1, false, true), (2, false, true), (3, false, true), (4, false, true), (5, false, false), (2, true, true)];
 
-    internal static AcceptanceCase Case() => new()
+    private sealed record Dress(int Tainted, bool Bloodlust);
+
+    private static readonly FixtureOp<Dress, Fx.DeadMansWorn> Wear = new(
+        WearTool,
+        d => ServedOps.Args(("tainted", d.Tainted), ("bloodlust", d.Bloodlust)),
+        ServedOps.Reply<Fx.DeadMansWorn>(WearTool));
+
+    internal static TypedCase Case() => new()
     {
         Name = "apparel/dead_mans",
         Scope = "Issue #3283, the DeadMansApparel probe (epic #3217): a colonist dressed in five garments, n of them natively "
@@ -27,38 +40,34 @@ internal static class DeadMans
             + "mood thought rows (n = 0: none; 1-4: -5/-8/-11/-14), none with Bloodlust and n = 2, and records the n = 5 stage "
             + "against the card's clamp. Vanilla physics the card's domain tests cannot observe; it is the probe the verified-cards "
             + "table cites.",
-        Start = new LabStart(),
-        RequiredOps = [WearOp],
+
+        // Each step settles at most 1200 ticks.
+        Ticks = 8400,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = 1 },
+        Ops = [WearTool],
         QuietWorld = true,
-        VanillaColonists = true,
-        Reason = "VanillaColonists: with no service the voluntary-control hold stops the scenario clock on the idle colonist "
-            + "(unassigned_voluntary_pawn), and the thought refreshes only as game ticks pass. The fixture locks the garments and "
-            + "defers the apparel optimizer, so the colonist's own jobs leave the outfit as staged.",
-        Budget = TimeSpan.FromMinutes(4),
         Crew = new Crew { Size = 1 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
         var card = MechanicCards.ByDef[Thought];
         var observed = new JsonArray();
-        s.Report["steps"] = observed;
+        s.Record("steps", observed);
         foreach (var (tainted, bloodlust, assert) in Steps)
         {
             var label = string.Create(CultureInfo.InvariantCulture, $"n{tainted}{(bloodlust ? "-bloodlust" : "")}");
-            var worn = await h.CallAsync("wear-" + label, WearOp, new JsonObject { ["tainted"] = tainted, ["bloodlust"] = bloodlust }, cancellationToken).ConfigureAwait(false);
-            if ((int)worn["worn"].AsNumber() != Garments || (int)worn["tainted"].AsNumber() != tainted || worn["bloodlust"].AsBool() != bloodlust || worn["inhumanized"].AsBool() != false)
+            var worn = await s.FixtureAsync("wear-" + label, Wear, new Dress(tainted, bloodlust), cancellationToken).ConfigureAwait(false);
+            if (worn.Worn != Garments || worn.Tainted != tainted || worn.Bloodlust != bloodlust || worn.Inhumanized)
             {
-                throw new AcceptanceException($"{label}: the fixture did not dress the pawn as asked: {worn.ToJson()}");
+                throw new AcceptanceException($"{label}: the fixture did not dress the pawn as asked: {ServedOps.Json(worn)?.ToJsonString()}");
             }
 
-            var pawn = worn["pawn"].AsString();
-            var traits = worn["traits"].AsSlice().Select(t => t.AsString()).ToArray();
             var facts = new CardPawnFacts
             {
-                Traits = Known(EquatableArray.From(traits)),
+                Traits = Known(EquatableArray.From(worn.Traits.ToArray())),
                 Hediffs = Known(EquatableArray.From<string>([])),
                 AnomalyActive = Known(true),
             };
@@ -68,21 +77,19 @@ internal static class DeadMans
                 throw new AcceptanceException($"{label}: the card prices this pawn and outfit as unknown");
             }
 
-            var (offset, row, ticks, _) = await MoodProbe.ReadAsync(s, label, pawn, Thought, cancellationToken).ConfigureAwait(false);
+            var (offset, row, ticks, _) = await MoodProbe.ReadAsync(s, label, worn.Pawn, Thought, cancellationToken).ConfigureAwait(false);
             var stage = MoodProbe.StageOf(card, offset);
-            observed.Add(new JsonObject
-            {
-                ["tainted"] = tainted,
-                ["bloodlust"] = bloodlust,
-                ["offset"] = offset,
-                ["stage"] = stage,
-                ["card"] = want,
-                ["settle_ticks"] = ticks,
-                ["row"] = row?.DeepClone(),
-            });
+            observed.Add(ServedOps.Args(
+                ("tainted", tainted),
+                ("bloodlust", bloodlust),
+                ("offset", offset),
+                ("stage", stage),
+                ("card", want),
+                ("settle_ticks", ticks),
+                ("row", row is null ? null : JsonNode.Parse(WireJson.Serialize(row)))));
             if (assert && offset != want)
             {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{label}: observed {Thought} offset {offset} (stage {stage}), the card says {want}: {row.ToJson()}"));
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{label}: observed {Thought} offset {offset} (stage {stage}), the card says {want}"));
             }
 
             if (!assert)
@@ -92,9 +99,9 @@ internal static class DeadMans
                     throw new AcceptanceException($"{label}: no {Thought} thought observed with {tainted} tainted garments");
                 }
 
-                s.Report["n5_offset"] = offset;
-                s.Report["n5_stage"] = stage;
-                s.Report["n5_matches_card_clamp"] = offset == want;
+                s.Record("n5_offset", offset);
+                s.Record("n5_stage", stage);
+                s.Record("n5_matches_card_clamp", offset == want);
             }
         }
     }

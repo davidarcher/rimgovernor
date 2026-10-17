@@ -1144,7 +1144,6 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Observations.CurvePointRow), TypeInfoPropertyName = "ObservationsCurvePointRow")]
 [JsonSerializable(typeof(Observations.GeneTuningFacts), TypeInfoPropertyName = "ObservationsGeneTuningFacts")]
 [JsonSerializable(typeof(EquatableArray<Observations.CurvePointRow>), TypeInfoPropertyName = "EquatableArrayObservationsCurvePointRow")]
-[JsonSerializable(typeof(Observations.MechWorkModeRoles), TypeInfoPropertyName = "ObservationsMechWorkModeRoles")]
 [JsonSerializable(typeof(Observations.BiotechCatalog), TypeInfoPropertyName = "ObservationsBiotechCatalog")]
 [JsonSerializable(typeof(Observations.PawnAnomaly), TypeInfoPropertyName = "ObservationsPawnAnomaly")]
 [JsonSerializable(typeof(Observations.CreepJoinerState), TypeInfoPropertyName = "ObservationsCreepJoinerState")]

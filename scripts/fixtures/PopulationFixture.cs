@@ -15,16 +15,13 @@ namespace HomeBridge.BridgeTools
         private static Pawn candidate;
 
         [Tool("test/population_setup", Description = "Disposable population fixture, excluded from production and model access. Prepares a downed hostile candidate, prison, spare housing and supplies. Does not capture or recruit.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Native starting candidate kind: Villager for resistance work or SpaceRefugee_Clothed for bounded admission.")] string candidateKind = "Villager")
+        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (candidate != null || Find.CurrentMap == null || !Find.TickManager.Paused)
                     throw new InvalidOperationException("One setup on a paused disposable map is required");
                 var map = Find.CurrentMap;
                 var workers = map.mapPawns.FreeColonistsSpawned.ToList();
-                if (candidateKind != "Villager" && candidateKind != "SpaceRefugee_Clothed")
-                    throw new ArgumentException("Unsupported fixture candidate kind");
                 // The case starts on the blank lab: its colonists stand
                 // on the centre row, so the 16x10 site sits a few rows north
                 // of it on bare Soil, with no site search.
@@ -76,7 +73,7 @@ namespace HomeBridge.BridgeTools
                         if (!p.WorkTypeIsDisabled(def)) p.workSettings.SetPriority(def, 1);
                 }
                 var faction = Find.FactionManager.AllFactions.First(f => !f.IsPlayer && f.HostileTo(Faction.OfPlayer) && f.def.humanlikeFaction);
-                candidate = PawnGenerator.GeneratePawn(DefDatabase<PawnKindDef>.GetNamed(candidateKind), faction);
+                candidate = PawnGenerator.GeneratePawn(PawnKindDefOf.Villager, faction);
                 candidate.guest.Recruitable = true;
                 GenSpawn.Spawn(candidate, origin + new IntVec3(7, 0, 3), map);
                 candidate.health.AddHediff(HediffDefOf.Anesthetic);
@@ -89,34 +86,12 @@ namespace HomeBridge.BridgeTools
                 visitor.health.AddHediff(DefDatabase<HediffDef>.GetNamed("Bruise"), visitor.RaceProps.body.corePart).Severity = 3;
                 visitor.needs.food.CurLevelPercentage = .2f;
                 return new { success = true, candidate = candidate.GetUniqueLoadID(), prison = prison.GetUniqueLoadID(),
-                    candidateKind,
                     visitor = visitor.GetUniqueLoadID(),
-                    prisonCell = prison.Position.IsInPrisonCell(map),
                     bedChecks = workers.Select(p => new { pawn = p.GetUniqueLoadID(),
                         usable = RestUtility.CanUseBedNow(prison, candidate, false, guestStatusOverride: GuestStatus.Prisoner),
                         reachable = p.CanReach(prison, PathEndMode.OnCell, Danger.Some),
                         reservable = p.CanReserve(prison),
-                        nativeBed = RestUtility.FindBedFor(candidate, p, false, false, GuestStatus.Prisoner)?.GetUniqueLoadID() }).ToArray(),
-                    scope = "Prepared recruitable downed hostile; native capture assigns resistance, ordinary care and recruitment required" };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        // Forces the one native outcome a prisoner-interaction acceptance run
-        // needs to observe without playing days of recruitment: the game's
-        // own InteractionWorker_RecruitAttempt.DoRecruit path, exactly what a
-        // successful warden recruit interaction calls.
-        [Tool("test/population_recruit", Description = "Disposable population fixture, excluded from production and model access. Recruits the prepared candidate through the native recruit-success path so a later progress read observes an actual recruited outcome.")]
-        public async Task<object> Recruit(IRimBridgeContext ctx, CancellationToken cancellationToken)
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                if (candidate == null || Find.CurrentMap == null || !Find.TickManager.Paused)
-                    throw new InvalidOperationException("A prepared candidate on a paused disposable map is required");
-                if (!candidate.IsPrisonerOfColony) throw new InvalidOperationException("The candidate must be a colony prisoner before recruitment");
-                var recruiter = Find.CurrentMap.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p != candidate)
-                    ?? throw new InvalidOperationException("A free colonist recruiter is required");
-                InteractionWorker_RecruitAttempt.DoRecruit(recruiter, candidate, false);
-                return new { success = true, candidate = candidate.GetUniqueLoadID(), recruiter = recruiter.GetUniqueLoadID(),
-                    freeColonist = candidate.IsFreeColonist, prisoner = candidate.IsPrisonerOfColony };
+                        nativeBed = RestUtility.FindBedFor(candidate, p, false, false, GuestStatus.Prisoner)?.GetUniqueLoadID() }).ToArray() };
             }, cancellationToken).ConfigureAwait(false);
         }
     }

@@ -1,181 +1,100 @@
-using System.Text.Json.Nodes;
-using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.Store;
-using Journal = RimGovernor.Brain.Store.Store;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>child/first-child</c> (Go <c>first_child.go</c>) proves a Biotech colony raises its first child end to end in
-/// vanilla: a baby with no breastfeeder in the colony is fed through the baby food the food/baby-feeding Need has the
-/// colony cook, and grows into the Child developmental stage alive and not starved.
+/// <c>child/first-child</c> (#1691) proves a Biotech colony feeds its first baby with no breastfeeder: the served brain's
+/// food/baby-feeding Need bills the stove for baby-edible food, the colony cooks it and bottle-feeds the baby, which reaches
+/// the Child stage fed and not malnourished. The fixture stages the baby half a game day short of the Child stage, so the
+/// old case's two game days of native ageing are not run.
 /// </summary>
 internal static class ChildFirstChild
 {
-    private const string PrepareTool = "test/baby_care_prepare";
-    private const string InspectTool = "test/baby_care_inspect";
+    // Half a game day (12000 ticks) to the Child stage: inside the cap with room for the bill, the cooking and a feed.
+    private const double DaysToChild = 0.5;
 
-    /// <summary>Bounds the journal wait for the baby food bill; the stall budget ends it earlier when nothing moves.</summary>
-    private static readonly TimeSpan BillCeiling = TimeSpan.FromMinutes(6);
+    private static readonly FixtureOp<NoArgs, Fx.BabyCarePrepared> Prepare = new(
+        "test/baby_care_prepare",
+        _ => ServedOps.Args(("daysToChild", DaysToChild)),
+        ServedOps.Reply<Fx.BabyCarePrepared>("test/baby_care_prepare"));
 
-    /// <summary>Bounds the native run after the service stops: the fixture leaves the baby two game days short of the Child stage (120000 ticks).</summary>
-    private const ulong GrowTicks = 150000;
+    private sealed record Baby(string BabyId, string BenchId);
 
-    internal static AcceptanceCase Case() => new()
+    private static readonly FixtureOp<Baby, Fx.BabyCareRead> Inspect = new(
+        "test/baby_care_inspect",
+        b => ServedOps.Args(("babyId", b.BabyId), ("benchId", b.BenchId)),
+        ServedOps.Reply<Fx.BabyCareRead>("test/baby_care_inspect"));
+
+    internal static TypedCase Case() => new()
     {
         Name = "child/first-child",
-        Scope = "Issue #1691: with no breastfeeder in the colony, the food/baby-feeding Need has the colony cook baby-edible food "
-            + "and the baby is fed by it until it reaches the Child developmental stage. A Go snapshot over recorded facts cannot "
-            + "cover it: the chain is vanilla's own (bottle-feeding on Childcare work, the baby's food need, ageing and the "
-            + "stage change), asserted on the live pawn.",
-        Start = new FixtureStart { Op = PrepareTool, On = new LabStart() },
+        Scope = "Issue #1691: with no breastfeeder in the colony, the served brain bills the staged stove for a baby-edible recipe, "
+            + "and the baby, staged half a day short of the Child stage at a food level only ingestion raises, is fed above that "
+            + "level and reaches the Child stage alive with no malnutrition. The chain is vanilla's own (bottle-feeding on "
+            + "Childcare work, the baby's food need, the stage change) behind the brain's bill, asserted on the live pawn.",
+        Ticks = TypedCase.StagedTickCap,
+        Tier = CaseTier.Nightly,
+        Start = new LabStart(),
         Expansions = ["ludeon.rimworld.biotech"],
         NoKeep = true,
-        Quiet = QuietMode.Required,
-        RequiredOps = [PrepareTool, InspectTool],
+        Ops = [Prepare.Tool, Inspect.Tool],
 
         // The shelter family keeps supervised windows running (the bill planner alone never advances the clock); dialog
         // answers the letters.
-        Serve = new ServeSpec
-        {
-            Families = ["bill", "shelter", "dialog"],
-            NativeTimeout = TimeSpan.FromSeconds(15),
-            Prefix = "child-first-child",
-        },
-        Budget = TimeSpan.FromMinutes(15),
-        Crew = new Crew { Size = 3 },
+        Serve = new ServeSpec { Families = ["bill", "shelter", "dialog"], Prefix = "child-first-child" },
         Run = RunAsync,
     };
 
-    /// <summary>Whether the journal holds a completed bill for a baby-edible recipe on the fixture's stove; the planner picks among the recipes, so any counts.</summary>
-    private static async Task<bool> BabyFoodBillPlacedAsync(Journal journal, string bench, List<string> recipes, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        foreach (var plan in await ServiceJournal.PlanHistoryAsync(journal, "bill-*", cancellationToken).ConfigureAwait(false))
+        var prepared = await s.FixtureAsync("prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        s.Record("fixture", ServedOps.Json(prepared));
+        if (!prepared.Success || prepared.BabyId.Length == 0 || prepared.BenchId.Length == 0 || prepared.Recipes.Count == 0 || prepared.FoodLevel <= 0)
         {
-            foreach (var progress in plan.Progress)
-            {
-                if (progress.Action.ProductionBill is { } bill && bill.Bench == bench && recipes.Contains(bill.Recipe, StringComparer.Ordinal) && progress.View.Stage == Stage.Completed)
-                {
-                    return true;
-                }
-            }
+            throw new AcceptanceException($"fixture: unexpected first-child staging ({prepared.Reason}): {ServedOps.Json(prepared)?.ToJsonString()}");
         }
 
-        return false;
-    }
-
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var report = s.Report;
-        var prepared = s.Prepared ?? [];
-        var baby = prepared["babyId"].AsString();
-        var bench = prepared["benchId"].AsString();
-        var recipes = prepared["recipes"].AsSlice().Select(r => r.AsString()).ToList();
-        var stagedFood = prepared["foodLevel"].AsNumber();
-        if (baby.Length == 0 || bench.Length == 0 || recipes.Count == 0 || stagedFood <= 0)
+        var baby = new Baby(prepared.BabyId, prepared.BenchId);
+        var last = new Fx.BabyCareRead();
+        bool fed = false, billed = false;
+        var ticks = await s.ServeUntilAsync("raise", s.TicksLeft, async ct =>
         {
-            throw new AcceptanceException($"fixture: unexpected first-child staging: {prepared.ToJson()}");
-        }
-
-        report["baby"] = baby;
-        report["bench"] = bench;
-        report["recipes"] = new JsonArray([.. recipes.Select(r => (JsonNode?)r)]);
-        report["fixture"] = prepared.DeepClone();
-
-        var service = await ObservedSession.Of(s).ServeAsync(s.Spec, cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
-            service.KeepAuthority(cancellationToken);
-            var store = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
-            try
+            last = await s.FixtureAsync("inspect", Inspect, baby, ct).ConfigureAwait(false);
+            if (!last.Success)
             {
-                // The colony's own answer to a baby it cannot breastfeed: the standing baby food bill on its stove.
-                try
-                {
-                    await new Wait { Ceiling = BillCeiling, Stall = Wait.StallBudget(), Terminal = service.Exited }.WaitProgressAsync(
-                        async ct =>
-                        {
-                            var placed = await BabyFoodBillPlacedAsync(store, bench, recipes, ct).ConfigureAwait(false);
-                            return (Wait.Signature(placed), placed);
-                        },
-                        cancellationToken).ConfigureAwait(false);
-                }
-                catch (AcceptanceException e)
-                {
-                    throw new AcceptanceException($"baby food bill: {e.Message}", e);
-                }
-            }
-            finally
-            {
-                store.Dispose();
+                throw new AcceptanceException($"baby inspect refused: {last.Reason}");
             }
 
-            report["run_keepalive"] = (await service.StopAsync().ConfigureAwait(false))?.DeepClone();
-        }
-        finally
-        {
-            _ = await service.StopAsync().ConfigureAwait(false);
-        }
+            if (last.Dead)
+            {
+                throw new AcceptanceException($"the baby died: {ServedOps.Json(last)?.ToJsonString()}");
+            }
 
-        // Native postconditions after the service releases the game slot: the bill stands on the stove for a baby-edible
-        // recipe, and the baby is fed (its food level is above the staged level, which only ingestion raises; the service
-        // run may already have carried it past the Child stage) and reaches the Child stage alive and not starved.
-        var h = s.Reattach();
-        var args = new JsonObject { ["babyId"] = baby, ["benchId"] = bench };
-        JsonObject? last = null;
-        var fed = false;
-        ulong elapsed = 0;
-        try
-        {
-            elapsed = await RunAt.RunUntilAsync(
-                h,
-                "child-grown",
-                GrowTicks,
-                new Wait { Stall = Wait.StallBudget() },
-                async ct =>
-                {
-                    var reply = await h.CallAsync("baby-inspect", InspectTool, args, ct).ConfigureAwait(false);
-                    if (reply["success"].AsBool() != true)
-                    {
-                        throw new AcceptanceException($"baby inspect refused: {reply.ToJson()}");
-                    }
-
-                    last = reply;
-                    if (reply["dead"].AsBool() == true)
-                    {
-                        throw new AcceptanceException($"the baby died: {reply.ToJson()}");
-                    }
-
-                    var food = reply["foodLevel"].AsNumber();
-                    fed = fed || food > stagedFood;
-                    return (Wait.Signature(reply["stage"].ToJson(), food, fed), reply["stage"].AsString() == "Child");
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            report["grow_ticks"] = elapsed;
-            report["inspect"] = last?.DeepClone();
-            report["fed"] = fed;
-        }
-
-        var billed = last is not null && last["bills"].AsSlice().Any(raw =>
-            raw.AsMap() is { } row && row["babyEdible"].AsBool() == true && recipes.Contains(row["recipe"].AsString(), StringComparer.Ordinal));
+            fed |= last.FoodLevel > prepared.FoodLevel;
+            billed |= last.Bills.Any(b => b.BabyEdible && prepared.Recipes.Contains(b.Recipe, StringComparer.Ordinal));
+            return (Wait.Signature(last.Stage, last.FoodLevel, fed, billed), fed && billed && last.Stage == "Child");
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("ticks", ticks);
+        s.Record("inspect", ServedOps.Json(last));
+        s.Record("fed", fed);
         if (!billed)
         {
-            throw new AcceptanceException($"no baby food bill ({string.Join(", ", recipes)}) stands on bench {bench}: {last?["bills"].ToJson() ?? "null"}");
+            throw new AcceptanceException($"no baby food bill ({string.Join(", ", prepared.Recipes)}) stood on bench {prepared.BenchId}");
         }
 
         if (!fed)
         {
-            throw new AcceptanceException($"the baby's food level never rose above its staged {stagedFood}, so it was never fed: {last.ToJson()}");
+            throw new AcceptanceException($"the baby's food level never rose above its staged {prepared.FoodLevel}, so it was never fed");
         }
 
-        var severity = last!["malnutrition"].AsNumber();
-        if (severity > 0)
+        if (last.Stage != "Child")
         {
-            throw new AcceptanceException($"the baby reached the Child stage malnourished (severity {severity}): {last.ToJson()}");
+            throw new AcceptanceException($"the baby did not reach the Child stage: {last.Stage}");
+        }
+
+        if (last.Malnutrition > 0)
+        {
+            throw new AcceptanceException($"the baby reached the Child stage malnourished (severity {last.Malnutrition})");
         }
     }
 }
