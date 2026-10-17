@@ -133,6 +133,7 @@ internal static class Gate
                 : Task.FromResult($"unavailable (missing {p.HostDll})\n")),
             new("native-hook-set", c =>
                 File.Exists(hookset) ? Dotnet(p.Repo, c, hookset) : Task.FromResult("unavailable (not built; Harmony missing)\n")),
+            new("contract orphans", _ => Task.Run(() => Orphans(p))),
         };
         Log.Info($"test: {jobs.Count} jobs at once; each prints when it finishes");
         var failed = new List<string>();
@@ -171,6 +172,60 @@ internal static class Gate
         {
             throw new ToolException($"failed: {string.Join(", ", failed)}");
         }
+    }
+
+    /// <summary>
+    /// The orphan check (<see cref="ContractOrphans"/>) over the brain assemblies the solution built and the native
+    /// mod's own, against its shrink-only baseline <c>brain/analyzers/baseline/orphans.txt</c>: an orphan not listed
+    /// fails, and so does a listed line that is no longer an orphan (delete it). Without the game the native mod is not
+    /// built and the game-reading brain projects are empty, so the check has no evidence and says unavailable.
+    /// </summary>
+    private static string Orphans(Paths p)
+    {
+        if (!File.Exists(p.Manifest))
+        {
+            return "unavailable (the native mod is not built)\n";
+        }
+        var brain = Directory.EnumerateDirectories(Path.Combine(p.Artifacts, "bin"), "RimGovernor.Brain.*")
+            .Select(dir => Path.GetFileName(dir))
+            .Where(name => name != "RimGovernor.Brain.Analyzers" && !name.EndsWith(".Tests", StringComparison.Ordinal))
+            .Select(name => Path.Combine(p.Bin(name), name + ".dll"))
+            .Where(File.Exists)
+            .ToList();
+        var native = Directory.EnumerateFiles(Path.Combine(p.Mod, "RimGovernor"), "RimGovernor.*.dll", SearchOption.AllDirectories)
+            .Where(f => !Path.GetFileName(f).StartsWith("RimGovernor.Brain.", StringComparison.Ordinal))
+            .ToList();
+        var found = new List<(string Key, string Reason)>();
+        var counts = new List<string>();
+        // The acceptance cases read some native replies by JSON key; any wire member whose JSON name they mention is read.
+        var keys = ContractOrphans.LiteralKeys(brain.Where(f => Path.GetFileName(f).StartsWith("RimGovernor.Brain.Acceptance", StringComparison.Ordinal)));
+        var contracts = Path.Combine(p.Bin("RimGovernor.Brain.Contracts"), "RimGovernor.Brain.Contracts.dll");
+        var byName = ContractOrphans.WireNames(contracts).Where(n => keys.Contains(n.Value)).Select(n => n.Key).ToHashSet(StringComparer.Ordinal);
+        foreach (var (target, project) in new[] { (ContractOrphans.Wire, "RimGovernor.Brain.Contracts"), (ContractOrphans.PolicyRecords, "RimGovernor.Brain.Policy") })
+        {
+            var declaring = Path.Combine(p.Bin(project), project + ".dll");
+            found.AddRange(ContractOrphans.Find(
+                target, declaring, brain.Where(f => f != declaring), native, out var checkedCount, target == ContractOrphans.Wire ? byName : null));
+            counts.Add($"{target.Name} {checkedCount}");
+        }
+        var baselinePath = Path.Combine(p.Repo, "brain", "analyzers", "baseline", "orphans.txt");
+        var baseline = File.ReadAllLines(baselinePath).Where(l => l.Length > 0).ToHashSet(StringComparer.Ordinal);
+        var added = found.Where(f => !baseline.Contains(f.Key)).Select(f => $"{f.Key}: {f.Reason}").ToList();
+        var stale = baseline.Except(found.Select(f => f.Key), StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        var problems = new List<string>();
+        if (added.Count > 0)
+        {
+            problems.Add($"{added.Count} new orphans; delete each through every layer (never add a baseline line):\n  {string.Join("\n  ", added)}");
+        }
+        if (stale.Count > 0)
+        {
+            problems.Add($"{stale.Count} baseline lines are no longer orphans; delete them from {baselinePath}:\n  {string.Join("\n  ", stale)}");
+        }
+        if (problems.Count > 0)
+        {
+            throw new ToolException(string.Join("\n", problems));
+        }
+        return $"members checked: {string.Join(", ", counts)}; new orphans: none; baselined: {baseline.Count}\n";
     }
 
     /// <summary>Runs dotnet captured and returns its output; a non-zero exit throws with that output.</summary>
