@@ -49,7 +49,7 @@ public sealed record AnimalAcquisition
     /// Prices one animal of race and gender, ageTicks old: the milk and eggs it gives net of feed, else its
     /// meat. Not ok when any fact it needs is unread.
     /// </summary>
-    internal static bool Yield(AnimalRace race, string gender, double ageTicks, out AcquiredYield result)
+    internal static bool Yield(AnimalRace race, bool female, double ageTicks, out AcquiredYield result)
     {
         result = default;
         if (!race.AdultFeedPerDay.TryGetValue(out var feed) || !FoodNumber(feed))
@@ -99,7 +99,7 @@ public sealed record AnimalAcquisition
                 return false;
             }
 
-            if (gender != "Female" && (p.Kind == "milk" || p.FemaleOnly))
+            if (!female && (p.Kind == "milk" || p.FemaleOnly))
             {
                 continue;
             }
@@ -257,7 +257,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            if (!AnimalAcquisition.Yield(race, a.Gender, years * GameTime.DaysPerYear * GameTime.TicksPerDay, out var y))
+            if (!AnimalAcquisition.Yield(race, a.Gender == RimGovernor.Contracts.Wire.Defs.Gender.Female, years * GameTime.DaysPerYear * GameTime.TicksPerDay, out var y))
             {
                 continue;
             }
@@ -312,7 +312,7 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                if (!AnimalAcquisition.Yield(race, row.Gender, double.PositiveInfinity, out var y))
+                if (!AnimalAcquisition.Yield(race, row.Gender == "Female", double.PositiveInfinity, out var y))
                 {
                     continue;
                 }

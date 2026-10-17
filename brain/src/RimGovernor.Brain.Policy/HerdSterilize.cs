@@ -1,3 +1,5 @@
+using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
+
 namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
@@ -44,10 +46,10 @@ public static partial class PolicyFunctions
             {
                 switch (a.Gender)
                 {
-                    case "Male":
+                    case Sex.Male:
                         males++;
                         break;
-                    case "Female":
+                    case Sex.Female:
                         females++;
                         break;
                 }
@@ -64,13 +66,13 @@ public static partial class PolicyFunctions
             var excessMales = males - keepMales;
             foreach (var a in animals)
             {
-                if (a.Gender == "Male" && males > HerdPairMales && (role.Superseded || excessMales > 0))
+                if (a.Gender == Sex.Male && males > HerdPairMales && (role.Superseded || excessMales > 0))
                 {
                     wanted.Add(a.Id);
                     males--;
                     excessMales--;
                 }
-                else if (a.Gender == "Female" && females > HerdPairFemales && role.Superseded)
+                else if (a.Gender == Sex.Female && females > HerdPairFemales && role.Superseded)
                 {
                     wanted.Add(a.Id);
                     females--;

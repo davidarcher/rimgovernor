@@ -398,9 +398,9 @@ Kept, reason recorded:
 | ChemicalState | message | 393 | 4 | state | Pawn addiction and tolerance per chemical |  |  |
 | ApparelRequirementFact | message | 394 | 4 | state | Apparel requirement body-part groups required defs and tags of a pawn's Precept_Role (kept: ideology generates the roles' requirements per ideo, so the instance is not a def row) |  |  |
 | TrainingEntry | message | 395 | 5 | state | Animal training state per trainable; def_name is the key of the live learned/wanted row (kept, #2657) |  |  |
-| AnimalState | message | 396 | 40 | state | Player animal husbandry facts and settings; tameable kept: TameUtility.CanTame on the live animal (#2657) |  |  |
+| AnimalState | message | 396 | 33 | state | Player animal husbandry facts and settings; tameable kept: TameUtility.CanTame on the live animal (#2657) |  |  |
 | PawnState | message | 443 | 47 | state | Canonical pawn row with flags needs health gear social and status |  |  |
-| PawnStanding | message | 501 | 5 | state | Faction standing of a humanlike pawn |  |  |
+| PawnStanding | message | 501 | 1 | state | Faction def of a humanlike pawn |  |  |
 | PawnGene | message | 519 | 3 | excluded | Biotech pawn gene entry |  |  #2630 Biotech |
 | PawnMechanitor | message | 520 | 5 | excluded | Biotech mechanitor bandwidth facts |  |  #2630 Biotech |
 | PawnMech | message | 527 | 6 | excluded | Biotech mech overseer and energy facts |  |  #2630 Biotech |

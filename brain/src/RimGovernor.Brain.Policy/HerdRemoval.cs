@@ -1,3 +1,5 @@
+using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
+
 namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
@@ -15,7 +17,7 @@ public static partial class PolicyFunctions
         }
         var rows = unsorted.OrderBy(a => a.Id).ToList();
         var counts = new Dictionary<Resource, long>();
-        var sexes = new Dictionary<Resource, long>();
+        var sexes = new Dictionary<(Resource Race, Sex? Sex), long>();
         foreach (var a in rows)
         {
             if (!a.Release.IsKnown || !a.Slaughter.IsKnown)
@@ -59,10 +61,10 @@ public static partial class PolicyFunctions
             // A sterilized animal is no part of a breeding pair.
             var fertile = HerdFertile(a);
             // A layer race keeps its rooster ratio (malesKept); an unknown ratio keeps every fertile male.
-            var (_, floorMales, mk) = herd.MalesKept(a.Definition, sexes.GetValueOrDefault(new Resource(a.Definition.Value + "/Female")));
+            var (_, floorMales, mk) = herd.MalesKept(a.Definition, sexes.GetValueOrDefault((a.Definition, Sex.Female)));
             var pair = fertile
-                && ((a.Gender == "Male" && (!mk || sexes.GetValueOrDefault(sex) <= floorMales))
-                    || (a.Gender == "Female" && sexes.GetValueOrDefault(sex) <= HerdPairFemales));
+                && ((a.Gender == Sex.Male && (!mk || sexes.GetValueOrDefault(sex) <= floorMales))
+                    || (a.Gender == Sex.Female && sexes.GetValueOrDefault(sex) <= HerdPairFemales));
             if (herd.Retired.GetValueOrDefault(a.Definition))
             {
                 floor = 0;
@@ -108,6 +110,6 @@ public static partial class PolicyFunctions
         return new HusbandryChoice { Reason = unknown ? HusbandryPlanReason.Unknown : HusbandryPlanReason.NoDeficit };
     }
 
-    /// <summary>The race-and-sex key the pair counts are kept under (Go <c>a.Definition+"/"+Resource(a.Gender)</c>).</summary>
-    private static Resource SexKey(UpkeepAnimal a) => new(a.Definition.Value + "/" + a.Gender);
+    /// <summary>The race-and-sex key the pair counts are kept under.</summary>
+    private static (Resource Race, Sex? Sex) SexKey(UpkeepAnimal a) => (a.Definition, a.Gender);
 }

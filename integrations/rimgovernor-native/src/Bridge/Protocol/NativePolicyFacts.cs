@@ -122,7 +122,7 @@ namespace HomeBridge.BridgeTools
                 }
             }
             if (pawn.guest is Pawn_GuestTracker guest && pawn.HostFaction != null) {
-                row = row with { GuestStatus = guest.GuestStatus.ToString() };
+                row = row with { GuestStatus = (RimGovernor.Contracts.Wire.Defs.GuestStatus)(int)guest.GuestStatus };
                 if (guest.IsPrisoner && guest.ExclusiveInteractionMode != null) row = row with { PrisonerInteraction = Id(guest.ExclusiveInteractionMode.defName) };
                 if (guest.IsSlave && guest.slaveInteractionMode != null) row = row with { SlaveInteraction = Id(guest.slaveInteractionMode.defName) };
             }

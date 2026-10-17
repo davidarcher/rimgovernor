@@ -1,4 +1,6 @@
 using RimGovernor.Brain.Domain;
+using RimGovernor.Contracts.Wire.Defs;
+using Wire = RimGovernor.Contracts.Wire.Defs;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -12,14 +14,14 @@ public sealed record PawnBiotech
     /// <summary>The LifeStageDef name.</summary>
     public Fact<string> LifeStage { get; init; }
 
-    /// <summary>The DevelopmentalStage name (Newborn, Baby, Child, Adult, None).</summary>
-    public Fact<string> DevelopmentalStage { get; init; }
+    /// <summary>The game's DevelopmentalStage (Newborn, Baby, Child, Adult, None).</summary>
+    public Fact<DevelopmentalStage> DevelopmentalStage { get; init; }
 
     /// <summary>The learning need level (0-1); unknown for a pawn with no learning need.</summary>
     public Fact<double> Learning { get; init; }
 
-    /// <summary>The LearningCategory name.</summary>
-    public Fact<string> LearningCategory { get; init; }
+    /// <summary>The learning need's LearningCategory.</summary>
+    public Fact<LearningCategory> LearningCategory { get; init; }
 
     /// <summary>Every gene, endogene and xenogene.</summary>
     public Fact<EquatableArray<PawnGene>> Genes { get; init; }
@@ -72,7 +74,7 @@ public sealed record PawnBiotech
         {
             return (false, false);
         }
-        return stage is "Newborn" or "Baby" or "Child" ? (true, true) : (false, true);
+        return stage is Wire.DevelopmentalStage.Newborn or Wire.DevelopmentalStage.Baby or Wire.DevelopmentalStage.Child ? (true, true) : (false, true);
     }
 
     /// <summary>

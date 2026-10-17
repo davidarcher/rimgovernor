@@ -1,3 +1,5 @@
+using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -238,7 +240,7 @@ public static partial class PolicyFunctions
     )
     {
         var kept = new Dictionary<Resource, long>();
-        var sexes = new Dictionary<Resource, Dictionary<string, long>>();
+        var sexes = new Dictionary<Resource, Dictionary<Sex, long>>();
         var eligible = new Dictionary<Resource, List<HerdRemoval>>();
         foreach (var a in rows)
         {
@@ -259,12 +261,12 @@ public static partial class PolicyFunctions
             kept[a.Definition] = kept.GetValueOrDefault(a.Definition) + 1;
             if (!sexes.TryGetValue(a.Definition, out var bySex))
             {
-                bySex = new Dictionary<string, long>(StringComparer.Ordinal);
+                bySex = [];
                 sexes[a.Definition] = bySex;
             }
-            if (HerdFertile(a))
+            if (HerdFertile(a) && a.Gender is { } sex)
             {
-                bySex[a.Gender] = bySex.GetValueOrDefault(a.Gender) + 1;
+                bySex[sex] = bySex.GetValueOrDefault(sex) + 1;
             }
             var (method, ok) = HerdRemovalMethod(a);
             if (!ok)
@@ -286,13 +288,13 @@ public static partial class PolicyFunctions
         {
             var surplus = kept.GetValueOrDefault(race) - limit;
             var raceRows = eligible.GetValueOrDefault(race) ?? [];
-            var bySex = sexes.GetValueOrDefault(race) ?? new Dictionary<string, long>(StringComparer.Ordinal);
-            var (keepMales, floorMales, mk) = herd.MalesKept(race, bySex.GetValueOrDefault("Female"));
+            var bySex = sexes.GetValueOrDefault(race) ?? [];
+            var (keepMales, floorMales, mk) = herd.MalesKept(race, bySex.GetValueOrDefault(Sex.Female));
             if (!mk)
             {
                 return ([], true);
             }
-            var excessMales = bySex.GetValueOrDefault("Male") - keepMales;
+            var excessMales = bySex.GetValueOrDefault(Sex.Male) - keepMales;
             var ranked = raceRows
                 .OrderBy(r => HerdTier(r.Animal))
                 .ThenByDescending(r => HerdFeedPerMeat(r.Animal))
@@ -303,7 +305,7 @@ public static partial class PolicyFunctions
             foreach (var r in ranked)
             {
                 var a = r.Animal;
-                if (a.Gender == "Male" && HerdTier(a) != 0 && excess.Count < excessMales)
+                if (a.Gender == Sex.Male && HerdTier(a) != 0 && excess.Count < excessMales)
                 {
                     excess.Add(a.Id);
                 }
@@ -329,11 +331,11 @@ public static partial class PolicyFunctions
                 {
                     // no pair to keep
                 }
-                else if ((g == "Male" && bySex.GetValueOrDefault(g) > floorMales) || (g == "Female" && bySex.GetValueOrDefault(g) > HerdPairFemales))
+                else if ((g == Sex.Male && bySex.GetValueOrDefault(Sex.Male) > floorMales) || (g == Sex.Female && bySex.GetValueOrDefault(Sex.Female) > HerdPairFemales))
                 {
-                    bySex[g] = bySex.GetValueOrDefault(g) - 1;
+                    bySex[g.GetValueOrDefault()]--;
                 }
-                else if (g == "None")
+                else if (g == Sex.None)
                 {
                     // asexual race: no pair to keep
                 }

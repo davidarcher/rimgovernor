@@ -140,22 +140,11 @@ namespace HomeBridge.BridgeTools
                     || d==nearestDistance && string.CompareOrdinal(other.GetUniqueLoadID(),nearest.GetUniqueLoadID())<0) { nearest=other; nearestDistance=d; }
             }
             if (nearest!=null) row = row with { NearestColonistDistance = nearestDistance };
-            if(pawn.RaceProps.Humanlike) row = row with { Standing = Standing(pawn) };
+            // Faction standing of a humanlike pawn, colonist or not.
+            if(pawn.RaceProps.Humanlike) row = row with { Standing = new Obs.PawnStanding { FactionDefName = pawn.Faction==null ? null : Id(pawn.Faction.def.defName) } };
             if (pawn.ownership?.OwnedBed!=null) row = row with { OwnedBed = NativeRef.Of(Id(pawn.ownership.OwnedBed.GetUniqueLoadID())) };
             else row = row with { Issues = [.. row.Issues, Issue("owned_bed",Common.UnavailableReason.NotApplicable,"No owned bed.")] };
             return row;
-        }
-        // Faction standing of a humanlike pawn, colonist or not.
-        private static Obs.PawnStanding Standing(Pawn pawn)
-        {
-            var standing=new Obs.PawnStanding { QuestLodger=pawn.IsQuestLodger() };
-            if(pawn.Faction!=null) standing = standing with { FactionDefName = Id(pawn.Faction.def.defName) };
-            if(ModsConfig.RoyaltyActive && pawn.royalty?.MostSeniorTitle is RoyalTitle title) standing = standing with { RoyalTitle = Id(title.def.defName) };
-            if(pawn.HostFaction!=null) {
-                standing = standing with { HostFaction = NativeRef.Of(Id(pawn.HostFaction.GetUniqueLoadID())) };
-                if(pawn.guest!=null) standing = standing with { GuestStatus = pawn.guest.GuestStatus.ToString() };
-            }
-            return standing;
         }
         internal static Obs.SnapshotRef PawnSnapshotToken(Obs.PawnState row,Common.ObservationContext context)
             => NativeObservationSnapshot.Snapshot("pawn-state", context, (row.Pawn.Id ?? ""), w => {

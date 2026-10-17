@@ -438,7 +438,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (bt.DevelopmentalStage.TryGetValue(out var stage) && (stage == "Newborn" || stage == "Baby"))
+            if (bt.DevelopmentalStage.TryGetValue(out var stage) && stage is RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Newborn or RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby)
             {
                 n++;
             }

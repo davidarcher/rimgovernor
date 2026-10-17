@@ -1,3 +1,5 @@
+using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -316,7 +318,7 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static bool HerdTameLess(HerdRole role, UpkeepAnimal a, UpkeepAnimal b)
     {
-        bool Wanted(UpkeepAnimal u) => (role.WantMale && u.Gender == "Male") || (role.WantFemale && u.Gender == "Female");
+        bool Wanted(UpkeepAnimal u) => (role.WantMale && u.Gender == Sex.Male) || (role.WantFemale && u.Gender == Sex.Female);
         var wa = Wanted(a);
         var wb = Wanted(b);
         if (wa != wb)

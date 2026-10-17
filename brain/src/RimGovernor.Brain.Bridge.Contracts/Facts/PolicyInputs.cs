@@ -40,7 +40,7 @@ public static partial class BridgeFunctions
                 IdeoCertainty = OptionalFact(inputs.IdeoCertainty is not null, inputs.IdeoCertainty.GetValueOrDefault()),
                 RoleApparel = ApparelRequirements(inputs.RoleApparel),
                 PreceptApparel = [.. inputs.PreceptApparel],
-                GuestStatus = inputs.GuestStatus ?? "",
+                GuestStatus = inputs.GuestStatus,
                 PrisonerInteraction = inputs.PrisonerInteraction ?? "",
                 SlaveInteraction = inputs.SlaveInteraction ?? "",
                 TendQuality = OptionalFact(inputs.MedicalTendQuality is not null, inputs.MedicalTendQuality.GetValueOrDefault()),

@@ -333,7 +333,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             _ = pawn.PolicyInputs.TryGetValue(out var inputs);
-            if (inputs?.GuestStatus is "Slave" or "Prisoner")
+            if (inputs?.GuestStatus is RimGovernor.Contracts.Wire.Defs.GuestStatus.Slave or RimGovernor.Contracts.Wire.Defs.GuestStatus.Prisoner)
             {
                 rows.Add((pawn.Id, CaptiveFoods(diet, foods)));
             }

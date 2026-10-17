@@ -54,9 +54,6 @@ public sealed partial class Rounder
     /// </summary>
     internal ReviewMemory<PlannedSelection> RoomSelection = new(new());
 
-    /// <summary>The per-world first-seen record of humanlike pawns: derived, in memory only, empty after a restart.</summary>
-    internal FirstSeenRecord FirstSeen = new();
-
     /// <summary>Since when each room has had unfinished blueprints or frames; see noteStall.</summary>
     internal Dictionary<string, RoomStall> RoomStalls = [];
 
@@ -228,8 +225,6 @@ public sealed partial class Rounder
     /// </summary>
     internal void PublishFrame(Identity expected, RoundsFrame frame)
     {
-        var seenAt = expected with { Tick = new Tick(frame.Context?.Tick ?? 0) };
-        FirstSeen.Observe(seenAt, frame.Tables.Pawns);
         if (Store is null)
         {
             Census.RememberColony(null);

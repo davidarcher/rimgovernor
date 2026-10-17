@@ -41,8 +41,8 @@ public sealed record PawnPolicyInputs
 
     public IReadOnlyList<string> PreceptApparel { get; init; } = [];
 
-    /// <summary>Guest, Prisoner or Slave; empty for a free pawn.</summary>
-    public string GuestStatus { get; init; } = "";
+    /// <summary>Guest, Prisoner or Slave; null for a free pawn.</summary>
+    public RimGovernor.Contracts.Wire.Defs.GuestStatus? GuestStatus { get; init; }
 
     public string PrisonerInteraction { get; init; } = "";
 

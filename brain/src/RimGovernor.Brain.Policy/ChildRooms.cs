@@ -240,14 +240,14 @@ public static partial class PolicyFunctions
 
             switch (stage)
             {
-                case "Newborn":
+                case RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Newborn:
                     babies++;
                     break;
-                case "Baby":
+                case RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby:
                     babies++;
                     toddlers++;
                     break;
-                case "Child":
+                case RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Child:
                     children++;
                     toddlers++;
                     break;

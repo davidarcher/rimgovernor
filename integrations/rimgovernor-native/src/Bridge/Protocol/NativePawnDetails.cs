@@ -499,28 +499,21 @@ namespace HomeBridge.BridgeTools
         // and the release/slaughter guards; for a wild one its tame facts.
         internal static Obs.AnimalState Animal(Pawn pawn)
         {
-            var row=new Obs.AnimalState();
-            if(pawn.ageTracker!=null) row = NativeHusbandryOperations.HerdFacts(pawn,row);
-            else {row = row with { Gender = pawn.gender.ToString() };row = row with { Issues = [.. row.Issues, Missing("age_years")] };}
-            if(pawn.training==null) row = row with { Issues = [.. row.Issues, Missing("training")] };
-            else {
+            var row=NativeHusbandryOperations.HerdFacts(pawn,new Obs.AnimalState());
+            if(pawn.training!=null) {
                 var defs=DefDatabase<TrainableDef>.AllDefsListForReading;
                 foreach(var def in defs) {
                     var report=pawn.training.CanAssignToTrain(def,out var visible);
                     var item=new Obs.TrainingEntry {DefName=Id(def.defName),Learned=pawn.training.HasLearned(def),Wanted=pawn.training.GetWanted(def),Available=report.Accepted && visible};
-                    if(!item.Available.GetValueOrDefault()) item = item with { Reason = Text(report.Reason??"Native training option is unavailable.") };
+                    if(!item.Available) item = item with { Reason = Text(report.Reason??"Native training option is unavailable.") };
                     row = row with { Training = [.. row.Training, item] };
                 }
             }
             var map=pawn.MapHeld;
-            if(map?.designationManager==null) {row = row with { Issues = [.. row.Issues, Missing("slaughter")] };row = row with { Issues = [.. row.Issues, Missing("release")] };}
-            else {
+            if(map?.designationManager!=null) {
                 var all=map.designationManager.AllDesignationsOn(pawn);
                 row = row with { Slaughter = all.Any(d=>d.def==DesignationDefOf.Slaughter) };row = row with { Release = all.Any(d=>d.def==DesignationDefOf.ReleaseAnimalToWild) };
             }
-            var milk=pawn.GetComp<CompMilkable>();if(milk!=null) row = row with { MilkFullness = Number(milk.Fullness) };else row = row with { Issues = [.. row.Issues, Issue("milk_fullness",Common.UnavailableReason.NotApplicable,"No milk component.")] };
-            var wool=pawn.GetComp<CompShearable>();if(wool!=null) row = row with { WoolFullness = Number(wool.Fullness) };else row = row with { Issues = [.. row.Issues, Issue("wool_fullness",Common.UnavailableReason.NotApplicable,"No wool component.")] };
-            foreach(var field in new[]{"fertile_adult","gestation","parent_ids"}) row = row with { Issues = [.. row.Issues, Unsupported(field,"Animal reproduction detail is not projected.")] };
             // Live spawned animals only: the guards and pen reads assume one.
             if(pawn.Dead || !pawn.Spawned) return row;
             if(pawn.Faction!=null && pawn.Faction==Faction.OfPlayerSilentFail) {
@@ -570,7 +563,5 @@ namespace HomeBridge.BridgeTools
             new Obs.Thought {DefName=defName ?? throw new InvalidOperationException("A thought has no def."),Count=checked((uint)count),MoodOffsetTotal=Number(total)};
 
         private static Obs.DefinitionRef Definition(Def def)=>new Obs.DefinitionRef {DefName=Id(def.defName)};
-        private static Obs.ReadIssue Missing(string field)=>Issue(field,Common.UnavailableReason.NativeComponentMissing,"Native component is absent or uninitialized.");
-        private static Obs.ReadIssue Unsupported(string field,string detail)=>Issue(field,Common.UnavailableReason.Unsupported,detail);
     }
 }

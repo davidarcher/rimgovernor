@@ -1,3 +1,5 @@
+using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>The one reason the colony keeps a race. <c>Unset</c> is Go's empty job.</summary>
@@ -387,7 +389,7 @@ public static partial class PolicyFunctions
                 s.Race = race;
             }
             s.N++;
-            if (a.Gender != "Male" && a.Gender != "Female" && a.Gender != "None")
+            if (a.Gender is null)
             {
                 s.Unsexed = true;
             }
@@ -395,11 +397,11 @@ public static partial class PolicyFunctions
             {
                 // a sterilized animal is no part of a pair
             }
-            else if (a.Gender == "Male")
+            else if (a.Gender == Sex.Male)
             {
                 s.Males++;
             }
-            else if (a.Gender == "Female")
+            else if (a.Gender == Sex.Female)
             {
                 s.Females++;
             }

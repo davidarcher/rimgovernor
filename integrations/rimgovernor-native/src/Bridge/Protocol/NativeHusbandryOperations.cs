@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
         {
             state = state with { AgeYears = animal.ageTracker.AgeBiologicalYearsFloat };
             state = state with { Adult = animal.ageTracker.Adult };
-            state = state with { Gender = animal.gender.ToString() };
+            state = state with { Gender = (RimGovernor.Contracts.Wire.Defs.Gender)(int)animal.gender };
             // The next life stage: its index and the ticks until
             // Pawn_AgeTracker reaches the next stage's minAge, absent in the last.
             var tracker = animal.ageTracker;

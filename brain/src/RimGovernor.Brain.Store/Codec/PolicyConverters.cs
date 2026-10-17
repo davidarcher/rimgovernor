@@ -1398,9 +1398,9 @@ internal sealed class PawnBiotechConverter : ObjectCodec<PawnBiotech>
         new()
         {
             LifeStage = e.Get<Fact<string>>("LifeStage", o),
-            DevelopmentalStage = e.Get<Fact<string>>("DevelopmentalStage", o),
+            DevelopmentalStage = e.Get<Fact<RimGovernor.Contracts.Wire.Defs.DevelopmentalStage>>("DevelopmentalStage", o),
             Learning = e.Get<Fact<double>>("Learning", o),
-            LearningCategory = e.Get<Fact<string>>("LearningCategory", o),
+            LearningCategory = e.Get<Fact<RimGovernor.Contracts.Wire.Defs.LearningCategory>>("LearningCategory", o),
             Genes = e.Get<Fact<EquatableArray<PawnGene>>>("Genes", o),
             Xenotype = e.Get<Fact<string>>("Xenotype", o),
             XenotypeName = e.Get<Fact<string>>("XenotypeName", o),

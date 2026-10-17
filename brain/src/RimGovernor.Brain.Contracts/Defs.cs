@@ -31,6 +31,36 @@ public enum Gender
     Female = 2,
 }
 
+/// <summary>RimWorld.GuestStatus, value for value.</summary>
+[JsonConverter(typeof(WireEnumConverter<GuestStatus>))]
+public enum GuestStatus
+{
+    [WireName("GUEST_STATUS_GUEST")]
+    Guest = 0,
+    [WireName("GUEST_STATUS_PRISONER")]
+    Prisoner = 1,
+    [WireName("GUEST_STATUS_SLAVE")]
+    Slave = 2,
+}
+
+/// <summary>RimWorld.LearningCategory, value for value.</summary>
+[JsonConverter(typeof(WireEnumConverter<LearningCategory>))]
+public enum LearningCategory
+{
+    [WireName("LEARNING_CATEGORY_EMPTY")]
+    Empty = 0,
+    [WireName("LEARNING_CATEGORY_VERY_LOW")]
+    VeryLow = 1,
+    [WireName("LEARNING_CATEGORY_LOW")]
+    Low = 2,
+    [WireName("LEARNING_CATEGORY_SATISFIED")]
+    Satisfied = 3,
+    [WireName("LEARNING_CATEGORY_HIGH")]
+    High = 4,
+    [WireName("LEARNING_CATEGORY_EXTREME")]
+    Extreme = 5,
+}
+
 [JsonConverter(typeof(WireEnumConverter<HungerCategory>))]
 public enum HungerCategory
 {

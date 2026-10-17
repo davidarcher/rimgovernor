@@ -1302,10 +1302,10 @@ public sealed record PawnPolicyInputs
     public EquatableArray<string> PreceptApparel { get; init; }
 
     /// <summary>
-    /// GuestStatus name (Guest, Prisoner, Slave) and the prisoner/slave
+    /// GuestStatus (Guest, Prisoner, Slave) and the prisoner/slave
     /// interaction mode defNames; absent for a pawn that is no guest.
     /// </summary>
-    public string? GuestStatus { get; init; }
+    public Defs.GuestStatus? GuestStatus { get; init; }
 
     public string? PrisonerInteraction { get; init; }
 
@@ -1369,49 +1369,42 @@ public sealed record ApparelRequirementFact
 
 public sealed record TrainingEntry
 {
-    public string? DefName { get; init; }
+    public string DefName { get; init; } = "";
 
-    public bool? Learned { get; init; }
+    public bool Learned { get; init; }
 
-    public bool? Wanted { get; init; }
+    public bool Wanted { get; init; }
 
-    public bool? Available { get; init; }
+    public bool Available { get; init; }
 
     public string? Reason { get; init; }
 }
 
+/// <summary>
+/// One animal's facts. Two reads fill it: the pawn detail read (herd census:
+/// gender, age and life stage for every animal) and the husbandry read (the
+/// Animals-tab settings); a group the read does not project stays absent.
+/// Training is empty for an animal without a training tracker; release and
+/// slaughter are the live designations (false off a map).
+/// </summary>
 public sealed record AnimalState
 {
-    public string? Gender { get; init; }
+    public Defs.Gender? Gender { get; init; }
 
     public double? AgeYears { get; init; }
 
-    public bool? FertileAdult { get; init; }
-
     public bool? Pregnant { get; init; }
-
-    public double? Gestation { get; init; }
-
-    public double? MilkFullness { get; init; }
-
-    public double? WoolFullness { get; init; }
 
     public string? PenId { get; init; }
 
     public bool? Contained { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> ParentIds { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<TrainingEntry>))]
     public EquatableArray<TrainingEntry> Training { get; init; }
 
-    public bool? Release { get; init; }
+    public bool Release { get; init; }
 
-    public bool? Slaughter { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
+    public bool Slaughter { get; init; }
 
     public bool? Tameable { get; init; }
 
@@ -1439,14 +1432,12 @@ public sealed record AnimalState
 
     /// <summary>
     /// Herd sizing facts: any hediff that makes colonists feel sick, the
-    /// player ideo venerates this race (slaughter_barred is no longer written;
-    /// precept effects decide), and adult age stage. The race's own
+    /// player ideo venerates this race (precept effects decide what that
+    /// bars), and adult age stage. The race's own
     /// numbers (body size, life expectancy, minimum handling skill, tame-failure
     /// manhunter chance) are the catalog's race rows.
     /// </summary>
     public bool? Sick { get; init; }
-
-    public bool? SlaughterBarred { get; init; }
 
     public bool? Venerated { get; init; }
 
@@ -1667,25 +1658,13 @@ public sealed record PawnMentalState
 }
 
 /// <summary>
-/// Faction standing of one humanlike pawn. faction_def_name is the
-/// pawn's FactionDef (absent without a faction); royal_title the defName of its
-/// most senior royal title (absent without Royalty or a title); host_faction
-/// the faction holding it as guest, prisoner or slave (absent when none);
-/// guest_status the GuestStatus name while a host faction holds it;
-/// quest_lodger Pawn.IsQuestLodger().
+/// Faction standing of one humanlike pawn: its FactionDef, absent without a faction.
 /// </summary>
 public sealed record PawnStanding
 {
     public string? FactionDefName { get; init; }
-
-    public string? RoyalTitle { get; init; }
-
-    public Common.Ref? HostFaction { get; init; }
-
-    public string? GuestStatus { get; init; }
-
-    public bool? QuestLodger { get; init; }
 }
+
 
 /// <summary>
 /// Biotech facts of one pawn. Each scalar is absent when native could
@@ -1693,9 +1672,9 @@ public sealed record PawnStanding
 /// for its field (genes, mechanitor, mech, deathrest). Defs are the
 /// DefinitionCatalog.biotech rows' names.
 /// life_stage is the pawn's LifeStageDef (Pawn_AgeTracker.CurLifeStage) and
-/// developmental_stage the DevelopmentalStage name (Newborn, Baby, Child,
+/// developmental_stage the DevelopmentalStage (Newborn, Baby, Child,
 /// Adult; None for a race with no stages). learning is Need_Learning's level
-/// (0-1) with its LearningCategory name; absent for a pawn with no learning
+/// (0-1) with its LearningCategory; absent for a pawn with no learning
 /// need. genes: every gene of Pawn_GeneTracker (endogenes and xenogenes).
 /// xenotype is the XenotypeDef name, absent for a custom xenotype or none;
 /// xenotype_name is the pawn's xenotype label (named custom xenotypes
@@ -1705,11 +1684,11 @@ public sealed record PawnStanding
 /// </summary>
 public sealed record PawnGene
 {
-    public string? DefName { get; init; }
+    public string DefName { get; init; } = "";
 
-    public bool? Xenogene { get; init; }
+    public bool Xenogene { get; init; }
 
-    public bool? Active { get; init; }
+    public bool Active { get; init; }
 }
 
 public sealed record PawnMechanitor
@@ -1767,11 +1746,11 @@ public sealed record PawnBiotech
 {
     public string? LifeStage { get; init; }
 
-    public string? DevelopmentalStage { get; init; }
+    public Defs.DevelopmentalStage? DevelopmentalStage { get; init; }
 
     public double? Learning { get; init; }
 
-    public string? LearningCategory { get; init; }
+    public Defs.LearningCategory? LearningCategory { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnGene>))]
     public EquatableArray<PawnGene> Genes { get; init; }

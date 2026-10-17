@@ -91,14 +91,10 @@ namespace HomeBridge.BridgeTools
                 row = row with { Obedient = NativeHusbandryOperations.Obedient(animal) };
                 row = row with { SupportsAllowedAreas = NativeHusbandryOperations.SupportsAllowedAreas(animal) };
             }
-            var pregnancy = animal.health?.hediffSet?.hediffs.OfType<Hediff_Pregnant>().FirstOrDefault();
-            if (pregnancy != null) { row = row with { Pregnant = true }; row = row with { Gestation = Number(pregnancy.Severity) }; }
-            var milk = animal.GetComp<CompMilkable>(); if (milk != null) row = row with { MilkFullness = Number(milk.Fullness) };
-            var wool = animal.GetComp<CompShearable>(); if (wool != null) row = row with { WoolFullness = Number(wool.Fullness) };
+            if (animal.health?.hediffSet?.hediffs.OfType<Hediff_Pregnant>().Any() == true) row = row with { Pregnant = true };
             return row;
         }
 
-        private static double Number(double value) => double.IsNaN(value) || double.IsInfinity(value) ? 0 : value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
     }
 }

@@ -24,7 +24,7 @@ public static partial class ObservationPackage
             var pawn = resolved[i];
             var state = pawn.AnimalState ?? new O.AnimalState();
             var area = Unknown<string>();
-            if (state.SupportsAllowedAreas is not null && !HasIssue(state.Issues, "allowed_area"))
+            if (state.SupportsAllowedAreas is not null)
             {
                 area = Known((state.AllowedAreaId ?? ""));
             }
@@ -33,10 +33,10 @@ public static partial class ObservationPackage
             {
                 training.Add(new HusbandryTrainable
                 {
-                    Def = entry.DefName ?? "",
-                    Available = Optional(entry.Available is not null, entry.Available.GetValueOrDefault()),
-                    Learned = Optional(entry.Learned is not null, entry.Learned.GetValueOrDefault()),
-                    Wanted = Optional(entry.Wanted is not null, entry.Wanted.GetValueOrDefault()),
+                    Def = entry.DefName,
+                    Available = Known(entry.Available),
+                    Learned = Known(entry.Learned),
+                    Wanted = Known(entry.Wanted),
                 });
             }
             var animal = new UpkeepAnimal
@@ -45,12 +45,12 @@ public static partial class ObservationPackage
                 AllowedArea = area,
                 Id = new PawnId(pawn.Pawn.Id ?? ""),
                 Label = pawn.Pawn.Label ?? "",
-                Gender = state.Gender ?? "",
+                Gender = state.Gender,
                 Definition = new Resource(pawn.Pawn.DefName ?? ""),
                 RequiresPen = Optional(a.RequiresPen is not null, a.RequiresPen.GetValueOrDefault()),
                 Contained = Optional(state.Contained is not null, state.Contained.GetValueOrDefault()),
-                Release = Optional(state.Release is not null, state.Release.GetValueOrDefault()),
-                Slaughter = Optional(state.Slaughter is not null, state.Slaughter.GetValueOrDefault()),
+                Release = Known(state.Release),
+                Slaughter = Known(state.Slaughter),
                 Pen = Known((state.PenId ?? "")),
                 SuitablePen = Known(a.SuitablePen?.Id ?? ""),
                 SlaughterFacts = new SlaughterFacts
@@ -112,7 +112,7 @@ public static partial class ObservationPackage
                 Slaughter = Known(false),
                 Pen = Known(""),
                 SuitablePen = Known(""),
-                Gender = state.Gender ?? "",
+                Gender = state.Gender,
                 Tameable = Optional(state.Tameable is not null, state.Tameable.GetValueOrDefault()),
                 Tame = Optional(state.Tame is not null, state.Tame.GetValueOrDefault()),
                 MinimumHandlingSkill = race.MinimumHandlingSkill,

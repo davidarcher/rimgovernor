@@ -1,9 +1,4 @@
 Contracts|Authority.ControlRequestOperation.FocusMap
-Contracts|Observations.AnimalState.FertileAdult
-Contracts|Observations.AnimalState.MilkFullness
-Contracts|Observations.AnimalState.ParentIds
-Contracts|Observations.AnimalState.SlaughterBarred
-Contracts|Observations.AnimalState.WoolFullness
 Contracts|Observations.BillStackRow.UnusableReason
 Contracts|Observations.BillState.CanRunNow
 Contracts|Observations.BillState.IngredientRadius

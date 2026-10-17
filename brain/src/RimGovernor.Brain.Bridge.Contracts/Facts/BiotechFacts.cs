@@ -26,16 +26,16 @@ public static partial class BridgeFunctions
         var result = new PolicyPawnBiotech
         {
             LifeStage = OptionalFact(biotech.LifeStage is not null, (biotech.LifeStage ?? "")),
-            DevelopmentalStage = OptionalFact(biotech.DevelopmentalStage is not null, (biotech.DevelopmentalStage ?? "")),
+            DevelopmentalStage = OptionalFact(biotech.DevelopmentalStage is not null, biotech.DevelopmentalStage.GetValueOrDefault()),
             Learning = OptionalFact(biotech.Learning is not null, biotech.Learning.GetValueOrDefault()),
-            LearningCategory = OptionalFact(biotech.LearningCategory is not null, (biotech.LearningCategory ?? "")),
+            LearningCategory = OptionalFact(biotech.LearningCategory is not null, biotech.LearningCategory.GetValueOrDefault()),
         };
         if (!failed.Contains("genes") && biotech.XenotypeName is not null)
         {
             // Genes exist only on a pawn with a gene tracker; the xenotype name is read with them.
             EquatableArray<PolicyPawnGene> genes =
             [
-                .. biotech.Genes.Select(gene => new PolicyPawnGene { Name = gene.DefName ?? "", Xenogene = Known(gene.Xenogene.GetValueOrDefault()), Active = Known(gene.Active.GetValueOrDefault()) }),
+                .. biotech.Genes.Select(gene => new PolicyPawnGene { Name = gene.DefName, Xenogene = Known(gene.Xenogene), Active = Known(gene.Active) }),
             ];
             result = result with
             {

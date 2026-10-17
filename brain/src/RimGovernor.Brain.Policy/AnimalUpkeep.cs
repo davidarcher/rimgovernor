@@ -1,3 +1,5 @@
+using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
+
 namespace RimGovernor.Brain.Policy;
 
 // Go: animal_upkeep.go
@@ -18,8 +20,8 @@ public sealed record UpkeepAnimal
     /// <summary>The native display name; empty when the census omits it.</summary>
     public string Label { get; init; } = "";
 
-    /// <summary>Native Gender ("Male", "Female", "None"); empty when unread.</summary>
-    public string Gender { get; init; } = "";
+    /// <summary>The game Gender; null when unread.</summary>
+    public Sex? Gender { get; init; }
 
     public Fact<bool> RequiresPen { get; init; }
 

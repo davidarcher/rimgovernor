@@ -5,6 +5,7 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
+using Defs = RimGovernor.Contracts.Wire.Defs;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
@@ -64,14 +65,14 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.PawnBiotech();
             try { if (Id(pawn.ageTracker?.CurLifeStage?.defName) is string stage) row = row with { LifeStage = stage }; }
             catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("life_stage", ex)] }; }
-            try { row = row with { DevelopmentalStage = pawn.DevelopmentalStage.ToString() }; }
+            try { row = row with { DevelopmentalStage = (Defs.DevelopmentalStage)(int)pawn.DevelopmentalStage }; }
             catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("developmental_stage", ex)] }; }
             try
             {
                 if (pawn.needs?.learning is Need_Learning learning)
                 {
                     var level = learning.CurLevelPercentage;
-                    var category = learning.CurCategory.ToString();
+                    var category = (Defs.LearningCategory)(int)learning.CurCategory;
                     if (Finite(level)) { row = row with { Learning = level }; row = row with { LearningCategory = category }; }
                 }
             }
