@@ -28,7 +28,6 @@ namespace HomeBridge.BridgeTools
         {
             internal readonly List<Thing> Items = new List<Thing>();
             internal readonly List<Building> PlayerBuildings = new List<Building>();
-            internal readonly List<Fire> Fires = new List<Fire>();
             internal readonly List<Filth> Filth = new List<Filth>();
 
             internal static ThingSets Of(Map map, List<Thing> things)
@@ -39,7 +38,6 @@ namespace HomeBridge.BridgeTools
                     things = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)).ToList();
                     sets.Items.AddRange(things.Where(t => t.def.category == ThingCategory.Item));
                     sets.PlayerBuildings.AddRange(things.OfType<Building>().Where(b => b.Faction == player));
-                    sets.Fires.AddRange(things.OfType<Fire>());
                     sets.Filth.AddRange(things.OfType<Filth>());
                     return sets;
                 }
@@ -47,7 +45,6 @@ namespace HomeBridge.BridgeTools
                     if (t.def.category == ThingCategory.Item) sets.Items.Add(t);
                     switch (t) {
                         case Building b when b.Faction == player: sets.PlayerBuildings.Add(b); break;
-                        case Fire f: sets.Fires.Add(f); break;
                         case Filth f: sets.Filth.Add(f); break;
                     }
                 }
@@ -92,7 +89,7 @@ namespace HomeBridge.BridgeTools
                 var values = rows.Select(t => {
                     var rot = t.TryGetComp<CompRottable>();
                     var value = new Obs.UpkeepItem {
-                        Item = NativeRef.Thing(t), Count = t.stackCount, Roofed = t.Position.Roofed(map), InStorage = t.IsInValidStorage(),
+                        Item = NativeRef.Thing(t), Count = t.stackCount, Roofed = t.Position.Roofed(map),
                         Forbidden = t.IsForbidden(Faction.OfPlayerSilentFail)
                     };
                     if (rot != null && rot.Active) value = value with { RotTicks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp) };
@@ -109,11 +106,6 @@ namespace HomeBridge.BridgeTools
                     Home = b.OccupiedRect().All(c => map.areaManager.Home[c])
                 }).ToList();
                 result = result with { Structures = [.. result.Structures, .. values] };
-            });
-            Read("fires", () => {
-                var rows = sets.Fires.OrderBy(f => f.thingIDNumber).ToList();
-                var values = rows.Select(f => new Obs.FireState { Fire = NativeRef.Thing(f), Home = map.areaManager.Home[f.Position], Size = f.fireSize }).ToList();
-                result = result with { Fires = [.. result.Fires, .. values] };
             });
             Read("filth", () => {
                 // Home-area filth only: a map carries hundreds of natural

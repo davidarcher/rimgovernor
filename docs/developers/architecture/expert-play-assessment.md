@@ -68,11 +68,10 @@ competes with already committed routine work. Neither is proved by the hazard
 probe's bound.
 
 Existing evidence includes disaster policy tests
-for temporary survival and false recovery, recovery selection tests,
-and [campaign/recovery](../../../brain/src/RimGovernor.Brain.Acceptance.Cases/Campaign/Recovery.cs).
-The latter stages a wood shortage followed by a raid and checks native colony
-outcomes; it is not evidence for every environmental disaster or simultaneous
-resource/labor conflict.
+for temporary survival and false recovery, and recovery selection tests.
+Long-horizon native recovery evidence (a shortage followed by a raid) is
+tracked in #2351; none of this is evidence for every environmental disaster
+or simultaneous resource/labor conflict.
 
 ### Development under food and material pressure
 
@@ -251,8 +250,8 @@ demonstrated benefit yet.
 | --- | --- | --- |
 | Throughput | Governed wall TPS divided by the same fixture's ungoverned TPS; native pause fraction; observation main-thread cost | [Speedmatrix and observation workload](../testing/measure-throughput.md) |
 | Protection | Onset → detection → decision → dispatch → first native protective effect in ticks; stop → resume in monotonic wall time | Hazard cases, scheduler tests, combatlab and OTLP traces |
-| Disaster recovery | Duration of unmet food/temperature/medical obligations; native restoration; losses in declared scenarios | Campaign/recovery plus focused staged cases |
-| Development | Time to useful completed capability; outstanding work and disrupted work; survival reserves during construction | Snapshot decisions, supply matrices and campaign/foothold |
+| Disaster recovery | Duration of unmet food/temperature/medical obligations; native restoration; losses in declared scenarios | Focused staged cases (long-horizon recovery: #2351) |
+| Development | Time to useful completed capability; outstanding work and disrupted work; survival reserves during construction | Snapshot decisions and supply matrices |
 | Combat | Deaths, injuries, friendly fire, refusal recurrence, threat resolution and return to productive work | Combatlab metrics and recorded decision replay |
 | Robustness | Authority changes, interrupted writes, missing facts and fresh-store resume preserve the contracts | Executor/store boundary tests and #2351 continuity work |
 

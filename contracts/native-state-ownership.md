@@ -98,8 +98,8 @@ The `rimgovernorHomeInitialized` and
 `rimgovernorHomeExcluded` save fields are neither read nor written, so restoration
 is always autonomous. The wire field `excluded_cells` is emitted as zero.
 
-Acceptance: `upkeep/home-coverage` proves connected coverage, restoration,
-stale proposal refusal and native Home persistence across a save reload.
+Acceptance: `upkeep/home-coverage` proves connected coverage and restoration of
+a removed cell under the served brain.
 
 ## Shared migration gate
 

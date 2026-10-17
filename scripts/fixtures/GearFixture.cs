@@ -236,7 +236,7 @@ namespace HomeBridge.BridgeTools
                 if (trait != null) pawn.story.traits.RemoveTrait(trait);
                 var snapDef = DefDatabase<GameConditionDef>.GetNamedSilentFail("ColdSnap");
                 if (snapDef == null) throw new System.InvalidOperationException("ColdSnap unavailable in this ruleset.");
-                // The sun cycle swings +-7C: size the snaps (-20C each) on the day's peak, as routine_temperature_prepare does.
+                // The sun cycle swings +-7C: size the snaps (-20C each) on the day's peak.
                 var peak = map.mapTemperature.OutdoorTemp - GenTemperature.OffsetFromSunCycle(Find.TickManager.TicksAbs, map.Tile) + 7f;
                 var snaps = System.Math.Max(0, System.Math.Min(3, (int)System.Math.Ceiling((peak + 5f) / 20f)));
                 for (var i = 0; i < snaps; i++)

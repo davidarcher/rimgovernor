@@ -35,8 +35,8 @@ internal static class StablePatient
         Keep = ["Food", "Rest"],
 
         // Medical: tend for the two Flu patients and the forced withdrawal patient's medical/critical Need, plus
-        // medicine-reserve replenishment so tend never runs the fixture's stocked medicine dry. Food: the same
-        // food/supply pipeline sustained/food exercises, to prove the pre-seeded growing zone/campfire bill keeps
+        // medicine-reserve replenishment so tend never runs the fixture's stocked medicine dry. Food: the
+        // food/supply pipeline families, to prove the pre-seeded growing zone/campfire bill keeps
         // advancing concurrently with medical dispatch.
         Serve = new ServeSpec
         {

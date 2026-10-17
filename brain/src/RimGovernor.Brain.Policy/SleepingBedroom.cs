@@ -139,7 +139,7 @@ public static partial class PolicyFunctions
         }
         // A spot its owner left behind in the shell is taken down, so the shell ends with no bunks. Only a spare
         // one: a spot is never an owned bed, so a spot just built for the shelter reads vacant too, and clearing
-        // it re-opened the shelter deficit until the epoch's bed cap ran out one spot short (campaign/foothold).
+        // it re-opened the shelter deficit until the epoch's bed cap ran out one spot short.
         // The clear leaves an indoor bed for every colonist.
         var indoor = 0;
         foreach (var room in rooms.Rooms)

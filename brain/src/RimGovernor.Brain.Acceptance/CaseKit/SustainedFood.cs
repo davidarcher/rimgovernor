@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
-// The watch mechanics behind the serve-driven registry cases (sustained/food, sustained/matrix-*, facility/*, farm/*,
+// The watch mechanics behind the serve-driven registry cases (sustained/colony, facility/*, farm/*,
 // medical/stable-patient): on a session the runner opened, start the in-mod player service with the routine families
 // under test, acquire player authority, and sample a goal's durable state over a tick-measured window (WatchAsync: a
 // tick cadence, woken early by the service's own journal), then stop the service and audit against live native facts

@@ -13,7 +13,6 @@ namespace HomeBridge.BridgeTools
     internal static class HomeCoverage
     {
         private static int installed;
-        internal static bool PreparingFixture = false;
         internal static void Install()
         {
             if (System.Threading.Interlocked.CompareExchange(ref installed, 1, 0) != 0) return;
@@ -29,19 +28,19 @@ namespace HomeBridge.BridgeTools
         // restores missing cells; there is no player-exclusion ledger.
         private static void Set(Area_Home __instance, IntVec3 c, bool val)
         {
-            if (PreparingFixture || !c.InBounds(__instance.Map)) return;
+            if (!c.InBounds(__instance.Map)) return;
             var state = __instance.Map.GetComponent<HomeCoverageState>();
             if (__instance[c] != val) state.Revision++;
         }
         private static void Clear(Area __instance)
         {
-            if (PreparingFixture || !(__instance is Area_Home)) return;
+            if (!(__instance is Area_Home)) return;
             var state = __instance.Map.GetComponent<HomeCoverageState>();
             state.Revision++;
         }
         private static void Invert(Area __instance)
         {
-            if (PreparingFixture || !(__instance is Area_Home)) return;
+            if (!(__instance is Area_Home)) return;
             var state = __instance.Map.GetComponent<HomeCoverageState>();
             state.Revision++;
         }

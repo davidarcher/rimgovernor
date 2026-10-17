@@ -105,9 +105,9 @@ namespace HomeBridge.BridgeTools
                     if(index<0) throw new InvalidOperationException("Hediff body part is not in this pawn's body.");
                     item = item with { PartIndex = index };item = item with { PartDefName = Id(h.Part.def.defName) };
                 }
-                var immune=h.TryGetComp<HediffComp_Immunizable>(); item = item with { Immunizable = immune!=null };
+                var immune=h.TryGetComp<HediffComp_Immunizable>();
                 if(immune!=null) {
-                    item = item with { Immunity = Number(immune.Immunity) };item = item with { FullyImmune = immune.FullyImmune };
+                    item = item with { Immunity = Number(immune.Immunity) };
                     // Include tending's severity modifier, as well as the disease's
                     // randomized native progression. Read only: never create immunity records.
                     item = item with { SeverityPerDay = Number(((HediffWithComps)h).comps

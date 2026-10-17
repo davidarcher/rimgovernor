@@ -360,9 +360,9 @@ internal sealed partial class FacadeNativeClient : IDisposable
             var request = new PbObservations.SnapshotStreamRequest
             {
                 RoutePathBudgetMs = RoutePathBudgetMs,
-                HuntRouteBudgetMs = HuntRouteBudgetMs,
-                HuntPredatorMarginCells = P.PolicyFunctions.HuntPredatorMarginCells,
-                HerdRadius = HerdRadius,
+                HuntRouteBudgetMs = ColonyFactsParameters.HuntRouteBudgetMs,
+                HuntPredatorMarginCells = ColonyFactsParameters.HuntPredatorMarginCells,
+                HerdRadius = ColonyFactsParameters.HerdRadius,
                 LinesOfFireBudgetMs = LinesOfFireBudgetMs,
             };
             PbObservations.SnapshotStreamReply reply;

@@ -35,22 +35,20 @@ public sealed record PlannedShard(string Id, IReadOnlyList<string> Cases);
 /// </summary>
 public static class RemotePlanning
 {
-    /// <summary>Round-robin over generator/consumer groups (the second version of the planner).</summary>
+    /// <summary>Round-robin over the scheduling groups (the second version of the planner).</summary>
     public const string DependencyAlgorithm = "dependency-round-robin-v2";
 
     /// <summary>Longest-processing-time-first over the groups' costs.</summary>
     public const string BudgetAlgorithm = "dependency-budget-lpt-v3";
 
     private const string SortedRoundRobin = "sorted-round-robin-v1";
-    private const string MatrixPrefix = "sustained/matrix-";
 
     private static readonly Lazy<IReadOnlyDictionary<string, long>> _measured = new(LoadMeasured);
 
     /// <summary>
-    /// Plans <paramref name="names"/> (sorted, unique) over at most <paramref name="limit"/> shards. Generated saves stay in
-    /// the worker profile that consumes them: each generator and its consumer form one scheduling group, generator first.
-    /// Throws <see cref="AcceptanceException"/> on an empty or unsorted selection, an unknown algorithm, a consumer without
-    /// its generator, or an invalid cost.
+    /// Plans <paramref name="names"/> (sorted, unique) over at most <paramref name="limit"/> shards, one case per scheduling
+    /// group. Throws <see cref="AcceptanceException"/> on an empty or unsorted selection, an unknown algorithm or an
+    /// invalid cost.
     /// </summary>
     public static IReadOnlyList<PlannedShard> PlanShards(IReadOnlyList<string> names, int limit, string algorithm, IReadOnlyDictionary<string, long> budgets)
     {
@@ -67,28 +65,15 @@ public static class RemotePlanning
             throw new AcceptanceException($"unknown shard algorithm \"{algorithm}\"");
         }
 
-        var consumers = new Dictionary<string, string>(StringComparer.Ordinal);
-        for (var i = 0; i < names.Count; i++)
+        for (var i = 1; i < names.Count; i++)
         {
-            var name = names[i];
-            if (i > 0 && string.Equals(name, names[i - 1], StringComparison.Ordinal))
+            if (string.Equals(names[i], names[i - 1], StringComparison.Ordinal))
             {
-                throw new AcceptanceException($"duplicate selected case {name}");
-            }
-
-            if (name.StartsWith(MatrixPrefix, StringComparison.Ordinal) && algorithm != SortedRoundRobin)
-            {
-                var generator = "tools/variantsavegen-" + name[MatrixPrefix.Length..];
-                if (!names.Contains(generator, StringComparer.Ordinal))
-                {
-                    throw new AcceptanceException($"{name} requires selected generator {generator}");
-                }
-
-                consumers[generator] = name;
+                throw new AcceptanceException($"duplicate selected case {names[i]}");
             }
         }
 
-        var count = Math.Min(names.Count - consumers.Count, limit);
+        var count = Math.Min(names.Count, limit);
         var shards = new List<string>[count];
         for (var i = 0; i < count; i++)
         {
@@ -99,34 +84,19 @@ public static class RemotePlanning
         long total = 0;
         foreach (var name in names)
         {
-            if (algorithm != SortedRoundRobin && name.StartsWith(MatrixPrefix, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var members = new List<string> { name };
-            if (consumers.TryGetValue(name, out var consumer))
-            {
-                members.Add(consumer);
-            }
-
-            long groupBudget = 0;
+            long budget = 0;
             if (algorithm == BudgetAlgorithm)
             {
-                foreach (var member in members)
+                budget = budgets.GetValueOrDefault(name);
+                if (budget <= 0 || budget > long.MaxValue - total)
                 {
-                    var budget = budgets.GetValueOrDefault(member);
-                    if (budget <= 0 || budget > long.MaxValue - total)
-                    {
-                        throw new AcceptanceException($"invalid or overflowing budget for {member}");
-                    }
-
-                    total += budget;
-                    groupBudget += budget;
+                    throw new AcceptanceException($"invalid or overflowing budget for {name}");
                 }
+
+                total += budget;
             }
 
-            groups.Add((members, groupBudget));
+            groups.Add(([name], budget));
         }
 
         if (algorithm == BudgetAlgorithm)

@@ -71,17 +71,13 @@ refuses unsupported capabilities without reducing coverage.
 tested SHA): the smoke set, the nightly tier or the requested cases, in registry order.
 
 The planner uses `algorithm: "dependency-budget-lpt-v3"`: sort selected case
-names bytewise and group each `sustained/matrix-<save>` with its required
-`tools/variantsavegen-<save>` generator. A missing generator fails planning.
+names bytewise; each case is its own scheduling group.
 Each selected case records its positive registry budget in integer nanoseconds
-as `budget_ns`, pinned by the selection digest and planner commit. Sort groups
-by descending sum of member budgets, breaking ties by the first case name
-(the generator for a dependency group). Assign each group to the shard with
-the smallest assigned budget, breaking ties by shard index. There are
-min(group count, configured shard count) nonempty shards, with IDs `s1`, `s2`,
-etc. Append each consumer immediately after its generator, keeping generated
-saves in the shard's private worker profile. Retry counts multiply every
-budget equally and do not change assignment.
+as `budget_ns`, pinned by the selection digest and planner commit. Sort cases
+by descending budget, breaking ties by case name. Assign each case to the shard
+with the smallest assigned budget, breaking ties by shard index. There are
+min(case count, configured shard count) nonempty shards, with IDs `s1`, `s2`,
+etc. Retry counts multiply every budget equally and do not change assignment.
 
 Every selected case occurs in exactly one shard; reasons are
 retained. Aggregation recomputes the same groups and order from the recorded

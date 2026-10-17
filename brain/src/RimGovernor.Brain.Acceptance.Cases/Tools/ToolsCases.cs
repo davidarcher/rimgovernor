@@ -10,9 +10,5 @@ public static class ToolsCases
         registry.Register(ToolsBaselineGen.Case());
         registry.Register(ToolsDeepResources.Case());
         registry.Register(ToolsFoodChannels.Case());
-        foreach (var c in ToolsVariantSaveGen.Cases())
-        {
-            registry.Register(c);
-        }
     }
 }

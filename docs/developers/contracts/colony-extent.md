@@ -113,11 +113,9 @@ and computes explicit Home set/clear actions. The game owns those writes
 through Hands; merely recording established extent cannot paint Home.
 
 A cell just outside a building can therefore be inside the intended Home
-margin. `upkeep/colony-extent` records complete Home masks before and after
-maintenance, checks a missing corridor cell and a margin cell become Home,
-and checks a cell beyond the margin stays outside Home. Once maintenance has
-converged, another runtime extent review must leave the complete mask
-byte-identical.
+margin. `upkeep/home-coverage` checks the corridor cells and a margin cell
+become Home under served maintenance, a cell beyond the margin stays outside
+Home, and a corridor cell removed from Home is restored.
 
 ## Related reading
 

@@ -24,7 +24,7 @@ All 86 C# files under the two integration source trees were parsed with Roslyn
 `CSharpSyntaxTree.ParseText`. Each `FieldDeclarationSyntax` with a `static` modifier
 was expanded into its individual variables, including declarations without access
 modifiers, multiple variables and `readonly` containers. Both default preprocessing
-and `THROUGHPUT_FIXTURE` were inspected. Default sources contain 131 static field
+and `THROUGHPUT_FIXTURE` were inspected. Default sources contain 130 static field
 declarations including nine in excluded duplicate files; the fixture symbol adds
 `RenderDemandDriver.TestSuspendUntil`. Seven static properties are computed getters,
 not additional storage; no static event storage was found. Constants, methods and
@@ -78,7 +78,6 @@ load-change cleanup; test acceleration must not become player policy.
 | `OrderedWorkHistory`: `[ThreadStatic] owned` | Per-thread nesting count incremented by `Owned`, decremented by `Scope.Dispose`. Only synchronous same-thread scope is intended. | No load reset or defensive idempotent dispose; crossing await/thread boundaries or double disposal misclassifies later player orders. Verify all callers use a single synchronous `using` and exceptions release it. | N01.04 main-thread admission |
 | [NativeSnapshotVersions](../integrations/rimgovernor-native/src/Bridge/Protocol/NativeSnapshotVersions.cs): `Gate`, `Rows`, `_version`, `_reads` | Process lock, one monotonic version counter and a row per kind, colony, load, map and entity holding the last guarded field bytes. A read whose bytes differ from the row's takes the next version, so a token is `kind-<version>`. When the rows reach twice `RetainRows`, rows not read in the last `RetainRows` reads are dropped. No load reset: the identity is in the key. | A write recomputes the row's version from the live world and refuses unless it equals the token it carries; a fact that moved, even if it moved back, takes a new version, so a read before the move never matches again. An evicted row restarts at a new version, which only refuses older tokens. Versions do not survive the process. | N01.03 observations / N01.04 CAS |
 | [WallUpgradeSafety](../integrations/rimgovernor-native/src/Bridge/WallUpgradeSafety.cs): `issuing` | Process bool true only around synchronous designation, reset in `finally`. | Makes the designation hook ignore the bridge's own designation. No nesting counter/thread identity: test reentrant designation and external setter inside the call. Never carry it through queued work. | N01.04 wall operations |
-| [HomeCoverage](../integrations/rimgovernor-native/src/Bridge/HomeCoverageTool.cs): `PreparingFixture` | Production-compiled bool initialized false; only writers found in `scripts/fixtures/HomeCoverageFixture.cs`, each with `finally` reset. | Suppresses the Home revision-bump hooks while true so fixture setup does not count as a geometry change. It is not a production authority input. Verify fixture failures restore false and production packaging excludes fixture tools; consider compile-gating the field with its only writers. | N01.01 fixture isolation / N01.04 Home |
 
 These classes also own process installation flags. They are **separate fields**
 from their saved components or transient work scopes:
@@ -127,8 +126,8 @@ own typed boundary migration; N01.05 owns relevant watcher metadata health.
   referenced identity assembly; all nine saved-state files were parsed, with no
   static fields. Their static methods are not storage.
 - Conditionally included `scripts/fixtures/*.cs` are outside production C# integration
-  sources. Only their writes to production-declared `PreparingFixture` and
-  `TestSuspendUntil` are within this audit; this is not a complete fixture-state audit.
+  sources. Only their writes to the fixture-declared
+  `TestSuspendUntil` is within this audit; this is not a complete fixture-state audit.
 
 Headless files [Startup.cs](../integrations/rimgovernor-native/src/Runtime/Headless/Startup.cs),
 [HeadlessModeManager.cs](../integrations/rimgovernor-native/src/Runtime/Headless/HeadlessModeManager.cs) and

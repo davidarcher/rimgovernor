@@ -45,9 +45,8 @@ state. Every missing target cell is restoration work, however Home was removed.
 The native target census also carries bounded 256-cell batches, but the policy
 uses its separate complete geometry to derive the base and margin.
 
-Acceptance: `upkeep/home-coverage` and `upkeep/colony-extent`. The latter verifies
-corridor and margin maintenance, exclusion beyond the margin, and a byte-identical
-Home mask across a subsequent extent review.
+Acceptance: `upkeep/home-coverage` verifies corridor and margin maintenance,
+exclusion beyond the margin, and restoration of a removed corridor cell.
 
 ### Construction lineage and extent
 

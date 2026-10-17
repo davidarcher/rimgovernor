@@ -26,11 +26,9 @@ refusal of partial or unknown inputs, the roofing budget, adoption and retiremen
 
 The shelter cases run the `shelter,sleeping` families alone, which keeps
 them minutes long, so they cannot catch a competing-concern or executor-wiring
-defect. `campaign/foothold` is the normal-composition evidence: every
-routine family on the player control path over three game days, asserting
-indoor sleeping capacity for every colonist. Run the pair together: a
-shelter change that passes one and fails the other is a composition defect,
-not a planner defect.
+defect. Multi-day composition evidence (every routine family on the player
+control path, asserting indoor sleeping capacity for every colonist) is the
+long-horizon run tracked in #2351.
 
 Retiring a native check needs the replacement assertion landed first, a note
 of where each assertion went, and a negative control showing the replacement

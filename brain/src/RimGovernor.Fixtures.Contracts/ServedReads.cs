@@ -247,3 +247,23 @@ public sealed record ThermalRead
 
     public bool Powered { get; init; }
 }
+
+/// <summary>
+/// <c>test/sleeping_setup</c>: the warm dormitory beside the colonists. With <c>couple</c>, the bedless lovers and their
+/// vacant double bed; with <c>connectedRooms</c>, the corridor joining two bed chambers and the cell one past their east
+/// wall (inside the Home margin).
+/// </summary>
+public sealed record SleepingPrepared
+{
+    public bool Success { get; init; }
+
+    public string Pawn { get; init; } = "";
+
+    public string? Partner { get; init; }
+
+    public string? DoubleBed { get; init; }
+
+    public StageCell Corridor { get; init; }
+
+    public StageCell Outside { get; init; }
+}

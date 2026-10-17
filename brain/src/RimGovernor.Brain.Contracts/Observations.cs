@@ -757,11 +757,7 @@ public sealed record Hediff
     /// </summary>
     public double? TendQuality { get; init; }
 
-    public bool Immunizable { get; init; }
-
     public double? Immunity { get; init; }
-
-    public bool? FullyImmune { get; init; }
 
     /// <summary>
     /// Instantaneous native rates per 60000 game ticks; absent when unavailable.
@@ -6122,8 +6118,6 @@ public sealed record UpkeepItem
 
     public bool Roofed { get; init; }
 
-    public bool InStorage { get; init; }
-
     public long? RotTicks { get; init; }
 
     public bool Forbidden { get; init; }
@@ -6163,16 +6157,6 @@ public sealed record UpkeepBed
 public sealed record UpkeepStructure
 {
     public Common.Ref Building { get; init; } = new();
-
-    public bool Home { get; init; }
-}
-
-/// <summary>One visible fire: its thing, its fireSize and whether it burns in the home area.</summary>
-public sealed record FireState
-{
-    public Common.Ref Fire { get; init; } = new();
-
-    public double Size { get; init; }
 
     public bool Home { get; init; }
 }
@@ -7449,9 +7433,6 @@ public sealed record UpkeepFacts
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepStructure>))]
     public EquatableArray<UpkeepStructure> Structures { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<FireState>))]
-    public EquatableArray<FireState> Fires { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FilthState>))]
     public EquatableArray<FilthState> Filth { get; init; }

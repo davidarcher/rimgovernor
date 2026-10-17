@@ -8,8 +8,6 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
-    <!-- The sustained colony variants (Go go:embed manifests/issue-1-matrix.json). -->
-    <EmbeddedResource Include="Sustained\manifests\issue-1-matrix.json" LogicalName="sustained.issue-1-matrix.json" />
   </ItemGroup>
   <!-- Charter rules 4 and 5 (#3397): RS0030 bans the APIs in BannedSymbols.txt. .editorconfig makes it an error and holds
        the shrink-only baseline of legacy files at suggestion, which the compiler still writes to banned-api.sarif; the
