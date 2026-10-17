@@ -1,127 +1,95 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
+using Presentation = RimGovernor.Contracts.Wire.Presentation;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>lifecycle/quiet_storyteller</c> (Go <c>quiet_storyteller.go</c>): the shipped RimGovernorQuiet StorytellerDef has
-/// no storyteller comps, keeps none after a save and reload, and fires no incident over a day of ticks. Nothing here
-/// uses the <c>test/quiet_storyteller</c> apply path; its inspect action is only the read.
+/// <c>lifecycle/quiet_storyteller</c>: the shipped RimGovernorQuiet StorytellerDef started through the new-colony op has
+/// no storyteller comps, keeps none after a save and reload, and fires no incident over a day of ticks. Nothing here uses
+/// the <c>test/quiet_storyteller</c> apply path; its inspect action is only the read.
 /// </summary>
 internal static class LifecycleQuietStoryteller
 {
     private const string QuietStorytellerDef = "RimGovernorQuiet";
 
-    /// <summary>One in-game day.</summary>
-    private const ulong DayTicks = 60000;
+    private static readonly FixtureOp<string, Fx.QuietStorytellerRead> Inspect = new(
+        DebugGame.QuietStorytellerTool,
+        action => new JsonObject([new KeyValuePair<string, JsonNode?>("action", action)]),
+        (label, reply) => reply is not null
+            ? Fx.FixtureJson.Deserialize<Fx.QuietStorytellerRead>(reply.ToJsonString())
+            : throw new AcceptanceException($"{label}: {DebugGame.QuietStorytellerTool} replied nothing"));
 
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "lifecycle/quiet_storyteller",
-        Scope = "RimGovernorQuiet storyteller def (#2023): a colony started with it via the new-colony op reports that storyteller with zero storytellerComps, "
-            + "keeps both after a save and lifecycle_load, and a day of ticks leaves the letter stack empty (no incident). Residuals "
+        Scope = "RimGovernorQuiet storyteller def (#2023): a colony started with it through lifecycle_new_colony reports that storyteller with zero storytellerComps, "
+            + "keeps both after lifecycle_save and lifecycle_load, and a day of ticks leaves the letter stack empty (no incident). Residuals "
             + "(inspirations, social fights, map-gen strangers and hives) are not asserted.",
+        Ticks = Wait.TicksPerDay,
+        Tier = CaseTier.OnDemand,
         Start = new OwnedStart(),
-        Reason = "the start needs a fresh main menu process",
-        NoKeep = true,
-        Budget = TimeSpan.FromMinutes(20),
-        Crew = new Crew { Size = 3 },
+        ClaimsStart = new StartClaim { Launches = 1 },
+        Ops = [DebugGame.QuietStorytellerTool],
         Run = RunAsync,
     };
 
-    private static Task RunAsync(ISession s, CancellationToken cancellationToken) =>
-        NewColonyKit.MenuAsync(
+    private static Task RunAsync(ITypedSession s, CancellationToken cancellationToken) =>
+        NewColonyStart.MenuAsync(
             s,
             "quiet",
-            ["rimgovernor/lifecycle_new_colony", "rimgovernor/lifecycle_save", "rimgovernor/lifecycle_load", DebugGame.QuietStorytellerTool],
-            async (h, row) =>
+            async () =>
             {
-                var report = s.Report;
-                row["storyteller"] = QuietStorytellerDef;
-                var spec = NewColonyKit.Spec();
-                spec["storyteller"] = QuietStorytellerDef;
-                spec["seed"] = "quietteller-accept";
-                spec["saveName"] = "quietteller-accept";
-                _ = await NewColonyKit.RunAsync(h, $"quietteller-{LifecycleCases.Stamp()}", spec, "quiet", cancellationToken).ConfigureAwait(false);
-                _ = await h.CallAsync("quiet-pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
-                await InspectAsync(h, "fresh", report, cancellationToken).ConfigureAwait(false);
+                var spec = NewColonyStart.Spec() with { Storyteller = QuietStorytellerDef, Seed = "quietteller-accept", SaveName = "quietteller-accept" };
+                var (completed, _) = await NewColonyStart.CompleteAsync(s, "quiet", NewColonyStart.Request(TypedLifecycle.Stamp("quietteller"), spec), cancellationToken).ConfigureAwait(false);
+                await InspectAsync(s, "fresh", cancellationToken).ConfigureAwait(false);
 
-                var identity = await Session.ReadIdentityAsync(h, "quiet-identity", cancellationToken).ConfigureAwait(false);
-                var saveName = $"quietteller-{LifecycleCases.Stamp()}";
-                var saved = await h.WireAsync(
-                    "quiet-save",
-                    "lifecycle_save",
-                    new JsonObject
-                    {
-                        ["player"] = new JsonObject { ["identity"] = identity.DeepClone(), ["playerDirection"] = 1, ["requestId"] = saveName },
-                        ["saveName"] = saveName,
-                    },
-                    cancellationToken).ConfigureAwait(false);
-                _ = LifecycleCases.Outcome("save", saved, "completed");
-                var loadId = saveName + "-load";
-                var loadReply = await h.WireAsync(
-                    "quiet-load",
-                    "lifecycle_load",
-                    new JsonObject
-                    {
-                        ["requestId"] = loadId,
-                        ["saveName"] = saveName,
-                        ["readiness"] = "READINESS_MAP",
-                        ["expectedPlayer"] = new JsonObject { ["identity"] = identity.DeepClone(), ["playerDirection"] = 1, ["requestId"] = loadId },
-                        ["playerDirection"] = 1,
-                    },
-                    cancellationToken).ConfigureAwait(false);
-                try
-                {
-                    _ = await GameReuse.PollLoadAsync(h, loadReply, loadId, "quiet-load-poll", cancellationToken).ConfigureAwait(false);
-                }
-                catch (AcceptanceException e)
-                {
-                    throw new AcceptanceException($"reload: {e.Message}", e);
-                }
+                var identity = completed.Context?.Identity ?? throw new AcceptanceException($"the completed start names no identity: {completed}");
+                var saveName = TypedLifecycle.Stamp("quietteller");
+                _ = await TypedLifecycle.SaveAsync(s, "save", identity, saveName, cancellationToken).ConfigureAwait(false);
+                _ = await TypedLifecycle.LoadAsync(s, "reload", identity, saveName, Lifecycle.Readiness.Map, cancellationToken).ConfigureAwait(false);
+                await InspectAsync(s, "reloaded", cancellationToken).ConfigureAwait(false);
 
-                await InspectAsync(h, "reloaded", report, cancellationToken).ConfigureAwait(false);
-
-                // A day of ticks: any incident delivers a letter, and a pausing letter fails RunUntil with a PauseCause.
-                var start = await h.TickAsync(cancellationToken).ConfigureAwait(false);
-                var advanced = await RunAt.RunUntilAsync(
-                    h,
+                // A day of ticks: any incident delivers a letter, and a pausing letter fails the wait with its cause.
+                var (loaded, start, _) = await TypedLifecycle.IdentityAsync(s, "day-start", cancellationToken).ConfigureAwait(false);
+                var ran = await s.RunUntilAsync(
                     "quiet-day",
-                    2 * DayTicks,
-                    new Wait(),
-                    async token =>
+                    Wait.TicksPerDay,
+                    async ct =>
                     {
-                        var tick = await h.TickAsync(token).ConfigureAwait(false);
-                        var letters = await RunAt.ReadLettersAsync(h.WireFunc(), "quiet-day", null, token).ConfigureAwait(false);
+                        var (_, tick, _) = await TypedLifecycle.IdentityAsync(s, "day-tick", ct).ConfigureAwait(false);
+                        var reply = await s.CallAsync(
+                            "day-letters",
+                            NativeOps.ReadNotifications,
+                            new Presentation.NotificationsRequest { Identity = loaded, IncludeMessages = false, IncludeAlerts = false },
+                            ct).ConfigureAwait(false);
+                        var letters = reply.Outcome?.Notifications?.Letters?.Outcome?.Observed?.Items
+                            ?? throw new AcceptanceException($"day-letters: no letter section: {reply.Outcome}");
                         if (letters.Count > 0)
                         {
-                            throw new AcceptanceException($"tick {tick}: a quiet colony delivered letters: [{string.Join(' ', letters.Select(l => l.ToJson()))}]");
+                            throw new AcceptanceException(string.Create(
+                                CultureInfo.InvariantCulture,
+                                $"tick {tick}: a quiet colony delivered letters: [{string.Join(' ', letters.Select(l => l.DefName))}]"));
                         }
 
-                        return ("", tick >= start + DayTicks);
+                        return (string.Empty, tick >= start + Wait.TicksPerDay);
                     },
-                    HarnessQuiet.Get(h),
-                    report,
                     cancellationToken).ConfigureAwait(false);
-                report["quiet_day_ticks"] = advanced;
+                s.Record("quiet_day_ticks", ran);
             },
             cancellationToken);
 
-    /// <summary>Asserts the loaded game's storyteller is RimGovernorQuiet with no comps, via the fixture op's read-only inspect action.</summary>
-    private static async Task InspectAsync(Harness h, string label, Report report, CancellationToken cancellationToken)
+    /// <summary>Asserts the loaded game's storyteller is RimGovernorQuiet with no comps, through the fixture op's read-only inspect action.</summary>
+    private static async Task InspectAsync(ITypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync("quiet-inspect-" + label, DebugGame.QuietStorytellerTool, new JsonObject { ["action"] = "inspect" }, cancellationToken).ConfigureAwait(false);
-        var got = reply["storyteller"].AsString();
-        if (got != QuietStorytellerDef)
+        var read = await s.FixtureAsync("inspect-" + label, Inspect, "inspect", cancellationToken).ConfigureAwait(false);
+        s.Record("quiet_" + label, read.Storyteller + "/" + read.Comps.ToString(CultureInfo.InvariantCulture));
+        if (read.Storyteller != QuietStorytellerDef || read.Comps != 0)
         {
-            throw new AcceptanceException($"{label}: storyteller \"{got}\", want {QuietStorytellerDef}");
+            throw new AcceptanceException($"{label}: want {QuietStorytellerDef} with no storytellerComps, got {read}");
         }
-
-        var comps = (int)reply["comps"].AsNumber();
-        if (comps != 0)
-        {
-            throw new AcceptanceException($"{label}: storytellerComps has {comps} entries, want 0");
-        }
-
-        report["quiet_" + label] = new JsonObject { ["storyteller"] = reply["storyteller"]?.DeepClone(), ["comps"] = reply["comps"]?.DeepClone() };
     }
 }

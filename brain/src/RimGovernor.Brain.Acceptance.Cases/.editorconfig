@@ -240,33 +240,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Letter/LetterPause.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Lifecycle/IdeoligionDesign.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lifecycle/LifecycleCases.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lifecycle/NewColony.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lifecycle/NewColonyKit.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lifecycle/NewColonyParts.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lifecycle/NewColonyTeam.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lifecycle/QuietStoryteller.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lifecycle/Reuse.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Lifecycle/ScenarioStartParts.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Medical/MedicalKit.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 

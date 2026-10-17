@@ -1,8 +1,10 @@
 using System.Text.Json.Nodes;
+using System.Xml.Linq;
 using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Telemetry;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -86,4 +88,43 @@ public interface ITypedSession
     /// <see cref="Scope"/> follow the loaded game. Spends no ticks.
     /// </summary>
     Task ReloadAsync(string label, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <see cref="OwnedStart"/> only (<see cref="TypedCase.ClaimsStart"/>): launches a fresh game at the main menu on the
+    /// case's prepared profile, at most <see cref="StartClaim.Launches"/> times, and returns its reusable-game lifecycle.
+    /// Until the next launch every call, read and wait of this session goes to that game (to its open reuse case while
+    /// one is open). The case retires it.
+    /// </summary>
+    Task<GameReuse> LaunchAsync(string label, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Starts a colony from the launched game's main menu (<c>lifecycle_new_colony</c>) and polls it
+    /// (<c>lifecycle_read_new_colony</c>) to its terminal outcome. Each phase is one long event outside the tick loop, so
+    /// the wait ends on the outcome or a stalled phase, not on ticks, and spends none. Phases must not go backwards, and a
+    /// completed start must have reported SAVING. A completed start moves <see cref="Identity"/> and <see cref="Scope"/>
+    /// to the new colony.
+    /// </summary>
+    Task<NewColonyResult> NewColonyAsync(string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The profile save <c>&lt;saveName&gt;.rws</c> parsed as XML: the evidence a start claim reads for what no
+    /// observation reports (a scenario part, the saved storyteller). Spends no ticks.
+    /// </summary>
+    Task<XDocument> ReadSaveFileAsync(string saveName, CancellationToken cancellationToken);
+
+    /// <summary>The profile path of save <c>&lt;saveName&gt;.rws</c>: where a start claim checks the file a start wrote, or squats it.</summary>
+    string ProfileSave(string saveName);
+}
+
+/// <summary>A new-colony start's terminal outcome (<see cref="ITypedSession.NewColonyAsync"/>).</summary>
+public sealed record NewColonyResult
+{
+    /// <summary>The phases its pending replies reported, in wire order and each once.</summary>
+    public IReadOnlyList<Lifecycle.NewColonyPhase> Phases { get; init; } = [];
+
+    /// <summary>The completed reply, null when the start failed.</summary>
+    public Lifecycle.NewColonyCompleted? Completed { get; init; }
+
+    /// <summary>The failure the start ended with, null when it completed.</summary>
+    public Common.Failure? Failure { get; init; }
 }

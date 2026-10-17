@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using System.Xml.Linq;
 using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
@@ -21,13 +22,19 @@ public sealed class TypedSession : ITypedSession
     private readonly TypedCase _case;
     private int _spent;
 
+    // The game an owned body launched last (LaunchAsync), and how many it launched.
+    private GameReuse? _launched;
+    private int _launches;
+
     public TypedSession(ISession session, TypedCase typed)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(typed);
         _s = session;
         _case = typed;
-        Identity = TypedReads.Identity(session.Identity);
+
+        // An owned body opens its own games: there is no identity until it starts or loads a colony.
+        Identity = typed.Start is OwnedStart ? NoColony : TypedReads.Identity(session.Identity);
         Scope = TypedReads.Scope(Identity);
         Staged = typed.Stage is null ? null : FixtureStage.Prepared(session);
     }
@@ -35,6 +42,19 @@ public sealed class TypedSession : ITypedSession
     // A reload polls lifecycle_read_load at most this many times, this far apart.
     private const int LoadPolls = 300;
     private static readonly TimeSpan LoadPollInterval = TimeSpan.FromMilliseconds(200);
+
+    // A new-colony phase (world or map generation) is one long event that reports nothing inside it, so its stall floor
+    // is longer than the shared one.
+    private static readonly TimeSpan NewColonyStall = TimeSpan.FromMinutes(3);
+
+    // An owned body's identity before it starts or loads a colony.
+    private static readonly Common.Identity NoColony = new() { ColonyId = "", LoadToken = "", MapId = 0 };
+
+    // The harness every call goes to: the game an owned body launched (its open reuse case, else its session), else the
+    // runner's.
+    private Harness H => _launched is null
+        ? _s.Harness
+        : _launched.Live ?? throw new AcceptanceException($"case {_case.Name}: the launched game's session is released or retired");
 
     public Common.Identity Identity { get; private set; }
 
@@ -47,7 +67,7 @@ public sealed class TypedSession : ITypedSession
     public Task<TReply> CallAsync<TRequest, TReply>(string label, NativeOp<TRequest, TReply> op, TRequest request, CancellationToken cancellationToken)
         where TRequest : class
         where TReply : class =>
-        _s.Harness.CallAsync(label, op, request, cancellationToken);
+        H.CallAsync(label, op, request, cancellationToken);
 
     public Task<TReply> FixtureAsync<TRequest, TReply>(string label, FixtureOp<TRequest, TReply> op, TRequest request, CancellationToken cancellationToken)
     {
@@ -57,7 +77,7 @@ public sealed class TypedSession : ITypedSession
             throw new AcceptanceException($"{label}: case {_case.Name} calls {op.Tool} without declaring it in Ops");
         }
 
-        return op.CallAsync(_s.Harness, label, request, cancellationToken);
+        return op.CallAsync(H, label, request, cancellationToken);
     }
 
     public Task<Fx.StageReply> StageAsync(string label, Fx.StageSpec spec, CancellationToken cancellationToken) =>
@@ -66,14 +86,14 @@ public sealed class TypedSession : ITypedSession
     public Task<IReadOnlyList<Observations.BuildingState>> BuildingsAsync(string label, Observations.ListBuildingsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return _s.Harness.BuildingsAsync(label, request.Scope is null ? request with { Scope = Scope } : request, cancellationToken);
+        return H.BuildingsAsync(label, request.Scope is null ? request with { Scope = Scope } : request, cancellationToken);
     }
 
     public Task<IReadOnlyList<Observations.ZoneState>> ZonesAsync(string label, CancellationToken cancellationToken) =>
-        _s.Harness.ZonesAsync(label, Scope, cancellationToken);
+        H.ZonesAsync(label, Scope, cancellationToken);
 
     public Task<IReadOnlyList<GrowingZone>> GrowingZonesAsync(string label, CancellationToken cancellationToken) =>
-        _s.Harness.GrowingZonesAsync(label, _s.Identity, cancellationToken);
+        H.GrowingZonesAsync(label, _s.Identity, cancellationToken);
 
     public IReadOnlyList<LogRow> Telemetry(TelemetryKind kind)
     {
@@ -83,11 +103,11 @@ public sealed class TypedSession : ITypedSession
 
     public async Task RunTicksAsync(string label, int ticks, CancellationToken cancellationToken)
     {
-        var target = await _s.Harness.TickAsync(cancellationToken).ConfigureAwait(false) + (ulong)Math.Max(ticks, 0);
+        var target = await H.TickAsync(cancellationToken).ConfigureAwait(false) + (ulong)Math.Max(ticks, 0);
         _ = await RunAsync(
             label,
             ticks,
-            async ct => (string.Empty, await _s.Harness.TickAsync(ct).ConfigureAwait(false) >= target),
+            async ct => (string.Empty, await H.TickAsync(ct).ConfigureAwait(false) >= target),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -148,7 +168,7 @@ public sealed class TypedSession : ITypedSession
             var ran = await ServedWait.UntilAsync(
                 label,
                 ticks,
-                _s.Harness.TickAsync,
+                H.TickAsync,
                 probe,
                 new Wait { Stall = Wait.StallBudget(), Terminal = service.Exited },
                 cancellationToken).ConfigureAwait(false);
@@ -213,6 +233,115 @@ public sealed class TypedSession : ITypedSession
         Scope = TypedReads.Scope(Identity);
     }
 
+    public async Task<GameReuse> LaunchAsync(string label, CancellationToken cancellationToken)
+    {
+        if (_case.Start is not OwnedStart || _case.ClaimsStart is not { } claim)
+        {
+            throw new AcceptanceException($"{label}: case {_case.Name} launches a game without an owned start it claims");
+        }
+
+        if (_launches >= claim.Launches)
+        {
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{label}: case {_case.Name} declares {claim.Launches} launches and has used them"));
+        }
+
+        _launches++;
+        GameReuse reuse;
+        try
+        {
+            reuse = await GameReuse.OpenReusableGameAsync(_s.Config, cancellationToken).ConfigureAwait(false);
+        }
+        catch (AcceptanceException e)
+        {
+            throw new AcceptanceException($"{label}: {e.Message}", e);
+        }
+
+        _launched = reuse;
+        Identity = NoColony;
+        Scope = TypedReads.Scope(Identity);
+        return reuse;
+    }
+
+    public async Task<NewColonyResult> NewColonyAsync(string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var reply = await CallAsync(label + "-start", NativeOps.StartNewColony, request, cancellationToken).ConfigureAwait(false);
+        var phases = new List<Lifecycle.NewColonyPhase>();
+        var polls = 0;
+        var stall = Wait.StallBudget();
+        try
+        {
+            await new Wait { Stall = stall > NewColonyStall ? stall : NewColonyStall, Interval = TimeSpan.FromMilliseconds(250) }.WaitProgressAsync(
+                async ct =>
+                {
+                    if (polls++ > 0)
+                    {
+                        reply = await CallAsync(
+                            string.Create(CultureInfo.InvariantCulture, $"{label}-poll-{polls}"),
+                            NativeOps.PollNewColony,
+                            new Lifecycle.RequestStatus { RequestId = request.RequestId },
+                            ct).ConfigureAwait(false);
+                    }
+
+                    if (reply.Outcome?.Pending is not { } pending)
+                    {
+                        return (string.Empty, true);
+                    }
+
+                    var phase = pending.Phase ?? Lifecycle.NewColonyPhase.Unspecified;
+                    if (phases.Count > 0 && phase < phases[^1])
+                    {
+                        throw new AcceptanceException($"{label}: phase went backwards to {phase} after {phases[^1]}");
+                    }
+
+                    if (phases.Count == 0 || phase != phases[^1])
+                    {
+                        phases.Add(phase);
+                    }
+
+                    return (Wait.Signature(phase.ToString(), pending.Detail, pending.RerollCount), false);
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (WaitError e)
+        {
+            throw new AcceptanceException($"{label}: the start stalled in {(phases.Count == 0 ? "no phase" : phases[^1])}: {e.Message}", e);
+        }
+
+        switch (reply.Outcome)
+        {
+            case Lifecycle.NewColonyReplyOutcome.CompletedCase { Value: var completed }:
+                if (!phases.Contains(Lifecycle.NewColonyPhase.Saving))
+                {
+                    throw new AcceptanceException($"{label}: completed without reporting SAVING (phases [{string.Join(' ', phases)}])");
+                }
+
+                Identity = completed.Context?.Identity ?? throw new AcceptanceException($"{label}: the completed start names no identity: {completed}");
+                Scope = TypedReads.Scope(Identity);
+                return new NewColonyResult { Phases = phases, Completed = completed };
+            case Lifecycle.NewColonyReplyOutcome.FailureCase { Value: var failure }:
+                return new NewColonyResult { Phases = phases, Failure = failure };
+            default:
+                throw new AcceptanceException($"{label}: expected a completed or failed start, got {reply.Outcome}");
+        }
+    }
+
+    public string ProfileSave(string saveName) => _s.Config.ProfileSave(saveName);
+
+    public async Task<XDocument> ReadSaveFileAsync(string saveName, CancellationToken cancellationToken)
+    {
+        var path = ProfileSave(saveName);
+        try
+        {
+            await using var file = File.OpenRead(path);
+            return await XDocument.LoadAsync(file, LoadOptions.None, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+        {
+            throw new AcceptanceException($"read save {path}: {e.Message}", e);
+        }
+    }
+
     // A wait must fit what is left of the declared ticks; it fails before the game runs otherwise.
     private void Budget(string label, int ticks)
     {
@@ -229,7 +358,7 @@ public sealed class TypedSession : ITypedSession
     {
         Budget(label, ticks);
         var ran = await RunAt.RunUntilAsync(
-            _s.Harness,
+            H,
             label,
             (ulong)ticks,
             new Wait { Stall = Wait.StallBudget() },
@@ -245,7 +374,7 @@ public sealed class TypedSession : ITypedSession
     // The game's log ring: the channel directory the opened game writes its OTLP rings to.
     private string LogsPath()
     {
-        var dir = _s.Harness.Transport is HttpNativeTransport http
+        var dir = H.Transport is HttpNativeTransport http
             ? http.EndpointDirectory
             : GameSessions.EndpointDirectory(_s.Config.Configuration, _s.Config.GameId);
         return OtlpFiles.RingPath(dir, OtlpSignal.Logs);

@@ -1,78 +1,177 @@
-using System.Diagnostics;
 using System.Globalization;
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>lifecycle/new_colony</c> (Go <c>new_colony.go</c>): the production new-colony start on a game the case launches
-/// itself, twice (the second launch proves the same pinned spec gives the same colony), plus a forced save failure and
-/// a timeout.
+/// <c>lifecycle/new_colony</c>: the production new-colony start on games the case launches itself. The first launch
+/// probes the refusals, starts the pinned spec, is refused a second start over the live colony and reloads the save;
+/// the second launch proves the same pinned spec gives the same colony; a third and a fourth force a save failure and
+/// a timeout. Every outcome is a typed failure code and the phase it ended in, never message text.
 /// </summary>
 internal static class LifecycleNewColony
 {
-    internal static AcceptanceCase Case() => new()
+    private static readonly Lifecycle.NewColonyPhase[] InOrder =
+    [
+        Lifecycle.NewColonyPhase.GeneratingWorld,
+        Lifecycle.NewColonyPhase.ChoosingTile,
+        Lifecycle.NewColonyPhase.RollingColonists,
+        Lifecycle.NewColonyPhase.GeneratingMap,
+        Lifecycle.NewColonyPhase.Finishing,
+        Lifecycle.NewColonyPhase.Saving,
+    ];
+
+    internal static TypedCase Case() => new()
     {
         Name = "lifecycle/new_colony",
-        Scope = "Production new-colony start (#2021): a small spec (150 map, 0.05 coverage) reaches a live map with the requested colonist count, biome and map size, "
-            + "and the poll reports phases in order; the same pinned spec on a second launch gives the same tile, biome and colonist names and skills; "
-            + "refusals name a bad scenario/biome/difficulty defName (listing the valid ones), an unsatisfiable temperature band, and a start over a loaded game. "
-            + "the start completes paused with the names confirmed and a save in profile/Saves (byte length reported, seed echoed) that lifecycle_load restores to the same colonist count, tick and pause; "
-            + "a forced save failure and a timeout each return a failure, not a hung pending.",
+        Scope = "Production new-colony start (#2021) from a fresh main menu: a small pinned spec (150 map, 0.05 coverage) completes paused through the phases in order "
+            + "with the requested colonist count, biome and map size, the seed echoed and a save in profile/Saves of the reported byte length, which lifecycle_load "
+            + "restores to the same colonists, tick and pause; the same spec on a second launch gives the same tile, biome and colonist names and skills. "
+            + "A bad scenario, difficulty, storyteller or biome defName is INVALID_REQUEST before generation, an unsatisfiable temperature band INVALID_REQUEST in "
+            + "CHOOSING_TILE (the menu stays usable), a start over a loaded game UNAVAILABLE, an unwritable save NATIVE_FAILURE in SAVING and the timeout "
+            + "DEADLINE_EXCEEDED, never a hung pending. Spends no ticks: each phase is a long event outside the tick loop.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
         Start = new OwnedStart(),
-        Reason = "the start needs a fresh main menu process and the determinism check needs a second launch; the case opens and retires its own games",
-        NoKeep = true,
-        Budget = TimeSpan.FromMinutes(30),
-        Crew = new Crew { Size = 3 },
+        ClaimsStart = new StartClaim { Launches = 4 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var first = await LaunchAsync(s, "first", withRefusals: true, cancellationToken).ConfigureAwait(false);
-        var second = await LaunchAsync(s, "second", withRefusals: false, cancellationToken).ConfigureAwait(false);
+        var first = "";
+        await NewColonyStart.MenuAsync(s, "first", async () => first = await FirstAsync(s, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        var second = "";
+        await NewColonyStart.MenuAsync(
+            s,
+            "second",
+            async () =>
+            {
+                var (completed, _) = await NewColonyStart.CompleteAsync(s, "second", NewColonyStart.Request(TypedLifecycle.Stamp("newcolony-second"), NewColonyStart.Spec()), cancellationToken).ConfigureAwait(false);
+                second = await DigestAsync(s, "second", Identity(completed), cancellationToken).ConfigureAwait(false);
+            },
+            cancellationToken).ConfigureAwait(false);
         if (first != second)
         {
             throw new AcceptanceException($"the same pinned spec gave different colonies:\nfirst:  {first}\nsecond: {second}");
         }
 
-        s.Report["case_same_spec_same_colony"] = first;
+        s.Record("same_spec_same_colony", first);
         await SaveFailureAsync(s, cancellationToken).ConfigureAwait(false);
-        await TimeoutAsync(s, cancellationToken).ConfigureAwait(false);
+        await NewColonyStart.MenuAsync(
+            s,
+            "timeout",
+            async () =>
+            {
+                var phases = await NewColonyStart.FailsAsync(
+                    s, "timeout", NewColonyStart.Request(TypedLifecycle.Stamp("newcolony-timeout"), NewColonyStart.Spec(), timeoutMs: 1000), Common.FailureCode.DeadlineExceeded, cancellationToken).ConfigureAwait(false);
+                s.Record("timeout_phases", NewColonyStart.Strings(phases.Select(p => p.ToString())));
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Starts with a directory where the save file must go: the save cannot be written, and the start must fail in the saving phase.</summary>
-    private static async Task SaveFailureAsync(ISession s, CancellationToken cancellationToken)
+    /// <summary>The refusals, the real start and its save, the refusal over the live colony and the reload; returns the colony digest.</summary>
+    private static async Task<string> FirstAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var spec = NewColonyKit.Spec();
+        await RefusalsAsync(s, cancellationToken).ConfigureAwait(false);
+        var spec = NewColonyStart.Spec();
+        var (completed, phases) = await NewColonyStart.CompleteAsync(s, "first", NewColonyStart.Request(TypedLifecycle.Stamp("newcolony-first"), spec), cancellationToken).ConfigureAwait(false);
+        s.Record("phases", NewColonyStart.Strings(phases.Select(p => p.ToString())));
+        if (!phases.SequenceEqual(InOrder.Where(phases.Contains)) || phases[^1] != Lifecycle.NewColonyPhase.Saving)
+        {
+            throw new AcceptanceException($"phases out of order or not ending in SAVING: [{string.Join(' ', phases)}]");
+        }
+
+        if (completed.SaveName != spec.SaveName || completed.Seed != spec.Seed || completed.Paused != true)
+        {
+            throw new AcceptanceException($"want save {spec.SaveName}, seed {spec.Seed}, paused; got {completed}");
+        }
+
+        var file = new FileInfo(SavePath(s, spec.SaveName!));
+        var bytes = file.Exists ? file.Length : 0;
+        if (bytes == 0 || completed.ByteLength != (ulong)bytes)
+        {
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"reported byte length {completed.ByteLength}, the save file is {bytes} bytes"));
+        }
+
+        s.Record("save_bytes", bytes);
+        var identity = Identity(completed);
+        var tick = completed.Context?.Tick ?? throw new AcceptanceException($"the completed start names no tick: {completed}");
+        var digest = await DigestAsync(s, "generated", identity, cancellationToken).ConfigureAwait(false);
+
+        // A second start over the live colony is refused without touching it.
+        var again = await s.NewColonyAsync("loaded-refusal", NewColonyStart.Request(TypedLifecycle.Stamp("newcolony-again"), NewColonyStart.Spec()), cancellationToken).ConfigureAwait(false);
+        if (again.Failure?.Code != Common.FailureCode.Unavailable || again.Phases.Count > 0)
+        {
+            throw new AcceptanceException($"start over a loaded game: want UNAVAILABLE before generation, got {(object?)again.Failure ?? again.Completed}");
+        }
+
+        // The save loads through lifecycle_load and restores the same colony, tick and pause.
+        _ = await TypedLifecycle.LoadAsync(s, "reload", identity, spec.SaveName!, Lifecycle.Readiness.Map, cancellationToken).ConfigureAwait(false);
+        var (reloaded, reloadedTick, paused) = await TypedLifecycle.IdentityAsync(s, "reloaded-identity", cancellationToken).ConfigureAwait(false);
+        if (reloadedTick != tick || !paused)
+        {
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"reloaded colony at tick {reloadedTick} (paused {paused}), generated at {tick} paused"));
+        }
+
+        var reloadedDigest = await DigestAsync(s, "reloaded", reloaded, cancellationToken).ConfigureAwait(false);
+        return reloadedDigest == digest
+            ? digest
+            : throw new AcceptanceException($"the reloaded colony differs from the generated one:\ngenerated: {digest}\nreloaded:  {reloadedDigest}");
+    }
+
+    /// <summary>
+    /// Bad defNames are refused before generation; an unsatisfiable temperature band passes validation and fails once
+    /// the tiles are known, and the menu must stay usable for the real start that follows.
+    /// </summary>
+    private static async Task RefusalsAsync(ITypedSession s, CancellationToken cancellationToken)
+    {
+        var bad = new (string Field, Lifecycle.NewColonySpec Spec)[]
+        {
+            ("scenario", NewColonyStart.Spec() with { Scenario = "NoSuchScenario" }),
+            ("difficulty", NewColonyStart.Spec() with { Difficulty = "NoSuchDifficulty" }),
+            ("storyteller", NewColonyStart.Spec() with { Storyteller = "NoSuchStoryteller" }),
+            ("biome", NewColonyStart.Spec() with { Biomes = ["NoSuchBiome"] }),
+        };
+        foreach (var (field, spec) in bad)
+        {
+            await NewColonyStart.RefusedAsync(s, "refuse-" + field, NewColonyStart.Request("newcolony-bad-" + field, spec), cancellationToken).ConfigureAwait(false);
+        }
+
+        var hot = NewColonyStart.Spec() with { MinTemperature = 90, MaxTemperature = 100 };
+        var phases = await NewColonyStart.FailsAsync(s, "unsatisfiable", NewColonyStart.Request("newcolony-hot", hot), Common.FailureCode.InvalidRequest, cancellationToken).ConfigureAwait(false);
+        if (phases.Count == 0 || phases[^1] != Lifecycle.NewColonyPhase.ChoosingTile)
+        {
+            throw new AcceptanceException($"unsatisfiable temperature band: want the refusal in CHOOSING_TILE, got phases [{string.Join(' ', phases)}]");
+        }
+
+        s.Record("refusals", NewColonyStart.Strings([.. bad.Select(b => b.Field), "temperature"]));
+    }
+
+    /// <summary>A directory squats the save path: the save cannot be written, and the start must fail in SAVING.</summary>
+    private static async Task SaveFailureAsync(ITypedSession s, CancellationToken cancellationToken)
+    {
         const string Save = "newcolony-accept-savefail";
-        spec["saveName"] = Save;
-        var squat = s.Config.ProfileSave(Save);
+        var squat = SavePath(s, Save);
         _ = Directory.CreateDirectory(squat);
         try
         {
-            await NewColonyKit.MenuAsync(
+            await NewColonyStart.MenuAsync(
                 s,
                 "savefail",
-                NewColonyKit.MenuTools,
-                async (h, row) =>
+                async () =>
                 {
-                    AcceptanceException? failure = null;
-                    try
+                    var phases = await NewColonyStart.FailsAsync(
+                        s, "savefail", NewColonyStart.Request(TypedLifecycle.Stamp("newcolony-savefail"), NewColonyStart.Spec() with { SaveName = Save }), Common.FailureCode.NativeFailure, cancellationToken).ConfigureAwait(false);
+                    if (phases.Count == 0 || phases[^1] != Lifecycle.NewColonyPhase.Saving)
                     {
-                        _ = await NewColonyKit.RunAsync(h, $"newcolony-savefail-{LifecycleCases.Stamp()}", spec, "savefail", cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (AcceptanceException e)
-                    {
-                        failure = e;
+                        throw new AcceptanceException($"forced save failure: want NATIVE_FAILURE in SAVING, got phases [{string.Join(' ', phases)}]");
                     }
 
-                    if (failure is null || !failure.Message.Contains("FAILURE_CODE_NATIVE_FAILURE", StringComparison.Ordinal) || !failure.Message.Contains("Saving", StringComparison.Ordinal))
-                    {
-                        throw new AcceptanceException($"forced save failure: want a native failure in the saving phase, got {failure?.Message ?? "no error"}");
-                    }
-
-                    row["failure"] = failure.Message;
+                    s.Record("savefail_phases", NewColonyStart.Strings(phases.Select(p => p.ToString())));
                 },
                 cancellationToken).ConfigureAwait(false);
         }
@@ -85,303 +184,41 @@ internal static class LifecycleNewColony
         }
     }
 
-    /// <summary>Asks for the minimum timeout: the start must end with a failure naming the timeout rather than stay pending.</summary>
-    private static Task TimeoutAsync(ISession s, CancellationToken cancellationToken) =>
-        NewColonyKit.MenuAsync(
-            s,
-            "timeout",
-            NewColonyKit.MenuTools,
-            async (h, row) =>
-            {
-                var request = NewColonyKit.Request($"newcolony-timeout-{LifecycleCases.Stamp()}", NewColonyKit.Spec());
-                request["timeoutMs"] = 1000;
-                AcceptanceException? failure = null;
-                try
-                {
-                    _ = await NewColony.RunNewColonyAsync(h, request, "timeout", cancellationToken).ConfigureAwait(false);
-                }
-                catch (AcceptanceException e)
-                {
-                    failure = e;
-                }
+    private static Common.Identity Identity(Lifecycle.NewColonyCompleted completed) =>
+        completed.Context?.Identity ?? throw new AcceptanceException($"the completed start names no identity: {completed}");
 
-                if (failure is null || !failure.Message.Contains("timeout", StringComparison.Ordinal))
-                {
-                    throw new AcceptanceException($"timeout: want a failure naming the timeout, got {failure?.Message ?? "no error"}");
-                }
-
-                row["failure"] = failure.Message;
-            },
-            cancellationToken);
-
-    /// <summary>Opens a game at the main menu, runs the checks and retires the game; returns the colony digest.</summary>
-    private static async Task<string> LaunchAsync(ISession s, string name, bool withRefusals, CancellationToken cancellationToken)
-    {
-        var digest = "";
-        await NewColonyKit.MenuAsync(
-            s,
-            name,
-            NewColonyKit.MenuTools,
-            async (h, row) => digest = await ChecksAsync(s, h, row, name, withRefusals, cancellationToken).ConfigureAwait(false),
-            cancellationToken).ConfigureAwait(false);
-        return digest;
-    }
-
-    private static async Task<string> ChecksAsync(ISession s, Harness h, JsonObject row, string name, bool withRefusals, CancellationToken cancellationToken)
-    {
-        if (withRefusals)
-        {
-            await RefusalsAsync(h, row, cancellationToken).ConfigureAwait(false);
-        }
-
-        var id = $"newcolony-{name}-{LifecycleCases.Stamp()}";
-        var started = Stopwatch.StartNew();
-        var run = await NewColonyKit.RunAsync(h, id, NewColonyKit.Spec(), name, cancellationToken).ConfigureAwait(false);
-        var completed = run.Completed;
-        row["phases"] = NewColonyKit.Strings(run.Phases);
-        row["finish_ms"] = started.ElapsedMilliseconds;
-
-        var spec = NewColonyKit.Spec();
-        var saveName = spec["saveName"].AsString();
-        if (completed["saveName"].AsString() != saveName)
-        {
-            throw new AcceptanceException($"completed save name \"{completed["saveName"].AsString()}\", want \"{saveName}\"");
-        }
-
-        if (completed["seed"].AsString() != spec["seed"].AsString())
-        {
-            throw new AcceptanceException($"completed seed \"{completed["seed"].AsString()}\", want \"{spec["seed"].AsString()}\"");
-        }
-
-        if (completed["paused"].AsBool() != true)
-        {
-            throw new AcceptanceException($"the start completed unpaused: {completed.ToJson()}");
-        }
-
-        var info = new FileInfo(s.Config.ProfileSave(saveName));
-        if (!info.Exists)
-        {
-            throw new AcceptanceException("the completed start left no save in profile/Saves");
-        }
-
-        if ((long)completed["byteLength"].AsNumber() != info.Length || info.Length == 0)
-        {
-            throw new AcceptanceException($"reported byte length {completed["byteLength"].ToJson()}, save file is {info.Length} bytes");
-        }
-
-        row["save_bytes"] = info.Length;
-        var completedContext = completed["context"].AsMap();
-        var identity = completedContext?["identity"].AsMap() ?? [];
-        var tick = (int)completedContext.Member("tick").AsNumber();
-
-        var digest = await ReadAsync(h, name, row, cancellationToken).ConfigureAwait(false);
-        if (!withRefusals)
-        {
-            return digest;
-        }
-
-        // A second start over the live colony is refused.
-        var reply = await h.WireAsync("loaded-refusal", "lifecycle_new_colony", NewColonyKit.Request(id + "-again", NewColonyKit.Spec()), cancellationToken).ConfigureAwait(false);
-        try
-        {
-            NewColonyKit.WantFailure(reply, "FAILURE_CODE_UNAVAILABLE", "main menu");
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"start over a loaded game: {e.Message}", e);
-        }
-
-        row["loaded_refusal"] = true;
-
-        // The save loads through lifecycle_load and restores the same colony.
-        var loadId = $"newcolony-load-{LifecycleCases.Stamp()}";
-        var loadReply = await h.WireAsync(
-            "load-start",
-            "lifecycle_load",
-            new JsonObject
-            {
-                ["requestId"] = loadId,
-                ["saveName"] = saveName,
-                ["readiness"] = "READINESS_MAP",
-                ["expectedPlayer"] = new JsonObject { ["identity"] = identity.DeepClone(), ["playerDirection"] = 1, ["requestId"] = loadId },
-                ["playerDirection"] = 1,
-            },
-            cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _ = await GameReuse.PollLoadAsync(h, loadReply, loadId, "load-poll", cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"load of the generated save: {e.Message}", e);
-        }
-
-        var (loaded, _, reloadedTick) = await LifecycleCases.ReadIdentityAsync(h, "loaded-identity", cancellationToken).ConfigureAwait(false);
-        if ((int)reloadedTick != tick)
-        {
-            throw new AcceptanceException($"reloaded colony is at tick {(int)reloadedTick}, generated at {tick}");
-        }
-
-        if (loaded["paused"].AsBool() != true)
-        {
-            throw new AcceptanceException("reloaded colony is not paused");
-        }
-
-        var reloaded = await ReadAsync(h, "reloaded", row, cancellationToken).ConfigureAwait(false);
-        if (reloaded != digest)
-        {
-            throw new AcceptanceException($"reloaded colony differs from the generated one:\ngenerated: {digest}\nreloaded:  {reloaded}");
-        }
-
-        row["reload_matches"] = true;
-        return digest;
-    }
+    private static string SavePath(ITypedSession s, string saveName) => s.ProfileSave(saveName);
 
     /// <summary>
-    /// Probes the refusals that leave the menu untouched, then one that fails during generation (an unsatisfiable
-    /// temperature band) and must still leave the menu usable for the real start.
+    /// Asserts the live map matches the spec and returns a digest of what a pinned seed must reproduce: the tile, biome
+    /// and hilliness, and each colonist's name and skill levels.
     /// </summary>
-    private static async Task RefusalsAsync(Harness h, JsonObject row, CancellationToken cancellationToken)
+    private static async Task<string> DigestAsync(ITypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
     {
-        var refusals = new JsonObject();
-        row["refusals"] = refusals;
-        foreach (var (field, value, contains) in new[]
+        var scope = TypedReads.Scope(identity);
+        var factsReply = await s.CallAsync(label + "-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
+        var facts = TypedReads.Observed(label + "-facts", NativeOps.ReadColonyFacts, factsReply, factsReply.Outcome?.Observed);
+        if (facts.ColonistCount != 3 || facts.MapSize.Width != 150 || facts.MapSize.Height != 150 || !NewColonyStart.Biomes.Contains(facts.Biome, StringComparer.Ordinal))
         {
-            ("scenario", "NoSuchScenario", "Crashlanded"),
-            ("difficulty", "NoSuchDifficulty", "Rough"),
-            ("storyteller", "NoSuchStoryteller", "Cassandra"),
-        })
-        {
-            var spec = NewColonyKit.Spec();
-            spec[field] = value;
-            var reply = await h.WireAsync("refuse-" + field, "lifecycle_new_colony", NewColonyKit.Request("newcolony-bad-" + field, spec), cancellationToken).ConfigureAwait(false);
-
-            // The failure lists the valid names and names the bad one's field.
-            try
-            {
-                NewColonyKit.WantFailure(reply, "FAILURE_CODE_INVALID_REQUEST", contains);
-            }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"bad {field}: {e.Message}", e);
-            }
-
-            refusals[field] = true;
+            throw new AcceptanceException($"{label}: want 3 colonists on a 150x150 map in one of [{string.Join(' ', NewColonyStart.Biomes)}], got {facts.ColonistCount} on {facts.MapSize.Width}x{facts.MapSize.Height} in {facts.Biome}");
         }
 
-        var biomeSpec = NewColonyKit.Spec();
-        biomeSpec["biomes"] = new JsonArray("NoSuchBiome");
-        var biomeReply = await h.WireAsync("refuse-biome", "lifecycle_new_colony", NewColonyKit.Request("newcolony-bad-biome", biomeSpec), cancellationToken).ConfigureAwait(false);
-        try
-        {
-            NewColonyKit.WantFailure(biomeReply, "FAILURE_CODE_INVALID_REQUEST", "TemperateForest");
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"bad biome: {e.Message}", e);
-        }
-
-        refusals["biome"] = true;
-
-        // Unsatisfiable temperature: passes validation, fails once the tiles are known.
-        var hot = NewColonyKit.Spec();
-        hot["minTemperature"] = 90;
-        hot["maxTemperature"] = 100;
-        AcceptanceException? failure = null;
-        try
-        {
-            _ = await NewColonyKit.RunAsync(h, "newcolony-hot", hot, "unsatisfiable", cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            failure = e;
-        }
-
-        if (failure is null || !failure.Message.Contains("temperature", StringComparison.Ordinal))
-        {
-            throw new AcceptanceException($"unsatisfiable temperature band: want a failure naming the temperature, got {failure?.Message ?? "no error"}");
-        }
-
-        refusals["temperature"] = failure.Message;
-    }
-
-    /// <summary>
-    /// Asserts the live map matches the spec and returns a digest of what a pinned seed must reproduce: the tile,
-    /// biome and each colonist's name and skill levels.
-    /// </summary>
-    private static async Task<string> ReadAsync(Harness h, string label, JsonObject row, CancellationToken cancellationToken)
-    {
-        var identity = await Session.ReadIdentityAsync(h, label + "-identity", cancellationToken).ConfigureAwait(false);
-        var scope = new JsonObject { ["expectedIdentity"] = identity };
-
-        var factsReply = await h.WireAsync(label + "-facts", "observations_read_colony_facts", new JsonObject { ["scope"] = scope.DeepClone() }, cancellationToken).ConfigureAwait(false);
-        var (_, facts) = LifecycleCases.Outcome("colony facts", factsReply, "observed");
-        var count = (int)facts["colonistCount"].AsNumber();
-        if (count != 3)
-        {
-            throw new AcceptanceException($"colony has {count} colonists, want 3");
-        }
-
-        var size = facts["mapSize"].AsMap();
-        if ((int)size.Member("width").AsNumber() != 150 || (int)size.Member("height").AsNumber() != 150)
-        {
-            throw new AcceptanceException($"map size {size.ToJson()}, want 150x150");
-        }
-
-        var biome = facts["biome"].AsString();
-        if (Array.IndexOf(["TemperateForest", "BorealForest", "AridShrubland"], biome) < 0)
-        {
-            throw new AcceptanceException($"biome \"{biome}\" is none of the requested {NewColonyKit.Spec()["biomes"].ToJson()}");
-        }
-
-        var worldReply = await h.WireAsync(label + "-world", "observations_read_world", new JsonObject { ["scope"] = scope.DeepClone() }, cancellationToken).ConfigureAwait(false);
-        var (_, world) = LifecycleCases.Outcome("world", worldReply, "observed");
-        var tile = world["tile"].AsMap();
-        var tileId = (int)tile.Member("tile").AsNumber();
-        var hilliness = tile.Member("hilliness").AsString();
-
-        var colonists = new List<string>();
-        foreach (var raw in await NewColonyKit.ListColonistsAsync(h, label + "-pawns", scope, cancellationToken).ConfigureAwait(false))
-        {
-            var pawn = raw.AsMap();
-            var skills = (pawn?["biography"].AsMap()?["skills"]).AsSlice()
-                .Select(skill => string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"{skill.Member("defName").AsString()}={(int)Math.Max(skill.Member("level").AsNumber(), 0)}/{skill.Member("passion").AsString()}"))
-                .Order(StringComparer.Ordinal);
-            colonists.Add($"{pawn?["pawn"].AsMap()?["label"].AsString()}[{string.Join(',', skills)}]");
-        }
-
-        colonists.Sort(StringComparer.Ordinal);
+        var worldReply = await s.CallAsync(label + "-world", NativeOps.ReadWorld, new Observations.WorldRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
+        var tile = TypedReads.Observed(label + "-world", NativeOps.ReadWorld, worldReply, worldReply.Outcome?.Observed).Tile
+            ?? throw new AcceptanceException($"{label}-world: no settlement tile");
+        var colonists = (await NewColonyStart.ColonistsAsync(s, label + "-pawns", identity, cancellationToken).ConfigureAwait(false))
+            .Select(p => string.Create(
+                CultureInfo.InvariantCulture,
+                $"{p.Pawn.Label}[{string.Join(',', (p.Biography?.Skills ?? []).Select(k => $"{k.DefName}={Math.Max(k.Level, 0)}/{k.Passion}").Order(StringComparer.Ordinal))}]"))
+            .Order(StringComparer.Ordinal)
+            .ToList();
         if (colonists.Count != 3)
         {
-            throw new AcceptanceException($"pawn list has {colonists.Count} colonists, want 3");
+            throw new AcceptanceException($"{label}-pawns: want 3 colonists, got {colonists.Count}");
         }
 
-        row["biome"] = biome;
-        row["tile"] = tileId;
-        row["hilliness"] = hilliness;
-        row["colonists"] = NewColonyKit.Strings(colonists);
-        row["threat_difficulty_scale"] = ThreatScale(facts);
-        return string.Create(CultureInfo.InvariantCulture, $"tile={tileId} biome={biome} hilliness={hilliness} colonists={string.Join(';', colonists)}");
-    }
-
-    /// <summary>The facts' difficulty threat scale when the threat section is present; reported, not asserted (no difficulty read exists).</summary>
-    private static JsonNode? ThreatScale(JsonObject facts)
-    {
-        if (facts["threat"].AsMap() is not { } section)
-        {
-            return null;
-        }
-
-        try
-        {
-            var (_, threat) = Harness.Outcome(section, "observed");
-            return threat["difficultyThreatScale"]?.DeepClone();
-        }
-        catch (AcceptanceException)
-        {
-            return null;
-        }
+        var digest = string.Create(CultureInfo.InvariantCulture, $"tile={tile.Tile} biome={facts.Biome} hilliness={tile.Hilliness} colonists={string.Join(';', colonists)}");
+        s.Record(label + "_colony", digest);
+        return digest;
     }
 }

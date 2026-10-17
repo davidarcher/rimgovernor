@@ -42,9 +42,10 @@ with `registry.Register(...)` like a legacy case:
 | --- | --- |
 | `Name` | Required. Stable `<area>/<case>` identifier. |
 | `Scope` | Required. The one native claim (rule 1) and why a unit test cannot prove it. It also justifies any departure from a default (rule 7). |
-| `Ticks` | Required. At most `StagedTickCap` (30,000) on a lab start or with a `Stage`, `TickCap` (60,000) otherwise (rule 3). Registration fails past the cap. `HangGuard` is `Ticks` ÷ 300 + 1 minute, measured from the body's start. It cuts a hung body, and wall time never fails a passing claim. |
+| `Ticks` | Required. At most `StagedTickCap` (30,000) on a lab start or with a `Stage`, `TickCap` (60,000) otherwise (rule 3). Registration fails past the cap. `HangGuard` is `Ticks` ÷ 300 + 1 minute, measured from the body's start, plus `LaunchAllowance` (5 minutes) per game a `ClaimsStart` body launches. It cuts a hung body, and wall time never fails a passing claim. |
 | `Tier` | Required. A `CaseTier`: `Smoke`, `Nightly`, `OnDemand` or `Off` (rule 8). |
-| `Start` | `LabStart` (the default), `DebugStart`, `SaveStart` or `ScenarioStart`. |
+| `Start` | `LabStart` (the default), `DebugStart`, `SaveStart` or `ScenarioStart`; `OwnedStart` only with `ClaimsStart`. |
+| `ClaimsStart` | A `StartClaim`, set only when the start itself is the claim (a new colony from the main menu, a reused game's lifecycle). On an `OwnedStart` it declares `Launches`, the fresh games the body opens through `LaunchAsync` (at least 1), and implies `NoKeep`; the tick cap stays `TickCap`. On a `ScenarioStart` it declares `KeepsStoryteller`, so the runner keeps the scenario's storyteller instead of requiring the quiet one. Registration and the catalog test reject any other combination. |
 | `Stage` | A `Fixtures.Contracts` `StageSpec` applied by `test/stage` on the opened start (rule 2). Its reply is `ITypedSession.Staged`. |
 | `Ops` | The fixture ops the body calls. |
 | `Crew`, `Keep`, `QuietWorld`, `Expansions`, `Serve` | The defaults' departures (rule 7). |
@@ -66,6 +67,10 @@ identity), `Staged` and `TicksLeft`. Its members:
   A kind is added to `TelemetryKinds` (`brain/src/RimGovernor.Brain.Telemetry/TelemetryKinds.cs`) with its row in
   the kinds table.
 - **Evidence:** `Record(key, value)` and `RecordWire(key, record)`.
+- **Owned start:** `LaunchAsync(label)` opens a fresh main-menu game (a `GameReuse`) and routes the session's calls
+  to it while it is open. `NewColonyAsync(label, request)` polls `lifecycle_new_colony` to its typed outcome
+  (phases, then the completed reply or a failure code). `ReadSaveFileAsync(saveName)` and `ProfileSave(saveName)`
+  read the profile's save file. The body retires every game it launches.
 - **Served wait:** `ServeUntilAsync(label, ticks, probe)` hands the clock to the declared `Serve`. It starts the
   brain service, resumes automatic control under a kept authority, and observes while the brain runs the game until
   the probe is done. Then it stops the service and parks the brain. The budget is game ticks read from the game and

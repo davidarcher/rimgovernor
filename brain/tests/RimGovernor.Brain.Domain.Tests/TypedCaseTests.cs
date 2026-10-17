@@ -49,6 +49,37 @@ public sealed class TypedCaseTests
     }
 
     [Fact]
+    public void OwnedStartRegistersOnlyAsTheDeclaredClaim()
+    {
+        var owned = Lab(0, new OwnedStart()) with { Name = "lifecycle/owned-probe" };
+
+        var e = Assert.Throws<AcceptanceException>(() => new CaseRegistry().Register(owned));
+        Assert.Contains("ClaimsStart", e.Message, StringComparison.Ordinal);
+        Assert.Throws<AcceptanceException>(() => new CaseRegistry().Register(owned with { ClaimsStart = new StartClaim() }));
+        Assert.Throws<AcceptanceException>(() => new CaseRegistry().Register(owned with { ClaimsStart = new StartClaim { Launches = 1, KeepsStoryteller = true } }));
+        Assert.Throws<AcceptanceException>(() => new CaseRegistry().Register(owned with { Ticks = TypedCase.TickCap + 1, ClaimsStart = new StartClaim { Launches = 1 } }));
+
+        var claimed = owned with { Ticks = TypedCase.TickCap, ClaimsStart = new StartClaim { Launches = 2 } };
+        new CaseRegistry().Register(claimed);
+        Assert.Equal(TimeSpan.FromSeconds(200 + 60) + (2 * TypedCase.LaunchAllowance), claimed.HangGuard);
+        var c = claimed.ToCase();
+        Assert.True(c.NoKeep);
+        Assert.Equal(QuietMode.Required, c.Quiet);
+    }
+
+    [Fact]
+    public void OnlyAnOwnedOrScenarioStartCarriesAClaim()
+    {
+        Assert.Throws<AcceptanceException>(() => new CaseRegistry().Register(Lab(0) with { ClaimsStart = new StartClaim { Launches = 1 } }));
+        Assert.Throws<AcceptanceException>(() => new CaseRegistry().Register(Lab(0, new ScenarioStart()) with { ClaimsStart = new StartClaim { Launches = 1 } }));
+
+        var scenario = Lab(0, new ScenarioStart()) with { ClaimsStart = new StartClaim { KeepsStoryteller = true } };
+        new CaseRegistry().Register(scenario);
+        Assert.Equal(QuietMode.Loud, scenario.ToCase().Quiet);
+        Assert.Equal(TimeSpan.FromMinutes(1), scenario.HangGuard);
+    }
+
+    [Fact]
     public void AdapterStagesOnTheStartAndCarriesTheTier()
     {
         var spec = new Fx.StageSpec { Paused = true };

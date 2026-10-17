@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
 
@@ -15,15 +14,6 @@ public sealed record NewColonyRun
 
     /// <summary>The last rerollCount a pending reply carried (completed replies carry none), 0 when the first roll was accepted.</summary>
     public int Rerolls { get; init; }
-
-    /// <summary>
-    /// Each phase's start in ms since the op began (the pending reply's elapsedMs at the first poll that saw it, so
-    /// quantised by the 250 ms poll).
-    /// </summary>
-    public IReadOnlyDictionary<string, long> PhaseMs { get; init; } = new Dictionary<string, long>(StringComparer.Ordinal);
-
-    /// <summary>The harness's own wall time for the whole start.</summary>
-    public long TotalMs { get; init; }
 }
 
 /// <summary>The new-colony op's driver (Go <c>newcolony.go</c>).</summary>
@@ -65,9 +55,7 @@ public static class NewColony
         ArgumentNullException.ThrowIfNull(harness);
         ArgumentNullException.ThrowIfNull(request);
         var phases = new List<string>();
-        var phaseMs = new Dictionary<string, long>(StringComparer.Ordinal);
         var rerolls = 0;
-        var began = Stopwatch.StartNew();
         var id = request["requestId"].AsString();
         var reply = await harness.WireAsync(label + "-start", "lifecycle_new_colony", request, cancellationToken).ConfigureAwait(false);
         var last = -1;
@@ -90,8 +78,6 @@ public static class NewColony
                     Phases = phases,
                     Completed = completed,
                     Rerolls = rerolls,
-                    PhaseMs = phaseMs,
-                    TotalMs = began.ElapsedMilliseconds,
                 };
             }
 
@@ -120,7 +106,6 @@ public static class NewColony
             if (index != last)
             {
                 phases.Add(phase);
-                phaseMs[phase] = (long)pending["elapsedMs"].AsNumber();
                 last = index;
             }
 

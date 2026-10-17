@@ -1,31 +1,28 @@
-using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
+using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>lifecycle/scenario-start-parts</c> (Go <c>scenario_start_parts.go</c>): a harness ScenarioStart carrying a
-/// storyteller override and scenario parts (#2754): a one-colonist start under Randy with a forced trait and a
-/// scattered thing, and the generated save shows each landed.
+/// <c>lifecycle/scenario-start-parts</c>: the harness ScenarioStart carrying a storyteller override and scenario parts
+/// (#2754): a one-colonist start under Randy with a forced trait and a scattered thing, and the generated save shows
+/// each landed. The runner opens the start; the start itself is the claim, so the quiet swap is skipped.
 /// </summary>
 internal static class LifecycleScenarioStartParts
 {
     private const string Save = "scenario-start-parts-2754";
     private const string Storyteller = "Randy";
     private const string ThingDef = "Kibble";
-    private const int ThingCount = 15;
+    private const uint ThingCount = 15;
 
-    private static readonly Regex Teller = new(@"<storyteller>\s*<def>(\w+)</def>", RegexOptions.Singleline | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(10));
-
-    internal static AcceptanceCase Case() => new()
+    internal static TypedCase Case() => new()
     {
         Name = "lifecycle/scenario-start-parts",
         Scope = "Issue #2754: a harness ScenarioStart with Storyteller Randy, a forced Jogger trait and a scattered Kibble stack starts a one-colonist colony; "
-            + "the colonist carries the trait, the saved game holds exactly the scattered count and names Randy as the storyteller.",
+            + "the colonist carries the trait, and the saved game holds exactly the scattered count and names Randy as the storyteller. Spends no ticks.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
         Start = new ScenarioStart { Spec = StartSpec() },
-        Quiet = QuietMode.Loud,
-        Reason = "the storyteller override is the claim: the quiet swap would replace Randy",
-        Budget = TimeSpan.FromMinutes(20),
+        ClaimsStart = new StartClaim { KeepsStoryteller = true },
         Crew = new Crew { Size = 1 },
         Run = RunAsync,
     };
@@ -39,38 +36,24 @@ internal static class LifecycleScenarioStartParts
         Storyteller = Storyteller,
         Size = new DebugStartSize { MapSize = DebugStartSize.DefaultMapSize, PlanetCoverage = DebugStartSize.DefaultPlanetCoverage },
         SaveName = Save,
-        Parts = new JsonObject
+        Parts = NewColonyStart.Parts(new Lifecycle.NewColonySpec
         {
-            ["forcedTraits"] = new JsonArray(new JsonObject { ["trait"] = "Jogger", ["degree"] = 0, ["chance"] = 1, ["context"] = "player_starter" }),
-            ["startingThings"] = new JsonArray(new JsonObject { ["placement"] = "scattered", ["thingDef"] = ThingDef, ["count"] = ThingCount }),
-        },
+            ForcedTraits = [new Lifecycle.ForcedTrait { Trait = "Jogger", Degree = 0, Chance = 1, Context = Lifecycle.ScenarioPawnContext.PlayerStarter }],
+            StartingThings = [new Lifecycle.StartingThing { Placement = Lifecycle.StartingThingPlacement.Scattered, ThingDef = ThingDef, Count = ThingCount }],
+        }),
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var row = new JsonObject();
-        s.Report["scenario_start_parts"] = row;
-        await NewColonyKit.CheckPartsTraitAsync(s.Harness, row, cancellationToken).ConfigureAwait(false);
-        var path = s.Config.ProfileSave(Save);
-        if (!File.Exists(path))
+        _ = await NewColonyStart.ForcedTraitAsync(s, "Jogger", cancellationToken).ConfigureAwait(false);
+        var save = await s.ReadSaveFileAsync(Save, cancellationToken).ConfigureAwait(false);
+        var total = NewColonyStart.ThingTotal(save, ThingDef);
+        var teller = NewColonyStart.Storyteller(save);
+        s.Record("scattered", total);
+        s.Record("storyteller", teller);
+        if (total != ThingCount || teller != Storyteller)
         {
-            throw new AcceptanceException("the completed start left no save");
+            throw new AcceptanceException($"the save holds {total} scattered {ThingDef} under storyteller {teller ?? "none"}; want {ThingCount} under {Storyteller}");
         }
-
-        var save = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-        var total = LifecycleNewColonyParts.ThingTotal(save, ThingDef);
-        row["scattered"] = total;
-        if (total != ThingCount)
-        {
-            throw new AcceptanceException($"scattered {ThingDef}: {total} on the map, want {ThingCount}");
-        }
-
-        var teller = Teller.Match(save);
-        if (!teller.Success || teller.Groups[1].Value != Storyteller)
-        {
-            throw new AcceptanceException($"the saved storyteller is {(teller.Success ? teller.Groups[1].Value : "none")}, want {Storyteller}");
-        }
-
-        row["storyteller"] = teller.Groups[1].Value;
     }
 }

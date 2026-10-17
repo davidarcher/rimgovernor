@@ -27,8 +27,9 @@ namespace HomeBridge.BridgeTools
     // Live map: OnMapLive pauses; polls then confirm the colony-naming
     // dialog (FINISHING), report SAVING, and save through the same native save
     // path as lifecycle_save into the game's Saves folder under the spec's save
-    // name, ending the entry with NewColonyCompleted. A phase exception, a failed
-    // save or the request's timeout ends it with a failure.
+    // name, ending the entry with NewColonyCompleted. A phase exception or a
+    // failed save ends it with NATIVE_FAILURE, the request's timeout with
+    // DEADLINE_EXCEEDED.
     internal static class ProtoLifecycleNewColonyTools
     {
         private const int MaxEntries = 32;
@@ -355,7 +356,7 @@ namespace HomeBridge.BridgeTools
             if (entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
             {
                 entry.Aborted = true;
-                return Complete(entry, Fail(Common.FailureCode.NativeFailure,
+                return Complete(entry, Fail(Common.FailureCode.DeadlineExceeded,
                     "New colony did not finish within the requested timeout (last phase " + entry.Phase + ")."));
             }
             if (entry.Phase == Lifecycle.NewColonyPhase.GeneratingMap || entry.Phase == Lifecycle.NewColonyPhase.Finishing

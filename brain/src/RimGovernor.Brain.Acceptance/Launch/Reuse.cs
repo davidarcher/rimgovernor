@@ -120,6 +120,9 @@ public sealed class GameReuse : IAsyncDisposable
     /// <summary>Why the game was retired; empty while it lives.</summary>
     public string RetiredReason => _reason;
 
+    /// <summary>The harness a typed owned case's calls go to: the open case's, else the live session's; null once released or retired.</summary>
+    public Harness? Live => _retired ? null : _current?.Harness ?? _harness;
+
     /// <summary>
     /// Lists every way <paramref name="now"/> fails the reset contract against what earlier cases established:
     /// <paramref name="baseline"/> is the first observation of the same save (null when this is its first load),

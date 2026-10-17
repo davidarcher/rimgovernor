@@ -83,7 +83,6 @@
   "lifecycle/checkpoint": 13434,
   "lifecycle/load": 17231,
   "lifecycle/new_colony": 63336,
-  "lifecycle/new_colony_team": 136886,
   "lifecycle/quiet_storyteller": 23405,
   "lifecycle/reuse": 63274,
   "lifecycle/runtime-fault": 14523,

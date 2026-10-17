@@ -160,16 +160,17 @@ public static class LabStarts
 
     /// <summary>
     /// Loads the default lab into an Owned case's own game: the same cached save and stamp a Lab start uses.
-    /// <paramref name="host"/> supplies the package hashes and the start cache.
+    /// <paramref name="host"/> supplies the package hashes and the start cache. Returns the lab save's name.
     /// </summary>
-    public static async Task<JsonObject> StartLabAsync(Config config, ISessionHost host, Harness harness, CancellationToken cancellationToken)
+    public static async Task<string> StartLabAsync(Config config, ISessionHost host, Harness harness, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(host);
         var files = host.PackageFiles(config);
         var report = new Report();
         report["package_files"] = files;
         var session = await Session.AdoptAsync(config, host, harness, report, cancellationToken).ConfigureAwait(false);
-        return await LoadAsync(new LabStart(), session, QuietMode.Required, cancellationToken).ConfigureAwait(false);
+        var row = await LoadAsync(new LabStart(), session, QuietMode.Required, cancellationToken).ConfigureAwait(false);
+        return row["save"].AsString();
     }
 
     private static string SavesDir(IStartCache cache) => Path.Combine(cache.Root, "profile", "Saves");

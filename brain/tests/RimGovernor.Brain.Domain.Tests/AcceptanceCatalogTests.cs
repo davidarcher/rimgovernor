@@ -16,7 +16,7 @@ public sealed class AcceptanceCatalogTests
     /// The cases still on the frozen legacy <see cref="AcceptanceCase"/> API. Shrink-only: a port or deletion lowers it
     /// in the same commit, and a new legacy case fails (write a <see cref="TypedCase"/>).
     /// </summary>
-    private const int LegacyCases = 162;
+    private const int LegacyCases = 155;
 
     [Fact]
     public void CatalogHoldsEveryCaseToTheCharter()
@@ -41,6 +41,15 @@ public sealed class AcceptanceCatalogTests
             Tier = (CaseTier)99,
             Run = (_, _) => Task.CompletedTask,
         }.ToCase());
+        registry.Register(new TypedCase
+        {
+            Name = "lifecycle/unclaimed",
+            Scope = "an owned start that is not its claim",
+            Tier = CaseTier.OnDemand,
+            Ticks = 0,
+            Start = new OwnedStart(),
+            Run = (_, _) => Task.CompletedTask,
+        }.ToCase());
         registry.Register(new AcceptanceCase
         {
             Name = "lab/no-budget",
@@ -54,6 +63,7 @@ public sealed class AcceptanceCatalogTests
         Assert.Contains("case lab/unchecked: Scope must name the one native claim", findings);
         Assert.Contains("case lab/unchecked declares 30001 ticks; its start's cap is 30000", findings);
         Assert.Contains("case lab/unchecked declares no CaseTier (99)", findings);
+        Assert.Contains("case lifecycle/unclaimed: a typed case owns its process lifecycle only when the start is its claim (ClaimsStart)", findings);
         Assert.Contains(findings, f => f.StartsWith("case \"lab/no-budget\": Budget is missing", StringComparison.Ordinal));
         Assert.Contains("1 cases on the legacy API, above the frozen 0: write new cases as TypedCase", findings);
         Assert.Contains("0 cases on the legacy API, below the frozen 1: lower LegacyCases to 0", Findings(new CaseRegistry(), legacyBaseline: 1));
@@ -80,6 +90,11 @@ public sealed class AcceptanceCatalogTests
             if (typed.Ticks < 0 || typed.Ticks > typed.Cap)
             {
                 findings.Add(string.Create(CultureInfo.InvariantCulture, $"case {typed.Name} declares {typed.Ticks} ticks; its start's cap is {typed.Cap}"));
+            }
+
+            if (typed.StartProblem() is { } startProblem)
+            {
+                findings.Add($"case {typed.Name}: {startProblem}");
             }
 
             if (!Enum.IsDefined(typed.Tier))

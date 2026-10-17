@@ -23,6 +23,9 @@ public sealed record TypedCase
     /// <summary>What the hang guard adds to the declared ticks at <see cref="HangGuardTicksPerSecond"/>.</summary>
     public static readonly TimeSpan HangGuardMargin = TimeSpan.FromMinutes(1);
 
+    /// <summary>What the hang guard adds per game a <see cref="StartClaim"/> body launches: a launch and a world generation are long events outside the tick loop.</summary>
+    public static readonly TimeSpan LaunchAllowance = TimeSpan.FromMinutes(5);
+
     /// <summary>"&lt;area&gt;/&lt;case&gt;", unique across the registry.</summary>
     public required string Name { get; init; }
 
@@ -35,8 +38,14 @@ public sealed record TypedCase
     /// <summary>The pass that runs the case (rule 8).</summary>
     public required CaseTier Tier { get; init; }
 
-    /// <summary>How the game opens before staging: the lab (the default), a debug colony, a prepared save or a scenario.</summary>
+    /// <summary>How the game opens before staging: the lab (the default), a debug colony, a prepared save or a scenario; an <see cref="OwnedStart"/> only with <see cref="ClaimsStart"/>.</summary>
     public Start Start { get; init; } = new LabStart();
+
+    /// <summary>
+    /// Declares the start itself the case's claim (a new-colony or reusable-game claim): the only way a typed case owns its
+    /// process lifecycle (<see cref="OwnedStart"/>, through <see cref="ITypedSession.LaunchAsync"/>). Null for every other case.
+    /// </summary>
+    public StartClaim? ClaimsStart { get; init; }
 
     /// <summary>The precondition (rule 2), applied by <c>test/stage</c> on the opened <see cref="Start"/>; its reply is <see cref="ITypedSession.Staged"/>.</summary>
     public Fx.StageSpec? Stage { get; init; }
@@ -71,8 +80,12 @@ public sealed record TypedCase
     /// <summary>The tick cap for this case's start: <see cref="StagedTickCap"/> on the lab or a staged start, <see cref="TickCap"/> otherwise.</summary>
     public int Cap => Start is LabStart || Stage is not null ? StagedTickCap : TickCap;
 
-    /// <summary>The wall time after which the body is cut as hung: Ticks at <see cref="HangGuardTicksPerSecond"/> plus <see cref="HangGuardMargin"/>. A passing claim never fails on wall time.</summary>
-    public TimeSpan HangGuard => TimeSpan.FromSeconds((double)Ticks / HangGuardTicksPerSecond) + HangGuardMargin;
+    /// <summary>
+    /// The wall time after which the body is cut as hung: Ticks at <see cref="HangGuardTicksPerSecond"/> plus
+    /// <see cref="HangGuardMargin"/>, plus <see cref="LaunchAllowance"/> per game a <see cref="ClaimsStart"/> body launches.
+    /// A passing claim never fails on wall time.
+    /// </summary>
+    public TimeSpan HangGuard => TimeSpan.FromSeconds((double)Ticks / HangGuardTicksPerSecond) + HangGuardMargin + (LaunchAllowance * (ClaimsStart?.Launches ?? 0));
 
     /// <summary>The shape check registration applies; throws <see cref="AcceptanceException"/> on the first violation.</summary>
     public void Validate()
@@ -94,16 +107,23 @@ public sealed record TypedCase
                 $"case {Name} declares {Ticks} ticks; its start's cap is {Cap}: re-stage the precondition or delete the case"));
         }
 
-        switch (Start)
+        if (StartProblem() is { } problem)
         {
-            case OwnedStart:
-                throw new AcceptanceException($"case {Name}: a typed case cannot own its process lifecycle");
-            case FixtureStart:
-                throw new AcceptanceException($"case {Name}: a typed case stages its precondition through Stage, not a fixture start");
-            default:
-                break;
+            throw new AcceptanceException($"case {Name}: {problem}");
         }
     }
+
+    /// <summary>Why <see cref="Start"/> and <see cref="ClaimsStart"/> do not fit together, null when they do (the catalog test reads it too).</summary>
+    public string? StartProblem() => (Start, ClaimsStart) switch
+    {
+        (FixtureStart, _) => "a typed case stages its precondition through Stage, not a fixture start",
+        (OwnedStart, null) => "a typed case owns its process lifecycle only when the start is its claim (ClaimsStart)",
+        (OwnedStart, { Launches: < 1 }) => "an owned start's ClaimsStart declares the games it launches (Launches at least 1)",
+        (OwnedStart, { KeepsStoryteller: true }) => "an owned start picks its storyteller in the new-colony spec; KeepsStoryteller is for a ScenarioStart",
+        (ScenarioStart, { Launches: > 0 }) => "the runner opens a ScenarioStart; its ClaimsStart launches nothing",
+        (not OwnedStart and not ScenarioStart, not null) => "only an owned or scenario start can be the claim",
+        _ => null,
+    };
 
     /// <summary>The runner's record of this case: the legacy shape the existing runner drives, its Run and Postmortem over a <see cref="TypedSession"/>.</summary>
     public AcceptanceCase ToCase() => new()
@@ -120,7 +140,8 @@ public sealed record TypedCase
         Crew = Crew,
         Serve = Serve,
         Expansions = Expansions,
-        NoKeep = NoKeep || Expansions.Count > 0,
+        NoKeep = NoKeep || Expansions.Count > 0 || Start is OwnedStart,
+        Quiet = ClaimsStart is { KeepsStoryteller: true } ? QuietMode.Loud : QuietMode.Required,
 
         // The ring skips a slow precondition; a typed case stages its precondition instead of playing into it.
         NoCheckpoint = true,
@@ -130,4 +151,18 @@ public sealed record TypedCase
         Run = (s, ct) => Run(new TypedSession(s, this), ct),
         Postmortem = Postmortem is null ? null : (s, ct) => Postmortem(new TypedSession(s, this), ct),
     };
+}
+
+/// <summary>
+/// The marker that the start itself is a <see cref="TypedCase"/>'s one claim (charter rule 1): a production new-colony
+/// start, a scenario start's parts or the reusable-game lifecycle. It is what lets a typed case declare an
+/// <see cref="OwnedStart"/>; the tick cap stays <see cref="TypedCase.TickCap"/>.
+/// </summary>
+public sealed record StartClaim
+{
+    /// <summary>The fresh games an owned body launches (<see cref="ITypedSession.LaunchAsync"/>); each adds <see cref="TypedCase.LaunchAllowance"/> to the hang guard. Zero on a ScenarioStart, which the runner opens.</summary>
+    public int Launches { get; init; }
+
+    /// <summary>The scenario start's own storyteller is part of the claim, so the runner skips the quiet-storyteller swap.</summary>
+    public bool KeepsStoryteller { get; init; }
 }
