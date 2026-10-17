@@ -44,15 +44,17 @@ namespace HomeBridge.BridgeTools
         // .CanUseConsideringQueuedJobs), which is null outside OnGUI: give it a
         // plain event (no shift = the charge check) for the call. The field, not
         // the setter: the setter pushes a native event and refuses null.
-        private static readonly AccessTools.FieldRef<UnityEngine.Event> CurrentEvent = AccessTools.StaticFieldRefAccess<UnityEngine.Event>(AccessTools.Field(typeof(UnityEngine.Event), "s_Current"));
-        private static readonly UnityEngine.Event PlainEvent = new UnityEngine.Event();
+        // Built on first use inside the call, never in a static initializer: a
+        // throwing initializer would poison the whole type for the process.
+        private static AccessTools.FieldRef<UnityEngine.Event>? currentEvent;
 
         private static bool ValidateOffGui(Verb verb, Pawn target)
         {
-            if (CurrentEvent() != null) return verb.ValidateTarget(target, false);
-            CurrentEvent() = PlainEvent;
+            var current = currentEvent ??= AccessTools.StaticFieldRefAccess<UnityEngine.Event>(AccessTools.Field(typeof(UnityEngine.Event), "s_Current"));
+            if (current() != null) return verb.ValidateTarget(target, false);
+            current() = new UnityEngine.Event();
             try { return verb.ValidateTarget(target, false); }
-            finally { CurrentEvent() = null!; }
+            finally { current() = null!; }
         }
 
         // The verb's job targets the pawn (targetA); CompUsable's use job

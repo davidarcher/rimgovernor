@@ -29,6 +29,7 @@ public static class CombatLabCases
         registry.Register(CombatLabMortarShell.Case());
         registry.Register(CombatLabNativeHold.Case());
         registry.Register(CombatLabRescue.Case());
+        registry.Register(CombatLabShockLance.Case());
         registry.Register(CombatLabStrip.Case());
         registry.Register(CombatLabStun.Case());
         registry.Register(CombatLabWild.Case());
