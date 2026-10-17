@@ -172,6 +172,7 @@ internal sealed record ColonyStatusDto(
     long? FoodPlanTick,
     long Tick,
     long RosterTick,
+    string Roster,
     long? Colonists,
     long? Workers,
     double? FoodNutrition,

@@ -26,9 +26,6 @@ public readonly record struct Pawns(Table<PawnState> Table)
         return new Pawns(table);
     }
 
-    /// <summary>Go's <c>PawnsFromMap</c>: the table of rows, keyed as the map keys them.</summary>
-    public static Pawns FromMap(IEnumerable<KeyValuePair<string, PawnState>> rows) => new(rows.ToTable());
-
     /// <summary>The table with <paramref name="row"/> added or replaced under <paramref name="id"/>.</summary>
     public Pawns With(string id, PawnState row) => new(Table.Set(id, row));
 

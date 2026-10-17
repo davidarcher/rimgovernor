@@ -34,9 +34,3 @@ public sealed record ResearchRead
         Knowledge = [.. Knowledge],
     };
 }
-
-public static partial class BridgeFunctions
-{
-    /// <summary>Go's <c>toProjectIDs</c>: the project ids of the names; empty for none.</summary>
-    internal static IReadOnlyList<ResearchProjectId> ToProjectIds(IReadOnlyList<string> names) => [.. names.Select(name => new ResearchProjectId(name))];
-}

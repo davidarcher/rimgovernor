@@ -42,6 +42,8 @@ registered (404) and drop the spans with a logged reason otherwise; spans never 
 `/api/player/colony` fields; unknown facts are null:
 
 - food nutrition and runway, colonists, workers, downed, mood mean;
+- `roster`: `colonists` or `no_colonists`. An empty home roster is a 200 with `no_colonists` and an empty
+  `pawns` list, not a read failure;
 - the living home roster: each colonist's `id`, `label`, `downed`, `mood`, `food`;
 - raid points and the wealth split: `raidPoints`, `wealthTotal`, `wealthItems`, `wealthBuildings`,
   `wealthPawns`;

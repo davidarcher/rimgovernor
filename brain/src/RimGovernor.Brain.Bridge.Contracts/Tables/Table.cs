@@ -388,18 +388,3 @@ public readonly struct Table<TValue>
     // A leaf (Child null) or a branch.
     private readonly record struct Slot(Node? Child, string? Key, ulong Hash, TValue Val);
 }
-
-/// <summary>Go's <c>TableOf</c>.</summary>
-public static class TableExtensions
-{
-    /// <summary>The table of a map's rows.</summary>
-    public static Table<TValue> ToTable<TValue>(this IEnumerable<KeyValuePair<string, TValue>> rows)
-    {
-        var table = default(Table<TValue>);
-        foreach (var (id, row) in rows)
-        {
-            table = table.Set(id, row);
-        }
-        return table;
-    }
-}

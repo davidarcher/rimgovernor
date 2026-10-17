@@ -28,6 +28,16 @@ public sealed record ColonyStatusPawn
     public Fact<double> Food { get; init; }
 }
 
+/// <summary>What the home roster read found. An empty roster is a valid state (no living colonist), not a read failure.</summary>
+public enum ColonyRoster
+{
+    /// <summary>At least one living home colonist.</summary>
+    Colonists,
+
+    /// <summary>No living home colonist on the map.</summary>
+    NoColonists,
+}
+
 /// <summary>One <see cref="ColonyStatus"/> read. Unknown facts are unknown, never zero: a native census that omits the field says so.</summary>
 public sealed record ColonyStatusReport
 {
@@ -43,6 +53,9 @@ public sealed record ColonyStatusReport
 
     /// <summary>The roster read's tick: equal under a stopped clock and a few ticks later under a running window.</summary>
     public Tick RosterTick { get; init; }
+
+    /// <summary>Whether the roster read found any living home colonist.</summary>
+    public ColonyRoster Roster { get; init; }
 
     public Fact<long> Colonists { get; init; }
 
@@ -176,7 +189,7 @@ public sealed class ColonyStatus
             }
             rows.Add(pawn);
         }
-        report = report with { Pawns = rows };
+        report = report with { Pawns = rows, Roster = rows.Count == 0 ? ColonyRoster.NoColonists : ColonyRoster.Colonists };
         return report;
     }
 

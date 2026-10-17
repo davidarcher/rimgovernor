@@ -228,6 +228,7 @@ internal static class ReadProjections
             v.FoodPlanTick.TryGetValue(out var planTick) ? planTick.Value : null,
             v.Tick.Value,
             v.RosterTick.Value,
+            v.Roster == ColonyRoster.NoColonists ? "no_colonists" : "colonists",
             Value(v.Colonists),
             Value(v.Workers),
             Value(v.FoodNutrition),
