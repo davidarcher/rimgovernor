@@ -55,7 +55,6 @@ public sealed record ColonyForecastRequest
     public ColonyForecastFacts Facts { get; init; } = new();
     public EquatableArray<ForecastCommitment> Commitments { get; init; }
     public ColonyForecastDelta Proposed { get; init; } = new();
-    public EquatableArray<string> Assumptions { get; init; }
     public ForecastConstructionContext Construction { get; init; } = new();
     public ForecastCoupledContext? Coupled { get; init; }
 }
@@ -80,10 +79,8 @@ public sealed record ColonyForecastScenario
 /// <summary>Baseline/delta consequences and observed diagnostics, not native feasibility or a utility score.</summary>
 public sealed record ColonyForecast
 {
-    public DerivedDemand Demand { get; init; } = new();
     public required ColonyForecastOrigin Origin { get; init; }
     public double HorizonDays { get; init; }
-    public EquatableArray<string> Assumptions { get; init; }
     public required ColonyDiagnostics Observed { get; init; }
     public required ColonyForecastScenario Baseline { get; init; }
     public required ColonyForecastScenario Proposed { get; init; }
@@ -122,10 +119,8 @@ public static partial class PolicyFunctions
         }
         return new ColonyForecast
         {
-            Demand = request.Demand,
             Origin = request.Origin,
             HorizonDays = request.HorizonDays,
-            Assumptions = request.Assumptions,
             Unsupported = request.Coupled is null ? ColonyForecast.UnsupportedDomains : ["combat_outcomes", "future_weather", "unmodeled_thermal_geometry", "future_meal_thoughts"],
             Observed = DiagnoseColony(request.Facts),
             Baseline = request.Coupled is null ? ForecastConstructionScenario(request, baseline) : ForecastCoupledScenarioOf(request, baseline),

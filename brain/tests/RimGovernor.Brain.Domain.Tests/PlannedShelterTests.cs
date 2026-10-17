@@ -100,7 +100,7 @@ public sealed class PlannedShelterTests
     }
 
     private static ForecastCoupledSelection Select(RoundsFacts facts) => CompareActivityOutcomes(
-        CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, new(),
+        CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
 
     private static string Why(RoundsFacts facts, ForecastCoupledSelection result) =>

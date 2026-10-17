@@ -7,12 +7,12 @@ namespace RimGovernor.Brain.Bridge;
 
 // Go race_rules.go and the mech kind of biotech.go (the parts the catalog reads): the race rules the game's code
 // states over def fields (RaceProperties, FleshTypeDef, LifeStageDef, TrainableDef, TrainabilityDef). What the game's
-// code computes beyond its fields stays in RaceGameFacts: tameness decay, the wildness curve, the adult feed and the
+// code computes beyond its fields stays in RaceGameFacts: the wildness curve, the adult feed and the
 // edible foods. The rules compare flesh types by def name, as the game compares them to its FleshTypeDefOf statics,
 // so they hold in a host whose DefOf statics are not bound.
 
-/// <summary>The husbandry ages of a race in ticks: the first stage (life stage order) whose LifeStageDef is reproductive, milkable or shearable, null when none is.</summary>
-internal sealed record RaceStageAges(long Adult, long? Reproductive, long? Milkable, long? Shearable);
+/// <summary>The husbandry ages of a race in ticks: the first stage (life stage order) whose LifeStageDef is reproductive or milkable, null when none is.</summary>
+internal sealed record RaceStageAges(long Adult, long? Reproductive, long? Milkable);
 
 public sealed partial class DefinitionCatalog
 {
@@ -76,13 +76,13 @@ public sealed partial class DefinitionCatalog
     private static long RaceTicks(float minAge) => (long)Math.Floor((double)(minAge * GameTime.TicksPerYear));
 
     // RaceStageAges: Adult is Pawn_AgeTracker.AdultMinAge (a humanlike race's first adult stage, otherwise the last
-    // stage), the others the minAge of the first stage whose LifeStageDef is reproductive, milkable or shearable.
+    // stage), the others the minAge of the first stage whose LifeStageDef is reproductive or milkable.
     private static RaceStageAges RaceStageAgesOf(RaceProperties props)
     {
         var humanlike = props.intelligence >= Intelligence.Humanlike;
         float adult = 0, last = 0;
         var adultFound = false;
-        long? reproductive = null, milkable = null, shearable = null;
+        long? reproductive = null, milkable = null;
         foreach (var age in props.lifeStageAges.Seq())
         {
             var ticks = RaceTicks(age.minAge);
@@ -96,11 +96,6 @@ public sealed partial class DefinitionCatalog
                 milkable = ticks;
             }
 
-            if (shearable is null && age.def.shearable)
-            {
-                shearable = ticks;
-            }
-
             if (!adultFound && (age.def.developmentalStage & DevelopmentalStage.Adult) != 0)
             {
                 adult = age.minAge;
@@ -111,7 +106,7 @@ public sealed partial class DefinitionCatalog
         }
 
         var adultTicks = humanlike && adultFound ? RaceTicks(adult) : !humanlike ? RaceTicks(last) : 0;
-        return new RaceStageAges(adultTicks, reproductive, milkable, shearable);
+        return new RaceStageAges(adultTicks, reproductive, milkable);
     }
 
     // RaceTrainables are the TrainableDefs the race can ever learn (Pawn_TrainingTracker.CanAssignToTrain's race rules:

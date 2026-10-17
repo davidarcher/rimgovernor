@@ -137,7 +137,7 @@ public sealed class PlannedRoomActivitiesTests
     private static ForecastCoupledSelection Select(RoundsFacts facts, double horizon = Horizon)
     {
         var request = CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
-            facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
         return CompareActivityOutcomes(request, facts.CoupledAlternatives!, 16384);
     }
 

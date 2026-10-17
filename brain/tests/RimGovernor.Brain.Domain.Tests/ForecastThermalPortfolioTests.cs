@@ -57,7 +57,7 @@ public sealed class ForecastThermalPortfolioTests
         return facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
     }
     internal static ForecastCoupledSelection Select(RoundsFacts facts) => CompareActivityOutcomes(
-        CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, new(),
+        CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
 
     [Fact]

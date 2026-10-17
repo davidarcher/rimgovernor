@@ -24,9 +24,6 @@ namespace RimGovernor.Brain.Policy;
 // never zero.
 public static partial class PolicyConstants
 {
-    /// <summary>Why a bed has joy trips to the outside node. The edge merges with the bed's day-cycle edge, which keeps its own reason.</summary>
-    public const string ReasonFlowJoyOuting = "flow_joy_outing";
-
     /// <summary>Why the graph holds the recreation node: the joy the colonists need a day.</summary>
     public const string ReasonRecreation = "recreation_joy_need";
 
@@ -147,7 +144,7 @@ internal sealed partial class GraphBuilder
         {
             if (n.Purpose == StationPurpose.Sleep)
             {
-                AddEdge(n.Id, PolicyConstants.OutsideNode, node.Outdoor * HealthySleepers(n), false, PolicyConstants.ReasonFlowJoyOuting);
+                AddEdge(n.Id, PolicyConstants.OutsideNode, node.Outdoor * HealthySleepers(n), false);
             }
         }
         return demand;

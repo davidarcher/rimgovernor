@@ -35,11 +35,6 @@ namespace RimGovernor.Brain.Policy;
 // brings in; trade and loot hauls. An unread yield, work or stack adds no flow: it is unknown, never zero.
 public static partial class PolicyConstants
 {
-    // Reasons of the haul flows.
-    public const string ReasonFlowHaulMined = "flow_haul_mined";
-    public const string ReasonFlowHaulWood = "flow_haul_wood";
-    public const string ReasonFlowHaulHunt = "flow_haul_hunt";
-
     private static readonly HaulTable HaulGameValue = new()
     {
         PickTicks = 100,
@@ -111,8 +106,8 @@ internal sealed partial class GraphBuilder
             return;
         }
         var model = In.Catalog.Haul;
-        HaulSources(model.Mined, PolicyConstants.HaulJudgment.MinerOwners, PolicyConstants.ReasonFlowHaulMined);
-        HaulSources(model.Chopped, PolicyFunctions.BaselineDemand(WorkType.PlantCutting, colonists, new WorkDemand()), PolicyConstants.ReasonFlowHaulWood);
+        HaulSources(model.Mined, PolicyConstants.HaulJudgment.MinerOwners);
+        HaulSources(model.Chopped, PolicyFunctions.BaselineDemand(WorkType.PlantCutting, colonists, new WorkDemand()));
         HaulHunt(PolicyFunctions.BaselineDemand(WorkType.Hunting, colonists, new WorkDemand()));
     }
 
@@ -120,7 +115,7 @@ internal sealed partial class GraphBuilder
     /// Hauls the goods of sources the colony holds a stock demand for: the owners' ticks, in equal shares, over
     /// each source's work, times its yield, in stacks, from the outside to the store that holds the good.
     /// </summary>
-    private void HaulSources(IReadOnlyList<HaulSource> sources, int owners, string reason)
+    private void HaulSources(IReadOnlyList<HaulSource> sources, int owners)
     {
         var wanted = sources.Where(s => s.Valid() && In.Stock.GetValueOrDefault(s.Good) > 0).ToList();
         if (owners <= 0 || wanted.Count == 0)
@@ -136,7 +131,7 @@ internal sealed partial class GraphBuilder
             {
                 continue;
             }
-            AddEdge(store, PolicyConstants.OutsideNode, ticks / s.Work * s.Units / limit, false, reason);
+            AddEdge(store, PolicyConstants.OutsideNode, ticks / s.Work * s.Units / limit, false);
         }
     }
 
@@ -155,7 +150,7 @@ internal sealed partial class GraphBuilder
         var (store, ok) = StoreOf(true);
         if (ok)
         {
-            AddEdge(store, PolicyConstants.OutsideNode, hunters * (double)PolicyFunctions.HuntKillsPerHunterDay, false, PolicyConstants.ReasonFlowHaulHunt);
+            AddEdge(store, PolicyConstants.OutsideNode, hunters * (double)PolicyFunctions.HuntKillsPerHunterDay, false);
         }
     }
 }

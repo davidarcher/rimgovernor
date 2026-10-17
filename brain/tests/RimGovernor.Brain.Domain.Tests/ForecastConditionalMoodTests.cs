@@ -286,7 +286,7 @@ public sealed class ForecastConditionalMoodTests
         var candidates = GenerateCoupledActivities(facts, horizon)!;
         facts = facts with { CoupledAlternatives = candidates };
         var request = CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
-            facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
         return (candidates, CompareActivityOutcomes(request, candidates));
     }
 

@@ -1,12 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>One resource's runway: the observed use a day, the stock and the days of use that stock covers (zero when none is observed).</summary>
-public sealed record StockRunway(Resource Resource, double PerDay, long Stock, double StockDays, double ShortfallDays);
-
-/// <summary>One resource-runway domain of the forward projection (drugs, materials, medicines). ShortfallDays is the largest per-resource shortfall.</summary>
-public sealed record StockProjection(EquatableArray<StockRunway> Resources, double ShortfallDays);
-
-// Drug runway. A social drug is spent where a colonist takes it; the realized-consumption ring counts each dose,
+// Drug runway keys. A social drug is spent where a colonist takes it; the realized-consumption ring counts each dose,
 // and ForecastResourceRunway turns the observed rate and the stock into days left.
 public static partial class PolicyFunctions
 {
@@ -41,50 +35,5 @@ public static partial class PolicyFunctions
             }
         }
         return output;
-    }
-
-    /// <summary>
-    /// Reads the social drugs' rows out of the resource runways. No drug row or a drug whose use or stock is
-    /// unobserved leaves the projection unknown; a drug observed unused has no shortfall.
-    /// </summary>
-    public static Fact<StockProjection> PlanDrugRunway(IEnumerable<ResourceRunway> rows, ItemFacts items)
-    {
-        var social = items.RecreationDrugs();
-        return StockProjectionOf(rows, r => social.Any(d => d.Def == r));
-    }
-
-    /// <summary>
-    /// The runway of each row the predicate keeps: the observed use a day, the stock and the days it covers, and
-    /// the largest shortfall. No such row, or one whose use or stock is unobserved, is unknown.
-    /// </summary>
-    private static Fact<StockProjection> StockProjectionOf(IEnumerable<ResourceRunway> rows, Func<Resource, bool> keep)
-    {
-        var resources = new List<StockRunway>();
-        var shortfall = 0.0;
-        foreach (var row in rows)
-        {
-            if (!keep(row.Resource))
-            {
-                continue;
-            }
-            if (!row.ConsumptionPerDay.TryGetValue(out var rate) || !row.Stock.TryGetValue(out var stock) || !double.IsFinite(rate) || rate < 0)
-            {
-                return Unknown<StockProjection>();
-            }
-            double stockDays = 0, rowShortfall = 0;
-            if (rate > 0)
-            {
-                stockDays = stock / rate;
-                rowShortfall = RunwayShortfall(stockDays, MaintenanceHorizonDays);
-            }
-            shortfall = Math.Max(shortfall, rowShortfall);
-            resources.Add(new StockRunway(row.Resource, rate, stock, stockDays, rowShortfall));
-        }
-        if (resources.Count == 0)
-        {
-            return Unknown<StockProjection>();
-        }
-        var sorted = resources.OrderBy(r => r.Resource.Value, StringComparer.Ordinal);
-        return Known(new StockProjection(EquatableArray.From(sorted), shortfall));
     }
 }

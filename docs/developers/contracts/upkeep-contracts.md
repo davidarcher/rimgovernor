@@ -395,8 +395,8 @@ shorter runway demands the items the missing nutrition takes (the stock's lowest
 item, else the cheapest `FeedItems` a bench makes) as a `economy/resource` stock level,
 merged into the Rounder's construction memory like the fuel needs; kibble and hay are made
 on any bench and the old bench-reachability and delivery-fallback constraints are gone.
-Missing animals, pens, stock or forecast leave the projection unknown, never defaulted. A
-short group no item feeds is listed in `Gaps`. `HerdFeedShort`, which gates taming, is
+Missing animals, pens, stock or forecast leave the projection unknown, never defaulted.
+`HerdFeedShort`, which gates taming, is
 true while the projection is short. Explicit player herd targets are untouched.
 
 Herd growth from known events is in the same runway. Native sends per animal `ticks_to_birth`
@@ -406,7 +406,7 @@ race catalog row carries `LifeStages` (each stage's start tick and `hungerRateFa
 never below one). A pregnancy adds that mean litter eating as newborns from the due tick
 (the race's `AdultFeedPerDay` scaled by the stage's hunger factor over the last stage's),
 stepping up at each later stage start; a young animal steps up at its next stage tick by
-the stage factors' ratio. The steps are `AnimalFeedGroupRunway.Steps`; the pasture credit
+the stage factors' ratio. The steps are `FeedStep`s on the group; the pasture credit
 stays the present herd's. An unread pregnancy, event tick, stage, litter or stage row
 leaves the projection unknown; a new conception stays reactive and the litter is an
 estimate the census corrects once born.

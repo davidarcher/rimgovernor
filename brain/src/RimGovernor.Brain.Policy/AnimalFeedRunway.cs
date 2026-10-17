@@ -32,47 +32,13 @@ public sealed record AnimalFeedInputs
     public StockReader Stock { get; init; }
 }
 
-/// <summary>
-/// One race group's runway. NutritionPerDay is the group's consumption, PasturePerDay the share of the pens'
-/// pasture it is credited (in proportion to its consumption), StockNutrition the unheld edible stock all its
-/// animals can eat. Feed is the item demanded when the group is short ("" when it is not, or no item feeds the
-/// race), Need the level of it to hold and MissingItems the items missing from the stock of it.
-/// </summary>
-public sealed record AnimalFeedGroupRunway
-{
-    public Resource Definition { get; init; }
-
-    public EquatableArray<PawnId> Animals { get; init; }
-
-    public double NutritionPerDay { get; init; }
-
-    public double PasturePerDay { get; init; }
-
-    public double StockNutrition { get; init; }
-
-    /// <summary>The known changes of the group's consumption within the horizon: births and life stages.</summary>
-    public EquatableArray<FeedStep> Steps { get; init; }
-
-    public double ShortfallDays { get; init; }
-
-    public Resource Feed { get; init; }
-
-    public long Need { get; init; }
-
-    public long MissingItems { get; init; }
-}
-
 /// <summary>A change of a group's consumption: from Tick (game ticks from now) the group eats Delta more nutrition per day.</summary>
 public readonly record struct FeedStep(long Tick, double Delta);
 
-/// <summary>The animal feed domain of the forward projection. ShortfallDays is the largest group shortfall. Gaps lists the race groups that are short and that no item feeds.</summary>
+/// <summary>The animal feed domain of the forward projection. ShortfallDays is the largest group shortfall.</summary>
 public sealed record AnimalFeedProjection
 {
-    public EquatableArray<AnimalFeedGroupRunway> Groups { get; init; }
-
     public double ShortfallDays { get; init; }
-
-    public EquatableArray<Resource> Gaps { get; init; }
 
     /// <summary>A group the stock and pasture do not carry over the horizon.</summary>
     public bool IsShort() => ShortfallDays > 0;
@@ -411,11 +377,8 @@ public static partial class PolicyFunctions
 
         var needs = new Dictionary<Resource, long>();
         double projectionShortfall = 0;
-        var gaps = new List<Resource>();
-        var groups = new List<AnimalFeedGroupRunway>();
         foreach (var g in byRace.Values)
         {
-            g.Animals.Sort();
             foreach (var stock in supply!.Stocks)
             {
                 if (GroupEats(stock, g.Animals))
@@ -445,41 +408,25 @@ public static partial class PolicyFunctions
                     return UnknownFeedRunway();
                 }
 
-                if (!ok)
-                {
-                    gaps.Add(g.Definition);
-                }
-                else
+                if (ok)
                 {
                     if (!input.Stock.Count(item).TryGetValue(out var have))
                     {
                         return UnknownFeedRunway();
                     }
 
-                    g.Feed = item;
-                    g.MissingItems = (long)Math.Ceiling(missing / perItem);
-                    g.Need = have + g.MissingItems;
-                    needs[item] = Math.Max(needs.GetValueOrDefault(item), g.Need);
+                    var need = have + (long)Math.Ceiling(missing / perItem);
+                    needs[item] = Math.Max(needs.GetValueOrDefault(item), need);
                 }
             }
 
             projectionShortfall = Math.Max(projectionShortfall, g.ShortfallDays);
-            groups.Add(g.Build());
         }
 
-        groups.Sort((a, b) => a.Definition.CompareTo(b.Definition));
-        gaps.Sort();
         return new AnimalFeedRunway
         {
             Needs = needs,
-            Projection = Known(
-                new AnimalFeedProjection
-                {
-                    Groups = EquatableArray.From(groups),
-                    ShortfallDays = projectionShortfall,
-                    Gaps = EquatableArray.From(gaps),
-                }
-            ),
+            Projection = Known(new AnimalFeedProjection { ShortfallDays = projectionShortfall }),
         };
     }
 
@@ -526,26 +473,5 @@ public static partial class PolicyFunctions
         public List<FeedStep> Steps { get; } = [];
 
         public double ShortfallDays { get; set; }
-
-        public Resource Feed { get; set; }
-
-        public long Need { get; set; }
-
-        public long MissingItems { get; set; }
-
-        public AnimalFeedGroupRunway Build() =>
-            new()
-            {
-                Definition = Definition,
-                Animals = EquatableArray.From(Animals),
-                NutritionPerDay = NutritionPerDay,
-                PasturePerDay = PasturePerDay,
-                StockNutrition = StockNutrition,
-                Steps = EquatableArray.From(Steps),
-                ShortfallDays = ShortfallDays,
-                Feed = Feed,
-                Need = Need,
-                MissingItems = MissingItems,
-            };
     }
 }

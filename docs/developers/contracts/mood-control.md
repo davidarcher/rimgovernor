@@ -136,12 +136,13 @@ expectations reach the review only through the pawn's `HighExpectations` flag.
 consumer (an allowlist in `ThoughtAuditCommand`; today `KnowBuriedInSarcophagus`, the Gate 1 lever `DeadMansApparel`
 and the Gate 2 temperature cards `EnvironmentCold` and `EnvironmentHot`, epic #3217). `RimGovernor.cmd
 thoughtaudit -guards` regenerates it with the [spike's](../mechanic-card-spike.md) syntax-only extraction; the output is
-byte-identical for one decompiled tree. A card carries the def, its kind, the XML fields (`durationDays`, `stackLimit`,
-`stackedEffectMultiplier`, the `nullifyingTraits` and `nullifyingHediffs` lists, stages with `baseMoodEffect`), and each granting site (member, access,
-caller count, `bodyHash` drift hash) with its guard expression trees and origins and the writers of the fields those
-guards read (method and `bodyHash`, write kind, value, guards, `resetWriters`, `writersFound`, followed fields).
-A count guard (origin `count`, #3281) also carries `count`: `over` (the collection a worker loop iterates), `where`
-(the per-element predicate, resolved through the def's `workerClass` override named by `via`) and `stage` (the stage
+byte-identical for one decompiled tree. The shipped card carries the def, its status, the XML fields it reads (the
+`nullifyingTraits` and `nullifyingHediffs` lists, stages with `baseMoodEffect`), and each granting site with its guard
+expression trees and the writers of the fields those guards read (guards and followed fields). The draft cards file
+(`-cards`) also carries what only the tool reads: kind, access, caller count, `bodyHash` drift hashes, guard origins and
+text, unreachable reasons, write kinds and values, and writer totals.
+A count guard (#3281) also carries `count`: `over` (the collection a worker loop iterates), `where`
+(the per-element predicate, resolved through the def's `workerClass` override) and `stage` (the stage
 index the site returns, over the count); its expression compares the count symbol with literals. Unresolved leaves
 stay `unknown` with their reason; a local the extraction could not trace to its value is `untraced-local`. Modded
 defs get no cards.
@@ -196,7 +197,7 @@ drive play. The effect-source prevention branch consumes it. `MechanicCardGuards
 whether a card counts one item (some site's `where` holds), unknown when a binding is missing.
 
 A card is `verified` only for the code it was probed against. Its drift hash is the first 16 hex digits of SHA-256
-over the `bodyHash` of every site, every count guard's `via` override and every writer (follows included), distinct, sorted ordinally and joined by
+over the `bodyHash` of every site, every count guard's `via` override and every writer of the draft cards (follows included), distinct, sorted ordinally and joined by
 newlines; any change to one of those methods changes it. The hand-appended
 `brain/src/RimGovernor.Brain.Policy/mechanic_cards_verified.tsv` (`def`, `drift_hash`, `probe`, `game`, `evidence`;
 not embedded) records each observed probe pass. `thoughtaudit -guards` prints every live card's drift hash and ships

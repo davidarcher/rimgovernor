@@ -18,18 +18,9 @@ public sealed record PawnBody
     /// <summary>Cells per second, with the current Moving capacity.</summary>
     public Fact<double> MoveSpeed { get; init; }
 
-    /// <summary>The toxic environment resistance, 0-1.</summary>
-    public Fact<double> ToxicResistance { get; init; }
-
     /// <summary>The temperature at the pawn's cell.</summary>
     public Fact<double> CellTemperatureC { get; init; }
 
-    // Hypothermia, Heatstroke, Frostbite (highest part) and ToxicBuildup are hediff severities.
+    /// <summary>The Hypothermia hediff severity.</summary>
     public Fact<double> Hypothermia { get; init; }
-
-    public Fact<double> Heatstroke { get; init; }
-
-    public Fact<double> Frostbite { get; init; }
-
-    public Fact<double> ToxicBuildup { get; init; }
 }

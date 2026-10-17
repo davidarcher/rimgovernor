@@ -16,10 +16,6 @@ internal static class GameConstants
 
     internal static int AnimalFeedDuration => Read<int>(typeof(JobDriver_InteractAnimal), "FeedDuration");
 
-    internal static float AnimalNutritionPercentagePerFeed => Read<float>(typeof(JobDriver_InteractAnimal), "NutritionPercentagePerFeed");
-
-    internal static float AnimalMaxMinNutritionPerFeed => Read<float>(typeof(JobDriver_InteractAnimal), "MaxMinNutritionPerFeed");
-
     internal static int MinTicksSinceThickened => Read<int>(typeof(WorkGiver_CleanFilth), "MinTicksSinceThickened");
 
     internal static float DoorOpenTicks => Read<float>(typeof(Building_Door), "OpenTicks");

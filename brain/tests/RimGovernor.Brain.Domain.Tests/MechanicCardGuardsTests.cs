@@ -149,7 +149,7 @@ public sealed class MechanicCardGuardsTests
     {
         var card = MechanicCards.ByDef["EnvironmentCold"];
         var site = card.Sites[0];
-        var unbound = card with { Sites = [site with { Stage = site.Stage! with { Input = new(Sym: "p.Wetness", Kind: "prop", Decl: "Pawn.Wetness") } }] };
+        var unbound = card with { Sites = [site with { Stage = site.Stage! with { Input = new(Kind: "prop", Decl: "Pawn.Wetness") } }] };
 
         Assert.False(MechanicCardGuards.CardStageOffset(unbound, NoIdeology, new(10, 30, 5)).IsKnown);
     }

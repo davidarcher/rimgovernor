@@ -29,7 +29,7 @@ public sealed class ForecastObservedMealTests
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var candidates = GenerateCoupledActivities(facts, Day)!;
         Assert.Contains(candidates.Context.NeedTasks, n => n.Target == "meal-stack");
-        return CompareActivityOutcomes(CoupledForecastRequestOf(new("world", 100), 1, facts, new(),
+        return CompareActivityOutcomes(CoupledForecastRequestOf(new("world", 100), 1, facts, 
             new() { Work = ForecastWorkInputsOf(facts) }, [], new()), candidates);
     }
 

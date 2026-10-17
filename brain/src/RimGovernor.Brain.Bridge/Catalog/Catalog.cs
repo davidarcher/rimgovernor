@@ -42,7 +42,7 @@ public sealed record CatalogDerived(string CurrencyDef, string WortDef, float Fu
 /// foods <c>RaceProperties.CanEverEat</c> accepts, the taming facts and the adult feed figure. They come from the
 /// game thread (#3080) with the definition catalog read.
 /// </summary>
-public sealed record RaceGameFacts(IReadOnlyList<string> EdibleDefs, bool TamenessCanDecay, int TamenessDecayPeriodTicks, float TameChanceFactor, double? AdultFeedPerDay);
+public sealed record RaceGameFacts(IReadOnlyList<string> EdibleDefs, float TameChanceFactor, double? AdultFeedPerDay);
 
 /// <summary>One definition catalog over a game's Def objects.</summary>
 public sealed partial class DefinitionCatalog

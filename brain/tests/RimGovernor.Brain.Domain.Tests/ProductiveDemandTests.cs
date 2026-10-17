@@ -30,7 +30,7 @@ public sealed class ProductiveDemandTests
         var eating = generated.Context.NeedTasks.First(n => n.FoodReady == batch.ActivityCompletions[0]);
         var eat = generated.Alternatives.Single(c => c.ActivityCompletions.Contains(eating.Task));
         var request = CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated }, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = [batch, eat] });
+            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = [batch, eat] });
         var alternatives = ForecastColony(request).Proposed.Coupled!.Alternatives;
         Assert.Equal(feasible, alternatives.Any(a => a.Feasible == Known(true)));
         if (feasible)

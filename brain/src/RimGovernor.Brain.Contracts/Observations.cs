@@ -1150,10 +1150,8 @@ public sealed record PawnSettings
 /// read it (unknown, not zero). comfortable_min_c and comfortable_max_c are
 /// StatDefOf.ComfyTemperatureMin/Max (degrees C, apparel included);
 /// move_speed is StatDefOf.MoveSpeed in cells per second, with the current
-/// Moving capacity; toxic_environment_resistance is StatDefOf.ToxicEnvironmentResistance (0-1).
-/// cell_temperature_c is the temperature at the pawn's cell. hypothermia,
-/// heatstroke, frostbite (highest part) and toxic_buildup are hediff
-/// severities, 0 when the pawn has none.
+/// Moving capacity. cell_temperature_c is the temperature at the pawn's cell.
+/// hypothermia is a hediff severity, 0 when the pawn has none.
 /// </summary>
 public sealed record PawnBodyStats
 {
@@ -1163,18 +1161,9 @@ public sealed record PawnBodyStats
 
     public double? MoveSpeed { get; init; }
 
-    public double? ToxicEnvironmentResistance { get; init; }
-
     public double? CellTemperatureC { get; init; }
 
     public double? Hypothermia { get; init; }
-
-    public double? Heatstroke { get; init; }
-
-    public double? Frostbite { get; init; }
-
-    public double? ToxicBuildup { get; init; }
-
 }
 
 /// <summary>
@@ -9566,14 +9555,6 @@ public sealed record RaceFacts
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> EdibleDefs { get; init; }
-
-    /// <summary>
-    /// TrainableUtility.TamenessCanDecay(def) and DegradationPeriodTicks(def): a
-    /// tamed animal loses one Tameness step every period unless it cannot decay.
-    /// </summary>
-    public bool TamenessCanDecay { get; init; }
-
-    public int TamenessDecayPeriodTicks { get; init; }
 
     /// <summary>
     /// InteractionWorker_RecruitAttempt's wildness curve at the race's Wildness

@@ -169,7 +169,6 @@ public static partial class ObservationPackage
         {
             p = p with { Facts = p.Facts with { ForecastObserved = p.Facts.ForecastObserved with { Power = topology.Networks } } };
         }
-        p = p with { Facts = p.Facts with { ForecastObserved = p.Facts.ForecastObserved with { Turrets = p.DefenseTurrets } } };
         var pawns = RoundsPawnsOf(frame, id);
         p = p with
         {

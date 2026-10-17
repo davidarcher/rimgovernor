@@ -71,7 +71,7 @@ public sealed class CapabilityMaintenanceTests
         } };
         var generated = GenerateCoupledActivities(facts, 300)!;
         var request = CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated }, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
         var selected = CompareActivityOutcomes(request, generated);
         Assert.NotEmpty(selected.Selection.Selected);
         Assert.True(selected.Selected.Maintenance[0].MissingXp.Value < selected.Baseline.Maintenance[0].MissingXp.Value);

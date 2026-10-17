@@ -436,9 +436,7 @@ namespace HomeBridge.BridgeTools
                     ComfortableMinC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)),
                     ComfortableMaxC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
                     MoveSpeed=Number(pawn.GetStatValue(StatDefOf.MoveSpeed)),
-                    ToxicEnvironmentResistance=Number(pawn.GetStatValue(StatDefOf.ToxicEnvironmentResistance)),
-                    Hypothermia=Severity(pawn,"Hypothermia"), Heatstroke=Severity(pawn,"Heatstroke"),
-                    Frostbite=Severity(pawn,"Frostbite"), ToxicBuildup=Severity(pawn,"ToxicBuildup") };
+                    Hypothermia=Severity(pawn,"Hypothermia") };
                 if(pawn.Spawned) body = body with { CellTemperatureC = Number(pawn.AmbientTemperature) };
                 row = row with { Body = body };
             } catch(InvalidOperationException) {

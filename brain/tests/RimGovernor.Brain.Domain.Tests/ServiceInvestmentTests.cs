@@ -47,7 +47,7 @@ public sealed class ServiceInvestmentTests
     {
         var facts = ForecastCoupledTests.ConstructionReview();
         var selection = CompareActivityOutcomes(CoupledForecastRequestOf(new("world", 100), 1000d / GameTime.TicksPerDay,
-            facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
+            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
         Assert.Contains(facts.CoupledAlternatives!.Alternatives, a => a.ExclusiveOutcome == "construction/frame0");
         Assert.Empty(selection.Selected.CompletedDevelopmentSites);
     }
@@ -74,7 +74,7 @@ public sealed class ServiceInvestmentTests
     {
         var facts = ForecastCoupledSelectionTests.Review();
         ForecastCoupledSelection Select(RoundsFacts f) => CompareActivityOutcomes(CoupledForecastRequestOf(new("world", 100),
-            300d / GameTime.TicksPerDay, f, new(), new() { Work = ForecastWorkInputsOf(f) }, [], new()), f.CoupledAlternatives!);
+            300d / GameTime.TicksPerDay, f,  new() { Work = ForecastWorkInputsOf(f) }, [], new()), f.CoupledAlternatives!);
         var proposal = Assert.Single(Select(facts).ServiceInvestments);
         Assert.Equal(FoodSupplyNeed.FilingKey, proposal.Target.Owner);
         Assert.Equal("pawn", Assert.Single(proposal.Beneficiaries));

@@ -46,7 +46,7 @@ namespace HomeBridge.BridgeTools
             foreach (var row in wire.ThingFacts)
             {
                 if (row.Race is { } race)
-                    races.Add(row.DefName, new BrainRaceFacts([.. race.EdibleDefs], race.TamenessCanDecay, race.TamenessDecayPeriodTicks, race.TameChanceFactor, race.AdultFeedPerDay));
+                    races.Add(row.DefName, new BrainRaceFacts([.. race.EdibleDefs], race.TameChanceFactor, race.AdultFeedPerDay));
             }
             return new BrainCatalog(AllDefs(), NativeStatTable.ForLoad(identity.LoadToken), new BrainDerived(derived.CurrencyDef, derived.WortDef, derived.FullRotRateC), races);
         }

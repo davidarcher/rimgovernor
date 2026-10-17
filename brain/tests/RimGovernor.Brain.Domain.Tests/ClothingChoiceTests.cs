@@ -62,7 +62,7 @@ public sealed class ClothingChoiceTests
         } };
         var generated = GenerateCoupledActivities(facts, 1900)!;
         var request = CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
         var selected = CompareActivityOutcomes(request, generated);
         comparison = selected.Selection;
         return StartCoupledActivity(selected, generated, 1, "clothing", 100);

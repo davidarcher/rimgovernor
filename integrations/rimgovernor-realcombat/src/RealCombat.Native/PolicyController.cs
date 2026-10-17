@@ -245,7 +245,7 @@ public sealed class PolicyController : IFightController
         {
             if (row.Race is { } race)
             {
-                races.Add(row.DefName, new RaceGameFacts([.. race.EdibleDefs], race.TamenessCanDecay, race.TamenessDecayPeriodTicks, race.TameChanceFactor, race.AdultFeedPerDay));
+                races.Add(row.DefName, new RaceGameFacts([.. race.EdibleDefs], race.TameChanceFactor, race.AdultFeedPerDay));
             }
         }
 

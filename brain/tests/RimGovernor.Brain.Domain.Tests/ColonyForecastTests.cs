@@ -34,7 +34,6 @@ public sealed class ColonyForecastTests
                 Remove = EquatableArray.From(new List<string> { "delivery" }),
                 Add = EquatableArray.From(new[] { Change("delivery", 0.5, 10) }),
             },
-            Assumptions = EquatableArray.From(new List<string> { "delivery times supplied by caller" }),
         });
         Assert.Equal(5, Assert.Single(result.Baseline.Findings, f => f.Reason == "stock_shortfall").Units.Value);
         Assert.Empty(result.Proposed.Findings);

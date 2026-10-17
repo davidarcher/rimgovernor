@@ -785,7 +785,7 @@ public static partial class PolicyFunctions
         var r = new RoundsFindings { Latches = latches, ResourceDemand = demand };
         if (f.CoupledAlternatives is { } coupled)
             r.CoupledSelection = CompareActivityOutcomes(CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
-                1, f, p, demand, [], new()), coupled);
+                1, f, demand, [], new()), coupled);
         // The disaster history the disaster family's Needs read (#3304).
         r.Disaster = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
         r.Trade = TradeReviewOf(f, p, medicine, demand);

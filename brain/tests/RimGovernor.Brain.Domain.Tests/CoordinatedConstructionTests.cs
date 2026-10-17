@@ -30,7 +30,7 @@ public sealed class CoordinatedConstructionTests
         } };
         var generated = GenerateCoupledActivities(facts, 1900)!;
         var request = CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
-            facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
         var selected = CompareActivityOutcomes(request, generated);
         // This fixture tests assignment and execution of an already requested physical job.
         // A bare wall has no automatic colony value after service-based admission (#3166).

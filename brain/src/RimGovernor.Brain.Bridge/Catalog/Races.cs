@@ -49,7 +49,6 @@ public sealed partial class DefinitionCatalog
     private P.AnimalRace AnimalRace(string name, ThingDef row, RaceGameFacts facts, Dictionary<string, double> power, IReadOnlyList<string> produced)
     {
         var props = row.race;
-        var (mechanoid, insect) = RaceFlags(name);
         var ages = RaceStageAgesOf(props);
         var race = new P.AnimalRace
         {
@@ -60,27 +59,20 @@ public sealed partial class DefinitionCatalog
             ManhunterOnTameFail = Known((double)props.manhunterOnTameFailChance),
             ManhunterOnDamage = Known((double)props.manhunterOnDamageChance),
             Edible = new([.. facts.EdibleDefs]),
-            Mechanoid = mechanoid,
-            Insect = insect,
             Trainables = new([.. RaceTrainables(props)]),
 
             // A pest is a tree eater: RaceProperties.Eats(FoodTypeFlags.Tree).
             Pest = (props.foodType & FoodTypeFlags.Tree) != 0,
             EatsPlant = (props.foodType & FoodTypeFlags.Plant) != 0,
             GestationDays = props.gestationPeriodDays,
-            Trainability = props.trainability is { } trainability ? Known(trainability.defName) : default,
             CarryingCapacity = ShownFact(name, CatalogStats.CarryingCapacity),
             Wildness = ShownFact(name, CatalogStats.Wildness),
-            MarketValue = ShownFact(name, CatalogStats.MarketValue),
             MateMtbHours = Known((double)props.mateMtbHours),
             AdultMinAgeTicks = Known(ages.Adult),
             ReproductiveMinAgeTicks = ages.Reproductive is { } r ? Known(r) : default,
             MilkableMinAgeTicks = ages.Milkable is { } m ? Known(m) : default,
-            ShearableMinAgeTicks = ages.Shearable is { } s ? Known(s) : default,
             LifeStages = new([.. RaceLifeStages(props)]),
             LitterSize = LitterSizeMean(props.litterSizeCurve),
-            TamenessCanDecay = Known(facts.TamenessCanDecay),
-            TamenessDecayPeriodTicks = Known(facts.TamenessDecayPeriodTicks),
             TameChanceFactor = Known((double)facts.TameChanceFactor),
             AdultFeedPerDay = facts.AdultFeedPerDay is > 0 and { } feed ? Known(feed) : default,
             CombatPower = power.TryGetValue(name, out var p) ? Known(p) : default,
@@ -120,7 +112,7 @@ public sealed partial class DefinitionCatalog
                 throw new CatalogException($"race {name} has meat {meat} but the stat table shows no {StatMeatAmount}");
             }
 
-            race = race with { MeatDef = new P.Resource(meat), MeatAmount = Known((double)amount), MeatNutritionPerUnit = NutritionFact(meat) };
+            race = race with { MeatAmount = Known((double)amount), MeatNutritionPerUnit = NutritionFact(meat) };
         }
 
         var products = RaceProducts(row).Select(product => product.Kind == "wool" ? product : product with { NutritionPerUnit = NutritionFact(product.Def.Value) }).ToList();
@@ -207,9 +199,6 @@ public sealed partial class DefinitionCatalog
         TalkTicks = PositiveFact(GameConstants.AnimalTalkDuration),
         FeedTicks = PositiveFact(GameConstants.AnimalFeedDuration),
         Feeds = PositiveFact(JobDriver_InteractAnimal.FeedCount),
-        MinTrainIntervalTicks = PositiveFact(TrainableUtility.MinTrainInterval),
-        FeedNutritionFraction = PositiveFact(GameConstants.AnimalNutritionPercentagePerFeed),
-        FeedNutritionCap = PositiveFact(GameConstants.AnimalMaxMinNutritionPerFeed),
     };
 
     private static Fact<int> PositiveFact(int value) => value > 0 ? Known(value) : default;

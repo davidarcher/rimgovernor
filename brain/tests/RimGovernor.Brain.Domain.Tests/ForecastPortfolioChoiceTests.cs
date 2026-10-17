@@ -19,7 +19,7 @@ public sealed class ForecastPortfolioChoiceTests
         facts = facts with { CoupledAlternatives = GenerateCoupledActivities(facts, 150) };
         var generated = Assert.IsType<ForecastCoupledCandidates>(facts.CoupledAlternatives);
         var request = CoupledForecastRequestOf(new("world/map/load", 100), 150d / GameTime.TicksPerDay,
-            facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
         var selected = CompareActivityOutcomes(request, generated);
         Assert.Equal(Known(true), selected.Selected.Feasible);
         Assert.NotEmpty(selected.Selection.Selected);
@@ -102,7 +102,7 @@ public sealed class ForecastPortfolioChoiceTests
         Assert.Equal(2, roots.Length);
         generated = generated with { Alternatives = EquatableArray.From(roots) };
         var request = CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new()) with { Coupled = generated.Context };
+            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new()) with { Coupled = generated.Context };
         var selected = CompareActivityOutcomes(request, generated);
         ForecastConsequenceVector? best = null;
         for (var mask = 0; mask < 1 << roots.Length; mask++)

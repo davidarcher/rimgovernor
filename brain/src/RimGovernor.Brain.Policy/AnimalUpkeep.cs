@@ -155,8 +155,6 @@ public enum AnimalContainmentReason
 public sealed record AnimalContainmentMethod
 {
     public AnimalContainmentReason Reason { get; init; }
-
-    public EquatableArray<PawnId> Animals { get; init; }
 }
 
 /// <summary>
@@ -211,12 +209,7 @@ public sealed record AnimalRace
 
     public Fact<double> CombatPower { get; init; }
 
-    public Fact<double> MarketValue { get; init; }
-
     public Fact<int> MinimumHandlingSkill { get; init; }
-
-    /// <summary>The native TrainabilityDef name (None, Simple, Intermediate, Advanced).</summary>
-    public Fact<string> Trainability { get; init; }
 
     /// <summary>The training the race can ever learn (sorted).</summary>
     public EquatableArray<string> Trainables { get; init; }
@@ -242,10 +235,6 @@ public sealed record AnimalRace
     /// <summary>A wild animal that eats trees (RaceProperties.Eats(Tree)), hunted for what it destroys, not for meat.</summary>
     public bool Pest { get; init; }
 
-    public bool Mechanoid { get; init; }
-
-    public bool Insect { get; init; }
-
     /// <summary>RaceProperties.Eats(Plant).</summary>
     public bool EatsPlant { get; init; }
 
@@ -267,22 +256,11 @@ public sealed record AnimalRace
     /// <summary>The first life stage that gives milk (unknown when no stage does).</summary>
     public Fact<long> MilkableMinAgeTicks { get; init; }
 
-    /// <summary>The first life stage that gives wool (unknown when no stage does).</summary>
-    public Fact<long> ShearableMinAgeTicks { get; init; }
-
-    /// <summary>A tamed animal of the race loses a Tameness step each period unless it cannot decay (a nearly tame race, or one fence-blocked).</summary>
-    public Fact<bool> TamenessCanDecay { get; init; }
-
-    public Fact<int> TamenessDecayPeriodTicks { get; init; }
-
     /// <summary>
     /// The game's wildness curve at the race's Wildness: what a tame attempt's chance is multiplied by, before
     /// the tamer's TameAnimalChance, bond, prison and venerated-animal factors.
     /// </summary>
     public Fact<double> TameChanceFactor { get; init; }
-
-    /// <summary>The meat a butchery yields (empty for a race with no meat).</summary>
-    public Resource MeatDef { get; init; }
 
     /// <summary>The MeatAmount stat of the race def, before butcher efficiency.</summary>
     public Fact<double> MeatAmount { get; init; }
@@ -290,7 +268,7 @@ public sealed record AnimalRace
     /// <summary>Native adult nutrition demand, matching Herd.FeedPerDay.</summary>
     public Fact<double> AdultFeedPerDay { get; init; }
 
-    /// <summary>The Nutrition stat of MeatDef (the catalog's def stat table, no native read).</summary>
+    /// <summary>The Nutrition stat of the race's meat (the catalog's def stat table, no native read).</summary>
     public Fact<double> MeatNutritionPerUnit { get; init; }
 
     /// <summary>
@@ -316,9 +294,8 @@ public sealed record RaceLifeStage(long MinAgeTicks, double HungerRateFactor, do
 
 /// <summary>
 /// The game's constants of one animal interaction job (taming, training): per interaction three talks of
-/// TalkTicks and Feeds feeds of FeedTicks; a feed is FeedNutritionFraction of the animal's food need, capped at
-/// FeedNutritionCap nutrition; MinTrainIntervalTicks separate two training jobs on one animal. The job's three
-/// talk toils are game code structure, not a value the game exposes.
+/// TalkTicks and Feeds feeds of FeedTicks. The job's three talk toils are game code structure, not a value the
+/// game exposes.
 /// </summary>
 public sealed record AnimalInteraction
 {
@@ -327,12 +304,6 @@ public sealed record AnimalInteraction
     public Fact<int> FeedTicks { get; init; }
 
     public Fact<int> Feeds { get; init; }
-
-    public Fact<int> MinTrainIntervalTicks { get; init; }
-
-    public Fact<double> FeedNutritionFraction { get; init; }
-
-    public Fact<double> FeedNutritionCap { get; init; }
 }
 
 /// <summary>One producible feed item and its nutrition per item.</summary>
@@ -418,7 +389,7 @@ public static partial class PolicyFunctions
     public static AnimalContainmentMethod SelectAnimalContainmentMethod(IEnumerable<UpkeepAnimal> animals, Fact<bool> handlerAvailable, bool pensStand)
     {
         var seen = new HashSet<PawnId>();
-        var rows = new List<UpkeepAnimal>();
+        var deficit = 0;
         var allSuitable = true;
         foreach (var a in animals)
         {
@@ -438,16 +409,14 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            rows.Add(a);
+            deficit++;
             if (!a.SuitablePen.TryGetValue(out var suitable) || suitable.Length == 0)
             {
                 allSuitable = false;
             }
         }
 
-        rows.Sort((x, y) => x.Id.CompareTo(y.Id));
-        var ids = EquatableArray.From(rows.Select(a => a.Id));
-        if (rows.Count == 0)
+        if (deficit == 0)
         {
             return new AnimalContainmentMethod { Reason = AnimalContainmentReason.NoDeficit };
         }
@@ -458,15 +427,14 @@ public static partial class PolicyFunctions
             return new AnimalContainmentMethod
             {
                 Reason = available ? AnimalContainmentReason.WaitingNativePen : AnimalContainmentReason.WaitingHandler,
-                Animals = ids,
             };
         }
 
         if (!pensStand)
         {
-            return new AnimalContainmentMethod { Reason = AnimalContainmentReason.NoPen, Animals = ids };
+            return new AnimalContainmentMethod { Reason = AnimalContainmentReason.NoPen };
         }
 
-        return new AnimalContainmentMethod { Reason = AnimalContainmentReason.MarkerExhausted, Animals = ids };
+        return new AnimalContainmentMethod { Reason = AnimalContainmentReason.MarkerExhausted };
     }
 }

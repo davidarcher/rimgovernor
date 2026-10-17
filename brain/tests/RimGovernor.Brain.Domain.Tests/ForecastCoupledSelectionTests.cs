@@ -98,7 +98,7 @@ public sealed class ForecastCoupledSelectionTests
     private static ForecastCoupledSelection Select(RoundsFacts facts, int budget = 16384, params ForecastCommitment[] incumbent)
     {
         var request = CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
-            facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, EquatableArray.From(incumbent), new());
+            facts,  new() { Work = ForecastWorkInputsOf(facts) }, EquatableArray.From(incumbent), new());
         return CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
     }
 
@@ -377,7 +377,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Equal(result.BaselineVector.BreakRisk, result.Rejected.First(r => r.Commitments.SequenceEqual([root.Id])).Consequences!.BreakRisk);
         var work = facts.CoupledAlternatives!.Alternatives.Where(c => result.Selection.Selected.Contains(c.Id)).ToArray();
         double Cold(params ForecastCommitment[] add) => ForecastColony(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay,
-                facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }))
+                facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }))
             .Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).ThermalExposure.Single().AssessedColdDegreeTicks;
         Assert.True(Cold([.. work, root]) > Cold(work));
     }
@@ -469,7 +469,7 @@ public sealed class ForecastCoupledSelectionTests
     }
 
     private static ForecastCoupledOutcome Outcome(RoundsFacts facts, params ForecastCommitment[] add) =>
-        ForecastColony(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, new(), new() { Work = ForecastWorkInputsOf(facts) },
+        ForecastColony(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputsOf(facts) },
             [], new() { Add = EquatableArray.From(add) })).Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
 
     [Fact]

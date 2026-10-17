@@ -165,7 +165,7 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Equal(40d, Assert.Single(candidates.Context.Activities.Options, o => o.Activity == incumbent.Commitment).WorkTicks.Value);
         Assert.Equal(160d, Assert.Single(candidates.Context.Activities.Activities, a => a.Id == incumbent.Commitment).LatestStart);
         var request = CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            prepared, new(), new() { Work = ForecastWorkInputsOf(prepared) }, [], new());
+            prepared,  new() { Work = ForecastWorkInputsOf(prepared) }, [], new());
         var selected = CompareActivityOutcomes(request, candidates);
         Assert.Equal(Known(true), selected.Baseline.Feasible);
         Assert.DoesNotContain(incumbent.Commitment, selected.Selection.Selected);

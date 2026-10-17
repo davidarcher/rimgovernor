@@ -203,7 +203,7 @@ internal sealed partial class FacadeNativeClient
 
             if (row.Race is { } race)
             {
-                races.Add(name, new BridgeRaceGameFacts([.. race.EdibleDefs], race.TamenessCanDecay, race.TamenessDecayPeriodTicks, race.TameChanceFactor, race.AdultFeedPerDay));
+                races.Add(name, new BridgeRaceGameFacts([.. race.EdibleDefs], race.TameChanceFactor, race.AdultFeedPerDay));
             }
         }
 

@@ -104,34 +104,26 @@ internal static class GuardOutput
     /// <summary>The schema of the shipped card file; <c>MechanicCards</c> in Brain.Policy rejects any other.</summary>
     public const int ShippedSchema = 2;
 
-    private static readonly string[] ShippedNumbers = ["durationDays", "stackLimit", "stackedEffectMultiplier"];
-
     /// <summary>
     /// The shipped card file (<c>brain/src/RimGovernor.Brain.Policy/mechanic_cards.json</c>, #3220): the given cards with typed
     /// XML numbers and only the fields the brain's records read. A card is <c>verified</c> only when its def is in
     /// <paramref name="verified"/> (its drift hash matches a row of the verified-cards table, #3222), else <c>extracted</c>;
     /// a card with an unreachable guard on every site (#3243) ships <c>unreachable</c>.
     /// </summary>
-    public static string Shipped(string game, IReadOnlyList<Card> cards, IReadOnlySet<string> verified)
+    public static string Shipped(IReadOnlyList<Card> cards, IReadOnlySet<string> verified)
     {
         using var ms = new MemoryStream();
         using (var w = new Utf8JsonWriter(ms, new JsonWriterOptions { Indented = true, NewLine = "\n", Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
         {
             w.WriteStartObject();
             w.WriteNumber("schema", ShippedSchema);
-            w.WriteString("game", game);
             w.WriteStartArray("cards");
             foreach (var c in cards)
             {
                 w.WriteStartObject();
                 w.WriteString("def", c.Def);
-                w.WriteString("kind", c.Kind);
                 w.WriteString("status", c.Status == GuardCards.Unreachable ? GuardCards.Unreachable : verified.Contains(c.Def) ? "verified" : "extracted");
                 w.WriteStartObject("xml");
-                foreach (var name in ShippedNumbers.Where(c.Data.Fields.ContainsKey))
-                {
-                    w.WriteNumber(name, double.Parse(c.Data.Fields[name].Value.Trim(), System.Globalization.CultureInfo.InvariantCulture));
-                }
                 foreach (var name in (string[])["nullifyingTraits", "nullifyingHediffs"])
                 {
                     w.WriteStartArray(name);
@@ -267,9 +259,12 @@ internal static class GuardOutput
         {
             w.WriteString("file", s.File);
         }
-        w.WriteString("bodyHash", s.Hash);
-        w.WriteString("access", s.Access);
-        w.WriteNumber("callers", s.Callers);
+        if (!shipped)
+        {
+            w.WriteString("bodyHash", s.Hash);
+            w.WriteString("access", s.Access);
+            w.WriteNumber("callers", s.Callers);
+        }
         w.WriteStartArray("guards");
         foreach (var g in s.Guards)
         {
@@ -286,7 +281,7 @@ internal static class GuardOutput
         {
             w.WriteStartObject("stage");
             w.WritePropertyName("input");
-            WriteExpr(w, band.Input);
+            WriteExpr(w, band.Input, shipped);
             w.WriteStartArray("thresholds");
             foreach (var (below, stage) in band.Thresholds)
             {
@@ -302,7 +297,7 @@ internal static class GuardOutput
             {
                 w.WriteStartObject();
                 w.WritePropertyName("when");
-                WriteExpr(w, when);
+                WriteExpr(w, when, shipped);
                 w.WriteNumber("delta", delta);
                 w.WriteEndObject();
             }
@@ -315,15 +310,15 @@ internal static class GuardOutput
     private static void WriteGuard(Utf8JsonWriter w, Guard g, bool shipped)
     {
         w.WriteStartObject();
-        w.WriteString("origin", g.Origin);
         if (!shipped)
         {
+            w.WriteString("origin", g.Origin);
             w.WriteString("text", Exprs.Render(g));
             w.WriteString("conditions", Exprs.Resolved(g) ? "resolved" : "unknown");
         }
         w.WritePropertyName("expr");
-        WriteExpr(w, g.Cond);
-        if (g.Unreachable is not null)
+        WriteExpr(w, g.Cond, shipped);
+        if (!shipped && g.Unreachable is not null)
         {
             w.WriteString("unreachable", g.Unreachable);
         }
@@ -331,12 +326,12 @@ internal static class GuardOutput
         {
             w.WriteStartObject("count");
             w.WritePropertyName("over");
-            WriteExpr(w, c.Over);
+            WriteExpr(w, c.Over, shipped);
             w.WritePropertyName("where");
-            WriteExpr(w, c.Where);
+            WriteExpr(w, c.Where, shipped);
             w.WritePropertyName("stage");
-            WriteExpr(w, c.Stage);
-            if (c.Via is not null)
+            WriteExpr(w, c.Stage, shipped);
+            if (!shipped && c.Via is not null)
             {
                 w.WriteString("via", c.Via);
                 w.WriteString("viaHash", c.ViaHash);
@@ -350,9 +345,12 @@ internal static class GuardOutput
     {
         w.WriteStartObject();
         w.WriteString("field", f.Field);
-        w.WriteString("kind", f.Kind);
-        w.WriteNumber("writersFound", f.Total);
-        w.WriteNumber("resetWriters", f.Writers.Count(x => x.Kind == "reset"));
+        if (!shipped)
+        {
+            w.WriteString("kind", f.Kind);
+            w.WriteNumber("writersFound", f.Total);
+            w.WriteNumber("resetWriters", f.Writers.Count(x => x.Kind == "reset"));
+        }
         if (!shipped && f.Derived.Count > 0)
         {
             w.WriteStartArray("derivedFrom");
@@ -366,13 +364,16 @@ internal static class GuardOutput
         foreach (var x in f.Writers)
         {
             w.WriteStartObject();
-            w.WriteString("method", x.Method);
-            w.WriteString("bodyHash", x.Hash);
-            w.WriteString("write", x.Kind);
-            w.WriteString("value", Exprs.Render(x.Value));
-            if (x.ReceiverUnresolved)
+            if (!shipped)
             {
-                w.WriteBoolean("receiverUnresolved", true);
+                w.WriteString("method", x.Method);
+                w.WriteString("bodyHash", x.Hash);
+                w.WriteString("write", x.Kind);
+                w.WriteString("value", Exprs.Render(x.Value));
+                if (x.ReceiverUnresolved)
+                {
+                    w.WriteBoolean("receiverUnresolved", true);
+                }
             }
             w.WriteStartArray("guards");
             foreach (var g in x.Guards)
@@ -392,16 +393,19 @@ internal static class GuardOutput
         w.WriteEndObject();
     }
 
-    private static void WriteExpr(Utf8JsonWriter w, Expr e)
+    private static void WriteExpr(Utf8JsonWriter w, Expr e, bool shipped)
     {
         w.WriteStartObject();
         switch (e)
         {
             case Sym s:
-                w.WriteString("sym", s.Path);
+                if (!shipped)
+                {
+                    w.WriteString("sym", s.Path);
+                }
                 w.WriteString("kind", s.Kind);
                 w.WriteString("decl", s.Decl);
-                if (s.Type is not null)
+                if (!shipped && s.Type is not null)
                 {
                     w.WriteString("type", s.Type);
                 }
@@ -410,15 +414,19 @@ internal static class GuardOutput
                 w.WriteString("lit", l.Text);
                 break;
             case Unknown u:
-                w.WriteString("unknown", u.Reason);
-                w.WriteString("text", u.Text);
+                // A shipped unknown leaf is an empty node, which the brain's evaluator reads as unknown.
+                if (!shipped)
+                {
+                    w.WriteString("unknown", u.Reason);
+                    w.WriteString("text", u.Text);
+                }
                 break;
             case Op o:
                 w.WriteString("op", o.Name);
                 w.WriteStartArray("args");
                 foreach (var a in o.Args)
                 {
-                    WriteExpr(w, a);
+                    WriteExpr(w, a, shipped);
                 }
                 w.WriteEndArray();
                 break;

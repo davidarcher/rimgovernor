@@ -24,8 +24,6 @@ public static partial class PolicyFunctions
     /// <summary>Why the graph holds a pen: the herd the plan keeps of a race.</summary>
     public const string ReasonPenHerd = "pen_herd_of_race";
 
-    public const string ReasonFlowPenProduct = "flow_pen_product";
-    public const string ReasonFlowPenFeed = "flow_pen_feed";
 
     internal static string PenId(Resource race) => "pen/" + race.Value;
 
@@ -90,7 +88,7 @@ public static partial class PolicyFunctions
                 var (store, found) = b.StoreFor(p.Def);
                 if (found)
                 {
-                    b.AddEdge(node.Id, store, h.Animals * amount / interval, false, ReasonFlowPenProduct);
+                    b.AddEdge(node.Id, store, h.Animals * amount / interval, false);
                 }
             }
             node = b.PenFeed(node, race);
@@ -128,7 +126,7 @@ public static partial class PolicyFunctions
         var (store, found) = b.StoreFor(feed.Def);
         if (found)
         {
-            b.AddEdge(node.Id, store, shortfall / feed.Nutrition, false, ReasonFlowPenFeed);
+            b.AddEdge(node.Id, store, shortfall / feed.Nutrition, false);
         }
         return node;
     }

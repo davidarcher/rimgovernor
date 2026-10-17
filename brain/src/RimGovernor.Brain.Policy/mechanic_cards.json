@@ -1,10 +1,8 @@
 {
   "schema": 2,
-  "game": "1.7.4980 rev60",
   "cards": [
     {
       "def": "DeadMansApparel",
-      "kind": "situational",
       "status": "verified",
       "xml": {
         "nullifyingTraits": [
@@ -31,12 +29,8 @@
       "sites": [
         {
           "site": "ThoughtWorker_ApparelThought.CurrentStateInternal",
-          "bodyHash": "e40fd9d1ffd7bf75",
-          "access": "protected override",
-          "callers": 14,
           "guards": [
             {
-              "origin": "count",
               "expr": {
                 "op": "and",
                 "args": [
@@ -47,10 +41,8 @@
                         "op": "==",
                         "args": [
                           {
-                            "sym": "num",
                             "kind": "count",
-                            "decl": "",
-                            "type": "int"
+                            "decl": ""
                           },
                           {
                             "lit": "0"
@@ -63,10 +55,8 @@
                     "op": ">=",
                     "args": [
                       {
-                        "sym": "num",
                         "kind": "count",
-                        "decl": "",
-                        "type": "int"
+                        "decl": ""
                       },
                       {
                         "lit": "5"
@@ -77,39 +67,27 @@
               },
               "count": {
                 "over": {
-                  "sym": "p.apparel.WornApparel",
                   "kind": "prop",
-                  "decl": "Pawn_ApparelTracker.WornApparel",
-                  "type": "List"
+                  "decl": "Pawn_ApparelTracker.WornApparel"
                 },
                 "where": {
-                  "sym": "apparel.WornByCorpse",
                   "kind": "prop",
-                  "decl": "Apparel.WornByCorpse",
-                  "type": "bool"
+                  "decl": "Apparel.WornByCorpse"
                 },
                 "stage": {
                   "lit": "4"
-                },
-                "via": "ThoughtWorker_DeadMansApparel.ApparelCounts",
-                "viaHash": "45ef33af47d07789"
+                }
               }
             }
           ],
           "writers": [
             {
               "field": "Pawn_ApparelTracker.WornApparel",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             },
             {
               "field": "Apparel.WornByCorpse",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             }
@@ -117,12 +95,8 @@
         },
         {
           "site": "ThoughtWorker_ApparelThought.CurrentStateInternal",
-          "bodyHash": "e40fd9d1ffd7bf75",
-          "access": "protected override",
-          "callers": 14,
           "guards": [
             {
-              "origin": "count",
               "expr": {
                 "op": "and",
                 "args": [
@@ -133,10 +107,8 @@
                         "op": "==",
                         "args": [
                           {
-                            "sym": "num",
                             "kind": "count",
-                            "decl": "",
-                            "type": "int"
+                            "decl": ""
                           },
                           {
                             "lit": "0"
@@ -152,10 +124,8 @@
                         "op": ">=",
                         "args": [
                           {
-                            "sym": "num",
                             "kind": "count",
-                            "decl": "",
-                            "type": "int"
+                            "decl": ""
                           },
                           {
                             "lit": "5"
@@ -168,50 +138,36 @@
               },
               "count": {
                 "over": {
-                  "sym": "p.apparel.WornApparel",
                   "kind": "prop",
-                  "decl": "Pawn_ApparelTracker.WornApparel",
-                  "type": "List"
+                  "decl": "Pawn_ApparelTracker.WornApparel"
                 },
                 "where": {
-                  "sym": "apparel.WornByCorpse",
                   "kind": "prop",
-                  "decl": "Apparel.WornByCorpse",
-                  "type": "bool"
+                  "decl": "Apparel.WornByCorpse"
                 },
                 "stage": {
                   "op": "-",
                   "args": [
                     {
-                      "sym": "num",
                       "kind": "count",
-                      "decl": "",
-                      "type": "int"
+                      "decl": ""
                     },
                     {
                       "lit": "1"
                     }
                   ]
-                },
-                "via": "ThoughtWorker_DeadMansApparel.ApparelCounts",
-                "viaHash": "45ef33af47d07789"
+                }
               }
             }
           ],
           "writers": [
             {
               "field": "Pawn_ApparelTracker.WornApparel",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             },
             {
               "field": "Apparel.WornByCorpse",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             }
@@ -221,7 +177,6 @@
     },
     {
       "def": "EnvironmentCold",
-      "kind": "situational",
       "status": "verified",
       "xml": {
         "nullifyingTraits": [],
@@ -244,12 +199,8 @@
       "sites": [
         {
           "site": "ThoughtWorker_Cold.CurrentStateInternal",
-          "bodyHash": "fb32a60173b9d762",
-          "access": "protected override",
-          "callers": 14,
           "guards": [
             {
-              "origin": "early-exit",
               "expr": {
                 "op": "not",
                 "args": [
@@ -260,16 +211,12 @@
                         "op": "-",
                         "args": [
                           {
-                            "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMin)",
                             "kind": "stat",
-                            "decl": "StatDefOf.ComfyTemperatureMin",
-                            "type": "float"
+                            "decl": "StatDefOf.ComfyTemperatureMin"
                           },
                           {
-                            "sym": "p.AmbientTemperature",
                             "kind": "prop",
-                            "decl": "Thing.AmbientTemperature",
-                            "type": "float"
+                            "decl": "Thing.AmbientTemperature"
                           }
                         ]
                       },
@@ -282,7 +229,6 @@
               }
             },
             {
-              "origin": "if",
               "expr": {
                 "op": ">=",
                 "args": [
@@ -302,16 +248,12 @@
                                     "op": "-",
                                     "args": [
                                       {
-                                        "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMin)",
                                         "kind": "stat",
-                                        "decl": "StatDefOf.ComfyTemperatureMin",
-                                        "type": "float"
+                                        "decl": "StatDefOf.ComfyTemperatureMin"
                                       },
                                       {
-                                        "sym": "p.AmbientTemperature",
                                         "kind": "prop",
-                                        "decl": "Thing.AmbientTemperature",
-                                        "type": "float"
+                                        "decl": "Thing.AmbientTemperature"
                                       }
                                     ]
                                   },
@@ -332,16 +274,12 @@
                                     "op": "-",
                                     "args": [
                                       {
-                                        "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMin)",
                                         "kind": "stat",
-                                        "decl": "StatDefOf.ComfyTemperatureMin",
-                                        "type": "float"
+                                        "decl": "StatDefOf.ComfyTemperatureMin"
                                       },
                                       {
-                                        "sym": "p.AmbientTemperature",
                                         "kind": "prop",
-                                        "decl": "Thing.AmbientTemperature",
-                                        "type": "float"
+                                        "decl": "Thing.AmbientTemperature"
                                       }
                                     ]
                                   },
@@ -366,16 +304,12 @@
                                             "op": "-",
                                             "args": [
                                               {
-                                                "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMin)",
                                                 "kind": "stat",
-                                                "decl": "StatDefOf.ComfyTemperatureMin",
-                                                "type": "float"
+                                                "decl": "StatDefOf.ComfyTemperatureMin"
                                               },
                                               {
-                                                "sym": "p.AmbientTemperature",
                                                 "kind": "prop",
-                                                "decl": "Thing.AmbientTemperature",
-                                                "type": "float"
+                                                "decl": "Thing.AmbientTemperature"
                                               }
                                             ]
                                           },
@@ -411,19 +345,15 @@
                                 "op": "and",
                                 "args": [
                                   {
-                                    "sym": "ModsConfig.IdeologyActive",
                                     "kind": "prop",
-                                    "decl": "ModsConfig.IdeologyActive",
-                                    "type": "bool"
+                                    "decl": "ModsConfig.IdeologyActive"
                                   },
                                   {
                                     "op": "!=",
                                     "args": [
                                       {
-                                        "sym": "p.Ideo",
                                         "kind": "prop",
-                                        "decl": "Pawn.Ideo",
-                                        "type": "Ideo"
+                                        "decl": "Pawn.Ideo"
                                       },
                                       {
                                         "lit": "null"
@@ -436,16 +366,12 @@
                                 "op": "call",
                                 "args": [
                                   {
-                                    "sym": "p.Ideo.HasPrecept",
                                     "kind": "method",
-                                    "decl": "Ideo.HasPrecept",
-                                    "type": "bool"
+                                    "decl": "Ideo.HasPrecept"
                                   },
                                   {
-                                    "sym": "PreceptDefOf.Temperature_Tough",
                                     "kind": "field",
-                                    "decl": "PreceptDefOf.Temperature_Tough",
-                                    "type": "PreceptDef"
+                                    "decl": "PreceptDefOf.Temperature_Tough"
                                   }
                                 ]
                               }
@@ -471,33 +397,21 @@
           "writers": [
             {
               "field": "Thing.AmbientTemperature",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             },
             {
               "field": "ModsConfig.IdeologyActive",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             },
             {
               "field": "Pawn.Ideo",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             },
             {
               "field": "PreceptDefOf.Temperature_Tough",
-              "kind": "field",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             }
@@ -507,16 +421,12 @@
               "op": "-",
               "args": [
                 {
-                  "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMin)",
                   "kind": "stat",
-                  "decl": "StatDefOf.ComfyTemperatureMin",
-                  "type": "float"
+                  "decl": "StatDefOf.ComfyTemperatureMin"
                 },
                 {
-                  "sym": "p.AmbientTemperature",
                   "kind": "prop",
-                  "decl": "Thing.AmbientTemperature",
-                  "type": "float"
+                  "decl": "Thing.AmbientTemperature"
                 }
               ]
             },
@@ -544,19 +454,15 @@
                       "op": "and",
                       "args": [
                         {
-                          "sym": "ModsConfig.IdeologyActive",
                           "kind": "prop",
-                          "decl": "ModsConfig.IdeologyActive",
-                          "type": "bool"
+                          "decl": "ModsConfig.IdeologyActive"
                         },
                         {
                           "op": "!=",
                           "args": [
                             {
-                              "sym": "p.Ideo",
                               "kind": "prop",
-                              "decl": "Pawn.Ideo",
-                              "type": "Ideo"
+                              "decl": "Pawn.Ideo"
                             },
                             {
                               "lit": "null"
@@ -569,16 +475,12 @@
                       "op": "call",
                       "args": [
                         {
-                          "sym": "p.Ideo.HasPrecept",
                           "kind": "method",
-                          "decl": "Ideo.HasPrecept",
-                          "type": "bool"
+                          "decl": "Ideo.HasPrecept"
                         },
                         {
-                          "sym": "PreceptDefOf.Temperature_Tough",
                           "kind": "field",
-                          "decl": "PreceptDefOf.Temperature_Tough",
-                          "type": "PreceptDef"
+                          "decl": "PreceptDefOf.Temperature_Tough"
                         }
                       ]
                     }
@@ -593,7 +495,6 @@
     },
     {
       "def": "EnvironmentHot",
-      "kind": "situational",
       "status": "verified",
       "xml": {
         "nullifyingTraits": [],
@@ -616,12 +517,8 @@
       "sites": [
         {
           "site": "ThoughtWorker_Hot.CurrentStateInternal",
-          "bodyHash": "9dcc407db3c4c99c",
-          "access": "protected override",
-          "callers": 14,
           "guards": [
             {
-              "origin": "early-exit",
               "expr": {
                 "op": "not",
                 "args": [
@@ -632,16 +529,12 @@
                         "op": "-",
                         "args": [
                           {
-                            "sym": "p.AmbientTemperature",
                             "kind": "prop",
-                            "decl": "Thing.AmbientTemperature",
-                            "type": "float"
+                            "decl": "Thing.AmbientTemperature"
                           },
                           {
-                            "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMax)",
                             "kind": "stat",
-                            "decl": "StatDefOf.ComfyTemperatureMax",
-                            "type": "float"
+                            "decl": "StatDefOf.ComfyTemperatureMax"
                           }
                         ]
                       },
@@ -654,7 +547,6 @@
               }
             },
             {
-              "origin": "if",
               "expr": {
                 "op": ">=",
                 "args": [
@@ -674,16 +566,12 @@
                                     "op": "-",
                                     "args": [
                                       {
-                                        "sym": "p.AmbientTemperature",
                                         "kind": "prop",
-                                        "decl": "Thing.AmbientTemperature",
-                                        "type": "float"
+                                        "decl": "Thing.AmbientTemperature"
                                       },
                                       {
-                                        "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMax)",
                                         "kind": "stat",
-                                        "decl": "StatDefOf.ComfyTemperatureMax",
-                                        "type": "float"
+                                        "decl": "StatDefOf.ComfyTemperatureMax"
                                       }
                                     ]
                                   },
@@ -704,16 +592,12 @@
                                     "op": "-",
                                     "args": [
                                       {
-                                        "sym": "p.AmbientTemperature",
                                         "kind": "prop",
-                                        "decl": "Thing.AmbientTemperature",
-                                        "type": "float"
+                                        "decl": "Thing.AmbientTemperature"
                                       },
                                       {
-                                        "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMax)",
                                         "kind": "stat",
-                                        "decl": "StatDefOf.ComfyTemperatureMax",
-                                        "type": "float"
+                                        "decl": "StatDefOf.ComfyTemperatureMax"
                                       }
                                     ]
                                   },
@@ -738,16 +622,12 @@
                                             "op": "-",
                                             "args": [
                                               {
-                                                "sym": "p.AmbientTemperature",
                                                 "kind": "prop",
-                                                "decl": "Thing.AmbientTemperature",
-                                                "type": "float"
+                                                "decl": "Thing.AmbientTemperature"
                                               },
                                               {
-                                                "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMax)",
                                                 "kind": "stat",
-                                                "decl": "StatDefOf.ComfyTemperatureMax",
-                                                "type": "float"
+                                                "decl": "StatDefOf.ComfyTemperatureMax"
                                               }
                                             ]
                                           },
@@ -783,19 +663,15 @@
                                 "op": "and",
                                 "args": [
                                   {
-                                    "sym": "ModsConfig.IdeologyActive",
                                     "kind": "prop",
-                                    "decl": "ModsConfig.IdeologyActive",
-                                    "type": "bool"
+                                    "decl": "ModsConfig.IdeologyActive"
                                   },
                                   {
                                     "op": "!=",
                                     "args": [
                                       {
-                                        "sym": "p.Ideo",
                                         "kind": "prop",
-                                        "decl": "Pawn.Ideo",
-                                        "type": "Ideo"
+                                        "decl": "Pawn.Ideo"
                                       },
                                       {
                                         "lit": "null"
@@ -808,16 +684,12 @@
                                 "op": "call",
                                 "args": [
                                   {
-                                    "sym": "p.Ideo.HasPrecept",
                                     "kind": "method",
-                                    "decl": "Ideo.HasPrecept",
-                                    "type": "bool"
+                                    "decl": "Ideo.HasPrecept"
                                   },
                                   {
-                                    "sym": "PreceptDefOf.Temperature_Tough",
                                     "kind": "field",
-                                    "decl": "PreceptDefOf.Temperature_Tough",
-                                    "type": "PreceptDef"
+                                    "decl": "PreceptDefOf.Temperature_Tough"
                                   }
                                 ]
                               }
@@ -843,33 +715,21 @@
           "writers": [
             {
               "field": "Thing.AmbientTemperature",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             },
             {
               "field": "ModsConfig.IdeologyActive",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             },
             {
               "field": "Pawn.Ideo",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             },
             {
               "field": "PreceptDefOf.Temperature_Tough",
-              "kind": "field",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             }
@@ -879,16 +739,12 @@
               "op": "-",
               "args": [
                 {
-                  "sym": "p.AmbientTemperature",
                   "kind": "prop",
-                  "decl": "Thing.AmbientTemperature",
-                  "type": "float"
+                  "decl": "Thing.AmbientTemperature"
                 },
                 {
-                  "sym": "p.GetStatValue(StatDefOf.ComfyTemperatureMax)",
                   "kind": "stat",
-                  "decl": "StatDefOf.ComfyTemperatureMax",
-                  "type": "float"
+                  "decl": "StatDefOf.ComfyTemperatureMax"
                 }
               ]
             },
@@ -916,19 +772,15 @@
                       "op": "and",
                       "args": [
                         {
-                          "sym": "ModsConfig.IdeologyActive",
                           "kind": "prop",
-                          "decl": "ModsConfig.IdeologyActive",
-                          "type": "bool"
+                          "decl": "ModsConfig.IdeologyActive"
                         },
                         {
                           "op": "!=",
                           "args": [
                             {
-                              "sym": "p.Ideo",
                               "kind": "prop",
-                              "decl": "Pawn.Ideo",
-                              "type": "Ideo"
+                              "decl": "Pawn.Ideo"
                             },
                             {
                               "lit": "null"
@@ -941,16 +793,12 @@
                       "op": "call",
                       "args": [
                         {
-                          "sym": "p.Ideo.HasPrecept",
                           "kind": "method",
-                          "decl": "Ideo.HasPrecept",
-                          "type": "bool"
+                          "decl": "Ideo.HasPrecept"
                         },
                         {
-                          "sym": "PreceptDefOf.Temperature_Tough",
                           "kind": "field",
-                          "decl": "PreceptDefOf.Temperature_Tough",
-                          "type": "PreceptDef"
+                          "decl": "PreceptDefOf.Temperature_Tough"
                         }
                       ]
                     }
@@ -965,12 +813,8 @@
     },
     {
       "def": "KnowBuriedInSarcophagus",
-      "kind": "memory",
       "status": "unreachable",
       "xml": {
-        "durationDays": 8,
-        "stackLimit": 4,
-        "stackedEffectMultiplier": 0.5,
         "nullifyingTraits": [],
         "nullifyingHediffs": [],
         "stages": [
@@ -982,76 +826,54 @@
       "sites": [
         {
           "site": "Building_Sarcophagus.Notify_HauledTo",
-          "bodyHash": "91b24c626f95fc53",
-          "access": "public override",
-          "callers": 3,
           "guards": [
             {
-              "origin": "early-exit",
               "expr": {
-                "sym": "thisIsFirstBodyEver",
                 "kind": "field",
-                "decl": "Building_Sarcophagus.thisIsFirstBodyEver",
-                "type": "bool"
-              },
-              "unreachable": "no writer on the site's direct caller path (writers: Building_Sarcophagus.TryAcceptThing; callers checked: Building_Sarcophagus.Notify_HauledTo, Toils_Haul.DepositHauledThingInContainer, and the methods they call directly); writes in earlier, separate calls on the same instance are not modelled"
-            },
-            {
-              "origin": "early-exit",
-              "expr": {
-                "sym": "hauler.IsColonist",
-                "kind": "prop",
-                "decl": "Pawn.IsColonist",
-                "type": "bool"
+                "decl": "Building_Sarcophagus.thisIsFirstBodyEver"
               }
             },
             {
-              "origin": "early-exit",
               "expr": {
-                "sym": "base.Corpse.InnerPawn.def.race.Humanlike",
                 "kind": "prop",
-                "decl": "RaceProperties.Humanlike",
-                "type": "bool"
+                "decl": "Pawn.IsColonist"
               }
             },
             {
-              "origin": "early-exit",
+              "expr": {
+                "kind": "prop",
+                "decl": "RaceProperties.Humanlike"
+              }
+            },
+            {
               "expr": {
                 "op": "not",
                 "args": [
                   {
-                    "sym": "base.Corpse.everBuriedInSarcophagus",
                     "kind": "field",
-                    "decl": "Corpse.everBuriedInSarcophagus",
-                    "type": "bool"
+                    "decl": "Corpse.everBuriedInSarcophagus"
                   }
                 ]
               }
             },
             {
-              "origin": "foreach",
               "expr": {
                 "op": "nonempty",
                 "args": [
                   {
-                    "sym": "base.Map.mapPawns.FreeColonists",
                     "kind": "prop",
-                    "decl": "MapPawns.FreeColonists",
-                    "type": "List"
+                    "decl": "MapPawns.FreeColonists"
                   }
                 ]
               }
             },
             {
-              "origin": "if",
               "expr": {
                 "op": "!=",
                 "args": [
                   {
-                    "sym": "freeColonist.needs.mood",
                     "kind": "field",
-                    "decl": "Pawn_NeedsTracker.mood",
-                    "type": "Need_Mood"
+                    "decl": "Pawn_NeedsTracker.mood"
                   },
                   {
                     "lit": "null"
@@ -1063,38 +885,24 @@
           "writers": [
             {
               "field": "Building_Sarcophagus.thisIsFirstBodyEver",
-              "kind": "field",
-              "writersFound": 1,
-              "resetWriters": 0,
               "writers": [
                 {
-                  "method": "Building_Sarcophagus.TryAcceptThing",
-                  "bodyHash": "4507054591858954",
-                  "write": "set",
-                  "value": "!everNonEmpty",
                   "guards": [
                     {
-                      "origin": "if",
                       "expr": {
                         "op": "call",
                         "args": [
                           {
-                            "sym": "base.TryAcceptThing",
                             "kind": "method",
-                            "decl": "Building_Sarcophagus.TryAcceptThing",
-                            "type": "bool"
+                            "decl": "Building_Sarcophagus.TryAcceptThing"
                           },
                           {
-                            "sym": "thing",
                             "kind": "param",
-                            "decl": "",
-                            "type": "Thing"
+                            "decl": ""
                           },
                           {
-                            "sym": "allowSpecialEffects",
                             "kind": "param",
-                            "decl": "",
-                            "type": "bool"
+                            "decl": ""
                           }
                         ]
                       }
@@ -1105,45 +913,27 @@
               "follows": [
                 {
                   "field": "Building_Sarcophagus.everNonEmpty",
-                  "kind": "field",
-                  "writersFound": 2,
-                  "resetWriters": 0,
                   "writers": [
                     {
-                      "method": "Building_Sarcophagus.ExposeData",
-                      "bodyHash": "a137096c44fc738e",
-                      "write": "serialization",
-                      "value": "ref",
                       "guards": []
                     },
                     {
-                      "method": "Building_Sarcophagus.TryAcceptThing",
-                      "bodyHash": "4507054591858954",
-                      "write": "set",
-                      "value": "true",
                       "guards": [
                         {
-                          "origin": "if",
                           "expr": {
                             "op": "call",
                             "args": [
                               {
-                                "sym": "base.TryAcceptThing",
                                 "kind": "method",
-                                "decl": "Building_Sarcophagus.TryAcceptThing",
-                                "type": "bool"
+                                "decl": "Building_Sarcophagus.TryAcceptThing"
                               },
                               {
-                                "sym": "thing",
                                 "kind": "param",
-                                "decl": "",
-                                "type": "Thing"
+                                "decl": ""
                               },
                               {
-                                "sym": "allowSpecialEffects",
                                 "kind": "param",
-                                "decl": "",
-                                "type": "bool"
+                                "decl": ""
                               }
                             ]
                           }
@@ -1157,69 +947,44 @@
             },
             {
               "field": "Pawn.IsColonist",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             },
             {
               "field": "RaceProperties.Humanlike",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             },
             {
               "field": "Corpse.everBuriedInSarcophagus",
-              "kind": "field",
-              "writersFound": 2,
-              "resetWriters": 0,
               "writers": [
                 {
-                  "method": "Building_Sarcophagus.Notify_HauledTo",
-                  "bodyHash": "91b24c626f95fc53",
-                  "write": "set",
-                  "value": "true",
                   "guards": [
                     {
-                      "origin": "early-exit",
                       "expr": {
-                        "sym": "thisIsFirstBodyEver",
                         "kind": "field",
-                        "decl": "Building_Sarcophagus.thisIsFirstBodyEver",
-                        "type": "bool"
+                        "decl": "Building_Sarcophagus.thisIsFirstBodyEver"
                       }
                     },
                     {
-                      "origin": "early-exit",
                       "expr": {
-                        "sym": "hauler.IsColonist",
                         "kind": "prop",
-                        "decl": "Pawn.IsColonist",
-                        "type": "bool"
+                        "decl": "Pawn.IsColonist"
                       }
                     },
                     {
-                      "origin": "early-exit",
                       "expr": {
-                        "sym": "base.Corpse.InnerPawn.def.race.Humanlike",
                         "kind": "prop",
-                        "decl": "RaceProperties.Humanlike",
-                        "type": "bool"
+                        "decl": "RaceProperties.Humanlike"
                       }
                     },
                     {
-                      "origin": "early-exit",
                       "expr": {
                         "op": "not",
                         "args": [
                           {
-                            "sym": "base.Corpse.everBuriedInSarcophagus",
                             "kind": "field",
-                            "decl": "Corpse.everBuriedInSarcophagus",
-                            "type": "bool"
+                            "decl": "Corpse.everBuriedInSarcophagus"
                           }
                         ]
                       }
@@ -1227,10 +992,6 @@
                   ]
                 },
                 {
-                  "method": "Corpse.ExposeData",
-                  "bodyHash": "b567ad26f52e6622",
-                  "write": "serialization",
-                  "value": "ref",
                   "guards": []
                 }
               ],
@@ -1238,23 +999,13 @@
             },
             {
               "field": "MapPawns.FreeColonists",
-              "kind": "derived",
-              "writersFound": 0,
-              "resetWriters": 0,
               "writers": [],
               "follows": []
             },
             {
               "field": "Pawn_NeedsTracker.mood",
-              "kind": "field",
-              "writersFound": 1,
-              "resetWriters": 0,
               "writers": [
                 {
-                  "method": "Pawn_NeedsTracker.BindDirectNeedFields",
-                  "bodyHash": "1f27ff160017e7f0",
-                  "write": "ref-arg",
-                  "value": "out",
                   "guards": []
                 }
               ],

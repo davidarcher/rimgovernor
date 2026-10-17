@@ -66,11 +66,6 @@ public static partial class PolicyConstants
     public const string ReasonWorkNutrition = "work_nutrition_and_orders";
     public const string ReasonStoreStock = "store_stock_demand";
     public const string ReasonDineSeats = "dine_seats_of_table";
-    public const string ReasonFlowIngredient = "flow_ingredient";
-    public const string ReasonFlowProduct = "flow_product";
-    public const string ReasonFlowMeal = "flow_meal";
-    public const string ReasonFlowDay = "flow_day_cycle";
-    public const string ReasonNeedCold = "need_cold";
 
     /// <summary>The spare place the shelter/expansion Need keeps beyond the population: indoor capacity must exceed the colonist count. The station graph provides the same spare bed.</summary>
     public const int HousingSparePlaces = 1;
@@ -423,7 +418,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         return id;
     }
 
-    public void AddEdge(string a, string c, double weight, bool required, string reason)
+    public void AddEdge(string a, string c, double weight, bool required)
     {
         if (a == c || (weight <= 0 && !required))
         {
@@ -864,12 +859,12 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                 {
                     continue;
                 }
-                AddEdge(store, work, l.Runs * pick.Count, false, PolicyConstants.ReasonFlowIngredient);
+                AddEdge(store, work, l.Runs * pick.Count, false);
                 if (In.Perishable.GetValueOrDefault(pick.Resource))
                 {
                     if (Nodes[store].Purpose == StationPurpose.StoreCold)
                     {
-                        AddEdge(store, work, 0, true, PolicyConstants.ReasonNeedCold);
+                        AddEdge(store, work, 0, true);
                     }
                 }
                 if (flow.Butchery)
@@ -880,7 +875,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                         var (output, found) = StoreOf(rots);
                         if (found)
                         {
-                            AddEdge(work, output, l.Runs * pick.Count, false, PolicyConstants.ReasonFlowProduct);
+                            AddEdge(work, output, l.Runs * pick.Count, false);
                         }
                     }
                 }
@@ -890,14 +885,14 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                 var amount = l.Runs * p.Count;
                 if (flow.Food && dine != string.Empty)
                 {
-                    AddEdge(work, dine, amount, false, PolicyConstants.ReasonFlowMeal);
+                    AddEdge(work, dine, amount, false);
                 }
                 else
                 {
                     var (store, ok) = StoreFor(p.Resource);
                     if (ok)
                     {
-                        AddEdge(work, store, amount, false, PolicyConstants.ReasonFlowProduct);
+                        AddEdge(work, store, amount, false);
                     }
                 }
             }
@@ -920,7 +915,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         {
             if (n.Purpose == StationPurpose.Sleep)
             {
-                AddEdge(n.Id, PolicyConstants.OutsideNode, HealthySleepers(n), false, PolicyConstants.ReasonFlowDay);
+                AddEdge(n.Id, PolicyConstants.OutsideNode, HealthySleepers(n), false);
             }
         }
     }
@@ -952,10 +947,10 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             switch (n.Purpose)
             {
                 case StationPurpose.Sleep:
-                    AddEdge(n.Id, dine, meals * HealthySleepers(n) / colonists, false, PolicyConstants.ReasonFlowMeal);
+                    AddEdge(n.Id, dine, meals * HealthySleepers(n) / colonists, false);
                     break;
                 case StationPurpose.SleepMed:
-                    AddEdge(n.Id, dine, meals * injured / colonists, false, PolicyConstants.ReasonFlowMeal);
+                    AddEdge(n.Id, dine, meals * injured / colonists, false);
                     break;
                 default:
                     break;

@@ -43,7 +43,7 @@ public sealed class ForecastIncumbentSelectionTests
         var candidates = new ForecastCoupledCandidates(context, meal ? [eat] : [], [], false) { Incumbents = [current] };
         facts = facts with { CoupledAlternatives = candidates };
         var request = CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
-            facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+            facts,  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
         return (request, candidates);
     }
 

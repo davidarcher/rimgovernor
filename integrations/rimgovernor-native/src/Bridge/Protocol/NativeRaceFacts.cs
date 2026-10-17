@@ -10,7 +10,7 @@ namespace HomeBridge.BridgeTools
 {
     // What the game's own race code says about one race that its def fields do
     // not, carried on the race's ThingDefFacts row once per load: the foods the
-    // race can eat, tameness decay, the wildness curve and the adult feed. The
+    // race can eat, the wildness curve and the adult feed. The
     // race flags, trainables, meat and life stage ages are Go's, derived from the
     // def rows (bridge/race_rules.go).
     internal static class NativeRaceFacts
@@ -21,8 +21,6 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.RaceFacts();
             foreach (var food in NativeFoodPolicy.Foods().Where(f => race.CanEverEat(f)))
                 row = row with { EdibleDefs = [.. row.EdibleDefs, Named(food.defName)] };
-            row = row with { TamenessCanDecay = TrainableUtility.TamenessCanDecay(def) };
-            row = row with { TamenessDecayPeriodTicks = TrainableUtility.DegradationPeriodTicks(def) };
             row = row with { TameChanceFactor = TameChanceFactorCurve().Evaluate(def.GetStatValueAbstract(StatDefOf.Wildness)) };
             var stages = race.lifeStageAges;
             if (stages != null && stages.Count > 0)

@@ -39,7 +39,7 @@ public sealed class SupportMethodTests
         return facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
     }
     private static ForecastCoupledSelection Select(RoundsFacts facts, int budget = 16384) => CompareActivityOutcomes(
-        CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, new(),
+        CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!, budget);
     private static SupportActivityRead Cleaning(double self = 30, double helper = 5, bool known = true) => new()
     {

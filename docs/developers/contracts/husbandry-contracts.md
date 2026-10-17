@@ -23,15 +23,15 @@ unknown, never zero. It is derived state: no save, journal or per-animal copy
 fails the reading loudly like any other required native read.
 
 The race flags (animal, mechanoid, insect), trainables, meat def and amount,
-and the adult and first reproductive, milkable and shearable stage ages are the brain's,
+and the adult and first reproductive and milkable stage ages are the brain's,
 derived from the RaceProperties, FleshTypeDef, LifeStageDef and TrainableDef
 rows and the stat table (`RaceRules.cs`); a race is a Pawn-category
 ThingDef (a corpse def shares its pawn's properties). The race row also carries
 the game-computed husbandry facts of #2238 that no row states (`RaceFacts`): the
-edible foods, the tameness decay flag and period, the wildness tame-chance
+edible foods, the wildness tame-chance
 factor and the adult feed per day; the
-animal interaction job constants (talk and feed ticks, feeds, feed nutrition
-share and cap, minimum train interval) are `GameConstants` members (`JobDriver_InteractAnimal`, `TrainableUtility`), held as
+animal interaction job constants (talk and feed ticks, feeds) are
+`GameConstants` members (`JobDriver_InteractAnimal`), held as
 `AnimalRaceCatalog.Interaction`. Taming and training jobs, milk, wool and egg
 rates, leather and butcher yields come from the def rows and stat table as
 before. Raw facts only; policy decides.

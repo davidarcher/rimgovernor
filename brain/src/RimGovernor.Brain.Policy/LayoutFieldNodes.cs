@@ -11,9 +11,6 @@ public static partial class PolicyConstants
 {
     /// <summary>Why the graph holds a field: the crop's capacity target.</summary>
     public const string ReasonFieldDemand = "field_crop_capacity_target";
-
-    /// <summary>A crop's haul from its field.</summary>
-    public const string ReasonFlowCrop = "flow_crop";
 }
 
 /// <summary>The outdoor land one crop needs.</summary>
@@ -88,7 +85,7 @@ internal sealed partial class GraphBuilder
             var (store, ok) = StoreFor(harvests);
             if (ok)
             {
-                AddEdge(node.Id, store, cells * perCell / days, false, PolicyConstants.ReasonFlowCrop);
+                AddEdge(node.Id, store, cells * perCell / days, false);
             }
             foreach (var l in loads)
             {
@@ -96,7 +93,7 @@ internal sealed partial class GraphBuilder
                 {
                     if (pick.Resource == harvests)
                     {
-                        AddEdge(node.Id, PolicyFunctions.NodeId(l.Station, StationPurpose.Work), l.Runs * pick.Count, false, PolicyConstants.ReasonFlowCrop);
+                        AddEdge(node.Id, PolicyFunctions.NodeId(l.Station, StationPurpose.Work), l.Runs * pick.Count, false);
                     }
                 }
             }

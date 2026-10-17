@@ -109,7 +109,7 @@ internal static class ThoughtAuditCommand
         var utf8 = new System.Text.UTF8Encoding(false);
         await File.WriteAllTextAsync(paths.Cards, GuardOutput.Cards(game, GuardOutput.Summarize(all), chosen), utf8, ct).ConfigureAwait(false);
         await File.WriteAllTextAsync(paths.Coverage, GuardOutput.Coverage(all), utf8, ct).ConfigureAwait(false);
-        await File.WriteAllTextAsync(paths.Shipped, GuardOutput.Shipped(game, live, verified), utf8, ct).ConfigureAwait(false);
+        await File.WriteAllTextAsync(paths.Shipped, GuardOutput.Shipped(live, verified), utf8, ct).ConfigureAwait(false);
         GuardTableCheck.Require(paths.Shipped, index);
         Log.Info(string.Create(CultureInfo.InvariantCulture, $"thoughtaudit -guards: {all.Count} defs from {files.Count} sources; wrote {chosen.Count} cards to {paths.Cards}, coverage to {paths.Coverage} and {live.Count} shipped cards to {paths.Shipped}"));
     }

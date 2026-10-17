@@ -57,7 +57,7 @@ public sealed class PortfolioAllocationTests
 
     internal static ColonyForecastRequest Request(RoundsFacts facts, ForecastCoupledCandidates generated) =>
         CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated }, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+            facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputsOf(facts) }, [], new());
 
     private static object Quality(ForecastCoupledCandidates generated, ForecastCoupledSelection selection) => new
     {
