@@ -205,7 +205,6 @@ public sealed class SupportPortfolioFixture
         cleaned|=now-cleanTick<=2 && filth.Count>0 && filth.Any(t=>t.Destroyed);
         produced|=now-recipeTick<=2 && product!=null && map.listerThings.AllThings.Any(t=>t.Spawned && t.def==product);
     }
-    }
     [Tool("test/support_read", Description="UNSAFE FOR MODEL EXECUTION. Read actual support outcomes, all participant occupied ticks and still unfinished native obligations; writes no orders.")]
     public async Task<object> Read(IRimBridgeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>new
     {
