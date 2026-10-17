@@ -8,17 +8,11 @@ namespace RimGovernor.Contracts.Wire.Observations;
 
 /// <summary>
 /// Placed sites (<see cref="Buildings"/>), hypothetical, unplaced sites (<see cref="Planned"/>) and routes between
-/// planned sites (<see cref="Routes"/>). At most 16 of each and 16 colonists are read; the caller batches the rest.
+/// planned sites (<see cref="Routes"/>) for every free spawned colonist. Every one asked is read: nothing is capped (#3341).
 /// </summary>
 public sealed record ConstructionActivityRequest(Identity Identity,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Building>))] EquatableArray<Building> Buildings)
 {
-    /// <summary>
-    /// The colonists the read covers, by id (#3312): at most 16, so a larger colony is paged over several reads. A
-    /// named pawn that is not a free spawned colonist has no row. Empty covers the map's free colonists, the first 16
-    /// by id, and truncates above.
-    /// </summary>
-    public EquatableArray<string> Pawns { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedConstructionSite>))]
     public EquatableArray<PlannedConstructionSite> Planned { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRouteProbe>))]
@@ -47,7 +41,7 @@ public sealed record ConstructionActivityOption(string Site, string Definition, 
 /// <summary>
 /// One hypothetical site: <see cref="Positions"/> are the placement anchors of one piece each of
 /// <see cref="Definition"/> in <see cref="Stuff"/> at <see cref="Rotation"/> (a wall run lists every wall cell; a 2x1
-/// piece lists its one anchor). Work is summed over the pieces; at most 128 positions per site.
+/// piece lists its one anchor). Work is summed over the pieces.
 /// </summary>
 public sealed record PlannedConstructionSite(string Id, string Definition, string Stuff, RimGovernor.Brain.Domain.Rotation Rotation,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Positions);
@@ -135,11 +129,6 @@ public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind,
 /// </summary>
 public sealed record PlannedSiteAnswer(string Site, Fact<bool> CanPlace)
 {
-    /// <summary>
-    /// The read's caps cut this site's rows, rejections or blockers (#3312), so a pawn without a row may yet do it. The
-    /// read's other answers stay complete.
-    /// </summary>
-    public bool Truncated { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteRejection>))]
     public EquatableArray<PlannedSiteRejection> Rejections { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteBlocker>))]
@@ -154,7 +143,6 @@ public sealed record ConstructionActivityRead
 {
     public ObservationContext? Context { get; init; }
     public bool Known { get; init; }
-    public bool Truncated { get; init; }
     public EquatableArray<string> Findings { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<ConstructionActivityOption>))]
     public EquatableArray<ConstructionActivityOption> Options { get; init; }

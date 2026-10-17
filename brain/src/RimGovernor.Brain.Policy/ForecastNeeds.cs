@@ -32,7 +32,7 @@ public static partial class PolicyFunctions
     {
         if (observed is null || resources is null) return null;
         return new(observed, observed.Pawns.ToDictionary(p => p.Pawn, p => GenerateNeedsAlternatives(p,
-            NeedsWorkCapacity(resources, p.Pawn, horizon), horizon, observed.Truncated), StringComparer.Ordinal));
+            NeedsWorkCapacity(resources, p.Pawn, horizon), horizon), StringComparer.Ordinal));
     }
 
     /// <summary>Native timetable is descriptive here. Only actual current work and journal ownership protect time.
@@ -41,14 +41,14 @@ public static partial class PolicyFunctions
         => WorkCapacityOf(view, pawn, horizon, protectTimetable: false);
 
     public static ForecastNeedsCandidates GenerateNeedsAlternatives(NeedsForecastPawn pawn, ForecastCapacityResult capacity,
-        double horizon, bool observedTruncated = false, int budget = 256)
+        double horizon, int budget = 256)
     {
         NeedHorizon(horizon);
         if (budget < 1 || budget > 4096) throw new DomainException("invalid needs generation budget");
         var choices = new List<ForecastNeedChoice>();
         var choiceKeys = new HashSet<(string Target, string Kind, int Count, double Depart, double Start, double End)>();
         var findings = new SortedSet<string>(pawn.Unsupported, StringComparer.Ordinal);
-        var truncated = observedTruncated || pawn.Targets.Count > 256;
+        var truncated = pawn.Targets.Count > 256;
         var expansions = 0;
         if (pawn.State != "eligible") return new([], ["needs_state:" + pawn.State], truncated);
         if (!capacity.Capacity.Windows.TryGetValue(out var windows)) return new([], ["unknown_needs_capacity"], truncated);

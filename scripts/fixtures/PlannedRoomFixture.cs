@@ -100,10 +100,9 @@ public sealed partial class PawnControlFixture
                 Site("roof", OpKind.RoofIn, "", "", interior, []),
             };
 
-            // The production read path (Rounder.PlannedSitesAsync): sites in batches, then the routes between them.
-            var (batches, siteFindings) = PolicyFunctions.PlannedSiteBatches(sites);
-            var joined = PolicyFunctions.JoinPlannedSites(sites, siteFindings, batches.Select(b =>
-                (b, (Obs.ConstructionActivityRead?)NativeConstructionActivity.Read(new(identity, default) { Planned = b }))).ToArray());
+            // The production read path (Rounder.PlannedSitesAsync): one read of the sites, then one of the routes between them.
+            var joined = PolicyFunctions.JoinPlannedSites(sites,
+                NativeConstructionActivity.Read(new(identity, default) { Planned = PolicyFunctions.PlannedSiteRequest(sites) }));
             foreach (var site in joined.Sites.Where(s => s.Op != OpKind.RoofIn))
             {
                 if (site.Verdict != Obs.PlannedSiteVerdict.Feasible || !site.Options.Any(o => o.Pawn == pawn && o.FinishTicks.IsKnown && o.SiteApproachTicks.IsKnown
@@ -111,12 +110,11 @@ public sealed partial class PawnControlFixture
                     throw new InvalidOperationException("Site " + site.Id + " has no complete row for the builder: verdict " + site.Verdict + ", rows "
                         + string.Join("; ", site.Options) + "; findings " + string.Join(",", joined.Findings));
             }
-            var (probes, routeFindings) = PolicyFunctions.PlannedRouteBatches(joined.Sites);
-            var facts = PolicyFunctions.JoinPlannedRoutes(joined, routeFindings, probes.Select(b =>
-                (b, (Obs.ConstructionActivityRead?)NativeConstructionActivity.Read(new(identity, default) { Routes = b }))).ToArray());
-            var asked = probes.SelectMany(b => b).ToArray();
-            if (asked.Length == 0 || facts.Findings.Any(f => f.StartsWith("planned_route", StringComparison.Ordinal)))
-                throw new InvalidOperationException("Route probes " + asked.Length + "; findings " + string.Join(",", facts.Findings));
+            var asked = PolicyFunctions.PlannedRouteProbes(joined.Sites);
+            var facts = PolicyFunctions.JoinPlannedRoutes(joined, asked,
+                NativeConstructionActivity.Read(new(identity, default) { Routes = asked }));
+            if (asked.Count == 0 || facts.Findings.Any(f => f.StartsWith("planned_route", StringComparison.Ordinal)))
+                throw new InvalidOperationException("Route probes " + asked.Count + "; findings " + string.Join(",", facts.Findings));
             var unrouted = asked.Where(p => !facts.Routes.Any(r => r.Pawn == pawn && r.To == p.To && r.FromStart == p.FromStart
                 && (p.FromStart || r.From == p.From) && r.Ticks.IsKnown && double.IsFinite(r.Ticks.Value) && r.Ticks.Value >= 0)).ToArray();
             if (unrouted.Length > 0)
@@ -148,7 +146,7 @@ public sealed partial class PawnControlFixture
             {
                 success = true, builder = pawn,
                 sites = facts.Sites.Select(s => new { site = s.Id, rows = s.Options.Count, positions = s.Positions.Count }).ToArray(),
-                probes = asked.Length, routes = facts.Routes.Count,
+                probes = asked.Count, routes = facts.Routes.Count,
                 complete = outcome.Complete.ToArray(),
                 schedule = planned.Select(a => new { activity = a.Activity, depart = a.Depart, start = a.Start, end = a.End, travel = a.TravelTicks }).ToArray(),
                 limitations = "Needs are held satisfied and nothing else competes; proves native rows and routes let one builder chain the room, not live selection.",

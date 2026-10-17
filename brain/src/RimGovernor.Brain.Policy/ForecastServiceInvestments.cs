@@ -17,7 +17,7 @@ public static partial class PolicyFunctions
     private static bool ProductiveFoodDemandEnded(PawnActivities batch, ActivityTaskRead read)
     {
         if (read.Needs is not { } needs
-            || read.Context?.Tick != needs.Tick || needs.Truncated
+            || read.Context?.Tick != needs.Tick
             || batch.Tasks.Any(t => t.Step.Kind is not (PawnActivityKind.Recipe or PawnActivityKind.Deliver or PawnActivityKind.Eat or PawnActivityKind.Idle)
                 && !(t.Step.Kind == PawnActivityKind.Work && t.Step.Job == "Harvest"))
             || batch.Orders.Any(o => !o.Release && read.Pawns.FirstOrDefault(p => p.Pawn == o.Pawn)?.Execution?.State is not ("completed" or "holding" or "failed"))) return false;

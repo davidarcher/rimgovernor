@@ -39,7 +39,6 @@ public static class HuntAlternatives
     {
         var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
         if (!read.Known) { findings.Add("hunt_observation_unknown"); return ([], EquatableArray.From(findings)); }
-        if (read.Truncated) findings.Add("hunt_observation_truncated");
         var pool = read.Hunters.Where(h => h.Available && !busy.Contains(h.Pawn) && h.Weapon is not null && h.WeaponRange.IsKnown && h.WeaponRange.Value > 0)
             .OrderByDescending(h => h.Skills.FirstOrDefault(s => s.Skill == "Shooting")?.Level ?? 0).ThenBy(h => h.Pawn, StringComparer.Ordinal)
             .Take(MaxGunnerPool).ToArray();

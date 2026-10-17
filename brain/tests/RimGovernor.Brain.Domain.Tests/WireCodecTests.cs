@@ -119,7 +119,7 @@ public sealed class WireCodecTests
         };
         var read = new RimGovernor.Contracts.Wire.Observations.CoupledForecastRead
         {
-            Hunt = new() { Known = true, Hunters = [hunter], Prey = [prey], Truncated = true, Findings = ["f"],
+            Hunt = new() { Known = true, Hunters = [hunter], Prey = [prey], Findings = ["f"],
                 Scene = new("w", "build", "mods", "Clear", "Soil", 0, 0, 40, 40, 21.5, 1.0) { Ground = [new(1, 2, 3, 2, "Sand", "")], Obstacles = [new("Wall", "", 5, 5)] } },
         };
         var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.CoupledForecastRead>(WireJson.Serialize(read)).Hunt;
@@ -129,7 +129,6 @@ public sealed class WireCodecTests
         Assert.False(decoded.Prey[0].Leather.IsKnown);
         Assert.False(decoded.Prey[0].WeaponRange.IsKnown);
         Assert.Equal("Sand", Assert.Single(decoded.Scene!.Ground).Terrain);
-        Assert.True(decoded.Truncated);
     }
     [Fact]
     public void PlannedSitesRoundTripWithUnknownRouteIllegalAndUnknownVerdicts()
@@ -137,15 +136,10 @@ public sealed class WireCodecTests
         var request = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest(new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, default)
         {
             Planned = [new("walls", "Wall", "WoodLog", RimGovernor.Brain.Domain.Rotation.East, [new(1, 1), new(2, 1)])],
-            Pawns = ["Thing_Human17", "Thing_Human18"],
         };
         var decodedRequest = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(WireJson.Serialize(request));
         Assert.Equal(request.Planned, decodedRequest.Planned);
         Assert.Equal(RimGovernor.Brain.Domain.Rotation.East, decodedRequest.Planned[0].Rotation);
-        // The page of colonists the read covers (#3312); none named reads the map's own.
-        Assert.Equal(request.Pawns, decodedRequest.Pawns);
-        Assert.Empty(WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(
-            WireJson.Serialize(request with { Pawns = default })).Pawns);
 
         var read = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead
         {
@@ -156,7 +150,6 @@ public sealed class WireCodecTests
                 new("on-water", RimGovernor.Brain.Domain.Fact.Known(false)) { Rejections = [new(new(7, 5), "Terrain lacks affordance")],
                     Blockers = [new(new(7, 5), "Wall_1", "Wall", "Building")] },
                 new("unresolved", default),
-                new("cut", RimGovernor.Brain.Domain.Fact.Known(true)) { Truncated = true },
             ],
             Findings = ["planned_site_definition_unresolved"],
         };
@@ -174,8 +167,6 @@ public sealed class WireCodecTests
         Assert.Equal("Wall_1", Assert.Single(water.Blockers).Thing);
         Assert.False(decoded.Planned[2].CanPlace.IsKnown);
         Assert.Empty(decoded.Planned[2].Options);
-        Assert.False(decoded.Planned[0].Truncated);
-        Assert.True(decoded.Planned[3].Truncated);
         Assert.Equal(read.Planned, decoded.Planned);
     }
 
@@ -233,7 +224,6 @@ public sealed class WireCodecTests
                     RimGovernor.Brain.Domain.Fact.Known(21.0), default) { AdditionalWatts = RimGovernor.Brain.Domain.Fact.Known(175.0) }],
                 Workers = [new("pawn", RimGovernor.Brain.Domain.Fact.Known(38.2))],
                 Outdoors = RimGovernor.Brain.Domain.Fact.Known(-12.5),
-                Truncated = true,
             },
         };
         var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead>(WireJson.Serialize(read)).Thermal!;
@@ -246,7 +236,6 @@ public sealed class WireCodecTests
         Assert.Equal("", source.PowerNetwork);
         Assert.Equal(read.Thermal.Workers, decoded.Workers);
         Assert.Empty(decoded.RoofRoutes);
-        Assert.True(decoded.Truncated);
         Assert.Null(WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead>(WireJson.Serialize(read with { Thermal = null })).Thermal);
     }
 

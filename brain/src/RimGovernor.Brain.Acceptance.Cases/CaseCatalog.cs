@@ -17,6 +17,7 @@ public static class CaseCatalog
         registry.Register(CoupledForecastCase.Case());
         registry.Register(PlannedSiteCase.Case());
         registry.Register(PlannedRoomCase.Case());
+        registry.Register(LargeColonyReadsCase.Case());
         registry.Register(PlannedShelterThermalCase.Case());
         registry.Register(ConditionalMoodCase.Case());
         registry.Register(PortfolioNeedsCase.Case());

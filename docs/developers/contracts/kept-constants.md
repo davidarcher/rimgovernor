@@ -24,8 +24,27 @@ not a silent exemption.
 | Overlay bounds `MaxCells`, `MaxLabels`, `MaxLayerId` | `ProtoOverlayTools.cs` | 250000, 4096, 64 | Input bounds on an output-only draw request. |
 | Placement candidates | `PlacementProtocol.cs` | 1..64 | Input bound on one placement preview/apply request, a main-thread budget. |
 | Request id lists | room and supplies observation tools (256), zone observation `MaxIds` (16), quest shuttle explicit pawns (256) | 256 / 16 | The caller names exact ids; an input bound; larger sets are several requests. |
-| `CombatGeometryTools` `MaxCells`, `MaxHostiles`, `MaxRadius` | `NativeCombatGeometryTools.cs` | 64, 16, 12 | Measured on `lab-ranged` against the 50 ms main-thread budget (64 cells x 8 pawns took 1.3-6.6 ms, about 13 ms at the caps). |
+| `CombatGeometryTools` `MaxCells`, `MaxHostiles`, `MaxRadius` | `NativeCombatGeometryTools.cs` | 64, 16, 12 | Measured on `lab-ranged`: 64 cells x 8 pawns took 1.3-6.6 ms, about 13 ms at the caps. |
 | Door and mortar frame caps | `SnapshotFrames.cs` | 64, 16 | Transport caps on a frame section; census #2641 kept them. |
+
+## Forecast native reads: no cap, measured (#3341)
+
+The forecast's native reads (planned sites, planned routes, needs, and the coupled read with its construction,
+food, cooking, recipe, thermal, support, practice and hunt sub-reads) cap nothing: every colonist, candidate and
+location pair is read. Each read searches a path once (`NativePathLegs`) and re-prices it per colonist. The
+main-thread time on `observations/large-colony-reads` (32 free colonists, five planned rooms, twenty wood stacks,
+eight meal stacks, eight beds; one lab map, 2026-10-16) is a measured fact, not a bound:
+
+| Read (one call a round) | Cold ms | Warm ms | Size |
+| --- | --- | --- | --- |
+| Planned sites (`NativeConstructionActivity`, `Planned`) | 288 | 269 | 20 sites (largest 144 cells), 4420 rows, 1275 path searches |
+| Planned routes (`NativeConstructionActivity`, `Routes`) | 98 | 92 | 311 probes, 9952 routes, 451 path searches |
+| Needs (`NativeNeedsForecast`) | 55 | 45 | 32 colonists, 240 targets |
+| Coupled (`NativeCoupledForecast`, needs passed in) | 104 | 99 | all sub-reads, 16 locations, 8192 routes |
+| Round total | 546 | 506 | |
+
+The round stalls the main thread about half a second on this colony. No limit is set from it; spreading a read
+across frames is the remedy if the stall matters.
 
 ## Tracked in follow-up issues
 

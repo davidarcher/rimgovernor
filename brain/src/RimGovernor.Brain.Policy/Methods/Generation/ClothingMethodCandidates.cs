@@ -9,14 +9,14 @@ internal static class ClothingMethodCandidates
     {
         var bindings = new Dictionary<(string, string), ActivityTaskCandidate>();
         if (!read.Known || read.Context?.Tick is not { } tick || deadline <= tick || resources.Claims.Truncated)
-            return new(null, [], bindings, read.Truncated || resources.Claims.Truncated);
+            return new(null, [], bindings, resources.Claims.Truncated);
         var horizon = deadline - tick;
         var activities = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
         var outcomes = new List<ForecastActivityOutcome>(); var routes = new List<ForecastActivityRoute>();
         var workers = new HashSet<string>(StringComparer.Ordinal);
         var findings = new HashSet<string>(StringComparer.Ordinal);
         var garmentNeeds = new Dictionary<string, ClothingActivityRequirement>(StringComparer.Ordinal);
-        var truncated = read.Truncated;
+        var truncated = false;
         // A retained bill has no completion task to time a comfort shift (#3330), so only its relief can value it.
         foreach (var retained in read.Retained.OrderBy(r => r.Id, StringComparer.Ordinal))
             foreach (var need in requirements.Where(n => n.Product == retained.Product && n.Stuff == retained.Stuff && n.Assessment.Relief.Count > 0))

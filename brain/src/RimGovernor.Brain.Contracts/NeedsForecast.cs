@@ -7,7 +7,6 @@ namespace RimGovernor.Contracts.Wire.Observations;
 public sealed record NeedsForecastRead
 {
     public long Tick { get; init; }
-    public bool Truncated { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedsForecastPawn>))]
     public EquatableArray<NeedsForecastPawn> Pawns { get; init; }
 }

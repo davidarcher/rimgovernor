@@ -11,31 +11,28 @@ namespace HomeBridge.BridgeTools;
 
 /// <summary>
 /// Hunt encounter inputs: the colonists who could join a hunt and the huntable animals, each stated as the
-/// encounter predictor's actor, plus the map window around them. Observation only: no roster, target or estimate.
+/// encounter predictor's actor, plus the map window around them. Every hunter, every prey and the whole window
+/// are read (#3341). Observation only: no roster, target or estimate.
 /// </summary>
 internal static class NativeHuntActivity
 {
-    const int MaxHunters = 16, MaxPrey = 16, Margin = 12, MaxSide = 128, MaxGround = 512, MaxObstacles = 512;
+    const int Margin = 12;
 
     internal static Obs.HuntActivityRead Read(Map map)
     {
-        var truncated = false;
         var hunters = map.mapPawns.FreeColonistsSpawned.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Hunting))
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-        if (hunters.Count > MaxHunters) { hunters = hunters.Take(MaxHunters).ToList(); truncated = true; }
         var center = hunters.Count == 0 ? map.Center : hunters[0].Position;
         // Wild edible animals, nearest to the first hunter; a roster is built from what is here, never from a radius.
-        var preyAll = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == null && p.RaceProps.Animal && !p.Dead
+        var prey = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == null && p.RaceProps.Animal && !p.Dead
             && p.RaceProps.meatDef?.IsNutritionGivingIngestible == true && !p.Position.Fogged(map))
             .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-        if (preyAll.Count > MaxPrey) truncated = true;
-        var prey = preyAll.Take(MaxPrey).ToList();
         var hunterReads = hunters.Select(h => Actor(h, true, prey)).ToArray();
         var preyReads = prey.Select(p => Actor(p, false, prey)).ToArray();
         // Until the content identity is hashed the scene is unobserved; a roster is then refused, never predicted against a guess.
         var identity = NativeEncounterIdentity.Current;
-        var scene = hunterReads.Length == 0 || preyReads.Length == 0 || identity is null ? null : Scene(map, identity, hunters.Concat(prey).ToArray(), ref truncated);
-        return new() { Known = true, Hunters = EquatableArray.From(hunterReads), Prey = EquatableArray.From(preyReads), Scene = scene, Truncated = truncated,
+        var scene = hunterReads.Length == 0 || preyReads.Length == 0 || identity is null ? null : Scene(map, identity, hunters.Concat(prey).ToArray());
+        return new() { Known = true, Hunters = EquatableArray.From(hunterReads), Prey = EquatableArray.From(preyReads), Scene = scene,
             Findings = identity is null ? ["engine_identity_pending", "needs_genes_and_effects_are_not_observed_here"] : ["needs_genes_and_effects_are_not_observed_here"] };
     }
 
@@ -77,12 +74,10 @@ internal static class NativeHuntActivity
         return new(thing.def.defName, thing.Stuff?.defName ?? "", quality.ToString(), thing.HitPoints);
     }
 
-    static Obs.HuntSceneRead Scene(Map map, NativeEncounterIdentity.Identity identity, Pawn[] actors, ref bool truncated)
+    static Obs.HuntSceneRead Scene(Map map, NativeEncounterIdentity.Identity identity, Pawn[] actors)
     {
         var minX = Math.Max(0, actors.Min(a => a.Position.x) - Margin); var maxX = Math.Min(map.Size.x - 1, actors.Max(a => a.Position.x) + Margin);
         var minZ = Math.Max(0, actors.Min(a => a.Position.z) - Margin); var maxZ = Math.Min(map.Size.z - 1, actors.Max(a => a.Position.z) + Margin);
-        if (maxX - minX + 1 > MaxSide) { maxX = minX + MaxSide - 1; truncated = true; }
-        if (maxZ - minZ + 1 > MaxSide) { maxZ = minZ + MaxSide - 1; truncated = true; }
         // Row runs of terrain/roof; the most common terrain is the scene's base and only departures from it are listed.
         var cells = (from x in Enumerable.Range(minX, maxX - minX + 1) from z in Enumerable.Range(minZ, maxZ - minZ + 1)
                      select (x, z, terrain: map.terrainGrid.TerrainAt(new IntVec3(x, 0, z)).defName, roof: map.roofGrid.RoofAt(x, z)?.defName ?? "")).ToArray();
@@ -95,7 +90,6 @@ internal static class NativeHuntActivity
             {
                 var j = i;
                 while (j + 1 < ordered.Length && ordered[j + 1].x == ordered[j].x + 1 && ordered[j + 1].terrain == ordered[i].terrain && ordered[j + 1].roof == ordered[i].roof) j++;
-                if (ground.Count >= MaxGround) { truncated = true; break; }
                 ground.Add(new(ordered[i].x, row.Key, ordered[j].x, row.Key, ordered[i].terrain, ordered[i].roof));
                 i = j + 1;
             }
@@ -104,7 +98,6 @@ internal static class NativeHuntActivity
         foreach (var thing in map.listerThings.AllThings.Where(t => t.Spawned && t.def.passability == Traversability.Impassable && t.Position.x >= minX && t.Position.x <= maxX
                      && t.Position.z >= minZ && t.Position.z <= maxZ).OrderBy(t => t.Position.x).ThenBy(t => t.Position.z).ThenBy(t => t.def.defName, StringComparer.Ordinal))
         {
-            if (obstacles.Count >= MaxObstacles) { truncated = true; break; }
             obstacles.Add(new(thing.def.defName, thing.Stuff?.defName ?? "", thing.Position.x, thing.Position.z));
         }
         return new(Find.World.info.name + "/" + Find.World.info.seedString, identity.GameBuild, identity.Mods, map.weatherManager.curWeather.defName,

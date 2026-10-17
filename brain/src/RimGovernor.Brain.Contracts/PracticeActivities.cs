@@ -10,7 +10,6 @@ public sealed record PracticeActivityRead
     public EquatableArray<PracticeWorker> Workers { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Findings { get; init; }
-    public bool Truncated { get; init; }
 }
 public sealed record PracticeWorker(string Pawn, string Skill, string Target, Cell Location,
     string WorkGiver, string Job, Fact<double> ApproachTicks, Fact<double> DurationTicks,

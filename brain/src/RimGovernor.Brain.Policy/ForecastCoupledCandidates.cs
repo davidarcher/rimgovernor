@@ -70,7 +70,7 @@ public static partial class PolicyFunctions
         foreach (var pawn in needs.Pawns) foreach (var blocker in pawn.VoluntaryControlBlockers)
             findings.Add("unsupported_voluntary_state:" + pawn.Pawn + ":" + blocker);
         if (facts.CoupledWorkActive) findings.Add("protected_current_method_remaining_time_unassessed");
-        var truncated = read.Truncated || planned.Truncated; var expanded = 0;
+        var truncated = planned.Truncated; var expanded = 0;
         string Location(Cell c) => "cell/" + c.X + "/" + c.Z;
         bool Space(int count)
         {
@@ -143,7 +143,7 @@ public static partial class PolicyFunctions
         {
             var capacity = NeedsWorkCapacity(resources, pawn.Pawn, horizon);
             var generated = GenerateNeedsAlternatives(pawn with { Targets = EquatableArray.From(pawn.Targets.Where(t => !resources.Claims.Targets.Contains(t.Id))) },
-                capacity, horizon, needs.Truncated, 32);
+                capacity, horizon, 32);
             findings.UnionWith(generated.Findings); truncated |= generated.Truncated;
             foreach (var choice in generated.Choices)
             {

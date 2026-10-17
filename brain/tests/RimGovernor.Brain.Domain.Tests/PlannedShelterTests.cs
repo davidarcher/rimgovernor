@@ -245,14 +245,13 @@ public sealed class PlannedShelterTests
         var observed = new CoupledThermalRead { Cells = [Row(Inside, 5)], Sources = [new("heater", Inside, true, Known(.35), Known(20d), Known(60000d))] };
         var planned = new CoupledThermalRead
         {
-            Cells = [Row(Inside, -10), Row(WallCell, -10)], Truncated = true,
+            Cells = [Row(Inside, -10), Row(WallCell, -10)],
             Sources = [new("heater", Inside, false, default, default, default), new(HeaterSite, Inside, false, Known(.35), Known(20d), default)],
         };
         var joined = WithPlannedThermal(observed, planned)!;
         Assert.Equal([Row(Inside, 5), Row(WallCell, -10)], joined.Cells);
         Assert.Equal(["heater", HeaterSite], joined.Sources.Select(s => s.Target));
         Assert.True(joined.Sources[0].Complete);
-        Assert.True(joined.Truncated);
         Assert.Same(observed, WithPlannedThermal(observed, null));
         Assert.Same(planned, WithPlannedThermal(null, planned));
     }

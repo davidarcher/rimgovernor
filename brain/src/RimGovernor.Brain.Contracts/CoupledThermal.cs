@@ -17,7 +17,6 @@ public sealed record CoupledThermalRead
     public Fact<double> Outdoors { get; init; }
     public Fact<double> ThinRoofExchangePerTick { get; init; }
     public Fact<double> WallExchangePerTick { get; init; }
-    public bool Truncated { get; init; }
 }
 public sealed record ThermalCell(Cell Cell, Fact<double> Temperature, string Roof,
     bool Solid, bool Door, bool DoorClosed, string Site, string FutureDefinition,

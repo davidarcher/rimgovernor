@@ -11,15 +11,14 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools;
 
-/// <summary>Read-only bounded needs mechanics/targets. No priority, timetable or trigger preselection.</summary>
+/// <summary>Read-only needs mechanics/targets for every colonist given, every target of each kind (#3341). No priority, timetable or trigger preselection.</summary>
 internal static class NativeNeedsForecast
 {
-    internal static Obs.NeedsForecastRead Read(Map map, List<Pawn> people)
+    internal static Obs.NeedsForecastRead Read(Map map, List<Pawn> people, NativePathLegs? legs = null)
     {
+        legs ??= new(map);
         var rows = new List<Obs.NeedsForecastPawn>();
-        var budget = 128;
-        var truncated = people.Count > 16;
-        foreach (var pawn in people.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Take(16))
+        foreach (var pawn in people.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {
             var needs = new List<Obs.NeedRate>();
             if (pawn.needs?.food is { } food) needs.Add(new("food", K(food.CurLevelPercentage),
@@ -50,10 +49,8 @@ internal static class NativeNeedsForecast
                     .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
                 foreach (var group in possible.GroupBy(t => t is Building_Bed ? "rest" : t.def.defName == "HorseshoesPin" ? "joy" : "food"))
                 {
-                    if (group.Count() > 8) truncated = true;
-                    foreach (var target in group.Take(8))
+                    foreach (var target in group)
                     {
-                        if (budget <= 0) { truncated = true; break; }
                         if (target.IsForbidden(pawn)) continue;
                         if (group.Key == "food" && (pawn.needs?.food == null || !target.IngestibleNow
                             || !pawn.WillEat(target) || !FoodSupplyFacts.PolicyAllows(pawn, target))) continue;
@@ -65,10 +62,8 @@ internal static class NativeNeedsForecast
                             : group.Key == "rest" ? (PawnActivityKind.Sleep, 0) : (PawnActivityKind.Recreation, 0);
                         var (maxPawns, stackCount) = ServiceReservation(kind, target, count);
                         if (!pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None, maxPawns, stackCount)) continue;
-                        using var route = map.pathFinder.FindPathNow(pawn.Position, target, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.Touch);
-                        budget--;
-                        if (!route.Found) continue;
-                        var travel = K(route.TotalCost);
+                        if (legs.Cost(pawn, pawn.Position, target, PathEndMode.Touch) is not { } route) continue;
+                        var travel = K(route);
                         if (group.Key == "food")
                         {
                             var nutrition = FoodUtility.NutritionForEater(pawn, target) / pawn.needs!.food.MaxLevel;
@@ -111,7 +106,7 @@ internal static class NativeNeedsForecast
                 Memories = memories is null ? default : Fact.Known(EquatableArray.From(memories)),
                 Targets = EquatableArray.From(targets), Unsupported = EquatableArray.From(unsupported), VoluntaryControlBlockers = blockers });
         }
-        return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows), Truncated = truncated };
+        return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows) };
     }
     private static Obs.NeedCurrentService? CurrentService(Pawn pawn)
     {

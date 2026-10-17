@@ -24,6 +24,5 @@ public sealed record CoupledForecastRead
     public EquatableArray<CoupledRoute> Routes { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Findings { get; init; }
-    public bool Truncated { get; init; }
 }
 public sealed record CoupledRoute(string Pawn, Cell From, Cell To, Fact<double> Ticks) { public bool FromStart { get; init; } }

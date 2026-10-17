@@ -452,26 +452,19 @@ Shared ring cells go to the lowest room id. Ring cells and pieces with a bluepri
 as `PlannedOwedCost` counts them. `Material` is the op's cost list times its pieces. The stockpile review's
 unplaced `ShelfCandidates` are added as one-piece sites (`ShelfPlannedSites`, room 0, the candidate's zone).
 
-`PlannedSiteBatches` asks native `PlannedSitesPerRead` (4) sites per construction activity read. A read covers
-at most 16 colonists, so `PlannedPawnPages` pages the round's colonists (`WorkPawns`, by id) `PlannedPawnsPerRead`
-(16) to a page, and each batch is read once per page (#3312). Every colonist is named, since any free one may
-build, cut, mine or haul; native gives a pawn that cannot no row. The facts are unknown while the colonists are.
-`JoinPlannedSites` merges the pages of each site: per pawn x source `Options` and each clearing op's rows from every
-page; `CanPlace`, `Rejections`, `Blockers` (unclassified, as native reports them), `Verdict` (feasibility once
-cleared) and `Clearing` (its cut, haul and mine prerequisites) from any, by site id. A site stays unknown when:
-
-- no answer on some page names it;
-- a read that asked it is missing or unknown (`planned_site_read_unknown`);
-- a cap cut its answer on some page (`planned_site_read_truncated`, the answer's `Truncated`). The read's other
-  answers are kept;
-- its pages disagree on legality, verdict, blockers or clearing ops (`planned_site_pages_disagree`): the world
-  moved between the reads;
-- it has more positions than the read takes (`planned_site_positions_exceeded`). Such a site is not asked.
+`PlannedSiteRequest` asks native every site but the roof in one construction activity read (#3341). The read covers
+every free colonist, since any may build, cut, mine or haul; native gives a pawn that cannot no row, and caps no
+sites, rows, sources, positions, rejections or blockers. It searches each path once (`NativePathLegs`): a colonist's
+leg to a stack or site once per (colonist cell, target), a stack's legs to a site and back once per (stack, site),
+re-priced at each colonist's move ticks, since free colonists share the cell grid. `JoinPlannedSites` takes each
+site's answer by id: per pawn x source `Options`, `CanPlace`, `Rejections`, `Blockers` (unclassified, as native
+reports them), `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul and mine prerequisites). A site
+stays unknown when no answer names it, or when the read is missing or unknown (`planned_site_read_unknown`).
 
 The roof has no native placement and is never asked. Its work per cell is the coupled read's
 `ThermalWorker.RoofCellWorkTicks`, which the generator joins.
 
-Then the routes between the answered sites (#3313). `PlannedRouteBatches` builds, per room with a site native
+Then the routes between the answered sites (#3313). `PlannedRouteProbes` builds, per room with a site native
 answered with rows, one `PlannedRouteProbe` from each place an activity of the room ends to each place another
 starts:
 
@@ -480,11 +473,24 @@ starts:
   `Origin`), and each clearing's start (a haul's origin, a cut or mine row's location);
 - the roof also from each pawn's own start (`FromStart`), since no native row routes to it.
 
-The probed sites are those with rows, plus the roof. `PlannedRoutesPerRead` (16) probes go to a construction
-activity read, once per colonist page, at most `PlannedRouteProbeCap` (128) a round (`planned_route_probes_exceeded`). Native answers a
-`CoupledRoute` per probe x free pawn, unknown where no path is found. `JoinPlannedRoutes` keeps each read's rows
-for its own probes in `PlannedSiteFacts.Routes`; a missing, unknown or truncated read adds none
-(`planned_route_read_unknown`, `planned_route_read_truncated`), so those routes stay unknown.
+The probed sites are those with rows, plus the roof. Every probe goes to one construction activity read (#3341).
+Native answers a `CoupledRoute` per probe x free pawn, unknown where no path is found; a probe's path is searched
+once for every colonist. `JoinPlannedRoutes` keeps the read's rows in `PlannedSiteFacts.Routes`; a missing or
+unknown read adds none (`planned_route_read_unknown`), so those routes stay unknown.
+
+The forecast's native reads cap nothing (#3341): every colonist, candidate and location pair. Measured on
+`observations/large-colony-reads` (32 free colonists; main-thread ms per call, one call each a round):
+
+| Read (one call a round) | Cold ms | Warm ms | Size |
+| --- | --- | --- | --- |
+| Planned sites (`NativeConstructionActivity`, `Planned`) | 288 | 269 | 20 sites (largest 144 cells), 4420 rows, 1275 path searches |
+| Planned routes (`NativeConstructionActivity`, `Routes`) | 98 | 92 | 311 probes, 9952 routes, 451 path searches |
+| Needs (`NativeNeedsForecast`) | 55 | 45 | 32 colonists, 240 targets |
+| Coupled (`NativeCoupledForecast`, needs passed in) | 104 | 99 | all sub-reads, 16 locations, 8192 routes |
+| Round total | 546 | 506 | |
+
+A round stalls the main thread about half a second there; no limit is set from it
+([kept constants](../contracts/kept-constants.md#forecast-native-reads-no-cap-measured-3341)).
 
 ### Planned room activities
 
@@ -1299,9 +1305,9 @@ alternatives. Counts respect the observed single-ingestion limit and projected
 nutrition wanted; a raw-food serving chews once, not once per item. Target travel
 uses native route cost. Starts include now, the need threshold event, half the
 bounded horizon and protected-window ends. These are finite search samples, not
-proof of globally optimal timing. The policy expansion budget is 256; the native
-read bounds 16 pawns, eight targets per family/pawn and 128 route probes. Both
-report truncation; omitted choices have not been compared. Continue/defer is the
+proof of globally optimal timing. The policy expansion budget is 256 and reports
+truncation; the native read covers every colonist and every target (#3341).
+Omitted choices have not been compared. Continue/defer is the
 empty selected-needs set, not another mutable Method.
 
 `ForecastNeedsTimeline` evaluates a selected set on the existing pawn timeline.

@@ -62,7 +62,6 @@ public static partial class PolicyFunctions
         {
             Cells = EquatableArray.From(observed.Cells.Concat(planned.Cells.Where(c => !cells.Contains(c.Cell)))),
             Sources = EquatableArray.From(observed.Sources.Concat(planned.Sources.Where(s => !targets.Contains(s.Target)))),
-            Truncated = observed.Truncated || planned.Truncated,
         };
     }
 }

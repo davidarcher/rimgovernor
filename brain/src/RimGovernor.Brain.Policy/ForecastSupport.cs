@@ -48,7 +48,7 @@ public static partial class PolicyFunctions
             foreach (var task in service)
             {
                 careServices.Add(demand.Id + "/" + (task.Binding.Recipe?.Bill ?? "tend"));
-                var cleaned = demand.CleaningComplete && read.Filth.Where(f => f.Demand == demand.Id).All(f =>
+                var cleaned = read.Filth.Where(f => f.Demand == demand.Id).All(f =>
                     tasks.Any(t => t.Binding.Job == "Clean" && t.Binding.Target == f.Target && t.Allocation.End <= task.Allocation.Start));
                 var factor = cleaned ? demand.InfectionChanceFactorClean : demand.InfectionChanceFactor;
                 var worker = read.Workers.FirstOrDefault(w => w.Demand == demand.Id && w.Pawn == task.Binding.Pawn && w.Medicine == task.Binding.Medicine);
@@ -91,7 +91,7 @@ public static partial class PolicyFunctions
             if (demand is null) continue;
             production.Add(task.Binding.Target + "/" + (task.Binding.Recipe?.Recipe ?? task.Binding.Cooking?.Continuation.Recipe ?? ""));
             var filth = read.Filth.Where(f => f.Demand == demand.Id).ToArray();
-            var cleaned = demand.CleaningComplete && filth.All(f => tasks.Any(t => t.Binding.Job == "Clean"
+            var cleaned = filth.All(f => tasks.Any(t => t.Binding.Job == "Clean"
                 && t.Binding.Target == f.Target && t.Allocation.End <= task.Allocation.Start));
             var risk = cleaned ? demand.FoodPoisonChanceClean : demand.FoodPoisonChance;
             if (risk.TryGetValue(out var value)) poison += value;

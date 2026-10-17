@@ -147,7 +147,7 @@ not satisfy #3135's actual-gameplay gate.
 | `control/pawn-activity-lifecycle` | Keep save/load, ownership, revision, continuation and release mechanics. |
 | `control/pawn-activity-cooking` | Keep exact recipe/input execution and unavailable/reserved-target refusal. |
 | `control/pawn-activity-delivery` | Keep exact quantities, blocked destination/filter legality and observed delivery. |
-| `observations/pawn-activity`, `observations/needs-forecast`, `observations/coupled-forecast`, `observations/planned-site`, `observations/planned-room-one-builder`, `observations/planned-shelter-thermal`, `observations/conditional-mood` | Keep native schema, coherent observations and explicit unknowns; none proves dispatch. |
+| `observations/pawn-activity`, `observations/needs-forecast`, `observations/coupled-forecast`, `observations/planned-site`, `observations/planned-room-one-builder`, `observations/large-colony-reads`, `observations/planned-shelter-thermal`, `observations/conditional-mood` | Keep native schema, coherent observations and explicit unknowns; none proves dispatch. |
 | `needs/freeze` | Keep fixture control mechanics; production outcome cases must explicitly leave the needs they exercise live. |
 | `medical/tend-gates` | Keep native doctor/patient eligibility and care protection. |
 | `pawn/drug-policy` | Rewrite as explicit native policy creation/assignment and adult/child permission readback, followed by scheduled-prevention unsupported-state evidence. No automatic policy generator. |
