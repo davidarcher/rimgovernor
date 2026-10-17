@@ -83,6 +83,16 @@ public interface ITypedSession
     Task<int> ServeUntilAsync(string label, int ticks, Probe probe, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The review the brain last persisted in the run's durable journal (its world, cursor tick, enabled flag and
+    /// progress records), null while none was persisted: what a served case's probe reads of the brain's own state.
+    /// Spends no ticks.
+    /// </summary>
+    Task<Store.Rounds?> ReviewAsync(CancellationToken cancellationToken);
+
+    /// <summary>Every need_transitions row the run's durable journal holds, oldest first. Spends no ticks.</summary>
+    Task<IReadOnlyList<Store.NeedTransition>> NeedTransitionsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// A real reload: saves the paused game under a fresh name (<c>lifecycle_save</c>) and loads that save back to map
     /// readiness (<c>lifecycle_load</c>, polled through <c>lifecycle_read_load</c>). <see cref="Identity"/> and
     /// <see cref="Scope"/> follow the loaded game. Spends no ticks.

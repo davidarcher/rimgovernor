@@ -185,7 +185,7 @@ internal static class PlannerReasons
     public static void PlannerBookkeepingFailed(string target, Exception error) =>
         Tel.Decide(new Decision
         {
-            Kind = "planner_step",
+            Kind = Decision.PlannerStepKind,
             Component = "clock-scheduler",
             Level = TelemetryLevel.Warn,
             Verdict = "failed",

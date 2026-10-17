@@ -190,6 +190,18 @@ public sealed class TypedSession : ITypedSession
         }
     }
 
+    public async Task<Store.Rounds?> ReviewAsync(CancellationToken cancellationToken)
+    {
+        using var journal = await ServiceJournal.OpenWithRetryAsync(_s.Config, cancellationToken).ConfigureAwait(false);
+        return await ServiceJournal.TryRoundsAsync(journal, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<Store.NeedTransition>> NeedTransitionsAsync(CancellationToken cancellationToken)
+    {
+        using var journal = await ServiceJournal.OpenWithRetryAsync(_s.Config, cancellationToken).ConfigureAwait(false);
+        return await journal.NeedTransitionsAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task ReloadAsync(string label, CancellationToken cancellationToken)
     {
         var name = label + "-" + Guid.NewGuid().ToString("N");

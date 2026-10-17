@@ -776,7 +776,7 @@ internal static partial class BuildingRuntimePackage
         var attrs = new Dictionary<string, object?> { ["partial"] = isPartial };
         var d = new Decision
         {
-            Kind = "planner_step",
+            Kind = Decision.PlannerStepKind,
             Component = "clock-scheduler",
             Target = "rounds",
             Verdict = "ok",

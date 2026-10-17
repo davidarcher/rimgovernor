@@ -138,9 +138,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Dialog/DialogPause.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Explain/ExplainAudit.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Floor/FloorKitchen.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -250,9 +247,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Route/RouteStockpile.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/Service/ServiceRestart.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Shared/CaseJournal.cs]

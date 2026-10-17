@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
-using RimGovernor.Brain.Telemetry.Otlp;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -22,19 +21,19 @@ internal sealed class ExplainResult
     /// <summary>Active concerns with no row and no refusal or wait anywhere: a concern first seen clear writes no row by design.</summary>
     internal List<string> Silent { get; } = [];
 
-    internal JsonObject ToJson() => new()
-    {
-        ["active_concerns"] = Active,
-        ["transition_rows"] = Transitions,
-        ["non_clear_transition_rows"] = NonClear,
-        ["non_clear_planner_steps"] = Planner,
-        ["explained"] = new JsonArray([.. Explained.Select(x => (JsonNode?)x)]),
-        ["silent"] = new JsonArray([.. Silent.Select(x => (JsonNode?)x)]),
-    };
+    internal JsonObject ToJson() => new(
+    [
+        new KeyValuePair<string, JsonNode?>("active_concerns", Active),
+        new KeyValuePair<string, JsonNode?>("transition_rows", Transitions),
+        new KeyValuePair<string, JsonNode?>("non_clear_transition_rows", NonClear),
+        new KeyValuePair<string, JsonNode?>("non_clear_planner_steps", Planner),
+        new KeyValuePair<string, JsonNode?>("explained", new JsonArray([.. Explained.Select(x => (JsonNode?)x)])),
+        new KeyValuePair<string, JsonNode?>("silent", new JsonArray([.. Silent.Select(x => (JsonNode?)x)])),
+    ]);
 }
 
 /// <summary>
-/// Holds a colony's rows to the explainability claim (Go <c>explain/audit.go</c>). Rows are the OTLP log reading and
+/// Holds a colony's rows to the explainability claim (Go <c>explain/audit.go</c>). Steps are the planner_step rows of the game's log ring and
 /// transitions the session store's need_transitions; active maps every concern that had a progress record during the
 /// window to the planner cause filed on it at its last non-clear poll (none when never filed).
 /// <para>
@@ -53,25 +52,18 @@ internal sealed class ExplainResult
 /// </summary>
 internal static class ExplainAudit
 {
-    private const string PlannerKind = "planner_step";
-
     // The verdict words a transition row with a cause carries; ClearOutcomes the two a row with no cause (the concern cleared) carries.
     private static readonly string[] CauseOutcomes = ["refused", "waiting", "disabled", "combat_orders", "hold_fallback"];
     private static readonly string[] ClearOutcomes = ["admitted", "nothing_to_do"];
 
-    internal static ExplainResult Audit(IReadOnlyList<TimelineRecord> rows, IReadOnlyList<NeedTransition> transitions, IReadOnlyDictionary<string, Cause> active)
+    internal static ExplainResult Audit(IReadOnlyList<LogRow> steps, IReadOnlyList<NeedTransition> transitions, IReadOnlyDictionary<string, Cause> active)
     {
         var problems = new List<string>();
         var result = new ExplainResult { Active = active.Count };
 
         var need = new Dictionary<string, string>(StringComparer.Ordinal); // key -> where the non-clear state showed
-        foreach (var r in rows)
+        foreach (var r in steps)
         {
-            if (r.Kind != PlannerKind)
-            {
-                continue;
-            }
-
             var verdict = r.Payload.GetValueOrDefault("verdict") as string ?? "";
             var reason = r.Payload.GetValueOrDefault("reason") as string ?? "";
             var attrs = r.Payload.GetValueOrDefault("attrs") as IReadOnlyDictionary<string, object?>;

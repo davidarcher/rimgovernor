@@ -27,6 +27,9 @@ public sealed record Decision
 
     public const string AttrsKey = "attrs";
 
+    /// <summary>The kind of a planner's or the rounds review's step verdict (<see cref="TelemetryKinds.PlannerStep"/>).</summary>
+    public const string PlannerStepKind = "planner_step";
+
     /// <summary>The row kind, a name from the otel-signals contract.</summary>
     public string Kind { get; init; } = "";
 

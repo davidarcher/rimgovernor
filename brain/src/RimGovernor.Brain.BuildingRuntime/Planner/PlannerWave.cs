@@ -166,7 +166,7 @@ internal sealed class PlannerWave : IDisposable
         };
         var d = new Decision
         {
-            Kind = "planner_step",
+            Kind = Decision.PlannerStepKind,
             Component = "clock-scheduler",
             Target = entry.Name,
             Dur = took,

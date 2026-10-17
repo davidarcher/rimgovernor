@@ -77,7 +77,9 @@ identity), `Staged` and `TicksLeft`. Its members:
   spent from `Ticks` like the other waits; running past it fails, even when the probe finishes late. The service's
   exit and the stall budget end a run that stops moving, and the hang guard is the wall-clock backstop. A served
   case stages its precondition, and its probe reads the outcome through typed reads and telemetry. It may also
-  call a declared fixture op mid-wait to inject the next phase's precondition.
+  call a declared fixture op mid-wait to inject the next phase's precondition. `ReviewAsync` (the brain's last
+  persisted review, a `Store.Rounds`) and `NeedTransitionsAsync` (the journal's need_transitions rows) read the
+  run's durable journal, the brain-side state a served probe or audit needs.
 
 `lab/stage`, `lab/spawn` and `upkeep/auto-home-area` are the reference ports.
 
