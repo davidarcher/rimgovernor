@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -23,7 +24,7 @@ public sealed partial class RoundsAcquisitionPlanner
     /// <summary>A planner for <paramref name="need"/>: the economy/resource or the food/supply Need's filing key.</summary>
     public RoundsAcquisitionPlanner(Rounder reviewer, ConcernId need)
     {
-        if (reviewer is null || (need != PolicyFunctions.FoodSupplyNeed.FilingKey && need != EconomyFamily.Resource.FilingKey))
+        if (reviewer is null || (need != FoodRules.FoodSupplyNeed.FilingKey && need != EconomyFamily.Resource.FilingKey))
         {
             throw new ControlException("NewRoundsAcquisitionPlanner: reviewer == nil || need is neither food/supply nor economy/resource");
         }
@@ -52,7 +53,7 @@ public sealed partial class RoundsAcquisitionPlanner
         {
             return new RoundsAcquisitionResult { Verdict = BuildingReasonNoReview };
         }
-        var food = _need == PolicyFunctions.FoodSupplyNeed.FilingKey;
+        var food = _need == FoodRules.FoodSupplyNeed.FilingKey;
         if (owner is not NeedOwner { Need: var ownNeed } || ownNeed.FilingKey != _need)
         {
             throw new ControlException("acquisition: the step runs only under its own Need (food/supply or economy/resource)");
@@ -78,7 +79,7 @@ public sealed partial class RoundsAcquisitionPlanner
 
         void Cool(ProgressContract contract, string thing)
         {
-            var key = PolicyApi.CooldownKey(contract.Method, thing);
+            var key = ConcernProgressRules.CooldownKey(contract.Method, thing);
             cooled.Add(thing);
             try
             {
@@ -178,7 +179,7 @@ public sealed partial class RoundsAcquisitionPlanner
                 {
                     sources = HuntRows(sources);
                 }
-                selected = PolicyApi.SelectAcquisition(sources, deficit, pending, food, held, slots);
+                selected = AcquisitionRules.SelectAcquisition(sources, deficit, pending, food, held, slots);
             }
         }
         catch (DomainException)
@@ -358,7 +359,7 @@ partial class RoundsAcquisitionPlanner
 
     /// <summary>Reports whether a source sits under a stall cooldown of either contract.</summary>
     internal static bool AcquisitionCooled(ConcernProgress? progress, RoundsPolicy p, string thing, Tick tick) =>
-        progress is not null && (progress.Cooled(PolicyApi.CooldownKey(p.HuntProgress().Method, thing), tick) || progress.Cooled(PolicyApi.CooldownKey(p.AcquisitionProgress().Method, thing), tick));
+        progress is not null && (progress.Cooled(ConcernProgressRules.CooldownKey(p.HuntProgress().Method, thing), tick) || progress.Cooled(ConcernProgressRules.CooldownKey(p.AcquisitionProgress().Method, thing), tick));
 
     /// <summary>
     /// The census rows cooled reports: passed over like held ones, the cooldown lifting by itself at its bound,

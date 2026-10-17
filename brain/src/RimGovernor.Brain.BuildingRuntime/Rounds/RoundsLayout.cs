@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -110,16 +111,16 @@ public sealed partial class LayoutRounds
             var f = read.Projection.Facts;
             if (_needs.HomeCoverage)
             {
-                facts = facts with { HomeCoverage = PlanHomeArea(f.MapBounds, f.CurrentConstruction, claims, f.HomeCoverage) };
+                facts = facts with { HomeCoverage = HomeAreaRules.PlanHomeArea(f.MapBounds, f.CurrentConstruction, claims, f.HomeCoverage) };
             }
             if (_needs.StoneShell)
             {
-                facts = facts with { StoneShell = ReviewStoneShell(OwnedConstructions(claims, f.CurrentConstruction), f.StoneStructures) };
+                facts = facts with { StoneShell = FacilityUpkeepRules.ReviewStoneShell(ConstructionOwnershipRules.OwnedConstructions(claims, f.CurrentConstruction), f.StoneStructures) };
             }
         }
         if (_needs.ClimateEnvelope || _needs.Routes)
         {
-            var rooms = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), [PolicyApi.ClimateDefs().VentDef], ct).ConfigureAwait(false);
+            var rooms = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), [ClimateRules.ClimateDefs().VentDef], ct).ConfigureAwait(false);
             if (_needs.ClimateEnvelope)
             {
                 var (owed, known) = EnvelopeWork(rooms.Projection);

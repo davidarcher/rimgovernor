@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -125,16 +126,16 @@ public sealed partial class Rounder
         }
 
         var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);
-        var (hostiles, critical) = PolicyFunctions.EmergencyNeeds(emergency, state.Snapshot, expected.Tick);
-        var urgent = PolicyFunctions.UrgentPatients(emergency, state.Snapshot, expected.Tick);
-        (critical, urgent) = PolicyFunctions.AmputationNeeds(emergency, f.MedicalPawns, critical, urgent);
+        var (hostiles, critical) = EmergencyNeedsRules.EmergencyNeeds(emergency, state.Snapshot, expected.Tick);
+        var urgent = EmergencyNeedsRules.UrgentPatients(emergency, state.Snapshot, expected.Tick);
+        (critical, urgent) = EmergencyNeedsRules.AmputationNeeds(emergency, f.MedicalPawns, critical, urgent);
         f = f with { Hostiles = hostiles, CriticalPatients = critical, UrgentPatients = urgent };
         f = f with { DangerSeeds = SafeAreaMemory.DangerSeedFact(f.Hostiles, reading.Emergency.Threats) };
         f.DangerSeeds.TryGetValue(out var seeds);
         f = f with { DangerWindow = SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), f.Hostiles, seeds, expected.Tick) };
         f = f with { DangerHaulers = ShelterRules.DangerHaulers(projection.WorkPawns) };
         f = f with { Tick = expected.Tick };
-        f = f with { Dash = PolicyFunctions.ReviewDash(previous.Latches.Dash, f, projection.WorkPawns, expected.Tick, PolicyFunctions.PublishedHypothermiaTuning) };
+        f = f with { Dash = DashPlanRules.ReviewDash(previous.Latches.Dash, f, projection.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) };
         f = f with { AvailableNeeds = AvailableNeeds };
         // The immediate pass plans no food; the last full review's plan carries forward, so a squad hunt it opened
         // stays a combat deficit (#3311).

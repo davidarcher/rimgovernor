@@ -47,6 +47,6 @@ public static partial class LayoutThroneRules
         {
             output.Add(((area + CoreMaxDepth - 1) / CoreMaxDepth, CoreMaxDepth));
         }
-        return [.. output.OrderBy(s => s.W * s.D).ThenBy(s => Abs32((2 * s.W) - (3 * s.D)))];
+        return [.. output.OrderBy(s => s.W * s.D).ThenBy(s => LightingRules.Abs32((2 * s.W) - (3 * s.D)))];
     }
 }

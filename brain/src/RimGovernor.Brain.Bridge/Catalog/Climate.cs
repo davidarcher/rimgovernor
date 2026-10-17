@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using P = RimGovernor.Brain.Policy;
@@ -41,7 +42,7 @@ public sealed partial class DefinitionCatalog
     // it is left off. stations is the catalog being built, whose coolers it reads.
     private P.ClimateModel ClimateModel(P.StationCatalog stations)
     {
-        var table = P.PolicyFunctions.ClimateDefs();
+        var table = ClimateRules.ClimateDefs();
         if (new[] { table.VentDef, table.DoorDef, table.WallDef }.Any(def => FindThing(def) is null))
         {
             return new P.ClimateModel();

@@ -126,7 +126,7 @@ public static partial class RegionRules
                 continue;
             }
             covered.Add(c);
-            var seat = NewInteriorPiece(p.Slot + "_chair", w.Def, w.Size, Rotation.North, c) with { Row = w.Slot };
+            var seat = InteriorHelpersRules.NewInteriorPiece(p.Slot + "_chair", w.Def, w.Size, Rotation.North, c) with { Row = w.Slot };
             output.Add(seat);
         }
         return output;
@@ -179,9 +179,9 @@ public static partial class RegionRules
         foreach (var c in PlannedRules.RectCells(p.Rect))
         {
             b.Add(c);
-            foreach (var n in Neighbours(c))
+            foreach (var n in InteriorObjectiveRules.Neighbours(c))
             {
-                if (g.Contains(n) && !RectContains(p.Rect, n) && !ring.Contains(n))
+                if (g.Contains(n) && !InteriorWalkRules.RectContains(p.Rect, n) && !ring.Contains(n))
                 {
                     ring.Add(n);
                 }
@@ -212,7 +212,7 @@ public static partial class RegionRules
 
     private static InteriorPiece RegionPiece(RegionWant w, string slot, Rotation rot, Cell corner)
     {
-        var p = NewInteriorPiece(slot, w.Def, w.Size, rot, corner) with { Row = w.Slot, Beside = w.Beside, Clear = w.Clear };
+        var p = InteriorHelpersRules.NewInteriorPiece(slot, w.Def, w.Size, rot, corner) with { Row = w.Slot, Beside = w.Beside, Clear = w.Clear };
         if (w.Interaction is { } off)
         {
             p = p with { InteractionOffset = off };
@@ -250,7 +250,7 @@ public static partial class RegionRules
                 for (var i = 0; i < thresholds.Count; i++)
                 {
                     var t = thresholds[i];
-                    var d = CentreDistance(p.Rect, new Rectangle { X = t.X, Z = t.Z, Width = 1, Height = 1 });
+                    var d = InteriorObjectiveRules.CentreDistance(p.Rect, new Rectangle { X = t.X, Z = t.Z, Width = 1, Height = 1 });
                     if (i == 0 || d < dist)
                     {
                         dist = d;
@@ -310,7 +310,7 @@ public static partial class RegionRules
         {
             foreach (var q in partners)
             {
-                if (q.Row == p.Beside && RectContains(q.Rect, c))
+                if (q.Row == p.Beside && InteriorWalkRules.RectContains(q.Rect, c))
                 {
                     return true;
                 }
@@ -331,7 +331,7 @@ public static partial class RegionRules
         var a = p.Anchor();
         for (var k = 1; k <= p.Clear; k++)
         {
-            var o = RotateOffset(new Cell(0, -k), p.Rot);
+            var o = InteriorRules.RotateOffset(new Cell(0, -k), p.Rot);
             var c = new Cell(a.X + o.X, a.Z + o.Z);
             if (!output.Contains(c))
             {
@@ -352,7 +352,7 @@ public static partial class RegionRules
     {
         if (req.Search is { } search)
         {
-            return [.. SearchInterior(req, search).Stood()];
+            return [.. InteriorSearchRules.SearchInterior(req, search).Stood()];
         }
         var (floor, seats) = SplitSeats(req.Wants);
         req = req with { Wants = EquatableArray.From(floor) };

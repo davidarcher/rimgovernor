@@ -14,7 +14,7 @@ public sealed record DefTable(string Table, string Class, EquatableArray<string>
 /// <summary>The items of the launcher's Rhadamant Sea Ice preset.</summary>
 public sealed record RhadamantThingSet(string Silver, string Meal, string Wood, string Steel, string Component, string Medicine, string Rifle, string ShipChunk);
 
-public static partial class PolicyFunctions
+public static class DefTablesRules
 {
     /// <summary>
     /// The Core items the launcher's scenario composer suggests for a starting thing. The composer takes any
@@ -65,10 +65,10 @@ public static partial class PolicyFunctions
     [
         DefTable.Of("unrecoveredParts", "Verse.HediffDef", SortedKeys(UnrecoveredParts)),
         DefTable.Of("keptBodyParts", "Verse.BodyPartDef", SortedKeys(KeptBodyParts)),
-        DefTable.Of("herdTrainables", "RimWorld.TrainableDef", SortedKeys(HerdTrainables)),
+        DefTable.Of("herdTrainables", "RimWorld.TrainableDef", SortedKeys(HerdSurplusRules.HerdTrainables)),
         DefTable.Of("threatKinds", "Verse.PawnKindDef", SortedKeys(CombatThreatRules.ThreatKinds)),
         DefTable.Of("threatWeapons", "Verse.ThingDef", SortedKeys(CombatThreatRules.ThreatWeapons)),
-        DefTable.Of("gearValuables", "Verse.ThingDef", ResourceKeys(GearValuableDefs)),
+        DefTable.Of("gearValuables", "Verse.ThingDef", ResourceKeys(GearRules.GearValuableDefs)),
         DefTable.Of("traitStatWeights", "RimWorld.StatDef", SortedKeys(TraitWorthRules.TraitStatWeights)),
         DefTable.Of("sociableTraits", "RimWorld.TraitDef", SortedKeys(TraitWorthRules.SociableTraits)),
         DefTable.Of("traitThoughts", "RimWorld.ThoughtDef", TraitWorthRules.TraitThoughts),
@@ -85,8 +85,8 @@ public static partial class PolicyFunctions
         DefTable.Of("ShelterCoolDef", "Verse.ThingDef", [ShelterCoolDef]),
         DefTable.Of("ScenarioThingChoices", "Verse.ThingDef", ScenarioThingChoices),
         DefTable.Of("RhadamantThings", "Verse.ThingDef", RhadamantThingDefs()),
-        DefTable.Of("climateTable", "Verse.ThingDef", [ClimateDefs().VentDef, ClimateDefs().DoorDef, ClimateDefs().WallDef, ClimateDefs().RaceDef]),
-        DefTable.Of("climateStats", "RimWorld.StatDef", [ClimateDefs().ComfyMinStat, ClimateDefs().ComfyMaxStat]),
+        DefTable.Of("climateTable", "Verse.ThingDef", [ClimateRules.ClimateDefs().VentDef, ClimateRules.ClimateDefs().DoorDef, ClimateRules.ClimateDefs().WallDef, ClimateRules.ClimateDefs().RaceDef]),
+        DefTable.Of("climateStats", "RimWorld.StatDef", [ClimateRules.ClimateDefs().ComfyMinStat, ClimateRules.ClimateDefs().ComfyMaxStat]),
         // lightTable: DarkSpeed (0.8) is StatPart_Glow's factor on WorkSpeedGlobal and MoveSpeed at glow 0, a
         // curve in the def that the bridge does not read; the standing and wall lamps are the buildings the
         // plan places (their reach is solved from each def's glow radius and colour; GroundScale,
@@ -126,7 +126,7 @@ public static partial class PolicyFunctions
         DefTable.Of("windPath", "Verse.ThingDef", [WindTurbineDefinition]),
         // interiorTable (#2956): the shelf and lamp the region interior wants beside benches and beds;
         // KitchenStoves is the judgment explained on InteriorDefs().
-        DefTable.Of("interiorTable", "Verse.ThingDef", [InteriorDefs().ShelfDef, InteriorDefs().LampDef]),
+        DefTable.Of("interiorTable", "Verse.ThingDef", [InteriorRegionRules.InteriorDefs().ShelfDef, InteriorRegionRules.InteriorDefs().LampDef]),
         // The power site price (#2999) is the market value of a conduit run and a wall cell: the catalog's
         // cost lists, keyed by the defs so a rename fails.
         DefTable.Of("siteConduit", "Verse.ThingDef", [LayoutPowerDeriveRules.PowerConduitDefinition]),

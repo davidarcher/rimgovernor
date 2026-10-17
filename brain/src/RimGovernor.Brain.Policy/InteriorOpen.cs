@@ -28,10 +28,10 @@ public sealed record InteriorReading
     /// The walkable cells a zone takes. Native refuses a non-contiguous zone, so a kept cell that splits the
     /// open cells leaves the largest cardinally connected part (the one holding the lowest cell on a tie).
     /// </summary>
-    public IReadOnlyList<Cell> Cover() => PolicyFunctions.LargestComponent(Open);
+    public IReadOnlyList<Cell> Cover() => InteriorOpenRules.LargestComponent(Open);
 }
 
-public static partial class PolicyFunctions
+public static class InteriorOpenRules
 {
     /// <summary>Reads interior against cells, in reading order.</summary>
     public static InteriorReading InteriorOf(Rectangle interior, IReadOnlyList<SiteCell> cells)

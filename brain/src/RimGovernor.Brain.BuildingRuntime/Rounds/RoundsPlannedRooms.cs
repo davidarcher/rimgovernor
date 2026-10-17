@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -11,7 +12,7 @@ public sealed partial class RoundsBuildingPlanner
 
     internal (PlannedRole Role, bool Ok) PlannedRoomModule()
     {
-        if (Concern == PolicyFunctions.CookingNeed.FilingKey && Paste.Count == 0)
+        if (Concern == FoodRules.CookingNeed.FilingKey && Paste.Count == 0)
         {
             return (PlannedRole.Kitchen, true);
         }
@@ -86,7 +87,7 @@ public sealed partial class RoundsBuildingPlanner
 
         if (Definition == PolicyConstants.ShelterHeatDef)
         {
-            var cooking = Concern == PolicyFunctions.CookingNeed.FilingKey && Paste.Count == 0;
+            var cooking = Concern == FoodRules.CookingNeed.FilingKey && Paste.Count == 0;
             return known && plan!.Cold && LayoutCapabilityRules.ShelterHosts(Capability.Heat) && (cooking || (Temperature is not null && Temperature.Method == TemperatureMethod.Heat));
         }
 
@@ -241,7 +242,7 @@ partial class RoundsBuildingPlanner
                 continue;
             }
 
-            var (room, ok) = PolicyFunctions.InteriorRoomFromLayout(planned, facts.Shapes);
+            var (room, ok) = InteriorRules.InteriorRoomFromLayout(planned, facts.Shapes);
             if (!ok || room is null)
             {
                 continue;

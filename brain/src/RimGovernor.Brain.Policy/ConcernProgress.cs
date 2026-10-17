@@ -123,7 +123,7 @@ public readonly record struct BlockedReason(string Value)
         }
         if (!Prerequisite().IsEmpty)
         {
-            return ValidResource(new Resource(Prerequisite().Value));
+            return AdmissionRules.ValidResource(new Resource(Prerequisite().Value));
         }
         return TryGetCause(out var cause) && cause.IsValid();
     }
@@ -178,14 +178,14 @@ public sealed record ProgressContract
         {
             d = Deadline.Value;
         }
-        return new Tick(Math.Min(Math.Max(d, 0), PolicyFunctions.ProgressCooldownMax.Value));
+        return new Tick(Math.Min(Math.Max(d, 0), ConcernProgressRules.ProgressCooldownMax.Value));
     }
 
     /// <summary>The retry deadline for a failed situation.</summary>
     public Tick CooldownUntil(Tick now) => new(now.Value + EffectiveCooldown().Value);
 }
 
-public static partial class PolicyFunctions
+public static class ConcernProgressRules
 {
     /// <summary>Bounds every cooldown to three game days: a failed situation is retried, never banned.</summary>
     public static readonly Tick ProgressCooldownMax = new(180000);
@@ -237,7 +237,7 @@ public static partial class PolicyFunctions
     public static void ValidateConcernProgress(ConcernProgress p, Tick tick)
     {
         DomainException.Require(
-            !(!ValidResource(new Resource(p.Concern.Value)) || p.Method.Length > 64 || p.LastProgress.Value < 0 || p.LastProgress > tick || p.NextReview.Value < 0 || !p.Blocked.IsValid() || !ValidPlannerNote(p.PlannerNote())),
+            !(!AdmissionRules.ValidResource(new Resource(p.Concern.Value)) || p.Method.Length > 64 || p.LastProgress.Value < 0 || p.LastProgress > tick || p.NextReview.Value < 0 || !p.Blocked.IsValid() || !ValidPlannerNote(p.PlannerNote())),
             "invalid standard progress");
         DomainException.Require(p.Observed is null || (p.Observed >= 0 && p.Observed <= 1), "invalid standard progress");
         foreach (var cd in p.Cooldowns)
@@ -253,7 +253,7 @@ public static partial class PolicyFunctions
         {
             return (n.Subject ?? "").Length == 0;
         }
-        return n.Cause.IsValid() && n.Subject == BoundSubject(n.Subject);
+        return n.Cause.IsValid() && n.Subject == CauseRules.BoundSubject(n.Subject);
     }
 
     /// <summary>Reports unavailable methods and planner opt-outs.</summary>

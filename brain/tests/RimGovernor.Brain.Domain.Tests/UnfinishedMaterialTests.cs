@@ -4,7 +4,6 @@ using RimGovernor.Brain.Observation;
 using RimGovernor.Contracts.Wire;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using O = RimGovernor.Contracts.Wire.Observations;
 using Ops = RimGovernor.Contracts.Wire.Operations;
 

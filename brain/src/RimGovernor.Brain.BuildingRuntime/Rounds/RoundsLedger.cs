@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -347,7 +348,7 @@ public sealed partial class AdminRounds
         }
 
         var id = PlanIds.MintPlanId();
-        var materials = PolicyFunctions.SelectLedgerMaterials(pending.Place, p.Journal.ProductionMaterials(state.Snapshot, call));
+        var materials = LedgerMaterialChoicesRules.SelectLedgerMaterials(pending.Place, p.Journal.ProductionMaterials(state.Snapshot, call));
         var selectionReason = $"material options: safety={materials.Comparison.Priority.Safety}, required={materials.Comparison.Priority.Required}, maintenance={materials.Comparison.Priority.Maintenance}, material_value={materials.Comparison.Priority.MaterialCost}, recipe_work={materials.Comparison.Priority.Work}, generated={materials.Generated}, searched={materials.Comparison.Expansions}, generation_truncated={materials.GenerationTruncated}, search_truncated={materials.Comparison.SearchTruncated}, findings={materials.Comparison.Findings.Count}, kinds={string.Join(",", materials.Comparison.Findings.Select(f => f.Split(':')[0]).Distinct())}";
         var chosen = new LedgerPending { Snapshot = pending.Snapshot, Remove = pending.Remove, Place = materials.Selected };
         var (actions, claims, key) = LedgerActions(id, chosen);

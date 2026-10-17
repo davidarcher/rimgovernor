@@ -27,7 +27,7 @@ public sealed record HostilityPawn
     public Fact<PawnJob> Job { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class HostilityRules
 {
     /// <summary>The biological age below which a pawn is a child (vanilla's DevelopmentalStage.Child ends at 13).</summary>
     public const double ChildAge = 13.0;
@@ -133,7 +133,7 @@ public static partial class PolicyFunctions
         cells.AddRange(t.Cells);
         foreach (var c in cells)
         {
-            if (Chebyshev(c, cell) <= StealthCells)
+            if (LightingRules.Chebyshev(c, cell) <= StealthCells)
             {
                 return (true, true);
             }

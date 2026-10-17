@@ -29,7 +29,7 @@ public static partial class PolicyConstants
     internal const int BedroomFullSetTiles = 16;
 }
 
-public static partial class PolicyFunctions
+public static class InteriorRegionRolesRules
 {
     private static readonly IReadOnlyList<RegionWant> NoWants = [];
 
@@ -42,16 +42,16 @@ public static partial class PolicyFunctions
     {
         var (bench, ok) = room.BenchDef(piece, RoomRole.Workshop);
         var (cabinet, cok) = room.Shapes.Get(room.Shapes.Furniture.Cabinet.Def);
-        var (shelf, sok) = room.Shapes.Get(InteriorDefs().ShelfDef);
-        var n = BenchRowCapacity(f, bench, 1);
+        var (shelf, sok) = room.Shapes.Get(InteriorRegionRules.InteriorDefs().ShelfDef);
+        var n = InteriorRegionRules.BenchRowCapacity(f, bench, 1);
         if (!ok || !cok || !sok || n < 1)
         {
             return (NoWants, false);
         }
-        var benches = ShapeWant("benches", bench, n, 1, Numbered("bench", 0)) with { AgainstWall = true };
+        var benches = InteriorRegionRules.ShapeWant("benches", bench, n, 1, InteriorRegionRules.Numbered("bench", 0)) with { AgainstWall = true };
         List<RegionWant> wants = [benches, .. room.WorkChair(benches, bench)];
-        wants.Add(ShapeWant("cabinets", cabinet!, n - 1, 0, Numbered("cabinet", 0)));
-        wants.Add(ShapeWant("shelves", shelf!, n, 0, Numbered("shelf", 0)));
+        wants.Add(InteriorRegionRules.ShapeWant("cabinets", cabinet!, n - 1, 0, InteriorRegionRules.Numbered("cabinet", 0)));
+        wants.Add(InteriorRegionRules.ShapeWant("shelves", shelf!, n, 0, InteriorRegionRules.Numbered("shelf", 0)));
         return (wants, true);
     }
 
@@ -77,17 +77,17 @@ public static partial class PolicyFunctions
     internal static (IReadOnlyList<RegionWant> Wants, bool Ok) LaboratoryWants(InteriorRoom room, InteriorPieceDef piece, RegionFrame f)
     {
         var (bench, ok) = room.BenchDef(piece, RoomRole.Laboratory);
-        var n = BenchRowCapacity(f, bench, 1);
+        var n = InteriorRegionRules.BenchRowCapacity(f, bench, 1);
         if (!ok || n < 1)
         {
             return (NoWants, false);
         }
-        var benches = ShapeWant("benches", bench, n, 1, Numbered("bench", 1)) with { AgainstWall = true };
+        var benches = InteriorRegionRules.ShapeWant("benches", bench, n, 1, InteriorRegionRules.Numbered("bench", 1)) with { AgainstWall = true };
         List<RegionWant> wants = [benches, .. room.WorkChair(benches, bench)];
         var (analyzer, aok) = room.Shapes.Get(room.Shapes.Furniture.Analyzer.Def);
         if (aok)
         {
-            wants.Add(ShapeWant("analyzer", analyzer!, 1, 0, _ => LabAnalyzerSlot));
+            wants.Add(InteriorRegionRules.ShapeWant("analyzer", analyzer!, 1, 0, _ => LabAnalyzerSlot));
         }
         return (wants, true);
     }
@@ -99,16 +99,16 @@ public static partial class PolicyFunctions
     internal static (IReadOnlyList<RegionWant> Wants, bool Ok) KitchenWants(InteriorRoom room, InteriorPieceDef piece, RegionFrame f)
     {
         var (stove, ok) = room.BenchDef(piece, RoomRole.Kitchen);
-        if (!ok || !FrontInteraction(stove) || Math.Min(f.Width, f.Depth) < stove.Size.Z + 2)
+        if (!ok || !InteriorHelpersRules.FrontInteraction(stove) || Math.Min(f.Width, f.Depth) < stove.Size.Z + 2)
         {
             return (NoWants, false);
         }
-        var n = Math.Min(RowCapacity(Math.Max(f.Width, f.Depth), stove.Size.X, 0), InteriorDefs().KitchenStoves);
+        var n = Math.Min(InteriorHelpersRules.RowCapacity(Math.Max(f.Width, f.Depth), stove.Size.X, 0), InteriorRegionRules.InteriorDefs().KitchenStoves);
         if (n < 1)
         {
             return (NoWants, false);
         }
-        var stoves = ShapeWant("stoves", stove, n, 1, i => string.Create(CultureInfo.InvariantCulture, $"stove.{(char)('1' + i)}")) with { AgainstWall = true };
+        var stoves = InteriorRegionRules.ShapeWant("stoves", stove, n, 1, i => string.Create(CultureInfo.InvariantCulture, $"stove.{(char)('1' + i)}")) with { AgainstWall = true };
         return ([stoves, .. room.WorkChair(stoves, stove)], true);
     }
 
@@ -122,7 +122,7 @@ public static partial class PolicyFunctions
         // Turned to face the aisle a piece is Size.Z cells wide and Size.X deep.
         var reach = d.Size.Z;
         var names = new List<string>();
-        foreach (var v in AisleRows(f.Depth, d.Size.X))
+        foreach (var v in InteriorHelpersRules.AisleRows(f.Depth, d.Size.X))
         {
             if (v + d.Size.X > f.Depth)
             {
@@ -141,7 +141,7 @@ public static partial class PolicyFunctions
         {
             return (NoWants, false);
         }
-        var w = ShapeWant(slot, d, names.Count, 1, i => names[i]) with { AgainstWall = true };
+        var w = InteriorRegionRules.ShapeWant(slot, d, names.Count, 1, i => names[i]) with { AgainstWall = true };
         return ([w], true);
     }
 
@@ -171,17 +171,17 @@ public static partial class PolicyFunctions
         {
             return (NoWants, false);
         }
-        var pairs = RowCapacity(f.Width, (2 * bed.Size.X) + monitor!.Size.X, 1);
+        var pairs = InteriorHelpersRules.RowCapacity(f.Width, (2 * bed.Size.X) + monitor!.Size.X, 1);
         if (pairs < 1)
         {
             return (NoWants, false);
         }
-        var beds = ShapeWant("beds", bed, 2 * pairs, 1, Numbered("bed", 1)) with { AgainstWall = true };
-        return ([beds, ShapeWant("monitors", monitor, pairs, 0, Numbered("monitor", 1))], true);
+        var beds = InteriorRegionRules.ShapeWant("beds", bed, 2 * pairs, 1, InteriorRegionRules.Numbered("bed", 1)) with { AgainstWall = true };
+        return ([beds, InteriorRegionRules.ShapeWant("monitors", monitor, pairs, 0, InteriorRegionRules.Numbered("monitor", 1))], true);
     }
 
     /// <summary>A want for one piece called name.</summary>
-    internal static RegionWant NamedPiece(string name, InteriorPieceDef d, int min) => ShapeWant(name, d, 1, min, _ => name);
+    internal static RegionWant NamedPiece(string name, InteriorPieceDef d, int min) => InteriorRegionRules.ShapeWant(name, d, 1, min, _ => name);
 
     /// <summary>The bed a bedroom plans around: the requested bed, else the room's standing one, else the primary bed.</summary>
     internal static (InteriorPieceDef Def, bool Ok) SleepingBed(this InteriorRoom r, InteriorPieceDef piece)
@@ -210,7 +210,7 @@ public static partial class PolicyFunctions
     {
         var (table, tok) = room.Shapes.Get(room.Shapes.Furniture.EndTable.Def);
         var (dresser, dok) = room.Shapes.Get(room.Shapes.Furniture.Dresser.Def);
-        var (lamp, lok) = room.Shapes.Get(InteriorDefs().LampDef);
+        var (lamp, lok) = room.Shapes.Get(InteriorRegionRules.InteriorDefs().LampDef);
         if (!tok || !dok || !lok)
         {
             return (NoWants, false);
@@ -291,7 +291,7 @@ public static partial class PolicyFunctions
         {
             return (NoWants, false);
         }
-        return ([ShapeWant("child", piece, n, 1, Numbered("child", 0))], true);
+        return ([InteriorRegionRules.ShapeWant("child", piece, n, 1, InteriorRegionRules.Numbered("child", 0))], true);
     }
 
     /// <summary>
@@ -306,7 +306,7 @@ public static partial class PolicyFunctions
         bool Hosts(Capability c) => room.Capabilities.Contains(c);
         var wants = new List<RegionWant>();
         var (bench, bok) = room.BenchDef(piece, RoomRole.Laboratory);
-        if (bok && Hosts(Capability.Research) && BenchRowCapacity(f, bench, 1) >= 1)
+        if (bok && Hosts(Capability.Research) && InteriorRegionRules.BenchRowCapacity(f, bench, 1) >= 1)
         {
             var research = NamedPiece("research", bench, 0) with { AgainstWall = true };
             wants.Add(research);
@@ -317,7 +317,7 @@ public static partial class PolicyFunctions
             var (shape, ok) = room.Shapes.Get(def);
             if (ok && shape!.Size == new Cell(1, 1) && count > 0)
             {
-                wants.Add(ShapeWant(slot, shape, count, 0, name));
+                wants.Add(InteriorRegionRules.ShapeWant(slot, shape, count, 0, name));
             }
         }
         if (Hosts(Capability.Craft))
@@ -326,9 +326,9 @@ public static partial class PolicyFunctions
         }
         if (Hosts(Capability.Heat))
         {
-            Single("campfire", ShelterHeatDef, room.Campfires, Numbered("campfire", 1));
+            Single("campfire", ShelterHeatDef, room.Campfires, InteriorRegionRules.Numbered("campfire", 1));
         }
-        Single("cooler", ShelterCoolDef, room.Coolers, Numbered(ShelterCoolerSlotPrefix[..^1], 1));
+        Single("cooler", ShelterCoolDef, room.Coolers, InteriorRegionRules.Numbered(ShelterCoolerSlotPrefix[..^1], 1));
         var bunkDef = room.Shapes.Furniture.PrimaryBed();
         if (piece.Family == RoomRole.Bedroom && piece.Size == ShelterBunkSize)
         {
@@ -344,7 +344,7 @@ public static partial class PolicyFunctions
             n = room.Floor().Area() / 2;
         }
         var bunk = new InteriorPieceDef(bunkDef, ShelterBunkSize, default, null);
-        wants.Add(ShapeWant("bunk", bunk, n, 0, Numbered(ShelterBunkSlotPrefix[..^1], 1)));
+        wants.Add(InteriorRegionRules.ShapeWant("bunk", bunk, n, 0, InteriorRegionRules.Numbered(ShelterBunkSlotPrefix[..^1], 1)));
         return (wants, true);
     }
 
@@ -362,7 +362,7 @@ public static partial class PolicyFunctions
         {
             return (NoWants, false);
         }
-        int Units(int depth) => RowCapacity(depth - 1, DiningUnitDepth, 1);
+        int Units(int depth) => InteriorHelpersRules.RowCapacity(depth - 1, DiningUnitDepth, 1);
         var pin = f.Depth >= d.Lane + 1;
         var tables = Units(f.Depth);
         if (pin)
@@ -398,11 +398,11 @@ public static partial class PolicyFunctions
             {
                 table = table with { Min = 1 };
             }
-            var chairs = ShapeWant($"chair.{i}", d.Chair, 6, 0, Numbered($"chair.{i}", 0)) with { Beside = table.Slot };
+            var chairs = InteriorRegionRules.ShapeWant($"chair.{i}", d.Chair, 6, 0, InteriorRegionRules.Numbered($"chair.{i}", 0)) with { Beside = table.Slot };
             wants.Add(table);
             wants.Add(chairs);
         }
-        var (lamp, ok) = room.Shapes.Get(InteriorDefs().LampDef);
+        var (lamp, ok) = room.Shapes.Get(InteriorRegionRules.InteriorDefs().LampDef);
         if (ok)
         {
             wants.Add(NamedPiece("lamp", lamp!, 0));

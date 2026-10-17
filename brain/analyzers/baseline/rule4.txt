@@ -81,7 +81,7 @@ Observation/RoundsRead.cs|RoundsReads.FrameQuests
 Observation/StuffChoice.cs|ColonyProjection.BulkBuildStuffExcept
 PlayerApi/PlayerRoutes.cs|PlayerRoutes.ReadControlAsync
 Policy/DefenseTiers.cs|DefenseTiersPolicy.PlanDefenseTiers
-Policy/Hostility.cs|PolicyFunctions.HostilityChanges
+Policy/Hostility.cs|HostilityRules.HostilityChanges
 Policy/LayoutCapability.cs|LayoutCapabilityRules.DeriveRoleCapabilities
 Policy/LayoutMining.cs|LayoutPlan.RoomRock
 Policy/LayoutRooms.cs|LayoutPlan.PlannedShells

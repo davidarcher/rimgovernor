@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -26,7 +25,7 @@ public sealed class ActivityNeedBoundaryTests
     {
         var supply = ActivityContinuationFixtures.Cooking();
         var cook = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
-        var next = ContinueCoordinatedActivity(supply, Known(true), Read(supply, "completed", .08) with { Bindings = [new(cook.Id, cook.Step)] })!;
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Read(supply, "completed", .08) with { Bindings = [new(cook.Id, cook.Step)] })!;
         Assert.True(Assert.Single(next.Orders).Release);
         Assert.Empty(next.Tasks);
     }
@@ -36,7 +35,7 @@ public sealed class ActivityNeedBoundaryTests
     {
         var supply = ActivityContinuationFixtures.Cooking();
         var cook = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
-        var next = ContinueCoordinatedActivity(supply, Known(true), Read(supply, "completed", .9) with
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Read(supply, "completed", .9) with
         { Bindings = [new(cook.Id, cook.Step)] })!;
         Assert.False(Assert.Single(next.Orders).Release);
         Assert.Equal(cook.Id, next.Orders[0].Task);
@@ -53,7 +52,7 @@ public sealed class ActivityNeedBoundaryTests
                 new(o.Assignment, o.Method, o.Revision, o.Preparing ? 1 : 0, o.Pawn == "producer" ? "started" : "holding", "", null, 300)))),
             Needs = new() { Tick = 300, Pawns = [new() { Pawn = "helper", State = "eligible", Needs = [new("rest", Known(.05), Known(.00002), Known(.3))] }] }
         };
-        var next = ContinueCoordinatedActivity(batch, Known(true), read)!;
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), read)!;
         Assert.False(next.Orders.Single(o => o.Pawn == "producer").Release);
         Assert.True(next.Orders.Single(o => o.Pawn == "helper").Release);
     }
@@ -62,6 +61,6 @@ public sealed class ActivityNeedBoundaryTests
     public void ARunningTaskIsNeverInterruptedByAUrgentNeed()
     {
         var supply = ActivityContinuationFixtures.Cooking();
-        Assert.Null(ContinueCoordinatedActivity(supply, Known(true), Read(supply, "started", .08)));
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Read(supply, "started", .08)));
     }
 }

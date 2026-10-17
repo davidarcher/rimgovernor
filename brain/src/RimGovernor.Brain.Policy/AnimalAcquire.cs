@@ -52,7 +52,7 @@ public sealed record AnimalAcquisition
     internal static bool Yield(AnimalRace race, bool female, double ageTicks, out AcquiredYield result)
     {
         result = default;
-        if (!race.AdultFeedPerDay.TryGetValue(out var feed) || !FoodNumber(feed))
+        if (!race.AdultFeedPerDay.TryGetValue(out var feed) || !FoodForecastRules.FoodNumber(feed))
         {
             return false;
         }
@@ -140,7 +140,7 @@ internal readonly record struct AcquiredYield(Fact<double> NutritionPerDay, Fact
 {
     internal SupplyCandidate Channel(CandidateKind kind, string id, double upfront, IEnumerable<CandidateTerm> terms)
     {
-        var c = FoodCandidate(kind, id, NutritionPerDay);
+        var c = CandidateRules.FoodCandidate(kind, id, NutritionPerDay);
         var yields = c.Yields.Items.ToBuilder();
         yields[0] = yields[0] with { StockCap = Stock };
         return c with
@@ -149,13 +149,13 @@ internal readonly record struct AcquiredYield(Fact<double> NutritionPerDay, Fact
             LaborPerDay = Known(0.0),
             UpfrontCost = c.UpfrontCost with { LaborTicks = Known(upfront) },
             LeadDays = Known(LeadDays),
-            State = FoodState(Known(false), Unknown<bool>()),
+            State = CandidateRules.FoodState(Known(false), Unknown<bool>()),
             Terms = EquatableArray.From(new[] { new CandidateTerm("feed_per_day", Feed) }.Concat(terms)),
         };
     }
 }
 
-public static partial class PolicyFunctions
+public static class AnimalAcquireRules
 {
     /// <summary>The talk toils of one taming interaction: game code structure (JobDriver_InteractAnimal), not a value the game exposes.</summary>
     internal const int AnimalInteractionTalks = 3;
@@ -245,7 +245,7 @@ public static partial class PolicyFunctions
                 || !ck
                 || !(factor > 0)
                 || !yk
-                || HerdDangerous(a)
+                || HerdSurplusRules.HerdDangerous(a)
                 || !input.Room(a.Definition)
             )
             {
@@ -321,7 +321,7 @@ public static partial class PolicyFunctions
                     y.Channel(
                         CandidateKind.AnimalBuy,
                         record.Trader + "/" + row.Def + "/" + gender,
-                        row.Price * TradeLaborPerSilver,
+                        row.Price * AcquisitionCatalogRules.TradeLaborPerSilver,
                         [new CandidateTerm("trade_silver", row.Price)]
                     )
                 );

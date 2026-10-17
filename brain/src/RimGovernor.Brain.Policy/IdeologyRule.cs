@@ -82,7 +82,7 @@ public readonly record struct IdeologyRead(Fact<Ideoligion> Ideology, Fact<bool>
         {
             return new PreceptVerdict { Stance = PreceptStance.Allowed, Reason = "Ideology not installed" };
         }
-        return PolicyFunctions.ActionStance(Ideology, action, subject);
+        return IdeologyRuleRules.ActionStance(Ideology, action, subject);
     }
 }
 
@@ -122,7 +122,7 @@ public sealed partial record Ideoligion
             }
             if (e.Forbids())
             {
-                if (subject.Pawn && PolicyFunctions.Cancels(e, subject))
+                if (subject.Pawn && IdeologyRuleRules.Cancels(e, subject))
                 {
                     continue;
                 }
@@ -219,7 +219,7 @@ public sealed partial record Ideoligion
     }
 }
 
-public static partial class PolicyFunctions
+public static class IdeologyRuleRules
 {
     /// <summary>The Ideology reading of the facts.</summary>
     public static IdeologyRead IdeologyRead(this RoundsFacts f) => new(f.Ideology, f.IdeologyInstalled);

@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 // Door-to-door walkability. Pawns walk a room's free floor; a piece may not cut the aisle between its doors,
 // wall off any floor, or stand on another piece's interaction cell. Reachability is over orthogonal steps,
 // the conservative reading of RimWorld's no-corner-cutting pathing.
-public static partial class PolicyFunctions
+public static class InteriorWalkRules
 {
     /// <summary>
     /// Reports whether adding a footprint to a room whose blocked cells are given keeps every door
@@ -46,12 +46,12 @@ public static partial class PolicyFunctions
         var cells = new List<Cell>();
         foreach (var d in room.Doors)
         {
-            var (side, ok) = DoorSide(r, d);
+            var (side, ok) = InteriorRules.DoorSide(r, d);
             if (!ok)
             {
                 continue;
             }
-            var o = RotateOffset(new Cell(0, 1), side);
+            var o = InteriorRules.RotateOffset(new Cell(0, 1), side);
             cells.Add(new Cell(d.X - o.X, d.Z - o.Z));
         }
         return cells;

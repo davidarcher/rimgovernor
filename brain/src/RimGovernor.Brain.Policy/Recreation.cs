@@ -47,7 +47,7 @@ public sealed partial record ComfortObservation
         var kinds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var k in j.Kinds)
         {
-            DomainException.Require(PolicyFunctions.FoodId(k) && kinds.Add(k), Bad);
+            DomainException.Require(FoodForecastRules.FoodId(k) && kinds.Add(k), Bad);
         }
         var available = new HashSet<string>(StringComparer.Ordinal);
         foreach (var f in Recreation)
@@ -69,7 +69,7 @@ public sealed partial record ComfortObservation
         foreach (var m in j.Methods)
         {
             DomainException.Require(
-                PolicyFunctions.FoodId(m.Definition) && methods.Add(m.Definition) && PolicyFunctions.FoodId(m.Kind) && !double.IsNaN(m.PowerW) && !double.IsInfinity(m.PowerW) && m.PowerW >= 0,
+                FoodForecastRules.FoodId(m.Definition) && methods.Add(m.Definition) && FoodForecastRules.FoodId(m.Kind) && !double.IsNaN(m.PowerW) && !double.IsInfinity(m.PowerW) && m.PowerW >= 0,
                 Bad
             );
         }

@@ -24,7 +24,7 @@ public sealed record RoutesPolicy
     public int MaxBreaches { get; init; }
 
     internal bool Valid() =>
-        PolicyFunctions.FoodId(Door) && PolicyFunctions.FoodId(Stuff) && MaxBreaches >= 1 && MaxBreaches <= 16;
+        FoodForecastRules.FoodId(Door) && FoodForecastRules.FoodId(Stuff) && MaxBreaches >= 1 && MaxBreaches <= 16;
 }
 
 /// <summary>The native routes census.</summary>
@@ -47,7 +47,7 @@ public sealed record RoutesObservation
         var pawns = new HashSet<string>(StringComparer.Ordinal);
         foreach (var id in Pawns)
         {
-            if (!PolicyFunctions.FoodId(id) || !pawns.Add(id))
+            if (!FoodForecastRules.FoodId(id) || !pawns.Add(id))
             {
                 throw new DomainException("invalid routes pawn");
             }
@@ -55,11 +55,11 @@ public sealed record RoutesObservation
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var f in Facilities)
         {
-            if (!PolicyFunctions.FoodId(f.Id) || !ids.Add(f.Id) || !PolicyFunctions.FoodId(f.Kind))
+            if (!FoodForecastRules.FoodId(f.Id) || !ids.Add(f.Id) || !FoodForecastRules.FoodId(f.Kind))
             {
                 throw new DomainException("invalid routes facility");
             }
-            if (f.Room.TryGetValue(out var room) && !PolicyFunctions.FoodId(room))
+            if (f.Room.TryGetValue(out var room) && !FoodForecastRules.FoodId(room))
             {
                 throw new DomainException("invalid routes facility room");
             }
@@ -86,7 +86,7 @@ public sealed record RoutesObservation
             var breachCells = new HashSet<Cell>();
             foreach (var b in f.Breaches)
             {
-                if (!PolicyFunctions.FoodId(b.Edifice) || (b.Pending != "" && !PolicyFunctions.FoodId(b.Pending)) || b.Distance < 0 || !breachCells.Add(b.Cell))
+                if (!FoodForecastRules.FoodId(b.Edifice) || (b.Pending != "" && !FoodForecastRules.FoodId(b.Pending)) || b.Distance < 0 || !breachCells.Add(b.Cell))
                 {
                     throw new DomainException("invalid routes breach");
                 }
@@ -95,7 +95,7 @@ public sealed record RoutesObservation
         var trafficKeys = new HashSet<(TrafficLayer, Cell)>();
         foreach (var t in Traffic)
         {
-            if (!t.Layer.Valid() || !PolicyFunctions.FoodId(t.Terrain) || !trafficKeys.Add((t.Layer, t.Cell)) || (t.Pending != "" && !PolicyFunctions.FoodId(t.Pending)))
+            if (!t.Layer.Valid() || !FoodForecastRules.FoodId(t.Terrain) || !trafficKeys.Add((t.Layer, t.Cell)) || (t.Pending != "" && !FoodForecastRules.FoodId(t.Pending)))
             {
                 throw new DomainException("invalid traffic cell");
             }

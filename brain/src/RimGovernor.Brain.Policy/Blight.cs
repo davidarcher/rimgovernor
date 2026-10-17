@@ -20,10 +20,10 @@ public sealed record BlightedPlant
     public bool Eligible { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class BlightRules
 {
     /// <summary>
-    /// The binary food/blight deficit signal (<see cref="BlightNeedOf"/>): an unknown census stays unknown (absence is
+    /// The binary food/blight deficit signal (<see cref="FoodRules.BlightNeedOf"/>): an unknown census stays unknown (absence is
     /// never evidence of recovery); otherwise deficit is simply "any blighted plant still stands", designated or not,
     /// because the Need is met by the cut, not by the order.
     /// </summary>

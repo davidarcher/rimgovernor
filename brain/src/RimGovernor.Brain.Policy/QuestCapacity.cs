@@ -130,7 +130,7 @@ public static class QuestCapacity
                 {
                     return result with { Reason = "stock_unknown" };
                 }
-                if (!QuestGiftDefs.Contains(request.Def))
+                if (!DefTablesRules.QuestGiftDefs.Contains(request.Def))
                 {
                     return result with { Reason = "gift_def_unsupported" };
                 }
@@ -246,7 +246,7 @@ public static class QuestCapacity
             {
                 continue;
             }
-            if (!status.TryGetValue(pawn.Id, out var state) || !AllKnown(state.Dead, state.Downed, state.Drafted, state.Mental))
+            if (!status.TryGetValue(pawn.Id, out var state) || !EmergencyRules.AllKnown(state.Dead, state.Downed, state.Drafted, state.Mental))
             {
                 return ([], 0, false);
             }

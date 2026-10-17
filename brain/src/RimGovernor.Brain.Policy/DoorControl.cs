@@ -19,7 +19,7 @@ public sealed record DoorChange
     public EquatableArray<PawnId> Occupants { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class DoorControlRules
 {
     /// <summary>
     /// Owns routine door settings. Only measured internal traffic links are held open; emergency heat relief may

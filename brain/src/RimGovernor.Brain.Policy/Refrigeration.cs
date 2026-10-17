@@ -82,7 +82,7 @@ public sealed record RefrigerationObservation
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var c in Coolers)
         {
-            if (!PolicyFunctions.FoodId(c.Id) || !seen.Add(c.Id))
+            if (!FoodForecastRules.FoodId(c.Id) || !seen.Add(c.Id))
             {
                 throw new DomainException("invalid cooler identity");
             }

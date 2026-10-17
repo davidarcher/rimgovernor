@@ -439,7 +439,7 @@ public static partial class WorkRules
     public static WorkDecision PlanWork(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<WorkRequirement> required, WorkDemand demand)
     {
         if (demand.WorkClaimsTruncated) return new();
-        ValidateDiseaseRest(demand.Resting);
+        DiseaseRestRules.ValidateDiseaseRest(demand.Resting);
         var resting = new HashSet<PawnId>();
         foreach (var row in demand.Resting)
         {
@@ -448,7 +448,7 @@ public static partial class WorkRules
         var requirements = new Dictionary<WorkType, WorkRequirement>();
         foreach (var entry in required)
         {
-            if (!ValidResource(new Resource(Wire.Name(entry.Work))) || (entry.Skill.Length != 0 && !ValidResource(new Resource(entry.Skill))) || entry.Minimum < 0 || entry.Minimum > 1000)
+            if (!AdmissionRules.ValidResource(new Resource(Wire.Name(entry.Work))) || (entry.Skill.Length != 0 && !AdmissionRules.ValidResource(new Resource(entry.Skill))) || entry.Minimum < 0 || entry.Minimum > 1000)
             {
                 throw new DomainException("invalid work requirement");
             }
@@ -463,7 +463,7 @@ public static partial class WorkRules
         foreach (var pawn in pawns)
         {
             var committed = demand.CommittedPawns.Contains(pawn.Id.Value);
-            if (!ValidResource(new Resource(pawn.Id.Value)) || !seen.Add(pawn.Id))
+            if (!AdmissionRules.ValidResource(new Resource(pawn.Id.Value)) || !seen.Add(pawn.Id))
             {
                 throw new DomainException("invalid work pawn");
             }
@@ -492,7 +492,7 @@ public static partial class WorkRules
             var names = new HashSet<string>();
             foreach (var s in skills)
             {
-                if (!ValidResource(new Resource(s.Name)) || s.Level < 0 || s.Level > 1000)
+                if (!AdmissionRules.ValidResource(new Resource(s.Name)) || s.Level < 0 || s.Level > 1000)
                 {
                     throw new DomainException("invalid work skill");
                 }
@@ -504,7 +504,7 @@ public static partial class WorkRules
             var w = new WorkWorker(pawn, PawnRules.BuildProfile(pawn)) { Committed = committed };
             foreach (var value in work)
             {
-                if (!ValidResource(new Resource(Wire.Name(value.Work))) || value.Priority < 0 || value.Priority > 4)
+                if (!AdmissionRules.ValidResource(new Resource(Wire.Name(value.Work))) || value.Priority < 0 || value.Priority > 4)
                 {
                     throw new DomainException("invalid work priority");
                 }
@@ -804,7 +804,7 @@ public static partial class WorkRules
         {
             // Helpers: sub-floor pawns the native floor admits, at the lowest rank; owners are not helpers.
             var nativeFloor = demand.Help.Floor;
-            var rec = PlanConstructionHelp(
+            var rec = ConstructionHelpersRules.PlanConstructionHelp(
                 demand.Help,
                 workers,
                 owners.GetValueOrDefault(WorkType.Construction) ?? [],
@@ -896,13 +896,13 @@ public static partial class WorkRules
     /// </summary>
     public static WorkDemand RoundsWorkDemand(RoundsFacts facts, bool building)
     {
-        var jobs = PlanHerd(facts.HerdPlanInput()).Jobs;
+        var jobs = HerdPlanRules.PlanHerd(facts.HerdPlanInput()).Jobs;
         var demand = new WorkDemand
         {
             CommittedPawns = facts.WorkClaims?.Pawns ?? [],
             WorkClaimsTruncated = facts.WorkClaims?.Truncated ?? false,
             Construction = building,
-            Arming = HuntArming(facts.FoodPlan),
+            Arming = HuntPrerequisiteRules.HuntArming(facts.FoodPlan),
             Handling = jobs.ContainsKey(HerdJob.Milk) || jobs.ContainsKey(HerdJob.Wool),
         };
         if (facts.GrowingCells.TryGetValue(out var cells))

@@ -32,7 +32,7 @@ public sealed partial record ForecastCoupledCandidates
                 && !resources.Claims.Targets.Contains(o.Source) && !resources.Claims.Targets.Contains(o.Bench)
                 && !resources.Claims.Targets.Contains(o.Bill)))
         };
-        if (!NeedEnabled(FoodSupplyNeed) || OutdoorHazardRules.OutdoorAcquisitionHeld(facts))
+        if (!NeedEnabled(FoodRules.FoodSupplyNeed) || OutdoorHazardRules.OutdoorAcquisitionHeld(facts))
             read = read with { Food = read.Food with { Options = [] }, FoodConversions = [] };
         // An unplaced planned shelter's cells and planned heater come from the round's planned thermal read (#3323).
         read = read with { Thermal = PlannedRules.WithPlannedThermal(read.Thermal, facts.PlannedThermal) };
@@ -84,7 +84,7 @@ public sealed partial record ForecastCoupledCandidates
         foreach (var route in read.Routes) Route(route.Pawn, route.FromStart ? "start" : Location(route.From), Location(route.To), route.Ticks);
         var food = Methods.Generation.FoodMethodCandidates.GenerateCoupled(read, needs, deadline);
         var construction = Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, deadline, resources,
-            PolicyFunctions.DefaultFlooringPolicy().Floors.ToHashSet(StringComparer.Ordinal));
+            FlooringRules.DefaultFlooringPolicy().Floors.ToHashSet(StringComparer.Ordinal));
         var shelter = Methods.Generation.CoupledShelterCandidates.Generate((shelterEnabled ? facts.PlannedShelters : []).OrderBy(r => r.Id).Select(r =>
             new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)),
             facts.Upkeep.Rooms, read.Thermal, construction.Operations, construction.Bindings, plannedSites, planned.Sites, deadline, horizon);
@@ -121,14 +121,14 @@ public sealed partial record ForecastCoupledCandidates
         truncated |= food.Truncated || construction.Truncated || composed.Truncated || support.Truncated;
         if (NeedEnabled(MilitaryFamily.Equipment) && facts.Gear.TryGetValue(out var gear))
         {
-            AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivityRequirements(gear).Alternatives,
+            AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivitiesRules.ClothingActivityRequirements(gear).Alternatives,
                 checked(read.Tick + (long)horizon), resources));
             // The effect-source family (#3285): labor-free (tainted filter, insulation floor) candidates per pawn that verified cards price (GearChoices, #3329).
-            var effects = GenerateEffectSources(EffectSourceFactsOf(gear, facts.MedicalPawns, facts.IdeologyInstalled));
+            var effects = EffectSourcesRules.GenerateEffectSources(EffectSourcesRules.EffectSourceFactsOf(gear, facts.MedicalPawns, facts.IdeologyInstalled));
             alternatives.AddRange(effects.Roots); findings.UnionWith(effects.Findings); truncated |= effects.Truncated;
         }
         else findings.Add("unknown_clothing_requirements");
-        var practice = Methods.Generation.PracticeMethodCandidates.Generate(facts, read.Practice, horizon, AssignedCombatCapabilities(facts.Ideology),
+        var practice = Methods.Generation.PracticeMethodCandidates.Generate(facts, read.Practice, horizon, CapabilityMaintenanceRules.AssignedCombatCapabilities(facts.Ideology),
             facts.Hostiles.IsKnown && facts.Hostiles.Value == 0 && facts.CriticalPatients.IsKnown && facts.CriticalPatients.Value == 0
             && !needs.Pawns.SelectMany(p => p.Needs).Any(n => n.Kind is "food" or "rest" && n.Level.IsKnown && n.Level.Value <= 0));
         tasks.AddRange(practice.Tasks); options.AddRange(practice.Options); alternatives.AddRange(practice.Roots);
@@ -269,7 +269,7 @@ public sealed partial record ForecastCoupledCandidates
             Findings = EquatableArray.From(findings),
             // Temperature mood (#3327): the gear census's card facts and the mood census's observed thoughts.
             CardPawns = facts.Gear.TryGetValue(out var census)
-                ? EffectSourceFactsOf(census, facts.MedicalPawns, facts.IdeologyInstalled).Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
+                ? EffectSourcesRules.EffectSourceFactsOf(census, facts.MedicalPawns, facts.IdeologyInstalled).Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
                     .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Card, StringComparer.Ordinal)
                 : new Dictionary<string, CardPawnFacts>(),
             // Two rows for one pawn are contradictory evidence: unknown.

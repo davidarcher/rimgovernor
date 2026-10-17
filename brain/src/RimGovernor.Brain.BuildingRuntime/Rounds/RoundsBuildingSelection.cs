@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -15,7 +16,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsCookingPlanner: reviewer == nil || native == nil");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.CookingNeed.FilingKey, Need = PolicyApi.CookingNeed, Definition = "Campfire", Environment = PlacementEnvironment.Anywhere };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = FoodRules.CookingNeed.FilingKey, Need = FoodRules.CookingNeed, Definition = "Campfire", Environment = PlacementEnvironment.Anywhere };
     }
 
     public static RoundsBuildingPlanner NewRoundsButcherPlanner(Rounder reviewer, IRoundsBuildingSource native)
@@ -28,7 +29,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsButcherPlanner: !ok");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.FoodSupplyNeed.FilingKey, Need = PolicyApi.FoodSupplyNeed, Definition = "TableButcher", Environment = PlacementEnvironment.Anywhere };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = FoodRules.FoodSupplyNeed.FilingKey, Need = FoodRules.FoodSupplyNeed, Definition = "TableButcher", Environment = PlacementEnvironment.Anywhere };
     }
 
     /// <summary>The count the concern wants built, the method that builds it, or the verdict that explains why none is wanted.</summary>
@@ -39,7 +40,7 @@ public sealed partial class RoundsBuildingPlanner
             return (0, default, FieldUnavailable("colonists"));
         }
         var c = Concern;
-        if (c == PolicyApi.FoodSupplyNeed.FilingKey)
+        if (c == FoodRules.FoodSupplyNeed.FilingKey)
         {
             if (Definition != "TableButcher")
             {
@@ -198,7 +199,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (missing, new MethodId(string.Create(CultureInfo.InvariantCulture, $"{prefix}indoor-sleeping-{count}-{missing}")), default);
         }
-        if (c == PolicyApi.CookingNeed.FilingKey)
+        if (c == FoodRules.CookingNeed.FilingKey)
         {
             if (Paste.Count > 0)
             {
@@ -243,7 +244,7 @@ public sealed partial class RoundsBuildingPlanner
         return (0, default, FieldUnavailable("concern_selection"));
     }
 
-    internal bool ButcherFacility() => Concern == PolicyApi.FoodSupplyNeed.FilingKey;
+    internal bool ButcherFacility() => Concern == FoodRules.FoodSupplyNeed.FilingKey;
 
     internal bool WorkshopLadder() => (Concern == EconomyFamily.Resource.FilingKey || GearLadder()) && !CraftingSpot;
 }
@@ -252,7 +253,7 @@ partial class RoundsBuildingPlanner
 {
     internal static bool ButchersAllColocated(IReadOnlyList<CookingBench> benches, Fact<RoomObservation> rooms)
     {
-        if (!PolicyApi.KitchenSeparation(rooms).TryGetValue(out var shared) || benches.Count == 0)
+        if (!KitchenSeparationRules.KitchenSeparation(rooms).TryGetValue(out var shared) || benches.Count == 0)
         {
             return false;
         }
@@ -289,7 +290,7 @@ partial class RoundsBuildingPlanner
         }
         foreach (var claim in history)
         {
-            if (claim.Building is { Definition: "Campfire" } campfire && PolicyApi.WorkOpen(campfire, observed) == BuildingWork.BuildingOpen)
+            if (claim.Building is { Definition: "Campfire" } campfire && ConstructionOwnershipRules.WorkOpen(campfire, observed) == BuildingWork.BuildingOpen)
             {
                 return true;
             }

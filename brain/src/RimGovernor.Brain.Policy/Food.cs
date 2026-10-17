@@ -50,7 +50,7 @@ public sealed record FoodFacts
         {
             Cooking = f.Cooking,
             CampfireRetireOwed = f.CampfireRetireOwed,
-            HumanFoodSettled = Fact.Known(!PolicyFunctions.HumanFoodPending(f.FoodPlan)),
+            HumanFoodSettled = Fact.Known(!HumanFoodPlanRules.HumanFoodPending(f.FoodPlan)),
             FootholdFood = RoundsRules.FootholdFood(f, p),
             FootholdProduction = RoundsRules.FootholdProduction(f),
             FieldsCovered = RoundsRules.Measured(f.FieldCoverage, v => v >= 1 - 1e-9),
@@ -85,7 +85,7 @@ public sealed class FoodFamily(bool supply, bool cooking, bool babyFeeding = fal
     /// <summary>The most cut designations one blight Method carries.</summary>
     public const int BlightCutLimit = 8;
 
-    public string Id => PolicyFunctions.FoodFamilyId;
+    public string Id => FoodRules.FoodFamilyId;
 
     /// <summary>The colony census, the pawns the food plan and the babies' food read, and the room census the kitchen, butchery and superseded campfire stand in.</summary>
     public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Colony, FactFamily.Pawns, FactFamily.Rooms];
@@ -94,10 +94,10 @@ public sealed class FoodFamily(bool supply, bool cooking, bool babyFeeding = fal
 
     public IReadOnlyList<Need> Derive(FoodFacts facts) =>
     [
-        .. supply ? [PolicyFunctions.FoodSupplyNeedOf(facts)] : Array.Empty<Need>(),
-        .. cooking ? [PolicyFunctions.CookingNeedOf(facts)] : Array.Empty<Need>(),
-        .. babyFeeding ? [PolicyFunctions.BabyFeedingNeedOf(facts)] : Array.Empty<Need>(),
-        .. blight ? [PolicyFunctions.BlightNeedOf(facts)] : Array.Empty<Need>(),
+        .. supply ? [FoodRules.FoodSupplyNeedOf(facts)] : Array.Empty<Need>(),
+        .. cooking ? [FoodRules.CookingNeedOf(facts)] : Array.Empty<Need>(),
+        .. babyFeeding ? [FoodRules.BabyFeedingNeedOf(facts)] : Array.Empty<Need>(),
+        .. blight ? [FoodRules.BlightNeedOf(facts)] : Array.Empty<Need>(),
     ];
 
     /// <summary>
@@ -107,24 +107,24 @@ public sealed class FoodFamily(bool supply, bool cooking, bool babyFeeding = fal
     /// </summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, FoodFacts facts)
     {
-        if (!ready.Any(n => n.Id == PolicyFunctions.BlightNeed) || !facts.Blight.TryGetValue(out var census))
+        if (!ready.Any(n => n.Id == FoodRules.BlightNeed) || !facts.Blight.TryGetValue(out var census))
         {
             return [];
         }
-        var targets = PolicyFunctions.SelectBlightCuts(census, facts.BlightRefused.ToHashSet(StringComparer.Ordinal), BlightCutLimit);
+        var targets = BlightRules.SelectBlightCuts(census, facts.BlightRefused.ToHashSet(StringComparer.Ordinal), BlightCutLimit);
         if (targets.Count == 0)
         {
             // Designated plants are being cut (an open batch continues); otherwise native offers no plant to designate.
-            return census.Any(p => p.Designated) ? [] : [NeedMethod.Held(PolicyFunctions.BlightNeed, "blight_cut_targets", "no_eligible_plant")];
+            return census.Any(p => p.Designated) ? [] : [NeedMethod.Held(FoodRules.BlightNeed, "blight_cut_targets", "no_eligible_plant")];
         }
         var rows = string.Concat(targets.Select(p => FormattableString.Invariant($"{p.ID}/{p.Definition}/{p.Cell.X}/{p.Cell.Z}\n")));
         var method = new MethodId("cut-" + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(rows))[..16]));
-        return [new NeedMethod(PolicyFunctions.BlightNeed, method, "cut blighted plants", id => new PlanSpec(id, new PlanRevision(1),
+        return [new NeedMethod(FoodRules.BlightNeed, method, "cut blighted plants", id => new PlanSpec(id, new PlanRevision(1),
             targets.Select((p, i) => DomainAction.NewCutPlantAction(new ActionId($"{id.Value}-{i}"), new CutPlant(p.ID, p.Definition, p.Cell)))))];
     }
 }
 
-public static partial class PolicyFunctions
+public static class FoodRules
 {
     public const string FoodFamilyId = "food";
 
@@ -221,7 +221,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Need BlightNeedOf(FoodFacts f)
     {
-        var satisfaction = BlightDeficit(f.Blight).TryGetValue(out var standing) ? standing ? Satisfaction.Unmet : Satisfaction.Met : Satisfaction.Unknown;
+        var satisfaction = BlightRules.BlightDeficit(f.Blight).TryGetValue(out var standing) ? standing ? Satisfaction.Unmet : Satisfaction.Met : Satisfaction.Unknown;
         return new Need
         {
             Id = BlightNeed,

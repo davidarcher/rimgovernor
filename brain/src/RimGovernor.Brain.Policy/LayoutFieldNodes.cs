@@ -63,7 +63,7 @@ internal sealed partial class GraphBuilder
             {
                 continue;
             }
-            if (!PolicyFunctions.FieldCapacityTarget(colonists, crop, In.FoodReserveDays).TryGetValue(out var cells))
+            if (!FieldCapacityRules.FieldCapacityTarget(colonists, crop, In.FoodReserveDays).TryGetValue(out var cells))
             {
                 continue;
             }
@@ -78,7 +78,7 @@ internal sealed partial class GraphBuilder
             output.Add(node);
             var uk = crop.UnitsPerCell.TryGetValue(out var perCell);
             var gk = crop.GrowDays.TryGetValue(out var days);
-            if (!hk || !uk || !gk || !PolicyFunctions.FieldPositive(perCell) || !PolicyFunctions.FieldPositive(days))
+            if (!hk || !uk || !gk || !FieldCapacityRules.FieldPositive(perCell) || !FieldCapacityRules.FieldPositive(days))
             {
                 continue;
             }

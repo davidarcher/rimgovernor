@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 public interface IClearanceSource
@@ -111,9 +112,9 @@ public static class ClearanceReads
                 var yields = new List<CandidateYield>(s.Yields.Count);
                 foreach (var y in s.Yields)
                 {
-                    yields.Add(PolicyFunctions.SourceYield(new ResourceKey { Def = new Resource(y.DefName) }, y.Count, y.UnitValue, Known((long)y.StorageHeadroom)));
+                    yields.Add(CandidateRules.SourceYield(new ResourceKey { Def = new Resource(y.DefName) }, y.Count, y.UnitValue, Known((long)y.StorageHeadroom)));
                 }
-                var candidate = PolicyFunctions.SourceCandidate(CandidateKind.Salvage, (row.EntityId ?? ""), Known(s.Labor), Known(s.PathLength), true, SalvageUnitsPerTrip, [.. yields]);
+                var candidate = CandidateRules.SourceCandidate(CandidateKind.Salvage, (row.EntityId ?? ""), Known(s.Labor), Known(s.PathLength), true, SalvageUnitsPerTrip, [.. yields]);
                 target = target with { Salvage = new SalvageEvidence { Safe = Known(s.Safe), Candidate = candidate, AgeTicks = (int)s.AgeTicks } };
             }
             rows.Add(target);

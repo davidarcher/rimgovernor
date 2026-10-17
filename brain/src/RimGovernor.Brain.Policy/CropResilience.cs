@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class CropResilienceRules
 {
     /// <summary>
     /// Counts observed enabled growers and capable cooks. Unknown pawn availability or work rows cannot
@@ -64,7 +64,7 @@ public static partial class PolicyFunctions
         var dk = crop.GrowDays.TryGetValue(out var days);
         var gk = r.Growers.TryGetValue(out var growers);
         var pk = r.Colonists.TryGetValue(out var people);
-        if (wk && yk && dk && gk && pk && FoodNumber(work) && work >= 0 && FieldPositive(yield) && FieldPositive(days) && growers >= 0 && people > 0)
+        if (wk && yk && dk && gk && pk && FoodForecastRules.FoodNumber(work) && work >= 0 && FieldCapacityRules.FieldPositive(yield) && FieldCapacityRules.FieldPositive(days) && growers >= 0 && people > 0)
         {
             terms.Add(new FarmSiteTerm("labor", -unit * .0002 * work / yield * people / Math.Max(1, growers)));
             terms.Add(new FarmSiteTerm("harvest-delay", -unit * .03 * days));
@@ -78,7 +78,7 @@ public static partial class PolicyFunctions
 
     internal static bool CropSoilCompatible(CropChoice crop, SiteCell cell)
     {
-        if (GrowsInDark(crop))
+        if (ControlledEnvironmentRules.GrowsInDark(crop))
         {
             // Dark is a roofed cell with no lamp: an open cell is lit by the sky for part of every day,
             // whatever hour the cells were read.
@@ -106,11 +106,11 @@ public static partial class PolicyFunctions
     {
         var unit = SiteRules.CropRate(crop, 1) * cells;
         var terms = new List<FarmSiteTerm>();
-        if (ToxicFalloutActive(r.Conditions).TryGetValue(out var fallout) && fallout)
+        if (CropRiskRules.ToxicFalloutActive(r.Conditions).TryGetValue(out var fallout) && fallout)
         {
             terms.Add(new FarmSiteTerm("risk-fallout", 2 * unit));
         }
-        if (HarvestGapDays(r.Calendar, Known(EquatableArray.From<DisasterCondition>([]))).TryGetValue(out var gap) && gap > 0)
+        if (CalendarRules.HarvestGapDays(r.Calendar, Known(EquatableArray.From<DisasterCondition>([]))).TryGetValue(out var gap) && gap > 0)
         {
             terms.Add(new FarmSiteTerm("risk-frost", 2 * unit * Math.Min(1, gap / Math.Max(1, r.ReserveDays))));
         }

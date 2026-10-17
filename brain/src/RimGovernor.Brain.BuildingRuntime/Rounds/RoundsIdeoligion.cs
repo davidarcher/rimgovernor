@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
@@ -37,7 +38,7 @@ public sealed partial class Rounder
             return Unknown<DesignChoice>();
         }
 
-        options = options with { Needs = PolicyFunctions.IdeoligionNeeds(ideo.Facts, read.Projection.WorkPawns, read.Projection.Facts.MoodPawns) };
+        options = options with { Needs = IdeoligionDesignRules.IdeoligionNeeds(ideo.Facts, read.Projection.WorkPawns, read.Projection.Facts.MoodPawns) };
         var precepts = new List<string>();
         foreach (var held in ideo.Facts.Precepts)
         {
@@ -59,7 +60,7 @@ public sealed partial class Rounder
         try
         {
             var emergency = EmergencySnapshot.New(snapshot, tick, read.Emergency);
-            var (hostiles, patients) = PolicyFunctions.EmergencyNeeds(emergency, snapshot, tick);
+            var (hostiles, patients) = EmergencyNeedsRules.EmergencyNeeds(emergency, snapshot, tick);
             calm = RitualRules.RitualCalm(hostiles, patients);
         }
         catch (DomainException)
@@ -67,7 +68,7 @@ public sealed partial class Rounder
             // No emergency snapshot leaves calm unknown.
         }
 
-        return PolicyFunctions.ChooseIdeoligionReform(options, current, ideo.Facts.Development, calm);
+        return IdeoligionDesignRules.ChooseIdeoligionReform(options, current, ideo.Facts.Development, calm);
     }
 }
 

@@ -25,7 +25,7 @@ public static class ForecastMaterialChoices
         if (rows.Select(o => o.Id).Distinct(StringComparer.Ordinal).Count() != rows.Length
             || rows.Any(o => string.IsNullOrWhiteSpace(o.Demand) || string.IsNullOrWhiteSpace(o.Id)
                 || o.Value.TryGetValue(out var v) && (!double.IsFinite(v) || v < 0)
-                || o.Cost.Any(c => !ValidResource(c.Resource) || c.Count < 0))) throw new DomainException("invalid material option");
+                || o.Cost.Any(c => !AdmissionRules.ValidResource(c.Resource) || c.Count < 0))) throw new DomainException("invalid material option");
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         if (valuation is not null && rows.Any(o => o.Requirements is not null))
             throw new DomainException("requirement priorities and scalar utility are separate objectives");

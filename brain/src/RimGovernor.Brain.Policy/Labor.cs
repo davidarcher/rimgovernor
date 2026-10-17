@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 // ListPawns reports them. The WorkType members this file's Go consts name (Construction, Research, Mining,
 // PlantCutting, Crafting, Hauling, Cleaning, Basic = BasicWorker, Handling, Cooking, Firefighter, Tailoring,
 // Smithing) belong to the WorkType enum.
-public static partial class PolicyFunctions
+public static class LaborRules
 {
     // Keyed by filing key (#3231 decision 22): a Need's NeedId.FilingKey at its family/kind level, so a Need keeps
     // the profile its Concern had.
@@ -21,10 +21,10 @@ public static partial class PolicyFunctions
         SetNeeds(
             [WorkType.Construction],
             HomeUpkeepFamily.Clearance, MilitaryFamily.Defense, RoomsFamily.Comfort, HomeUpkeepFamily.Repairs,
-            LayoutFamily.StoneShell, FoodStorageNeed, LayoutFamily.HomeCoverage, AnimalsFamily.Containment,
+            LayoutFamily.StoneShell, FoodStoresRules.FoodStorageNeed, LayoutFamily.HomeCoverage, AnimalsFamily.Containment,
             RoomsFamily.Lighting, RoomsFamily.Flooring, BiotechFamily.MechCharger, BiotechFamily.GeneBank,
             ShelterFamily.Starter, ShelterFamily.Sleeping, ShelterFamily.Expansion, LayoutFamily.Routes);
-        SetNeeds([WorkType.PlantCutting], BlightNeed);
+        SetNeeds([WorkType.PlantCutting], FoodRules.BlightNeed);
         SetNeeds([WorkType.Art], RoomsFamily.Art);
 
         // The trade Need's sale batch at any crafting bench: sculpture, apparel, weapon.
@@ -45,7 +45,7 @@ public static partial class PolicyFunctions
         // The range shell and its stands are built; the native training job (#2610) spends the trainees' own hours.
         SetNeeds([WorkType.Construction], MilitaryFamily.Training);
         SetNeeds([WorkType.Handling], AnimalsFamily.Herd);
-        SetNeeds([WorkType.Cooking], BabyFeedingNeed);
+        SetNeeds([WorkType.Cooking], FoodRules.BabyFeedingNeed);
 
         // Vents are built over standing walls and roofs are designated for builders.
         SetNeeds([WorkType.Construction], LayoutFamily.ClimateEnvelope);

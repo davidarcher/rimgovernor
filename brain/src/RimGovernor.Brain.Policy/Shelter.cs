@@ -10,10 +10,10 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record ShelterFacts
 {
-    /// <summary>Whether an indoor place stands for everyone (<see cref="PolicyFunctions.FootholdShelter"/>).</summary>
+    /// <summary>Whether an indoor place stands for everyone (<see cref="RoundsRules.FootholdShelter"/>).</summary>
     public Fact<bool> Indoor { get; init; }
 
-    /// <summary>Whether a sleeping place stands for everyone (<see cref="PolicyFunctions.FootholdSleeping"/>).</summary>
+    /// <summary>Whether a sleeping place stands for everyone (<see cref="RoundsRules.FootholdSleeping"/>).</summary>
     public Fact<bool> Beds { get; init; }
 
     /// <summary>Whether every colonist owns, and was seen using, a suitable bed and no bedroom step is due.</summary>
@@ -58,7 +58,7 @@ public sealed record ShelterFacts
             SleepingMin = RoundsRules.Fallback(f.SleepingMin, f.OutdoorTemperature),
             SleepingMax = RoundsRules.Fallback(f.SleepingMax, f.OutdoorTemperature),
             TemperatureOwed = f.TemperatureOwed,
-            HeatDoorOwed = f.Upkeep.Rooms.IsKnown ? Known(PolicyFunctions.DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes, p).Any(d => d.Heat)) : Unknown<bool>(),
+            HeatDoorOwed = f.Upkeep.Rooms.IsKnown ? Known(DoorControlRules.DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes, p).Any(d => d.Heat)) : Unknown<bool>(),
             SafeAreaOwed = f.SafeAreaOwed,
         };
     }
@@ -241,7 +241,7 @@ public static partial class ShelterRules
     };
 
     /// <summary>
-    /// Whether the starter shelter holds the colony's Construction labor this review (<see cref="ConstructionLaborHeld"/>):
+    /// Whether the starter shelter holds the colony's Construction labor this review (<see cref="ConstructionLaborRules.ConstructionLaborHeld"/>):
     /// the foothold sleeping and indoor places are not both known standing. A plain per-review value, not a latch.
     /// </summary>
     internal static bool StarterShelterOwed(RoundsFacts f) => !RoundsRules.Positive(RoundsRules.AllFacts(RoundsRules.FootholdShelter(f), RoundsRules.FootholdSleeping(f)));

@@ -67,7 +67,7 @@ public static partial class ProductionRules
                 else if (work.Item.Length != 0)
                 {
                     if (!unfinishedItems.Add(work.Item)) throw new DomainException("unfinished item linked to multiple production promises");
-                    if (work.Ingredients.Any(a => !ValidResource(a.Resource) || a.Count <= 0)
+                    if (work.Ingredients.Any(a => !AdmissionRules.ValidResource(a.Resource) || a.Count <= 0)
                         || work.Ingredients.Select(a => a.Resource).Distinct().Count() != work.Ingredients.Count)
                         throw new DomainException("invalid embedded ingredients");
                     // Native creates an initialized unfinished item only after collecting the whole iteration.
@@ -84,7 +84,7 @@ public static partial class ProductionRules
                 if (alternatives.Length == 0) return default;
                 foreach (var amount in alternatives)
                 {
-                    if (!ValidResource(amount.Resource) || amount.Count <= 0 || remaining.TryGetValue(out var n) && n < 0)
+                    if (!AdmissionRules.ValidResource(amount.Resource) || amount.Count <= 0 || remaining.TryGetValue(out var n) && n < 0)
                         throw new DomainException("invalid production ingredient amount");
                     var prior = amounts.GetValueOrDefault(amount.Resource, Known(0.0));
                     amounts[amount.Resource] = remaining.TryGetValue(out var fresh) && fresh == 0 ? Known(0.0)
@@ -136,7 +136,7 @@ public static partial class ProductionRules
         var total = new Dictionary<Resource, double>();
         foreach (var cost in costs)
         {
-            if (!ValidResource(cost.Resource) || cost.Count < 0) throw new DomainException("invalid material cost");
+            if (!AdmissionRules.ValidResource(cost.Resource) || cost.Count < 0) throw new DomainException("invalid material cost");
             total[cost.Resource] = total.GetValueOrDefault(cost.Resource) + cost.Count * (double)copies;
         }
         return total.All(p => p.Value == 0 || budget.GetValueOrDefault(p.Key, Known(0.0)).TryGetValue(out var free) && free >= p.Value);

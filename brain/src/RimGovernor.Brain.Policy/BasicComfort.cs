@@ -69,7 +69,7 @@ public sealed record BasicComfortReview
     public bool CoreRecovered() => Dining == ComfortNeed.Recovered && Recreation == ComfortNeed.Recovered;
 }
 
-public static partial class PolicyFunctions
+public static class BasicComfortRules
 {
     /// <summary>
     /// Measures the unfiltered comfort census (every indoor seat and every recreation source, whatever room
@@ -78,7 +78,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static BasicComfortReview ReviewBasicComfort(Fact<ComfortObservation> observed)
     {
-        var full = ReviewComfort(observed, new ComfortHistory(), new Tick(0));
+        var full = ComfortRules.ReviewComfort(observed, new ComfortHistory(), new Tick(0));
         static ComfortNeed Provided(ComfortNeed need) => need == ComfortNeed.UseNeeded ? ComfortNeed.Recovered : need;
 
         var r = new BasicComfortReview

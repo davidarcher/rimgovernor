@@ -5,7 +5,6 @@ using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Store.Codec;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 using StoreWorld = RimGovernor.Brain.Store.World;
 

@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -49,7 +48,7 @@ public sealed class CoordinatedConstructionTests
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
         var template = facts.ForecastObserved.Needs!.Pawns[0];
-        var option = Option("producer", 0, 20, 20) with { Definition = floor ? DefaultFlooringPolicy().Floors[0] : "Wall" };
+        var option = Option("producer", 0, 20, 20) with { Definition = floor ? FlooringRules.DefaultFlooringPolicy().Floors[0] : "Wall" };
         facts = facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
@@ -123,15 +122,15 @@ public sealed class CoordinatedConstructionTests
             Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 300))))
         };
-        var retry = ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed",
+        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed",
             new ActivityTaskBinding(supply.Id, supply.Step with { Target = "carried-wood", Container = "frame", Count = 7 }) { RemainingCount = Known(7) }))!;
         Assert.Equal(7, retry.Tasks.Single(t => t.Id == supply.Id).Step.Count);
         var finish = retry.Tasks.Single(t => t.Step.Job == "FinishFrame");
-        var next = ContinueCoordinatedActivity(retry, Known(true), Read(retry, "completed",
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(retry, Known(true), Read(retry, "completed",
             new ActivityTaskBinding(finish.Id, finish.Step with { Target = "frame" })) with { SatisfiedTasks = [supply.Id] })!;
         Assert.Equal("frame", next.Orders.Single().Steps[0].Target);
-        Assert.True(ContinueCoordinatedActivity(next, Known(true), Read(next, "completed"))!.Orders.Single().Release);
-        var done = ContinueCoordinatedActivity(next, Known(true), Read(next, "completed") with { SatisfiedTasks = [finish.Id] })!;
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Read(next, "completed"))!.Orders.Single().Release);
+        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Read(next, "completed") with { SatisfiedTasks = [finish.Id] })!;
         Assert.Empty(done.Tasks);
         Assert.True(done.Orders.Single().Release);
     }

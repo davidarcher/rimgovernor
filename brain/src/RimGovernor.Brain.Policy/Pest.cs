@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Domain;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -42,6 +41,6 @@ public static partial class PestRules
             throw new DomainException("pest census unavailable");
         }
         static (double Weight, bool Accepted) Accept(AcquisitionSource row) => (1, row.Hunt && row.Pest);
-        return SelectAcquisitionCore(sources, Known((double)count), Known(0.0), Accept, held ?? new Dictionary<string, bool>(), huntSlots);
+        return AcquisitionRules.SelectAcquisitionCore(sources, Known((double)count), Known(0.0), Accept, held ?? new Dictionary<string, bool>(), huntSlots);
     }
 }

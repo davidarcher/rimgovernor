@@ -33,7 +33,7 @@ public static partial class SurgeryRules
             {
                 continue;
             }
-            var items = want.Items.Where(ValidResource).ToList();
+            var items = want.Items.Where(AdmissionRules.ValidResource).ToList();
             if (items.Count > 0)
             {
                 output.Add(
@@ -182,7 +182,7 @@ public static partial class SurgeryRules
                         }
                         inProduction = inProduction || billed.Contains(recipe.Name);
                         var ak = recipe.Available.TryGetValue(out var available);
-                        var serves = uk && usable && tk && FoodId(token!) && ak && available;
+                        var serves = uk && usable && tk && FoodForecastRules.FoodId(token!) && ak && available;
                         fabricable = fabricable || serves;
                         if (pick is null && serves && bench.Bills.Count < 15)
                         {
@@ -345,7 +345,7 @@ public static partial class SurgeryRules
         var output = new List<Resource>();
         foreach (var item in items)
         {
-            if ((fabricable?.Contains(item) ?? false) && ValidResource(item))
+            if ((fabricable?.Contains(item) ?? false) && AdmissionRules.ValidResource(item))
             {
                 output.Add(item);
             }

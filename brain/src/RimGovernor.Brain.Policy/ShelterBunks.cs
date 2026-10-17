@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Policy;
 public static partial class ShelterRules
 {
     /// <summary>The footprint a bunk anchored at anchor occupies at a rotation.</summary>
-    public static Rectangle BunkRect(Cell anchor, Rotation rot) => OccupiedRect(anchor, ShelterBunkSize, rot);
+    public static Rectangle BunkRect(Cell anchor, Rotation rot) => InteriorRules.OccupiedRect(anchor, ShelterBunkSize, rot);
 
     /// <summary>The two cells of BunkRect.</summary>
     public static IReadOnlyList<Cell> BunkCells(Cell anchor, Rotation rot) => PlannedRules.RectCells(BunkRect(anchor, rot));
@@ -54,7 +54,7 @@ public static partial class ShelterRules
             Coolers = coolers,
             Capabilities = LayoutCapabilityRules.CapabilitiesOf(PlannedRole.Shelter),
         };
-        var (_, ok) = DoorSide(interior.Interior, room.Door);
+        var (_, ok) = InteriorRules.DoorSide(interior.Interior, room.Door);
         if (!ok)
         {
             return (new InteriorRoom(), false);
@@ -83,7 +83,7 @@ public static partial class ShelterRules
         {
             return [];
         }
-        var (plan, planned) = PlanRoomInterior(interior, new InteriorPieceDef());
+        var (plan, planned) = InteriorRegionRules.PlanRoomInterior(interior, new InteriorPieceDef());
         if (!planned)
         {
             return [];

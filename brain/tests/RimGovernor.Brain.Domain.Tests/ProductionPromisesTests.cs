@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Observation;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using O = RimGovernor.Contracts.Wire.Observations;
 using Ops = RimGovernor.Contracts.Wire.Operations;
 using RimGovernor.Brain.Store;

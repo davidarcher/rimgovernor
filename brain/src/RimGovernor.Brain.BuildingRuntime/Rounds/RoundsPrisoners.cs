@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -110,7 +111,7 @@ public sealed class PrisonersRounds
             return new JailStep();
         }
 
-        return PolicyFunctions.NextJailStep(plan, rooms, HeldPrisoners(prisoners!), sleeping!.Beds, built.Buildings);
+        return JailRules.NextJailStep(plan, rooms, HeldPrisoners(prisoners!), sleeping!.Beds, built.Buildings);
     }
 
     /// <summary>Flags one jail bed for prisoners, once per bed under the Need; nothing when native already has it so.</summary>

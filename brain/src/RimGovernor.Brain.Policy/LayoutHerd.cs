@@ -23,7 +23,7 @@ public static partial class LayoutHerdRules
             var outline = area.Bounds();
             var room = kind switch
             {
-                "pen" => LayoutPlan.HerdRoom(outline, PlannedPen, herd),
+                "pen" => LayoutPlan.HerdRoom(outline, HerdRoomsRules.PlannedPen, herd),
                 _ => LayoutPlan.YardRoom(outline),
             };
             var id = Math.Max(Math.Max(plan.NextRoomId, 1), plan.Rooms.Select(r => r.Id + 1).DefaultIfEmpty(1).Max());
@@ -100,22 +100,22 @@ partial record LayoutPlan
     public static IReadOnlyList<RoomNode> HerdRoomNodes(LayoutPlan plan, IReadOnlyList<PenWant> pens)
     {
         var nodes = new List<RoomNode>();
-        var herds = plan.RoomsOf(PlannedPen).Select(r => r.Herd).Concat(pens.Select(p => p.Race)).Distinct().Order(StringComparer.Ordinal);
+        var herds = plan.RoomsOf(HerdRoomsRules.PlannedPen).Select(r => r.Herd).Concat(pens.Select(p => p.Race)).Distinct().Order(StringComparer.Ordinal);
         foreach (var herd in herds)
         {
             var n = 0;
-            string Id() => $"{Wire.Name(PlannedPen)}/{herd}/{++n}";
-            foreach (var pen in plan.HerdRooms(PlannedPen, herd))
+            string Id() => $"{Wire.Name(HerdRoomsRules.PlannedPen)}/{herd}/{++n}";
+            foreach (var pen in plan.HerdRooms(HerdRoomsRules.PlannedPen, herd))
             {
                 var b = pen.Region.Bounds();
-                nodes.Add(new RoomNode { Id = Id(), Role = PlannedPen, Herd = herd, Area = b.Width * b.Height, Reason = LayoutHerdRules.ReasonHerdRoom });
+                nodes.Add(new RoomNode { Id = Id(), Role = HerdRoomsRules.PlannedPen, Herd = herd, Area = b.Width * b.Height, Reason = LayoutHerdRules.ReasonHerdRoom });
             }
             var want = pens.FirstOrDefault(p => p.Race == herd);
             var owed = want is null ? 0 : want.Cells - plan.PenCells(herd);
             if (owed > 0)
             {
-                var (w, h) = PenSide(owed);
-                nodes.Add(new RoomNode { Id = Id(), Role = PlannedPen, Herd = herd, Area = w * h, Reason = LayoutHerdRules.ReasonHerdRoom });
+                var (w, h) = HerdPenRules.PenSide(owed);
+                nodes.Add(new RoomNode { Id = Id(), Role = HerdRoomsRules.PlannedPen, Herd = herd, Area = w * h, Reason = LayoutHerdRules.ReasonHerdRoom });
             }
         }
         return nodes;

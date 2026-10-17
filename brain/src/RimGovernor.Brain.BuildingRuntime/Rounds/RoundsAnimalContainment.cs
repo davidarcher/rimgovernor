@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 internal static class RoundsAnimalContainment
@@ -95,6 +96,6 @@ internal static class RoundsAnimalContainment
         {
             return false;
         }
-        return PolicyApi.PensStand(plan!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census!.Buildings);
+        return HerdPenRules.PensStand(plan!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census!.Buildings);
     }
 }

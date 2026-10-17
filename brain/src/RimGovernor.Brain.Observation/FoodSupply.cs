@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 /// <summary>
@@ -103,7 +104,7 @@ public static class FoodSupplyReads
             var barred = false;
             if (row.Forbidden && !stock.Corpse)
             {
-                var reserve = PolicyFunctions.ReserveFoodDefinition(stock.DefName);
+                var reserve = FoodReserveRules.ReserveFoodDefinition(stock.DefName);
                 stock = stock with { Reserve = reserve };
                 barred = !reserve;
             }

@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Store;
 
@@ -81,19 +80,19 @@ public sealed partial class Store
         foreach (var original in old.Orders)
         {
             var row = observed.Single(r => r.Pawn == original.Pawn);
-            if (MatchesActivityOwner(original, row) && !batch.Orders.Any(o => o.Pawn == original.Pawn))
+            if (ActivityContinuationRules.MatchesActivityOwner(original, row) && !batch.Orders.Any(o => o.Pawn == original.Pawn))
                 throw new ConflictException("activity continuation abandons an owned participant");
         }
         foreach (var order in batch.Orders)
         {
             var original = old.Orders.SingleOrDefault(o => o.Pawn == order.Pawn);
             if (original is not null && PawnActivities.SameOrder(original, order)
-                && MatchesActivityOwner(original, observed.Single(r => r.Pawn == original.Pawn))) continue;
+                && ActivityContinuationRules.MatchesActivityOwner(original, observed.Single(r => r.Pawn == original.Pawn))) continue;
             if (original is null || original.Release || order.Assignment != original.Assignment
                 || order.Method != prior.Method.Value || order.ExpectedRevision != original.Revision)
                 throw new ConflictException("activity continuation changes ownership or skips a revision");
             var row = observed.Single(r => r.Pawn == original.Pawn);
-            if (!MatchesActivityOwner(original, row) || (!order.Release && row.State is not ("completed" or "failed")
+            if (!ActivityContinuationRules.MatchesActivityOwner(original, row) || (!order.Release && row.State is not ("completed" or "failed")
                 && !(original.Preparing && row.State == "holding")))
                 throw new ConflictException("activity continuation requires exact observed ownership and a terminal prior step");
         }
@@ -138,7 +137,7 @@ public sealed partial class Store
         if (prior.Retired || installed?.Progress[0].Action.PawnActivities is not { } batch
             || !installed.Progress[0].View.Snapshot.SameWorld(current)
             || installed.Progress[0].View.Snapshot.Native != current.Native || observedTick < installed.Progress[0].View.Tick
-            || !ReviewActivityOwnership(batch, Fact.Known(false), observedTick.Value, observed).OwnershipEnded)
+            || !ActivityContinuationRules.ReviewActivityOwnership(batch, Fact.Known(false), observedTick.Value, observed).OwnershipEnded)
             throw new ConflictException("activity ownership is not known ended");
         tx.Floors.Guard(current, observedTick);
         _ = tx.Execute("UPDATE plans SET retired=1 WHERE id=$id", ("$id", previous));

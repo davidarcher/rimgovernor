@@ -76,7 +76,7 @@ public sealed class SnapshotRounds
         }
         if (Facts.Items.Market is null)
         {
-            var items = PolicyFunctions.CoreItemFacts();
+            var items = ItemFactsFixtureRules.CoreItemFacts();
             Facts = Facts with { Items = items, MedicalReserve = Facts.MedicalReserve with { Catalog = items } };
         }
         if (Projection is not null)

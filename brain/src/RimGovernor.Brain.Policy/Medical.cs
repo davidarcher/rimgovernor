@@ -56,7 +56,7 @@ public sealed record MedicalFacts
     /// <summary>
     /// The facts a review already holds. <paramref name="medicineActive"/> is the review's medicine latch the silver
     /// gap reads (the economy's trade need), which only the organ sale harvest consults. The critical patients are
-    /// the family read's own (<see cref="PolicyFunctions.CriticalPatientIds"/>).
+    /// the family read's own (<see cref="EmergencyNeedsRules.CriticalPatientIds"/>).
     /// </summary>
     public static MedicalFacts From(RoundsFacts f, RoundsPolicy policy, bool medicineActive)
     {
@@ -178,7 +178,7 @@ public static partial class MedicalRules
             Id = CriticalCensusNeed,
             Tier = NeedTier.SeriousHarm,
             Satisfaction = satisfaction,
-            Deficit = WholeDeficit(satisfaction),
+            Deficit = FoodRules.WholeDeficit(satisfaction),
             Evidence = [new("patients", patients.TryGetValue(out var count) ? Known(count.ToString(System.Globalization.CultureInfo.InvariantCulture)) : Unknown<string>())],
         };
     }
@@ -192,7 +192,7 @@ public static partial class MedicalRules
             Id = MedicalCareNeed,
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
-            Deficit = WholeDeficit(satisfaction),
+            Deficit = FoodRules.WholeDeficit(satisfaction),
             Evidence = [new("sick", f.CareRecovered.TryGetValue(out var known) ? Known(known ? "none" : "in_care") : Unknown<string>())],
         };
     }
@@ -232,7 +232,7 @@ public static partial class MedicalRules
             Id = SurgeryNeed,
             Tier = NeedTier.Wellbeing,
             Satisfaction = satisfaction,
-            Deficit = WholeDeficit(satisfaction),
+            Deficit = FoodRules.WholeDeficit(satisfaction),
             Evidence = [new("operations", f.SurgeryRecovered.TryGetValue(out var known) ? Known(known ? "none" : "owed") : Unknown<string>())],
         };
     }
@@ -244,7 +244,7 @@ public static partial class MedicalRules
     public static Fact<bool> SurgeryNeedRecovered(RoundsFacts f, RoundsPolicy p, bool medicineActive)
     {
         var recovered = RoundsRules.AllFacts(SurgeryRules.SurgeryRecovered(f.MedicalPawns), RoundsRules.Measured(SurgeryRules.ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContextOf(), f.FabricableParts), owed => !owed));
-        if (OrganHarvestRules.SaleHarvestWanted(f, SilverGapRules.RoundsSilverShort(f, p, medicineActive)) || OrganHarvestRules.PartRecoveryWanted(f) || PegCycleWanted(f, p.Prisoners()))
+        if (OrganHarvestRules.SaleHarvestWanted(f, SilverGapRules.RoundsSilverShort(f, p, medicineActive)) || OrganHarvestRules.PartRecoveryWanted(f) || DoctorTrainingRules.PegCycleWanted(f, p.Prisoners()))
         {
             return Known(false);
         }

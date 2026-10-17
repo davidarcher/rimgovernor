@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class EmergencyNeedsRules
 {
     /// <summary>
     /// Go <c>EmergencyNeeds</c>: uses the same census and medical/threat rules as clock safety. Incomplete or
@@ -8,7 +8,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (Fact<long> Hostiles, Fact<long> Patients) EmergencyNeeds(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick)
     {
-        var decision = EvaluateEmergency(snapshot, current, tick);
+        var decision = EmergencyRules.EvaluateEmergency(snapshot, current, tick);
         long threats = 0;
         foreach (var hold in decision.Holds)
         {
@@ -54,7 +54,7 @@ public static partial class PolicyFunctions
     private static long CountPatients(EmergencySnapshot snapshot, bool tending)
     {
         long patients = 0;
-        foreach (var pawn in EmergencyPatients(snapshot.Facts))
+        foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
         {
             if (pawn.Dead.TryGetValue(out var dead) && dead)
             {
@@ -63,7 +63,7 @@ public static partial class PolicyFunctions
             var downed = pawn.Downed.ValueOrDefault;
             var bleeding = pawn.Bleeding.ValueOrDefault;
             var needsTend = pawn.NeedsTend.ValueOrDefault;
-            if (UrgentPatient(pawn) || (tending && (downed || bleeding || needsTend)))
+            if (EmergencyRules.UrgentPatient(pawn) || (tending && (downed || bleeding || needsTend)))
             {
                 patients++;
             }
@@ -85,20 +85,20 @@ public static partial class PolicyFunctions
             return Unknown<EquatableArray<PawnId>>();
         }
         var ids = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var pawn in EmergencyPatients(snapshot.Facts))
+        foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
         {
             if (pawn.Dead.TryGetValue(out var dead) && dead)
             {
                 continue;
             }
-            if (UrgentPatient(pawn) || pawn.Downed.ValueOrDefault || pawn.Bleeding.ValueOrDefault || pawn.NeedsTend.ValueOrDefault)
+            if (EmergencyRules.UrgentPatient(pawn) || pawn.Downed.ValueOrDefault || pawn.Bleeding.ValueOrDefault || pawn.NeedsTend.ValueOrDefault)
             {
                 ids.Add(pawn.Id.Value);
             }
         }
         if (medical.TryGetValue(out var pawns))
         {
-            foreach (var pawn in pawns.Where(p => LifeSavingAmputations(p).Count > 0))
+            foreach (var pawn in pawns.Where(p => EmergencyRules.LifeSavingAmputations(p).Count > 0))
             {
                 ids.Add(pawn.Id.Value);
             }
@@ -124,7 +124,7 @@ public static partial class PolicyFunctions
             return (patients, urgent);
         }
         var byId = new Dictionary<PawnId, EmergencyPawn>();
-        foreach (var pawn in EmergencyPatients(snapshot.Facts))
+        foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
         {
             byId[pawn.Id] = pawn;
         }
@@ -132,7 +132,7 @@ public static partial class PolicyFunctions
         long pressing = 0;
         foreach (var pawn in pawns)
         {
-            if (LifeSavingAmputations(pawn).Count == 0)
+            if (EmergencyRules.LifeSavingAmputations(pawn).Count == 0)
             {
                 continue;
             }
@@ -140,7 +140,7 @@ public static partial class PolicyFunctions
             var downed = row?.Downed.ValueOrDefault ?? false;
             var bleeding = row?.Bleeding.ValueOrDefault ?? false;
             var needsTend = row?.NeedsTend.ValueOrDefault ?? false;
-            if (!found || !UrgentPatient(row!))
+            if (!found || !EmergencyRules.UrgentPatient(row!))
             {
                 pressing++;
             }

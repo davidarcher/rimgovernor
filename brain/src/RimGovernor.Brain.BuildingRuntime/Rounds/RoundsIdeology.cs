@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -57,7 +58,7 @@ public sealed class IdeologyReader
         var facts = new IdeologyFacts();
         if (_roles)
         {
-            facts = facts with { Roles = PolicyFunctions.RoleAssignments(projection.Facts.Ideology, projection.WorkPawns) };
+            facts = facts with { Roles = IdeologyRolesRules.RoleAssignments(projection.Facts.Ideology, projection.WorkPawns) };
         }
         if (_rituals)
         {

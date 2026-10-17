@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -64,7 +65,7 @@ public sealed partial class RoundsWorkPlanner
         {
             return Existing(FieldUnavailable("work_pawns"));
         }
-        var construction = PolicyApi.ConstructionSkillChoices(read.Projection.Facts.CurrentConstruction, read.Projection.WorkPawns).ToList();
+        var construction = ConstructionSkillRules.ConstructionSkillChoices(read.Projection.Facts.CurrentConstruction, read.Projection.WorkPawns).ToList();
         if (construction.Count > 8)
         {
             construction = construction[..8];
@@ -118,7 +119,7 @@ public sealed partial class RoundsWorkPlanner
             }
             if (changed.Count > 0) work.Add(WorkAssignment.NewWorkAssignment(assignment.Pawn, changed));
         }
-        var settings = new List<PawnSettings>(PolicyApi.HostilityChanges(HostilityRows(pawns), read.Emergency.Threats));
+        var settings = new List<PawnSettings>(HostilityRules.HostilityChanges(HostilityRows(pawns), read.Emergency.Threats));
         var reserve = MedicalRules.ReviewMedicalReserve(read.Projection.Facts.MedicalReserve, false, _reviewer.Policy.MedicalReserve);
         settings.AddRange(MedicineCarryRules.MedicineCarryChanges(MedicineCarryRules.MedicineCarryRows(pawns), reserve.Stock, reserve.Target));
         if (read.Projection.Facts.OwnedNames.TryGetValue(out var ownedNames))
@@ -227,7 +228,7 @@ public sealed partial class RoundsWorkPlanner
         }
         foreach (var choice in construction)
         {
-            var action = DomainAction.NewBuildingAction(new ActionId($"{id}-{actions.Count}"), choice.Site.Building ?? throw new InvalidOperationException("a construction choice names a site with a building"), PolicyApi.AdoptedTier(choice.Site));
+            var action = DomainAction.NewBuildingAction(new ActionId($"{id}-{actions.Count}"), choice.Site.Building ?? throw new InvalidOperationException("a construction choice names a site with a building"), ConstructionTierRules.AdoptedTier(choice.Site));
             actions.Add(action.WithFinishingSkill(choice.Minimum, choice.Site.Id));
         }
         var spec = new PlanSpec(id, new PlanRevision(1), actions);
@@ -348,7 +349,7 @@ partial class RoundsWorkPlanner
         }
         var entries = p.Food.Select(e => new FoodPolicyEntry { Id = e.ID, Label = e.Label, Pawns = e.Pawns, Allowed = e.Allowed }).ToList();
         reserve.TryGetValue(out var stock);
-        return PolicyApi.DietPolicyChanges(ideology, pawns, p.FoodEaters, owned, entries, p.Foods, stock?.IsShort ?? false);
+        return FoodPolicyRules.DietPolicyChanges(ideology, pawns, p.FoodEaters, owned, entries, p.Foods, stock?.IsShort ?? false);
     }
 
     /// <summary>Go's <c>%q</c> of a string.</summary>

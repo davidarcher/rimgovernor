@@ -209,7 +209,7 @@ internal static class ExplainAudit
             return $"{target} previous cause: {previous}";
         }
 
-        if (r.Subject != PolicyFunctions.BoundSubject(r.Subject))
+        if (r.Subject != CauseRules.BoundSubject(r.Subject))
         {
             return $"{target}: subject \"{r.Subject}\" is not a bounded printable subject";
         }
@@ -235,7 +235,7 @@ internal static class ExplainAudit
             return true;
         }
 
-        if (PolicyFunctions.Wording(c, "") == PolicyFunctions.Wording(Cause.None, ""))
+        if (CauseRules.Wording(c, "") == CauseRules.Wording(Cause.None, ""))
         {
             why = $"cause \"{c.Value}\" has no plain-language wording";
             return false;

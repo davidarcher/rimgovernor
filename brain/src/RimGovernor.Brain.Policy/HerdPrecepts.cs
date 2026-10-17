@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class HerdPreceptsRules
 {
     // The herd's precept facts come from the shared precept rule: each animal action is bound to the
     // HistoryEventDef the game raises for it (HistoryEventDefOf in Assembly-CSharp), and ActionStance answers what
@@ -64,7 +64,7 @@ public static partial class PolicyFunctions
         var barred = false;
         foreach (var ev in events)
         {
-            switch (ActionStance(ideology, new PreceptAction { HistoryEvent = ev }, new PreceptSubject()).Stance)
+            switch (IdeologyRuleRules.ActionStance(ideology, new PreceptAction { HistoryEvent = ev }, new PreceptSubject()).Stance)
             {
                 case PreceptStance.Allowed or PreceptStance.Approved:
                     break;

@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 internal readonly record struct ArmoryArmorRung(Resource Definition, ArmoryTier Tier);
 
-public static partial class PolicyFunctions
+public static class GearArmorRules
 {
     /// <summary>The body-armor and helmet ladder the armory owns: flak, recon, marine, with the simple helmet at smithing.</summary>
     private static readonly IReadOnlyList<IReadOnlyList<ArmoryArmorRung>> ArmoryArmorFamilies =

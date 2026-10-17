@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 
 namespace RimGovernor.Brain.BuildingRuntime;
@@ -25,14 +26,14 @@ public sealed partial class Worker
                 var participants = read.Pawns.Select(p => p.Execution is { } e
                     ? new ActivityOwnership(p.Pawn, e.Assignment, e.Method, e.Revision, e.State)
                     : new ActivityOwnership(p.Pawn, "", "", 0, "unowned")).ToArray();
-                if (PolicyFunctions.ReviewActivityOwnership(method.Batch, method.Needed, taskTick, participants).OwnershipEnded)
+                if (ActivityContinuationRules.ReviewActivityOwnership(method.Batch, method.Needed, taskTick, participants).OwnershipEnded)
                 {
                     _player.Journal.ResolveActivityMethod(method.Plan, current, new Tick(taskTick), participants, ct);
                     _advanced = true;
                     continue;
                 }
                 var needed = ForecastServiceInvestments.ReviewServiceActivityNeed(method.Batch, method.Needed, read);
-                var next = PolicyFunctions.ContinueCoordinatedActivity(method.Batch, needed, read);
+                var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(method.Batch, needed, read);
                 ActivityContinuationAdmission? admission = null;
                 if (next is not null)
                 {
@@ -53,7 +54,7 @@ public sealed partial class Worker
                             ["native_states"] = participants.Select(p => p.Pawn + ":" + p.State).ToArray() } });
                 continue;
             }
-            var decision = PolicyFunctions.ReviewActivityOwnership(method.Batch, method.Needed, tick, ownership);
+            var decision = ActivityContinuationRules.ReviewActivityOwnership(method.Batch, method.Needed, tick, ownership);
             if (decision.OwnershipEnded)
             {
                 _player.Journal.ResolveActivityMethod(method.Plan, current, new Tick(tick), ownership, ct);

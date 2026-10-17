@@ -24,6 +24,5 @@
     <Using Include="RimGovernor.Brain.Domain" />
     <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
     <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
-    <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Static="true" />
   </ItemGroup>
 </Project>

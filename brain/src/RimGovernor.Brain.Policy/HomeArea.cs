@@ -43,7 +43,7 @@ public sealed record HomeAreaPlan
     }
 }
 
-public static partial class PolicyFunctions
+public static class HomeAreaRules
 {
     /// <summary>The Chebyshev margin the home area keeps around the colony extent.</summary>
     public const int HomeAreaMargin = 4;
@@ -70,7 +70,7 @@ public static partial class PolicyFunctions
         {
             return unknown;
         }
-        var extent = DeriveColonyExtent(
+        var extent = ColonyExtentRules.DeriveColonyExtent(
             new ColonyExtentRequest
             {
                 Bounds = bounds,
@@ -106,7 +106,7 @@ public static partial class PolicyFunctions
                 set.Add(c);
             }
         }
-        var order = Comparer<Cell>.Create((a, b) => ExtentCellLess(a, b) ? -1 : ExtentCellLess(b, a) ? 1 : 0);
+        var order = Comparer<Cell>.Create((a, b) => ColonyExtentRules.ExtentCellLess(a, b) ? -1 : ColonyExtentRules.ExtentCellLess(b, a) ? 1 : 0);
         set.Sort(order);
         clear.Sort(order);
         return Known(
@@ -120,7 +120,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The base footprint of an extent: its largest region and every region within HomeAreaOutlier of it.</summary>
-    private static HashSet<Cell> HomeBase(ColonyExtent value)
+    internal static HashSet<Cell> HomeBase(ColonyExtent value)
     {
         var target = new HashSet<Cell>();
         if (value.Regions.Count == 0)

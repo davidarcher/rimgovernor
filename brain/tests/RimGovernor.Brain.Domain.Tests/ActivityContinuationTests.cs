@@ -4,7 +4,6 @@ using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Bridge.Contracts;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -101,16 +100,16 @@ public sealed class ActivityContinuationTests
     [Fact]
     public void RecoveryReleasesButStableOrUnknownNeedDoesNotChurnUsefulWork()
     {
-        Assert.Null(ReviewActivityOwnership(Batch, Known(true), 110, [Row()]).Release);
-        Assert.Null(ReviewActivityOwnership(Batch, default, 110, [Row()]).Release);
-        var release = Assert.Single(ReviewActivityOwnership(Batch, Known(false), 110, [Row()]).Release!.Orders);
+        Assert.Null(ActivityContinuationRules.ReviewActivityOwnership(Batch, Known(true), 110, [Row()]).Release);
+        Assert.Null(ActivityContinuationRules.ReviewActivityOwnership(Batch, default, 110, [Row()]).Release);
+        var release = Assert.Single(ActivityContinuationRules.ReviewActivityOwnership(Batch, Known(false), 110, [Row()]).Release!.Orders);
         Assert.True(release.Release);
         Assert.Equal(1, release.ExpectedRevision);
         Assert.Equal(2, release.Revision);
         Assert.Empty(release.Steps);
-        Assert.Null(ReviewActivityOwnership(Batch, Known(false), 110, []).Release);
-        Assert.NotNull(ReviewActivityOwnership(Batch, default, 110, [Row("failed")]).Release);
-        Assert.NotNull(ReviewActivityOwnership(Batch, Known(true), 500, [Row("completed")]).Release);
+        Assert.Null(ActivityContinuationRules.ReviewActivityOwnership(Batch, Known(false), 110, []).Release);
+        Assert.NotNull(ActivityContinuationRules.ReviewActivityOwnership(Batch, default, 110, [Row("failed")]).Release);
+        Assert.NotNull(ActivityContinuationRules.ReviewActivityOwnership(Batch, Known(true), 500, [Row("completed")]).Release);
     }
 
     [Fact]
@@ -118,9 +117,9 @@ public sealed class ActivityContinuationTests
     {
         var batch = Batch with { Orders = [Order, Order with { Pawn = "helper", Assignment = "helper-assignment" }] };
         var rows = new[] { Row(), new ActivityOwnership("helper", "player-or-other-method", "other", 9, "running") };
-        var result = ReviewActivityOwnership(batch, Known(false), 110, rows);
+        var result = ActivityContinuationRules.ReviewActivityOwnership(batch, Known(false), 110, rows);
         Assert.Equal("pawn", Assert.Single(result.Release!.Orders).Pawn);
-        Assert.True(ReviewActivityOwnership(Batch, Known(false), 110, [Row() with { Revision = 2 }]).OwnershipEnded);
+        Assert.True(ActivityContinuationRules.ReviewActivityOwnership(Batch, Known(false), 110, [Row() with { Revision = 2 }]).OwnershipEnded);
     }
 
     [Fact]

@@ -48,7 +48,7 @@ public static class DeliveryCreditHuntExtensions
         var total = 0.0;
         foreach (var k in kills)
         {
-            if (counted.Contains(k.CorpseID) || !PolicyFunctions.FoodNumber(k.Potential))
+            if (counted.Contains(k.CorpseID) || !FoodForecastRules.FoodNumber(k.Potential))
             {
                 continue;
             }
@@ -96,7 +96,7 @@ public static class DeliveryCreditHuntExtensions
     }
 }
 
-public static partial class PolicyFunctions
+public static class HuntCreditRules
 {
     /// <summary>The one counter group of hunting: every hunt channel shares it, and the ledger's kills and butchers are its deliveries.</summary>
     public const string HuntSource = "hunt";
@@ -172,7 +172,7 @@ public static partial class PolicyFunctions
         {
             return channels;
         }
-        var limit = hunters * killsPerHunterDay * rate * FoodHuntCycleDays / prey;
+        var limit = hunters * killsPerHunterDay * rate * FoodPlanRules.FoodHuntCycleDays / prey;
         if (limit >= rate)
         {
             return channels;

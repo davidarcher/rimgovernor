@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The trade inputs the food plan prices acquisition from.</summary>
@@ -55,7 +56,7 @@ public sealed partial class Rounder
             var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade, HuntEstimates, huntView, h => s.HuntNote = DescribeHuntPlan(h));
             if (plan.TryGetValue(out var v))
             {
-                HuntAdmission.Admit(PolicyFunctions.HuntRequest(Known(v)).Select(id => (Domain.PawnId)id));
+                HuntAdmission.Admit(HuntSquadRules.HuntRequest(Known(v)).Select(id => (Domain.PawnId)id));
             }
 
             LogFoodCredit(FoodCredit.Drain());
@@ -152,7 +153,7 @@ partial class Rounder
         FoodForecast forecast;
         try
         {
-            forecast = PolicyFunctions.ForecastFood(supply, null);
+            forecast = FoodForecastRules.ForecastFood(supply, null);
         }
         catch (DomainException)
         {
@@ -169,30 +170,30 @@ partial class Rounder
         if (p.WorkPawns.TryGetValue(out var pawns))
         {
             var profiles = PawnRules.Profiles(pawns);
-            gunners = PolicyFunctions.ArmedHunters(profiles);
+            gunners = HuntSquadRules.ArmedHunters(profiles);
             hunters = PawnRules.Hunters(profiles);
         }
 
         var channels = new List<SupplyCandidate>();
-        channels.AddRange(PolicyFunctions.ForageChannels(sources));
+        channels.AddRange(FoodPlanRules.ForageChannels(sources));
         // The hunt alternatives: nutrition the colony still needs to reach its target runway, compared over roster estimates.
         var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
         var needed = Math.Max(0, (forecast.Consumers.Sum(c => c.NutritionPerDay) * thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays) - forecast.UsableNutrition);
-        var huntPlan = PolicyFunctions.PlanHunt(huntRead, sources, p.Facts.ForecastObserved.Coupled?.Routes ?? [], huntView, needed);
+        var huntPlan = HuntPlanningRules.PlanHunt(huntRead, sources, p.Facts.ForecastObserved.Coupled?.Routes ?? [], huntView, needed);
         onHunt?.Invoke(huntPlan);
         if (huntRead is not null && huntPlan.Unestimated.Count > 0)
         {
             _ = estimates?.Request(huntRead, huntPlan.Unestimated, p.Identity.Tick.Value);
         }
 
-        channels.AddRange(PolicyFunctions.HuntCandidates(sources, gunners, hunt.Formation(huntPlan.Channel(sources), huntPlan, sources), huntPlan.Awaiting));
-        channels.AddRange(PolicyFunctions.HuntPrerequisiteCandidates(p.HuntHolds));
+        channels.AddRange(HuntSquadRules.HuntCandidates(sources, gunners, hunt.Formation(huntPlan.Channel(sources), huntPlan, sources), huntPlan.Awaiting));
+        channels.AddRange(HuntPrerequisiteRules.HuntPrerequisiteCandidates(p.HuntHolds));
         var hunting = FoodHuntInput(p);
-        channels = PolicyFunctions.HuntThroughput(channels, hunters, PolicyFunctions.HuntCadence(hunting.Kills, hunters, p.Identity.Tick.Value)).ToList();
+        channels = HuntCreditRules.HuntThroughput(channels, hunters, HuntCreditRules.HuntCadence(hunting.Kills, hunters, p.Identity.Tick.Value)).ToList();
         if (p.ProductionBenches.TryGetValue(out var benches) && p.FoodSupply.TryGetValue(out human))
         {
             var ids = human.Consumers.Select(c => c.Id).ToList();
-            var (channel, channelOk) = PolicyFunctions.HumanFoodChannel(benches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.IdeologyRead());
+            var (channel, channelOk) = HumanFoodPlanRules.HumanFoodChannel(benches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.IdeologyRead());
             if (channelOk)
             {
                 channels.Add(channel);
@@ -203,7 +204,7 @@ partial class Rounder
         {
             var regions = water.Regions.Select(region => new FishingRegion
             {
-                Id = PolicyFunctions.FishingRegionId(region.Root),
+                Id = FishingRules.FishingRegionId(region.Root),
                 Population = region.Population,
                 MaxPopulation = region.MaxPopulation,
                 NutritionPerFish = region.NutritionPerFish,
@@ -219,7 +220,7 @@ partial class Rounder
             var request = new FishingRequest { Researched = water.FishingResearched, ResearchLeadDays = water.ResearchLeadDays, Regions = regions };
             try
             {
-                channels.AddRange(PolicyFunctions.FishingChannels(request));
+                channels.AddRange(FishingRules.FishingChannels(request));
             }
             catch (DomainException)
             {
@@ -229,24 +230,24 @@ partial class Rounder
 
         if (p.FoodChannels.TryGetValue(out var animals))
         {
-            channels.AddRange(PolicyFunctions.AnimalProductChannels(PolicyFunctions.WithFeed(animals.AnimalProducts(), p.Facts.AnimalUpkeep.Animals)));
+            channels.AddRange(FoodAnimalProductsRules.AnimalProductChannels(FoodAnimalProductsRules.WithFeed(animals.AnimalProducts(), p.Facts.AnimalUpkeep.Animals)));
         }
 
         channels.AddRange(MealRules.StockIngredientChannels(supply));
         if (p.FoodFields.TryGetValue(out var fields))
         {
-            channels.AddRange(PolicyFunctions.CropChannels(
+            channels.AddRange(FoodPlanRules.CropChannels(
                 fields,
                 new CropKitchen { Benches = p.ProductionBenches, Cooks = Known((double)workers) },
                 new CropSeason { Calendar = p.Facts.Calendar, Conditions = p.Facts.DisasterConditions }));
         }
 
         var (field, _) = RoundsFieldPlanner.FieldRequestOf(p, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays);
-        channels.AddRange(PolicyFunctions.NewFieldChannels(field, new CropKitchen { Benches = p.ProductionBenches, Cooks = Known((double)workers) }));
+        channels.AddRange(FoodPlanRules.NewFieldChannels(field, new CropKitchen { Benches = p.ProductionBenches, Cooks = Known((double)workers) }));
         (CandidateKind Kind, string Id)[] supports = [(CandidateKind.Cook, "cooking-capacity"), (CandidateKind.Reserve, "stock-protection")];
         foreach (var support in supports)
         {
-            channels.Add(PolicyFunctions.FoodSupportCandidate(support.Kind, support.Id));
+            channels.Add(FoodPlanRules.FoodSupportCandidate(support.Kind, support.Id));
         }
 
         channels = hunt.Apply(channels).ToList();
@@ -255,7 +256,7 @@ partial class Rounder
         FoodPlan plan;
         try
         {
-            plan = PolicyFunctions.SupplyFoodPlan(new FoodPlanRequest
+            plan = FoodPlanRules.SupplyFoodPlan(new FoodPlanRequest
             {
                 Demand = forecast,
                 MinDays = seasonal.FoodMinDays,
@@ -276,7 +277,7 @@ partial class Rounder
             var offers = new List<SupplyCandidate>();
             if (p.FoodChannels.TryGetValue(out animals))
             {
-                offers.AddRange(PolicyFunctions.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, HerdPlans.HerdPolicyOf(p.Facts, plan)));
+                offers.AddRange(AnimalFoodRules.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, HerdPlans.HerdPolicyOf(p.Facts, plan)));
             }
 
             offers.AddRange(TradePolicyRules.TradeFoodChannels(trade.Offers, trade.Silver, trade.Reserve, plan.GapPerDay * plan.HorizonDays));
@@ -288,14 +289,14 @@ partial class Rounder
                 Herd = HerdPlans.HerdPolicyOf(p.Facts, plan),
                 Handlers = p.Facts.WorkProfiles,
             };
-            offers.AddRange(PolicyFunctions.TameFoodChannels(acquire));
-            offers.AddRange(PolicyFunctions.AnimalPurchaseFoodChannels(trade.Offers, acquire, trade.Silver, trade.Reserve));
+            offers.AddRange(AnimalAcquireRules.TameFoodChannels(acquire));
+            offers.AddRange(AnimalAcquireRules.AnimalPurchaseFoodChannels(trade.Offers, acquire, trade.Silver, trade.Reserve));
             if (offers.Count > 0)
             {
                 channels.AddRange(offers);
                 try
                 {
-                    plan = PolicyFunctions.SupplyFoodPlan(new FoodPlanRequest
+                    plan = FoodPlanRules.SupplyFoodPlan(new FoodPlanRequest
                     {
                         Demand = forecast,
                         MinDays = seasonal.FoodMinDays,
@@ -368,7 +369,7 @@ partial class Rounder
             complete = supply.Complete == Known(true);
         }
 
-        delivered[PolicyFunctions.HuntSource] = credit.HuntDelivered(hunting.Kills, hunting.Butchers, stocks, complete);
+        delivered[HuntCreditRules.HuntSource] = credit.HuntDelivered(hunting.Kills, hunting.Butchers, stocks, complete);
         return input with { LoadToken = ledger.LoadToken, Delivered = delivered };
     }
 
@@ -397,14 +398,14 @@ partial class Rounder
         },
     };
 
-    internal static bool FoodPlanSupportOf(Fact<FoodPlan> p, CandidateKind kind, string id) => PolicyFunctions.FoodPlanSupport(p, kind, id);
+    internal static bool FoodPlanSupportOf(Fact<FoodPlan> p, CandidateKind kind, string id) => FoodOrdersRules.FoodPlanSupport(p, kind, id);
 
 
     internal static bool FoodPlanOpensField(FoodPlan plan)
     {
         foreach (var entry in plan.Portfolio)
         {
-            if (entry.Channel.Kind == CandidateKind.Crop && entry.Channel.Id.StartsWith(PolicyFunctions.NewFieldPrefix, StringComparison.Ordinal) && entry.Decision == FoodPlanDecision.Open)
+            if (entry.Channel.Kind == CandidateKind.Crop && entry.Channel.Id.StartsWith(FoodPlanRules.NewFieldPrefix, StringComparison.Ordinal) && entry.Decision == FoodPlanDecision.Open)
             {
                 return true;
             }

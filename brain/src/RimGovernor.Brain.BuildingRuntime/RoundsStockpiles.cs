@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>Remembers, per world, what the reviewer last learned for the planner and layout.</summary>
@@ -437,7 +438,7 @@ internal sealed partial class RoundsStockpilePlanner
         _zones = new StockpileZones(reviewer, native);
         if (reviewer.Native is IRoundsBuildingSource source)
         {
-            _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source, Concern = AdminFamily.Stockpiles.FilingKey, Need = AdminFamily.Stockpiles, Definition = ShellWallDefinition };
+            _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source, Concern = AdminFamily.Stockpiles.FilingKey, Need = AdminFamily.Stockpiles, Definition = ContainmentCellRules.ShellWallDefinition };
         }
     }
 
@@ -489,7 +490,7 @@ internal sealed partial class RoundsStockpilePlanner
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         // The medicine store reads the medical beds, so the census carries them. The planned rooms are shelled from
         // the same reading, so the census carries the wall and door definitions.
-        string[] definitions = [ShellWallDefinition, ShellDoorDefinition, PenFenceDefinition, PenGateDefinition, StorageRules.ShelfDefinition];
+        string[] definitions = [ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition, HerdPenRules.PenFenceDefinition, HerdPenRules.PenGateDefinition, StorageRules.ShelfDefinition];
         var read = _reviewer.RoomsEnabled()
             ? await _reviewer.ObserveRoomsAsync((Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false)
             : await _reviewer.ObserveOwnedAsync((Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);

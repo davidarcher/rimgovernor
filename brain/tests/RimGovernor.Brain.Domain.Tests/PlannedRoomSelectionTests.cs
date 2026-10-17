@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -49,7 +48,7 @@ public sealed class PlannedRoomSelectionTests
     }
 
     private static SelectedPlannedSite Wall(int room, string stuff) =>
-        new("planned/room" + room + "/wall/" + stuff, room, OpKind.WallIn, ShellWallDefinition, stuff, Rotation.North, [new(4, 4)]);
+        new("planned/room" + room + "/wall/" + stuff, room, OpKind.WallIn, ContainmentCellRules.ShellWallDefinition, stuff, Rotation.North, [new(4, 4)]);
 
     [Fact]
     public void TheLatestKnownSelectionReplacesTheRecordAndAStartedRoomClears()
@@ -84,7 +83,7 @@ public sealed class PlannedRoomSelectionTests
         ];
         SelectedPlannedSite[] sites =
         [
-            new("planned/room1/wall/BlocksGranite", 1, OpKind.WallIn, ShellWallDefinition, "BlocksGranite", Rotation.North, [new(4, 4), new(4, 5)]),
+            new("planned/room1/wall/BlocksGranite", 1, OpKind.WallIn, ContainmentCellRules.ShellWallDefinition, "BlocksGranite", Rotation.North, [new(4, 4), new(4, 5)]),
             new("planned/room1/floor/WoodPlankFloor", 1, OpKind.FloorIn, "WoodPlankFloor", "", Rotation.North, [new(5, 5)]),
             new("planned/room1/build/Bed/5/5", 1, OpKind.Build, "Bed", "WoodLog", Rotation.North, [piece.Anchor()]),
         ];

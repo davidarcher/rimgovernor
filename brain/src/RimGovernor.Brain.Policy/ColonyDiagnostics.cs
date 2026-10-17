@@ -39,18 +39,18 @@ public sealed record PowerProjection
     public double ShortfallDays { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ColonyDiagnosticsRules
 {
     /// <summary>Existing maintenance target window; independent of the requested plan horizon.</summary>
     public const double MaintenanceHorizonDays = 5.0;
 
     /// <summary>Retains current-condition diagnostics without treating planned effects as observations.</summary>
-    private static ColonyDiagnostics DiagnoseColony(ColonyForecastFacts input) =>
+    internal static ColonyDiagnostics DiagnoseColony(ColonyForecastFacts input) =>
         new()
         {
             HorizonDays = MaintenanceHorizonDays,
             Power = ProjectPower(input.Power),
-            Construction = ProjectConstruction(input.Construction, input.Stock),
+            Construction = ConstructionProjectionRules.ProjectConstruction(input.Construction, input.Stock),
         };
 
     /// <summary>Go <c>RunwayShortfall</c>: the days a runway falls short of target: the one formula the power projection and NutritionDemand share.</summary>

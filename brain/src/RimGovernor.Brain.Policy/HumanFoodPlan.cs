@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class HumanFoodPlanRules
 {
     /// <summary>
     /// Routes finite stocks. It deliberately contributes no new nutrition/day: the forecast already owns stock,
@@ -15,14 +15,14 @@ public static partial class PolicyFunctions
     )
     {
         var none = (new SupplyCandidate(), false);
-        if (!FoodNumber(targetDays) || targetDays <= 0)
+        if (!FoodForecastRules.FoodNumber(targetDays) || targetDays <= 0)
         {
             return none;
         }
         var qualified = false;
         foreach (var b in benches)
         {
-            var (_, ok) = QualifyingHumanButcher(b.HumanButchers, ideology);
+            var (_, ok) = HumanFoodRules.QualifyingHumanButcher(b.HumanButchers, ideology);
             if (ok)
             {
                 qualified = true;
@@ -76,7 +76,7 @@ public static partial class PolicyFunctions
         FoodForecast forecast;
         try
         {
-            forecast = ForecastFood(supply with { Stocks = baselineStocks }, null);
+            forecast = FoodForecastRules.ForecastFood(supply with { Stocks = baselineStocks }, null);
         }
         catch (FoodFactsException)
         {
@@ -124,7 +124,7 @@ public static partial class PolicyFunctions
         IReadOnlyList<HumanMeatAllocation> routes;
         try
         {
-            routes = RouteHumanMeat(
+            routes = HumanFoodRules.RouteHumanMeat(
                 new HumanMeatRouting
                 {
                     Nutrition = nutrition,
@@ -145,11 +145,11 @@ public static partial class PolicyFunctions
             terms.Add(new CandidateTerm(Wire.Name(r.Route), r.Nutrition));
         }
         terms.Add(new CandidateTerm("trade_surplus_nutrition", tradeSurplus));
-        var channel = FoodCandidate(CandidateKind.Corpse, "human-butchery", Known(0.0)) with
+        var channel = CandidateRules.FoodCandidate(CandidateKind.Corpse, "human-butchery", Known(0.0)) with
         {
             LaborPerDay = Known(0.0),
             LeadDays = Known(0.0),
-            State = FoodState(Known(false), Known(false)),
+            State = CandidateRules.FoodState(Known(false), Known(false)),
             Terms = EquatableArray.From(terms),
         };
         return (channel, true);
@@ -204,7 +204,7 @@ public static partial class PolicyFunctions
         var @out = new List<string>(defs.Count);
         foreach (var d in defs)
         {
-            if (!FoodId(d))
+            if (!FoodForecastRules.FoodId(d))
             {
                 return [];
             }
@@ -287,7 +287,7 @@ public static partial class PolicyFunctions
         var ingredients = new List<string>(defs.Count);
         foreach (var d in defs)
         {
-            if (!FoodId(d))
+            if (!FoodForecastRules.FoodId(d))
             {
                 return none;
             }
@@ -320,7 +320,7 @@ public static partial class PolicyFunctions
                 }
                 var ek = r.NutrientEfficiency.TryGetValue(out var eff);
                 var pk = r.Products[0].Nutrition.TryGetValue(out var pn);
-                if (!ek || !pk || !FieldPositive(eff) || !FieldPositive(pn))
+                if (!ek || !pk || !FieldCapacityRules.FieldPositive(eff) || !FieldCapacityRules.FieldPositive(pn))
                 {
                     continue;
                 }

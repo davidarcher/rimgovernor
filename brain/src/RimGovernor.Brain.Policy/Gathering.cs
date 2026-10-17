@@ -26,7 +26,7 @@ public sealed record GatheringPlan
     public PawnId Organizer { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class GatheringRules
 {
     // The rooms/gatherings Need holds a vanilla party when the colony as a whole is losing mood a party would repay. It is a
     // mood source with a cost (colonist time), not a repair: the PartySpot is kept by rooms/party-spot

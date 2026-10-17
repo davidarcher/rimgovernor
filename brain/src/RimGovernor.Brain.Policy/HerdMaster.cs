@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: herd_master.go
 
-public static partial class PolicyFunctions
+public static class HerdMasterRules
 {
     /// <summary>
     /// Assigns one animal a master by the bond-first rule: (1) a bonded animal is mastered by its bonded
@@ -98,7 +98,7 @@ public static partial class PolicyFunctions
     private static (bool Unlearned, bool Known) HerdUnlearned(HerdPolicy herd, UpkeepAnimal a)
     {
         var unlearned = false;
-        foreach (var t in HerdTrainQueue(herd, a))
+        foreach (var t in HusbandryUpkeepRules.HerdTrainQueue(herd, a))
         {
             var ak = t.Available.TryGetValue(out var avail);
             var lk = t.Learned.TryGetValue(out var learned);

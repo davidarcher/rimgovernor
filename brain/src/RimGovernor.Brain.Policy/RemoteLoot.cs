@@ -92,8 +92,8 @@ public static partial class RemoteRules
     /// no labor beyond the haul.
     /// </summary>
     internal static SupplyCandidate LootCandidate(LootItem row) =>
-        SourceCandidate(CandidateKind.Loot, row.Supply.Thing, Known(0.0), row.PathLength, true, LootUnitsPerTrip,
-            SourceYield(new ResourceKey { Def = new Resource(row.Supply.Definition) }, row.Count, 0, row.StorageHeadroom));
+        CandidateRules.SourceCandidate(CandidateKind.Loot, row.Supply.Thing, Known(0.0), row.PathLength, true, LootUnitsPerTrip,
+            CandidateRules.SourceYield(new ResourceKey { Def = new Resource(row.Supply.Definition) }, row.Count, 0, row.StorageHeadroom));
 
     /// <summary>
     /// The remote request the loot filter runs against: safety and the derived extent from the review facts,
@@ -101,7 +101,7 @@ public static partial class RemoteRules
     /// </summary>
     public static RemoteWorkRequest LootContext(RoundsFacts f)
     {
-        var extent = DeriveColonyExtent(new ColonyExtentRequest { Bounds = f.MapBounds, Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
+        var extent = ColonyExtentRules.DeriveColonyExtent(new ColonyExtentRequest { Bounds = f.MapBounds, Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
         return new RemoteWorkRequest { Safety = LootSafety(f), Extent = extent, Competition = RemoteCompetition(f) };
     }
 

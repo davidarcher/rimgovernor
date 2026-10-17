@@ -70,7 +70,7 @@ orders without reserving a builder for a Concern.
 Inspection-specific prerequisite checks determine useful work.
 There is no stage and no generic development admission queue. Every planner runs; none is held by name. While the
 initial shelter is owed (the housing latch at `shelter`) the shelter owns the Construction
-labor, and method admission (`AdmitConstructionLabor`, over `PolicyFunctions.ConstructionLaborHeld`)
+labor, and method admission (`AdmitConstructionLabor`, over `ConstructionLaborRules.ConstructionLaborHeld`)
 refuses a plan holding an action that draws on it (`DrawsConstructionLabor`: building, roofing,
 deconstruction and floor, foundation and wall removal, moving or uninstalling a building, cover
 clearance) with `awaiting_plan:construction_labor`. The housing goal is exempt, and so is a plan of other kinds: gathering, growing, zoning, bills

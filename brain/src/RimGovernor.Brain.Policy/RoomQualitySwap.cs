@@ -97,7 +97,7 @@ public static partial class RoomQualityRules
             SoloBedroom? best = null;
             foreach (var r in rooms)
             {
-                if (r.Owner == mover.Owner || blocked(TraitsOf(r.Owner)) || !ContainsPawn(accessible.GetValueOrDefault(r.Bed), mover.Owner))
+                if (r.Owner == mover.Owner || blocked(TraitsOf(r.Owner)) || !InteriorHelpersRules.ContainsPawn(accessible.GetValueOrDefault(r.Bed), mover.Owner))
                 {
                     continue;
                 }

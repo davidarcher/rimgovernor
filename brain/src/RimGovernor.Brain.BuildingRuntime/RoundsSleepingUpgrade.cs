@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 partial class RoundsSleepingUpkeepPlanner
@@ -41,7 +42,7 @@ partial class RoundsSleepingUpkeepPlanner
             targets.TryAdd(id, t);
         }
         targets = WithThroneTargets(facts, targets);
-        return RoomQualityRules.NextRoomUpgrade(obs!, UpgradeTargetsOf(facts, targets), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def));
+        return RoomQualityRules.NextRoomUpgrade(obs!, UpgradeTargetsOf(facts, targets), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def));
     }
 
     /// <summary>The next bed replacement step, read from the same census as RoomUpgradeOf.</summary>
@@ -83,7 +84,7 @@ partial class RoundsSleepingUpkeepPlanner
                 }
             }
         }
-        return RoomQualityRules.NextBedReplacement(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), materials);
+        return RoomQualityRules.NextBedReplacement(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), materials);
     }
 
     /// <summary>The next unmet royal bedroom thing.</summary>
@@ -96,7 +97,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return (new Pol.RoomUpgrade(), false);
         }
-        return RoomQualityRules.NextTitleFurniture(obs!, FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def));
+        return RoomQualityRules.NextTitleFurniture(obs!, FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def));
     }
 
     /// <summary>The next animal sleeping spot for a master's solo bedroom: none while the definition is unavailable or unsized.</summary>
@@ -121,7 +122,7 @@ partial class RoundsSleepingUpkeepPlanner
             return (new Pol.RoomUpgrade(), false);
         }
         var spot = new Pol.InteriorPieceDef { Def = d.Name, Size = new Cell(size.Width, size.Height) };
-        return NextCompanionBed(obs!, animals!, FurnitureRooms(rooms!, census, facts.Cells), facts.Shapes.Furniture, spot, available);
+        return HerdCompanionRules.NextCompanionBed(obs!, animals!, FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), facts.Shapes.Furniture, spot, available);
     }
 
     /// <summary>The next beauty lever: a plant pot or a prettier floor for a bedroom whose weakest stat is beauty.</summary>
@@ -142,7 +143,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             definitions[d.Name] = new Pol.FloorDefinition { Available = d.Available, Terrain = d.Terrain, Cleanliness = d.Cleanliness, Beauty = d.Beauty, Flammability = d.Flammability, PathCost = d.PathCost, Costs = d.Costs, WorkToBuild = d.WorkToBuild };
         }
-        return RoomQualityRules.NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithThroneTargets(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness))), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring, floors);
+        return RoomQualityRules.NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithThroneTargets(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness))), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring, floors);
     }
 }
 

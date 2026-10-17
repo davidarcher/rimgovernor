@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -63,7 +62,7 @@ public sealed class GraveSitingTests
     [Fact]
     public void GravesStayOffRoutesCropsFoodStoresAndPlannedGround()
     {
-        var sites = GraveSites(Input(Census()));
+        var sites = GraveSitingRules.GraveSites(Input(Census()));
         Assert.NotEmpty(sites);
         // The interior, its wall ring and the one-cell margin.
         var planned = new Rectangle { X = 8, Z = 8, Width = 9, Height = 9 };
@@ -81,8 +80,8 @@ public sealed class GraveSitingTests
     public void GravesAreRankedByWalkingDistanceFromTheEntrance()
     {
         var cells = Census();
-        var sites = GraveSites(Input(cells));
-        var costs = HaulCosts(cells, [new HaulConsumer { Cells = [Entrance], Weight = 1 }]);
+        var sites = GraveSitingRules.GraveSites(Input(cells));
+        var costs = HaulDistanceRules.HaulCosts(cells, [new HaulConsumer { Cells = [Entrance], Weight = 1 }]);
         var walked = sites.Select(s => CellsOf(s).Min(c => costs[c])).ToList();
         Assert.Equal(walked.Order(), walked);
         Assert.True(walked[0] <= 3, $"the nearest grave is {walked[0]} steps from the entrance");
@@ -94,13 +93,13 @@ public sealed class GraveSitingTests
         // A wall ring at x 20..26, z 20..26 seals the pocket inside it.
         static bool Ring(Cell c) => c.X is >= 20 and <= 26 && c.Z is >= 20 and <= 26 && (c.X is 20 or 26 || c.Z is 20 or 26);
         static bool Pocket(Cell c) => c.X is > 20 and < 26 && c.Z is > 20 and < 26;
-        var sites = GraveSites(Input(Census(c => !Ring(c))));
+        var sites = GraveSitingRules.GraveSites(Input(Census(c => !Ring(c))));
         Assert.DoesNotContain(sites.SelectMany(CellsOf), Pocket);
     }
 
     [Fact]
     public void NoPlanNoSites() =>
-        Assert.Empty(GraveSites(Input(Census()) with { Plan = new LayoutPlan() }));
+        Assert.Empty(GraveSitingRules.GraveSites(Input(Census()) with { Plan = new LayoutPlan() }));
 
     [Fact]
     public void WithoutASarcophagusTheDeadOweAGraveAndNoRoom()

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class ConstructionTierRules
 {
     /// <summary>
     /// The construction tier of every planned room role (#2524, ladder in
@@ -77,12 +77,12 @@ public static partial class PolicyFunctions
         {
             return ConstructionTier.Sustain;
         }
-        if (concern == CookingNeed.FilingKey || concern == EconomyFamily.Research.FilingKey)
+        if (concern == FoodRules.CookingNeed.FilingKey || concern == EconomyFamily.Research.FilingKey)
         {
             return ConstructionTier.Survive;
         }
         // The food/supply Need builds only the butcher facility.
-        if (concern == FoodSupplyNeed.FilingKey || concern == MedicalRules.MedicalCareNeed.FilingKey || concern == RefrigerationNeed.FilingKey
+        if (concern == FoodRules.FoodSupplyNeed.FilingKey || concern == MedicalRules.MedicalCareNeed.FilingKey || concern == FoodStoresRules.RefrigerationNeed.FilingKey
             || concern == AdminFamily.Stockpiles.FilingKey)
         {
             return ConstructionTier.Sustain;

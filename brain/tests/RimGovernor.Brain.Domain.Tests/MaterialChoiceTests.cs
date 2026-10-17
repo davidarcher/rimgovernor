@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -26,16 +25,16 @@ public sealed class MaterialChoiceTests
     [Fact]
     public void JointChoiceFindsTimberFurnitureAndMetalMachineInsteadOfPinningTheLocalWinner()
     {
-        var alone = SelectLedgerMaterials([Flexible], View());
+        var alone = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], View());
         Assert.Equal(Metal.Value, Assert.Single(Assert.Single(alone.Selected).Spec.Ingredients));
-        var together = SelectLedgerMaterials([Flexible, Machine], View());
+        var together = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], View());
         Assert.Equal(2, together.Selected.Count);
         Assert.Empty(together.Postponed);
         Assert.Equal(Timber.Value, Assert.Single(Assert.Single(together.Selected, p => p.Spec.Recipe == Flexible.Spec.Recipe).Spec.Ingredients));
         Assert.Equal(Metal.Value, Assert.Single(Assert.Single(together.Selected, p => p.Spec.Recipe == Machine.Spec.Recipe).Spec.Ingredients));
         Assert.False(together.GenerationTruncated);
         Assert.False(together.Comparison.SearchTruncated);
-        var reversed = SelectLedgerMaterials([Machine, Flexible], View());
+        var reversed = LedgerMaterialChoicesRules.SelectLedgerMaterials([Machine, Flexible], View());
         Assert.Equal(together.Comparison.Selected.Select(s => s.Id), reversed.Comparison.Selected.Select(s => s.Id));
     }
 
@@ -51,10 +50,10 @@ public sealed class MaterialChoiceTests
                 AcceptedStuff = new Dictionary<Resource, IReadOnlyList<string>> { [new("Sculpture")] = ["Stuff"] } } };
         var bench = new ProductionBench { Id = "bench-a", Usable = Known(true), Token = Known("token"),
             Recipes = [new() { Name = "FlexibleRecipe", Role = RecipeRole.Sculpture, Available = Known(true) }] };
-        var bill = Assert.Single(SelectArtBills(Known<EquatableArray<ProductionBench>>([bench]), Known(1L), [new RimGovernor.Brain.Domain.PawnId("artist")], demand));
+        var bill = Assert.Single(ArtRules.SelectArtBills(Known<EquatableArray<ProductionBench>>([bench]), Known(1L), [new RimGovernor.Brain.Domain.PawnId("artist")], demand));
         Assert.Equal(new[] { Metal.Value, Timber.Value }, bill.Ingredients);
         var declared = Flexible with { Spec = Flexible.Spec with { Ingredients = EquatableArray.From(bill.Ingredients), Worker = bill.Worker } };
-        var selected = SelectLedgerMaterials([declared, Machine], View());
+        var selected = LedgerMaterialChoicesRules.SelectLedgerMaterials([declared, Machine], View());
         Assert.Equal(2, selected.Selected.Count);
         Assert.Equal(Timber.Value, Assert.Single(selected.Selected.Single(p => p.Spec.Worker == "artist").Spec.Ingredients));
     }
@@ -62,12 +61,12 @@ public sealed class MaterialChoiceTests
     [Fact]
     public void StockAndAllowedFiltersChangeTheCombinationAndCookingStillProceeds()
     {
-        Assert.Single(SelectLedgerMaterials([Flexible, Machine], View(10, 0)).Selected);
-        Assert.Equal(2, SelectLedgerMaterials([Flexible, Machine], View(20, 0)).Selected.Count);
+        Assert.Single(LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], View(10, 0)).Selected);
+        Assert.Equal(2, LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], View(20, 0)).Selected.Count);
         var pinned = Flexible with { Spec = Flexible.Spec with { Ingredients = [Metal.Value] } };
-        Assert.Single(SelectLedgerMaterials([pinned, Machine], View()).Selected);
+        Assert.Single(LedgerMaterialChoicesRules.SelectLedgerMaterials([pinned, Machine], View()).Selected);
         var cooking = new LedgerPlacement("cook", new() { Recipe = "TestFood", BenchKind = "TestCooker", Mode = BillMode.StockTarget, Target = 10 });
-        var noMaterials = SelectLedgerMaterials([Flexible, Machine, cooking], View(0, 0));
+        var noMaterials = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine, cooking], View(0, 0));
         Assert.Equal(cooking, Assert.Single(noMaterials.Selected));
         Assert.Equal(2, noMaterials.Postponed.Count);
     }
@@ -91,10 +90,10 @@ public sealed class MaterialChoiceTests
         var view = View() with { Recipes = Known<EquatableArray<ProductionRecipeInput>>([
             new("FlexibleRecipe", Known<EquatableArray<EquatableArray<Amount>>>([[new(Metal, 5), new(Timber, 5)], [new(Metal, 5)]]), Known(false))]) };
         // Choosing timber for slot one and metal for slot two reopens both choices in slot one.
-        var choice = SelectLedgerMaterials([Flexible], view with { Availability = Budget(5, 5) });
+        var choice = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], view with { Availability = Budget(5, 5) });
         Assert.Empty(choice.Selected);
         Assert.Contains(choice.Comparison.Findings, f => f.StartsWith("unrepresentable_or_unknown_filter:", StringComparison.Ordinal));
-        var enough = SelectLedgerMaterials([Flexible], view);
+        var enough = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], view);
         Assert.Equal(Metal.Value, Assert.Single(Assert.Single(enough.Selected).Spec.Ingredients));
         Assert.Equal(10, Assert.Single(Assert.Single(enough.Comparison.Selected).Cost).Count);
     }
@@ -102,26 +101,26 @@ public sealed class MaterialChoiceTests
     [Fact]
     public void UnknownAndBoundedSearchKeepPostponementAndExposeTheirLimits()
     {
-        var unknown = SelectLedgerMaterials([Flexible], View() with { Recipes = default });
+        var unknown = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], View() with { Recipes = default });
         Assert.Empty(unknown.Selected);
         Assert.Single(unknown.Postponed);
         Assert.Contains(unknown.Comparison.Findings, f => f.StartsWith("unknown_recipe:", StringComparison.Ordinal));
-        var generated = SelectLedgerMaterials([Flexible, Machine], View(), generationBudget: 1);
+        var generated = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], View(), generationBudget: 1);
         Assert.True(generated.GenerationTruncated);
         Assert.Equal(1, generated.Generated);
         Assert.Empty(generated.Selected);
-        var searched = SelectLedgerMaterials([Flexible, Machine], View(), searchBudget: 1);
+        var searched = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], View(), searchBudget: 1);
         Assert.True(searched.Comparison.SearchTruncated);
         Assert.Equal(1, searched.Comparison.Expansions);
         Assert.Single(searched.Selected);
         Assert.Single(searched.Postponed);
-        Assert.Empty(SelectLedgerMaterials([Flexible], View() with { Availability = default }).Selected);
+        Assert.Empty(LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], View() with { Availability = default }).Selected);
     }
 
     [Fact]
     public void PinnedReadbackSatisfiesBroadDemandWithoutDuplicateOrOrphanRemoval()
     {
-        var selection = SelectLedgerMaterials([Flexible, Machine], View());
+        var selection = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], View());
         var actual = selection.Selected.Select((p, i) => new ActualBill { Id = "bill-" + i, Bench = p.Bench, Spec = p.Spec }).ToArray();
         var declared = new[] { new Declared { Orders = [Flexible.Spec, Machine.Spec] } };
         var plan = WorkRules.ReconcileLedger(declared, actual, actual.ToDictionary(b => b.Id, _ => WorkRules.OrphanGraceRounds), new Dictionary<string, int>());
@@ -163,7 +162,7 @@ public sealed class MaterialChoiceTests
             WorkAdmission = new() { Recipes = View().Recipes, Bills = Known(default(EquatableArray<ProductionBatchState>)) } };
         var review = journal.ReviewRounds(new() { Current = world, Tick = facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Assert.True(review.Review.Enabled);
-        var selected = SelectLedgerMaterials([Flexible, Machine], journal.ProductionMaterials(world, ct));
+        var selected = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], journal.ProductionMaterials(world, ct));
         var batches = selected.Selected.Select((p, i) => Batch(p, "action-" + i)).ToArray();
         var spec = new PlanSpec(new PlanId("joint"), new PlanRevision(1), batches.Select(b => DomainAction.NewProductionBillAction(b.Progress.Action, b.Order)));
         journal.CommitClaimedMethod(AdminFamily.WorkLedger, world, new MethodId("joint"), "", spec, ct);
@@ -172,6 +171,6 @@ public sealed class MaterialChoiceTests
         var claims = ProductionRules.ProductionPromisesOf(ProductionRules.PriceProductionBatches(committed, View().Recipes), default).Value.SelectMany(p => p.MaterialClaims).ToArray();
         Assert.Equal(10, Assert.Single(claims, c => c.Resource == Metal).Units.Value);
         Assert.Equal(10, Assert.Single(claims, c => c.Resource == Timber).Units.Value);
-        Assert.Empty(SelectLedgerMaterials([Flexible], journal.ProductionMaterials(world, ct)).Selected);
+        Assert.Empty(LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], journal.ProductionMaterials(world, ct)).Selected);
     }
 }

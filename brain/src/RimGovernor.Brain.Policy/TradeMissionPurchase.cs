@@ -90,7 +90,7 @@ public static partial class TradePolicyRules
         foreach (var d in demands)
         {
             var known = compatible.GetValueOrDefault(d.Demand.Good).TryGetValue(out var can);
-            if (!FoodNumber(d.Gap) || d.Gap <= 0 || !known || !can)
+            if (!FoodForecastRules.FoodNumber(d.Gap) || d.Gap <= 0 || !known || !can)
             {
                 continue;
             }
@@ -104,7 +104,7 @@ public static partial class TradePolicyRules
                     var pk = row.Prepared.TryGetValue(out var prepared);
                     var nk = row.Nutrition.TryGetValue(out var nutrition);
                     var sk = row.CanSupply.TryGetValue(out var supply);
-                    if (pk && prepared && nk && FoodNumber(nutrition) && nutrition > 0 && sk && supply)
+                    if (pk && prepared && nk && FoodForecastRules.FoodNumber(nutrition) && nutrition > 0 && sk && supply)
                     {
                         def = row.Definition;
                         count = Math.Ceiling(d.Gap * Math.Max(1, foodTargetDays) / nutrition);
@@ -112,7 +112,7 @@ public static partial class TradePolicyRules
                     }
                 }
             }
-            if (def.Length == 0 || !FoodNumber(count) || count <= 0 || count > int.MaxValue || cargo.Any(item => item.Definition == def))
+            if (def.Length == 0 || !FoodForecastRules.FoodNumber(count) || count <= 0 || count > int.MaxValue || cargo.Any(item => item.Definition == def))
             {
                 continue;
             }
@@ -141,7 +141,7 @@ public static partial class TradePolicyRules
         var fk = r.FoodDays.TryGetValue(out var food);
         var rk = r.RotDays.TryGetValue(out var rot);
         var tk = r.RouteTicks.TryGetValue(out var ticks);
-        if (!mk || !ck || !fk || !rk || !tk || ticks < 0 || !FoodNumber(mass) || !FoodNumber(capacity) || !FoodNumber(food) || !FoodNumber(rot) || mass > capacity)
+        if (!mk || !ck || !fk || !rk || !tk || ticks < 0 || !FoodForecastRules.FoodNumber(mass) || !FoodForecastRules.FoodNumber(capacity) || !FoodForecastRules.FoodNumber(food) || !FoodForecastRules.FoodNumber(rot) || mass > capacity)
         {
             return false;
         }
@@ -191,7 +191,7 @@ public static partial class TradePolicyRules
         double budget = m.SilverBudget;
         var mk = request.Mass.TryGetValue(out var mass);
         var ck = request.Capacity.TryGetValue(out var capacity);
-        if (!mk || !ck || !FoodNumber(mass) || !FoodNumber(capacity) || mass > capacity)
+        if (!mk || !ck || !FoodForecastRules.FoodNumber(mass) || !FoodForecastRules.FoodNumber(capacity) || mass > capacity)
         {
             return (noLines, noCargo);
         }
@@ -220,12 +220,12 @@ public static partial class TradePolicyRules
         {
             var pk = row.BuyPrice.TryGetValue(out var price);
             var wk = row.WillTrade.TryGetValue(out var willTrade);
-            if (wanted.GetValueOrDefault(row.DefName) == 0 || row.Pawn || row.Currency || !pk || price <= 0 || !FoodNumber(price) || !wk || !willTrade)
+            if (wanted.GetValueOrDefault(row.DefName) == 0 || row.Pawn || row.Currency || !pk || price <= 0 || !FoodForecastRules.FoodNumber(price) || !wk || !willTrade)
             {
                 continue;
             }
             var count = Math.Min(Math.Min(wanted[row.DefName], row.TraderCount), (long)Math.Floor(budget / price));
-            if (!row.UnitMass.TryGetValue(out var unitMass) || !FoodNumber(unitMass))
+            if (!row.UnitMass.TryGetValue(out var unitMass) || !FoodForecastRules.FoodNumber(unitMass))
             {
                 continue;
             }
@@ -237,7 +237,7 @@ public static partial class TradePolicyRules
             {
                 continue;
             }
-            if (TradeCandidate(new Resource(row.DefName), row.LineID, count, price, out var candidate))
+            if (AcquisitionCatalogRules.TradeCandidate(new Resource(row.DefName), row.LineID, count, price, out var candidate))
             {
                 candidates.Add(candidate);
                 rows[candidate.Id] = row;
@@ -251,7 +251,7 @@ public static partial class TradePolicyRules
             {
                 Demands = Known(EquatableArray.From(demands)),
                 Candidates = Known(EquatableArray.From(candidates)),
-                Labor = Known(m.SilverBudget * TradeLaborPerSilver),
+                Labor = Known(m.SilverBudget * AcquisitionCatalogRules.TradeLaborPerSilver),
             }
         );
         var lines = new List<TradeLine>();
@@ -275,6 +275,6 @@ public static partial class TradePolicyRules
     {
         var sk = silver.TryGetValue(out var amount);
         var bk = balance.TryGetValue(out var charge);
-        return sk && bk && FoodNumber(-charge) && -charge <= budget && amount + charge >= 0;
+        return sk && bk && FoodForecastRules.FoodNumber(-charge) && -charge <= budget && amount + charge >= 0;
     }
 }

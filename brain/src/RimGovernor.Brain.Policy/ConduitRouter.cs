@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class ConduitRouterRules
 {
     /// <summary>
     /// Caps the cells one route search visits: enough to reach a geyser GeothermalReachCells away across open

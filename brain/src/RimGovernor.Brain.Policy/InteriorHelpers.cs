@@ -6,7 +6,7 @@ public static partial class PolicyConstants
     internal const string StandingLampDef = "StandingLamp";
 }
 
-public static partial class PolicyFunctions
+public static class InteriorHelpersRules
 {
     /// <summary>Reports whether id is among ids (Go <c>containsPawn</c>).</summary>
     internal static bool ContainsPawn(EquatableArray<PawnId> ids, PawnId id)
@@ -34,7 +34,7 @@ public static partial class PolicyFunctions
     /// <summary>Builds a piece whose footprint's lower corner is at corner.</summary>
     public static InteriorPiece NewInteriorPiece(string slot, string def, Cell size, Rotation rot, Cell corner)
     {
-        var (w, h, _) = RotatedSize(size, rot);
+        var (w, h, _) = InteriorRules.RotatedSize(size, rot);
         return new InteriorPiece { Slot = slot, Def = def, Size = size, Rot = rot, Rect = new Rectangle(corner.X, corner.Z, w, h) };
     }
 
@@ -48,7 +48,7 @@ public static partial class PolicyFunctions
         {
             return false;
         }
-        var r = OccupiedRect(default, def.Size, Rotation.North);
+        var r = InteriorRules.OccupiedRect(default, def.Size, Rotation.North);
         return o.Z == r.Z - 1 && o.X >= r.X && o.X < r.X + r.Width;
     }
 

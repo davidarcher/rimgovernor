@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
@@ -15,7 +16,7 @@ public sealed partial class Rounder
         var babies = biotech!.Babies.Select(b => new PawnId(b.PawnID)).ToList();
         try
         {
-            var review = PolicyApi.ReviewBabyFeeding(babies, biotech.Breastfeeders.Count, supply!, Seasonal(p.Facts).FoodTargetDays);
+            var review = BabyFeedingRules.ReviewBabyFeeding(babies, biotech.Breastfeeders.Count, supply!, Seasonal(p.Facts).FoodTargetDays);
             p = p with { Facts = p.Facts with { BabyFeeding = Known(review) } };
         }
         catch (DomainException)

@@ -136,7 +136,7 @@ public static class DefenseTurretsPolicy
         {
             size = new Bounds { Width = 1, Height = 1 };
         }
-        var rect = OccupiedRect(anchor, new Cell(size.Width, size.Height), Rotation.North);
+        var rect = InteriorRules.OccupiedRect(anchor, new Cell(size.Width, size.Height), Rotation.North);
         var output = new List<Cell>();
         for (var x = rect.X; x < rect.X + rect.Width; x++)
         {
@@ -156,7 +156,7 @@ public static class DefenseTurretsPolicy
         {
             foreach (var y in b)
             {
-                gap = Math.Min(gap, Chebyshev(x, y));
+                gap = Math.Min(gap, LightingRules.Chebyshev(x, y));
             }
         }
         return gap;
@@ -549,7 +549,7 @@ internal sealed partial class DefenseSite
     {
         foreach (var c in transmitters)
         {
-            if (Chebyshev(c, turret) <= DefenseTurretsPolicy.ConduitReach)
+            if (LightingRules.Chebyshev(c, turret) <= DefenseTurretsPolicy.ConduitReach)
             {
                 return [];
             }
@@ -559,7 +559,7 @@ internal sealed partial class DefenseSite
             return null;
         }
         allowed.Add(turret);
-        var path = PowerRoute(turret, transmitters, allowed);
+        var path = ConduitRouterRules.PowerRoute(turret, transmitters, allowed);
         allowed.Remove(turret);
         if (path.Count < 2)
         {
@@ -570,7 +570,7 @@ internal sealed partial class DefenseSite
         var start = 1;
         for (var i = path.Count - 2; i >= 1; i--)
         {
-            if (Chebyshev(path[i], turret) <= DefenseTurretsPolicy.ConduitReach)
+            if (LightingRules.Chebyshev(path[i], turret) <= DefenseTurretsPolicy.ConduitReach)
             {
                 start = i;
                 break;

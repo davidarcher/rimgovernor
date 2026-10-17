@@ -62,7 +62,7 @@ public static partial class ReadingPolicyRules
             return ([], false);
         }
         var want = new HashSet<BookKind>();
-        if (age < ChildAge)
+        if (age < HostilityRules.ChildAge)
         {
             want.Add(BookKind.Textbook);
         }

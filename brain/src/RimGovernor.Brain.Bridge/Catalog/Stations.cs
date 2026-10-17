@@ -178,7 +178,7 @@ public sealed partial class DefinitionCatalog
             Score(scores, P.RoomRole.WorshipRoom, P.RoleCondition.IdeoAltar);
         }
 
-        if (GameRoomRoleDefs.TryGetValue(row.defName, out var furniture) && (furniture == P.FurnitureRole.Desk || furniture == P.FurnitureRole.Board))
+        if (P.DefTablesRules.GameRoomRoleDefs.TryGetValue(row.defName, out var furniture) && (furniture == P.FurnitureRole.Desk || furniture == P.FurnitureRole.Board))
         {
             Score(scores, P.RoomRole.Classroom, P.RoleCondition.Always);
         }

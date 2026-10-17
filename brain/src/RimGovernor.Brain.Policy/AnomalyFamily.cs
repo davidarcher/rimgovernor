@@ -19,19 +19,19 @@ public sealed record AnomalyFacts
 /// moved out of custody.
 /// <list type="bullet">
 /// <item><c>anomaly/doors</c> (Wellbeing): no held entity's cell door is held open
-/// (<see cref="PolicyFunctions.ContainmentDoorUpkeep"/>). Each door to close is its own Method,
+/// (<see cref="EntityUpkeepRules.ContainmentDoorUpkeep"/>). Each door to close is its own Method,
 /// <c>entity-door-&lt;x&gt;-&lt;z&gt;</c>, so doors close side by side.</item>
 /// <item><c>anomaly/capture</c> (Wellbeing): no downed entity is owed a capture
-/// (<see cref="PolicyFunctions.EntityCaptureTarget"/>). Held as <c>unsupported_forecast_population_capture</c>.</item>
-/// <item><c>anomaly/tend</c> (Wellbeing): no downed held entity needs tending (<see cref="PolicyFunctions.EntityTendTarget"/>).
+/// (<see cref="EntityCaptureRules.EntityCaptureTarget"/>). Held as <c>unsupported_forecast_population_capture</c>.</item>
+/// <item><c>anomaly/tend</c> (Wellbeing): no downed held entity needs tending (<see cref="EntityUpkeepRules.EntityTendTarget"/>).
 /// Held as <c>dependent_care_incident_owner</c>: critical care belongs to the patient's medical/critical Need.</item>
 /// <item><c>anomaly/lance</c> (Wellbeing): no recruitable hostile stands while a colonist wears a lance
-/// (<see cref="PolicyFunctions.LanceCandidate"/>). The runtime holds it as <c>unsupported_forecast_population_lance</c>
+/// (<see cref="PopulationRules.LanceCandidate"/>). The runtime holds it as <c>unsupported_forecast_population_lance</c>
 /// once its combat read finds an able wearer.</item>
 /// <item><c>anomaly/bioferrite</c> (Development): every held entity whose extraction pays has its extract flag set
-/// (<see cref="PolicyFunctions.BioferriteHarvestOwed"/>). Each entity is its own Method, <c>entity-bioferrite-&lt;pawn&gt;</c>.</item>
+/// (<see cref="EntityBioferriteRules.BioferriteHarvestOwed"/>). Each entity is its own Method, <c>entity-bioferrite-&lt;pawn&gt;</c>.</item>
 /// <item><c>anomaly/monolith</c> (Development): the monolith owes no advance now
-/// (<see cref="PolicyFunctions.MonolithAdvanceOwed"/>). Held as <c>unsupported_forecast_monolith</c>.</item>
+/// (<see cref="MonolithRules.MonolithAdvanceOwed"/>). Held as <c>unsupported_forecast_monolith</c>.</item>
 /// </list>
 /// The Needs are independent; none waits on another.
 /// </summary>
@@ -75,14 +75,14 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
         var p = f.Containment;
         var holders = p.Holders.TryGetValue(out _);
         var entities = p.Entities.TryGetValue(out _);
-        var doors = PolicyFunctions.ContainmentDoorUpkeep(p).CloseDoors.Count;
-        var harvest = PolicyFunctions.BioferriteHarvestOwed(p, f.Research);
+        var doors = EntityUpkeepRules.ContainmentDoorUpkeep(p).CloseDoors.Count;
+        var harvest = EntityBioferriteRules.BioferriteHarvestOwed(p, f.Research);
         var monolith = MonolithRules.MonolithAdvanceOwed(f.Monolith, MonolithRules.MonolithGate(f));
         return
         [
             Counted(Doors, NeedTier.Wellbeing, holders ? doors : null, "doors_to_close"),
-            Counted(Capture, NeedTier.Wellbeing, entities ? (PolicyFunctions.EntityCaptureTarget(p) is null ? 0 : 1) : null, "entities_to_capture"),
-            Counted(Tend, NeedTier.Wellbeing, entities ? (PolicyFunctions.EntityTendTarget(p) is null ? 0 : 1) : null, "entities_to_tend"),
+            Counted(Capture, NeedTier.Wellbeing, entities ? (EntityCaptureRules.EntityCaptureTarget(p) is null ? 0 : 1) : null, "entities_to_capture"),
+            Counted(Tend, NeedTier.Wellbeing, entities ? (EntityUpkeepRules.EntityTendTarget(p) is null ? 0 : 1) : null, "entities_to_tend"),
             Counted(Lance, NeedTier.Wellbeing, LanceTargets(f), "lance_targets"),
             // An unread fact that kept the rule from deciding leaves the Need unknown, never met.
             Counted(Bioferrite, NeedTier.Development, entities && (harvest.Enable.Count > 0 || harvest.Issues.Count == 0) ? harvest.Enable.Count : null, "entities_to_extract"),
@@ -102,7 +102,7 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
         {
             if (need.Id == Doors)
             {
-                foreach (var cell in PolicyFunctions.ContainmentDoorUpkeep(p).CloseDoors)
+                foreach (var cell in EntityUpkeepRules.ContainmentDoorUpkeep(p).CloseDoors)
                 {
                     var door = new DoorControl(cell, false);
                     output.Add(new NeedMethod(Doors, DoorMethod(cell), "",
@@ -111,7 +111,7 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
             }
             else if (need.Id == Bioferrite)
             {
-                foreach (var entity in PolicyFunctions.BioferriteHarvestOwed(p, facts.Rounds.Research).Enable)
+                foreach (var entity in EntityBioferriteRules.BioferriteHarvestOwed(p, facts.Rounds.Research).Enable)
                 {
                     var setting = PawnSettings.NewExtractBioferriteSetting(entity, true);
                     output.Add(new NeedMethod(Bioferrite, BioferriteMethod(entity), "",

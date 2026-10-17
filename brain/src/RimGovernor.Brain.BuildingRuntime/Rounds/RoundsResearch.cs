@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -97,7 +98,7 @@ public sealed class EconomyRounds
         var items = await _reviewer.ItemFactsAsync(scope.World, ct).ConfigureAwait(false);
         var needs = RoundsProjectBill.RoundsResearchNeeds(p.Journal, _reviewer.Policy, items, scope.World, _reviewer.EquipmentOwed(scope.World), ct);
         needs = _reviewer.CensusResearchNeeds(needs);
-        needs = PolicyFunctions.DeepDrillingResearch(needs, review.ResourceRunwayState(), items);
+        needs = DeepDrillRules.DeepDrillingResearch(needs, review.ResourceRunwayState(), items);
         var facts = new EconomyFacts { ResearchNeeds = [.. needs] };
         if (needs.Count != 0)
         {
@@ -146,7 +147,7 @@ public sealed class EconomyRounds
         var demand = _reviewer.Demand.Get(scope.World);
         var claims = _reviewer.Player.Journal.ConstructionClaims(scope.World, expected.Tick, ct);
         var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
-        var research = economy.Research.TryGetValue(out var census) ? Known(PolicyFunctions.ResearchSummary(census!)) : Unknown<ResearchFacts>();
+        var research = economy.Research.TryGetValue(out var census) ? Known(EconomyRules.ResearchSummary(census!)) : Unknown<ResearchFacts>();
         var observed = reading.Projection.Facts with
         {
             ResourceRunways = review.ResourceRunwayState(),
@@ -169,7 +170,7 @@ public sealed class EconomyRounds
         if (work.Need.Id == EconomyFamily.Resource && _resource is { } steps)
         {
             // A held resource Need (the research gate) has no work of its own: its pure hold stands.
-            return PolicyFunctions.ResourceHold(facts.Resource) is not null ? idle : await ResourceWorkAsync(work, steps, _caravan, ct).ConfigureAwait(false);
+            return EconomyRules.ResourceHold(facts.Resource) is not null ? idle : await ResourceWorkAsync(work, steps, _caravan, ct).ConfigureAwait(false);
         }
         if (work.Need.Id == EconomyFamily.Trade)
         {
@@ -187,7 +188,7 @@ public sealed class EconomyRounds
         {
             return idle;
         }
-        var step = PolicyFunctions.ResearchStepOf(facts);
+        var step = EconomyRules.ResearchStepOf(facts);
         var result = idle;
         if (step.Bench)
         {

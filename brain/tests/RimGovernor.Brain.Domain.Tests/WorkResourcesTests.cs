@@ -4,7 +4,6 @@ using RimGovernor.Brain.Store;
 using WorkResourcePawn = RimGovernor.Contracts.Wire.Observations.WorkResourcePawn;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -267,7 +266,7 @@ public sealed class WorkResourcesTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-contested-proposal-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
-        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(FoodSupplyNeed, World, new("method"), "", Plan("held", Delivery("held")), ct).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(FoodRules.FoodSupplyNeed, World, new("method"), "", Plan("held", Delivery("held")), ct).Outcome);
         var proposed = Delivery("proposed", "helper").PawnActivities!;
         proposed = proposed with { Orders = proposed.Orders.Select(o => o with { Method = "proposal" }).ToArray() };
         var refusal = Assert.Throws<NotAdmittedException>(() => journal.CommitClaimedMethod(TestNeed.Id, World,

@@ -59,12 +59,12 @@ public static partial class LayoutCapabilityRules
     private static Dictionary<PlannedRole, IReadOnlyList<Capability>> DeriveRoleCapabilities()
     {
         Capability[] caps = [Capability.Sleep, Capability.Craft, Capability.Research, Capability.Cook, Capability.Store, Capability.Heat];
-        var output = new Dictionary<PlannedRole, IReadOnlyList<Capability>>(PlannedRoleTier.Count);
-        foreach (var role in PlannedRoleTier.Keys)
+        var output = new Dictionary<PlannedRole, IReadOnlyList<Capability>>(ConstructionTierRules.PlannedRoleTier.Count);
+        foreach (var role in ConstructionTierRules.PlannedRoleTier.Keys)
         {
             var hosted = new List<Capability>();
             output[role] = hosted;
-            if (!ModuleRoomRoles.TryGetValue(role, out var room))
+            if (!InteriorRules.ModuleRoomRoles.TryGetValue(role, out var room))
             {
                 continue;
             }

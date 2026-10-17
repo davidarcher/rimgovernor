@@ -52,7 +52,7 @@ public sealed record JailStep
     public int Beds { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class JailRules
 {
     /// <summary>Picks the next jail step from the plan, the room census, the held prisoner count, the bed census and the colony's buildings.</summary>
     public static JailStep NextJailStep(LayoutPlan plan, RoomObservation rooms, int held, IReadOnlyList<SleepingBed> beds, IReadOnlyList<CurrentBuilding> built)
@@ -125,7 +125,7 @@ public static partial class PolicyFunctions
     /// <summary>The room's first template bed slot nothing stands on.</summary>
     private static (InteriorPiece? Piece, bool Ok) JailSlot(PlannedRoom r, PieceShapes shapes, HashSet<Cell> taken)
     {
-        var (room, ok) = InteriorRoomFromLayout(r, shapes);
+        var (room, ok) = InteriorRules.InteriorRoomFromLayout(r, shapes);
         if (!ok)
         {
             return (null, false);
@@ -135,7 +135,7 @@ public static partial class PolicyFunctions
         {
             return (null, false);
         }
-        var (interior, pok) = PlanRoomInterior(room, bed);
+        var (interior, pok) = InteriorRegionRules.PlanRoomInterior(room, bed);
         if (!pok)
         {
             return (null, false);

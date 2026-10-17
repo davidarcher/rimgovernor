@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -312,7 +313,7 @@ public sealed partial class ClockRunDriver
             SquadUnanswered = squadUnanswered,
             Sheltered = sheltered,
         };
-        var decision = PolicyApi.EvaluateClockWatch(facts, new ClockWatchLimits { MaxAge = _scheduler.Config.MaxAge });
+        var decision = ClockWatchRules.EvaluateClockWatch(facts, new ClockWatchLimits { MaxAge = _scheduler.Config.MaxAge });
         note.Decision = decision;
         if (!decision.Run)
         {

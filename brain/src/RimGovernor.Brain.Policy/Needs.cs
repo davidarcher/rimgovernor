@@ -202,7 +202,7 @@ public interface IFamily
 /// <summary>
 /// A family's pure policy over its own fact type. The runtime reads <typeparamref name="TFacts"/> (the full read,
 /// or in the immediate pass the narrow one, whose other facts stay unknown), derives, evaluates preconditions with
-/// <see cref="PolicyFunctions.NeedStandings"/>, and asks for Methods for the ready Needs only.
+/// <see cref="NeedsRules.NeedStandings"/>, and asks for Methods for the ready Needs only.
 /// </summary>
 public interface IFamily<in TFacts> : IFamily
 {

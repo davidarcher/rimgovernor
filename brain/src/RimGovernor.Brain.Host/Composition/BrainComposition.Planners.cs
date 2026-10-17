@@ -4,7 +4,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Policy;
 using static RimGovernor.Brain.Policy.PolicyConstants;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Host;
 
@@ -146,7 +145,7 @@ public sealed partial class BrainComposition
         }
         if (acquisition)
         {
-            foodAcquisition = new RoundsAcquisitionPlanner(reviewer, FoodSupplyNeed.FilingKey);
+            foodAcquisition = new RoundsAcquisitionPlanner(reviewer, FoodRules.FoodSupplyNeed.FilingKey);
             cfgResourceAcquisition = new RoundsAcquisitionPlanner(reviewer, EconomyFamily.Resource.FilingKey);
         }
         if (defense)
@@ -285,7 +284,7 @@ public sealed partial class BrainComposition
             // The people family (#3304): the dialog toggle composes its dialog Need, which answers the force-pausing
             // choice dialogs, and the mood toggle its per-pawn mood Needs.
             families.Add(new PeopleRounds(reviewer, new PeopleNeeds { Dialog = dialog, Mood = sc.Mood }, dialog ? client : null,
-                dialog ? new DialogAnswerPolicy(EquatableArray.From(DefaultDialogAnswerPrefer)) : null).Runner());
+                dialog ? new DialogAnswerPolicy(EquatableArray.From(DialogAnswerRules.DefaultDialogAnswerPrefer)) : null).Runner());
         }
         if (trade)
         {
@@ -409,7 +408,7 @@ public sealed partial class BrainComposition
         var needs = new List<NeedId>();
         if (sc.Refrigeration)
         {
-            needs.Add(RefrigerationNeed);
+            needs.Add(FoodStoresRules.RefrigerationNeed);
         }
         if (sc.Training)
         {
@@ -421,11 +420,11 @@ public sealed partial class BrainComposition
         }
         if (sc.Acquisition || sc.Field || sc.Bill)
         {
-            needs.Add(FoodSupplyNeed);
+            needs.Add(FoodRules.FoodSupplyNeed);
         }
         if (sc.Cooking || sc.Bill)
         {
-            needs.Add(CookingNeed);
+            needs.Add(FoodRules.CookingNeed);
         }
         if (sc.ResourceTargetsConfigured || sc.Acquisition)
         {

@@ -78,7 +78,7 @@ public enum WeaponClass
     Ranged,
 }
 
-public static partial class PolicyFunctions
+public static class EquipRules
 {
     /// <summary>Go <c>ClassifyWeapon</c>: maps the observed definition flags onto a class.</summary>
     public static WeaponClass ClassifyWeapon(bool byTrade, bool ranged, bool melee)

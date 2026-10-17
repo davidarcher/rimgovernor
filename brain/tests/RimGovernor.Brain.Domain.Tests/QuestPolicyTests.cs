@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -153,7 +152,7 @@ public sealed class QuestPolicyTests
         };
         var claim = new TitleClaim { Holder = holder, Title = "Acolyte", Claim = true };
 
-        Assert.Equal(new[] { new QuestId("mine") }, ClaimQuests(royalty, claim));
-        Assert.Empty(ClaimQuests(royalty, claim with { Claim = false }));
+        Assert.Equal(new[] { new QuestId("mine") }, CeremonyRules.ClaimQuests(royalty, claim));
+        Assert.Empty(CeremonyRules.ClaimQuests(royalty, claim with { Claim = false }));
     }
 }

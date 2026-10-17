@@ -19,7 +19,7 @@ public sealed record GeneBankFacts
     public IReadOnlyList<Fact<bool>> Packs { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static class GeneBankConcernRules
 {
     // The biotech/gene-bank Need adds capacity for loose genepacks, which deteriorate outside powered banks.
     // Capacity comes from native bank facts; the power/basic Need owns power supply. Banks are identified by

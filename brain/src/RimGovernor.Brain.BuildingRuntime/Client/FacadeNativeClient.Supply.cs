@@ -58,7 +58,7 @@ public sealed partial class FacadeNativeClient
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
             Filter = new PbObservations.StockFilter
             {
-                DefNames = EquatableArray.From(PolicyFunctions.ReserveFoodDefinitions()),
+                DefNames = EquatableArray.From(FoodReserveRules.ReserveFoodDefinitions()),
                 Ownership = PbObservations.StockOwnership.Ours,
                 IncludeHeld = false,
                 ForbiddenOnly = !forbid,

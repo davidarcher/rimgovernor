@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -100,7 +99,7 @@ public sealed class ForecastRoofConsequencesTests
         var roots = candidates.Alternatives.Where(c => c.ActivityCompletions.SequenceEqual([full.Task])
             || sites.Any(site => c.Id.StartsWith(site + "/composition/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal))).ToArray();
         Assert.Equal(sites.Length + 1, roots.Length);
-        var forecast = ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
+        var forecast = ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(roots) }));
         var moods = forecast.Proposed.Coupled!.Alternatives.Where(a => a.Feasible == Known(true))
             .Select(a => a.Needs["pawn"].Mood).Where(m => m is { Trajectory.Count: > 0 }).Select(m => m!.Trajectory[^1].Target.Value).ToArray();
@@ -141,7 +140,7 @@ public sealed class ForecastRoofConsequencesTests
         var roots = candidates.Alternatives.Where(c => c.ActivityCompletions.SequenceEqual([full.Task])
             || (c.Id.StartsWith(Wall + "/composition/", StringComparison.Ordinal) || c.Id.StartsWith(Door + "/composition/", StringComparison.Ordinal))
             && !c.Id.Contains("/after/", StringComparison.Ordinal)).ToArray();
-        var forecast = ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
+        var forecast = ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(roots) }));
         var closing = forecast.Proposed.Coupled!.Alternatives.Where(a => a.Feasible == Known(true) && a.PlannedRooms.Any(r => r.CompletedSites.Count == 2)
             && a.Plan.Allocations.Where(x => x.Activity == full.Task).All(x => a.Plan.Allocations.Where(s => candidates.Context.PlannedSites.Any(p => p.Finishes.Contains(s.Activity))).All(s => s.End <= x.End)));

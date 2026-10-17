@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 internal sealed partial class RoundsStockpilePlanner
@@ -120,7 +121,7 @@ partial class RoundsStockpilePlanner
                 {
                     continue;
                 }
-                var rect = Pol.PolicyFunctions.OccupiedRect(b.Cell, new Cell(2, 1), b.Rotation);
+                var rect = InteriorRules.OccupiedRect(b.Cell, new Cell(2, 1), b.Rotation);
                 var cells = new List<Cell>();
                 for (var x = rect.X; x < rect.X + rect.Width; x++)
                 {
@@ -137,7 +138,7 @@ partial class RoundsStockpilePlanner
                 output.Add(record);
                 continue;
             }
-            if (!Pol.PolicyFunctions.PlanBuilt(plan.Progress, census))
+            if (!BuildingWorkRules.PlanBuilt(plan.Progress, census))
             {
                 continue;
             }

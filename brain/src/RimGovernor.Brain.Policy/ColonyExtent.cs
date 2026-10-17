@@ -82,7 +82,7 @@ public sealed record ColonyExtentRequest
     public int Margin { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ColonyExtentRules
 {
     private const int ExtentCellLimit = 65536;
 
@@ -130,8 +130,8 @@ public static partial class PolicyFunctions
             }
         }
 
-        var owned = OwnedConstructions(r.Claims, r.Construction);
-        ReviewHomeCoverage(r.Home);
+        var owned = ConstructionOwnershipRules.OwnedConstructions(r.Claims, r.Construction);
+        FacilityUpkeepRules.ReviewHomeCoverage(r.Home);
         owned.TryGetValue(out var buildings);
         if (home!.Revision < 0)
         {
@@ -141,7 +141,7 @@ public static partial class PolicyFunctions
         var targets = new Dictionary<string, HomeCoverageTarget>(StringComparer.Ordinal);
         foreach (var target in home.Targets)
         {
-            if (!FoodId(target.Id) || !targets.TryAdd(target.Id, target))
+            if (!FoodForecastRules.FoodId(target.Id) || !targets.TryAdd(target.Id, target))
             {
                 throw Invalid();
             }
@@ -327,7 +327,7 @@ public static partial class PolicyFunctions
         return Known(new ColonyExtent { Regions = EquatableArray.From(regions) });
     }
 
-    private static bool ExtentCellLess(Cell a, Cell b) => a.X < b.X || (a.X == b.X && a.Z < b.Z);
+    internal static bool ExtentCellLess(Cell a, Cell b) => a.X < b.X || (a.X == b.X && a.Z < b.Z);
 
     private static Cell[] ExtentNeighbors(Cell c) => [new(c.X - 1, c.Z), new(c.X + 1, c.Z), new(c.X, c.Z - 1), new(c.X, c.Z + 1)];
 }

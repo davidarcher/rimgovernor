@@ -24,7 +24,7 @@ public sealed record AnimalProduct
     public Fact<double> FeedPerDay { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class FoodAnimalProductsRules
 {
     /// <summary>
     /// Go <c>WithFeed</c>: sets each row's FeedPerDay from the upkeep census; an animal the census does not
@@ -76,7 +76,7 @@ public static partial class PolicyFunctions
             var lk = a.LeadDays.TryGetValue(out var l);
             var fk = a.FeedPerDay.TryGetValue(out var f);
             var rk = a.Reachable.TryGetValue(out var reachable);
-            if (!FoodId(a.Pawn) || !FoodId(a.Race) || (nk && !FoodNumber(n)) || (wk && !FoodNumber(w)) || (lk && !FoodNumber(l)) || (fk && !FoodNumber(f)))
+            if (!FoodForecastRules.FoodId(a.Pawn) || !FoodForecastRules.FoodId(a.Race) || (nk && !FoodForecastRules.FoodNumber(n)) || (wk && !FoodForecastRules.FoodNumber(w)) || (lk && !FoodForecastRules.FoodNumber(l)) || (fk && !FoodForecastRules.FoodNumber(f)))
             {
                 r.Nutrition = double.NaN;
             }
@@ -95,7 +95,7 @@ public static partial class PolicyFunctions
         foreach (var race in byRace.Keys.Order(StringComparer.Ordinal))
         {
             var r = byRace[race];
-            var c = FoodCandidate(CandidateKind.AnimalProduct, race, Unknown<double>());
+            var c = CandidateRules.FoodCandidate(CandidateKind.AnimalProduct, race, Unknown<double>());
             c = c with
             {
                 Source = "animal_product:" + race,
@@ -107,7 +107,7 @@ public static partial class PolicyFunctions
             }
             if (!r.Unknown)
             {
-                c = c with { LaborPerDay = Known(r.Work), LeadDays = Known(r.Lead), State = FoodState(Known(false), Known(true)) };
+                c = c with { LaborPerDay = Known(r.Work), LeadDays = Known(r.Lead), State = CandidateRules.FoodState(Known(false), Known(true)) };
             }
             channels.Add(c);
         }
@@ -154,7 +154,7 @@ public static partial class PolicyFunctions
             }
             foreach (var term in e.Channel.Terms)
             {
-                if (term.Name != "productive_animals" || !FoodNumber(term.Value) || term.Value > 256)
+                if (term.Name != "productive_animals" || !FoodForecastRules.FoodNumber(term.Value) || term.Value > 256)
                 {
                     continue;
                 }

@@ -17,7 +17,7 @@ public static partial class PolicyConstants
     internal const string TermNeedsWeapon = "needs_weapon";
 }
 
-public static partial class PolicyFunctions
+public static class HuntPrerequisiteRules
 {
     /// <summary>
     /// Reports a no_hunter hold where some colonist is only missing the hunting work or its weapon:
@@ -25,13 +25,13 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static bool NeedsHunterWeapon(this HuntHold h)
     {
-        if (h.Reason != HuntHoldNoHunter)
+        if (h.Reason != HuntGateRules.HuntHoldNoHunter)
         {
             return false;
         }
         foreach (var d in h.Detail)
         {
-            if (d.EndsWith(" " + HuntHunterInactive, StringComparison.Ordinal) || d.EndsWith(" " + HuntHunterNoWeapon, StringComparison.Ordinal))
+            if (d.EndsWith(" " + HuntGateRules.HuntHunterInactive, StringComparison.Ordinal) || d.EndsWith(" " + HuntGateRules.HuntHunterNoWeapon, StringComparison.Ordinal))
             {
                 return true;
             }
@@ -53,7 +53,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var c = HuntChannel(h.Source.Id, [h.Source], 0);
+            var c = HuntSquadRules.HuntChannel(h.Source.Id, [h.Source], 0);
             // The craft's lead is a term, not the candidate's lead: a starving
             // colony has no runway, and any positive lead exceeds it, so the one
             // step that lets it hunt could never open.

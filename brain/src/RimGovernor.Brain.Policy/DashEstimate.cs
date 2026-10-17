@@ -34,7 +34,7 @@ public sealed record OutdoorBudget
     public bool Unbounded { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class DashEstimateRules
 {
     /// <summary>
     /// The published formula: onset below comfortable minimum minus 10 C, growth max(0.00075, (degrees below

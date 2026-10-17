@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 internal static class RoundsDisease
@@ -13,8 +14,8 @@ internal static class RoundsDisease
             history = [];
             helped = null;
         }
-        demand = demand with { Help = PolicyApi.ConstructionHelpDemand(previous.ReadyWork, current, facts.Identity.Tick, HelpDefinitions(definitions, facts.Definitions), helped, facts.Facts.CurrentConstruction) };
-        demand = demand with { Resting = PolicyApi.ReviewDiseaseRest(facts.Facts.MedicalPawns, history) };
+        demand = demand with { Help = ConstructionHelpersRules.ConstructionHelpDemand(previous.ReadyWork, current, facts.Identity.Tick, HelpDefinitions(definitions, facts.Definitions), helped, facts.Facts.CurrentConstruction) };
+        demand = demand with { Resting = DiseaseRestRules.ReviewDiseaseRest(facts.Facts.MedicalPawns, history) };
         return demand;
     }
 

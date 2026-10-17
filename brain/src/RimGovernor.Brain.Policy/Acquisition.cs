@@ -77,7 +77,7 @@ public sealed record AcquisitionSource
     /// A hunt a lone hunter must not designate: a predator, or a standing animal whose revenge chance exceeds
     /// MaxHuntRevengeChance. Selection never designates it; a squad may (SquadPrey).
     /// </summary>
-    public bool Retaliates() => Hunt && (Predator || (!Downed && RevengeChance > MaxHuntRevengeChance));
+    public bool Retaliates() => Hunt && (Predator || (!Downed && RevengeChance > AcquisitionRules.MaxHuntRevengeChance));
 
     /// <summary>An open hunt row a squad may target, retaliating or not.</summary>
     public bool SquadPrey() => Hunt && !Designated && !Taken;
@@ -86,7 +86,7 @@ public sealed record AcquisitionSource
     public double HuntRevengeCost() => Downed ? 0 : RevengeChance * Math.Max(1, HerdSize);
 }
 
-public static partial class PolicyFunctions
+public static class AcquisitionRules
 {
     /// <summary>
     /// The highest manhunter-on-harm chance a standing animal may carry and still be hunted. Above it (moose,
@@ -126,7 +126,7 @@ public static partial class PolicyFunctions
         IReadOnlyDictionary<string, bool> held
     )
     {
-        DomainException.Require(ValidResource(resource), "invalid acquisition resource");
+        DomainException.Require(AdmissionRules.ValidResource(resource), "invalid acquisition resource");
         (double, bool) Accept(AcquisitionSource row) => (row.Yield, !row.Hunt && new Resource(row.Resource) == resource);
         return SelectAcquisitionCore(sources, deficit, pending, Accept, held);
     }
@@ -143,7 +143,7 @@ public static partial class PolicyFunctions
         var known = sources.TryGetValue(out var rowsFact);
         var nk = deficit.TryGetValue(out var need);
         var pk = pending.TryGetValue(out var outstanding);
-        DomainException.Require(known && nk && pk && FoodNumber(need) && FoodNumber(outstanding), "acquisition facts unavailable");
+        DomainException.Require(known && nk && pk && FoodForecastRules.FoodNumber(need) && FoodForecastRules.FoodNumber(outstanding), "acquisition facts unavailable");
         var slots = 0;
         DomainException.Require(huntSlots.Length <= 1, "multiple hunting budgets");
         if (huntSlots.Length == 1 && huntSlots[0].TryGetValue(out var n))
@@ -157,20 +157,20 @@ public static partial class PolicyFunctions
         {
             DomainException.Require(
                 !(
-                    !FoodNumber(row.RevengeChance)
+                    !FoodForecastRules.FoodNumber(row.RevengeChance)
                     || row.RevengeChance > 1
                     || row.HerdSize < 0
                     || row.HerdSize > 65536
-                    || !FoodNumber(row.WeaponRange)
-                    || !FoodId(row.Id)
-                    || !FoodId(row.Resource)
-                    || !FoodId(row.Token)
+                    || !FoodForecastRules.FoodNumber(row.WeaponRange)
+                    || !FoodForecastRules.FoodId(row.Id)
+                    || !FoodForecastRules.FoodId(row.Resource)
+                    || !FoodForecastRules.FoodId(row.Token)
                     || seen.Contains(row.Id)
                     || row.Cell.X < 0
                     || row.Cell.Z < 0
-                    || !FoodNumber(row.Yield)
+                    || !FoodForecastRules.FoodNumber(row.Yield)
                     || row.Yield <= 0
-                    || !FoodNumber(row.NutritionYield)
+                    || !FoodForecastRules.FoodNumber(row.NutritionYield)
                     || (!row.Food && row.NutritionYield != 0)
                     || (row.Hunt && (row.Tree || row.Yield != 1 || (!row.Food && !row.Pest)))
                 ),
@@ -230,7 +230,7 @@ public static partial class PolicyFunctions
 
             // The row cap bounds the non-hunt rows; hunts are bounded by the hunters' budget, so their count
             // follows the nutrition gap.
-            if (!row.Hunt && others == MaxCatalogSelection)
+            if (!row.Hunt && others == AcquisitionCatalogRules.MaxCatalogSelection)
             {
                 continue;
             }

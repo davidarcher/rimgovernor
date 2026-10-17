@@ -77,7 +77,7 @@ public sealed partial record LayoutPlan
 
 }
 
-public static partial class PolicyFunctions
+public static class HerdRoomsRules
 {
     /// <summary>The plan role of a pen: an outdoor room, a fence and a gate round grazing ground.</summary>
     public static PlannedRole PlannedPen => PlannedRole.Pen;
@@ -91,9 +91,9 @@ public static partial class PolicyFunctions
         var taken = BuiltCells(built);
         foreach (var room in plan.RoomsOf(PlannedPen))
         {
-            var (piece, marked) = PenMarkerPiece(room, f.Marker, built, taken);
+            var (piece, marked) = HerdPenRules.PenMarkerPiece(room, f.Marker, built, taken);
             IReadOnlyList<WantedPiece> template = marked ? [piece] : [];
-            if ((marked && !PenMarkerStanding(room, built)) || !plan.GroundMatches(room, ground))
+            if ((marked && !HerdPenRules.PenMarkerStanding(room, built)) || !plan.GroundMatches(room, ground))
             {
                 return new HerdStep
                 {
@@ -134,7 +134,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var (bed, due) = UnflaggedWardBed(room, built, sleeping, f.Bed.Def);
+            var (bed, due) = HerdWardRules.UnflaggedWardBed(room, built, sleeping, f.Bed.Def);
             if (due)
             {
                 return new HerdStep
@@ -145,7 +145,7 @@ public static partial class PolicyFunctions
                     Bed = bed,
                 };
             }
-            var (template, absent) = WardTemplate(room, rooms.Shapes, f.Bed, ward, built, taken);
+            var (template, absent) = HerdWardRules.WardTemplate(room, rooms.Shapes, f.Bed, ward, built, taken);
             if (absent)
             {
                 return new HerdStep

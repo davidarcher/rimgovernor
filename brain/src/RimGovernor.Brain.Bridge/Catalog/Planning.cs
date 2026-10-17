@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using P = RimGovernor.Brain.Policy;
@@ -28,7 +29,7 @@ public sealed partial class DefinitionCatalog
 
     /// <summary>The furniture roles the game's room-role code scores the def for by name (Toy, Decoration, Board, Desk): at most one.</summary>
     public static IReadOnlyList<string> GameRoomRoles(string name) =>
-        GameRoomRoleDefs.TryGetValue(name, out var role) ? [role.Value] : [];
+        DefTablesRules.GameRoomRoleDefs.TryGetValue(name, out var role) ? [role.Value] : [];
 
     /// <summary>Whether the def carries a comp of class <typeparamref name="T"/> or a subclass (the game's <c>GetCompProperties&lt;T&gt;()</c> is non-null).</summary>
     public static bool HasComp<T>(ThingDef row)

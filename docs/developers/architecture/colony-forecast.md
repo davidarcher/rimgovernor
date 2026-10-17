@@ -7,7 +7,7 @@ limits, exact execution ownership and the replacement acceptance cases.
 
 [Architecture](overview.md) · [Forecast facts](../contracts/forecast-contracts.md)
 
-`PolicyFunctions.ForecastColony` is the pure owner of a baseline and a proposed
+`ColonyForecastRules.ForecastColony` is the pure owner of a baseline and a proposed
 commitment delta evaluated against the same observed facts. It returns
 `ColonyForecast`; it does not issue orders or certify native legality. The
 inventory component accounts for supplied timed changes. The construction slice

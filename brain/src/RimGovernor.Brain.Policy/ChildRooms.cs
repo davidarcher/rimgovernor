@@ -199,7 +199,7 @@ public sealed record ChildRoomStep
     public bool Owed() => Kind == ChildRoomStepKind.Reconcile;
 }
 
-public static partial class PolicyFunctions
+public static class ChildRoomsRules
 {
     /// <summary>The baby bed count below which the game scores a room no Nursery at all.</summary>
     internal const int MinNurseryBeds = 2;
@@ -360,7 +360,7 @@ public static partial class PolicyFunctions
             }
 
             var pieces = n.Resolve(defs) ?? [];
-            var (interior, interiorOk) = InteriorRoomFromLayout(room, rooms.Shapes);
+            var (interior, interiorOk) = InteriorRules.InteriorRoomFromLayout(room, rooms.Shapes);
             if (!interiorOk || interior is null)
             {
                 continue;
@@ -382,7 +382,7 @@ public static partial class PolicyFunctions
                 var count = 0;
                 foreach (var b in built)
                 {
-                    if (count < p.Count && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells.Items)) && p.Defs.Contains(b.Building!.Definition))
+                    if (count < p.Count && b.Cells.Count > 0 && FurnitureRoomsRules.RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells.Items)) && p.Defs.Contains(b.Building!.Definition))
                     {
                         var r = PlacementSearchRules.CellsRectangle(b.Cells.Items);
                         template.Add(
@@ -402,7 +402,7 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                var (planned, plannedOk) = PlanRoomInterior(interior, p.Piece);
+                var (planned, plannedOk) = InteriorRegionRules.PlanRoomInterior(interior, p.Piece);
                 if (!plannedOk)
                 {
                     continue;
@@ -459,7 +459,7 @@ public static partial class PolicyFunctions
         var n = 0;
         foreach (var b in built)
         {
-            if (b.Cells.Count > 0 && RectInside(r.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells.Items)) && defs.Contains(b.Building!.Definition))
+            if (b.Cells.Count > 0 && FurnitureRoomsRules.RectInside(r.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells.Items)) && defs.Contains(b.Building!.Definition))
             {
                 n++;
             }

@@ -97,7 +97,7 @@ internal sealed class VentPricer(Tiler t, ClimateModel m, IReadOnlyList<double> 
         ClimateWatts w;
         try
         {
-            w = ClimateLoad(m, curve, room, 0);
+            w = ClimateRules.ClimateLoad(m, curve, room, 0);
         }
         catch (DomainException e)
         {
@@ -216,7 +216,7 @@ internal sealed partial class Tiler
             return;
         }
         In.VentAvailable.TryGetValue(out var available);
-        var ventW = BuildW(SiteRules.DefaultSiteTypeWeights(), m.Build.Vent, In.SteelValue);
+        var ventW = ClimateRules.BuildW(SiteRules.DefaultSiteTypeWeights(), m.Build.Vent, In.SteelValue);
         var p = new VentPricer(this, m, curve!);
         var used = new HashSet<Cell>();
         for (var i = 0; i < Rooms.Count; i++)
@@ -372,7 +372,7 @@ internal sealed partial class Tiler
         foreach (var v in vents)
         {
             var site = LayoutPerimeterSitesRules.NewSite($"vent_{v.Cell.X}_{v.Cell.Z}", LayoutTileVentRules.NodeVent, RegionRules.RectRegion(new Rectangle { X = v.Cell.X, Z = v.Cell.Z, Width = 1, Height = 1 }), v.Reason);
-            var (rot, _) = DoorSide(Rooms[v.Room].Rect, v.Cell);
+            var (rot, _) = InteriorRules.DoorSide(Rooms[v.Room].Rect, v.Cell);
             output.Add(site with { Rotation = rot });
         }
         return output;

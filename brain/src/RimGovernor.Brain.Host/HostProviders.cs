@@ -48,7 +48,7 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
 
             status = status with
             {
-                Extent = PolicyFunctions.DeriveColonyExtent(new ColonyExtentRequest
+                Extent = ColonyExtentRules.DeriveColonyExtent(new ColonyExtentRequest
                 {
                     Bounds = Known(held.Value.Bounds),
                     Construction = f.CurrentConstruction,

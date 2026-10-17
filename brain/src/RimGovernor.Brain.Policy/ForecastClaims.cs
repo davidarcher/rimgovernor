@@ -25,7 +25,7 @@ public static class ForecastClaims
                 throw new DomainException("material claim duplicates construction or stock effects");
             foreach (var claim in commitment.MaterialClaims)
             {
-                if (!ValidResource(claim.Resource) || claim.Units.TryGetValue(out var count) && (!double.IsFinite(count) || count < 0))
+                if (!AdmissionRules.ValidResource(claim.Resource) || claim.Units.TryGetValue(out var count) && (!double.IsFinite(count) || count < 0))
                     throw new DomainException("invalid forecast material claim");
                 if (claim.ReservationBill.TryGetValue(out var bill) && bill.Length != 0 && !linked.Add((bill, claim.Resource)))
                     throw new DomainException("native reservation linked to multiple promises");
@@ -40,7 +40,7 @@ public static class ForecastClaims
             foreach (var amount in amounts)
             {
                 var total = totals.GetValueOrDefault(amount.Resource);
-                if (!ValidResource(amount.Resource) || amount.Count < 0 || amount.Count > long.MaxValue - total)
+                if (!AdmissionRules.ValidResource(amount.Resource) || amount.Count < 0 || amount.Count > long.MaxValue - total)
                     throw new DomainException("invalid or overflowing material amount");
                 totals[amount.Resource] = total + amount.Count;
             }
@@ -52,7 +52,7 @@ public static class ForecastClaims
             if (row.Pawn.IsEmpty) throw new DomainException("ingredient reservation requires a pawn");
             foreach (var amount in row.Items)
             {
-                if (!ValidResource(amount.Resource) || amount.Count < 0) throw new DomainException("invalid native ingredient hold");
+                if (!AdmissionRules.ValidResource(amount.Resource) || amount.Count < 0) throw new DomainException("invalid native ingredient hold");
                 if (!row.Bill.TryGetValue(out var bill) || string.IsNullOrWhiteSpace(bill)) unknownBills.Add(amount.Resource);
                 else
                 {
@@ -66,7 +66,7 @@ public static class ForecastClaims
         var result = free.ToDictionary(p => p.Key, p => Known((double)p.Value));
         void Hold(Resource resource, Fact<double> units)
         {
-            if (!ValidResource(resource)) throw new DomainException("invalid forecast material resource");
+            if (!AdmissionRules.ValidResource(resource)) throw new DomainException("invalid forecast material resource");
             if (units.TryGetValue(out var count) && (!double.IsFinite(count) || count < 0))
                 throw new DomainException("invalid forecast material claim");
             var before = result.GetValueOrDefault(resource, Known(0.0));

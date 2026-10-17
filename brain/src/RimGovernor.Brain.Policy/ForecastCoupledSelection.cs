@@ -47,7 +47,7 @@ public sealed partial record ForecastCoupledSelection
         request = request with { Coupled = candidates.Context, Proposed = new() };
         var baselineCommitments = request.Commitments.Concat(candidates.Incumbents).ToArray();
         var incumbentIds = candidates.Incumbents.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
-        var baselineScenario = ForecastCoupled.ForecastCoupledScenarioOf(request, ForecastCommitmentsById(baselineCommitments)).Coupled!;
+        var baselineScenario = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(baselineCommitments)).Coupled!;
         var baseline = baselineScenario.Alternatives.Count > 0 ? baselineScenario.Alternatives[0]
             : new ForecastCoupledOutcome(new([], 0, 0), default, [], new Dictionary<string, ForecastNeedsResult>(), []);
         foreach (var candidate in baselineScenario.Alternatives.Where(a => a.Feasible == Known(true)))
@@ -127,7 +127,7 @@ public sealed partial record ForecastCoupledSelection
                 var remaining = budget - expansions;
                 if (remaining == 0) { truncated = true; return false; }
                 var searched = ForecastCoupled.ForecastCoupledScenarioOf(request with { Coupled = candidates.Context with
-                { Activities = candidates.Context.Activities with { ExpansionBudget = Math.Min(bound, remaining) } } }, ForecastCommitmentsById(commitments)).Coupled!;
+                { Activities = candidates.Context.Activities with { ExpansionBudget = Math.Min(bound, remaining) } } }, ColonyForecastRules.ForecastCommitmentsById(commitments)).Coupled!;
                 expansions += searched.Expansions;
                 known = (searched.Truncated ? bound : PortfolioBound, searched);
                 schedules[schedule] = known;

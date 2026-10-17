@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -124,7 +125,7 @@ public sealed class MedicalRounds
                 emergencyFacts = observed.Facts;
                 emergency = EmergencySnapshot.New(scope.World, emergencyTick, emergencyFacts);
             }
-            var critical = PolicyFunctions.CriticalPatientIds(emergency, scope.World, emergencyTick, medicalPawns);
+            var critical = EmergencyNeedsRules.CriticalPatientIds(emergency, scope.World, emergencyTick, medicalPawns);
             facts = facts with { Critical = critical };
             if (critical.TryGetValue(out var patients) && patients.Count > 0 && (_tend is not null || _rescue is not null))
             {
@@ -177,7 +178,7 @@ public sealed class MedicalRounds
         var care = new CriticalCare { Busy = CareHeld(world, patients, ct) };
         if (_tend is not null)
         {
-            var eligible = PolicyFunctions.EmergencyTendPatients(emergency).ToHashSet();
+            var eligible = EmergencyPatientsRules.EmergencyTendPatients(emergency).ToHashSet();
             var ids = workers.Union(eligible).Select(pawn => pawn.Value).Order(StringComparer.Ordinal).ToList();
             var reply = await _tend.ReadTendPawnsAsync(identity, ids, ct).ConfigureAwait(false);
             var observed = PawnRows(reply.Outcome?.Observed, world, ids, "tend");
@@ -200,7 +201,7 @@ public sealed class MedicalRounds
         }
         if (_rescue is not null)
         {
-            var eligible = PolicyFunctions.EmergencyRescuePatients(emergency).ToHashSet();
+            var eligible = EmergencyPatientsRules.EmergencyRescuePatients(emergency).ToHashSet();
             var ids = workers.Union(eligible).Select(pawn => pawn.Value).Order(StringComparer.Ordinal).ToList();
             var reply = await _rescue.ReadCombatPawnsAsync(identity, ids, ct).ConfigureAwait(false);
             var observed = PawnRows(reply.Outcome?.Observed, world, ids, "rescue");

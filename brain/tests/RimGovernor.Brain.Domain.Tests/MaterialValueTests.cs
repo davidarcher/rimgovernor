@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -112,13 +111,13 @@ public sealed class MaterialValueTests
             [Key(art, Wood)] = new([new("beauty", Known(4.0))], Known(1.0)),
             [Key(machine, Metal)] = new([new("urgent", Known(1.0))], Known(1.0)) };
         var valuation = new ForecastProductionValuation(Values(), estimates);
-        Assert.Equal(Metal.Value, Assert.Single(SelectLedgerMaterials([art], view, valuation: valuation).Selected).Spec.Ingredients[0]);
-        var together = SelectLedgerMaterials([art, machine], view, valuation: valuation);
+        Assert.Equal(Metal.Value, Assert.Single(LedgerMaterialChoicesRules.SelectLedgerMaterials([art], view, valuation: valuation).Selected).Spec.Ingredients[0]);
+        var together = LedgerMaterialChoicesRules.SelectLedgerMaterials([art, machine], view, valuation: valuation);
         Assert.Equal(2, together.Selected.Count);
         Assert.Equal(Wood.Value, together.Selected.Single(p => p.Spec.Recipe == "Art").Spec.Ingredients[0]);
         Assert.Equal(24, together.Comparison.Valuation!.Benefit);
         estimates.Remove(Key(art, Wood));
-        var unknown = SelectLedgerMaterials([art, machine], view, valuation: valuation);
+        var unknown = LedgerMaterialChoicesRules.SelectLedgerMaterials([art, machine], view, valuation: valuation);
         Assert.Equal("Machine", Assert.Single(unknown.Selected).Spec.Recipe);
         Assert.Single(unknown.Postponed);
         Assert.Contains(unknown.Comparison.Findings, f => f.StartsWith("unknown_estimate:", StringComparison.Ordinal));

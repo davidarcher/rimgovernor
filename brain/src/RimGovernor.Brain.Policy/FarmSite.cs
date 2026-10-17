@@ -34,7 +34,7 @@ public sealed record FarmSitePlan
     public int Cells { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class FarmSiteRules
 {
     /// <summary>Charges a picked cell per step from the anchor, as a fraction of one normal-soil cell's daily nutrition for the crop.</summary>
     internal const double SiteTravelWeight = 0.015;

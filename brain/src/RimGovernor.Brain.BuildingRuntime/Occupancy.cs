@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -80,7 +81,7 @@ partial class Rounder
         {
             if (sizes.TryGetValue(b.Definition, out var size))
             {
-                var r = OccupiedRect(b.Cell, new Cell(size.Width, size.Height), b.Rotation);
+                var r = InteriorRules.OccupiedRect(b.Cell, new Cell(size.Width, size.Height), b.Rotation);
                 if (r.Width > 0 && r.Height > 0)
                 {
                     return LayoutUtilityRules.RectangleCells(r);
@@ -111,7 +112,7 @@ partial class Rounder
         {
             foreach (var c in claims)
             {
-                if (c.Building is { } claimed && WorkOpen(claimed, projection.Facts.CurrentConstruction) != BuildingWork.BuildingGone)
+                if (c.Building is { } claimed && ConstructionOwnershipRules.WorkOpen(claimed, projection.Facts.CurrentConstruction) != BuildingWork.BuildingGone)
                 {
                     foreach (var cell in Footprint(claimed))
                     {

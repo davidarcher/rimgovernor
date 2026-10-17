@@ -313,7 +313,7 @@ public static partial class RoomQualityRules
             }
             foreach (var id in room.Beds.Order(StringComparer.Ordinal))
             {
-                if (beds.TryGetValue(id, out var b) && ContainsPawn(b.AccessibleTo, c.Pawn))
+                if (beds.TryGetValue(id, out var b) && InteriorHelpersRules.ContainsPawn(b.AccessibleTo, c.Pawn))
                 {
                     return new BedroomStep { Kind = BedroomStepKind.Move, Pawn = c.Pawn, Bed = id, PreviousBed = c.Bed, Room = r };
                 }

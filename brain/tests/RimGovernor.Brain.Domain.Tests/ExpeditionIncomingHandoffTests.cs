@@ -5,7 +5,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 using PbCommon = RimGovernor.Contracts.Wire.Common;
 using PbObservations = RimGovernor.Contracts.Wire.Observations;

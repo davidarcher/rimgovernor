@@ -2,7 +2,7 @@ using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class HerdRemovalRules
 {
     /// <summary>
     /// Go <c>ReconcileHerdRemoval</c>: compares durable native flags with today's objectives. It has no
@@ -25,7 +25,7 @@ public static partial class PolicyFunctions
                 return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
             }
             counts[a.Definition] = counts.GetValueOrDefault(a.Definition) + 1;
-            if (HerdFertile(a))
+            if (HerdSurplusRules.HerdFertile(a))
             {
                 var key = SexKey(a);
                 sexes[key] = sexes.GetValueOrDefault(key) + 1;
@@ -55,16 +55,16 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var floor = Math.Max(herd.PopulationMin.GetValueOrDefault(a.Definition), HerdPairSize);
+            var floor = Math.Max(herd.PopulationMin.GetValueOrDefault(a.Definition), HerdSurplusRules.HerdPairSize);
             var capped = herd.PopulationMax.TryGetValue(a.Definition, out var ceiling);
             var sex = SexKey(a);
             // A sterilized animal is no part of a breeding pair.
-            var fertile = HerdFertile(a);
+            var fertile = HerdSurplusRules.HerdFertile(a);
             // A layer race keeps its rooster ratio (malesKept); an unknown ratio keeps every fertile male.
             var (_, floorMales, mk) = herd.MalesKept(a.Definition, sexes.GetValueOrDefault((a.Definition, Sex.Female)));
             var pair = fertile
                 && ((a.Gender == Sex.Male && (!mk || sexes.GetValueOrDefault(sex) <= floorMales))
-                    || (a.Gender == Sex.Female && sexes.GetValueOrDefault(sex) <= HerdPairFemales));
+                    || (a.Gender == Sex.Female && sexes.GetValueOrDefault(sex) <= HerdSurplusRules.HerdPairFemales));
             if (herd.Retired.GetValueOrDefault(a.Definition))
             {
                 floor = 0;

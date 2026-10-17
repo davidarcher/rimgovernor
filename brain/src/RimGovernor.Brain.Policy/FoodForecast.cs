@@ -154,7 +154,7 @@ public sealed record FoodForecast
     }
 }
 
-public static partial class PolicyFunctions
+public static class FoodForecastRules
 {
     internal static bool FoodNumber(double n) => !double.IsNaN(n) && !double.IsInfinity(n) && n >= 0;
 

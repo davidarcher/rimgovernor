@@ -157,11 +157,11 @@ public static partial class ShelterRules
         {
             foreach (var c in conditions)
             {
-                if (c.Definition == ConditionToxicFallout)
+                if (c.Definition == DisasterRules.ConditionToxicFallout)
                 {
                     return (ShelterTrigger.Fallout, true);
                 }
-                if (c.Definition == ConditionColdSnap || c.Definition == ConditionHeatWave)
+                if (c.Definition == DisasterRules.ConditionColdSnap || c.Definition == DisasterRules.ConditionHeatWave)
                 {
                     weather = true;
                 }

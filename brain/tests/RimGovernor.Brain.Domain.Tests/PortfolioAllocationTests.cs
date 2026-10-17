@@ -10,7 +10,6 @@ using RimGovernor.Contracts.Wire;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -193,7 +192,7 @@ public sealed class PortfolioAllocationTests
             capture = false;
             Assert.NotEmpty(samples);
             return samples.ToArray().OrderByDescending(p => p.Value.Bytes).Select(p => new AllocationRow(p.Key, p.Value.Bytes, p.Value.Samples,
-                typeof(PolicyFunctions).GetNestedTypes(BindingFlags.NonPublic).Where(t => t.Name == p.Key)
+                typeof(ColonyForecastRules).Assembly.GetTypes().Where(t => t.IsNested && !t.IsNestedPublic && t.DeclaringType!.Name.EndsWith("Rules", StringComparison.Ordinal) && t.Name == p.Key)
                     .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
                     .Select(m => m.Name).ToArray())).ToArray();
         }

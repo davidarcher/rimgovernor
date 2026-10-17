@@ -4,7 +4,6 @@ using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Bridge.Contracts;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;

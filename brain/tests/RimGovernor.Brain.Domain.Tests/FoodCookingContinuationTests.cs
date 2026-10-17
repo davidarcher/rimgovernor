@@ -7,7 +7,6 @@ using System.Text.Json;
 using RimGovernor.Brain.Store.Codec;
 using RimGovernor.Brain.Bridge.Contracts;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -25,7 +24,7 @@ public sealed class FoodCookingContinuationTests
     private static PawnActivities Cooking(PawnActivities supply, string ingredient = "changed-stack")
     {
         var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
-        return ContinueCoordinatedActivity(supply, Known(true), Done(supply, bindings:
+        return CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Done(supply, bindings:
             [new(task.Id, task.Step with { Recipe = task.Step.Recipe! with { Ingredients = [new(ingredient, 10)] } })]))!;
     }
 
@@ -52,26 +51,26 @@ public sealed class FoodCookingContinuationTests
         Assert.Equal("changed-stack", step.Recipe!.Ingredients.Single().Thing);
         Assert.Equal("recipe", step.Recipe.Recipe);
         var delivery = cooking.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver);
-        var delivered = ContinueCoordinatedActivity(cooking, Known(true), Done(cooking, bindings:
+        var delivered = CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, Known(true), Done(cooking, bindings:
             [new(delivery.Id, delivery.Step with { Target = "observed-meal" })]))!;
         Assert.Equal("observed-meal", delivered.Orders[0].Steps[0].Target);
         Assert.Equal(500, delivered.Orders[0].Steps[0].Deadline);
-        Assert.True(ContinueCoordinatedActivity(cooking, Known(true), Done(cooking))!.Orders[0].Release);
-        Assert.True(ContinueCoordinatedActivity(delivered, Known(true), Done(delivered))!.Orders[0].Release);
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, Known(true), Done(cooking))!.Orders[0].Release);
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(delivered, Known(true), Done(delivered))!.Orders[0].Release);
     }
 
     [Fact]
     public void InterruptedCookingLostBenchAndChangedRecipeCannotReplayConsumption()
     {
         var supply = ActivityContinuationFixtures.Cooking();
-        Assert.True(ContinueCoordinatedActivity(supply, Known(true), Done(supply))!.Orders[0].Release);
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Done(supply))!.Orders[0].Release);
         var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
         var wrong = task.Step with { Recipe = task.Step.Recipe! with { Bill = "other-bill" } };
-        Assert.True(ContinueCoordinatedActivity(supply, Known(true), Done(supply, bindings: [new(task.Id, wrong)]))!.Orders[0].Release);
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, Known(true), Done(supply, bindings: [new(task.Id, wrong)]))!.Orders[0].Release);
         var cooking = Cooking(supply);
-        Assert.True(ContinueCoordinatedActivity(cooking, Known(true), Done(cooking, "failed"))!.Orders[0].Release);
-        Assert.True(ContinueCoordinatedActivity(cooking, Known(false), Done(cooking))!.Orders[0].Release);
-        Assert.Null(ContinueCoordinatedActivity(cooking, Known(true), Done(cooking, "started")));
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, Known(true), Done(cooking, "failed"))!.Orders[0].Release);
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, Known(false), Done(cooking))!.Orders[0].Release);
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, Known(true), Done(cooking, "started")));
     }
 
     [Fact]
@@ -91,8 +90,8 @@ public sealed class FoodCookingContinuationTests
         var recipe = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
         var binding = new ActivityTaskBinding(recipe.Id, recipe.Step with { Recipe = recipe.Step.Recipe! with { Ingredients = [new("observed-rice", 10)] } });
         foreach (var estimate in new[] { Unknown<double>(), Known(101d) })
-            Assert.True(ContinueCoordinatedActivity(intent, Known(true), Done(intent, bindings: [binding with { ProductiveWorkTicks = estimate }]))!.Orders[0].Release);
-        Assert.False(ContinueCoordinatedActivity(intent, Known(true), Done(intent, bindings: [binding with { ProductiveWorkTicks = Known(100d) }]))!.Orders[0].Release);
+            Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(intent, Known(true), Done(intent, bindings: [binding with { ProductiveWorkTicks = estimate }]))!.Orders[0].Release);
+        Assert.False(CoordinatedActivitiesRules.ContinueCoordinatedActivity(intent, Known(true), Done(intent, bindings: [binding with { ProductiveWorkTicks = Known(100d) }]))!.Orders[0].Release);
         var wire = WireJson.Deserialize<ActivityTaskRequest>(WireJson.Serialize(new ActivityTaskRequest(new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, intent)));
         Assert.Equal(intent.Tasks, wire.Batch.Tasks);
     }
@@ -118,7 +117,7 @@ public sealed class FoodCookingContinuationTests
             Needs = [new("food", known ? Known(1d) : default, Known(0d), Known(.3))] }] } };
         var need = ForecastServiceInvestments.ReviewServiceActivityNeed(supply, Known(true), read);
         Assert.Equal(Known(!known), need);
-        if (known) Assert.True(ContinueCoordinatedActivity(supply, need, read)!.Orders[0].Release);
+        if (known) Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, need, read)!.Orders[0].Release);
         var active = read with { Pawns = EquatableArray.From(read.Pawns.Select(p => p with { Execution = p.Execution! with { State = "started" } })) };
         Assert.Equal(Known(true), ForecastServiceInvestments.ReviewServiceActivityNeed(supply, Known(true), active));
     }

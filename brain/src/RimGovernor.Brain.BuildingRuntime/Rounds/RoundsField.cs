@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -44,7 +45,7 @@ public sealed partial class RoundsFieldPlanner
     {
         NeedOwner? food = owner switch
         {
-            NeedOwner { Need: var n } when n == PolicyFunctions.FoodSupplyNeed => owner,
+            NeedOwner { Need: var n } when n == FoodRules.FoodSupplyNeed => owner,
             NeedOwner { Need: var n } when n == EconomyFamily.Resource => null,
             _ => throw new ControlException("field step: the step runs only under the food/supply or economy/resource Need"),
         };
@@ -77,7 +78,7 @@ public sealed partial class RoundsFieldPlanner
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
         var projection = read.Projection;
-        PlannerSnapshot.RecordStepRead("field", food is null ? EconomyFamily.Resource.FilingKey : PolicyFunctions.FoodSupplyNeed.FilingKey, state.Snapshot, projection);
+        PlannerSnapshot.RecordStepRead("field", food is null ? EconomyFamily.Resource.FilingKey : FoodRules.FoodSupplyNeed.FilingKey, state.Snapshot, projection);
         var protectedCells = _reviewer.FieldProtected(state, review, projection, claims, call);
         var others = food is null ? await OtherFieldShortfallsAsync(state, review, projection, owner, call).ConfigureAwait(false) : [];
         if (LayoutProtected.FieldAnchor(projection) is not { } anchor)
@@ -109,7 +110,7 @@ public sealed partial class RoundsFieldPlanner
         var (selection, known) = SiteRules.PlanSiteType(request);
         if (projection.Environment.TryGetValue(out var env))
         {
-            var recrops = PolicyApi.PlanGrowerCrops(new GrowerCropRequest { Choices = choices, Growers = env.Growers, Urgent = selection.Urgent, Field = request.Field });
+            var recrops = GrowerCropRules.PlanGrowerCrops(new GrowerCropRequest { Choices = choices, Growers = env.Growers, Urgent = selection.Urgent, Field = request.Field });
             foreach (var recropChoice in recrops)
             {
                 var (result1, tried1) = await RecropAsync(state, goal, projection, read, recropChoice, arbiter, call, epoch).ConfigureAwait(false);
@@ -578,8 +579,8 @@ partial class RoundsFieldPlanner
     internal static (FieldRequest Request, List<CropChoice> Choices) FieldRequestOf(ColonyProjection projection, double reserveDays)
     {
         var choices = CropChoices(projection);
-        var coverage = PolicyApi.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, reserveDays);
-        var (growers, cooks) = PolicyApi.CropWorkers(projection.WorkPawns);
+        var coverage = FieldCapacityRules.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, reserveDays);
+        var (growers, cooks) = CropResilienceRules.CropWorkers(projection.WorkPawns);
         return (new FieldRequest
         {
             Growers = growers,
@@ -627,7 +628,7 @@ partial class RoundsFieldPlanner
 
     internal static List<Cell> FirebreakRing(ColonyProjection projection)
     {
-        var ring = PolicyApi.FirebreakRing(FirebreakPlan.FirebreakRequest(projection));
+        var ring = FirebreakRingRules.FirebreakRing(FirebreakPlan.FirebreakRequest(projection));
         return ring.TryGetValue(out var cells) ? cells.ToList() : [];
     }
 

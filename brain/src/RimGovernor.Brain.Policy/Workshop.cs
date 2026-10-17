@@ -165,7 +165,7 @@ public static partial class WorkRules
         var output = new List<string>();
         foreach (var host in hosts)
         {
-            if ((!gated && !host.Available) || !ContainsResource(host.Products, resource))
+            if ((!gated && !host.Available) || !GearRules.ContainsResource(host.Products, resource))
             {
                 continue;
             }
@@ -189,7 +189,7 @@ public static partial class WorkRules
     /// </summary>
     public static WorkshopChoice SelectWorkshopBench(WorkshopRequest r)
     {
-        if (!ValidResource(r.Resource))
+        if (!AdmissionRules.ValidResource(r.Resource))
         {
             throw new DomainException("invalid workshop resource");
         }
@@ -206,7 +206,7 @@ public static partial class WorkRules
             }
             foreach (var recipe in recipes)
             {
-                if (!ContainsResource(recipe.Products, r.Resource))
+                if (!GearRules.ContainsResource(recipe.Products, r.Resource))
                 {
                     continue;
                 }
@@ -272,7 +272,7 @@ public static partial class WorkRules
         // Research-gated: the first bench and recipe pair that only research stands between; its projects are the ladder's next rung.
         foreach (var host in r.Hosts)
         {
-            if (!ContainsResource(host.Products, r.Resource))
+            if (!GearRules.ContainsResource(host.Products, r.Resource))
             {
                 continue;
             }
@@ -329,7 +329,7 @@ public static partial class WorkRules
     {
         foreach (var host in hosts)
         {
-            if (!host.Available || !ContainsResource(host.Products, resource))
+            if (!host.Available || !GearRules.ContainsResource(host.Products, resource))
             {
                 continue;
             }

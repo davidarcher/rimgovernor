@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -28,12 +29,12 @@ internal static class LayoutFieldShrink
             {
                 continue;
             }
-            if (PolicyFunctions.FieldTarget(field.Colonists, crop, field.ReserveDays, field.Climate.DaysRemaining).TryGetValue(out var n))
+            if (CropChoiceRules.FieldTarget(field.Colonists, crop, field.ReserveDays, field.Climate.DaysRemaining).TryGetValue(out var n))
             {
                 output[crop.Name] = n;
             }
             // Growth runs to the capacity target, so shrink waits past it.
-            if (PolicyFunctions.FieldCapacityTarget(field.Colonists, crop, field.ReserveDays).TryGetValue(out var capacity))
+            if (FieldCapacityRules.FieldCapacityTarget(field.Colonists, crop, field.ReserveDays).TryGetValue(out var capacity))
             {
                 output[crop.Name] = Math.Max(output.GetValueOrDefault(crop.Name), capacity);
             }

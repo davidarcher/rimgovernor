@@ -6,7 +6,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -27,7 +26,7 @@ public sealed class NeedBuildingTests
     private static readonly NeedId RoomB = NeedId.Of("test-rooms", "room", "b");
 
     /// <summary>A ring room beside the cooler, filed in the cooler's family (a family owns its NeedIds).</summary>
-    private static readonly NeedId ColdRoom = NeedId.Of(FoodStoresFamilyId, "room", "a");
+    private static readonly NeedId ColdRoom = NeedId.Of(FoodStoresRules.FoodStoresFamilyId, "room", "a");
 
     /// <summary>The native the planner previews against: every building placement is ready.</summary>
     public interface ITestNative : IRoundsSource, IRoundsWorkBenchSource, IRoundsBuildingSource;
@@ -99,7 +98,7 @@ public sealed class NeedBuildingTests
     /// <summary>The refrigeration Need's cooler beside room a's ring: both unmet, neither ordered after the other.</summary>
     private sealed class CoolerFamily : IFamily<bool>
     {
-        public string Id => FoodStoresFamilyId;
+        public string Id => FoodStoresRules.FoodStoresFamilyId;
 
         public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Pawns];
 
@@ -108,7 +107,7 @@ public sealed class NeedBuildingTests
         public IReadOnlyList<Need> Derive(bool overlap) =>
         [
             new Need { Id = ColdRoom, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet },
-            new Need { Id = RefrigerationNeed, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet },
+            new Need { Id = FoodStoresRules.RefrigerationNeed, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet },
         ];
 
         public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, bool overlap) => [];
@@ -239,8 +238,8 @@ public sealed class NeedBuildingTests
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = Known<EquatableArray<WorkBuildingCost>>([
-                    new(ShellWallDefinition, "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 5)])) { Size = Known(new Cell(1, 1)) },
-                    new(ShellDoorDefinition, "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 25)])) { Size = Known(new Cell(1, 1)) },
+                    new(ContainmentCellRules.ShellWallDefinition, "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 5)])) { Size = Known(new Cell(1, 1)) },
+                    new(ContainmentCellRules.ShellDoorDefinition, "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 25)])) { Size = Known(new Cell(1, 1)) },
                     new("Cooler", "", Known<EquatableArray<Amount>>([new(new("WoodLog"), 10)])) { Size = Known(new Cell(1, 1)) },
                     new("SimpleResearchBench", "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 75)])) { Size = Known(new Cell(1, 1)) }]),
             },
@@ -266,8 +265,8 @@ public sealed class NeedBuildingTests
                     Bounds = new(50, 50),
                     Definitions =
                     [
-                        new PlanningDefinition { Name = ShellWallDefinition, Available = Known(true) },
-                        new PlanningDefinition { Name = ShellDoorDefinition, Available = Known(true) },
+                        new PlanningDefinition { Name = ContainmentCellRules.ShellWallDefinition, Available = Known(true) },
+                        new PlanningDefinition { Name = ContainmentCellRules.ShellDoorDefinition, Available = Known(true) },
                     ],
                 },
             },
@@ -277,12 +276,12 @@ public sealed class NeedBuildingTests
         {
             var review = await journal.LoadRoundsAsync(call);
             var read = reading with { Reading = reading.Reading with { Projection = reading.Reading.Projection with { Facts = reading.Reading.Projection.Facts with { CurrentConstruction = colony!.Census } } } };
-            if (work.Need.Id == RefrigerationNeed || work.Need.Id == EconomyFamily.Research)
+            if (work.Need.Id == FoodStoresRules.RefrigerationNeed || work.Need.Id == EconomyFamily.Research)
             {
                 // The cooler step's and the bench step's admission (RefrigerationStepAsync, the building step): one
                 // building, a Cooler on a wall cell well clear of room a's ring or the laboratory bench, behind the
                 // planner's once-check over the read's census.
-                var cooler = work.Need.Id == RefrigerationNeed;
+                var cooler = work.Need.Id == FoodStoresRules.RefrigerationNeed;
                 var method = new MethodId(cooler ? "refrigeration-cooler-20-20" : "laboratory-SimpleResearchBench");
                 if (!planner.MethodOnce(work.Owner, method, call, read.Reading.Projection.Facts.CurrentConstruction))
                 {
@@ -290,7 +289,7 @@ public sealed class NeedBuildingTests
                 }
                 var snapshot = World with { Plan = PlanIds.MintPlanId(), Revision = new(1) };
                 var building = cooler ? new Building("Cooler", new(20, 20), Rotation.North, "") : new Building("SimpleResearchBench", new(30, 30), Rotation.North, "WoodLog");
-                var action = DomainAction.NewBuildingAction(new ActionId(snapshot.Plan.Value + "-0"), building, PlannerTier(work.Need.Id.FilingKey, Phase.None));
+                var action = DomainAction.NewBuildingAction(new ActionId(snapshot.Plan.Value + "-0"), building, ConstructionTierRules.PlannerTier(work.Need.Id.FilingKey, Phase.None));
                 var preview = new Preview { Action = action, Snapshot = snapshot, Tick = new(100), CanPlace = Known(true), SafeToPlace = Known(true) };
                 var admitted = await planner.AdmitPreviewsAsync(new RoundsAdmission
                 {
@@ -374,17 +373,17 @@ public sealed class NeedBuildingTests
         using var colony = Open(new CoolerFamily());
 
         var run = await colony.RunAsync();
-        var cooler = Colony.Report(run, RefrigerationNeed);
+        var cooler = Colony.Report(run, FoodStoresRules.RefrigerationNeed);
         Assert.Equal(Outcome.Admitted, cooler.Outcome);
         Assert.Equal(Outcome.Admitted, Colony.Report(run, ColdRoom).Outcome);
-        var coolerMethod = Assert.Single(run.Methods, m => m.Need == RefrigerationNeed);
-        Assert.Equal(RefrigerationNeed.FilingKey, colony.Journal.PlanMethod(coolerMethod.Plan, ct)!.Concern);
+        var coolerMethod = Assert.Single(run.Methods, m => m.Need == FoodStoresRules.RefrigerationNeed);
+        Assert.Equal(FoodStoresRules.RefrigerationNeed.FilingKey, colony.Journal.PlanMethod(coolerMethod.Plan, ct)!.Concern);
         Assert.Contains(run.Methods, m => m.Need == ColdRoom);
 
         // Both stay open together: neither Need's open work holds the other's.
         Assert.True(WorkProgress.Open(colony.Journal.LoadPlan(coolerMethod.Plan, ct).Progress));
         Assert.All(run.Methods.Where(m => m.Need == ColdRoom), m => Assert.True(WorkProgress.Open(colony.Journal.LoadPlan(m.Plan, ct).Progress)));
-        Assert.Single(colony.Journal.LoadNeed(RefrigerationNeed, World, ct).Methods);
+        Assert.Single(colony.Journal.LoadNeed(FoodStoresRules.RefrigerationNeed, World, ct).Methods);
     }
 
     /// <summary>
@@ -397,7 +396,7 @@ public sealed class NeedBuildingTests
     public async Task ADestroyedCoolerOrBenchIsAdmittedAgainAsTheNextAttempt(bool cooler)
     {
         var ct = TestContext.Current.CancellationToken;
-        var need = cooler ? RefrigerationNeed : EconomyFamily.Research;
+        var need = cooler ? FoodStoresRules.RefrigerationNeed : EconomyFamily.Research;
         using var colony = Open(cooler ? new CoolerFamily() : new BenchFamily());
         var first = await colony.RunAsync();
         Assert.True(Colony.Report(first, need).Outcome == Outcome.Admitted, Colony.Report(first, need).ToString());
@@ -434,8 +433,8 @@ public sealed class NeedBuildingTests
     [Fact]
     public void APlanProductIsGoneOnlyWhenNoAppliedBuildingIsBuiltOrASite()
     {
-        var wall = new Building(ShellWallDefinition, new(1, 1), Rotation.North, "WoodLog");
-        var door = new Building(ShellDoorDefinition, new(2, 1), Rotation.North, "WoodLog");
+        var wall = new Building(ContainmentCellRules.ShellWallDefinition, new(1, 1), Rotation.North, "WoodLog");
+        var door = new Building(ContainmentCellRules.ShellDoorDefinition, new(2, 1), Rotation.North, "WoodLog");
         var spec = new PlanSpec(new("p"), new(1), [DomainAction.NewBuildingAction(new("p-0"), wall, ConstructionTier.Survive), DomainAction.NewBuildingAction(new("p-1"), door, ConstructionTier.Survive)]);
         var scope = World with { Plan = spec.Id, Revision = spec.Revision };
         Progress Applied(ActionId id)
@@ -446,14 +445,14 @@ public sealed class NeedBuildingTests
         }
         IReadOnlyList<Progress> applied = [Applied(new("p-0")), Applied(new("p-1"))];
 
-        Assert.True(PlanProductGone(applied, Colony.Empty));
-        Assert.False(PlanProductGone(applied, default));
-        Assert.False(PlanProductGone(applied, Known(new CurrentConstruction())));
+        Assert.True(BuildingWorkRules.PlanProductGone(applied, Colony.Empty));
+        Assert.False(BuildingWorkRules.PlanProductGone(applied, default));
+        Assert.False(BuildingWorkRules.PlanProductGone(applied, Known(new CurrentConstruction())));
         // One piece standing, built or as a site, keeps the product standing.
-        Assert.False(PlanProductGone(applied, Known(new CurrentConstruction { Colony = true, Buildings = [new CurrentBuilding { Id = "w", Building = wall }] })));
-        Assert.False(PlanProductGone(applied, Known(new CurrentConstruction { Colony = true, Sites = [new ConstructionSite { Building = door }] })));
+        Assert.False(BuildingWorkRules.PlanProductGone(applied, Known(new CurrentConstruction { Colony = true, Buildings = [new CurrentBuilding { Id = "w", Building = wall }] })));
+        Assert.False(BuildingWorkRules.PlanProductGone(applied, Known(new CurrentConstruction { Colony = true, Sites = [new ConstructionSite { Building = door }] })));
         // A plan that applied nothing built nothing to lose.
-        Assert.False(PlanProductGone([new Progress(spec, new("p-0")).Cancel(), new Progress(spec, new("p-1"))], Colony.Empty));
+        Assert.False(BuildingWorkRules.PlanProductGone([new Progress(spec, new("p-0")).Cancel(), new Progress(spec, new("p-1"))], Colony.Empty));
     }
 
     [Fact]

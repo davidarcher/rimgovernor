@@ -25,7 +25,7 @@ public sealed class HuntAdmission
             if (standing.Length > 0)
             {
                 _offered = null;
-                return PolicyFunctions.HuntRosterChannel(held, new HuntRoster(roster.Gunners, EquatableArray.From(standing)), sources);
+                return HuntPlanningRules.HuntRosterChannel(held, new HuntRoster(roster.Gunners, EquatableArray.From(standing)), sources);
             }
             _committed = null;
         }
@@ -69,7 +69,7 @@ public sealed class HuntAdmission
                 if (_admitted.Contains(id))
                 {
                     standing = true;
-                    @out[i] = c with { State = PolicyFunctions.FoodState(Known(false), Known(true)) };
+                    @out[i] = c with { State = CandidateRules.FoodState(Known(false), Known(true)) };
                     break;
                 }
             }

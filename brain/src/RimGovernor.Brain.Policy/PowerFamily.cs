@@ -3,17 +3,17 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>What the power family reads (#3257): the foothold power standing and whether a solar flare holds the grid off.</summary>
 public sealed record PowerFacts
 {
-    /// <summary>Whether the grid covers its required draw with no consumer disabled and no weather outage owed (<see cref="PolicyFunctions.FootholdPower"/>).</summary>
+    /// <summary>Whether the grid covers its required draw with no consumer disabled and no weather outage owed (<see cref="RoundsRules.FootholdPower"/>).</summary>
     public Fact<bool> Standing { get; init; }
 
-    /// <summary>A solar flare with a known remaining duration switches every powered building off (<see cref="PolicyFunctions.PowerOutageHold"/>).</summary>
+    /// <summary>A solar flare with a known remaining duration switches every powered building off (<see cref="DisasterRules.PowerOutageHold"/>).</summary>
     public bool OutageHeld { get; init; }
 
     /// <summary>The facts a review already holds.</summary>
     public static PowerFacts From(RoundsFacts f) => new()
     {
         Standing = RoundsRules.FootholdPower(f),
-        OutageHeld = PolicyFunctions.PowerOutageHold(f.DisasterConditions),
+        OutageHeld = DisasterRules.PowerOutageHold(f.DisasterConditions),
     };
 }
 

@@ -81,7 +81,7 @@ public static partial class ReconcileRules
         var output = new List<ClearanceTarget>();
         foreach (var row in rows)
         {
-            var keep = !row.Player || row.Class == "ancient_wall_door" || row.DefName.StartsWith("Frame_", StringComparison.Ordinal) || StandInBed(row) || (forbidden is not null && forbidden(row.DefName));
+            var keep = !row.Player || row.Class == "ancient_wall_door" || row.DefName.StartsWith("Frame_", StringComparison.Ordinal) || ClearanceGroundRules.StandInBed(row) || (forbidden is not null && forbidden(row.DefName));
             foreach (var p in template)
             {
                 keep = keep || (p.DefName == row.DefName && p.Minimum == row.Minimum && p.Maximum == row.Maximum);
@@ -96,7 +96,7 @@ public static partial class ReconcileRules
 
     /// <summary>The rectangle a planned room's ring and interior cover, the ground an owner reads the census on.</summary>
     public static Rectangle RoomGround(this PlannedRoom r) =>
-        r.Unfenced() ? r.Region.Bounds() : PolicyFunctions.RoomGround(r.Region.Bounds());
+        r.Unfenced() ? r.Region.Bounds() : ClearanceGroundRules.RoomGround(r.Region.Bounds());
 
     /// <summary>The template piece for p: its slot's cells, size and rotation.</summary>
     public static WantedPiece Wanted(this InteriorPiece p) => new()

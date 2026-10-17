@@ -330,7 +330,7 @@ public sealed record AnimalRaceCatalog
     }
 }
 
-public static partial class PolicyFunctions
+public static class AnimalUpkeepRules
 {
     /// <summary>
     /// Reviews containment for the animals family's containment Need: the pen-bound animals not yet contained. No
@@ -343,7 +343,7 @@ public static partial class PolicyFunctions
         for (var i = 0; i < v.DirectedHerds.Count; i++)
         {
             var race = v.DirectedHerds[i];
-            DomainException.Require(ValidResource(race) && !v.DirectedHerds.Take(i).Contains(race), Invalid);
+            DomainException.Require(AdmissionRules.ValidResource(race) && !v.DirectedHerds.Take(i).Contains(race), Invalid);
         }
 
         if (!v.Animals.TryGetValue(out var animals))
@@ -356,7 +356,7 @@ public static partial class PolicyFunctions
         var containmentKnown = true;
         foreach (var animal in animals)
         {
-            DomainException.Require(FoodId(animal.Id.Value) && seen.Add(animal.Id) && ValidResource(animal.Definition), Invalid);
+            DomainException.Require(FoodForecastRules.FoodId(animal.Id.Value) && seen.Add(animal.Id) && AdmissionRules.ValidResource(animal.Definition), Invalid);
             var pk = animal.RequiresPen.TryGetValue(out var pen);
             var ck = animal.Contained.TryGetValue(out var contained);
             var rk = animal.Release.TryGetValue(out var release);
@@ -393,7 +393,7 @@ public static partial class PolicyFunctions
         var allSuitable = true;
         foreach (var a in animals)
         {
-            DomainException.Require(FoodId(a.Id.Value) && seen.Add(a.Id), "invalid animal containment census");
+            DomainException.Require(FoodForecastRules.FoodId(a.Id.Value) && seen.Add(a.Id), "invalid animal containment census");
             DomainException.Require(a.RequiresPen.TryGetValue(out var pen), "animal pen requirement unknown");
             if (!pen)
             {

@@ -32,7 +32,7 @@ public sealed record MoodPawn
 
     public void Validate()
     {
-        if (!PolicyFunctions.FoodId(Id.Value))
+        if (!FoodForecastRules.FoodId(Id.Value))
         {
             throw new DomainException("invalid mood pawn");
         }

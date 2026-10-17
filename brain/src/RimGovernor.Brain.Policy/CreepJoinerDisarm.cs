@@ -119,17 +119,17 @@ public sealed record CreepJoinerDisarm
         var pawn = p.Pawn;
         foreach (var site in sites)
         {
-            if (PolicyFunctions.SiteGone(site, missing!))
+            if (CreepJoinerDisarmRules.SiteGone(site, missing!))
             {
                 continue;
             }
-            if (PolicyFunctions.RemovalOn(site, ops!) is { } op)
+            if (CreepJoinerDisarmRules.RemovalOn(site, ops!) is { } op)
             {
                 op.Recipe.TryGetValue(out var recipe);
-                var reason = PolicyFunctions.SurgeryBlocked(op);
+                var reason = CreepJoinerDisarmRules.SurgeryBlocked(op);
                 if (reason.Length != 0)
                 {
-                    why = $"removing the {PolicyFunctions.AddedPartName(op)} on its {site.Part}: {reason}";
+                    why = $"removing the {CreepJoinerDisarmRules.AddedPartName(op)} on its {site.Part}: {reason}";
                     continue;
                 }
                 return (new DisarmOrder(pawn, recipe ?? "", site.Index, Remove: true), "");
@@ -165,7 +165,7 @@ public sealed record CreepJoinerDisarm
             {
                 continue;
             }
-            var reason = PolicyFunctions.SurgeryBlocked(op);
+            var reason = CreepJoinerDisarmRules.SurgeryBlocked(op);
             if (reason.Length != 0)
             {
                 why = $"installing {recipe} on its {site.Part}: {reason}";
@@ -188,7 +188,7 @@ public sealed record CreepJoinerDisarm
     }
 }
 
-public static partial class PolicyFunctions
+public static class CreepJoinerDisarmRules
 {
     /// <summary>The site's part or one of its ancestors is missing.</summary>
     internal static bool SiteGone(DisarmSite site, IReadOnlyList<MissingPart> missing)

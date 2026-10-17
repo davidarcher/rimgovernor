@@ -208,7 +208,7 @@ public sealed record InteriorScore
     }
 }
 
-public static partial class PolicyFunctions
+public static class InteriorObjectiveRules
 {
     /// <summary>
     /// The sleep purpose of the beds a room role holds: the bedroom's are the colonists', the hospital's
@@ -593,13 +593,13 @@ public static partial class PolicyFunctions
         if (l.CardinalToHead)
         {
             var head = t.Anchor();
-            return Neighbours(head).Any(n => RectContains(f.Rect, n));
+            return Neighbours(head).Any(n => InteriorWalkRules.RectContains(f.Rect, n));
         }
         if (l.Adjacent)
         {
             foreach (var c in PlannedRules.RectCells(f.Rect))
             {
-                if (Neighbours(c).Any(n => RectContains(t.Rect, n)))
+                if (Neighbours(c).Any(n => InteriorWalkRules.RectContains(t.Rect, n)))
                 {
                     return true;
                 }

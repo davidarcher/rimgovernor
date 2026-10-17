@@ -81,7 +81,7 @@ public static class BillSelectionOrderExtensions
         };
 }
 
-public static partial class PolicyFunctions
+public static class FoodOrdersRules
 {
     /// <summary>Go <c>FoodPlanSupport</c>: whether the food plan opened or holds the channel.</summary>
     public static bool FoodPlanSupport(Fact<FoodPlan> p, CandidateKind kind, string id)
@@ -131,7 +131,7 @@ public static partial class PolicyFunctions
                 var context = new ProductionBillContext { Meals = r.Meals };
                 if (r.Supply.TryGetValue(out var supply) && r.Humans.TryGetValue(out var humans))
                 {
-                    context = context with { Ingredients = HumanCookingIngredients(supply, humans.Consumers, f.FoodPlan, HumanMeatRoute.Meals) };
+                    context = context with { Ingredients = HumanFoodPlanRules.HumanCookingIngredients(supply, humans.Consumers, f.FoodPlan, HumanMeatRoute.Meals) };
                 }
                 var (selected, known) = ProductionRules.SelectProductionBill(PolicyConstants.CookFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, context);
                 if (known)
@@ -157,7 +157,7 @@ public static partial class PolicyFunctions
                 }
                 if (r.Supply.TryGetValue(out var supply))
                 {
-                    var (sale, ok) = SelectHumanSurvivalBill(census, supply, f.FoodPlan);
+                    var (sale, ok) = HumanFoodPlanRules.SelectHumanSurvivalBill(census, supply, f.FoodPlan);
                     if (ok)
                     {
                         selections.Add(sale);
@@ -169,7 +169,7 @@ public static partial class PolicyFunctions
             {
                 // Owed on the food runway alone: native offers no hunt row until a usable bench carries this bill.
                 var dk = f.FoodDays.TryGetValue(out var days);
-                if ((!dk || days >= r.TargetDays) && !HumanFoodPending(f.FoodPlan))
+                if ((!dk || days >= r.TargetDays) && !HumanFoodPlanRules.HumanFoodPending(f.FoodPlan))
                 {
                     return dk ? Gap(FoodOrderGap.NoDeficit, "") : Gap(FoodOrderGap.Field, "food_days");
                 }
@@ -178,7 +178,7 @@ public static partial class PolicyFunctions
                 {
                     selections.Add(selected);
                 }
-                var (human, ok) = SelectHumanButcher(census, f.IdeologyRead());
+                var (human, ok) = HumanFoodRules.SelectHumanButcher(census, f.IdeologyRead());
                 if (ok)
                 {
                     if (!FoodPlanSupport(f.FoodPlan, CandidateKind.Corpse, "human-butchery"))
@@ -193,7 +193,7 @@ public static partial class PolicyFunctions
             {
                 // Only under a solar flare with a known remaining duration: the coolers are dark for the outage,
                 // so the warm at-risk stock is cooked instead.
-                if (!PowerOutageHold(f.DisasterConditions))
+                if (!DisasterRules.PowerOutageHold(f.DisasterConditions))
                 {
                     return Gap(FoodOrderGap.NoDeficit, "");
                 }
@@ -264,7 +264,7 @@ public static partial class PolicyFunctions
     private static Func<GearBill, bool> FoodFamily(BillPurpose purpose) =>
         purpose == PolicyConstants.CookFood ? (b => b.Role == RecipeRole.OrdinaryMeal)
         : purpose == PolicyConstants.ButcherFood ? (b => b.Role == RecipeRole.ButcherFlesh)
-        : purpose == PolicyConstants.PreserveFood ? (b => b.Products.Any(ReserveFoodDefinition))
+        : purpose == PolicyConstants.PreserveFood ? (b => b.Products.Any(FoodReserveRules.ReserveFoodDefinition))
         : (_ => false);
 
     /// <summary>The specs of the unspent production bills of a family, as they stand; known is false while one's readback is unread.</summary>

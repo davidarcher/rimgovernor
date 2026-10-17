@@ -138,7 +138,7 @@ public static partial class LayoutDeriveRules
             {
                 continue;
             }
-            output.Add(RegionRules.RectRegion(RoomGround(r.Region.Bounds())));
+            output.Add(RegionRules.RectRegion(ClearanceGroundRules.RoomGround(r.Region.Bounds())));
             foreach (var c in prev.ChildrenOf(r.Id))
             {
                 output.Add(RegionRules.RectRegion(c.AttachedGround()));

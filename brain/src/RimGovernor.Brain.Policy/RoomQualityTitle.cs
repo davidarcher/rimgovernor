@@ -79,7 +79,7 @@ public static partial class RoomQualityRules
             return (new RoomUpgrade(), false);
         }
         var slot = "title-" + def.Value;
-        var (plan, ok) = PlanRoomInterior(room.Planning(), new InteriorPieceDef());
+        var (plan, ok) = InteriorRegionRules.PlanRoomInterior(room.Planning(), new InteriorPieceDef());
         if (ok)
         {
             foreach (var p in plan.Pieces)

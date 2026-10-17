@@ -20,7 +20,7 @@ public sealed class IdleControlTests
             Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 200 },
             Pawns = [new("pawn", new("method/pawn", "method", 1, 1, state, "reconsider_due", null, 200))]
         };
-        var next = Assert.IsType<PawnActivities>(PolicyFunctions.ContinueCoordinatedActivity(batch, Known(true), Read("completed")));
+        var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read("completed")));
         Assert.Empty(next.Tasks);
         Assert.True(Assert.Single(next.Orders).Release);
         Assert.Equal(2, next.Orders[0].Revision);
@@ -35,7 +35,7 @@ public sealed class IdleControlTests
             { Tasks = [new("defer/pawn", "pawn", [], step, new(1, 1), 100)] };
         var read = new ActivityTaskRead { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 201 },
             Pawns = [new("pawn", new("method/pawn", "method", 1, 0, "holding", "", null, 201))] };
-        var release = Assert.IsType<PawnActivities>(PolicyFunctions.ContinueCoordinatedActivity(batch, Known(true), read));
+        var release = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), read));
         Assert.True(Assert.Single(release.Orders).Release);
     }
 }

@@ -40,7 +40,7 @@ public static class ForecastConstruction
         var materialKnown = material.TryGetValue(out var free);
         var stock = materialKnown ? new Dictionary<Resource, Fact<double>>(free!) : [];
         var equipment = ForecastClaims.ForecastEquipmentAvailabilityOf(context.Equipment, commitments.Values.SelectMany(c => c.EquipmentClaims));
-        if (rows.Length == 0) return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
+        if (rows.Length == 0) return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
         { MaterialAvailability = material, EquipmentAvailability = EquatableArray.From(equipment) };
         if (context.ExpansionBudget is < 1 or > 4096
             || context.Workers.Select(w => w.Capacity.Pawn).Distinct().Count() != context.Workers.Length
@@ -66,7 +66,7 @@ public static class ForecastConstruction
             if (site is null) { Result("construction_gone"); continue; }
             if (!site.WorkLeft.TryGetValue(out var work) || !site.MaterialsOwed.TryGetValue(out var owed)
                 || !site.ResourcesComplete.TryGetValue(out var supplied)) { Result("unknown_construction_work_or_materials"); continue; }
-            if (!double.IsFinite(work) || work < 0 || owed.Any(a => !ValidResource(a.Resource) || a.Count < 0)
+            if (!double.IsFinite(work) || work < 0 || owed.Any(a => !AdmissionRules.ValidResource(a.Resource) || a.Count < 0)
                 || owed.Select(a => a.Resource).Distinct().Count() != owed.Count || supplied != owed.All(a => a.Count == 0))
                 throw new DomainException("invalid construction work or material facts");
             var needs = owed.Where(a => a.Count > 0).ToArray();
@@ -151,7 +151,7 @@ public static class ForecastConstruction
             Result("scheduled", comparison, Known(plan.CompletedAt / GameTime.TicksPerDay));
             results[^1] = results[^1] with { MaterialChanges = EquatableArray.From(effects) };
         }
-        var forecast = ForecastInventory(request.Facts.Stock, resolved, request.HorizonDays);
+        var forecast = ColonyForecastRules.ForecastInventory(request.Facts.Stock, resolved, request.HorizonDays);
         return forecast with
         {
             Commitments = EquatableArray.From(commitments.Values.OrderBy(c => c.Id, StringComparer.Ordinal)),

@@ -30,7 +30,7 @@ public sealed record BestowingCeremony
     public Fact<bool> Started { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class CeremonyRules
 {
     /// <summary>The accepted ceremonies, by colonist.</summary>
     public static List<BestowingCeremony> PendingCeremonies(RoyaltyFacts f) =>

@@ -312,7 +312,7 @@ public static partial class RoomQualityRules
                 foreach (var rot in rots)
                 {
                     var anchor = new Cell(x, z);
-                    var r = OccupiedRect(anchor, size, rot);
+                    var r = InteriorRules.OccupiedRect(anchor, size, rot);
                     if (r.Width == 0 || r.X < inner.X || r.Z < inner.Z || r.X + r.Width > inner.X + inner.Width || r.Z + r.Height > inner.Z + inner.Height)
                     {
                         continue;
@@ -323,7 +323,7 @@ public static partial class RoomQualityRules
                     {
                         free = free && !blocked.Contains(c);
                     }
-                    if (free && InteriorPlacementWalkable(room.Room, blocked, cells))
+                    if (free && InteriorWalkRules.InteriorPlacementWalkable(room.Room, blocked, cells))
                     {
                         return (anchor, rot, true);
                     }

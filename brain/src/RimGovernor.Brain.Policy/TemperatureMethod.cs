@@ -394,7 +394,7 @@ public static partial class TemperatureMethodRules
             var seenBed = new HashSet<string>(StringComparer.Ordinal);
             foreach (var id in eligible)
             {
-                DomainException.Require(FoodId(id) && seenBed.Add(id), "invalid sleeping bed census");
+                DomainException.Require(FoodForecastRules.FoodId(id) && seenBed.Add(id), "invalid sleeping bed census");
             }
         }
         var rooms = new HashSet<string>(StringComparer.Ordinal);
@@ -402,14 +402,14 @@ public static partial class TemperatureMethodRules
         var cells = new HashSet<Cell>();
         foreach (var room in v.Rooms)
         {
-            DomainException.Require(FoodId(room.Id) && rooms.Add(room.Id), "invalid temperature room");
+            DomainException.Require(FoodForecastRules.FoodId(room.Id) && rooms.Add(room.Id), "invalid temperature room");
             if (room.Temperature.TryGetValue(out var temperature))
             {
                 DomainException.Require(!double.IsNaN(temperature) && !double.IsInfinity(temperature), "invalid room temperature");
             }
             foreach (var id in room.Beds)
             {
-                DomainException.Require(FoodId(id) && beds.Add(id), "ambiguous sleeping room");
+                DomainException.Require(FoodForecastRules.FoodId(id) && beds.Add(id), "ambiguous sleeping room");
             }
             foreach (var c in room.Cells)
             {
@@ -420,7 +420,7 @@ public static partial class TemperatureMethodRules
                 var seen = new HashSet<Resource>();
                 foreach (var q in contents)
                 {
-                    DomainException.Require(ValidResource(q.Resource) && q.Count >= 0 && seen.Add(q.Resource), "invalid room contents");
+                    DomainException.Require(AdmissionRules.ValidResource(q.Resource) && q.Count >= 0 && seen.Add(q.Resource), "invalid room contents");
                 }
             }
         }

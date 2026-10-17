@@ -79,7 +79,7 @@ public static partial class StoreRules
     /// tick) plus MaintenanceHorizonDays. Unknown work leaves the option unvalued.
     /// </summary>
     public static Fact<double> StorageLeadDays(Fact<double> workTicks) =>
-        workTicks.TryGetValue(out var work) ? Known((work / GameTime.TicksPerDay) + MaintenanceHorizonDays) : Unknown<double>();
+        workTicks.TryGetValue(out var work) ? Known((work / GameTime.TicksPerDay) + ColonyDiagnosticsRules.MaintenanceHorizonDays) : Unknown<double>();
 
     /// <summary>
     /// The materials yards layout should hold (RoomDemand.Yard): one more than the declared yards once every one

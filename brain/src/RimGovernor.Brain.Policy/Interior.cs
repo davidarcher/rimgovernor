@@ -108,7 +108,7 @@ public sealed record InteriorPiece
     public int Clear { get; init; }
 
     /// <summary>The cell a native building order names for this footprint.</summary>
-    public Cell Anchor() => AnchorForRect(Rect, Size, Rot);
+    public Cell Anchor() => InteriorRules.AnchorForRect(Rect, Size, Rot);
 
     /// <summary>The cell the worker stands on, if the piece has one.</summary>
     public (Cell Cell, bool Ok) Interaction()
@@ -118,7 +118,7 @@ public sealed record InteriorPiece
             return (default, false);
         }
         var a = Anchor();
-        var o = RotateOffset(offset, Rot);
+        var o = InteriorRules.RotateOffset(offset, Rot);
         return (new Cell(a.X + o.X, a.Z + o.Z), true);
     }
 }
@@ -132,7 +132,7 @@ public sealed record InteriorPlan(IReadOnlyList<InteriorPiece> Pieces)
     }
 }
 
-public static partial class PolicyFunctions
+public static class InteriorRules
 {
     /// <summary>
     /// The room's floor seen from its entrance: Width cells along the entrance wall, Depth away from it,

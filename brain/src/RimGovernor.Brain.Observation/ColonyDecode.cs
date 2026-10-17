@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 public static class ColonyDecodeReads
@@ -175,7 +176,7 @@ public static class ColonyDecodeReads
             MapBounds = Known(r.Bounds),
             ShelterArea = PoliciesReads.ShelterArea(r.Policies),
             NoDangerArea = PoliciesReads.AllowedAreaID(r.Policies, ShelterRules.NoDangerAreaLabel),
-            AnimalWard = f.AnimalWard with { Area = PoliciesReads.AllowedAreaID(r.Policies, HospitalAreaLabel) },
+            AnimalWard = f.AnimalWard with { Area = PoliciesReads.AllowedAreaID(r.Policies, HerdWardRules.HospitalAreaLabel) },
             IsolationArea = PoliciesReads.AllowedAreaID(r.Policies, PolicyConstants.IsolationAreaLabel),
             RaidPoints = r.Threat.RaidPoints,
             Monolith = AnomalyColonyReads.MonolithFacts(r.Anomaly),
@@ -442,7 +443,7 @@ public static class ColonyDecodeReads
             if (FoodSupplyReads.DecodeFoodSupply(food, tables.Things, catalog) is { } supply)
             {
                 r = r with { FoodSupply = Known(supply) };
-                f = f with { FoodStorageUpkeep = PolicyFunctions.FoodStorageStocks(supply, RequireCatalog(catalog).Derived.FullRotRateC) };
+                f = f with { FoodStorageUpkeep = FoodStorageUpkeepRules.FoodStorageStocks(supply, RequireCatalog(catalog).Derived.FullRotRateC) };
             }
         }
         if (v.Forecast?.Outcome is { } forecast)
@@ -461,7 +462,7 @@ public static class ColonyDecodeReads
                 }
                 try
                 {
-                    var forecastFood = PolicyFunctions.ForecastFood(combined, selected);
+                    var forecastFood = FoodForecastRules.ForecastFood(combined, selected);
                     f = f with { FoodDays = forecastFood.RunwayDays };
                     r = r with { FoodAtRiskNutrition = Known(forecastFood.AtRiskNutrition) };
                 }

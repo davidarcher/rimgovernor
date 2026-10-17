@@ -505,7 +505,7 @@ public static class QuestExpedition
                 var runway = 0.0;
                 try
                 {
-                    runwayKnown = ForecastFood(remaining, home).RunwayDays.TryGetValue(out runway);
+                    runwayKnown = FoodForecastRules.ForecastFood(remaining, home).RunwayDays.TryGetValue(out runway);
                 }
                 catch (DomainException)
                 {

@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record DisasterFacts
 {
-    /// <summary>The allowed-area moves <see cref="PolicyFunctions.PlanSheltering"/> wants now; unknown while a trigger is not known clear.</summary>
+    /// <summary>The allowed-area moves <see cref="ShelterRules.PlanSheltering"/> wants now; unknown while a trigger is not known clear.</summary>
     public Fact<EquatableArray<AllowedAreaChange>> Changes { get; init; }
 
     /// <summary>The review's disaster history; null when none was observed, or none is open after a restore.</summary>
@@ -85,7 +85,7 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
     }
 
     /// <summary>
-    /// The disaster history's finding (<see cref="PolicyFunctions.RecoveryNeed"/>): unclear is unknown, and a missing
+    /// The disaster history's finding (<see cref="RecoveryRules.RecoveryNeed"/>): unclear is unknown, and a missing
     /// history is met only when the conditions were read. It waits on sheltering.
     /// </summary>
     public static Need ServicesNeed(DisasterHistory? history, bool conditionsKnown)

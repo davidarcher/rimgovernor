@@ -12,7 +12,7 @@ public sealed record ConstructionMaterial(Resource Resource, long Need, long Sto
 
 public sealed record ConstructionProjection(EquatableArray<ConstructionMaterial> Materials);
 
-public static partial class PolicyFunctions
+public static class ConstructionProjectionRules
 {
     internal static Fact<ConstructionProjection> ProjectConstruction(ConstructionInputs input, Fact<EquatableArray<Amount>> stockFacts)
     {
@@ -21,14 +21,14 @@ public static partial class PolicyFunctions
             return Unknown<ConstructionProjection>();
         }
         var needs = new Dictionary<Resource, long>(owed);
-        foreach (var (resource, count) in AdmittedNeeds(input.Admitted))
+        foreach (var (resource, count) in ConstructionDemandRules.AdmittedNeeds(input.Admitted))
         {
             needs[resource] = Math.Max(needs.GetValueOrDefault(resource), count);
         }
         var stocks = new Dictionary<Resource, long>();
         foreach (var row in rows)
         {
-            if (!ValidResource(row.Resource) || row.Count < 0)
+            if (!AdmissionRules.ValidResource(row.Resource) || row.Count < 0)
             {
                 return Unknown<ConstructionProjection>();
             }
@@ -37,7 +37,7 @@ public static partial class PolicyFunctions
         var materials = new List<ConstructionMaterial>();
         foreach (var (resource, need) in needs.OrderBy(pair => pair.Key.Value, StringComparer.Ordinal))
         {
-            if (!ValidResource(resource) || need < 0)
+            if (!AdmissionRules.ValidResource(resource) || need < 0)
             {
                 return Unknown<ConstructionProjection>();
             }

@@ -42,7 +42,7 @@ public static partial class OutdoorHazardRules
             return Unknown<EquatableArray<OutdoorHazard>>();
         }
         var result = new List<OutdoorHazard>();
-        if (conditions.Any(c => c.Definition == ConditionToxicFallout))
+        if (conditions.Any(c => c.Definition == DisasterRules.ConditionToxicFallout))
         {
             result.Add(new OutdoorHazard(HazardKind.ToxicFallout));
         }

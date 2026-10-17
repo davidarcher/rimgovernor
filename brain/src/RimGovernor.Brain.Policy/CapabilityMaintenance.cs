@@ -7,7 +7,7 @@ public enum CapabilityDevelopmentKind { Acquisition, Maintenance, UnsupportedImp
 public sealed record AssignedCapability(string Id, ServiceTarget Target, PawnId Pawn,
     EquatableArray<SkillRequirement> Alternatives, CapabilityDevelopmentKind Kind);
 
-public static partial class PolicyFunctions
+public static class CapabilityMaintenanceRules
 {
     /// <summary>Only actually held active roles establish maintenance requirements. Unfilled roles are
     /// acquisition, and unlocked practice ceilings never establish a desired level.</summary>

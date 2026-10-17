@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using O = RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -55,7 +54,7 @@ public sealed class PlannedSitesTests
                 "planned/room1/floor/WoodPlankFloor", "planned/room1/build/TableButcher/1/1", "planned/room1/roof"],
             sites.Select(s => s.Id));
         var wall = sites.Single(s => s.Id == "planned/room1/wall/Steel");
-        Assert.Equal((OpKind.WallIn, ShellWallDefinition, "Steel"), (wall.Op, wall.Definition, wall.Stuff));
+        Assert.Equal((OpKind.WallIn, ContainmentCellRules.ShellWallDefinition, "Steel"), (wall.Op, wall.Definition, wall.Stuff));
         Assert.Equal([new Cell(-1, 0), new Cell(-1, 1), new Cell(3, 0)], wall.Positions);
         Assert.Equal([new Amount(Steel, 6)], wall.Material);
         Assert.Equal([new Amount(Wood, 2)], sites.Single(s => s.Op == OpKind.FloorIn).Material);
@@ -77,7 +76,7 @@ public sealed class PlannedSitesTests
     public void TheJoinAttachesRowsVerdictAndBlockers()
     {
         var sites = Sites([Owed()]);
-        var row = new O.ConstructionActivityOption("planned/room1/wall/Steel", ShellWallDefinition, new Cell(-1, 0), "Pawn_1", "Steel", "Thing_Steel1",
+        var row = new O.ConstructionActivityOption("planned/room1/wall/Steel", ContainmentCellRules.ShellWallDefinition, new Cell(-1, 0), "Pawn_1", "Steel", "Thing_Steel1",
             new Cell(5, 5), 6, 75, "ConstructFinishFrames", Known(10d), Known(20d), Known(300d));
         var blocker = new O.PlannedSiteBlocker(new Cell(3, 0), "Plant_1", "Plant_TreeOak");
         var clearing = new O.PlannedSiteClearing("planned/room1/wall/Steel/clear/cut", O.PlannedClearingKind.Cut, [new Cell(3, 0)]);
@@ -147,7 +146,7 @@ public sealed class PlannedSitesTests
     [Fact]
     public void PlacedBlueprintsAndFramesAreLeftOut()
     {
-        var placed = new HashSet<(string, Cell)> { (ShellWallDefinition, new Cell(3, 0)), ("TableButcher", new Cell(1, 1)), (ShellDoorDefinition, new Cell(1, -1)) };
+        var placed = new HashSet<(string, Cell)> { (ContainmentCellRules.ShellWallDefinition, new Cell(3, 0)), ("TableButcher", new Cell(1, 1)), (ContainmentCellRules.ShellDoorDefinition, new Cell(1, -1)) };
         var sites = Sites([Owed()], placed);
         Assert.Equal([new Cell(-1, 0), new Cell(-1, 1)], sites.Single(s => s.Id == "planned/room1/wall/WoodLog").Positions);
         Assert.DoesNotContain(sites, s => s.Op is OpKind.Build or OpKind.DoorIn);

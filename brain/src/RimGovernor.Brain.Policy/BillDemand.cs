@@ -57,7 +57,7 @@ public sealed record OpenBill
     }
 }
 
-public static partial class PolicyFunctions
+public static class BillDemandRules
 {
     /// <summary>
     /// The stock the economy/resource Need must reach for the open bills' ingredients, per resource, counted where the

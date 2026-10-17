@@ -45,14 +45,14 @@ public sealed partial class Store
     }
 
     /// <summary>
-    /// The combat standing of an enabled review (#3311): <see cref="PolicyFunctions.CombatSituation"/> over the
+    /// The combat standing of an enabled review (#3311): <see cref="RoundsRules.CombatSituation"/> over the
     /// review's hostiles and the food plan's hunt request, filed while it is active or the <c>military/combat</c> Need
     /// still holds open work (a fight's drafts); none otherwise. A clear situation cancels the Need's undispatched
     /// Methods first, so nothing dispatches after the clear.
     /// </summary>
     internal static RoundsCombat? ReviewCombat(StoreTransaction tx, RoundsRequest request)
     {
-        var hunt = PolicyFunctions.HuntRequest(request.Facts.FoodPlan);
+        var hunt = HuntSquadRules.HuntRequest(request.Facts.FoodPlan);
         var situation = RoundsRules.CombatSituation(request.Facts.Hostiles, hunt.Count);
         var owner = LoadNeedIn(tx, MilitaryFamily.Combat, request.Current);
         if (situation == Situation.Clear)
@@ -68,7 +68,7 @@ public sealed partial class Store
             ? EquatableArray.From(hunt.Select(p => (PawnId)p))
             : default;
         var hunters = situation == Situation.Active && request.Facts.Hostiles.TryGetValue(out hostiles) && hostiles == 0
-            ? EquatableArray.From(PolicyFunctions.HuntRequestHunters(request.Facts.FoodPlan).Select(p => (PawnId)p))
+            ? EquatableArray.From(HuntPlanningRules.HuntRequestHunters(request.Facts.FoodPlan).Select(p => (PawnId)p))
             : default;
         return new RoundsCombat(situation, prey, hunters);
     }

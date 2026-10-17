@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 internal static class RoundsHay
@@ -31,7 +32,7 @@ internal static class RoundsHay
 
     internal static (string Crop, int Needed, bool Found) HayTarget(ColonyProjection p)
     {
-        if (!PolicyFunctions.HayNutritionNeed(p.Facts.PenGrazing, PolicyFunctions.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions)).TryGetValue(out var need) || need <= 0)
+        if (!AnimalFoodRules.HayNutritionNeed(p.Facts.PenGrazing, CalendarRules.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions)).TryGetValue(out var need) || need <= 0)
         {
             return ("", 0, false);
         }
@@ -42,13 +43,13 @@ internal static class RoundsHay
             return ("", 0, false);
         }
 
-        var planned = PolicyFunctions.PlanHayField(Known(need), crop, p.CropClimate, out var plan);
+        var planned = AnimalFoodRules.PlanHayField(Known(need), crop, p.CropClimate, out var plan);
         return (crop.Name, plan.Needed, planned && plan.Needed > 0);
     }
 
     internal static (FieldBlockOption Option, bool Found) HayShortfall(ColonyProjection p)
     {
-        if (!PolicyFunctions.HayNutritionNeed(p.Facts.PenGrazing, PolicyFunctions.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions)).TryGetValue(out var need) || need <= 0)
+        if (!AnimalFoodRules.HayNutritionNeed(p.Facts.PenGrazing, CalendarRules.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions)).TryGetValue(out var need) || need <= 0)
         {
             return (default!, false);
         }
@@ -82,7 +83,7 @@ internal static class RoundsHay
             return (default!, false);
         }
 
-        var planned = PolicyFunctions.PlanHayField(Known(need), crop, p.CropClimate, out var plan);
+        var planned = AnimalFoodRules.PlanHayField(Known(need), crop, p.CropClimate, out var plan);
         if (!planned || plan.Needed <= 0)
         {
             return (default!, false);

@@ -4,7 +4,6 @@ using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Bridge.Contracts;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using O = RimGovernor.Contracts.Wire.Observations;
 using C = RimGovernor.Contracts.Wire.Common;
 
@@ -45,7 +44,7 @@ public sealed class ForecastConstructionTests
     [Fact]
     public void ObservedWorkAndMaterialsGenerateDependenciesAndInventoryConsumptionOnce()
     {
-        var result = ForecastColony(Request(Site()));
+        var result = ColonyForecastRules.ForecastColony(Request(Site()));
         var construction = Assert.Single(result.Proposed.Construction);
         Assert.Equal("scheduled", construction.Reason);
         var plan = construction.Comparison!.Selected!;
@@ -63,7 +62,7 @@ public sealed class ForecastConstructionTests
     {
         var a = Site("a"); var b = Site("b", 2);
         var request = Request(a, b) with { Proposed = new() { Remove = EquatableArray.From(new List<string> { "a" }) } };
-        var result = ForecastColony(request);
+        var result = ColonyForecastRules.ForecastColony(request);
         Assert.Equal("scheduled", result.Baseline.Construction[0].Reason);
         Assert.Equal("insufficient_uncommitted_materials", result.Baseline.Construction[1].Reason);
         Assert.Equal("scheduled", Assert.Single(result.Proposed.Construction).Reason);
@@ -81,7 +80,7 @@ public sealed class ForecastConstructionTests
             Workers = [builder, Worker("helper", skill: 0)],
             Estimates = [.. request.Construction.Estimates, new("site", "helper", "stock", Known(true), Known(false), Known(100.0), Known(0.0))],
         } };
-        var plan = ForecastColony(request).Proposed.Construction[0].Comparison!.Selected!;
+        var plan = ColonyForecastRules.ForecastColony(request).Proposed.Construction[0].Comparison!.Selected!;
         Assert.Equal("helper", Assert.Single(plan.Allocations, a => a.Activity == "deliver").Pawn);
         var finish = Assert.Single(plan.Allocations, a => a.Activity == "finish");
         Assert.Equal("worker", finish.Pawn);
@@ -95,7 +94,7 @@ public sealed class ForecastConstructionTests
     {
         var a = Site("a", owed: 0, work: 450); var b = Site("b", 2, owed: 0, work: 450);
         var request = Request(a, b);
-        Assert.Single(ForecastColony(request).Proposed.Construction, r => r.Reason == "scheduled");
+        Assert.Single(ColonyForecastRules.ForecastColony(request).Proposed.Construction, r => r.Reason == "scheduled");
         var extra = Worker("other");
         request = request with { Construction = request.Construction with
         {
@@ -103,18 +102,18 @@ public sealed class ForecastConstructionTests
             Estimates = [.. request.Construction.Estimates, .. request.Construction.Estimates.Select(e => e with { Pawn = "other" })],
             Routes = [.. request.Construction.Routes, .. request.Construction.Routes.Select(r => r with { Pawn = "other" })],
         } };
-        Assert.All(ForecastColony(request).Proposed.Construction, r => Assert.Equal("scheduled", r.Reason));
+        Assert.All(ColonyForecastRules.ForecastColony(request).Proposed.Construction, r => Assert.Equal("scheduled", r.Reason));
     }
 
     [Fact]
     public void FinishingSkillAndTierProtectionsSurviveActivityGeneration()
     {
         var request = Request(Site());
-        Assert.Null(Assert.Single(ForecastColony(request with { Construction = request.Construction with { Workers = [Worker(skill: 5)] } }).Proposed.Construction).Comparison!.Selected);
+        Assert.Null(Assert.Single(ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Workers = [Worker(skill: 5)] } }).Proposed.Construction).Comparison!.Selected);
         var high = Site("high") with { Tier = Known(ConstructionTier.Expand) };
         var low = Site("low", 2);
         request = Request(high) with { Construction = Request(high).Construction with { Census = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(new[] { high, low }) }) } };
-        Assert.Equal("lower_tier_material_need", Assert.Single(ForecastColony(request).Proposed.Construction).Reason);
+        Assert.Equal("lower_tier_material_need", Assert.Single(ColonyForecastRules.ForecastColony(request).Proposed.Construction).Reason);
     }
 
     [Fact]
@@ -123,10 +122,10 @@ public sealed class ForecastConstructionTests
         var a = Site("a") with { WorkLeft = Unknown<double>() };
         var b = Site("b", 2, owed: 0);
         var request = Request(a, b);
-        var results = ForecastColony(request).Proposed.Construction;
+        var results = ColonyForecastRules.ForecastColony(request).Proposed.Construction;
         Assert.Equal("unknown_construction_work_or_materials", results[0].Reason);
         Assert.Equal("scheduled", results[1].Reason);
-        var missing = ForecastColony(Request(b) with { Construction = Request(b).Construction with { Routes = [] } });
+        var missing = ColonyForecastRules.ForecastColony(Request(b) with { Construction = Request(b).Construction with { Routes = [] } });
         Assert.Null(missing.Proposed.Construction[0].Comparison!.Selected);
         Assert.Contains(missing.Proposed.Construction[0].Comparison!.Findings, f => f.StartsWith("unknown_route:", StringComparison.Ordinal));
     }
@@ -137,13 +136,13 @@ public sealed class ForecastConstructionTests
         var request = Request(Site());
         request = request with { Construction = request.Construction with { IngredientReservations = Known(EquatableArray.From(new[]
         { new IngredientReservation { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Items = [new Amount(Material, 6)] } })) } };
-        Assert.Equal("insufficient_uncommitted_materials", Assert.Single(ForecastColony(request).Proposed.Construction).Reason);
+        Assert.Equal("insufficient_uncommitted_materials", Assert.Single(ColonyForecastRules.ForecastColony(request).Proposed.Construction).Reason);
         request = Request(Site());
         request = request with { Commitments = EquatableArray.From(request.Commitments.Append(new ForecastCommitment("other", EquatableArray.From(new[]
         { new ForecastStockChange(Material, Known(0.0), Known(-6.0)) })))) };
-        Assert.Equal("insufficient_uncommitted_materials", Assert.Single(ForecastColony(request).Proposed.Construction).Reason);
+        Assert.Equal("insufficient_uncommitted_materials", Assert.Single(ColonyForecastRules.ForecastColony(request).Proposed.Construction).Reason);
         request = Request(Site()) with { Construction = Request(Site()).Construction with { IngredientReservations = default } };
-        Assert.Equal("unknown_available_materials", Assert.Single(ForecastColony(request).Proposed.Construction).Reason);
+        Assert.Equal("unknown_available_materials", Assert.Single(ColonyForecastRules.ForecastColony(request).Proposed.Construction).Reason);
     }
 
     [Fact]
@@ -151,13 +150,13 @@ public sealed class ForecastConstructionTests
     {
         var site = Site(); var request = Request(site);
         var complete = new CurrentConstruction { Colony = true, Buildings = EquatableArray.From(new[] { new CurrentBuilding { Id = "built", Building = site.Building } }) };
-        Assert.Equal("already_built", Assert.Single(ForecastColony(request with { Construction = request.Construction with { Census = Known(complete) } }).Proposed.Construction).Reason);
-        Assert.Equal("construction_gone", Assert.Single(ForecastColony(request with { Construction = request.Construction with { Census = Known(new CurrentConstruction { Colony = true }) } }).Proposed.Construction).Reason);
+        Assert.Equal("already_built", Assert.Single(ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = Known(complete) } }).Proposed.Construction).Reason);
+        Assert.Equal("construction_gone", Assert.Single(ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = Known(new CurrentConstruction { Colony = true }) } }).Proposed.Construction).Reason);
         var worker = Worker();
         var unavailable = request with { Construction = request.Construction with { Workers = [worker with { Observed = worker.Observed with { Available = Known(false) } }] } };
-        Assert.Null(Assert.Single(ForecastColony(unavailable).Proposed.Construction).Comparison!.Selected);
+        Assert.Null(Assert.Single(ColonyForecastRules.ForecastColony(unavailable).Proposed.Construction).Comparison!.Selected);
         var remaining = site with { WorkLeft = Known(20.0), MaterialsOwed = Known(default(EquatableArray<Amount>)), ResourcesComplete = Known(true) };
-        var revised = ForecastColony(request with { Construction = request.Construction with { Census = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(new[] { remaining }) }) } });
+        var revised = ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(new[] { remaining }) }) } });
         Assert.Equal(70.0 / GameTime.TicksPerDay, revised.Proposed.Construction[0].CompletedDay.Value);
         Assert.Equal(15, revised.Proposed.Stocks[0].Points[^1].BalanceUnits.Value);
     }
@@ -166,10 +165,10 @@ public sealed class ForecastConstructionTests
     public void SearchBudgetIsSharedAndDuplicateConstructionCannotDoubleCharge()
     {
         var request = Request(Site("a", owed: 0), Site("b", 2, owed: 0));
-        var forecast = ForecastColony(request with { Construction = request.Construction with { ExpansionBudget = 2 } });
+        var forecast = ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { ExpansionBudget = 2 } });
         Assert.Equal("scheduled", forecast.Proposed.Construction[0].Reason);
         Assert.Equal("search_budget_exhausted", forecast.Proposed.Construction[1].Reason);
-        Assert.Throws<DomainException>(() => ForecastColony(request with { Commitments = EquatableArray.From(new[] { request.Commitments[0], request.Commitments[0] with { Id = "duplicate" } }) }));
+        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastColony(request with { Commitments = EquatableArray.From(new[] { request.Commitments[0], request.Commitments[0] with { Id = "duplicate" } }) }));
     }
 
     [Fact]
@@ -179,7 +178,7 @@ public sealed class ForecastConstructionTests
         var promise = new ForecastCommitment("cooking", default)
         { MaterialClaims = [new(Material, Known(6.0), Known(""))] };
         request = request with { Commitments = [.. request.Commitments, promise], Proposed = new() { Remove = [promise.Id] } };
-        var forecast = ForecastColony(request);
+        var forecast = ColonyForecastRules.ForecastColony(request);
         Assert.Equal("insufficient_uncommitted_materials", Assert.Single(forecast.Baseline.Construction).Reason);
         Assert.Equal("scheduled", Assert.Single(forecast.Proposed.Construction).Reason);
         Assert.Equal(9, forecast.Baseline.MaterialAvailability.Value[Material].Value);
@@ -191,10 +190,10 @@ public sealed class ForecastConstructionTests
     {
         var request = Request(Site());
         var unrelated = new ForecastCommitment("other", [new(new Resource("TestOther"), Known(0.0), Unknown<double>())]);
-        var result = ForecastColony(request with { Commitments = [.. request.Commitments, unrelated] });
+        var result = ColonyForecastRules.ForecastColony(request with { Commitments = [.. request.Commitments, unrelated] });
         Assert.Equal("scheduled", Assert.Single(result.Proposed.Construction).Reason);
         var related = unrelated with { StockChanges = [new(Material, Known(0.0), Unknown<double>())] };
-        result = ForecastColony(request with { Commitments = [.. request.Commitments, related] });
+        result = ColonyForecastRules.ForecastColony(request with { Commitments = [.. request.Commitments, related] });
         Assert.Equal("unknown_available_materials", Assert.Single(result.Proposed.Construction).Reason);
     }
 
@@ -213,7 +212,7 @@ public sealed class ForecastConstructionTests
                 Estimates = [request.Construction.Estimates[0] with { FinishEquipment = ["tool"] }],
             },
         };
-        var forecast = ForecastColony(request);
+        var forecast = ColonyForecastRules.ForecastColony(request);
         Assert.Null(Assert.Single(forecast.Baseline.Construction).Comparison!.Selected);
         var selected = Assert.Single(forecast.Proposed.Construction).Comparison!.Selected!;
         Assert.Equal(150, selected.CompletedAt);

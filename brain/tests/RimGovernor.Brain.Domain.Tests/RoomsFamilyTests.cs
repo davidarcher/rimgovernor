@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -79,7 +78,7 @@ public sealed class RoomsFamilyTests
         Assert.Equal(Satisfaction.Met, Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([]), SculptureRoomsOwed = Known(true) }, RoomsFamily.Art).Satisfaction);
 
         // An inspired artist decides the Need while the bedrooms are unread.
-        Assert.Equal(Satisfaction.Unmet, Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([Artist("a", InspiredCreativity)]) }, RoomsFamily.Art).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([Artist("a", ArtRules.InspiredCreativity)]) }, RoomsFamily.Art).Satisfaction);
 
         var unread = Of(new() { SculptureRoomsOwed = Known(true) }, RoomsFamily.Art);
         Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
@@ -187,7 +186,7 @@ public sealed class RoomsFamilyTests
     private static PlanSpec Build(NeedId need, string definition, Cell cell)
     {
         var id = PlanIds.MintPlanId();
-        return new PlanSpec(id, new(1), [DomainAction.NewBuildingAction(new(id.Value + "-0"), new Building(definition, cell, Rotation.North, ""), PlannerTier(need.FilingKey, Phase.None))]);
+        return new PlanSpec(id, new(1), [DomainAction.NewBuildingAction(new(id.Value + "-0"), new Building(definition, cell, Rotation.North, ""), ConstructionTierRules.PlannerTier(need.FilingKey, Phase.None))]);
     }
 
     /// <summary>A reviewed colony whose rooms family works its lighting and comfort Needs by committing the listed builds under each Need.</summary>

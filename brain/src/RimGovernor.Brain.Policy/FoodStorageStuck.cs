@@ -26,7 +26,7 @@ public enum FoodStuckReason
     Unestablished,
 }
 
-public static partial class PolicyFunctions
+public static class FoodStorageStuckRules
 {
     /// <summary>
     /// Go <c>FoodStorageStuckReason</c>: names why the unstored perishable stacks of the census are not stored.
@@ -38,7 +38,7 @@ public static partial class PolicyFunctions
         _ = observed.Stocks.TryGetValue(out var stocks);
         foreach (var entry in stocks)
         {
-            if (!FoodStorageUnstored(entry, observed.ChilledMaxC, p))
+            if (!FoodStorageUpkeepRules.FoodStorageUnstored(entry, observed.ChilledMaxC, p))
             {
                 continue;
             }

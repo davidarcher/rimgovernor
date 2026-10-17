@@ -12,7 +12,7 @@ public enum PegCycleStep
 // Peg-leg cycling: medical/surgery installs and removes cheap wood parts (peg leg, wooden hand, wooden foot: one
 // pool) on colony prisoners, one surgery at a time in the organ harvest's slot, for doctor training, prisoner
 // control and release. See the Go source for the full model; the constants below are its prices.
-public static partial class PolicyFunctions
+public static class DoctorTrainingRules
 {
     /// <summary>The Medicine level the colony trains doctors to.</summary>
     public const int DoctorTrainingFloor = 10;

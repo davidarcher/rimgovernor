@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: basic_defense.go
 
-public static partial class PolicyFunctions
+public static class BasicDefenseRules
 {
     /// <summary>
     /// The Foothold defense gate (two armed, no hostiles) plus every fighting-capable colonist holding a

@@ -70,7 +70,7 @@ public sealed record HospitalChoice
     public string Definition { get; init; } = "";
 }
 
-public static partial class PolicyFunctions
+public static class HospitalRules
 {
     /// <summary>
     /// The living patients who need a hosted medical bed: those whose health read says they need rest, and the

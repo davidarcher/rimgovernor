@@ -2,7 +2,7 @@ using RimGovernor.Brain.Policy.Methods.Generation;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class EffectSourcesRules
 {
     /// <summary>
     /// The effect-source family's entry (#3224, prevention branch #3284, live since #3285, gear warmth #3329): for each pawn,
@@ -28,11 +28,11 @@ public static partial class PolicyFunctions
             EffectSourceOutfit Outfit(bool allow, (double Cold, double Heat) floor, IEnumerable<GearOption> items)
             {
                 var array = EquatableArray.From(items);
-                var (cold, heat) = GearInsulation(array);
+                var (cold, heat) = GearLoadoutRules.GearInsulation(array);
                 return new(allow, floor.Cold, floor.Heat, array,
                     prevention.ToDictionary(c => c.Def, c => MechanicCardGuards.CardStageOffset(c, pawn.Card, EffectSourceCandidates.Apparel(array))), cold, heat);
             }
-            var worn = GearInsulation(pawn.Gear.Worn);
+            var worn = GearLoadoutRules.GearInsulation(pawn.Gear.Worn);
             var options = new List<EffectSourceOutfit> { Outfit(false, worn, pawn.Gear.Worn) };
             var physical = pawn.Gear with { Options = EquatableArray.From(pawn.Gear.Options.Where(o => o.Source != GearSource.Bill)) };
             var held = physical.Worn.Concat(physical.Options).ToArray();
@@ -41,11 +41,11 @@ public static partial class PolicyFunctions
             foreach (var allow in prevention.Length > 0 && held.Any(o => o.Tainted) ? [false, true] : new[] { false })
             {
                 Func<GearOption, bool>? filter = allow ? null : o => o.Tainted;
-                var planned = new List<EffectSourceOutfit> { Outfit(allow, worn, PlanGearLoadout(physical, filter, worn).Target) };
+                var planned = new List<EffectSourceOutfit> { Outfit(allow, worn, GearLoadoutRules.PlanGearLoadout(physical, filter, worn).Target) };
                 foreach (var probe in warmth ? new (double, double)?[] { (most.Cold, 0), (0, most.Heat), null } : [])
                 {
-                    var target = PlanGearLoadout(physical, filter, probe).Target;
-                    var (cold, heat) = GearInsulation(target);
+                    var target = GearLoadoutRules.PlanGearLoadout(physical, filter, probe).Target;
+                    var (cold, heat) = GearLoadoutRules.GearInsulation(target);
                     if (planned.Any(o => Math.Round(o.Cold - cold, 6) == 0 && Math.Round(o.Heat - heat, 6) == 0))
                     {
                         continue;

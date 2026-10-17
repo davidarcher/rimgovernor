@@ -4,7 +4,6 @@ using RimGovernor.Contracts.Wire.Common;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -108,7 +107,7 @@ public sealed class ForecastPortfolioChoiceTests
         for (var mask = 0; mask < 1 << roots.Length; mask++)
         {
             var subset = roots.Where((_, i) => (mask & (1 << i)) != 0).ToArray();
-            var result = ForecastColony(request with { Proposed = new() { Add = EquatableArray.From(subset) } });
+            var result = ColonyForecastRules.ForecastColony(request with { Proposed = new() { Add = EquatableArray.From(subset) } });
             foreach (var outcome in result.Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)))
             {
                 var vector = ForecastCoupledSelection.CoupledConsequences(outcome, subset);

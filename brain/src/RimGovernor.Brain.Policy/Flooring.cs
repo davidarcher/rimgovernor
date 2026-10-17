@@ -63,12 +63,12 @@ public sealed record FlooringPolicy
         get
         {
             if (Floors.Count == 0 || MaxCellsPerPlan < 1 || MaxCellsPerPlan > 256 || !Clean.IsValid || !Living.IsValid || !Traffic.IsValid
-                || !PolicyFunctions.FloorNumber(PaybackDays) || PaybackDays < 0 || !PolicyFunctions.FloorNumber(MaterialTicksPerUnit) || MaterialTicksPerUnit < 0)
+                || !FlooringRules.FloorNumber(PaybackDays) || PaybackDays < 0 || !FlooringRules.FloorNumber(MaterialTicksPerUnit) || MaterialTicksPerUnit < 0)
             {
                 return false;
             }
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            return Floors.All(f => PolicyFunctions.FoodId(f) && seen.Add(f));
+            return Floors.All(f => FoodForecastRules.FoodId(f) && seen.Add(f));
         }
     }
 }
@@ -131,8 +131,8 @@ public sealed record FlooringObservation
         foreach (var (name, t) in Terrains)
         {
             DomainException.Require(
-                PolicyFunctions.FoodId(name) && PolicyFunctions.FloorNumber(t.Cleanliness) && PolicyFunctions.FloorNumber(t.Beauty) && PolicyFunctions.FloorNumber(t.Flammability)
-                    && PolicyFunctions.FloorNumber(t.Fertility) && t.PathCost >= 0,
+                FoodForecastRules.FoodId(name) && FlooringRules.FloorNumber(t.Cleanliness) && FlooringRules.FloorNumber(t.Beauty) && FlooringRules.FloorNumber(t.Flammability)
+                    && FlooringRules.FloorNumber(t.Fertility) && t.PathCost >= 0,
                 "invalid floor terrain"
             );
         }
@@ -141,13 +141,13 @@ public sealed record FlooringObservation
         var total = 0;
         foreach (var room in Rooms)
         {
-            DomainException.Require(PolicyFunctions.FoodId(room.Id) && rooms.Add(room.Id), "invalid floor room");
+            DomainException.Require(FoodForecastRules.FoodId(room.Id) && rooms.Add(room.Id), "invalid floor room");
             total += room.Cells.Count;
             DomainException.Require(total <= 4096, "flooring census exceeds bound");
             foreach (var c in room.Cells)
             {
                 DomainException.Require(
-                    Terrains.ContainsKey(c.Terrain) && cells.Add(c.Cell) && !(c.Pending.Length != 0 && !PolicyFunctions.FoodId(c.Pending)),
+                    Terrains.ContainsKey(c.Terrain) && cells.Add(c.Cell) && !(c.Pending.Length != 0 && !FoodForecastRules.FoodId(c.Pending)),
                     "invalid floor cell"
                 );
             }
@@ -156,7 +156,7 @@ public sealed record FlooringObservation
         foreach (var t in Traffic)
         {
             DomainException.Require(
-                Terrains.ContainsKey(t.Terrain) && t.Layer.Valid() && traffic.Add((t.Layer, t.Cell)) && !(t.Pending.Length != 0 && !PolicyFunctions.FoodId(t.Pending)),
+                Terrains.ContainsKey(t.Terrain) && t.Layer.Valid() && traffic.Add((t.Layer, t.Cell)) && !(t.Pending.Length != 0 && !FoodForecastRules.FoodId(t.Pending)),
                 "invalid traffic cell"
             );
         }
@@ -330,7 +330,7 @@ public sealed record FlooringFacts
     public ContainmentFloor ContainmentFloor { get; init; } = new();
 }
 
-public static partial class PolicyFunctions
+public static class FlooringRules
 {
     // The rooms/flooring Need lays role-appropriate floors in the rooms the colony lives and works in. It reasons from
     // the measured terrain under each room cell and the native stats of that terrain, never from what the
@@ -408,11 +408,11 @@ public static partial class PolicyFunctions
         }
         if (census.TryGetValue(room.Id, out var r))
         {
-            if (InherentlyDirty(r))
+            if (KitchenSeparationRules.InherentlyDirty(r))
             {
                 return null;
             }
-            if (CleanWorkspace(r))
+            if (KitchenSeparationRules.CleanWorkspace(r))
             {
                 return FloorTier.Clean;
             }

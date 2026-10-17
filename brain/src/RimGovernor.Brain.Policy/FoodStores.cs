@@ -14,7 +14,7 @@ public sealed record FoodStoresFacts
 
     public Fact<FoodReserveReview> Reserve { get; init; }
 
-    /// <summary>Whether an owned zone of a food role stands (<see cref="PolicyFunctions.FoodStorageStanding"/>); unknown until zone claims are read.</summary>
+    /// <summary>Whether an owned zone of a food role stands (<see cref="StockpileRules.FoodStorageStanding"/>); unknown until zone claims are read.</summary>
     public Fact<bool> Stockpile { get; init; }
 
     /// <summary>Whether the food plan opened or holds the reserve's stock-protection channel; without it the family proposes nothing.</summary>
@@ -23,10 +23,10 @@ public sealed record FoodStoresFacts
     /// <summary>The supply actions the native reserve reads offer, the release read first; unknown when not read.</summary>
     public Fact<EquatableArray<SupplyAllow>> ReserveTargets { get; init; }
 
-    /// <summary>The colonists who haul in danger (<see cref="PolicyFunctions.DangerHaulers"/>): explain names why unstored food stays put.</summary>
+    /// <summary>The colonists who haul in danger (<see cref="ShelterRules.DangerHaulers"/>): explain names why unstored food stays put.</summary>
     public Fact<EquatableArray<PawnId>> Haulers { get; init; }
 
-    /// <summary>The warm standing tombs, morgues and meal closets (<see cref="PolicyFunctions.WarmCoolingRooms"/>); unknown while the plan, rooms or cooler research are unread.</summary>
+    /// <summary>The warm standing tombs, morgues and meal closets (<see cref="TombRules.WarmCoolingRooms"/>); unknown while the plan, rooms or cooler research are unread.</summary>
     public Fact<EquatableArray<string>> WarmRooms { get; init; }
 
     /// <summary>Whether the planned meal closet waits to be shelled while its dining room stands; unknown while unread.</summary>
@@ -38,7 +38,7 @@ public sealed record FoodStoresFacts
         Storage = f.FoodStorageUpkeep,
         Reserve = f.FoodReserve,
         Stockpile = StockpileRules.FoodStorageStanding(f),
-        StockProtection = PolicyFunctions.FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"),
+        StockProtection = FoodOrdersRules.FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"),
         Haulers = f.DangerHaulers,
         WarmRooms = f.WarmRooms,
         MealClosetOwed = f.MealClosetOwed,
@@ -60,7 +60,7 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
     /// <summary>The most supply actions one reserve Method carries.</summary>
     internal const int ReserveActionLimit = 8;
 
-    public string Id => PolicyFunctions.FoodStoresFamilyId;
+    public string Id => FoodStoresRules.FoodStoresFamilyId;
 
     /// <summary>The colony census; refrigeration also reads the room census its warm stock and cooling rooms stand in.</summary>
     public IReadOnlyList<FactFamily> Reads { get; } = refrigeration ? [FactFamily.Rooms, FactFamily.Colony] : [FactFamily.Colony];
@@ -69,8 +69,8 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
 
     public IReadOnlyList<Need> Derive(FoodStoresFacts facts) =>
     [
-        .. storage ? [PolicyFunctions.FoodStorageNeedOf(facts, policy)] : Array.Empty<Need>(),
-        .. refrigeration ? [PolicyFunctions.RefrigerationNeedOf(facts, policy)] : Array.Empty<Need>(),
+        .. storage ? [FoodStoresRules.FoodStorageNeedOf(facts, policy)] : Array.Empty<Need>(),
+        .. refrigeration ? [FoodStoresRules.RefrigerationNeedOf(facts, policy)] : Array.Empty<Need>(),
     ];
 
     /// <summary>
@@ -79,21 +79,21 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
     /// </summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, FoodStoresFacts facts)
     {
-        if (!ready.Any(n => n.Id == PolicyFunctions.FoodStorageNeed) || !facts.StockProtection)
+        if (!ready.Any(n => n.Id == FoodStoresRules.FoodStorageNeed) || !facts.StockProtection)
         {
             return [];
         }
-        if (PolicyFunctions.ReserveAccessPending(facts.Reserve))
+        if (FoodStoresRules.ReserveAccessPending(facts.Reserve))
         {
             var supplies = ReserveSupplies(facts);
             return supplies.Count == 0
                 ? []
-                : [new NeedMethod(PolicyFunctions.FoodStorageNeed, new MethodId("food-reserve"), "reserve food to hold or release", id => Plan(id, supplies))];
+                : [new NeedMethod(FoodStoresRules.FoodStorageNeed, new MethodId("food-reserve"), "reserve food to hold or release", id => Plan(id, supplies))];
         }
         CorpseLarderMethod larder;
         try
         {
-            larder = PolicyFunctions.SelectCorpseLarder(facts.Storage);
+            larder = CorpseLarderRules.SelectCorpseLarder(facts.Storage);
         }
         catch (DomainException)
         {
@@ -106,7 +106,7 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
         var supply = larder.Kind == "allow"
             ? new SupplyAllow(stock.Id, stock.DefName.Value, handling.Cell)
             : SupplyAllow.NewSupplyForbid(stock.Id, stock.DefName.Value, handling.Cell);
-        return [new NeedMethod(PolicyFunctions.FoodStorageNeed, new MethodId($"corpse-larder-{larder.Kind}-{stock.Id}"), $"larder corpse to {larder.Kind}", id => Plan(id, [supply]))];
+        return [new NeedMethod(FoodStoresRules.FoodStorageNeed, new MethodId($"corpse-larder-{larder.Kind}-{stock.Id}"), $"larder corpse to {larder.Kind}", id => Plan(id, [supply]))];
     }
 
     /// <summary>The offered reserve stacks the review wants held (forbid) or released (allow), in read order, at most eight.</summary>
@@ -133,7 +133,7 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
         new(id, new PlanRevision(1), supplies.Select((s, i) => DomainAction.NewSupplyAllowAction(new ActionId($"{id.Value}-{i}"), s)));
 }
 
-public static partial class PolicyFunctions
+public static class FoodStoresRules
 {
     public const string FoodStoresFamilyId = "food-stores";
 
@@ -164,7 +164,7 @@ public static partial class PolicyFunctions
         FoodStorageReview? storage;
         try
         {
-            storage = ReviewFoodStorage(f.Storage, p);
+            storage = FoodStorageUpkeepRules.ReviewFoodStorage(f.Storage, p);
         }
         catch (DomainException)
         {
@@ -200,7 +200,7 @@ public static partial class PolicyFunctions
                 new("stored_nutrition", Nutrition(storage?.StoredNutrition ?? default)),
                 new("unstored_nutrition", Nutrition(storage?.UnstoredNutrition ?? default)),
                 new("corpse_larder", census ? Known(storage!.Larder ? "change" : "none") : Unknown<string>()),
-                new("food_not_stored", census && storage!.Deficit.TryGetValue(out var shortfall) && shortfall > 0 ? Known(Wire.Name(FoodStorageStuckReason(f.Storage, p, f.Haulers))) : Unknown<string>()),
+                new("food_not_stored", census && storage!.Deficit.TryGetValue(out var shortfall) && shortfall > 0 ? Known(Wire.Name(FoodStorageStuckRules.FoodStorageStuckReason(f.Storage, p, f.Haulers))) : Unknown<string>()),
             ],
         };
     }

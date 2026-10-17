@@ -29,7 +29,7 @@ public static partial class TrainingRules
     {
         if (!facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)) return Unknown<TrainingReview>();
         if (!facts.Ideology.TryGetValue(out _)) return Unknown<TrainingReview>();
-        var requirements = AssignedCombatCapabilities(facts.Ideology);
+        var requirements = CapabilityMaintenanceRules.AssignedCombatCapabilities(facts.Ideology);
         var active = new List<(string Pawn, string Skill)>(); var unknown = false;
         foreach (var requirement in requirements)
         {

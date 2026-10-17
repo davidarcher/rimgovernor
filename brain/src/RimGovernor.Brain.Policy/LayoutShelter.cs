@@ -63,7 +63,7 @@ public static partial class LayoutShelterRules
                 output.Add((w, d));
             }
         }
-        return [.. output.OrderBy(s => s.W * s.D).ThenBy(s => Abs32((2 * s.W) - (3 * s.D)))];
+        return [.. output.OrderBy(s => s.W * s.D).ThenBy(s => LightingRules.Abs32((2 * s.W) - (3 * s.D)))];
     }
 
     /// <summary>The shelter room followed by its children: an airlock outside its door when airlock is set and a battery porch on the far wall when porch is set (a cold map). The children carry no Parent yet; WithRoomIDs hands it out with their ids.</summary>
@@ -154,11 +154,11 @@ partial record PlannedRoom
         int cx = ins.X + (ins.Width / 2), cz = ins.Z + (ins.Height / 2);
         int dx = seed.X - cx, dz = seed.Z - cz;
         var r = new PlannedRoom { Role = LayoutSurveyRules.PlannedShelter, Region = RegionRules.RectRegion(ins) };
-        if (Abs32(dx) > Abs32(dz) && dx > 0)
+        if (LightingRules.Abs32(dx) > LightingRules.Abs32(dz) && dx > 0)
         {
             return r with { Door = new Cell(ins.X + ins.Width, cz), DoorRot = Rotation.East };
         }
-        if (Abs32(dx) > Abs32(dz))
+        if (LightingRules.Abs32(dx) > LightingRules.Abs32(dz))
         {
             return r with { Door = new Cell(ins.X - 1, cz), DoorRot = Rotation.West };
         }

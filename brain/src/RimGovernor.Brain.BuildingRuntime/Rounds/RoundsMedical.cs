@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -142,7 +143,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
 
     /// <summary>
     /// The reserves Need's medicine bill: while the stock is below the target bar, the stock-target bill
-    /// <see cref="PolicyFunctions.SelectMedicineMethod"/> picks; nothing while it is met; an abstain while the stock
+    /// <see cref="MedicalRules.SelectMedicineMethod"/> picks; nothing while it is met; an abstain while the stock
     /// or the medicine catalog is unread.
     /// </summary>
     internal static Declared Declare(RoundsPolicy policy, ColonyProjection projection, IReadOnlyList<GearBench> benches)
@@ -170,7 +171,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         }
 
         var choice = MedicalRules.SelectMedicineMethod(new MedicinePlanningRequest { Review = reserve, Resource = medicine, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
-        return PolicyFunctions.DeclareMedicine(choice, benches);
+        return CareOrdersRules.DeclareMedicine(choice, benches);
     }
 
     private async Task<RoundsMedicalResult> HarvestMedicineAsync(NeedWork work, O.ColonyFactsSnapshot observed, Tables tables, MedicalReserveReview medicalReview, MedicalReserveObservation facts, Resource medicineResource, HashSet<string> stalledSources, DateTimeOffset started, CancellationToken call)
@@ -231,7 +232,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         IReadOnlyList<AcquisitionSource> selected;
         try
         {
-            selected = PolicyFunctions.SelectResourceAcquisition(sources, Known((double)replenish), Known(pending), medicineResource, held);
+            selected = AcquisitionRules.SelectResourceAcquisition(sources, Known((double)replenish), Known(pending), medicineResource, held);
         }
         catch (DomainException)
         {
@@ -313,7 +314,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
 
         foreach (var pawn in pawns.Where(pawn => pawn.Id == patient))
         {
-            foreach (var surgery in PolicyFunctions.LifeSavingAmputations(pawn))
+            foreach (var surgery in EmergencyRules.LifeSavingAmputations(pawn))
             {
                 var method = new MethodId($"amputate-{surgery.Pawn}-{surgery.Part}-{window}");
                 if (p.Journal.OwnerMethodPlan(work.Owner, method, call) is not null)

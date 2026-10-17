@@ -8,7 +8,6 @@ using Amount = RimGovernor.Brain.Policy.Amount;
 using GearStock = RimGovernor.Brain.Policy.GearStock;
 using GearCandidate = RimGovernor.Brain.Policy.GearCandidate;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -183,9 +182,9 @@ public sealed class ClothingChoiceTests
     public void UnknownsAndPhysicalReplacementsRemainVisible()
     {
         var census = Census();
-        Assert.Contains("unknown_clothing_stock", ClothingActivityRequirements(census with { Stored = default }).Findings);
+        Assert.Contains("unknown_clothing_stock", ClothingActivitiesRules.ClothingActivityRequirements(census with { Stored = default }).Findings);
         var physical = census with { Pawns = [census.Pawns[0] with { Candidates = Known<EquatableArray<GearCandidate>>([new("stored-shirt", 1, new("Shirt"))]) }] };
-        Assert.Empty(ClothingActivityRequirements(physical).Alternatives);
+        Assert.Empty(ClothingActivitiesRules.ClothingActivityRequirements(physical).Alternatives);
     }
 
     [Fact]
@@ -221,11 +220,11 @@ public sealed class ClothingChoiceTests
                 new(o.Assignment, o.Method, o.Revision, 0, "completed", "", null, 100)))),
             Bindings = [new(output.Id, output.Step with { Target = "actual-cloth-product" })]
         };
-        var delivery = ContinueCoordinatedActivity(batch, Known(true), execution)!;
+        var delivery = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), execution)!;
         Assert.Equal("actual-cloth-product", delivery.Orders.Single().Steps[0].Target);
         Assert.Null(delivery.Orders.Single().Steps[0].Recipe);
         var failed = execution with { Pawns = EquatableArray.From(execution.Pawns.Select(p => p with { Execution = p.Execution! with { State = "failed" } })) };
-        Assert.True(ContinueCoordinatedActivity(batch, Known(true), failed)!.Orders.Single().Release);
-        Assert.True(ContinueCoordinatedActivity(batch, Known(false), execution)!.Orders.Single().Release);
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), failed)!.Orders.Single().Release);
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(false), execution)!.Orders.Single().Release);
     }
 }

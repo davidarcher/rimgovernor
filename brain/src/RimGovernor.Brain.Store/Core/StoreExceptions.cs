@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Store;
 
@@ -8,7 +9,7 @@ public sealed class ProductionMaterialException : DomainException
     public ProductionMaterialException() : base("fixed production batch material is insufficient or unknown, or the claim bound is exhausted") { }
 }
 
-/// <summary>A plan draws on Construction labor while the initial shelter owns it (<see cref="Policy.PolicyFunctions.ConstructionLaborHeld"/>).</summary>
+/// <summary>A plan draws on Construction labor while the initial shelter owns it (<see cref="ConstructionLaborRules.ConstructionLaborHeld"/>).</summary>
 public sealed class ConstructionLaborException : DomainException
 {
     public ConstructionLaborException() : base("the initial shelter holds the construction labor") { }

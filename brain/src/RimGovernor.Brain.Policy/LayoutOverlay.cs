@@ -69,7 +69,7 @@ public static partial class LayoutOverlayRules
 
     private static OverlayStyleOf St(OverlayHue hue, string label) => new(hue, label);
 
-    /// <summary>The overlay style tables: nested so their initializers run on first use, after every PolicyFunctions property they read exists.</summary>
+    /// <summary>The overlay style tables: nested so their initializers run on first use, after every property of the sibling Rules classes they read exists.</summary>
     private static class OverlayTables
     {
         public static readonly Dictionary<ZoneKind, OverlayStyleOf> Zone = new()
@@ -231,7 +231,7 @@ public static partial class LayoutOverlayRules
         var found = false;
         foreach (var c in g.Cells())
         {
-            if (!found || DistanceSquared(c, mid) < DistanceSquared(best, mid))
+            if (!found || EquipRules.DistanceSquared(c, mid) < EquipRules.DistanceSquared(best, mid))
             {
                 (best, found) = (c, true);
             }

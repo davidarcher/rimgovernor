@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Clock;
 using RimGovernor.Contracts.Wire.Common;
 
@@ -12,14 +13,14 @@ public static class ClockExpectation
     /// </summary>
     public static WatchPolicy WithHazardThresholds(WatchPolicy p)
     {
-        p = p with { SeriousSingleHitDamage = Policy.PolicyFunctions.SeriousSingleHitDamage };
-        p = p with { SeriousSummaryHealthFloor = Policy.PolicyFunctions.SeriousSummaryHealthFloor };
-        p = p with { SeriousBleedRateFloor = Policy.PolicyFunctions.SeriousBleedRateFloor };
-        p = p with { SeriousVitalPartFloor = Policy.PolicyFunctions.SeriousVitalPartFloor };
-        p = p with { ExplosiveNearMarginCells = Policy.PolicyFunctions.ExplosiveNearMarginCells };
-        p = p with { MeleeReachCells = Policy.PolicyFunctions.MeleeReachCells };
-        p = p with { InjurySeverityFloorTicks = Policy.PolicyFunctions.InjurySeverityFloorTicks };
-        p = p with { PredatorMarginCells = Policy.PolicyFunctions.HuntPredatorMarginCells };
+        p = p with { SeriousSingleHitDamage = HazardThresholdsRules.SeriousSingleHitDamage };
+        p = p with { SeriousSummaryHealthFloor = HazardThresholdsRules.SeriousSummaryHealthFloor };
+        p = p with { SeriousBleedRateFloor = HazardThresholdsRules.SeriousBleedRateFloor };
+        p = p with { SeriousVitalPartFloor = HazardThresholdsRules.SeriousVitalPartFloor };
+        p = p with { ExplosiveNearMarginCells = HazardThresholdsRules.ExplosiveNearMarginCells };
+        p = p with { MeleeReachCells = HazardThresholdsRules.MeleeReachCells };
+        p = p with { InjurySeverityFloorTicks = HazardThresholdsRules.InjurySeverityFloorTicks };
+        p = p with { PredatorMarginCells = HazardThresholdsRules.HuntPredatorMarginCells };
         return p;
     }
 }

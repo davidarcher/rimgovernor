@@ -40,12 +40,12 @@ public sealed record StoneStructure
     public Fact<double> Flammability { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class FacilityUpkeepRules
 {
     /// <summary>The native project whose recipes cut the stone blocks a wall replacement needs.</summary>
     public const string StoneShellResearch = "Stonecutting";
 
-    private static bool FacilityCells(IReadOnlyList<Cell> cells)
+    internal static bool FacilityCells(IReadOnlyList<Cell> cells)
     {
         if (cells.Count < 1)
         {
@@ -79,7 +79,7 @@ public static partial class PolicyFunctions
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in census.Targets)
         {
-            DomainException.Require(FoodId(row.Id) && seen.Add(row.Id), "invalid Home target identity");
+            DomainException.Require(FoodForecastRules.FoodId(row.Id) && seen.Add(row.Id), "invalid Home target identity");
             var mk = row.Missing.TryGetValue(out var missing);
             var ek = row.Excluded.TryGetValue(out var excluded);
             var sk = row.Shape.TryGetValue(out var shape);
@@ -88,7 +88,7 @@ public static partial class PolicyFunctions
                 return unknown;
             }
             DomainException.Require(
-                FoodId(shape!) && excluded >= 0 && excluded <= missing && missing >= 0 && missing <= row.Cells.Count,
+                FoodForecastRules.FoodId(shape!) && excluded >= 0 && excluded <= missing && missing >= 0 && missing <= row.Cells.Count,
                 "invalid Home target geometry or counts"
             );
             if (missing > 0 || row.Blocker.Length != 0)
@@ -112,7 +112,7 @@ public static partial class PolicyFunctions
         {
             if (b.Building!.Definition == "Wall")
             {
-                DomainException.Require(FoodId(b.Identity.Current) && walls.Add(b.Identity.Current), "invalid owned wall");
+                DomainException.Require(FoodForecastRules.FoodId(b.Identity.Current) && walls.Add(b.Identity.Current), "invalid owned wall");
             }
         }
         if (walls.Count == 0)
@@ -127,7 +127,7 @@ public static partial class PolicyFunctions
         var result = new List<string>();
         foreach (var row in rows)
         {
-            DomainException.Require(FoodId(row.Id) && seen.Add(row.Id) && ValidResource(row.Definition), "invalid structure census");
+            DomainException.Require(FoodForecastRules.FoodId(row.Id) && seen.Add(row.Id) && AdmissionRules.ValidResource(row.Definition), "invalid structure census");
             if (!walls.Contains(row.Id))
             {
                 continue;
@@ -136,7 +136,7 @@ public static partial class PolicyFunctions
             {
                 return unknown;
             }
-            DomainException.Require(FoodNumber(flam), "invalid wall flammability");
+            DomainException.Require(FoodForecastRules.FoodNumber(flam), "invalid wall flammability");
             if (flam > 0)
             {
                 result.Add(row.Id);

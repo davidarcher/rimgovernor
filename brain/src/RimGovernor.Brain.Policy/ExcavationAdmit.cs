@@ -8,7 +8,7 @@ public enum ExcavationSupport : byte
     Unsupported,
 }
 
-public static partial class PolicyFunctions
+public static class ExcavationAdmitRules
 {
     /// <summary>
     /// Go <c>ExcavationUnsupported</c>: native counterfactual roof support reports that removing this cell would

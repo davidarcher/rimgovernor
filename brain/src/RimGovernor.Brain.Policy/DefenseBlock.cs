@@ -79,7 +79,7 @@ public sealed record BlockPricing
             }
             value += m * a.Count;
         }
-        result = BuildW(SiteRules.DefaultSiteTypeWeights(), value, SteelValue);
+        result = ClimateRules.BuildW(SiteRules.DefaultSiteTypeWeights(), value, SteelValue);
         return true;
     }
 

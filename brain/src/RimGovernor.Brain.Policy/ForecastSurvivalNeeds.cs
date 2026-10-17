@@ -28,7 +28,7 @@ public sealed partial record ForecastSurvivalNeeds
         var food = new Dictionary<PawnId, ConsumerFoodForecast>();
         try
         {
-            food = ForecastFood(request.Facts.Food, pawns.Select(p => p.Id).ToArray()).Consumers.ToDictionary(p => p.Id);
+            food = FoodForecastRules.ForecastFood(request.Facts.Food, pawns.Select(p => p.Id).ToArray()).Consumers.ToDictionary(p => p.Id);
         }
         catch (FoodFactsException) { findings.Add("unknown_survival_food"); }
         var needs = new List<ForecastSurvivalNeed>();
@@ -49,11 +49,11 @@ public sealed partial record ForecastSurvivalNeeds
                 && body.Hypothermia.TryGetValue(out var severity) && double.IsFinite(severity) && severity >= 0 && severity <= 1)
             {
                 // Already serious requires immediate attention even if the current cell is warm.
-                if (severity >= HypothermiaSerious) coldWindow = Window(0);
+                if (severity >= DashEstimateRules.HypothermiaSerious) coldWindow = Window(0);
                 else
                 {
-                    var budget = OutdoorBudgetFor(HazardKind.ExtremeCold, Known(temperature), Known(comfort),
-                        Known(severity), HypothermiaSerious, PublishedHypothermiaTuning).Value;
+                    var budget = DashEstimateRules.OutdoorBudgetFor(HazardKind.ExtremeCold, Known(temperature), Known(comfort),
+                        Known(severity), DashEstimateRules.HypothermiaSerious, DashEstimateRules.PublishedHypothermiaTuning).Value;
                     coldWindow = budget.Unbounded ? Known(new ForecastNeedWindow(horizon, false)) : Window(budget.Ticks);
                 }
             }

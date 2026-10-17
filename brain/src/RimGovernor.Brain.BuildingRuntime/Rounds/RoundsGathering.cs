@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
@@ -11,12 +12,12 @@ public sealed partial class Rounder
         var facts = reading.Projection.Facts;
         var benefit = Unknown<double>();
         var catalog = reading.Catalog;
-        if (catalog is not null && catalog.ThoughtFacts(PolicyFunctions.PartyThought) is { } thought && thought.WorstOffset > 0)
+        if (catalog is not null && catalog.ThoughtFacts(GatheringRules.PartyThought) is { } thought && thought.WorstOffset > 0)
         {
             benefit = Known(thought.WorstOffset);
         }
 
-        return PolicyFunctions.PlanGathering(new GatheringInput
+        return GatheringRules.PlanGathering(new GatheringInput
         {
             Ledger = facts.MoodLedger,
             Pawns = facts.MoodPawns,

@@ -2,7 +2,7 @@ using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class HerdSterilizeRules
 {
     /// <summary>
     /// The animals the plan wants sterilized now: of a race that is superseded (a better race will take its job;
@@ -12,7 +12,7 @@ public static partial class PolicyFunctions
     /// (herdPairMales, herdPairFemales), which must exist to begin with. A queued bill counts as sterile already
     /// so a bill cannot take a race below its pair.
     /// </summary>
-    private static HashSet<PawnId> SterilizeWanted(IReadOnlyList<UpkeepAnimal> rows, HerdPolicy herd)
+    internal static HashSet<PawnId> SterilizeWanted(IReadOnlyList<UpkeepAnimal> rows, HerdPolicy herd)
     {
         var fertile = new Dictionary<Resource, List<UpkeepAnimal>>();
         foreach (var a in rows)
@@ -54,7 +54,7 @@ public static partial class PolicyFunctions
                         break;
                 }
             }
-            if (males < HerdPairMales || females < HerdPairFemales)
+            if (males < HerdSurplusRules.HerdPairMales || females < HerdSurplusRules.HerdPairFemales)
             {
                 continue;
             }
@@ -66,13 +66,13 @@ public static partial class PolicyFunctions
             var excessMales = males - keepMales;
             foreach (var a in animals)
             {
-                if (a.Gender == Sex.Male && males > HerdPairMales && (role.Superseded || excessMales > 0))
+                if (a.Gender == Sex.Male && males > HerdSurplusRules.HerdPairMales && (role.Superseded || excessMales > 0))
                 {
                     wanted.Add(a.Id);
                     males--;
                     excessMales--;
                 }
-                else if (a.Gender == Sex.Female && females > HerdPairFemales && role.Superseded)
+                else if (a.Gender == Sex.Female && females > HerdSurplusRules.HerdPairFemales && role.Superseded)
                 {
                     wanted.Add(a.Id);
                     females--;

@@ -40,7 +40,7 @@ public sealed record CorpseLarderMethod
     public Cell Cell { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class CorpseLarderRules
 {
     /// <summary>
     /// The rot runway a held corpse must keep, our own tuning: a quarter day leaves time for ordinary
@@ -62,12 +62,12 @@ public static partial class PolicyFunctions
         {
             return none;
         }
-        DomainException.Require(FoodNumber(larder.RawMeatNutrition) && FoodNumber(larder.CookDemandNutrition), "invalid corpse larder");
+        DomainException.Require(FoodForecastRules.FoodNumber(larder.RawMeatNutrition) && FoodForecastRules.FoodNumber(larder.CookDemandNutrition), "invalid corpse larder");
         v.Validate();
         var handling = new Dictionary<string, CorpseHandling>(StringComparer.Ordinal);
         foreach (var row in larder.Corpses)
         {
-            DomainException.Require(FoodId(row.Id) && row.Cell.X >= 0 && row.Cell.Z >= 0, "invalid corpse location");
+            DomainException.Require(FoodForecastRules.FoodId(row.Id) && row.Cell.X >= 0 && row.Cell.Z >= 0, "invalid corpse location");
             DomainException.Require(handling.TryAdd(row.Id, row), "duplicate corpse location");
         }
         var corpses = new List<FoodStock>();
@@ -87,14 +87,14 @@ public static partial class PolicyFunctions
             {
                 return none;
             }
-            DomainException.Require(FoodNumber(meat) && FoodNumber(size) && meat > 0 && size > 0, "invalid corpse yield");
+            DomainException.Require(FoodForecastRules.FoodNumber(meat) && FoodForecastRules.FoodNumber(size) && meat > 0 && size > 0, "invalid corpse yield");
             if (!forbidden)
             {
                 available += nutrition;
             }
             corpses.Add(s);
         }
-        DomainException.Require(FoodNumber(available), "corpse nutrition overflow");
+        DomainException.Require(FoodForecastRules.FoodNumber(available), "corpse nutrition overflow");
         var ordered = corpses
             .OrderBy(s => s.RotTicks.IsKnown ? 0 : 1)
             .ThenBy(s => s.RotTicks.TryGetValue(out var t) ? t : 0)

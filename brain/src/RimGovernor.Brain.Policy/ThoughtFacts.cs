@@ -27,7 +27,7 @@ public sealed record ThoughtFacts
     /// <summary>The lowest expectation that grants the thought, empty when it applies at any.</summary>
     public string MinExpectation { get; init; } = "";
 
-    /// <summary>The audit table's ';'-joined state tokens, or <see cref="PolicyFunctions.ThoughtUnclassified"/>.</summary>
+    /// <summary>The audit table's ';'-joined state tokens, or <see cref="ThoughtFactsRules.ThoughtUnclassified"/>.</summary>
     public string Dependency { get; init; } = "";
 
     /// <summary>The table's hand-kept concern, empty when no concern removes the thought.</summary>

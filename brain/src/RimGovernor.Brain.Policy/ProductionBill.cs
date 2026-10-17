@@ -262,12 +262,12 @@ public static partial class ProductionRules
         var none = (new BillSelection(), false);
         var known = benches.TryGetValue(out var rows);
         var ck = colonists.TryGetValue(out var count);
-        if (!known || !ck || count <= 0 || count > 256 || !FieldPositive(targetDays) || targetDays > 60)
+        if (!known || !ck || count <= 0 || count > 256 || !FieldCapacityRules.FieldPositive(targetDays) || targetDays > 60)
         {
             return none;
         }
         if (purpose != PolicyConstants.CookFood && purpose != PolicyConstants.PreserveFood && purpose != PolicyConstants.ButcherFood
-            && purpose != PolicyConstants.CookAheadFood && purpose != ArtBill && purpose != BabyFoodBill)
+            && purpose != PolicyConstants.CookAheadFood && purpose != ArtRules.ArtBill && purpose != BabyFeedingRules.BabyFoodBill)
         {
             return none;
         }
@@ -275,22 +275,22 @@ public static partial class ProductionRules
         {
             return none;
         }
-        if (purpose == BabyFoodBill)
+        if (purpose == BabyFeedingRules.BabyFoodBill)
         {
             if (context.Length != 1 || context[0].BabyFeeding is null)
             {
                 return none;
             }
-            return SelectBabyFoodBill(benches, context[0].BabyFeeding!);
+            return BabyFeedingRules.SelectBabyFoodBill(benches, context[0].BabyFeeding!);
         }
-        if (purpose == ArtBill || (context.Length == 1 && context[0].Artists.Count > 0))
+        if (purpose == ArtRules.ArtBill || (context.Length == 1 && context[0].Artists.Count > 0))
         {
-            if (purpose != ArtBill || context.Length != 1 || context[0].Artists.Count != 1)
+            if (purpose != ArtRules.ArtBill || context.Length != 1 || context[0].Artists.Count != 1)
             {
                 return none;
             }
             var demand = context[0].Art ?? new ArtDemand();
-            return SelectArtBill(rows!, context[0].Artists[0], demand, out var art) ? (art, true) : none;
+            return ArtRules.SelectArtBill(rows!, context[0].Artists[0], demand, out var art) ? (art, true) : none;
         }
         if (context.Length == 1 && ((context[0].Meals is not null && purpose != PolicyConstants.CookFood)
             || (context[0].Reserve is not null && purpose != PolicyConstants.PreserveFood)))
@@ -311,7 +311,7 @@ public static partial class ProductionRules
             {
                 return none;
             }
-            return SelectReserveBill(benches, context[0].Reserve!);
+            return FoodReserveRules.SelectReserveBill(benches, context[0].Reserve!);
         }
         var (reserved, ok) = ReservedFoodNutrition(rows!);
         if (!ok)
@@ -322,7 +322,7 @@ public static partial class ProductionRules
         if (purpose == PolicyConstants.CookAheadFood)
         {
             var rk = atRisk.TryGetValue(out var risk);
-            if (!rk || !FieldPositive(risk) || risk > 1e6)
+            if (!rk || !FieldCapacityRules.FieldPositive(risk) || risk > 1e6)
             {
                 return none;
             }
@@ -338,20 +338,20 @@ public static partial class ProductionRules
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var bench in rows!)
         {
-            if (!FoodId(bench.Id) || !seen.Add(bench.Id) || bench.Bills.Count > 15)
+            if (!FoodForecastRules.FoodId(bench.Id) || !seen.Add(bench.Id) || bench.Bills.Count > 15)
             {
                 return none;
             }
             var uk = bench.Usable.TryGetValue(out var usable);
             var tk = bench.Token.TryGetValue(out var token);
-            if (!uk || !usable || !tk || !FoodId(token!) || bench.Butcher != (purpose == PolicyConstants.ButcherFood))
+            if (!uk || !usable || !tk || !FoodForecastRules.FoodId(token!) || bench.Butcher != (purpose == PolicyConstants.ButcherFood))
             {
                 continue;
             }
             var recipes = new HashSet<string>(StringComparer.Ordinal);
             foreach (var recipe in bench.Recipes)
             {
-                if (!FoodId(recipe.Name) || !recipes.Add(recipe.Name))
+                if (!FoodForecastRules.FoodId(recipe.Name) || !recipes.Add(recipe.Name))
                 {
                     return none;
                 }
@@ -409,7 +409,7 @@ public static partial class ProductionRules
                     var product = recipe.Products[0];
                     var ek = product.Edible.TryGetValue(out var edible);
                     var nk = product.Nutrition.TryGetValue(out var nutrition);
-                    if (!ek || !edible || !nk || !FieldPositive(nutrition))
+                    if (!ek || !edible || !nk || !FieldCapacityRules.FieldPositive(nutrition))
                     {
                         continue;
                     }

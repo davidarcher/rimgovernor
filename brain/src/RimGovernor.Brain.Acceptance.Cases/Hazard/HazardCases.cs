@@ -56,14 +56,14 @@ public static class HazardCases
         MinHealthFraction = 0.5f,
         HostileWithin = 40,
         InjuryStopCooldownMs = 0,
-        SeriousSingleHitDamage = (float)PolicyFunctions.SeriousSingleHitDamage,
-        SeriousSummaryHealthFloor = (float)PolicyFunctions.SeriousSummaryHealthFloor,
-        SeriousBleedRateFloor = (float)PolicyFunctions.SeriousBleedRateFloor,
-        SeriousVitalPartFloor = (float)PolicyFunctions.SeriousVitalPartFloor,
-        ExplosiveNearMarginCells = (float)PolicyFunctions.ExplosiveNearMarginCells,
-        MeleeReachCells = (float)PolicyFunctions.MeleeReachCells,
-        InjurySeverityFloorTicks = (uint)PolicyFunctions.InjurySeverityFloorTicks,
-        PredatorMarginCells = (float)PolicyFunctions.HuntPredatorMarginCells,
+        SeriousSingleHitDamage = (float)HazardThresholdsRules.SeriousSingleHitDamage,
+        SeriousSummaryHealthFloor = (float)HazardThresholdsRules.SeriousSummaryHealthFloor,
+        SeriousBleedRateFloor = (float)HazardThresholdsRules.SeriousBleedRateFloor,
+        SeriousVitalPartFloor = (float)HazardThresholdsRules.SeriousVitalPartFloor,
+        ExplosiveNearMarginCells = (float)HazardThresholdsRules.ExplosiveNearMarginCells,
+        MeleeReachCells = (float)HazardThresholdsRules.MeleeReachCells,
+        InjurySeverityFloorTicks = (uint)HazardThresholdsRules.InjurySeverityFloorTicks,
+        PredatorMarginCells = (float)HazardThresholdsRules.HuntPredatorMarginCells,
     };
 
     /// <summary>Registers every <c>hazard/*</c> case.</summary>
@@ -332,10 +332,10 @@ public static class HazardCases
 
         // The wound is only demotable below the severity floor; the fixture reports the game's own bleed-out estimate so
         // the case fails loudly if the injection ever grew into a danger.
-        if (injected.BleedOutTicks > 0 && injected.BleedOutTicks <= PolicyFunctions.InjurySeverityFloorTicks)
+        if (injected.BleedOutTicks > 0 && injected.BleedOutTicks <= HazardThresholdsRules.InjurySeverityFloorTicks)
         {
             throw new AcceptanceException(
-                $"the injected wound bleeds out in {injected.BleedOutTicks} ticks, inside the {PolicyFunctions.InjurySeverityFloorTicks}-tick severity floor: it is a danger, not a demoted tier");
+                $"the injected wound bleeds out in {injected.BleedOutTicks} ticks, inside the {HazardThresholdsRules.InjurySeverityFloorTicks}-tick severity floor: it is a danger, not a demoted tier");
         }
 
         // The run survives the wake: the readmit the hold used to cost is exactly what this tier no longer spends.

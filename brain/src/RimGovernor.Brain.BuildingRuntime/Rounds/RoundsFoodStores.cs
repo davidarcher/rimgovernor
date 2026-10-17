@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -49,7 +50,7 @@ public sealed partial class FoodStoresRounds
     /// </summary>
     internal async Task<Verdict> WorkAsync(NeedWork work, FoodStoresFacts facts, CancellationToken call)
     {
-        if (work.Need.Id != PolicyFunctions.RefrigerationNeed || _cooler is null)
+        if (work.Need.Id != FoodStoresRules.RefrigerationNeed || _cooler is null)
         {
             return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
         }
@@ -90,7 +91,7 @@ public sealed partial class FoodStoresRounds
             WarmRooms = warm,
             MealClosetOwed = closet,
         };
-        if (!facts.StockProtection || !facts.Reserve.TryGetValue(out var reserve) || !PolicyFunctions.ReserveAccessPending(facts.Reserve)
+        if (!facts.StockProtection || !facts.Reserve.TryGetValue(out var reserve) || !FoodStoresRules.ReserveAccessPending(facts.Reserve)
             || _native is not FacadeNativeClient supplies)
         {
             return facts;
@@ -128,7 +129,7 @@ public sealed partial class FoodStoresRounds
 
     /// <summary>The stock-target meal order that stores food, filed under the food-stores/storage Need.</summary>
     public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        (await DeclareMealOrderAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(PolicyFunctions.FoodStorageNeed.FilingKey.Value);
+        (await DeclareMealOrderAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(FoodStoresRules.FoodStorageNeed.FilingKey.Value);
 
     /// <summary>
     /// While reserve access or a larder change is due only the standing stock orders stand; otherwise, with
@@ -137,13 +138,13 @@ public sealed partial class FoodStoresRounds
     internal async Task<Declared> DeclareMealOrderAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var f = projection.Facts;
-        if (!PolicyFunctions.FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"))
+        if (!FoodOrdersRules.FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"))
         {
             return WorkRules.Abstaining(Cause.UnreadFoodPlan);
         }
 
-        var standing = PolicyFunctions.StandingStockOrders(benches, FoodStorageResourceDefinition);
-        if (PolicyFunctions.ReserveAccessPending(f.FoodReserve))
+        var standing = FoodOrdersRules.StandingStockOrders(benches, FoodStorageResourceDefinition);
+        if (FoodStoresRules.ReserveAccessPending(f.FoodReserve))
         {
             return standing;
         }
@@ -151,11 +152,11 @@ public sealed partial class FoodStoresRounds
         FoodStorageReview storage;
         try
         {
-            if (PolicyFunctions.SelectCorpseLarder(f.FoodStorageUpkeep).Kind.Length != 0)
+            if (CorpseLarderRules.SelectCorpseLarder(f.FoodStorageUpkeep).Kind.Length != 0)
             {
                 return standing;
             }
-            storage = PolicyFunctions.ReviewFoodStorage(f.FoodStorageUpkeep, _reviewer.Policy.FoodStorage);
+            storage = FoodStorageUpkeepRules.ReviewFoodStorage(f.FoodStorageUpkeep, _reviewer.Policy.FoodStorage);
         }
         catch (DomainException)
         {
@@ -187,7 +188,7 @@ public sealed partial class FoodStoresRounds
                 bool ok;
                 try
                 {
-                    (spec, kind, ok) = PolicyFunctions.FoodStorageMealOrder(choice, benches);
+                    (spec, kind, ok) = FoodOrdersRules.FoodStorageMealOrder(choice, benches);
                 }
                 catch (DomainException)
                 {
@@ -232,7 +233,7 @@ public sealed partial class FoodStoresRounds
             sites.Add(new FoodStorageSite { Id = name, Capacity = Known(spare) });
         }
 
-        return PolicyFunctions.SelectFoodStorageMethod(new FoodStoragePlanningRequest { Review = review, Sites = Known(EquatableArray.From(sites)), Resource = FoodStorageResourceDefinition });
+        return FoodStorageUpkeepRules.SelectFoodStorageMethod(new FoodStoragePlanningRequest { Review = review, Sites = Known(EquatableArray.From(sites)), Resource = FoodStorageResourceDefinition });
     }
 }
 
@@ -252,7 +253,7 @@ partial class FoodStoresRounds
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var entry in stocks)
         {
-            if (!PolicyFunctions.FoodStorageUnstored(entry, observed.ChilledMaxC, p))
+            if (!FoodStorageUpkeepRules.FoodStorageUnstored(entry, observed.ChilledMaxC, p))
             {
                 continue;
             }

@@ -39,7 +39,7 @@ public sealed record BenchRecipe
     public Fact<double> BenchWorkSpeed { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class BenchRateRules
 {
     // Default refill windows, in game days.
     public const double FoodRefillWindowDays = 1.0;

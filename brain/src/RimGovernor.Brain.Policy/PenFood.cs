@@ -84,7 +84,7 @@ public static partial class PenFoodRules
             {
                 return (0, false);
             }
-            if (!race.AdultFeedPerDay.TryGetValue(out var feed) || !FoodNumber(feed))
+            if (!race.AdultFeedPerDay.TryGetValue(out var feed) || !FoodForecastRules.FoodNumber(feed))
             {
                 return (0, false);
             }
@@ -100,7 +100,7 @@ public static partial class PenFoodRules
     /// </summary>
     public static int PenCells(double demandPerDay, double perCell)
     {
-        if (!FoodNumber(demandPerDay) || !FoodNumber(perCell) || perCell <= 0)
+        if (!FoodForecastRules.FoodNumber(demandPerDay) || !FoodForecastRules.FoodNumber(perCell) || perCell <= 0)
         {
             return PolicyConstants.PenCellsCap;
         }

@@ -32,10 +32,10 @@ public sealed partial record StoreView
         }
         var avoid = new List<Cell>();
         var beds = new List<Cell>();
-        var (room, ok) = PolicyFunctions.InteriorRoomFromLayout(hospital, Shapes);
+        var (room, ok) = InteriorRules.InteriorRoomFromLayout(hospital, Shapes);
         if (ok)
         {
-            var (plan, planned) = PolicyFunctions.PlanRoomInterior(room!, new InteriorPieceDef());
+            var (plan, planned) = InteriorRegionRules.PlanRoomInterior(room!, new InteriorPieceDef());
             if (planned)
             {
                 foreach (var p in plan!.Pieces)
@@ -65,8 +65,8 @@ public sealed partial record StoreView
             }
             try
             {
-                var costs = PolicyFunctions.HaulCosts(Cells, consumers);
-                best = PolicyFunctions.RankSitesByHaul(rects, costs)[0];
+                var costs = HaulDistanceRules.HaulCosts(Cells, consumers);
+                best = HaulDistanceRules.RankSitesByHaul(rects, costs)[0];
             }
             catch (DomainException)
             {

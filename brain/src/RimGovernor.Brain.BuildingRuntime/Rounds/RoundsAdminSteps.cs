@@ -1,4 +1,5 @@
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -177,14 +178,14 @@ public sealed partial class AdminRounds
         }
         var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"grave-{step.Graves}"));
         IReadOnlyList<Cell> traffic = f.Facts.Upkeep.Routes.TryGetValue(out var routes) ? [.. routes.Traffic.Select(t => t.Cell)] : [];
-        var sites = PolicyApi.GraveSites(new GraveSiteInput { Bounds = f.Bounds, Cells = f.Cells, Light = f.LightTerrains, Plan = plan!, Traffic = traffic });
+        var sites = GraveSitingRules.GraveSites(new GraveSiteInput { Bounds = f.Bounds, Cells = f.Cells, Light = f.LightTerrains, Plan = plan!, Traffic = traffic });
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var size = new Cell(1, 2);
         var unknown = false;
         foreach (var site in sites.Take(GraveSiteTries))
         {
-            var building = new Building(TombRules.GraveDefinition, PolicyApi.AnchorForRect(site, size, Rotation.North), Rotation.North, "");
+            var building = new Building(TombRules.GraveDefinition, InteriorRules.AnchorForRect(site, size, Rotation.North), Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTier.Expand);
             var got = await _building!.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var pv = got.Preview;

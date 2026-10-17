@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using P = RimGovernor.Brain.Policy;
@@ -84,6 +85,6 @@ public sealed partial class DefinitionCatalog
         }
 
         return HasComp<CompProperties_ChangeableProjectile>(gun)
-            && FilterAccepts(gun.building?.fixedStorageSettings?.filter, MortarProbeShells[0]);
+            && FilterAccepts(gun.building?.fixedStorageSettings?.filter, DefTablesRules.MortarProbeShells[0]);
     }
 }

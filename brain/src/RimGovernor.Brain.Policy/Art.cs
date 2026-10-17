@@ -56,7 +56,7 @@ public static class ArtExtensions
     }
 }
 
-public static partial class PolicyFunctions
+public static class ArtRules
 {
 
     /// <summary>The rooms/art Need's bill purpose: one small sculpture pinned to the artist named in ProductionBillContext.Artists.</summary>
@@ -147,7 +147,7 @@ public static partial class PolicyFunctions
         var output = new List<BillSelection>();
         foreach (var artist in inspired)
         {
-            if (!FoodId(artist.Value))
+            if (!FoodForecastRules.FoodId(artist.Value))
             {
                 continue;
             }
@@ -231,7 +231,7 @@ public static partial class PolicyFunctions
     {
         var available = new Dictionary<string, List<BillSelection>>(StringComparer.Ordinal);
         var pinned = new HashSet<string>(StringComparer.Ordinal);
-        if (!FoodId(artist.Value))
+        if (!FoodForecastRules.FoodId(artist.Value))
         {
             return (available, pinned);
         }
@@ -250,7 +250,7 @@ public static partial class PolicyFunctions
 
             var uk = bench.Usable.TryGetValue(out var usable);
             var tk = bench.Token.TryGetValue(out var token);
-            if (!uk || !usable || !tk || !FoodId(token!) || bench.Bills.Count >= 15)
+            if (!uk || !usable || !tk || !FoodForecastRules.FoodId(token!) || bench.Bills.Count >= 15)
             {
                 continue;
             }

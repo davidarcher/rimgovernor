@@ -111,7 +111,7 @@ public static class ForecastCoupled
             Origin = origin,
             HorizonDays = horizonDays,
             Demand = demand,
-            Facts = ColonyForecastFactsOf(facts),
+            Facts = ColonyForecastFactsRules.ColonyForecastFactsOf(facts),
             Commitments = commitments,
             Proposed = proposed,
             Coupled = new() { Activities = activities, Needs = needs, Resources = resources, NeedTasks = needTasks }
@@ -162,7 +162,7 @@ public static class ForecastCoupled
         if (commitments.Values.Where(c => c.ExclusiveOutcome.Length != 0).GroupBy(c => c.ExclusiveOutcome).Any(g => g.Count() > 1)
     || commitments.Values.Any(c => c.Outcome is { } o && commitments.Values.Any(other => other.Id != c.Id
         && (o.Excludes.Contains(other.Id) || o.ExclusiveOutput.Length != 0 && o.ExclusiveOutput == other.Outcome?.ExclusiveOutput))))
-            return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
+            return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
             { Coupled = new([], ["exclusive_outcome_conflict"], false) };
         var problem = context.Activities with
         {
@@ -171,9 +171,9 @@ public static class ForecastCoupled
             Deadline = Known(horizon)
         };
         if (problem.Activities.Where(t => t.ChoiceIdentity.Length != 0).GroupBy(t => t.ChoiceIdentity).Any(g => g.Count() > 1))
-            return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
+            return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
             { Coupled = new([], ["exclusive_operation_conflict"], false) };
-        if (included.Count > 32) return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
+        if (included.Count > 32) return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
         { Coupled = new([], [.. findings, "selected_activity_budget_truncated"], true) };
         // Necessary physical-lot conservation before expensive assignment search. Ignoring time,
         // expiry and reservations only overestimates supply; their authoritative checks remain below.
@@ -183,7 +183,7 @@ public static class ForecastCoupled
             var observed = context.InitialLots.Where(l => l.Lot == input.Key.Lot && l.Resource == input.Key.Resource).ToArray();
             if (input.Any(i => !i.Units.IsKnown) || output.Any(o => !o.Units.IsKnown) || observed.Any(l => !l.Count.IsKnown)) continue;
             if (input.Sum(i => i.Units.Value) > output.Sum(o => o.Units.Value) + observed.Sum(l => l.Count.Value))
-                return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
+                return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
                 { Coupled = new([], [.. findings, "physical_lot_quantity_shortfall:" + input.Key.Lot], false) };
         }
         var compared = included.Count == 0 ? null : ForecastActivities.CompareActivityPlans(problem);
@@ -210,7 +210,7 @@ public static class ForecastCoupled
             results = [.. results, .. again.Alternatives.Select(plan => EvaluateCoupledSchedule(request, commitments, retried, plan))];
         }
         // Inventory-only clients keep their conditional diagnostics; migrated consumers inspect each coupled alternative.
-        return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
+        return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
         {
             MaterialAvailability = context.Resources.Materials,
             Coupled = new(EquatableArray.From(results), EquatableArray.From(findings), context.Truncated || (compared?.SearchTruncated ?? false)) { Expansions = compared?.Expansions ?? 0 },
@@ -531,7 +531,7 @@ public static class ForecastCoupled
                 Refuse("productive_output_without_useful_demand", allocation.Activity, allocation.Start);
         var accounting = new Dictionary<string, ForecastCommitment>(commitments, StringComparer.Ordinal)
         { ["coupled/timed-effects"] = new("coupled/timed-effects", EquatableArray.From(effects)) };
-        var inventory = ForecastInventory(request.Facts.Stock, accounting, request.HorizonDays);
+        var inventory = ColonyForecastRules.ForecastInventory(request.Facts.Stock, accounting, request.HorizonDays);
         findings.AddRange(inventory.Findings);
         var existingRooms = EquatableArray.From(context.Shelters.Where(r => r.Prerequisites.Count == 0 && r.AlternativePrerequisites.Count == 0));
         var use = plan with { Allocations = plan.Allocations.Where(a => context.NeedTasks.Any(n => n.Task == a.Activity)).ToArray() };

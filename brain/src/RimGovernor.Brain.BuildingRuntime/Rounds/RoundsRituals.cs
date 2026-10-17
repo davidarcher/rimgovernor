@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
@@ -9,7 +10,7 @@ public sealed partial class Rounder
         try
         {
             var emergency = EmergencySnapshot.New(snapshot, tick, reading.Emergency);
-            var (hostiles, patients) = PolicyFunctions.EmergencyNeeds(emergency, snapshot, tick);
+            var (hostiles, patients) = EmergencyNeedsRules.EmergencyNeeds(emergency, snapshot, tick);
             return RitualRules.RitualCalm(hostiles, patients);
         }
         catch (Exception e) when (e is not OperationCanceledException)

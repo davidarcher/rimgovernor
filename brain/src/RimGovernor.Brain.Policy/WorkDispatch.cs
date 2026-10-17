@@ -173,11 +173,11 @@ public static partial class WorkRules
         {
             return d;
         }
-        d = d with { Demand = DemandRate(Known((double)((long)order.Target - have.GetValueOrDefault(order.Product))), order.Class) };
+        d = d with { Demand = BenchRateRules.DemandRate(Known((double)((long)order.Target - have.GetValueOrDefault(order.Product))), order.Class) };
         RecipeOf(eligible[0], order.Recipe).RequiredWork.TryGetValue(out var required);
         var workers = DispatchWorkers(pawns, required);
         d = d with { Capacity = MeanCapacity(order, eligible, AverageWorker(workers)) };
-        d = d with { Wanted = BenchesWanted(d.Demand, d.Capacity) };
+        d = d with { Wanted = BenchRateRules.BenchesWanted(d.Demand, d.Capacity) };
         if (!d.Wanted.TryGetValue(out var n))
         {
             return d;
@@ -218,7 +218,7 @@ public static partial class WorkRules
         foreach (var b in eligible)
         {
             var recipe = new BenchRecipe { WorkPerUnit = RecipeOf(b, order.Recipe).WorkAmount, BenchWorkSpeed = b.WorkSpeed };
-            if (!BenchCapacity(recipe, [worker]).TryGetValue(out var c))
+            if (!BenchRateRules.BenchCapacity(recipe, [worker]).TryGetValue(out var c))
             {
                 return Unknown<double>();
             }

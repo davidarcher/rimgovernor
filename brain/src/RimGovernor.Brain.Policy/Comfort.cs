@@ -65,12 +65,12 @@ public sealed partial record ComfortObservation
         var people = new HashSet<PawnId>();
         foreach (var id in People)
         {
-            DomainException.Require(FoodId(id.Value) && people.Add(id), "invalid comfort pawn");
+            DomainException.Require(FoodForecastRules.FoodId(id.Value) && people.Add(id), "invalid comfort pawn");
         }
         var surfaces = new HashSet<string>(StringComparer.Ordinal);
         foreach (var s in Surfaces)
         {
-            DomainException.Require(FoodId(s.Id) && surfaces.Add(s.Id), "invalid dining surface");
+            DomainException.Require(FoodForecastRules.FoodId(s.Id) && surfaces.Add(s.Id), "invalid dining surface");
             var seen = new HashSet<Cell>();
             foreach (var c in s.Adjacent)
             {
@@ -82,7 +82,7 @@ public sealed partial record ComfortObservation
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var f in facilities)
             {
-                DomainException.Require(FoodId(f.Id) && seen.Add(f.Id), "invalid comfort facility");
+                DomainException.Require(FoodForecastRules.FoodId(f.Id) && seen.Add(f.Id), "invalid comfort facility");
                 foreach (var ids in new[] { f.AccessibleTo, f.Users })
                 {
                     var found = new HashSet<PawnId>();
@@ -106,7 +106,7 @@ public readonly record struct ComfortHistory(ComfortUse Dining, ComfortUse Recre
         {
             var facility = proof.Facility ?? "";
             DomainException.Require(
-                !(proof.Tick.Value < 0 || (facility.Length == 0 && proof.Tick.Value != 0) || (facility.Length != 0 && !FoodId(facility))),
+                !(proof.Tick.Value < 0 || (facility.Length == 0 && proof.Tick.Value != 0) || (facility.Length != 0 && !FoodForecastRules.FoodId(facility))),
                 "invalid comfort use history");
         }
     }
@@ -170,7 +170,7 @@ public readonly record struct ComfortMethod(string Value)
     public override string ToString() => Value ?? "";
 }
 
-public static partial class PolicyFunctions
+public static class ComfortRules
 {
     public static ComfortReview ReviewComfort(Fact<ComfortObservation> observed, ComfortHistory previous, Tick tick)
     {

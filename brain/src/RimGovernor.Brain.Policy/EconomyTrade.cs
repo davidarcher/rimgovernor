@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The review's trade facts (#3316), derived by <see cref="PolicyFunctions.InspectRounds"/> and kept by the Rounder
+/// The review's trade facts (#3316), derived by <see cref="RoundsRules.InspectRounds"/> and kept by the Rounder
 /// per world: the silver gap a purchase need leaves open (the economy/trade Need's), and whether the caravans present
 /// leave nothing worth trading (the economy/caravan Need's). Unknown until the first review of a world.
 /// </summary>

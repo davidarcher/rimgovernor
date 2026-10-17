@@ -55,7 +55,7 @@ public sealed record AnimalFeedRunway
 public static class AnimalFeedRunwayExtensions
 {
     /// <summary>PlanAnimalFeedRunway of the review's facts: the herd's food forecast is the food plan's when it is read.</summary>
-    public static AnimalFeedRunway AnimalFeedRunway(this RoundsFacts f) => PlanAnimalFeedRunway(AnimalFeedInputsOf(f));
+    public static AnimalFeedRunway AnimalFeedRunway(this RoundsFacts f) => AnimalFeedRunwayRules.PlanAnimalFeedRunway(AnimalFeedInputsOf(f));
 
     internal static AnimalFeedInputs AnimalFeedInputsOf(RoundsFacts f)
     {
@@ -79,7 +79,7 @@ public static class AnimalFeedRunwayExtensions
     }
 }
 
-public static partial class PolicyFunctions
+public static class AnimalFeedRunwayRules
 {
     private static AnimalFeedRunway UnknownFeedRunway() => new() { Projection = Unknown<AnimalFeedProjection>() };
 
@@ -163,7 +163,7 @@ public static partial class PolicyFunctions
     internal static (double Missing, double RunwayDays) RunwayOver(double baseRate, double pasture, double stock, IEnumerable<FeedStep> steps)
     {
         var ordered = PolicySort.ByLess(steps, (a, b) => a.Tick < b.Tick);
-        double horizon = MaintenanceHorizonDays;
+        double horizon = ColonyDiagnosticsRules.MaintenanceHorizonDays;
         double at = 0.0, rate = baseRate, eaten = 0.0;
         var runwayDays = horizon;
         var exhausted = false;
@@ -270,7 +270,7 @@ public static partial class PolicyFunctions
 
         foreach (var f in race.FeedItems)
         {
-            if (!ValidResource(f.Def) || !FoodNumber(f.Nutrition) || f.Nutrition <= 0)
+            if (!AdmissionRules.ValidResource(f.Def) || !FoodForecastRules.FoodNumber(f.Nutrition) || f.Nutrition <= 0)
             {
                 return (default, 0, false, false);
             }
@@ -322,7 +322,7 @@ public static partial class PolicyFunctions
             var ids = eligible.Select(a => a.Id).ToList();
             try
             {
-                forecast = ForecastFood(supply!, ids);
+                forecast = FoodForecastRules.ForecastFood(supply!, ids);
             }
             catch (DomainException)
             {
@@ -341,7 +341,7 @@ public static partial class PolicyFunctions
         {
             var dk = p.DemandPerDay.TryGetValue(out var d);
             var yk = p.PasturePerDay.TryGetValue(out var y);
-            if (!dk || !yk || !FoodNumber(d) || !FoodNumber(y))
+            if (!dk || !yk || !FoodForecastRules.FoodNumber(d) || !FoodForecastRules.FoodNumber(y))
             {
                 return UnknownFeedRunway();
             }
@@ -353,7 +353,7 @@ public static partial class PolicyFunctions
         var total = 0.0;
         foreach (var a in eligible)
         {
-            if (!perDay.TryGetValue(a.Id, out var need) || !FoodNumber(need))
+            if (!perDay.TryGetValue(a.Id, out var need) || !FoodForecastRules.FoodNumber(need))
             {
                 return UnknownFeedRunway();
             }
@@ -393,7 +393,7 @@ public static partial class PolicyFunctions
                 g.PasturePerDay = Math.Min(g.NutritionPerDay, pasture * g.NutritionPerDay / total);
             }
 
-            if (!FoodNumber(g.StockNutrition) || !FoodNumber(g.NutritionPerDay))
+            if (!FoodForecastRules.FoodNumber(g.StockNutrition) || !FoodForecastRules.FoodNumber(g.NutritionPerDay))
             {
                 return UnknownFeedRunway();
             }
@@ -401,7 +401,7 @@ public static partial class PolicyFunctions
             var (missing, runway) = RunwayOver(g.NutritionPerDay, g.PasturePerDay, g.StockNutrition, g.Steps);
             if (missing > 0)
             {
-                g.ShortfallDays = MaintenanceHorizonDays - runway;
+                g.ShortfallDays = ColonyDiagnosticsRules.MaintenanceHorizonDays - runway;
                 var (item, perItem, ok, known) = FeedItem(g.Animals, g.Definition, supply.Stocks, input.Races);
                 if (!known)
                 {
@@ -434,14 +434,14 @@ public static partial class PolicyFunctions
     internal static bool GroupEats(FoodStock s, IReadOnlyList<PawnId> animals)
     {
         var hk = s.Holder.TryGetValue(out var holder);
-        if (!hk || !holder.IsEmpty || s.DefName.IsEmpty || !ValidResource(s.DefName))
+        if (!hk || !holder.IsEmpty || s.DefName.IsEmpty || !AdmissionRules.ValidResource(s.DefName))
         {
             return false;
         }
 
         var ck = s.Count.TryGetValue(out var count);
         var nk = s.Nutrition.TryGetValue(out var nutrition);
-        if (!ck || count <= 0 || !nk || !FoodNumber(nutrition) || nutrition <= 0)
+        if (!ck || count <= 0 || !nk || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0)
         {
             return false;
         }

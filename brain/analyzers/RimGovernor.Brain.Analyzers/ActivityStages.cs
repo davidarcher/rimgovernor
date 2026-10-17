@@ -75,10 +75,12 @@ public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
         {
             // Data contracts are permitted; calls into the unpartitioned policy implementation
             // are not. This also catches aliases, method groups and helper/extension calls.
-            allowed = type.Name != "PolicyFunctions" || target is INamedTypeSymbol
-                // These helpers only inspect exact ownership or invoke the shared comparator.
-                || (lifecycle && target.Name is "MatchesActivityOwner" or "ReviewActivityOwnership" or "CompareActivityOutcomes");
-            if (type.Name != "PolicyFunctions" && target is IMethodSymbol { MethodKind: not MethodKind.Constructor }) allowed = false;
+            // These helpers only inspect exact ownership or invoke the shared comparator.
+            var entry = lifecycle && target is IMethodSymbol
+                && ((type.Name == "ActivityContinuationRules" && target.Name is "MatchesActivityOwner" or "ReviewActivityOwnership")
+                    || (type.Name is "ForecastActivityOutcomesRules" or "ForecastCoupledSelection" && target.Name == "CompareActivityOutcomes"));
+            allowed = entry || !(type.IsStatic && type.Name.EndsWith("Rules", StringComparison.Ordinal)) || target is INamedTypeSymbol;
+            if (!entry && target is IMethodSymbol { MethodKind: not MethodKind.Constructor }) allowed = false;
             if (type.Name == "ForecastActivityOutcomeComparison" && target is IMethodSymbol) allowed = false;
         }
         else if (stage != "Binding" && ns == "RimGovernor.Brain.Domain"
@@ -95,8 +97,8 @@ public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
     {
         // Local functions/lambdas must not evade the entry-point fence.
         for (var symbol = owner; symbol is not null; symbol = symbol.ContainingSymbol)
-            if (symbol is IMethodSymbol { Name: "StartCoupledActivity" or "ContinueCoordinatedActivity",
-                ContainingType.Name: "PolicyFunctions" }
+            if (symbol is IMethodSymbol { Name: "StartCoupledActivity", ContainingType.Name: "ForecastCoupledSelection" }
+                or IMethodSymbol { Name: "ContinueCoordinatedActivity", ContainingType.Name: "CoordinatedActivitiesRules" }
                 && symbol.ContainingNamespace.ToDisplayString() == "RimGovernor.Brain.Policy") return true;
         return false;
     }

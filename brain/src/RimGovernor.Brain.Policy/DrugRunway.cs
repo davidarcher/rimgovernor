@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Drug runway keys. A social drug is spent where a colonist takes it; the realized-consumption ring counts each dose,
 // and ForecastResourceRunway turns the observed rate and the stock into days left.
-public static partial class PolicyFunctions
+public static class DrugRunwayRules
 {
     /// <summary>
     /// The runway keys of the catalog's social drugs, each at one dose per colonist whose drug policy permits it

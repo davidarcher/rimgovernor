@@ -165,7 +165,7 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
         var pk = f.Profiles.TryGetValue(out var profiles);
         var ok = f.SculptureRoomsOwed.TryGetValue(out var owed);
         var satisfaction = Satisfaction.Unknown;
-        if (pk && PolicyFunctions.InspiredArtists(profiles!).Count > 0)
+        if (pk && ArtRules.InspiredArtists(profiles!).Count > 0)
         {
             satisfaction = Satisfaction.Unmet;
         }
@@ -175,7 +175,7 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
         }
         else if (ok && pk)
         {
-            satisfaction = PolicyFunctions.Artists(profiles!).Count == 0 ? Satisfaction.Met : Satisfaction.Unmet;
+            satisfaction = ArtRules.Artists(profiles!).Count == 0 ? Satisfaction.Met : Satisfaction.Unmet;
         }
         return new Need
         {
@@ -185,7 +185,7 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
             Deficit = Whole(satisfaction),
             Evidence =
             [
-                new("artists", pk ? Fact.Known(Count(PolicyFunctions.Artists(profiles!).Count)) : Fact.Unknown<string>()),
+                new("artists", pk ? Fact.Known(Count(ArtRules.Artists(profiles!).Count)) : Fact.Unknown<string>()),
                 new("sculpture_rooms", ok ? Fact.Known(owed ? "owed" : "none") : Fact.Unknown<string>()),
             ],
         };
@@ -194,7 +194,7 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
     /// <summary>The basic comfort review: unmet while dining, recreation or its variety is short; unknown while the census or the variety catalog is unread. The deficit is the review's half per short kind.</summary>
     public static Need ComfortNeed(RoomsFacts f)
     {
-        var review = PolicyFunctions.ReviewBasicComfort(f.BasicComfort);
+        var review = BasicComfortRules.ReviewBasicComfort(f.BasicComfort);
         var recovered = review.Recovered();
         return new Need
         {
@@ -242,7 +242,7 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
     /// </summary>
     public static Need GatheringsNeed(RoomsFacts f, bool partySpot)
     {
-        var owed = PolicyFunctions.GatheringOwed(f.Gathering);
+        var owed = GatheringRules.GatheringOwed(f.Gathering);
         var satisfaction = owed.TryGetValue(out var v) ? v ? Satisfaction.Unmet : Satisfaction.Met : Satisfaction.Unknown;
         return new Need
         {

@@ -37,7 +37,7 @@ public sealed record LightingPolicy
         }
         foreach (var l in Lamps)
         {
-            if (!PolicyFunctions.FoodId(l.Name))
+            if (!FoodForecastRules.FoodId(l.Name))
             {
                 return false;
             }
@@ -63,7 +63,7 @@ public sealed record LightingObservation
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var c in WorkCells)
         {
-            if (!PolicyFunctions.FoodId(c.Bench) || seen.Contains(c.Bench) || double.IsNaN(c.Glow) || c.Glow < 0 || c.Glow > 1)
+            if (!FoodForecastRules.FoodId(c.Bench) || seen.Contains(c.Bench) || double.IsNaN(c.Glow) || c.Glow < 0 || c.Glow > 1)
             {
                 throw new DomainException("invalid work light cell");
             }
@@ -72,7 +72,7 @@ public sealed record LightingObservation
         var lamps = new HashSet<string>(StringComparer.Ordinal);
         foreach (var l in Lamps)
         {
-            if (!PolicyFunctions.FoodId(l.Id) || lamps.Contains(l.Id) || double.IsNaN(l.Radius) || l.Radius < 0)
+            if (!FoodForecastRules.FoodId(l.Id) || lamps.Contains(l.Id) || double.IsNaN(l.Radius) || l.Radius < 0)
             {
                 throw new DomainException("invalid lamp");
             }
@@ -213,7 +213,7 @@ public sealed record LightingFacts
     public LayoutPlan Plan { get; init; } = new();
 }
 
-public static partial class PolicyFunctions
+public static class LightingRules
 {
 
     /// <summary>

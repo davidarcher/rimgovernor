@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The climate-envelope step of the layout family (#3256): the ring walls and roof that hold the planned rooms' temperature.</summary>
@@ -22,7 +23,7 @@ public sealed partial class LayoutRounds
         {
             throw new ControlException("envelope: the scope is another world or older than the review");
         }
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), [PolicyApi.ClimateDefs().VentDef], call).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), [ClimateRules.ClimateDefs().VentDef], call).ConfigureAwait(false);
         var (rooms, known) = EnvelopeWork(reading.Projection);
         if (!known)
         {
@@ -66,7 +67,7 @@ partial class LayoutRounds
             {
                 return ([], false);
             }
-            if (PolicyApi.EnvelopeOps(ReconcileRules.ReconcileRoom(input)).Count > 0)
+            if (ClimateEnvelopeRules.EnvelopeOps(ReconcileRules.ReconcileRoom(input)).Count > 0)
             {
                 rooms.Add(room);
             }

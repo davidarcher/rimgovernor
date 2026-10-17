@@ -338,7 +338,7 @@ public static class ScenarioParts
     public static NewColonySpec ApplyRhadamant(NewColonySpec spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
-        var d = PolicyFunctions.RhadamantThings;
+        var d = DefTablesRules.RhadamantThings;
         var things = new List<StartingThing>(spec.StartingThings);
         var traits = new List<ForcedTrait>(spec.ForcedTraits);
         void Thing(StartingThingPlacement placement, string def, uint count) =>

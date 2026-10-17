@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -97,7 +96,7 @@ public sealed class PlannedShellDemandTests
     {
         var planned = new Dictionary<Resource, long> { [Wood] = 135 };
         var stock = new StockReader(Fact.Known(EquatableArray.From(new[] { new Amount(Wood, 40) })), Fact.Unknown<long>());
-        var demand = ConstructionDemand(new ConstructionDemandInput { Stock = stock, Planned = Fact.Known<IReadOnlyDictionary<Resource, long>>(planned) });
+        var demand = ConstructionDemandRules.ConstructionDemand(new ConstructionDemandInput { Stock = stock, Planned = Fact.Known<IReadOnlyDictionary<Resource, long>>(planned) });
         Assert.Equal(135, demand[Wood]);
     }
 

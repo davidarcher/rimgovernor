@@ -116,13 +116,13 @@ public static class AnimalFoodExtensions
     }
 }
 
-public static partial class PolicyFunctions
+public static class AnimalFoodRules
 {
     public static Fact<double> HayNutritionNeed(Fact<EquatableArray<PenGrazing>> pens, Fact<double> gap)
     {
         var known = pens.TryGetValue(out var rows);
         var dk0 = gap.TryGetValue(out var days);
-        if (!known || !dk0 || !FoodNumber(days))
+        if (!known || !dk0 || !FoodForecastRules.FoodNumber(days))
         {
             return Unknown<double>();
         }
@@ -133,7 +133,7 @@ public static partial class PolicyFunctions
             var dk = p.DemandPerDay.TryGetValue(out var d);
             var yk = p.PasturePerDay.TryGetValue(out var y);
             var sk = p.StoredNutrition.TryGetValue(out var s);
-            if (!dk || !yk || !sk || !FoodNumber(d) || !FoodNumber(y) || !FoodNumber(s))
+            if (!dk || !yk || !sk || !FoodForecastRules.FoodNumber(d) || !FoodForecastRules.FoodNumber(y) || !FoodForecastRules.FoodNumber(s))
             {
                 return Unknown<double>();
             }
@@ -159,17 +159,17 @@ public static partial class PolicyFunctions
         var ak = crop.Available.TryGetValue(out var available);
         if (
             !nk
-            || !FoodNumber(n)
+            || !FoodForecastRules.FoodNumber(n)
             || n <= 0
             || !SocialCropsRules.IsHayCrop(crop)
             || !yk
-            || !FieldPositive(yield)
+            || !FieldCapacityRules.FieldPositive(yield)
             || !dk
-            || !FieldPositive(days)
+            || !FieldCapacityRules.FieldPositive(days)
             || !sk
             || !sowing
             || !ck
-            || season < days * FieldCycles
+            || season < days * CalendarRules.FieldCycles
             || !ak
             || !available
         )
@@ -218,8 +218,8 @@ public static partial class PolicyFunctions
             observed.Add(a);
         }
 
-        var floors = HerdFoodLimits(observed, herd);
-        var (candidates, unknown) = HerdSurplusCandidates(observed, floors, herd.FeedShort, herd);
+        var floors = HerdSurplusRules.HerdFoodLimits(observed, herd);
+        var (candidates, unknown) = HerdSurplusRules.HerdSurplusCandidates(observed, floors, herd.FeedShort, herd);
         if (unknown)
         {
             return [];
@@ -260,7 +260,7 @@ public static partial class PolicyFunctions
             var nk = a.MeatNutrition.TryGetValue(out var n);
             var fk = a.FeedPerDay.TryGetValue(out var feed);
             var dk = a.ReproductionDays.TryGetValue(out var days);
-            if (!safe.GetValueOrDefault(a.ID) || !nk || !fk || !dk || !FieldPositive(n) || !FieldPositive(feed) || !FieldPositive(days))
+            if (!safe.GetValueOrDefault(a.ID) || !nk || !fk || !dk || !FieldCapacityRules.FieldPositive(n) || !FieldCapacityRules.FieldPositive(feed) || !FieldCapacityRules.FieldPositive(days))
             {
                 continue;
             }
@@ -305,7 +305,7 @@ public static partial class PolicyFunctions
             return [];
         }
 
-        var c = FoodCandidate(CandidateKind.Slaughter, "slaughter:" + best.Animal.ID, Unknown<double>());
+        var c = CandidateRules.FoodCandidate(CandidateKind.Slaughter, "slaughter:" + best.Animal.ID, Unknown<double>());
         var yields = c.Yields.Items.ToBuilder();
         yields[0] = yields[0] with { StockCap = Known((long)meat) };
         c = c with
@@ -314,7 +314,7 @@ public static partial class PolicyFunctions
             LaborPerDay = Known(0.0),
             UpfrontCost = c.UpfrontCost with { LaborTicks = Known(180.0) },
             LeadDays = Known(0.0),
-            State = FoodState(Known(false), Known(false)),
+            State = CandidateRules.FoodState(Known(false), Known(false)),
             Terms = EquatableArray.From([new CandidateTerm("meat_per_daily_feed", best.Efficiency), new CandidateTerm("reproduction_days", best.Reproduction)]),
         };
         return [c];
@@ -329,7 +329,7 @@ public static partial class PolicyFunctions
             return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };
         }
 
-        var (safe, unknown) = HerdSurplusCandidates(rows, HerdFoodLimits(rows, herd), herd.FeedShort, herd);
+        var (safe, unknown) = HerdSurplusRules.HerdSurplusCandidates(rows, HerdSurplusRules.HerdFoodLimits(rows, herd), herd.FeedShort, herd);
         if (unknown)
         {
             return new HusbandryChoice { Reason = HusbandryPlanReason.Unknown };

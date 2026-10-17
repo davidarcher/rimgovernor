@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -222,12 +221,12 @@ public sealed class MedicalFamilyTests
     public void TheForecastMedicalRowsAreTheFamilysNeeds()
     {
         var facts = new RoundsFacts { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]), CriticalPatients = Known(1L) };
-        var review = ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
+        var review = EssentialServicesRules.ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
         var medical = review.Coverage.Where(c => c.Service == EssentialService.Medical).ToArray();
         Assert.Contains(medical, c => c.Target.Owner == MedicalRules.CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Shortfall);
         Assert.Contains(medical, c => c.Target.Owner == MedicalRules.SurgeryNeed.FilingKey);
         Assert.Contains(medical, c => c.Target.Owner == MedicalRules.MedicalReservesNeed.FilingKey);
-        var calm = ReviewEssentialServices(facts with { CriticalPatients = Known(0L) }, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
+        var calm = EssentialServicesRules.ReviewEssentialServices(facts with { CriticalPatients = Known(0L) }, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
         Assert.Contains(calm.Coverage, c => c.Target.Owner == MedicalRules.CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Adequate);
     }
 

@@ -69,7 +69,7 @@ public sealed record ConstructionHelpRecord
     public EquatableArray<string> Withheld { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ConstructionHelpersRules
 {
     /// <summary>Helpers stay one game hour after suitable demand disappears, so a review between two walls does not rewrite work settings.</summary>
     public const long ConstructionHelpHoldTicks = GameTime.TicksPerHour;
@@ -119,7 +119,7 @@ public static partial class PolicyFunctions
         Fact<CurrentConstruction> census)
     {
         var help = new ConstructionHelp { Tick = tick, Ready = Unknown<int>() };
-        report = ConstructionHelperView(report, census, current);
+        report = ConstructionSkillRules.ConstructionHelperView(report, census, current);
         if (previous is not null && previous.Tick <= tick)
         {
             help = help with { Previous = previous };

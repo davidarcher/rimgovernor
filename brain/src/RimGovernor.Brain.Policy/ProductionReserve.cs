@@ -1,4 +1,3 @@
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -30,7 +29,7 @@ public static partial class ProductionRules
                 var product = recipe.Products[0];
                 var ek = product.Edible.TryGetValue(out var edible);
                 var nk = product.Nutrition.TryGetValue(out var value);
-                if (ek && edible && nk && FieldPositive(value))
+                if (ek && edible && nk && FieldCapacityRules.FieldPositive(value))
                 {
                     nutrition[recipe.Name] = value;
                 }
@@ -47,7 +46,7 @@ public static partial class ProductionRules
                 total += target * value;
             }
         }
-        if (!FoodNumber(total))
+        if (!FoodForecastRules.FoodNumber(total))
         {
             return (0, false);
         }

@@ -2,7 +2,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -103,7 +102,7 @@ public sealed class ShelterLayoutPlanTests
         var bounds = shelter.Region.Bounds();
         var (room, ok) = ShelterRules.ShelterRoom(shelter, [], Shapes, 3, LayoutShelterRules.ShelterCampfires(plan.Cold), LayoutShelterRules.ShelterCoolers(plan.Hot), []);
         Assert.True(ok);
-        var (pieces, planned) = PlanRoomInterior(room, new InteriorPieceDef());
+        var (pieces, planned) = InteriorRegionRules.PlanRoomInterior(room, new InteriorPieceDef());
         Assert.True(planned);
         var campfires = pieces.Pieces.Where(p => p.Def == PolicyConstants.ShelterHeatDef).ToList();
         var coolers = pieces.Pieces.Where(p => p.Def == PolicyConstants.ShelterCoolDef).ToList();
@@ -117,7 +116,7 @@ public sealed class ShelterLayoutPlanTests
     public void TheClimateBuildingGoesToTheRoomThatOwnsIt(string climate)
     {
         var facts = new ColonyProjection { LayoutPlan = Fact.Known(FirstPlan(climate, 3)) };
-        var cooking = new RoundsBuildingPlanner { Concern = CookingNeed.FilingKey, Definition = PolicyConstants.ShelterHeatDef };
+        var cooking = new RoundsBuildingPlanner { Concern = FoodRules.CookingNeed.FilingKey, Definition = PolicyConstants.ShelterHeatDef };
         // A cold map's cooking campfire takes the shelter's slot; elsewhere it stands in the planned kitchen.
         Assert.Equal(climate == "cold", cooking.TakesShelterSlot(facts));
         Assert.Equal(climate != "cold", cooking.HostsInPlannedRoom(PlannedRole.Kitchen, facts));

@@ -25,7 +25,7 @@ public readonly record struct RegionFrame(int Width, int Depth, int Entrance);
 /// <summary>Says what a role's floor should hold: the wants, in the order they place, and false when the room cannot be furnished for the piece being placed.</summary>
 internal delegate (IReadOnlyList<RegionWant> Wants, bool Ok) RegionRole(InteriorRoom room, InteriorPieceDef piece, RegionFrame f);
 
-public static partial class PolicyFunctions
+public static class InteriorRegionRules
 {
     private static readonly InteriorTable InteriorTableValue = new(WorkshopShelfDef, StandingLampDef, 2);
 
@@ -43,7 +43,7 @@ public static partial class PolicyFunctions
     public static RegionFrame RegionFrameOf(this InteriorRoom r)
     {
         var probe = r with { Interior = r.Floor().Bounds(), Region = null };
-        var (f, ok) = EntranceFrame(probe);
+        var (f, ok) = InteriorRules.EntranceFrame(probe);
         if (ok)
         {
             return f;
@@ -54,21 +54,21 @@ public static partial class PolicyFunctions
 
     private static readonly Lazy<IReadOnlyDictionary<RoomRole, RegionRole>> RegionRoles = new(() =>
     {
-        RegionRole child = ChildRoomWants;
+        RegionRole child = InteriorRegionRolesRules.ChildRoomWants;
         return new Dictionary<RoomRole, RegionRole>
         {
-            [RoomRole.Workshop] = WorkshopWants,
-            [RoomRole.Laboratory] = LaboratoryWants,
-            [RoomRole.Kitchen] = KitchenWants,
-            [RoomRole.Tomb] = TombWants,
-            [RoomRole.PrisonCell] = JailWants,
-            [RoomRole.Hospital] = HospitalWants,
-            [RoomRole.Bedroom] = BedroomWants,
-            [RoomRole.Suite] = BedroomWants,
-            [RoomRole.ThroneRoom] = ThroneWants,
-            [RoomRole.Shelter] = ShelterWants,
-            [RoomRole.DiningRoom] = DiningWants(false),
-            [RoomRole.RecRoom] = DiningWants(true),
+            [RoomRole.Workshop] = InteriorRegionRolesRules.WorkshopWants,
+            [RoomRole.Laboratory] = InteriorRegionRolesRules.LaboratoryWants,
+            [RoomRole.Kitchen] = InteriorRegionRolesRules.KitchenWants,
+            [RoomRole.Tomb] = InteriorRegionRolesRules.TombWants,
+            [RoomRole.PrisonCell] = InteriorRegionRolesRules.JailWants,
+            [RoomRole.Hospital] = InteriorRegionRolesRules.HospitalWants,
+            [RoomRole.Bedroom] = InteriorRegionRolesRules.BedroomWants,
+            [RoomRole.Suite] = InteriorRegionRolesRules.BedroomWants,
+            [RoomRole.ThroneRoom] = InteriorRegionRolesRules.ThroneWants,
+            [RoomRole.Shelter] = InteriorRegionRolesRules.ShelterWants,
+            [RoomRole.DiningRoom] = InteriorRegionRolesRules.DiningWants(false),
+            [RoomRole.RecRoom] = InteriorRegionRolesRules.DiningWants(true),
             [RoomRole.Nursery] = child,
             [RoomRole.Playroom] = child,
             [RoomRole.Classroom] = child,
@@ -219,10 +219,10 @@ public static partial class PolicyFunctions
     /// <summary>How many benches of a footprint one wall of the room holds with a free cell between them.</summary>
     internal static int BenchRowCapacity(RegionFrame f, InteriorPieceDef d, int gap)
     {
-        if (!FrontInteraction(d) || f.Depth < d.Size.Z + 2)
+        if (!InteriorHelpersRules.FrontInteraction(d) || f.Depth < d.Size.Z + 2)
         {
             return 0;
         }
-        return RowCapacity(f.Width, d.Size.X, gap);
+        return InteriorHelpersRules.RowCapacity(f.Width, d.Size.X, gap);
     }
 }

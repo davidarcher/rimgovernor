@@ -15,7 +15,7 @@ public sealed record FirebreakWork
     public bool Owed => Cut.Count + Deconstruct.Count > 0;
 }
 
-public static partial class PolicyFunctions
+public static class FirebreakConcernRules
 {
     /// <summary>
     /// Go <c>FirebreakOwed</c>: the ring work plan leaves: a cut cell where standing reports an undesignated

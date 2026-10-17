@@ -43,7 +43,7 @@ public sealed record CoupleBed
     public EquatableArray<WantedPiece> Template { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class CoupleBedRules
 {
     /// <summary>The packed (minified) item a bed becomes.</summary>
     public const string PackedFurnitureDefinition = "MinifiedThing";
@@ -192,7 +192,7 @@ public static partial class PolicyFunctions
             room.Role.TryGetValue(out var role) && role == RoomRole.None && room.Beds.Count == 0
                 ? room with { Role = Known(RoomRole.Bedroom) }
                 : room).ToList();
-        return FurnitureRooms(rooms with { Rooms = EquatableArray.From(read) }, census, cells);
+        return FurnitureRoomsRules.FurnitureRooms(rooms with { Rooms = EquatableArray.From(read) }, census, cells);
     }
 
     private static bool CellInRect(Rectangle r, Cell c) => c.X >= r.X && c.Z >= r.Z && c.X < r.X + r.Width && c.Z < r.Z + r.Height;

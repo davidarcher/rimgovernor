@@ -10,12 +10,12 @@ public static class StorePackage
     public const int MaxBillPlanActions = 64;
 
     /// <summary>
-    /// <see cref="PolicyFunctions.PlanWorkOpen"/> for a stored plan: an applied building intent is terminal in the
+    /// <see cref="BuildingWorkRules.PlanWorkOpen"/> for a stored plan: an applied building intent is terminal in the
     /// journal, but its plan stays open while the census still shows its blueprint or frame (or cannot say). Only
     /// census-aware retirement ends it; a retired plan's applied buildings are done or gone.
     /// </summary>
     public static bool PlanWorkOpen(PlanState p, Fact<CurrentConstruction> census) =>
-        p.Retired ? WorkProgress.Open(p.Progress) : PolicyFunctions.PlanWorkOpen(p.Progress, census);
+        p.Retired ? WorkProgress.Open(p.Progress) : BuildingWorkRules.PlanWorkOpen(p.Progress, census);
 
     /// <summary>
     /// A plan's open work without a census: an applied building on a plan not yet retired is still open, since
@@ -25,7 +25,7 @@ public static class StorePackage
 
     /// <summary><see cref="PlanOpen"/> for one action of plan <paramref name="p"/>.</summary>
     public static bool ProgressOpen(PlanState p, Progress progress) =>
-        WorkProgress.Open([progress]) || (!p.Retired && PolicyFunctions.AppliedBuildingOpen(progress, default));
+        WorkProgress.Open([progress]) || (!p.Retired && BuildingWorkRules.AppliedBuildingOpen(progress, default));
 
     /// <summary>A planned room's ring method: a build wave of a "&lt;role&gt;-shell-room&lt;id&gt;" reconcile.</summary>
     public static bool IsRoomShellMethod(MethodId method) => GlobMatch(method.Value, "*-shell-*-build-*");

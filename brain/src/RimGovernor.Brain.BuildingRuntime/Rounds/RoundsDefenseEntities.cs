@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsDefensePlanner
@@ -16,7 +17,7 @@ public sealed partial class RoundsDefensePlanner
         }
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         var verdicts = new Dictionary<Domain.PawnId, EntityVerdict>();
-        foreach (var v in PolicyApi.EntityVerdicts(read.Projection.Facts.Containment))
+        foreach (var v in EntityCaptureRules.EntityVerdicts(read.Projection.Facts.Containment))
         {
             verdicts[v.Pawn] = v;
         }

@@ -58,7 +58,7 @@ public sealed partial class Store
         var reserveIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in r.ReserveSupplies)
         {
-            if (!PolicyFunctions.ReserveFoodDefinition(new Resource(row.Definition)) || !reserveIds.Add(row.Thing))
+            if (!FoodReserveRules.ReserveFoodDefinition(new Resource(row.Definition)) || !reserveIds.Add(row.Thing))
             {
                 throw new StoreCorruptException("invalid reserve supply");
             }
@@ -98,7 +98,7 @@ public sealed partial class Store
         var progressGoals = new HashSet<ConcernId>();
         foreach (var p in r.Progress)
         {
-            if (!progressGoals.Add(p.Concern) || !TryValidate(() => PolicyFunctions.ValidateConcernProgress(p, r.Tick)))
+            if (!progressGoals.Add(p.Concern) || !TryValidate(() => ConcernProgressRules.ValidateConcernProgress(p, r.Tick)))
             {
                 throw new StoreCorruptException("invalid routine progress history");
             }
@@ -204,15 +204,15 @@ public sealed partial class Store
                 facts = facts with { SleepingRecovered = Known(false) };
             }
             // The rooms family reads hosting recovery from this proof-of-use history.
-            comfort = PolicyFunctions.ReviewComfort(facts.Comfort, comfort, request.Tick).History;
+            comfort = ComfortRules.ReviewComfort(facts.Comfort, comfort, request.Tick).History;
             var (lootCensus, held) = LootReachFilter(request with { Facts = facts });
             // The cohort is the admin/supply-safety Need's work (AdminRounds reads it from the review).
-            var (lootHistory, _) = PolicyFunctions.ReviewEventLoot(lootCensus, loot);
+            var (lootHistory, _) = EventLootRules.ReviewEventLoot(lootCensus, loot);
             loot = lootHistory;
             // The food reserve owns the forbid state of reserve food; drop its stacks from the cohort so the
             // planners cannot flip them.
             loot = loot with { Held = held };
-            loot = loot with { Pending = EquatableArray.From(PolicyFunctions.DropReserveHeld(loot.Pending, facts.FoodReserve)) };
+            loot = loot with { Pending = EquatableArray.From(FoodReserveRules.DropReserveHeld(loot.Pending, facts.FoodReserve)) };
             if (facts.Upkeep.Clearance.TryGetValue(out var rows))
             {
                 var req = RecoveryRules.ReviewRecoveryRequest(request.Policy, facts, rows, facts.Upkeep.RoomObstructions);
@@ -263,7 +263,7 @@ public sealed partial class Store
         r = r with { MedicalCare = medical, BrewingFinished = SocialCropsRules.BrewingFinished(request.Facts.Research), EventLoot = loot };
         if (request.Facts.EventLoot.TryGetValue(out var lootRows))
         {
-            r = r with { Unsafe = EquatableArray.From(PolicyFunctions.UnsafeLoot(lootRows)) };
+            r = r with { Unsafe = EquatableArray.From(ActionRules.UnsafeLoot(lootRows)) };
         }
         else if (!reset)
         {
@@ -300,14 +300,14 @@ public sealed partial class Store
                 _ = request.Facts.FoodStorageUpkeep.Stocks.TryGetValue(out var stocks);
                 foreach (var row in stocks)
                 {
-                    if (wanted.TryGetValue(row.Stock.Id, out var forbid) && PolicyFunctions.ReserveFoodDefinition(row.Stock.DefName))
+                    if (wanted.TryGetValue(row.Stock.Id, out var forbid) && FoodReserveRules.ReserveFoodDefinition(row.Stock.DefName))
                     {
                         reserveSupplies.Add(new ReserveSupply(row.Stock.Id, row.Stock.DefName.Value, forbid));
                     }
                 }
             }
             r = r with { ReserveSupplies = EquatableArray.From(reserveSupplies) };
-            var choice = PolicyFunctions.SelectCorpseLarder(request.Facts.FoodStorageUpkeep);
+            var choice = CorpseLarderRules.SelectCorpseLarder(request.Facts.FoodStorageUpkeep);
             if (choice is { Kind: "allow" or "forbid", Stock: { } stock, Handling: { } handling })
             {
                 r = r with
@@ -344,7 +344,7 @@ public sealed partial class Store
         {
             r = r with
             {
-                Progress = EquatableArray.From(PolicyFunctions.HoldProgress(RoundsProgress(request, previous, reset))),
+                Progress = EquatableArray.From(ConcernProgressRules.HoldProgress(RoundsProgress(request, previous, reset))),
                 ReadyWork = ReadyWorkOf(request, RoundsPlans(tx, request.Current), []),
             };
             r = r with { Recovery = RoundsRecoveryFor(tx, request.Facts, disaster, r, request.Tick) };

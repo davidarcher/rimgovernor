@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>Port of break_dispatch.go: releasing a breaking pawn's work and fencing new dispatch near an aggressive break.</summary>
@@ -25,7 +26,7 @@ internal static class BreakDispatch
         var aggressive = new HashSet<PawnId>();
         foreach (var p in f.Colonists)
         {
-            if (PolicyFunctions.AggressiveBreak(p))
+            if (BreakResponseRules.AggressiveBreak(p))
             {
                 aggressive.Add(p.Id);
             }
@@ -99,7 +100,7 @@ public sealed partial class Worker
             {
                 broken.Add(p.Id);
             }
-            if (PolicyFunctions.AggressiveBreak(p))
+            if (BreakResponseRules.AggressiveBreak(p))
             {
                 aggressive.Add(p.Id);
             }
@@ -174,7 +175,7 @@ public sealed partial class Worker
                         if (cell.TryGetValue(out var p))
                         {
                             located = true;
-                            if (PolicyFunctions.InBreakRadius(p, at))
+                            if (BreakResponseRules.InBreakRadius(p, at))
                             {
                                 held.Add(action.Id);
                             }

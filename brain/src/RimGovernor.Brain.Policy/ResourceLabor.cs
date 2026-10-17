@@ -38,7 +38,7 @@ public static partial class ResourceRules
                     continue;
                 }
                 var workKnown = e.Channel.LaborPerDay.TryGetValue(out var work);
-                if (workKnown && !FoodNumber(work))
+                if (workKnown && !FoodForecastRules.FoodNumber(work))
                 {
                     throw new SupplyPlanFactsException();
                 }

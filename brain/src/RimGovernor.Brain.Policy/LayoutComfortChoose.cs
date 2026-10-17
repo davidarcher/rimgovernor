@@ -14,7 +14,7 @@ public static partial class LayoutComfortChooseRules
         var need = input.Model.ComfortNeed();
         var price = new EnvPrice(input.Mood, input.WorkDayW, input.Pawns, input.ExpectedMood);
         var weights = SiteRules.DefaultSiteTypeWeights();
-        double BuildCost(ComfortOption o) => BuildW(weights, o.Build, input.Steel);
+        double BuildCost(ComfortOption o) => ClimateRules.BuildW(weights, o.Build, input.Steel);
         var known = need.Curve.Valid() && input.Pawns > 0 && QuestCapacityForecast.FinitePositive(input.Steel) && QuestCapacityForecast.FinitePositive(input.WorkDayW) && input.ExpectedMood >= 0 && input.ExpectedMood <= 1;
 
         StationNode? sleep = null;

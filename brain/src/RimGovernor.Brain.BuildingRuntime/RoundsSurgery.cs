@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -115,7 +116,7 @@ public sealed partial class RoundsSurgeryPlanner
         {
             // Peg-leg cycling: training, control or a reinstall.
             var facts = read.Projection.Facts;
-            harvest = SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, _reviewer.Policy.Prisoners(), selection.Wants, facts.Recipes, inFlight);
+            harvest = DoctorTrainingRules.SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, _reviewer.Policy.Prisoners(), selection.Wants, facts.Recipes, inFlight);
         }
         var harvesting = harvest is not null && arbiter.TryClaim([harvest.Prisoner]);
         result.Harvest = harvesting;

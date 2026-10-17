@@ -84,7 +84,7 @@ public static partial class SiteRules
     {
         var lk = r.Lamp.TryGetValue(out var lamp);
         var dk = lamp.PowerW.TryGetValue(out var lampDraw);
-        if (!lk || !RoundsRules.Positive(lamp.Available) || !dk || !FoodNumber(lampDraw) || lamp.Name == "")
+        if (!lk || !RoundsRules.Positive(lamp.Available) || !dk || !FoodForecastRules.FoodNumber(lampDraw) || lamp.Name == "")
         {
             return c with { Reason = "sun lamp unavailable" };
         }
@@ -93,7 +93,7 @@ public static partial class SiteRules
         v.Crop.FertilityMin.TryGetValue(out var minimum);
         foreach (var s in site.Cells)
         {
-            if (FreeCropSoil(SiteUnroofed(s), minimum, null).Ok && RoundsRules.Positive(s.Roofed) && RoundsRules.Positive(s.Indoors))
+            if (CropChoiceRules.FreeCropSoil(SiteUnroofed(s), minimum, null).Ok && RoundsRules.Positive(s.Roofed) && RoundsRules.Positive(s.Indoors))
             {
                 return c with { Reason = "free indoor soil: a greenhouse lamp is the cheaper kind" };
             }
@@ -121,11 +121,11 @@ public static partial class SiteRules
         cells.Sort((a, b) => CombatManhunterRules.CellLess(a, b) ? -1 : CombatManhunterRules.CellLess(b, a) ? 1 : 0);
         // A basin's fertility yields several soil cells' harvest, so the unit needs fewer cells than the soil-cell target.
         var cellsPerSoil = CropRate(v.Crop, fertility) / unit;
-        if (!FoodNumber(cellsPerSoil) || cellsPerSoil < 1)
+        if (!FoodForecastRules.FoodNumber(cellsPerSoil) || cellsPerSoil < 1)
         {
             cellsPerSoil = 1;
         }
-        var limit = Math.Min((int)Math.Ceiling(v.Needed / cellsPerSoil / SiteBasinCells), FarmSitePatchLimit);
+        var limit = Math.Min((int)Math.Ceiling(v.Needed / cellsPerSoil / SiteBasinCells), FarmSiteRules.FarmSitePatchLimit);
         Cell center = default;
         var basins = new List<SiteBuilding>();
         var bestWalk = 0;
@@ -171,7 +171,7 @@ public static partial class SiteRules
         {
             var hk = r.Heater.TryGetValue(out heater);
             var hdk = heater.PowerW.TryGetValue(out heaterDraw);
-            if (!hk || !RoundsRules.Positive(heater.Available) || !hdk || !FoodNumber(heaterDraw) || heater.Name == "")
+            if (!hk || !RoundsRules.Positive(heater.Available) || !hdk || !FoodForecastRules.FoodNumber(heaterDraw) || heater.Name == "")
             {
                 return c with { Reason = "room too cold and no heater available" };
             }
@@ -299,7 +299,7 @@ public static partial class SiteRules
         var terms = new List<FarmSiteTerm>
         {
             new("yield", CropRate(v.Crop, fertility) * cellCount),
-            new("travel", -SiteTravelWeight * unit * walkTotal),
+            new("travel", -FarmSiteRules.SiteTravelWeight * unit * walkTotal),
             new("construction", build),
             new("power", -w.Power * unit * draw / 1000),
         };

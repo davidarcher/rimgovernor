@@ -139,10 +139,10 @@ public static class RoundsFactsHerdPlanExtensions
         };
 
     /// <summary>The population band of the herd plan of f.</summary>
-    public static HerdPolicy HerdPolicy(this RoundsFacts f) => PolicyFunctions.PlanHerd(f.HerdPlanInput()).Policy;
+    public static HerdPolicy HerdPolicy(this RoundsFacts f) => HerdPlanRules.PlanHerd(f.HerdPlanInput()).Policy;
 
     /// <summary>The herds by race the station graph's pens are sized for.</summary>
-    public static IReadOnlyList<StationHerd> PenHerds(this RoundsFacts f) => PolicyFunctions.PlanHerd(f.HerdPlanInput()).StationHerds();
+    public static IReadOnlyList<StationHerd> PenHerds(this RoundsFacts f) => HerdPlanRules.PlanHerd(f.HerdPlanInput()).StationHerds();
 }
 
 /// <summary>Herd policy behaviour owned by the herd surplus rules.</summary>
@@ -160,8 +160,8 @@ public static class HerdPolicyExtensions
         if (!h.Layers.TryGetValue(race, out var layer))
         {
             return (
-                Math.Max(PolicyFunctions.HerdPairMales, (females + PolicyFunctions.HerdMalesPerFemales - 1) / PolicyFunctions.HerdMalesPerFemales),
-                PolicyFunctions.HerdPairMales,
+                Math.Max(HerdSurplusRules.HerdPairMales, (females + HerdSurplusRules.HerdMalesPerFemales - 1) / HerdSurplusRules.HerdMalesPerFemales),
+                HerdSurplusRules.HerdPairMales,
                 true
             );
         }
@@ -169,16 +169,16 @@ public static class HerdPolicyExtensions
         {
             return (0, 0, false);
         }
-        var keep = PolicyFunctions.HerdPairMales;
+        var keep = HerdSurplusRules.HerdPairMales;
         if (females < h.PopulationMin.GetValueOrDefault(race))
         {
-            keep = Math.Max(PolicyFunctions.HerdPairMales, (long)Math.Ceiling(females / ratio));
+            keep = Math.Max(HerdSurplusRules.HerdPairMales, (long)Math.Ceiling(females / ratio));
         }
         return (keep, keep, true);
     }
 }
 
-public static partial class PolicyFunctions
+public static class HerdPlanRules
 {
     /// <summary>The jobs a race earns by yield or training, in the order a race's label is chosen.</summary>
     public static readonly IReadOnlyList<HerdJob> HerdWorkJobs =
@@ -197,7 +197,7 @@ public static partial class PolicyFunctions
     public const string HerdWarTraining = "Release";
 
     /// <summary>The breeding stock kept beyond a job's head count.</summary>
-    public const long HerdSpare = HerdPairSize;
+    public const long HerdSpare = HerdSurplusRules.HerdPairSize;
 
     private sealed class HerdRaceStats
     {
@@ -325,7 +325,7 @@ public static partial class PolicyFunctions
             _ => true,
         };
         var value = 0.0;
-        if (holds && !HerdJuvenile(a))
+        if (holds && !HerdSurplusRules.HerdJuvenile(a))
         {
             value = per;
         }
@@ -365,7 +365,7 @@ public static partial class PolicyFunctions
                 Herds = herds,
                 Leveling = leveling,
             };
-        var floors = FoodHerdPolicy(new HerdPolicy(), input.Food).PopulationMin;
+        var floors = FoodAnimalProductsRules.FoodHerdPolicy(new HerdPolicy(), input.Food).PopulationMin;
         if (!input.Animals.TryGetValue(out var rows))
         {
             return Result(new HerdPolicy { PopulationMin = min, PopulationMax = max }, [], new Resource(""));
@@ -393,7 +393,7 @@ public static partial class PolicyFunctions
             {
                 s.Unsexed = true;
             }
-            else if (!HerdFertile(a))
+            else if (!HerdSurplusRules.HerdFertile(a))
             {
                 // a sterilized animal is no part of a pair
             }
@@ -478,7 +478,7 @@ public static partial class PolicyFunctions
                 superseded.Add(def);
             }
             demand = Math.Max(demand, Math.Max(others, foodDemand));
-            var heads = HerdPairSize;
+            var heads = HerdSurplusRules.HerdPairSize;
             if (!double.IsInfinity(demand))
             {
                 heads = Math.Max(heads, (long)Math.Ceiling(demand / perTarget));
@@ -550,19 +550,19 @@ public static partial class PolicyFunctions
         {
             foreach (var def in max.Keys.ToList())
             {
-                max[def] = HerdShareOf(max[def], budget.Share, HerdPairSize);
+                max[def] = HerdShareOf(max[def], budget.Share, HerdSurplusRules.HerdPairSize);
                 min[def] = Math.Min(min.GetValueOrDefault(def), max[def]);
             }
             foreach (var def in order)
             {
                 if (!targets.ContainsKey(def) && !retiring.Contains(def) && roles[def].Job != HerdJob.Companion)
                 {
-                    max[def] = HerdShareOf(stats[def].N, budget.Share, HerdPairSize);
+                    max[def] = HerdShareOf(stats[def].N, budget.Share, HerdSurplusRules.HerdPairSize);
                 }
             }
         }
         var feedShort = false;
-        var (ratio, ratioKnown) = HerdPastureRatio(input.Pens);
+        var (ratio, ratioKnown) = HerdSurplusRules.HerdPastureRatio(input.Pens);
         if (ratioKnown)
         {
             feedShort = ratio < 1;
@@ -586,7 +586,7 @@ public static partial class PolicyFunctions
         var layers = new Dictionary<Resource, HerdLayer>();
         foreach (var def in order)
         {
-            var (layer, ok) = HerdLayerOf(stats[def].Race);
+            var (layer, ok) = HerdSurplusRules.HerdLayerOf(stats[def].Race);
             if (ok)
             {
                 layers[def] = layer;
@@ -665,7 +665,7 @@ public static partial class PolicyFunctions
         var bestWild = 0.0;
         foreach (var a in wild)
         {
-            if (!a.Tameable.TryGetValue(out var tameable) || !tameable || HerdDangerous(a))
+            if (!a.Tameable.TryGetValue(out var tameable) || !tameable || HerdSurplusRules.HerdDangerous(a))
             {
                 continue;
             }
@@ -743,7 +743,7 @@ public static partial class PolicyFunctions
         input.Wild.TryGetValue(out var wild);
         foreach (var a in wild)
         {
-            if (a.Tameable.TryGetValue(out var tameable) && tameable && !HerdDangerous(a))
+            if (a.Tameable.TryGetValue(out var tameable) && tameable && !HerdSurplusRules.HerdDangerous(a))
             {
                 @out.Add(a.Definition);
             }

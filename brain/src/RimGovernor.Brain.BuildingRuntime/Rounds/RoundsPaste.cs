@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
@@ -72,7 +73,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             var site = Paste[i];
             var building = new Building(site.Definition, site.Cell, site.Rotation, "");
-            var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), building, PolicyFunctions.PlannerTier(Concern, Phase));
+            var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
             var read = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var v = read.Preview;
             var lk = v.CanPlace.TryGetValue(out var legal);

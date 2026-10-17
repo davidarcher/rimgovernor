@@ -55,7 +55,7 @@ public static partial class ResourceRules
         var orders = new List<OrderSpec>();
         foreach (var f in floors)
         {
-            if (!ValidResource(f.Resource) || f.Target <= 0 || f.Target > int.MaxValue)
+            if (!AdmissionRules.ValidResource(f.Resource) || f.Target <= 0 || f.Target > int.MaxValue)
             {
                 throw new DomainException($"invalid resource floor \"{f.Resource}\" x{f.Target}");
             }
@@ -98,7 +98,7 @@ public static partial class ResourceRules
                         Recipe = method.Recipe,
                         Mode = mode,
                         Target = (int)f.Target,
-                        BenchKind = GearBenchDef(benches, method.Bench),
+                        BenchKind = GearOrdersRules.GearBenchDef(benches, method.Bench),
                         Product = product,
                         Class = @class,
                     });
@@ -128,7 +128,7 @@ public static partial class ResourceRules
             }
             foreach (var bill in bills)
             {
-                if (bill.Spent || bill.Kind != LedgerBillKind.Production || !ContainsResource(bill.Products, resource))
+                if (bill.Spent || bill.Kind != LedgerBillKind.Production || !GearRules.ContainsResource(bill.Products, resource))
                 {
                     continue;
                 }

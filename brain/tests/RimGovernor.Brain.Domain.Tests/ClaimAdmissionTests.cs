@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -23,7 +22,7 @@ public sealed class ClaimAdmissionTests
         public void Dispose() => Journal.Dispose();
         /// <summary>Commits under the food/supply Need, admitted by claims in the review's world.</summary>
         public NeedCommit Food(string method, params DomainAction[] actions) =>
-            Journal.CommitClaimedMethod(FoodSupplyNeed, World, new(method), "",
+            Journal.CommitClaimedMethod(FoodRules.FoodSupplyNeed, World, new(method), "",
                 new PlanSpec(new(method + "-plan-" + Guid.NewGuid().ToString("N")[..8]), new(1), EquatableArray.From(actions)), TestContext.Current.CancellationToken);
         /// <summary>Commits under the shelter family's starter Need (#3257): its rungs are admitted by claims.</summary>
         public NeedCommit Shelter(string method, params DomainAction[] actions) =>
@@ -83,7 +82,7 @@ public sealed class ClaimAdmissionTests
         Assert.Equal("forage-1", refused.Conflict.Method.Value);
         Assert.StartsWith("need ", refused.Conflict.Holder);
         Assert.Contains("claim_conflict: berry-1", refused.Conflict.Reason);
-        Assert.Equal(2, colony.Journal.LoadNeed(FoodSupplyNeed, World, TestContext.Current.CancellationToken).Methods.Count);
+        Assert.Equal(2, colony.Journal.LoadNeed(FoodRules.FoodSupplyNeed, World, TestContext.Current.CancellationToken).Methods.Count);
     }
 
     [Fact]
@@ -188,7 +187,7 @@ public sealed class ClaimAdmissionTests
         Assert.Equal(ClaimOutcome.Conflict, other.Outcome);
         Assert.Equal("pawn/a", other.Conflict!.Claim);
         Assert.Equal("ledger", other.Conflict.Method.Value);
-        Assert.Empty(colony.Journal.LoadNeed(FoodSupplyNeed, World, ct).Methods);
+        Assert.Empty(colony.Journal.LoadNeed(FoodRules.FoodSupplyNeed, World, ct).Methods);
         // A disjoint second Method beside the owner's own open one is admitted.
         Assert.Equal(ClaimOutcome.Admitted, colony.Work("ledger-2", Delivery("l2", "b", "ledger-2")).Outcome);
         Assert.Equal(2, colony.Journal.LoadNeed(TestNeed.Id, World, ct).Methods.Count);

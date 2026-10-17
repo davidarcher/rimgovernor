@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // ranked by PlanSupply against the demand instead of each goal hardcoding its own order (produce before mine,
 // forage before hunt).
 
-public static partial class PolicyFunctions
+public static class AcquisitionCatalogRules
 {
     /// <summary>
     /// Each kind's estimated pawn work ticks per unit yielded: a planning prior for the kinds whose per-unit
@@ -60,14 +60,14 @@ public static partial class PolicyFunctions
             }
 
             output.Add(
-                SourceCandidate(
+                CandidateRules.SourceCandidate(
                     CandidateKind.Mining,
                     s.ThingId,
                     CatalogLabor(CandidateKind.Mining, s.Yield),
                     Known(s.Distance),
                     true,
                     AcquisitionUnitsPerTrip,
-                    SourceYield(new ResourceKey { Def = resource }, s.Yield, 0, headroom)
+                    CandidateRules.SourceYield(new ResourceKey { Def = resource }, s.Yield, 0, headroom)
                 )
             );
         }
@@ -88,14 +88,14 @@ public static partial class PolicyFunctions
             return false;
         }
 
-        var c = SourceCandidate(
+        var c = CandidateRules.SourceCandidate(
             CandidateKind.Produce,
             m.Bench + "/" + m.Recipe,
             CatalogLabor(CandidateKind.Produce, units),
             Known(0.0),
             false,
             0,
-            SourceYield(new ResourceKey { Def = m.Resource }, units, 0, Unknown<long>())
+            CandidateRules.SourceYield(new ResourceKey { Def = m.Resource }, units, 0, Unknown<long>())
         );
         var resources = new List<ResourceQuantity>(c.UpfrontCost.Resources);
         foreach (var ingredient in m.Ingredients)
@@ -140,7 +140,7 @@ public static partial class PolicyFunctions
                 line = Math.Max(0, row.Reserve);
                 if (row.ConsumptionPerDay.TryGetValue(out var rate) && TradePolicyRules.Finite(rate) && rate > 0)
                 {
-                    line += Math.Ceiling(rate * MaintenanceHorizonDays);
+                    line += Math.Ceiling(rate * ColonyDiagnosticsRules.MaintenanceHorizonDays);
                 }
             }
 
@@ -185,14 +185,14 @@ public static partial class PolicyFunctions
 
             CatalogLabor(kind, units).TryGetValue(out var labor);
             output.Add(
-                SourceCandidate(
+                CandidateRules.SourceCandidate(
                     kind,
                     s.Id,
                     Known(labor * (1 + (2 * risk))),
                     Known(Math.Sqrt(Math.Pow(s.Cell.X - home.X, 2) + Math.Pow(s.Cell.Z - home.Z, 2))),
                     true,
                     AcquisitionUnitsPerTrip,
-                    SourceYield(new ResourceKey { Def = resource }, units, 0, headroom)
+                    CandidateRules.SourceYield(new ResourceKey { Def = resource }, units, 0, headroom)
                 )
             );
         }
@@ -209,14 +209,14 @@ public static partial class PolicyFunctions
             return false;
         }
 
-        candidate = SourceCandidate(
+        candidate = CandidateRules.SourceCandidate(
             CandidateKind.DeepDrill,
             id,
             CatalogLabor(CandidateKind.DeepDrill, units),
             Known(distance),
             true,
             AcquisitionUnitsPerTrip,
-            SourceYield(new ResourceKey { Def = resource }, units, 0, headroom)
+            CandidateRules.SourceYield(new ResourceKey { Def = resource }, units, 0, headroom)
         );
         return true;
     }
@@ -233,14 +233,14 @@ public static partial class PolicyFunctions
             return false;
         }
 
-        candidate = SourceCandidate(
+        candidate = CandidateRules.SourceCandidate(
             CandidateKind.Trade,
             TradePolicyRules.TradeCandidateID(trader, resource),
             Known(price * units * TradeLaborPerSilver),
             Known(0.0),
             false,
             0,
-            SourceYield(new ResourceKey { Def = resource }, units, 0, Unknown<long>())
+            CandidateRules.SourceYield(new ResourceKey { Def = resource }, units, 0, Unknown<long>())
         );
         return true;
     }

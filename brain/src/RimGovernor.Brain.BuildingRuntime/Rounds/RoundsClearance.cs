@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -70,7 +71,7 @@ public sealed partial class HomeUpkeepReader
         {
             return facts;
         }
-        var (others, player) = PolicyApi.SplitGroundRows(census.Targets);
+        var (others, player) = ClearanceGroundRules.SplitGroundRows(census.Targets);
         var wants = _reviewer.ClearFloors(colony.Projection);
         facts = facts with
         {
@@ -136,7 +137,7 @@ partial class HomeUpkeepReader
         {
             return (new GroundStep(), false);
         }
-        var planned = PolicyApi.PlannedGroundStep(plan, ground, player, floors, ColonyRooms(colony), Rounder.RetiredGroundOfColony(colony), wants);
+        var planned = ClearanceReconcileRules.PlannedGroundStep(plan, ground, player, floors, ColonyRooms(colony), Rounder.RetiredGroundOfColony(colony), wants);
         return planned is null ? (new GroundStep(), false) : (planned, true);
     }
 
@@ -151,7 +152,7 @@ partial class HomeUpkeepReader
         {
             return [];
         }
-        return PolicyApi.PlannedGroundWork(plan, ground, player, floors, ColonyRooms(colony), Rounder.RetiredGroundOfColony(colony), wants);
+        return ClearanceReconcileRules.PlannedGroundWork(plan, ground, player, floors, ColonyRooms(colony), Rounder.RetiredGroundOfColony(colony), wants);
     }
 
     /// <summary>Stamps the packable flag and the in-use flag (a bed with owners or a bench with an active bill) onto the rows.</summary>

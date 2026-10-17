@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // Go: action_rules.go
-public static partial class PolicyFunctions
+public static class ActionRules
 {
     /// <summary>The things a census reports unsafe to haul, sorted.</summary>
     public static IReadOnlyList<string> UnsafeLoot(IEnumerable<LootItem> rows)

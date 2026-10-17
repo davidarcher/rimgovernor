@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Domain;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -114,7 +113,7 @@ public static partial class OrganHarvestRules
         double mood = 0;
         foreach (var evt in events)
         {
-            var v = ActionStance(c.Ideology, new PreceptAction { HistoryEvent = evt }, new PreceptSubject());
+            var v = IdeologyRuleRules.ActionStance(c.Ideology, new PreceptAction { HistoryEvent = evt }, new PreceptSubject());
             if (v.Stance == PreceptStance.Unknown || v.RefusalChance > 0)
             {
                 return (0, false);
@@ -411,7 +410,7 @@ public static partial class OrganHarvestRules
             {
                 var pk = op.PartIndex.TryGetValue(out var part);
                 var item = op.Item;
-                if (!pk || part != want.Part || item.Value.Length == 0 || !ValidResource(item) || facts.HarvestOrgan(item.Value))
+                if (!pk || part != want.Part || item.Value.Length == 0 || !AdmissionRules.ValidResource(item) || facts.HarvestOrgan(item.Value))
                 {
                     continue;
                 }
@@ -578,7 +577,7 @@ public static partial class OrganHarvestRules
         {
             foreach (var item in items)
             {
-                if (!ValidResource(item))
+                if (!AdmissionRules.ValidResource(item))
                 {
                     continue;
                 }

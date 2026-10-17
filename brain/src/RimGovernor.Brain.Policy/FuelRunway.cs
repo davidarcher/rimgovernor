@@ -136,12 +136,12 @@ public sealed record FuelRunway
 
 public static class RoundsFactsFuelExtensions
 {
-    /// <summary>Go <c>RoundsFacts.FuelRunway</c>: <see cref="PolicyFunctions.PlanFuelRunway"/> of the review's facts.</summary>
+    /// <summary>Go <c>RoundsFacts.FuelRunway</c>: <see cref="FuelRunwayRules.PlanFuelRunway"/> of the review's facts.</summary>
     public static FuelRunway FuelRunway(this RoundsFacts f) =>
-        PolicyFunctions.PlanFuelRunway(new FuelInputs { Consumers = f.Fuel, Stock = new StockReader { Resources = f.Resources, Wood = f.Wood } });
+        FuelRunwayRules.PlanFuelRunway(new FuelInputs { Consumers = f.Fuel, Stock = new StockReader { Resources = f.Resources, Wood = f.Wood } });
 }
 
-public static partial class PolicyFunctions
+public static class FuelRunwayRules
 {
     private sealed class FuelAccount
     {
@@ -186,7 +186,7 @@ public static partial class PolicyFunctions
             double need;
             if (rk)
             {
-                need = Math.Max(0, (rate * MaintenanceHorizonDays) - fuel);
+                need = Math.Max(0, (rate * ColonyDiagnosticsRules.MaintenanceHorizonDays) - fuel);
             }
             else if (ek && empty)
             {
@@ -242,10 +242,10 @@ public static partial class PolicyFunctions
             if (need > have)
             {
                 var shortItems = need - have;
-                var days = MaintenanceHorizonDays;
+                var days = ColonyDiagnosticsRules.MaintenanceHorizonDays;
                 if (a.Empty == 0 && a.Burn > 0)
                 {
-                    days = Math.Min(MaintenanceHorizonDays, shortItems * units[item] / a.Burn);
+                    days = Math.Min(ColonyDiagnosticsRules.MaintenanceHorizonDays, shortItems * units[item] / a.Burn);
                 }
                 row = row with { MissingItems = shortItems, ShortfallDays = days };
                 needs[item] = row.Need;

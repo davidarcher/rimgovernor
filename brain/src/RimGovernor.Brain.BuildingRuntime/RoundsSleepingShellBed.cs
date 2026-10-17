@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -28,7 +29,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return (new RoundsBuildingResult(), false);
         }
-        var items = await stock.ItemsAsync(PackedFurnitureDefinition, call).ConfigureAwait(false) ?? [];
+        var items = await stock.ItemsAsync(CoupleBedRules.PackedFurnitureDefinition, call).ConfigureAwait(false) ?? [];
         foreach (var item in items)
         {
             if (item.InnerDef == shellBed)

@@ -100,7 +100,7 @@ public enum BuildingWork
     BuildingGone,
 }
 
-public static partial class PolicyFunctions
+public static class ConstructionOwnershipRules
 {
     /// <summary>
     /// Classifies an applied building intent against the census by geometry: whatever stands with its
@@ -144,7 +144,7 @@ public static partial class PolicyFunctions
         {
             foreach (var claim in history)
             {
-                if (FoodId(claim.Plan.Value) && FoodId(claim.Action.Value) && FoodId(claim.Concern.Value) && claim.Building is not null)
+                if (FoodForecastRules.FoodId(claim.Plan.Value) && FoodForecastRules.FoodId(claim.Action.Value) && FoodForecastRules.FoodId(claim.Concern.Value) && claim.Building is not null)
                 {
                     byBuilding[claim.Building] = claim;
                 }
@@ -154,9 +154,9 @@ public static partial class PolicyFunctions
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in census.Buildings)
         {
-            DomainException.Require(FoodId(row.Id) && seen.Add(row.Id), "invalid colony building identity");
+            DomainException.Require(FoodForecastRules.FoodId(row.Id) && seen.Add(row.Id), "invalid colony building identity");
             var b = row.Building ?? throw new DomainException("invalid colony building identity");
-            DomainException.Require(FacilityCells(row.Cells), "invalid colony building footprint");
+            DomainException.Require(FacilityUpkeepRules.FacilityCells(row.Cells), "invalid colony building footprint");
             DomainException.Require(row.Cells.Contains(b.Cell), "building anchor outside footprint");
             var owned = byBuilding.TryGetValue(b, out var claim) ? claim : new ConstructionClaim { Building = b };
             result.Add(owned with { Identity = new ConstructionIdentity("", row.Id), Cells = row.Cells });

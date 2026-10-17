@@ -49,7 +49,7 @@ internal static class UpkeepHomeCoverage
         // The fixture point lies one cell past the east wall, inside the Home margin; the first cell the policy
         // excludes is a full margin farther east.
         var margin = new Cell(prepared.Outside.X, prepared.Outside.Z);
-        var beyond = new Cell(margin.X + PolicyFunctions.HomeAreaMargin, margin.Z);
+        var beyond = new Cell(margin.X + HomeAreaRules.HomeAreaMargin, margin.Z);
         Cell[] corridor = [new(cx, cz), new(cx + 1, cz), new(cx + 2, cz)];
         var removed = corridor[1];
         s.Record("beyond", beyond.ToString());

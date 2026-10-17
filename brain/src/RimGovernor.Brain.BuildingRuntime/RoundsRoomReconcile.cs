@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -129,7 +130,7 @@ partial class RoundsBuildingPlanner
         }
         var inside = room.Region.Bounds();
         cells = [.. cells.Where(c => !(c.Cell.X >= inside.X && c.Cell.X < inside.X + inside.Width && c.Cell.Z >= inside.Z && c.Cell.Z < inside.Z + inside.Height))];
-        var vent = facts.DefinitionAvailable(ClimateDefs().VentDef).TryGetValue(out var ventAvailable);
+        var vent = facts.DefinitionAvailable(ClimateRules.ClimateDefs().VentDef).TryGetValue(out var ventAvailable);
         return (new Pol.ReconcileInput
         {
             Plan = plan,
@@ -466,19 +467,19 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
             }
-            var (_, player) = SplitGroundRows(census.Targets);
+            var (_, player) = ClearanceGroundRules.SplitGroundRows(census.Targets);
             input = input with { Rows = ReconcileRules.OwnRows(HomeUpkeepReader.StampPacking(player, facts), rr.Template, rr.Forbidden), Floors = census.Floors, Furniture = rr.Template };
             var want = RoundsTierStyle.ShellStyleOf(facts).WallStuff;
             if (want != "" && !rr.Room.Outdoor)
             {
-                input = input with { WallUpgrade = have => facts.StuffUpgrade(ShellWallDefinition, have, want) };
+                input = input with { WallUpgrade = have => facts.StuffUpgrade(ContainmentCellRules.ShellWallDefinition, have, want) };
             }
             if (!rr.Room.Outdoor)
             {
                 var (wanted, kept) = WantedFloorRules.FlooringRoomFloors(_ => rr.Tags, FlooringFactsOf(facts), Reviewer.Policy.Flooring)(rr.Room);
                 input = input with { WantedFloor = wanted, FloorKept = kept };
             }
-            var items = stock is null ? null : await stock.ItemsAsync(PackedFurnitureDefinition, call).ConfigureAwait(false);
+            var items = stock is null ? null : await stock.ItemsAsync(CoupleBedRules.PackedFurnitureDefinition, call).ConfigureAwait(false);
             if (items is not null)
             {
                 left = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -496,7 +497,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (rr.ClimateOnly)
         {
-            ops = EnvelopeOps(ops);
+            ops = ClimateEnvelopeRules.EnvelopeOps(ops);
             holds = [];
         }
         IReadOnlyList<Pol.ConstructionSite> standing = [];
@@ -602,7 +603,7 @@ public sealed partial class RoundsBuildingPlanner
             return false;
         }
         var plan = journal.LoadPlan(prior, call);
-        return !Sto.StorePackage.PlanWorkOpen(plan, product) && Pol.PolicyFunctions.PlanProductGone(plan.Progress, product);
+        return !Sto.StorePackage.PlanWorkOpen(plan, product) && BuildingWorkRules.PlanProductGone(plan.Progress, product);
     }
 
     /// <summary>Commits actions as one owner method.</summary>
@@ -716,7 +717,7 @@ public sealed partial class RoundsBuildingPlanner
         var id = PlanIds.MintPlanId();
         foreach (var piece in pieces)
         {
-            var move = stock is null ? null : await stock.InstallAsync(PackedFurnitureDefinition, piece.DefName, piece.Anchor(), piece.Rot, call).ConfigureAwait(false);
+            var move = stock is null ? null : await stock.InstallAsync(CoupleBedRules.PackedFurnitureDefinition, piece.DefName, piece.Anchor(), piece.Rot, call).ConfigureAwait(false);
             if (move is null)
             {
                 continue;
@@ -801,7 +802,7 @@ public sealed partial class RoundsBuildingPlanner
                     case Pol.OpKind.VentIn:
                         foreach (var c in op.Cells)
                         {
-                            builds.Add(new RoomBuild { Def = ClimateDefs().VentDef, Cell = c, Rot = VentRotation(plan, c), Ring = true, Vent = true });
+                            builds.Add(new RoomBuild { Def = ClimateRules.ClimateDefs().VentDef, Cell = c, Rot = VentRotation(plan, c), Ring = true, Vent = true });
                         }
                         break;
                 }
@@ -846,7 +847,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             Check();
             var building = new Domain.Building(build.Def, build.Cell, build.Rot, build.Stuff);
-            var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{selected.Count}")), building, RoomTier(rr.Room.Role));
+            var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{selected.Count}")), building, ConstructionTierRules.RoomTier(rr.Room.Role));
             var preview = await ((IRoundsBuildingSource)Native).PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var v = preview.Preview;
             var ck = v.CanPlace.TryGetValue(out var can);

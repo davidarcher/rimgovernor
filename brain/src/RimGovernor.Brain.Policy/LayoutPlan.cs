@@ -406,7 +406,7 @@ public sealed partial record LayoutPlan
             {
                 continue;
             }
-            if (Abs32(r.Door.X - c.X) + Abs32(r.Door.Z - c.Z) == 1)
+            if (LightingRules.Abs32(r.Door.X - c.X) + LightingRules.Abs32(r.Door.Z - c.Z) == 1)
             {
                 return true;
             }

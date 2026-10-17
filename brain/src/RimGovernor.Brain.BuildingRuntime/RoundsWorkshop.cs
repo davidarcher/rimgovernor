@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>One product the workshop ladder considers, with the bench kinds that host a recipe for it.</summary>
@@ -131,7 +132,7 @@ public sealed partial class RoundsBuildingPlanner
                     return (null, BuildingReasonExistingWork);
                 }
             }
-            var needs = GearReplacementNeeds(Known<Pol.GearObservation>(facts));
+            var needs = GearRules.GearReplacementNeeds(Known<Pol.GearObservation>(facts));
             if (needs.Count == 0)
             {
                 return (null, BuildingReasonNoDeficit);

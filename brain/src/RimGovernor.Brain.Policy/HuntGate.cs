@@ -53,7 +53,7 @@ public sealed record HuntWeapon
                 continue;
             }
             n++;
-            if (v.Projectile != HuntProjectile.Bullet || v.ExplosionRadius != 0 || v.DamageDef.Length == 0 || v.DamageWorker == PolicyFunctions.FlameDamageWorker)
+            if (v.Projectile != HuntProjectile.Bullet || v.ExplosionRadius != 0 || v.DamageDef.Length == 0 || v.DamageWorker == HuntGateRules.FlameDamageWorker)
             {
                 return false;
             }
@@ -130,27 +130,27 @@ public sealed record HuntCensus
         long dz = h.Cell.Z - prey.Source.Cell.Z;
         if (h.Downed)
         {
-            return PolicyFunctions.HuntHunterDowned;
+            return HuntGateRules.HuntHunterDowned;
         }
         if (h.MentalState)
         {
-            return PolicyFunctions.HuntHunterMental;
+            return HuntGateRules.HuntHunterMental;
         }
         if (!h.HuntingActive)
         {
-            return PolicyFunctions.HuntHunterInactive;
+            return HuntGateRules.HuntHunterInactive;
         }
         if (!armed && shooter)
         {
-            return PolicyFunctions.HuntHunterShield;
+            return HuntGateRules.HuntHunterShield;
         }
         if (!armed)
         {
-            return PolicyFunctions.HuntHunterNoWeapon;
+            return HuntGateRules.HuntHunterNoWeapon;
         }
-        if (!prey.IsPest() && dx * dx + dz * dz > PolicyFunctions.HuntReachSquared)
+        if (!prey.IsPest() && dx * dx + dz * dz > HuntGateRules.HuntReachSquared)
         {
-            return PolicyFunctions.HuntHunterTooFar;
+            return HuntGateRules.HuntHunterTooFar;
         }
         if (h.RouteSafePrey.Contains(prey.Source.Id))
         {
@@ -158,13 +158,13 @@ public sealed record HuntCensus
         }
         if (h.RouteUnsafePrey.Contains(prey.Source.Id))
         {
-            return PolicyFunctions.HuntHunterNoRoute;
+            return HuntGateRules.HuntHunterNoRoute;
         }
         if (h.RouteSkippedPrey.Contains(prey.Source.Id))
         {
-            return PolicyFunctions.HuntHunterRouteSkipped;
+            return HuntGateRules.HuntHunterRouteSkipped;
         }
-        return PolicyFunctions.HuntHunterRouteUnevaluated;
+        return HuntGateRules.HuntHunterRouteUnevaluated;
     }
 
     /// <summary>
@@ -178,18 +178,18 @@ public sealed record HuntCensus
             new() { Hold = new HuntHold { ID = prey.Source.Id, Reason = reason, Detail = detail ?? [] } };
         if (prey.Fogged)
         {
-            return Hold(PolicyFunctions.HuntHoldFogged);
+            return Hold(HuntGateRules.HuntHoldFogged);
         }
         if (!prey.IsPest())
         {
             if (prey.Mental || !prey.Source.Food)
             {
-                return Hold(PolicyFunctions.HuntHoldNotSafePrey);
+                return Hold(HuntGateRules.HuntHoldNotSafePrey);
             }
         }
         if (Hunters.Count == 0)
         {
-            return Hold(PolicyFunctions.HuntHoldNoColonist);
+            return Hold(HuntGateRules.HuntHoldNoColonist);
         }
         var detail = new List<string>();
         var reach = 0.0;
@@ -216,13 +216,13 @@ public sealed record HuntCensus
         }
         if (!offered)
         {
-            return Hold(PolicyFunctions.HuntHoldNoHunter, detail);
+            return Hold(HuntGateRules.HuntHoldNoHunter, detail);
         }
         return new HuntVerdict { WeaponRange = reach };
     }
 }
 
-public static partial class PolicyFunctions
+public static class HuntGateRules
 {
     /// <summary>The damage worker class of incendiary shots.</summary>
     internal const string FlameDamageWorker = "Verse.DamageWorker_Flame";

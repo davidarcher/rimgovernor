@@ -43,13 +43,13 @@ public static partial class MealRules
             var amount = amounts.GetValueOrDefault(kind);
             if (amount > 0)
             {
-                var row = FoodCandidate(kind, "stored-ingredients", Known(0.0));
+                var row = CandidateRules.FoodCandidate(kind, "stored-ingredients", Known(0.0));
                 rows.Add(
                     row with
                     {
                         LaborPerDay = Known(0.0),
                         LeadDays = Known(0.0),
-                        State = FoodState(Known(true), Unknown<bool>()),
+                        State = CandidateRules.FoodState(Known(true), Unknown<bool>()),
                         Terms = EquatableArray.From([new CandidateTerm("accessible_ingredient_nutrition", amount)]),
                     }
                 );
@@ -66,7 +66,7 @@ public static partial class MealRules
         }
         foreach (var t in c.Terms)
         {
-            if (t.Name == "accessible_ingredient_nutrition" && FieldPositive(t.Value))
+            if (t.Name == "accessible_ingredient_nutrition" && FieldCapacityRules.FieldPositive(t.Value))
             {
                 return true;
             }
@@ -102,7 +102,7 @@ public static partial class MealRules
                     }
                     var product = recipe.Products[0];
                     var nk = product.Nutrition.TryGetValue(out var n);
-                    if (!nk || !FieldPositive(n) || !RoundsRules.Positive(product.Edible))
+                    if (!nk || !FieldCapacityRules.FieldPositive(n) || !RoundsRules.Positive(product.Edible))
                     {
                         continue;
                     }

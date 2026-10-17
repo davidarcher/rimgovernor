@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class EmergencyPatientsRules
 {
     /// <summary>Patient-only union; combat participants and medical workers remain colonists.</summary>
     public static IReadOnlyList<EmergencyPawn> EmergencyPatients(EmergencyFacts facts) =>

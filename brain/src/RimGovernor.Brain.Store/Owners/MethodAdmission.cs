@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Store;
 
@@ -48,13 +47,13 @@ public sealed partial class Store
     // goal) is outside the rule, as it is outside the routine Safeguards.
     private static void AdmitConstructionLabor(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
-        if (!plan.Actions.Any(a => DrawsConstructionLabor(a.Kind)))
+        if (!plan.Actions.Any(a => ConstructionLaborRules.DrawsConstructionLabor(a.Kind)))
         {
             return;
         }
         var review = LoadRounds(tx);
         // A Need owner is checked by its NeedId: the shelter housing Needs keep their builders.
-        if (ConstructionLaborHeld(review.Latches, owner.Need.FilingKey, plan.Actions.Select(a => a.Kind)))
+        if (ConstructionLaborRules.ConstructionLaborHeld(review.Latches, owner.Need.FilingKey, plan.Actions.Select(a => a.Kind)))
         {
             throw new ConstructionLaborException();
         }
@@ -176,7 +175,7 @@ public sealed partial class Store
         }
         else
         {
-            bound = held == FoodSupplyNeed || held == JoinersFamily.Decrees || resource;
+            bound = held == FoodRules.FoodSupplyNeed || held == JoinersFamily.Decrees || resource;
         }
         if (!bound || plan.Actions.Count > limit)
         {
@@ -211,7 +210,7 @@ public sealed partial class Store
             return;
         }
         var review = LoadRounds(tx);
-        if (!review.Enabled || review.Snapshot != owner.Snapshot || plan.Actions.Count > MaxCatalogSelection + PolicyConstants.MaxHuntRows)
+        if (!review.Enabled || review.Snapshot != owner.Snapshot || plan.Actions.Count > AcquisitionCatalogRules.MaxCatalogSelection + PolicyConstants.MaxHuntRows)
         {
             throw new ConflictException();
         }
@@ -219,7 +218,7 @@ public sealed partial class Store
         // joiners/decrees Need hunts a royal decree's animals (#3302), the economy/resource Need chops, forages and
         // hunts toward its floors (#3303) and the medical/reserves Need harvests healroot (#3258).
         var held = owner.Need;
-        var bound = (held == MilitaryFamily.Pests || held == FoodSupplyNeed || held == JoinersFamily.Decrees || held == EconomyFamily.Resource
+        var bound = (held == MilitaryFamily.Pests || held == FoodRules.FoodSupplyNeed || held == JoinersFamily.Decrees || held == EconomyFamily.Resource
                 || held == MedicalRules.MedicalReservesNeed);
         if (!bound)
         {
@@ -297,7 +296,7 @@ public sealed partial class Store
         var reserve = new Dictionary<string, ReserveSupply>(StringComparer.Ordinal);
         IReadOnlyList<StartingSupply> cohort = [];
         var held = owner.Need;
-        if (held == FoodStorageNeed)
+        if (held == FoodStoresRules.FoodStorageNeed)
         {
             bound = true;
             cohort = review.LarderSupplies;

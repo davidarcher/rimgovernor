@@ -86,7 +86,7 @@ public sealed partial record QuestMonument
                             {
                                 foreach (var occupied in piece.Footprint)
                                 {
-                                    if (RectContains(rect, new Cell(cell.X + occupied.X, cell.Z + occupied.Z)))
+                                    if (InteriorWalkRules.RectContains(rect, new Cell(cell.X + occupied.X, cell.Z + occupied.Z)))
                                     {
                                         blocked = true;
                                     }

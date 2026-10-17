@@ -29,7 +29,7 @@ public sealed record LootItem
     /// <summary>
     /// The storage groups (owned zones and storage buildings, by id) whose filter accepts the stack, ignoring
     /// space. Native fills it only on an unforbidden row with zero headroom whose safety is not false
-    /// (<see cref="PolicyFunctions.StrandedStacks"/>); empty elsewhere.
+    /// (<see cref="StoreRules.StrandedStacks"/>); empty elsewhere.
     /// </summary>
     public EquatableArray<string> AcceptedBy { get; init; }
 }
@@ -86,7 +86,7 @@ public sealed record StartingSupply
     }
 }
 
-public static partial class PolicyFunctions
+public static class EventLootRules
 {
     /// <summary>
     /// Go <c>ReviewEventLoot</c>. Throws <see cref="DomainException"/> where Go returned an error (the caller

@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The native reads a building planner needs: the colony reads plus the native placement preview.</summary>
@@ -268,7 +269,7 @@ public sealed partial class RoundsBuildingPlanner
             r = prepared;
         }
         IReadOnlyList<string> definitions = [r.Definition];
-        if (r.Concern == CookingNeed.FilingKey)
+        if (r.Concern == FoodRules.CookingNeed.FilingKey)
         {
             definitions = ["Campfire", "NutrientPasteDispenser", "Hopper"];
         }
@@ -339,7 +340,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             observed = [.. definitions, "SleepingSpot", ShelterBedDefinition, SleepingRules.SleepingBedrollDefinition];
         }
-        if (r.Concern == CookingNeed.FilingKey || r.ButcherFacility())
+        if (r.Concern == FoodRules.CookingNeed.FilingKey || r.ButcherFacility())
         {
             // The planned kitchen or butchery is shelled first.
             observed = [.. observed, "Wall", "Door"];
@@ -351,7 +352,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         Observation.ColonyReading reading;
         var roundsSource = r.Native is Observation.IRoundsSource;
-        var separation = (r.ButcherFacility() || r.Concern == CookingNeed.FilingKey) && roundsSource;
+        var separation = (r.ButcherFacility() || r.Concern == FoodRules.CookingNeed.FilingKey) && roundsSource;
         if (r.Phase == Pol.Phase.ComfortSpot || r.Concern == ShelterFamily.Temperature.FilingKey || r.FacilityLadder() || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey || separation)
         {
             // Cooking and butcher placements read rooms too when the source can serve them, so kitchen/butcher
@@ -389,7 +390,7 @@ public sealed partial class RoundsBuildingPlanner
                 return doorResult;
             }
         }
-        if (r.Concern == CookingNeed.FilingKey)
+        if (r.Concern == FoodRules.CookingNeed.FilingKey)
         {
             // A cooking campfire a stove kitchen supersedes is deconstructed first.
             var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
@@ -626,7 +627,7 @@ public sealed partial class RoundsBuildingPlanner
             bench.Environment = Pol.PlacementEnvironment.Anywhere;
             r = bench;
         }
-        if (r.Concern == CookingNeed.FilingKey && r.Definition == "Campfire" && r.Cells is null && r.Paste.Count == 0 && !r.TakesShelterSlot(facts))
+        if (r.Concern == FoodRules.CookingNeed.FilingKey && r.Definition == "Campfire" && r.Cells is null && r.Paste.Count == 0 && !r.TakesShelterSlot(facts))
         {
             // The cooking campfire goes in the planned kitchen once it stands.
             var cells = PlannedRoomCells(facts, PlannedRole.Kitchen);
@@ -641,7 +642,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             definitions = [r.Definition];
         }
-        if (r.Concern == CookingNeed.FilingKey)
+        if (r.Concern == FoodRules.CookingNeed.FilingKey)
         {
             var list = new List<string> { r.Definition };
             if (r.Paste.Count > 0)
@@ -708,7 +709,7 @@ public sealed partial class RoundsBuildingPlanner
         // the census shows fewer regular beds than the colony needs: a spot converted to medical (which native
         // indoor capacity excludes) or lost must not leave a spent method holding the shelter gate failed. Spots
         // that stand but are not yet counted (an open roof) keep the method used.
-        if (r.Phase == Pol.Phase.HousingSleeping || r.Concern == CookingNeed.FilingKey || (r.Phase == Pol.Phase.HousingShelter && RegularBedsShort(facts.Facts)))
+        if (r.Phase == Pol.Phase.HousingSleeping || r.Concern == FoodRules.CookingNeed.FilingKey || (r.Phase == Pol.Phase.HousingShelter && RegularBedsShort(facts.Facts)))
         {
             method = r.NextSleepingBedMethod(goal, method, facts.Facts.CurrentConstruction, call);
         }
@@ -728,7 +729,7 @@ public sealed partial class RoundsBuildingPlanner
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var heldReservations = p.Journal.BuildingReservations(snapshot, call);
-        if (r.ButcherFacility() || r.Concern == CookingNeed.FilingKey || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.HousingExpansion || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
+        if (r.ButcherFacility() || r.Concern == FoodRules.CookingNeed.FilingKey || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.HousingExpansion || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
         {
             var pendingPlanner = r;
             bool Pending(Progress progress)
@@ -1029,13 +1030,13 @@ public sealed partial class RoundsBuildingPlanner
             // bench slot: a cold map's cooking campfire then finds its slot taken and falls through to the kitchen.
             protectedSet = [.. protectedSet, .. ShelterFurnitureCells(facts)];
         }
-        if (ButcherBenchDefinition(Definition) || Concern == CookingNeed.FilingKey)
+        if (ButcherBenchDefinition(Definition) || Concern == FoodRules.CookingNeed.FilingKey)
         {
-            protectedSet = [.. protectedSet, .. SeparationProtectedCells(facts.Rooms, ButcherBenchDefinition(Definition))];
+            protectedSet = [.. protectedSet, .. KitchenSeparationRules.SeparationProtectedCells(facts.Rooms, ButcherBenchDefinition(Definition))];
         }
         // The cooking campfire stands in the planned kitchen; on a cold map it takes the shelter's template slot.
         // It has no outdoor stand-in.
-        var cookingCampfire = Concern == CookingNeed.FilingKey && Definition == "Campfire" && Facility is null && Paste.Count == 0;
+        var cookingCampfire = Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire" && Facility is null && Paste.Count == 0;
         var slotProtected = protectedSet;
         var cells = new List<Pol.SiteCell>();
         var adjacent = new HashSet<Cell>(Adjacent);
@@ -1200,7 +1201,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             searchRequest = searchRequest with { Center = anchor };
         }
-        if ((Concern == CookingNeed.FilingKey && Definition == "Campfire") || ButcherBenchDefinition(Definition))
+        if ((Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire") || ButcherBenchDefinition(Definition))
         {
             // The cooking campfire and the butcher table stand by the base, not the landing centroid.
             if (LayoutProtected.PlanCore(facts) is { } core)
@@ -1261,7 +1262,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             check();
             var b = new Building(Definition, c, rotation, Stuff);
-            var a = DomainAction.NewBuildingAction(new ActionId(id), b, PlannerTier(Concern, Phase));
+            var a = DomainAction.NewBuildingAction(new ActionId(id), b, ConstructionTierRules.PlannerTier(Concern, Phase));
             var preview = await Native.PreviewBuildingAsync(a, snapshot, call).ConfigureAwait(false);
             lastPreview = preview.Preview;
             var madeKnown = preview.Preview.MadeFromStuff.TryGetValue(out var made);
@@ -1322,7 +1323,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 var blocked = new HashSet<Cell>(occupied);
                 blocked.UnionWith(usedCells);
-                if (!InteriorPlacementWalkable(room, blocked, footprint))
+                if (!InteriorWalkRules.InteriorPlacementWalkable(room, blocked, footprint))
                 {
                     return true;
                 }
@@ -1388,11 +1389,11 @@ public sealed partial class RoundsBuildingPlanner
             var anchors = new List<Cell>();
             foreach (var room in interiorRooms)
             {
-                anchors.AddRange(InteriorSnapAnchors(room, occupied));
+                anchors.AddRange(InteriorRules.InteriorSnapAnchors(room, occupied));
                 // A definition with no buildable row has no shape or family: the template plans its default layout for it.
                 var (piece, _) = room.Piece(Definition);
                 piece = piece with { Def = Definition };
-                var (roomPlan, planOk) = PlanRoomInterior(room, piece);
+                var (roomPlan, planOk) = InteriorRegionRules.PlanRoomInterior(room, piece);
                 if (!planOk)
                 {
                     continue;
@@ -1672,7 +1673,7 @@ partial class RoundsBuildingPlanner
         var cells = new List<Cell>();
         foreach (var room in PlannedShelterRooms(facts))
         {
-            var (full, ok) = PlanRoomInterior(room, new Pol.InteriorPieceDef());
+            var (full, ok) = InteriorRegionRules.PlanRoomInterior(room, new Pol.InteriorPieceDef());
             if (!ok)
             {
                 continue;

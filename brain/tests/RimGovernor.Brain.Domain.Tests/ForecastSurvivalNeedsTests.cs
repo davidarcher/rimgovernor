@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -111,7 +110,7 @@ public sealed class ForecastSurvivalNeedsTests
     {
         var frame = Frame(temperature: 20);
         var pawns = frame.Demand.Work.Pawns.Value.Select(p => p.Id == Builder
-            ? p with { Body = Known(p.Body.Value with { Hypothermia = Known(HypothermiaSerious) }) } : p);
+            ? p with { Body = Known(p.Body.Value with { Hypothermia = Known(DashEstimateRules.HypothermiaSerious) }) } : p);
         frame = frame with { Demand = frame.Demand with { Work = frame.Demand.Work with { Pawns = Known(EquatableArray.From(pawns)) } } };
         Assert.Equal(0, ForecastSurvivalNeeds.SurvivalNeedsOf(frame).Needs.Single(n => n.Id == "cold/builder").Window.Value.Ticks);
         var result = ForecastSurvivalNeeds.CompareSurvivalActivities(frame, Work(), Effects());

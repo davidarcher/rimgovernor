@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -17,7 +16,7 @@ public sealed class FoodStoresFamilyTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
-    private static readonly FoodStoragePolicy Policy = DefaultFoodStoragePolicy();
+    private static readonly FoodStoragePolicy Policy = FoodStorageUpkeepRules.DefaultFoodStoragePolicy();
 
     private static FoodStorageStock Stock(string id, double nutrition, bool roofed, string def = "MealSimple") => new(new FoodStock
     {
@@ -80,7 +79,7 @@ public sealed class FoodStoresFamilyTests
         // Warm at-risk nutrition at the floor, colder than the old 10 C entry bar but warmer than the 5 C exit bar:
         // with no latch it is unmet on its own.
         var warm = Refrigeration(new() { Storage = Census(Warm("a", Policy.AtRiskNutritionThreshold, Policy.ChilledExitC + 2)), WarmRooms = Known<EquatableArray<string>>([]), MealClosetOwed = Known(false) });
-        Assert.Equal((RefrigerationNeed, NeedTier.Wellbeing, Satisfaction.Unmet), (warm.Id, warm.Tier, warm.Satisfaction));
+        Assert.Equal((FoodStoresRules.RefrigerationNeed, NeedTier.Wellbeing, Satisfaction.Unmet), (warm.Id, warm.Tier, warm.Satisfaction));
         Assert.True(warm.Deficit.TryGetValue(out var deficit) && deficit > 0 && deficit <= 1);
 
         // The same stock at the exit bar is met, and so is warm stock under the floor.
@@ -107,9 +106,9 @@ public sealed class FoodStoresFamilyTests
     public void EachFoodStoresNeedIsDerivedOnlyWhenItsServiceIsComposed()
     {
         var facts = new FoodStoresFacts { Storage = Census() };
-        Assert.Equal([FoodStorageNeed, RefrigerationNeed], new FoodStoresFamily(Policy, true, true).Derive(facts).Select(n => n.Id));
-        Assert.Equal([FoodStorageNeed], new FoodStoresFamily(Policy, true, false).Derive(facts).Select(n => n.Id));
-        Assert.Equal([RefrigerationNeed], new FoodStoresFamily(Policy, false, true).Derive(facts).Select(n => n.Id));
+        Assert.Equal([FoodStoresRules.FoodStorageNeed, FoodStoresRules.RefrigerationNeed], new FoodStoresFamily(Policy, true, true).Derive(facts).Select(n => n.Id));
+        Assert.Equal([FoodStoresRules.FoodStorageNeed], new FoodStoresFamily(Policy, true, false).Derive(facts).Select(n => n.Id));
+        Assert.Equal([FoodStoresRules.RefrigerationNeed], new FoodStoresFamily(Policy, false, true).Derive(facts).Select(n => n.Id));
         Assert.Equal([FactFamily.Rooms, FactFamily.Colony], new FoodStoresFamily(Policy, false, true).Reads);
     }
 
@@ -118,7 +117,7 @@ public sealed class FoodStoresFamilyTests
     {
         // 85% stored: met under the old entry share, unmet now that the latch is gone.
         var short85 = Derive(new() { Storage = Census(Stock("a", 85, roofed: true), Stock("b", 15, roofed: false)), Stockpile = Known(true) });
-        Assert.Equal((FoodStorageNeed, NeedTier.Wellbeing, Satisfaction.Unmet), (short85.Id, short85.Tier, short85.Satisfaction));
+        Assert.Equal((FoodStoresRules.FoodStorageNeed, NeedTier.Wellbeing, Satisfaction.Unmet), (short85.Id, short85.Tier, short85.Satisfaction));
         Assert.True(short85.Deficit.TryGetValue(out var deficit) && deficit > 0 && deficit <= 1);
 
         var stored = Derive(new() { Storage = Census(Stock("a", 95, roofed: true), Stock("b", 5, roofed: false)), Stockpile = Known(true) });
@@ -128,7 +127,7 @@ public sealed class FoodStoresFamilyTests
         var unread = Derive(new() { Stockpile = Known(true) });
         Assert.Equal(Satisfaction.Unknown, unread.Satisfaction);
         Assert.False(unread.Deficit.IsKnown);
-        Assert.Equal(ServiceCoverage.Unknown, NeedCoverage(unread));
+        Assert.Equal(ServiceCoverage.Unknown, EssentialServicesRules.NeedCoverage(unread));
     }
 
     [Fact]
@@ -155,7 +154,7 @@ public sealed class FoodStoresFamilyTests
         public FamilyRun Run() =>
             Runner.RunAsync(new FamilyStep { Journal = Journal, World = World }, TestContext.Current.CancellationToken).GetAwaiter().GetResult();
 
-        public static Verdict Report(FamilyRun run) => Assert.Single(run.Reports, r => r.Need == FoodStorageNeed).Verdict;
+        public static Verdict Report(FamilyRun run) => Assert.Single(run.Reports, r => r.Need == FoodStoresRules.FoodStorageNeed).Verdict;
     }
 
     /// <summary>A reviewed colony whose pemmican pem-1 the reserve holds and whose forbidden corpse the larder allows.</summary>
@@ -203,11 +202,11 @@ public sealed class FoodStoresFamilyTests
         // Only the stack the review wants held, as a forbid.
         var action = Assert.Single(plan.Progress).Action;
         Assert.Equal((ActionKind.SupplyForbid, "pem-1"), (action.Kind, action.SupplyAllow!.Thing));
-        Assert.Equal(FoodStorageNeed.FilingKey, colony.Journal.PlanMethod(method.Plan, ct)!.Concern);
+        Assert.Equal(FoodStoresRules.FoodStorageNeed.FilingKey, colony.Journal.PlanMethod(method.Plan, ct)!.Concern);
 
         var again = colony.Run();
         Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(again));
-        Assert.Single(colony.Journal.LoadNeed(FoodStorageNeed, World, ct).Methods);
+        Assert.Single(colony.Journal.LoadNeed(FoodStoresRules.FoodStorageNeed, World, ct).Methods);
     }
 
     [Fact]
@@ -232,7 +231,7 @@ public sealed class FoodStoresFamilyTests
         colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf("food-stores", run)!], TestContext.Current.CancellationToken);
 
     private static ConcernProgress? Row(Colony colony) =>
-        colony.Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == FoodStorageNeed.FilingKey);
+        colony.Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == FoodStoresRules.FoodStorageNeed.FilingKey);
 
     [Fact]
     public void TheLarderMethodIsAdmittedBesideAnOpenReservePlan()
@@ -246,7 +245,7 @@ public sealed class FoodStoresFamilyTests
         var run = colony.Run();
         Assert.Equal(Outcome.Admitted, Colony.Report(run).Outcome);
         Assert.Equal("corpse-larder-allow-corpse-1", Assert.Single(run.Methods).Method.Value);
-        Assert.Equal(2, colony.Journal.LoadNeed(FoodStorageNeed, World, ct).Methods.Count);
+        Assert.Equal(2, colony.Journal.LoadNeed(FoodStoresRules.FoodStorageNeed, World, ct).Methods.Count);
     }
 
     [Fact]
@@ -255,7 +254,7 @@ public sealed class FoodStoresFamilyTests
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open(larder: false);
         var other = PlanIds.MintPlanId();
-        var held = colony.Journal.CommitClaimedMethod(FoodStorageNeed, World, new("held-pem-1"), "",
+        var held = colony.Journal.CommitClaimedMethod(FoodStoresRules.FoodStorageNeed, World, new("held-pem-1"), "",
             new PlanSpec(other, new(1), [DomainAction.NewSupplyAllowAction(new(other.Value + "-0"), SupplyAllow.NewSupplyForbid("pem-1", "Pemmican", new(1, 1)))]), ct);
         Assert.Equal(ClaimOutcome.Admitted, held.Outcome);
 
@@ -270,9 +269,9 @@ public sealed class FoodStoresFamilyTests
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open(larder: false);
         var id = PlanIds.MintPlanId();
-        Assert.ThrowsAny<Exception>(() => colony.Journal.CommitClaimedMethod(FoodStorageNeed, World, new("stray"), "",
+        Assert.ThrowsAny<Exception>(() => colony.Journal.CommitClaimedMethod(FoodStoresRules.FoodStorageNeed, World, new("stray"), "",
             new PlanSpec(id, new(1), [DomainAction.NewSupplyAllowAction(new(id.Value + "-0"), new SupplyAllow("pem-9", "Pemmican", new(1, 1)))]), ct));
-        Assert.Empty(colony.Journal.LoadNeed(FoodStorageNeed, World, ct).Methods);
+        Assert.Empty(colony.Journal.LoadNeed(FoodStoresRules.FoodStorageNeed, World, ct).Methods);
     }
 
     [Fact]

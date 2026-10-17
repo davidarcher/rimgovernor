@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Policy;
 using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
@@ -24,7 +25,7 @@ public sealed partial class FacadeNativeClient
     {
         HerdRadius = HerdRadius,
         HuntRouteBudgetMs = HuntRouteBudgetMs,
-        HuntPredatorMarginCells = P.PolicyFunctions.HuntPredatorMarginCells,
+        HuntPredatorMarginCells = HazardThresholdsRules.HuntPredatorMarginCells,
     };
 
     /// <summary>Go <c>Client.Identity</c>: the loaded identity.</summary>

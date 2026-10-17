@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -356,7 +357,7 @@ internal static class StationFactsBuilder
             Survey = survey,
             OutdoorCurve = projection.OutdoorCurve,
             FullRotRateC = projection.FullRotRateC,
-            VentAvailable = projection.DefinitionAvailable(PolicyFunctions.ClimateDefs().VentDef),
+            VentAvailable = projection.DefinitionAvailable(ClimateRules.ClimateDefs().VentDef),
             ExpectedMood = ExpectedMood(projection.Facts.MoodPawns),
         };
         try

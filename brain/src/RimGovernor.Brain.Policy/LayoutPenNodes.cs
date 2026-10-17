@@ -37,7 +37,7 @@ public static partial class LayoutPenNodesRules
             }
             foreach (var p in race.Products)
             {
-                if (HerdProductJob(p).Item2)
+                if (HerdPlanRules.HerdProductJob(p).Item2)
                 {
                     output.Add(p.Def);
                 }
@@ -80,13 +80,13 @@ partial class GraphBuilder
                 continue;
             }
             var node = new PenNode { Id = Resource.PenId(h.Race), Hunger = Unknown<double>() };
-            if (race.AdultFeedPerDay.TryGetValue(out var feed) && FoodNumber(feed))
+            if (race.AdultFeedPerDay.TryGetValue(out var feed) && FoodForecastRules.FoodNumber(feed))
             {
                 node = node with { Hunger = Known(feed * h.Animals) };
             }
             foreach (var p in race.Products)
             {
-                if (!HerdProductJob(p).Item2)
+                if (!HerdPlanRules.HerdProductJob(p).Item2)
                 {
                     continue;
                 }
@@ -122,7 +122,7 @@ partial class GraphBuilder
         var feed = new RaceFeedItem(default, 0);
         foreach (var f in race.FeedItems)
         {
-            if (FoodNumber(f.Nutrition) && f.Nutrition > feed.Nutrition)
+            if (FoodForecastRules.FoodNumber(f.Nutrition) && f.Nutrition > feed.Nutrition)
             {
                 // FeedItems are in name order: the first of equals
                 feed = f;

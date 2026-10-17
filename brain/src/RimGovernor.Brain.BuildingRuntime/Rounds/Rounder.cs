@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -342,7 +343,7 @@ public sealed partial class Rounder
         var playerPlans = await p.Journal.PlayerPlansAsync(Player.PlayerWorld(state.Snapshot), ct).ConfigureAwait(false);
         var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, state.Snapshot, playerPlans);
         var readDefinitions = definitions;
-        if (Needs.Contains(PolicyApi.CookingNeed))
+        if (Needs.Contains(FoodRules.CookingNeed))
         {
             readDefinitions = [.. readDefinitions, "NutrientPasteDispenser", "Hopper"];
         }
@@ -363,7 +364,7 @@ public sealed partial class Rounder
         {
             readDefinitions = [.. readDefinitions, .. MilitaryRounds.TrainingDefinitions];
         }
-        if (Needs.Contains(PolicyApi.CookingNeed) || Needs.Contains(PolicyApi.RefrigerationNeed) || JailShell)
+        if (Needs.Contains(FoodRules.CookingNeed) || Needs.Contains(FoodStoresRules.RefrigerationNeed) || JailShell)
         {
             // The planned kitchen, freezer and jail shells; the jail bed is a furniture rule's, read with every catalog.
             readDefinitions = [.. readDefinitions, "Wall", "Door"];
@@ -430,7 +431,7 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { CraftingSpotRetireOwed = vCraftingSpotRetireOwed });
         reading = reading.WithFacts(rf => rf with { TemperatureOwed = RoundsBuildingPlanner.TemperatureOwed(reading.Projection) });
         var targets = await RoundsArmoryShells.ShellTargetsAsync(Native, p.Journal, state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { ShellsShort = PolicyApi.ShellsShort(targets, reading.Projection.Resources) });
+        reading = reading.WithFacts(rf => rf with { ShellsShort = ArmoryShellsRules.ShellsShort(targets, reading.Projection.Resources) });
         if (Needs.Contains(ShelterFamily.SafeArea))
         {
             reading = reading.WithFacts(rf => rf with { SafeAreaOwed = SafeArea.Review(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), reading.Projection) });
@@ -461,7 +462,7 @@ public sealed partial class Rounder
             {
                 entries.Add(new OwnedDrugPolicy(e.ID, e.Label, [.. e.Pawns], [.. e.Drugs]));
             }
-            reading = reading.WithFacts(rf => rf with { DrugUsers = PolicyApi.DrugUsers(reading.Projection.Facts.Items, entries) });
+            reading = reading.WithFacts(rf => rf with { DrugUsers = DrugRunwayRules.DrugUsers(reading.Projection.Facts.Items, entries) });
         }
         reading = reading.WithProjection(ReviewMeals(reading.Projection));
         var reserveProjection = reading.Projection;
@@ -506,9 +507,9 @@ public sealed partial class Rounder
             FactStore.Put(Store, filedScope, FactSection.Colony, colonyHeld);
         }
         var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);
-        var (hostiles, criticalPatients) = PolicyApi.EmergencyNeeds(emergency, state.Snapshot, expected.Tick);
+        var (hostiles, criticalPatients) = EmergencyNeedsRules.EmergencyNeeds(emergency, state.Snapshot, expected.Tick);
         reading = reading.WithFacts(rf => rf with { Hostiles = hostiles, CriticalPatients = criticalPatients });
-        reading = reading.WithFacts(rf => rf with { QuestColonyCalm = QuestCapacity.QuestCalmColony(reading.Projection.Facts, PolicyApi.EvaluateEmergency(emergency, state.Snapshot, expected.Tick), emergency.PodsPending) });
+        reading = reading.WithFacts(rf => rf with { QuestColonyCalm = QuestCapacity.QuestCalmColony(reading.Projection.Facts, EmergencyRules.EvaluateEmergency(emergency, state.Snapshot, expected.Tick), emergency.PodsPending) });
         reading = reading.WithFacts(rf => rf with { DangerSeeds = SafeAreaMemory.DangerSeedFact(reading.Projection.Facts.Hostiles, reading.Emergency.Threats) });
         reading.Projection.Facts.DangerSeeds.TryGetValue(out var seeds);
         reading = reading.WithFacts(rf => rf with { DangerWindow = SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), reading.Projection.Facts.Hostiles, seeds, expected.Tick) });
@@ -518,16 +519,16 @@ public sealed partial class Rounder
             && plan.Progress.Any(a => a.Action.PawnActivities is { Tasks.Count: > 0 } batch
                 && batch.Orders.Any(o => !o.Release && o.Method.StartsWith("coupled-", StringComparison.Ordinal))
                 && a.View.Stage is not (Stage.Unsuccessful or Stage.Cancelled))) });
-        reading = reading.WithFacts(rf => rf with { Dash = PolicyApi.ReviewDash(previous.Latches.Dash, reading.Projection.Facts, reading.Projection.WorkPawns, expected.Tick, PolicyApi.PublishedHypothermiaTuning) });
-        reading = reading.WithFacts(rf => rf with { UrgentPatients = PolicyApi.UrgentPatients(emergency, state.Snapshot, expected.Tick) });
-        var (amputationCritical, amputationUrgent) = PolicyApi.AmputationNeeds(emergency, reading.Projection.Facts.MedicalPawns, reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients);
+        reading = reading.WithFacts(rf => rf with { Dash = DashPlanRules.ReviewDash(previous.Latches.Dash, reading.Projection.Facts, reading.Projection.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) });
+        reading = reading.WithFacts(rf => rf with { UrgentPatients = EmergencyNeedsRules.UrgentPatients(emergency, state.Snapshot, expected.Tick) });
+        var (amputationCritical, amputationUrgent) = EmergencyNeedsRules.AmputationNeeds(emergency, reading.Projection.Facts.MedicalPawns, reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients);
         reading = reading.WithFacts(rf => rf with { CriticalPatients = amputationCritical, UrgentPatients = amputationUrgent });
         // The admin/work-assignments Need is owed while a drafted colonist no live plan needs waits for the undraft sweep. A draft
         // its plan still holds is working, not stranded.
         var needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, ct).ConfigureAwait(false);
         var stray = DraftNeeds.IdleDrafts(state, reading.Emergency, reading.Frame.Pawns, needed);
         reading = reading.WithFacts(rf => rf with { CleanupPawns = Known(stray.Count > 0) });
-        reading = reading.WithFacts(rf => rf with { HostilityOwed = PolicyApi.HostilityOwed(RoundsWorkPlanner.HostilityPawns(reading.Projection.WorkPawns), reading.Emergency.Threats) });
+        reading = reading.WithFacts(rf => rf with { HostilityOwed = HostilityRules.HostilityOwed(RoundsWorkPlanner.HostilityPawns(reading.Projection.WorkPawns), reading.Emergency.Threats) });
         reading = reading.WithFacts(rf => rf with { MedicalCareOwed = MedicalRules.MedicalCareOwed(reading.Projection.Facts, Policy.MedicalReserve) });
         reading = reading.WithFacts(rf => rf with { NamesOwed = PawnRules.NamesOwed(reading.Projection.Facts.OwnedNames) });
         reading.Projection.ApplyFieldBudget(Seasonal(reading.Projection.Facts).FoodTargetDays);
@@ -547,7 +548,7 @@ public sealed partial class Rounder
         var resourceTargets = ResourceTargets(state.Snapshot);
         if (reading.Projection.WorkPawns.TryGetValue(out var pawns))
         {
-            reading = reading.WithFacts(rf => rf with { Labor = PolicyApi.RoundsLabor(pawns) });
+            reading = reading.WithFacts(rf => rf with { Labor = LaborRules.RoundsLabor(pawns) });
             reading = reading.WithFacts(rf => rf with { WorkProfiles = Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)]) });
             var requiredFact = RoundsProjectBill.RoundsProjectWork(definitions, reading.Projection.Definitions);
             var known = requiredFact.TryGetValue(out var required);
@@ -584,7 +585,7 @@ public sealed partial class Rounder
                 {
                     var work = WorkRules.PlanWork(pawns, required!, demand);
                     reading = reading.WithFacts(rf => rf with { WorkCoverage = work.Matches });
-                    if (PolicyApi.ConstructionSkillChoices(reading.Projection.Facts.CurrentConstruction, reading.Projection.WorkPawns).Count > 0)
+                    if (ConstructionSkillRules.ConstructionSkillChoices(reading.Projection.Facts.CurrentConstruction, reading.Projection.WorkPawns).Count > 0)
                     {
                         reading = reading.WithFacts(rf => rf with { WorkCoverage = Known(false) });
                     }
@@ -622,7 +623,7 @@ public sealed partial class Rounder
             var clearance = await ClearanceReads.ObserveClearanceCensusOnGround(clearanceSource, expected, true, ground, ct).ConfigureAwait(false);
             if (clearance.TryGetValue(out var census))
             {
-                var (others, player) = PolicyApi.SplitGroundRows(census.Targets);
+                var (others, player) = ClearanceGroundRules.SplitGroundRows(census.Targets);
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Clearance = Known<EquatableArray<ClearanceTarget>>([.. others]) } });
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { RoomObstructions = RecoveryRules.RoomObstructionIDs(others, ground) } });
                 reading = reading.WithProjection(DropClearedRetiredGround(state.Snapshot, reading.Projection, player, census.Floors, ct));
@@ -681,7 +682,7 @@ public sealed partial class Rounder
         ClockEvents.Event("routine", "rounds_review", "rounds ran", [.. attrs]);
         if (Needs.Contains(MilitaryFamily.Equipment))
         {
-            LogGearSearch(PolicyApi.ReviewGear(reading.Projection.Facts.Gear).Loadouts.Where(l => l.SearchBudgetExhausted).Select(l => l.Pawn), ct);
+            LogGearSearch(GearRules.ReviewGear(reading.Projection.Facts.Gear).Loadouts.Where(l => l.SearchBudgetExhausted).Select(l => l.Pawn), ct);
         }
         RecordRoundsSnapshot(state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection, ct);
         await DrawSafetyOverlayAsync(state.Snapshot, reading.Projection, reading.Emergency, ct).ConfigureAwait(false);
@@ -706,7 +707,7 @@ public sealed partial class Rounder
                 Verdict = "ok",
                 Reason = "best_found_within_budget",
                 Target = pawn.Value,
-                Attrs = new Dictionary<string, object?> { ["budget_nodes"] = PolicyApi.GearSearchBudget },
+                Attrs = new Dictionary<string, object?> { ["budget_nodes"] = GearLoadoutRules.GearSearchBudget },
             });
         }
     }
@@ -872,7 +873,7 @@ partial class Rounder
             return [];
         }
         // The native census takes rectangles: a non-rect ground is asked for by its bounds.
-        return [.. PolicyApi.PlannedGround(plan, ground).Select(g => g.Bounds())];
+        return [.. ClearanceGroundRules.PlannedGround(plan, ground).Select(g => g.Bounds())];
     }
 
     /// <summary>
@@ -886,8 +887,8 @@ partial class Rounder
         {
             return Unknown<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>();
         }
-        var wall = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, PolicyApi.ShellWallDefinition);
-        var door = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, PolicyApi.ShellDoorDefinition);
+        var wall = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, ContainmentCellRules.ShellWallDefinition);
+        var door = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, ContainmentCellRules.ShellDoorDefinition);
         var shell = wall is not null && door is not null ? RoundsAnimalContainment.ShellSharedStuff(colony, wall, door) : null;
         IReadOnlyList<Amount>? Price(string name)
         {
@@ -912,7 +913,7 @@ partial class Rounder
         }
         IReadOnlyList<Amount>? PiecePrice(string name) => PlannedPiecePrice(colony, name)?.Costs;
         return Known<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>(
-            PlannedRules.PlannedOwedCost(owed.Rooms, Price, PiecePrice, owed.FloorPrice, ClimateDefs().VentDef, owed.Placed)
+            PlannedRules.PlannedOwedCost(owed.Rooms, Price, PiecePrice, owed.FloorPrice, ClimateRules.ClimateDefs().VentDef, owed.Placed)
                 .ToDictionary(e => e.Key, e => (IReadOnlyDictionary<Resource, long>)e.Value));
     }
 
@@ -1021,7 +1022,7 @@ partial class Rounder
     internal static RetiredGround RetiredGroundOfColony(ColonyProjection colony)
     {
         colony.LayoutPlan.TryGetValue(out var plan);
-        return PolicyApi.RetiredGroundOf(plan ?? new LayoutPlan());
+        return ClearanceGroundRules.RetiredGroundOf(plan ?? new LayoutPlan());
     }
 }
 
@@ -1036,7 +1037,7 @@ public sealed partial class Rounder
         {
             return projection;
         }
-        var done = PolicyApi.RetiredGroundDone(plan, player, floors);
+        var done = ClearanceGroundRules.RetiredGroundDone(plan, player, floors);
         if (done.Count == 0)
         {
             return projection;

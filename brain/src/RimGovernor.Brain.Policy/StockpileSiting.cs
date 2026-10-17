@@ -99,10 +99,10 @@ public sealed record StoreSite
             // The zone waits until the interior is settled: no stand-in store covers a room still being dug,
             // unseen or cleared.
             (SiteCell Cell, bool Ok) Lookup(Cell c) => open.Cells.TryGetValue(c, out var sc) ? (sc, true) : (new SiteCell(), false);
-            var reading = PolicyFunctions.ReadInterior(Interior, Lookup);
+            var reading = InteriorOpenRules.ReadInterior(Interior, Lookup);
             if (Reshaped())
             {
-                reading = PolicyFunctions.ReadCells(Region.Cells(), Lookup);
+                reading = InteriorOpenRules.ReadCells(Region.Cells(), Lookup);
             }
             if (!reading.Ready())
             {

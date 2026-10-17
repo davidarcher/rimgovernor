@@ -51,7 +51,7 @@ public sealed record SoldierSquad
         {
             return (0, false, false);
         }
-        if (age < ChildAge)
+        if (age < HostilityRules.ChildAge)
         {
             return (0, false, true);
         }
@@ -69,7 +69,7 @@ public sealed record SoldierSquad
             {
                 continue;
             }
-            score = Math.Max(score, (s.Level * 3) + GearPassionRank(s.Passion));
+            score = Math.Max(score, (s.Level * 3) + GearLoadoutRules.GearPassionRank(s.Passion));
         }
         return (score, score >= 0, true);
     }

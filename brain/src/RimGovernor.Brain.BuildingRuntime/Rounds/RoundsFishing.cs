@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 partial class RoundsFieldPlanner
@@ -26,7 +27,7 @@ partial class RoundsFieldPlanner
     /// </summary>
     internal static Fact<EquatableArray<WorkRequirement>> StudyWork(ColonyProjection p, CancellationToken ct)
     {
-        var (work, reason) = PolicyFunctions.StudyWork(p.Facts.Containment);
+        var (work, reason) = EntityStudyRules.StudyWork(p.Facts.Containment);
         if (!work.IsKnown)
         {
             Tel.Decide(new Decision
@@ -99,7 +100,7 @@ public sealed partial class Rounder
             var pk = p.Facts.FoodPlan.TryGetValue(out var plan);
             if (ck && wk && pk)
             {
-                var target = PolicyFunctions.FishingResearchRequest(plan!, w.FishingResearched);
+                var target = FishingRules.FishingResearchRequest(plan!, w.FishingResearched);
                 if (target.Length != 0)
                 {
                     needs = [.. needs, target];
@@ -144,7 +145,7 @@ public sealed partial class RoundsFieldPlanner
 
             foreach (var region in water.Regions)
             {
-                if (entry.Channel.Id != PolicyFunctions.FishingRegionId(region.Root))
+                if (entry.Channel.Id != FishingRules.FishingRegionId(region.Root))
                 {
                     continue;
                 }

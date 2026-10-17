@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 partial class RoundsGearPlanner
@@ -27,7 +28,7 @@ public static partial class RoundsGearPlanner
         DeclareOrdersInner(snapshot, projection, benches, ct).For(MilitaryFamily.Equipment.FilingKey.Value);
 
     internal static Declared DeclareOrdersInner(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        PolicyFunctions.DeclareGearOrders(GearRequest(projection, benches));
+        GearOrdersRules.DeclareGearOrders(GearRequest(projection, benches));
 }
 
 public sealed partial class RoundsArmoryPlanner
@@ -38,7 +39,7 @@ public sealed partial class RoundsArmoryPlanner
     internal async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         SetSpotNeeded(false);
-        var tier = PolicyFunctions.AssessArmory(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.Facts.Research).Tier;
+        var tier = ArmoryRules.AssessArmory(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.Facts.Research).Tier;
         var known = projection.Facts.Gear.TryGetValue(out var census);
         if (_native is not FacadeNativeClient)
         {
@@ -74,7 +75,7 @@ public sealed partial class RoundsArmoryPlanner
         }
 
         SetSpotNeeded((unarmed > 0 && !WeaponBenchHosted(benches)) || RoundsBuildingPlanner.PositiveFact(projection.Facts.CraftingSpotRetireOwed));
-        return PolicyFunctions.DeclareArmoryOrders(RoundsGearPlanner.GearRequest(projection, benches), tier, MergeAmounts(fighters, hunters), shells);
+        return GearOrdersRules.DeclareArmoryOrders(RoundsGearPlanner.GearRequest(projection, benches), tier, MergeAmounts(fighters, hunters), shells);
     }
 
     internal void SetSpotNeeded(bool v)

@@ -131,7 +131,7 @@ public sealed record DesignComparison
     public double NewMoodCost { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class IdeoligionDesignRules
 {
     /// <summary>Assigned work and mood with complete believer coverage.</summary>
     public static Fact<DesignNeeds> IdeoligionNeeds(IdeoligionFacts ideo, Fact<EquatableArray<WorkPawn>> workers, Fact<EquatableArray<MoodPawn>> moods)

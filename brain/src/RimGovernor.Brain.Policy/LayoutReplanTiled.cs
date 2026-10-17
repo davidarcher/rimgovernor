@@ -352,7 +352,7 @@ partial record PlannedRoom
     /// </summary>
     internal static string UnmatchedReason(PlannedRoom r, bool notBlock)
     {
-        var native = ModuleRoomRoles.ContainsKey(r.Role);
+        var native = InteriorRules.ModuleRoomRoles.ContainsKey(r.Role);
         var special = LayoutStationPlanRules.MatchedPlanned.ContainsKey(r.Role);
         if (LayoutStationPlanRules.RoomNodeRoles.Contains(r.Role))
         {

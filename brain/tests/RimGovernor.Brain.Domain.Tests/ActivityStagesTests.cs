@@ -42,7 +42,7 @@ public sealed class ActivityStagesTests
     {
         await Check($$"""
             namespace RimGovernor.Brain.Domain { public class PawnActivities {} }
-            namespace RimGovernor.Brain.Policy { public record ForecastActivityOutcomeComparison; public static class PolicyFunctions {
+            namespace RimGovernor.Brain.Policy { public record ForecastActivityOutcomeComparison; public static class ForecastCoupledSelection {
                 public static void CompareActivityPlans() {} public static void CompareActivityOutcomes() {}
                 public static void StartCoupledActivity() { {{body}} }
             } }
@@ -50,13 +50,13 @@ public sealed class ActivityStagesTests
     }
 
     [Theory]
-    [InlineData("StartCoupledActivity")]
-    [InlineData("ContinueCoordinatedActivity")]
-    public async Task CoordinatedEntrypointsCannotConstructActionsOrLocalScores(string entry)
+    [InlineData("StartCoupledActivity", "ForecastCoupledSelection")]
+    [InlineData("ContinueCoordinatedActivity", "CoordinatedActivitiesRules")]
+    public async Task CoordinatedEntrypointsCannotConstructActionsOrLocalScores(string entry, string type)
     {
         await Check($$"""
             namespace RimGovernor.Brain.Domain { public class PawnActivities {} }
-            namespace RimGovernor.Brain.Policy { public static class PolicyFunctions {
+            namespace RimGovernor.Brain.Policy { public static class {{type}} {
                 public static void {{entry}}() { RimGovernor.Brain.Domain.PawnActivities a = new(); int score = 4 / 2; }
             } }
             """, true);
@@ -66,7 +66,7 @@ public sealed class ActivityStagesTests
     public async Task LifecycleCanUseTheSharedOutcomeComparator()
     {
         await Check("""
-            namespace RimGovernor.Brain.Policy { public static class PolicyFunctions {
+            namespace RimGovernor.Brain.Policy { public static class ForecastCoupledSelection {
                 public static void CompareActivityOutcomes() {}
                 public static void StartCoupledActivity() { CompareActivityOutcomes(); }
             } }

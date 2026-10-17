@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -63,7 +62,7 @@ public static partial class PasteSiteRules
             var connected = false;
             foreach (var b in power.Buildings)
             {
-                connected = connected || (b.Connected && b.Network == review.PasteNetwork && DistanceSquared(c.Cell, b.Cell) <= 36);
+                connected = connected || (b.Connected && b.Network == review.PasteNetwork && EquipRules.DistanceSquared(c.Cell, b.Cell) <= 36);
             }
             if (!connected)
             {

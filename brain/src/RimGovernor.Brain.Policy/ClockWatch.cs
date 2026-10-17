@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: clock_window.go, reduced to the continuous Run/Hold clock.
 
-public static partial class PolicyFunctions
+public static class ClockWatchRules
 {
     /// <summary>
     /// Decides the watch a Run carries. Live hostiles refuse it unless the military/combat Need holds an admitted
@@ -56,7 +56,7 @@ public static partial class PolicyFunctions
         var hostiles = new List<PawnId>();
         var combat = false;
         var buildings = HostileBuildingIDs(f.Emergency);
-        var emergency = EvaluateEmergency(f.Emergency, f.Current, f.Tick);
+        var emergency = EmergencyRules.EvaluateEmergency(f.Emergency, f.Current, f.Tick);
         foreach (var h in emergency.Holds)
         {
             switch (h.Reason)
@@ -224,7 +224,7 @@ public static partial class PolicyFunctions
     private static List<PawnId> KnownDownedPatients(EmergencySnapshot snapshot)
     {
         var downed = new List<PawnId>();
-        foreach (var pawn in EmergencyPatients(snapshot.Facts))
+        foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
         {
             var deadKnown = pawn.Dead.TryGetValue(out var dead);
             var downKnown = pawn.Downed.TryGetValue(out var down);

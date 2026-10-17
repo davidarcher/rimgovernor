@@ -11,7 +11,7 @@ public sealed record BreakResponder
     public PawnId ID => SquadDefenderFacts.Id;
 }
 
-public static partial class PolicyFunctions
+public static class BreakResponseRules
 {
     public const int BreakExclusionRadius = 8;
 

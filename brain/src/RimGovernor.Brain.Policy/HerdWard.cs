@@ -43,7 +43,7 @@ public sealed partial record LayoutPlan
     internal IReadOnlyList<PlannedRoom> Hospitals() => Rooms.Where(r => r.Role == LayoutSurveyRules.PlannedHospital).ToList();
 }
 
-public static partial class PolicyFunctions
+public static class HerdWardRules
 {
     /// <summary>The bot area key of the Hospital allowed area: the interior of the plan's hospitals. It is the area SterilizeChoice lets an animal into for surgery.</summary>
     public const string HospitalAreaKey = "Hospital";
@@ -67,7 +67,7 @@ public static partial class PolicyFunctions
                 n++;
             }
         }
-        if (n == 0 && SterilizeWanted(rows, herd).Count > 0)
+        if (n == 0 && HerdSterilizeRules.SterilizeWanted(rows, herd).Count > 0)
         {
             n = 1;
         }
@@ -107,7 +107,7 @@ public static partial class PolicyFunctions
         {
             return [];
         }
-        var (inner, ok) = InteriorRoomFromLayout(room, shapes);
+        var (inner, ok) = InteriorRules.InteriorRoomFromLayout(room, shapes);
         if (inner is null)
         {
             return [];
@@ -116,7 +116,7 @@ public static partial class PolicyFunctions
         {
             return [];
         }
-        var (human, planned) = PlanRoomInterior(inner!, new InteriorPieceDef());
+        var (human, planned) = InteriorRegionRules.PlanRoomInterior(inner!, new InteriorPieceDef());
         if (!planned)
         {
             return [];
@@ -130,7 +130,7 @@ public static partial class PolicyFunctions
             }
         }
         // Candidates: every footprint in the interior, furthest from the doors first, so the ward fills from the back and the entrance stays open.
-        var thresholds = InteriorThresholds(inner!);
+        var thresholds = InteriorWalkRules.InteriorThresholds(inner!);
         int Dist(Rectangle r)
         {
             var best = 1 << 30;
@@ -159,7 +159,7 @@ public static partial class PolicyFunctions
             {
                 free = free && !blocked.Contains(c);
             }
-            if (!free || !InteriorPlacementWalkable(inner, blocked, cells) || !WardBedsStayTended(inner.Interior, blocked, @out, cells))
+            if (!free || !InteriorWalkRules.InteriorPlacementWalkable(inner, blocked, cells) || !WardBedsStayTended(inner.Interior, blocked, @out, cells))
             {
                 continue;
             }
@@ -167,7 +167,7 @@ public static partial class PolicyFunctions
             {
                 blocked.Add(c);
             }
-            var piece = NewInteriorPiece(FormattableString.Invariant($"ward.{@out.Count + 1}"), bed.Def, bed.Size, Rotation.North, new Cell(r.X, r.Z));
+            var piece = InteriorHelpersRules.NewInteriorPiece(FormattableString.Invariant($"ward.{@out.Count + 1}"), bed.Def, bed.Size, Rotation.North, new Cell(r.X, r.Z));
             @out.Add(piece with { Rect = r });
         }
         return @out;
@@ -193,7 +193,7 @@ public static partial class PolicyFunctions
             {
                 foreach (var n in new[] { new Cell(c.X + 1, c.Z), new Cell(c.X - 1, c.Z), new Cell(c.X, c.Z + 1), new Cell(c.X, c.Z - 1) })
                 {
-                    free = free || (RectContains(interior, n) && !now.Contains(n));
+                    free = free || (InteriorWalkRules.RectContains(interior, n) && !now.Contains(n));
                 }
             }
             if (!free)
@@ -209,7 +209,7 @@ public static partial class PolicyFunctions
     {
         foreach (var b in built)
         {
-            if (b.Building!.Definition != def || b.Cells.Count == 0 || !RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)))
+            if (b.Building!.Definition != def || b.Cells.Count == 0 || !FurnitureRoomsRules.RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)))
             {
                 continue;
             }
@@ -242,7 +242,7 @@ public static partial class PolicyFunctions
             }
             foreach (var b in built)
             {
-                if (b.Building!.Definition != animalBed || b.Cells.Count == 0 || !RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)))
+                if (b.Building!.Definition != animalBed || b.Cells.Count == 0 || !FurnitureRoomsRules.RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)))
                 {
                     continue;
                 }
@@ -285,7 +285,7 @@ public static partial class PolicyFunctions
         var standing = new List<WantedPiece>();
         foreach (var b in built)
         {
-            if (b.Building!.Definition == bed.Def && b.Cells.Count > 0 && RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)))
+            if (b.Building!.Definition == bed.Def && b.Cells.Count > 0 && FurnitureRoomsRules.RectInside(room.Region.Bounds(), PlacementSearchRules.CellsRectangle(b.Cells)))
             {
                 var r = PlacementSearchRules.CellsRectangle(b.Cells);
                 standing.Add(

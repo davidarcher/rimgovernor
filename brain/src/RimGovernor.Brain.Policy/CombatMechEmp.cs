@@ -70,7 +70,7 @@ public static partial class CombatMechRules
         foreach (var h in hostiles)
         {
             if (h.Cell.TryGetValue(out var c) && !h.Dead && !h.Downed && h.Kind.StartsWith("Mech_Scyther", StringComparison.Ordinal)
-                && h.StunTicks == 0 && !EmpAdapted(m, h.Id) && Chebyshev(c, choke) <= EmpChokeReach)
+                && h.StunTicks == 0 && !EmpAdapted(m, h.Id) && LightingRules.Chebyshev(c, choke) <= EmpChokeReach)
             {
                 scythers.Add(c);
             }
@@ -140,7 +140,7 @@ public static partial class CombatMechRules
 
         foreach (var r in m.Roles)
         {
-            if (r.Duty != CombatDuty.Blocker || r.Retreat || r.Cell is not { } at || !waking.Any(c => Chebyshev(c, at) <= EmpNearBlocker))
+            if (r.Duty != CombatDuty.Blocker || r.Retreat || r.Cell is not { } at || !waking.Any(c => LightingRules.Chebyshev(c, at) <= EmpNearBlocker))
             {
                 continue;
             }

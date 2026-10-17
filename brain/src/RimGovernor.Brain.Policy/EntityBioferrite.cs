@@ -17,7 +17,7 @@ public sealed record BioferriteHarvest
 // floor(perDay * 4) bioferrite, a powered harvester forces the flag false, an entity in Release mode is
 // skipped, and the order is unlocked by the BioferriteExtraction research. An unread fact is a loud issue,
 // never a guess.
-public static partial class PolicyFunctions
+public static class EntityBioferriteRules
 {
     /// <summary>Go <c>ResearchBioferriteExtraction</c>: ResearchProjectDefOf.BioferriteExtraction.</summary>
     public static readonly ResearchProjectId ResearchBioferriteExtraction = new("BioferriteExtraction");

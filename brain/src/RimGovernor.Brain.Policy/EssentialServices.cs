@@ -43,7 +43,7 @@ public sealed record EssentialServiceInputs
     public Fact<PowerTopology> Power { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class EssentialServicesRules
 {
     /// <summary>
     /// A Need owner's service coverage (#3250): met is adequate, unmet a shortfall, and unknown stays unknown, never
@@ -69,7 +69,7 @@ public static partial class PolicyFunctions
         if (requirements.Any(r => r!.Coverage != ServiceCoverage.Adequate)) return DevelopmentReviewState.Unknown;
         // Portfolio delivery is a projection. Only the owning observed service recovery can retire its goal.
         if (previous.Requirements.Any(t => t.Predicate == "food_plan_gap") && !current.Coverage.Any(c =>
-            c.Target.Owner == FoodSupplyNeed.FilingKey && c.Target.Predicate == "need_satisfied" && c.Coverage == ServiceCoverage.Adequate))
+            c.Target.Owner == FoodRules.FoodSupplyNeed.FilingKey && c.Target.Predicate == "need_satisfied" && c.Coverage == ServiceCoverage.Adequate))
             return DevelopmentReviewState.Unknown;
         foreach (var old in previous.StressEvidence)
         {
@@ -109,8 +109,8 @@ public static partial class PolicyFunctions
             stress.Add(new(target, unavailable, result.Coverage, result.Missing));
         }
         var food = FoodFacts.From(facts, policy);
-        NeedOwner(EssentialService.Food, FoodSupplyNeedOf(food));
-        NeedOwner(EssentialService.Cooking, CookingNeedOf(food));
+        NeedOwner(EssentialService.Food, FoodRules.FoodSupplyNeedOf(food));
+        NeedOwner(EssentialService.Cooking, FoodRules.CookingNeedOf(food));
         // The medical family's Needs (#3258): the critical census as one row (the review counts the patients, it
         // does not name them), then surgery and reserves; medicineActive is the review's medicine latch.
         var medical = MedicalFacts.From(facts, policy, medicineActive);
@@ -123,15 +123,15 @@ public static partial class PolicyFunctions
         NeedOwner(EssentialService.Shelter, ShelterRules.ExpansionNeedOf(shelter, true, true));
         NeedOwner(EssentialService.Shelter, ShelterRules.SafeAreaNeedOf(shelter));
         NeedOwner(EssentialService.Temperature, ShelterRules.TemperatureNeedOf(shelter));
-        NeedOwner(EssentialService.Food, FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
-        NeedOwner(EssentialService.Food, RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
+        NeedOwner(EssentialService.Food, FoodStoresRules.FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
+        NeedOwner(EssentialService.Food, FoodStoresRules.RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         NeedOwner(EssentialService.Power, PowerRules.PowerNeedOf(PowerFacts.From(facts)));
         NeedOwner(EssentialService.Logistics, LayoutFamily.RoutesNeed(Known(LayoutFamily.RoutesStandingOf(facts.Upkeep.Routes, facts.Upkeep.Rooms, policy))));
-        NeedOwner(EssentialService.Materials, ResourceNeedOf(ResourceFacts.From(facts, demand)));
+        NeedOwner(EssentialService.Materials, EconomyRules.ResourceNeedOf(ResourceFacts.From(facts, demand)));
 
         // The owner already merged overlapping costs. Never add a fuel or service copy to demand.
         var fuel = facts.FuelRunway().Projection;
-        rows.Add(new(EssentialService.Fuel, ServiceTarget.ForNeed(EconomyFamily.Resource, "", "shared_resource_targets", Known(MaintenanceHorizonDays)),
+        rows.Add(new(EssentialService.Fuel, ServiceTarget.ForNeed(EconomyFamily.Resource, "", "shared_resource_targets", Known(ColonyDiagnosticsRules.MaintenanceHorizonDays)),
             facts.Fuel.TryGetValue(out var consumers) && consumers.Count == 0 ? ServiceCoverage.NotApplicable
                 : fuel.TryGetValue(out var runway) ? runway.Resources.Any(r => r.MissingItems > 0) ? ServiceCoverage.Shortfall
                     : runway.Gaps.Count > 0 ? ServiceCoverage.Unknown : ServiceCoverage.Adequate : ServiceCoverage.Unknown,
@@ -141,10 +141,10 @@ public static partial class PolicyFunctions
         {
             // Inventory-level food adequacy and alternative channels belong to FoodPlan, not an invented source ranking.
             if (facts.FoodPlan.TryGetValue(out var plan))
-                rows.Add(new(EssentialService.Food, ServiceTarget.ForNeed(FoodSupplyNeed, "", "food_plan_gap", Known(plan.HorizonDays)),
+                rows.Add(new(EssentialService.Food, ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed, "", "food_plan_gap", Known(plan.HorizonDays)),
                     plan.DemandPerDay == 0 ? ServiceCoverage.NotApplicable : plan.GapPerDay > 0 ? ServiceCoverage.Shortfall : ServiceCoverage.Adequate,
                     plan.Forecast.Consumers.Select(c => c.Id.Value).ToImmutableArray(), []));
-            else rows.Add(new(EssentialService.Food, ServiceTarget.ForNeed(FoodSupplyNeed, "", "food_plan_gap"), ServiceCoverage.Unknown, beneficiaries, ["food_plan"]));
+            else rows.Add(new(EssentialService.Food, ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed, "", "food_plan_gap"), ServiceCoverage.Unknown, beneficiaries, ["food_plan"]));
 
             AssessServiceMedical(facts, rows, Scenario);
             AssessServiceCooking(facts, demand, rows, Scenario);
@@ -187,8 +187,8 @@ public static partial class PolicyFunctions
     private static void AssessServiceCooking(RoundsFacts facts, DerivedDemand demand, List<ServiceAssessment> rows,
         Action<ServiceTarget, string, Func<(ServiceCoverage, EquatableArray<string>)>> scenario)
     {
-        var target = ServiceTarget.ForNeed(CookingNeed, "recipe-capability", "recipe_eligibility_and_inputs");
-        if (!facts.FoodPlan.IsKnown || !FoodPlanSupport(facts.FoodPlan, CandidateKind.Cook, "cooking-capacity"))
+        var target = ServiceTarget.ForNeed(FoodRules.CookingNeed, "recipe-capability", "recipe_eligibility_and_inputs");
+        if (!facts.FoodPlan.IsKnown || !FoodOrdersRules.FoodPlanSupport(facts.FoodPlan, CandidateKind.Cook, "cooking-capacity"))
         {
             rows.Add(new(EssentialService.Cooking, target, facts.FoodPlan.IsKnown ? ServiceCoverage.NotApplicable : ServiceCoverage.Unknown,
                 [], facts.FoodPlan.IsKnown ? [] : ["food_plan_cooking_dependency"]));
@@ -226,7 +226,7 @@ public static partial class PolicyFunctions
                     if (!capable) continue;
                     if (facts.WorkClaims is null || facts.WorkClaims.Truncated) { unknown = true; continue; }
                     // Reuse the existing fixed-batch material feasibility owner, including alternatives within slots.
-                    var material = SelectLedgerMaterials([new(bench.Id, new OrderSpec { Recipe = recipe.Name, Mode = BillMode.GearBatch, Target = 1 })],
+                    var material = LedgerMaterialChoicesRules.SelectLedgerMaterials([new(bench.Id, new OrderSpec { Recipe = recipe.Name, Mode = BillMode.GearBatch, Target = 1 })],
                         new(facts.WorkAdmission.Recipes, demand.MaterialAvailability));
                     if (material.Selected.Count > 0) return excluded.Length == 0
                         ? (ServiceCoverage.Adequate, [])

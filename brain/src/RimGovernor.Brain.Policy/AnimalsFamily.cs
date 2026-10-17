@@ -20,16 +20,16 @@ public sealed record AnimalsFacts
 
     public Fact<FoodPlan> FoodPlan { get; init; }
 
-    /// <summary>The colonists' work profiles (<see cref="PolicyFunctions.Profiles"/>): who can tame, train and master.</summary>
+    /// <summary>The colonists' work profiles (<see cref="PawnRules.Profiles"/>): who can tame, train and master.</summary>
     public Fact<EquatableArray<PawnProfile>> Handlers { get; init; }
 
-    /// <summary>The pen-bound animals not yet contained, released or slaughtered (<see cref="PolicyFunctions.ReviewAnimalUpkeep"/>).</summary>
+    /// <summary>The pen-bound animals not yet contained, released or slaughtered (<see cref="AnimalUpkeepRules.ReviewAnimalUpkeep"/>).</summary>
     public Fact<EquatableArray<PawnId>> Uncontained { get; init; }
 
-    /// <summary>The next pen step (<see cref="PolicyFunctions.NextPenStep"/>); a no-op step when nothing is owed.</summary>
+    /// <summary>The next pen step (<see cref="HerdRoomsRules.NextPenStep"/>); a no-op step when nothing is owed.</summary>
     public Fact<HerdStep> Pen { get; init; }
 
-    /// <summary>The next hospital ward step (<see cref="PolicyFunctions.NextWardStep"/>); a no-op step when nothing is owed.</summary>
+    /// <summary>The next hospital ward step (<see cref="HerdRoomsRules.NextWardStep"/>); a no-op step when nothing is owed.</summary>
     public Fact<HerdStep> Ward { get; init; }
 
     /// <summary>Whether the ward stands with a medical animal bed, and the hospital's allowed area.</summary>
@@ -85,16 +85,16 @@ public sealed class AnimalsFamily(bool herd = true, bool containment = true) : I
         var needs = new List<Need>(4);
         if (herd)
         {
-            needs.Add(PolicyFunctions.HerdNeedOf(facts));
+            needs.Add(AnimalsFamilyRules.HerdNeedOf(facts));
         }
         if (containment)
         {
-            needs.Add(PolicyFunctions.ContainmentNeedOf(facts));
-            needs.Add(PolicyFunctions.WardNeedOf(facts));
+            needs.Add(AnimalsFamilyRules.ContainmentNeedOf(facts));
+            needs.Add(AnimalsFamilyRules.WardNeedOf(facts));
         }
         if (herd)
         {
-            needs.Add(PolicyFunctions.SterilizeNeedOf(facts, containment));
+            needs.Add(AnimalsFamilyRules.SterilizeNeedOf(facts, containment));
         }
         return needs;
     }
@@ -110,7 +110,7 @@ public sealed class AnimalsFamily(bool herd = true, bool containment = true) : I
         {
             if (need.Id == Herd)
             {
-                var choice = PolicyFunctions.HerdChoice(facts);
+                var choice = AnimalsFamilyRules.HerdChoice(facts);
                 if (choice.Reason == HusbandryPlanReason.Unknown)
                 {
                     output.Add(NeedMethod.Held(Herd, HusbandryCensus, "An animal's husbandry facts are unread."));
@@ -122,7 +122,7 @@ public sealed class AnimalsFamily(bool herd = true, bool containment = true) : I
             }
             else if (need.Id == Sterilize)
             {
-                var choice = PolicyFunctions.SterilizeChoice(facts.Animals, facts.Herd, facts.WardRoom);
+                var choice = HerdSterilizeRules.SterilizeChoice(facts.Animals, facts.Herd, facts.WardRoom);
                 output.Add(choice.Method is null
                     ? NeedMethod.Held(Sterilize, SterilizeWaiting, "The hospital ward is not ready, or an animal's sterilize bill is still queued.")
                     : Write(Sterilize, choice));
@@ -146,7 +146,7 @@ public sealed class AnimalsFamily(bool herd = true, bool containment = true) : I
     }
 }
 
-public static partial class PolicyFunctions
+public static class AnimalsFamilyRules
 {
     /// <summary>
     /// The herd's one husbandry write (husbandry_method's single write per cycle): a removal the herd plan owes,
@@ -155,22 +155,22 @@ public static partial class PolicyFunctions
     /// </summary>
     public static HusbandryChoice HerdChoice(AnimalsFacts f)
     {
-        var choice = ReconcileHerdRemoval(f.Animals, f.Herd, f.FoodPlan);
+        var choice = HerdRemovalRules.ReconcileHerdRemoval(f.Animals, f.Herd, f.FoodPlan);
         if (choice.Reason == HusbandryPlanReason.NoDeficit)
         {
-            choice = SelectHusbandryMethod(f.Animals, f.Wild, f.FeedShort, f.Herd, f.Handlers);
+            choice = HusbandryUpkeepRules.SelectHusbandryMethod(f.Animals, f.Wild, f.FeedShort, f.Herd, f.Handlers);
         }
         if (choice.Reason == HusbandryPlanReason.NoDeficit)
         {
-            choice = FoodSlaughterChoice(f.FoodPlan, f.Animals, f.Herd);
+            choice = AnimalFoodRules.FoodSlaughterChoice(f.FoodPlan, f.Animals, f.Herd);
         }
         if (choice.Reason == HusbandryPlanReason.NoDeficit)
         {
-            choice = FoodTameChoice(f.FoodPlan, f.Wild, f.FeedShort, f.Handlers);
+            choice = AnimalAcquireRules.FoodTameChoice(f.FoodPlan, f.Wild, f.FeedShort, f.Handlers);
         }
         if (choice.Reason == HusbandryPlanReason.NoDeficit)
         {
-            choice = HerdMasterChoice(f.Animals, f.Herd, f.Handlers);
+            choice = HerdMasterRules.HerdMasterChoice(f.Animals, f.Herd, f.Handlers);
         }
         return choice;
     }
@@ -183,11 +183,11 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Need HerdNeedOf(AnimalsFacts f)
     {
-        var deficit = AnimalHerdDeficit(f.Animals, f.Wild, f.FeedShort, f.Herd);
-        var removal = ReconcileHerdRemoval(f.Animals, f.Herd, f.FoodPlan);
-        var slaughter = FoodSlaughterChoice(f.FoodPlan, f.Animals, f.Herd).Method == HusbandryMethod.Slaughter;
-        var tame = FoodTameChoice(f.FoodPlan, f.Wild, f.FeedShort, f.Handlers).Method == HusbandryMethod.Tame;
-        var master = HerdMasterChoice(f.Animals, f.Herd, f.Handlers).Method is not null;
+        var deficit = HusbandryUpkeepRules.AnimalHerdDeficit(f.Animals, f.Wild, f.FeedShort, f.Herd);
+        var removal = HerdRemovalRules.ReconcileHerdRemoval(f.Animals, f.Herd, f.FoodPlan);
+        var slaughter = AnimalFoodRules.FoodSlaughterChoice(f.FoodPlan, f.Animals, f.Herd).Method == HusbandryMethod.Slaughter;
+        var tame = AnimalAcquireRules.FoodTameChoice(f.FoodPlan, f.Wild, f.FeedShort, f.Handlers).Method == HusbandryMethod.Tame;
+        var master = HerdMasterRules.HerdMasterChoice(f.Animals, f.Herd, f.Handlers).Method is not null;
         var owed = RoundsRules.Positive(deficit) || removal.Method is not null || slaughter || tame || master;
         var satisfaction = owed ? Satisfaction.Unmet
             : deficit.IsKnown && HerdChoice(f).Reason != HusbandryPlanReason.Unknown ? Satisfaction.Met
@@ -267,7 +267,7 @@ public static partial class PolicyFunctions
         {
             return need with { Evidence = [new("sterilize_wanted", Unknown<string>())] };
         }
-        var wanted = SterilizeWanted(animals, f.Herd).Count;
+        var wanted = HerdSterilizeRules.SterilizeWanted(animals, f.Herd).Count;
         var areaKnown = f.WardRoom.Area.TryGetValue(out var area);
         var inWard = areaKnown && area!.Length != 0 && animals.Any(a => a.AllowedArea.TryGetValue(out var held) && held == area);
         var satisfaction = wanted > 0 || inWard ? Satisfaction.Unmet : areaKnown ? Satisfaction.Met : Satisfaction.Unknown;

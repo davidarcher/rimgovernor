@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // declaration is the whole wanted set of one Round, derived from the census and the bench readback alone: an
 // order is judged again every Round and a bill that already makes a need is declared as it stands, which keeps it.
 
-public static partial class PolicyFunctions
+public static class GearOrdersRules
 {
     /// <summary>
     /// Retain standing ordinary clothing intent without choosing new production. Exact new recipes and
@@ -20,7 +20,7 @@ public static partial class PolicyFunctions
             return WorkRules.Abstaining(cause);
         }
         var clothing = v!.Pawns.SelectMany(p => p.LoadoutModel.ValueOrDefault?.Options ?? [])
-            .Select(o => o.Definition).Where(d => !ArmoryArmor(d)).ToHashSet();
+            .Select(o => o.Definition).Where(d => !GearArmorRules.ArmoryArmor(d)).ToHashSet();
         var orders = new List<OrderSpec>();
         foreach (var bench in r.Benches.Value)
         {
@@ -60,7 +60,7 @@ public static partial class PolicyFunctions
         var needs = new List<GearNeed>();
         foreach (var d in weapons)
         {
-            DomainException.Require(ValidResource(d.Resource) && d.Count > 0 && d.Count <= 256, $"invalid weapon demand \"{d.Resource.Value}\" x{d.Count}");
+            DomainException.Require(AdmissionRules.ValidResource(d.Resource) && d.Count > 0 && d.Count <= 256, $"invalid weapon demand \"{d.Resource.Value}\" x{d.Count}");
             for (long i = 0; i < d.Count; i++)
             {
                 needs.Add(new GearNeed(new GearPawn { Pawn = new PawnId("weapon-batch"), Loadout = "colony" }, new GearReplacement { Definition = d.Resource, Reason = "unarmed" }));
@@ -82,7 +82,7 @@ public static partial class PolicyFunctions
             }
             foreach (var n in replacements)
             {
-                if (ArmoryArmor(n.Definition))
+                if (GearArmorRules.ArmoryArmor(n.Definition))
                 {
                     armor[n.Definition] = armor.GetValueOrDefault(n.Definition) + 1;
                 }
@@ -90,7 +90,7 @@ public static partial class PolicyFunctions
         }
         foreach (var d in armor.Keys.OrderBy(k => k.Value, StringComparer.Ordinal))
         {
-            var (rungs, _) = ArmoryArmorRungs(d, tier);
+            var (rungs, _) = GearArmorRules.ArmoryArmorRungs(d, tier);
             foreach (var rung in rungs)
             {
                 var rungNeeds = new List<GearNeed>();
@@ -117,7 +117,7 @@ public static partial class PolicyFunctions
     /// </summary>
     private static (GearReview? Review, GearObservation? Observation, Cause? Unread) GearOrderCensus(GearPlanningRequest r)
     {
-        var review = ReviewGear(r.Observation);
+        var review = GearRules.ReviewGear(r.Observation);
         if (!review.Recovered.IsKnown)
         {
             return (null, null, Cause.UnreadGearRecover);
@@ -128,7 +128,7 @@ public static partial class PolicyFunctions
         }
         r.Observation.TryGetValue(out var observed);
         if (!observed!.Stored.IsKnown) return (null, null, Cause.UnreadGearDemand);
-        return (review, ModeledGearObservation(observed!, review.Loadouts), null);
+        return (review, GearLoadoutRules.ModeledGearObservation(observed!, review.Loadouts), null);
     }
 
     /// <summary>Orders needs by pawn, definition, stuff and reason.</summary>
@@ -154,7 +154,7 @@ public static partial class PolicyFunctions
             return (orders, null);
         }
         needs = SortGearNeeds(needs);
-        var (benches, demand, known) = GearBenchDemand(needs, v, review, r);
+        var (benches, demand, known) = GearRules.GearBenchDemand(needs, v, review, r);
         if (!known)
         {
             return (orders, Cause.UnreadBenches);
@@ -174,7 +174,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var (method, resolved) = ProduceNeed(n, count, benches, r);
+            var (method, resolved) = GearRules.ProduceNeed(n, count, benches, r);
             if (!resolved)
             {
                 continue;

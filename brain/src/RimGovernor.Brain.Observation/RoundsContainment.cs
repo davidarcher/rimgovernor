@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 public static class RoundsContainmentReads
@@ -37,11 +38,11 @@ public static class RoundsContainmentReads
             return (null, name + " is not among the planning definitions");
         }
         var reason = "";
-        var (wall, wallReason) = Definition(definitions, ShellWallDefinition);
+        var (wall, wallReason) = Definition(definitions, ContainmentCellRules.ShellWallDefinition);
         reason = wallReason;
         if (reason == "")
         {
-            var (door, doorReason) = Definition(definitions, ShellDoorDefinition);
+            var (door, doorReason) = Definition(definitions, ContainmentCellRules.ShellDoorDefinition);
             reason = doorReason;
             if (reason == "")
             {
@@ -57,7 +58,7 @@ public static class RoundsContainmentReads
                     {
                         output = output with
                         {
-                            Defs = Known(catalog!.ContainmentDefs(ShellWallDefinition, stuff, ShellDoorDefinition, stuff)),
+                            Defs = Known(catalog!.ContainmentDefs(ContainmentCellRules.ShellWallDefinition, stuff, ContainmentCellRules.ShellDoorDefinition, stuff)),
                         };
                     }
                     catch (DomainException e)

@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -12,7 +13,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (new RoundsBuildingResult(), false);
         }
-        foreach (var change in PolicyApi.DoorChanges(facts.Rooms, facts.Facts.Upkeep.Routes, Reviewer.Policy))
+        foreach (var change in DoorControlRules.DoorChanges(facts.Rooms, facts.Facts.Upkeep.Routes, Reviewer.Policy))
         {
             if (Concern == ShelterFamily.Temperature.FilingKey && !change.Heat)
             {

@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>One open production bill's bench and recipe, the pair whose census row names the work type a pawn needs enabled for it.</summary>
@@ -245,7 +246,7 @@ partial record struct RoundsProjectBill
                 output[r] = n;
             }
         }
-        foreach (var need in GearReplacementNeeds(gear))
+        foreach (var need in GearRules.GearReplacementNeeds(gear))
         {
             output[need] = output.GetValueOrDefault(need) + 1;
         }

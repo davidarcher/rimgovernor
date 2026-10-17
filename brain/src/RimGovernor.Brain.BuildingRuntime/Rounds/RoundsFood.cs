@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -36,11 +37,11 @@ public sealed class FoodRounds
         }
         _babyFeeding = babyFeeding;
         _blight = blight;
-        if (cooking is not null && cooking.Need != PolicyFunctions.CookingNeed)
+        if (cooking is not null && cooking.Need != FoodRules.CookingNeed)
         {
             throw new ControlException("FoodRounds: the cooking planner is not owned by the food/cooking Need");
         }
-        if (butcher is not null && (!supply || butcher.Need != PolicyFunctions.FoodSupplyNeed))
+        if (butcher is not null && (!supply || butcher.Need != FoodRules.FoodSupplyNeed))
         {
             throw new ControlException("FoodRounds: the butcher planner is not owned by the food/supply Need");
         }
@@ -74,20 +75,20 @@ public sealed class FoodRounds
     /// <summary>The work of a ready Need: each composed supply step in turn, the cooking Need's buildings, or the ledger's baby food bill.</summary>
     internal async Task<Verdict> WorkAsync(NeedWork work, FoodFacts facts, CancellationToken call)
     {
-        if (work.Need.Id == PolicyFunctions.CookingNeed && _cooking is not null)
+        if (work.Need.Id == FoodRules.CookingNeed && _cooking is not null)
         {
             return (await _cooking.Copy().StepAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false)).Verdict;
         }
-        if (work.Need.Id == PolicyFunctions.BabyFeedingNeed)
+        if (work.Need.Id == FoodRules.BabyFeedingNeed)
         {
             return BabyFoodBillVerdict;
         }
-        if (work.Need.Id == PolicyFunctions.BlightNeed)
+        if (work.Need.Id == FoodRules.BlightNeed)
         {
             // The cut batches are the family's pure Methods; the runner filed their verdict.
             return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
         }
-        if (work.Need.Id != PolicyFunctions.FoodSupplyNeed || !_supply)
+        if (work.Need.Id != FoodRules.FoodSupplyNeed || !_supply)
         {
             return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
         }
@@ -152,7 +153,7 @@ public sealed class FoodRounds
     internal static EquatableArray<string> BlightRefused(JournalStore journal, GenerationSnapshot world, CancellationToken ct)
     {
         var refused = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var method in journal.LoadNeed(PolicyFunctions.BlightNeed, world, ct).Methods)
+        foreach (var method in journal.LoadNeed(FoodRules.BlightNeed, world, ct).Methods)
         {
             foreach (var progress in journal.LoadPlan(method.Plan, ct).Progress)
             {
@@ -184,7 +185,7 @@ public sealed class FoodRounds
 public sealed class BabyFoodDeclarer : IOrderDeclarer
 {
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        Task.FromResult(Declare(projection, benches).For(PolicyFunctions.BabyFeedingNeed.FilingKey.Value));
+        Task.FromResult(Declare(projection, benches).For(FoodRules.BabyFeedingNeed.FilingKey.Value));
 
     internal static Declared Declare(ColonyProjection projection, IReadOnlyList<GearBench> benches)
     {
@@ -192,12 +193,12 @@ public sealed class BabyFoodDeclarer : IOrderDeclarer
         {
             return WorkRules.Abstaining(Cause.UnreadBabyFeeding);
         }
-        if (PolicyFunctions.BabyFeedingNeedOf(new FoodFacts { BabyFeeding = projection.Facts.BabyFeeding }).Satisfaction == Satisfaction.Met)
+        if (FoodRules.BabyFeedingNeedOf(new FoodFacts { BabyFeeding = projection.Facts.BabyFeeding }).Satisfaction == Satisfaction.Met)
         {
             return new Declared();
         }
-        var (selected, ok) = ProductionRules.SelectProductionBill(PolicyFunctions.BabyFoodBill, projection.ProductionBenches, projection.Facts.Colonists,
+        var (selected, ok) = ProductionRules.SelectProductionBill(BabyFeedingRules.BabyFoodBill, projection.ProductionBenches, projection.Facts.Colonists,
             default(Fact<double>), default(Fact<double>), 1, new ProductionBillContext { BabyFeeding = babies });
-        return PolicyFunctions.DeclareSelection(selected, ok, benches);
+        return CareOrdersRules.DeclareSelection(selected, ok, benches);
     }
 }

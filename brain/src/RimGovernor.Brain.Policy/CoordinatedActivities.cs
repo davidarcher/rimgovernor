@@ -2,7 +2,7 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class CoordinatedActivitiesRules
 {
     /// <summary>Continue the selected attempt. No family names or independent assignment/valuation loop.</summary>
     public static PawnActivities? ContinueCoordinatedActivity(PawnActivities batch, Fact<bool> needed, ActivityTaskRead read)
@@ -17,12 +17,12 @@ public static partial class PolicyFunctions
         var knownNeed = needed.TryGetValue(out var useful);
         if (knownNeed && !useful || batch.Tasks.Any(t => t.Step.Deadline <= tick
                 && !batch.Orders.Any(o => o.Task == t.Id && rows[o.Pawn].State == "completed"))
-            || batch.Orders.Any(o => !o.Release && !MatchesActivityOwner(o, rows[o.Pawn])))
-            return ReviewActivityOwnership(batch, Known(false), tick, observed).Release;
+            || batch.Orders.Any(o => !o.Release && !ActivityContinuationRules.MatchesActivityOwner(o, rows[o.Pawn])))
+            return ActivityContinuationRules.ReviewActivityOwnership(batch, Known(false), tick, observed).Release;
         if (!knownNeed) return batch.Orders.Any(o => rows[o.Pawn].State == "failed")
-            ? ReviewActivityOwnership(batch, Known(false), tick, observed).Release : null;
+            ? ActivityContinuationRules.ReviewActivityOwnership(batch, Known(false), tick, observed).Release : null;
 
         var transition = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Continue(batch, read, rows, tick);
-        return transition.Release ? ReviewActivityOwnership(batch, Known(false), tick, observed).Release : transition.Batch;
+        return transition.Release ? ActivityContinuationRules.ReviewActivityOwnership(batch, Known(false), tick, observed).Release : transition.Batch;
     }
 }

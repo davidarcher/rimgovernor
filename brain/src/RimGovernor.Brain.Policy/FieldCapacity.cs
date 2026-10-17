@@ -17,7 +17,7 @@ public sealed record FieldCrop
     public Fact<double> HarvestNutrition { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class FieldCapacityRules
 {
     /// <summary>Go <c>FieldCoverage</c>.</summary>
     public static Fact<double> FieldCoverage(Fact<long> colonists, Fact<EquatableArray<FieldCrop>> crops, double reserveDays)

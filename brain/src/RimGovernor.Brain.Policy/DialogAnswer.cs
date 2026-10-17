@@ -27,7 +27,7 @@ public sealed record DialogOption
 /// </summary>
 public sealed record DialogAnswerPolicy(EquatableArray<string> Prefer);
 
-public static partial class PolicyFunctions
+public static class DialogAnswerRules
 {
     /// <summary>
     /// The passive, non-escalating preference order, by Core translation key: dismiss an informational dialog,

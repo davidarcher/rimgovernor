@@ -116,7 +116,7 @@ internal static class ReadProjections
     {
         var extent = v.Extent.TryGetValue(out var known) ? known : null;
         var extentDto = new RoundsExtentDto(extent is not null, extent?.Regions.Count ?? 0, extent?.Regions.Sum(r => r.Cells.Count) ?? 0);
-        var eligibility = PolicyFunctions.ExtentEligibility(v.ExtentEligibility);
+        var eligibility = ExtentEligibilityRules.ExtentEligibility(v.ExtentEligibility);
         return new RoundsStatusDto(
             new ExtentEligibilityDto(
                 eligibility.Known,
@@ -138,7 +138,7 @@ internal static class ReadProjections
         r.Resource.Value,
         r.Tick.Value,
         r.WindowDays,
-        PolicyFunctions.MaintenanceHorizonDays,
+        ColonyDiagnosticsRules.MaintenanceHorizonDays,
         r.Reserve,
         Value(r.Stock),
         Value(r.SurfaceOre),

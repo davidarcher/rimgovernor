@@ -3,7 +3,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -136,14 +135,14 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(["cell/3/1"], targets["pawn"]);
 
         // The per-portfolio bound is 4096 and cannot be raised: a larger bound is rejected, not searched.
-        Assert.Throws<DomainException>(() => ForecastColony(Replay(s, s.ReferenceRoots, 4097)));
-        var production = ForecastColony(Replay(s, s.ReferenceRoots, 4096)).Baseline.Coupled!;
+        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastColony(Replay(s, s.ReferenceRoots, 4097)));
+        var production = ColonyForecastRules.ForecastColony(Replay(s, s.ReferenceRoots, 4096)).Baseline.Coupled!;
         Assert.True(production.Truncated);
         // Pinning every activity to its reference worker leaves nothing to assign differently.
         var pairs = PortfolioReferenceScheduleTests.Reference().Select(r => (r.Activity, r.Worker)).ToHashSet();
-        var pinned = ForecastColony(Replay(s, s.ReferenceRoots, 4096, o => pairs.Contains((o.Activity, o.Pawn)))).Baseline.Coupled!;
-        var mixed = ForecastColony(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[1]], 4096)).Baseline.Coupled!;
-        var diner = ForecastColony(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[2]], 4096)).Baseline.Coupled!;
+        var pinned = ColonyForecastRules.ForecastColony(Replay(s, s.ReferenceRoots, 4096, o => pairs.Contains((o.Activity, o.Pawn)))).Baseline.Coupled!;
+        var mixed = ColonyForecastRules.ForecastColony(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[1]], 4096)).Baseline.Coupled!;
+        var diner = ColonyForecastRules.ForecastColony(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[2]], 4096)).Baseline.Coupled!;
         MaybeWrite("replay", new
         {
             Reference = Describe(production, s.ReferenceRoots), Pinned = Describe(pinned, s.ReferenceRoots),

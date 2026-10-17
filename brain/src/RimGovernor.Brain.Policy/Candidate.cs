@@ -181,7 +181,7 @@ public sealed record SupplyCandidate
     }
 }
 
-public static partial class PolicyFunctions
+public static class CandidateRules
 {
     /// <summary>The good a food candidate yields.</summary>
     public static readonly Resource CandidateNutrition = new("Nutrition");

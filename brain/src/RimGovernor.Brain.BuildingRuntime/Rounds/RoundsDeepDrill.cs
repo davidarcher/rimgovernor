@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -81,7 +82,7 @@ public sealed partial class RoundsResourcePlanner
     internal async Task<DeepDrillReading?> ReadDeepDrillAsync(ControlState state, RoundsReview review, CancellationToken call)
     {
         var items = await reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
-        if (PolicyApi.DeepDrillingResearch([], review.ResourceRunwayState(), items).Count == 0)
+        if (DeepDrillRules.DeepDrillingResearch([], review.ResourceRunwayState(), items).Count == 0)
         {
             return null;
         }
@@ -170,7 +171,7 @@ public sealed partial class RoundsResourcePlanner
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var building = new Building("DeepDrill", site.Centre, Rotation.North, "");
-        var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, PolicyApi.PlannerTier(EconomyFamily.Resource.FilingKey, Pol.Phase.None));
+        var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTierRules.PlannerTier(EconomyFamily.Resource.FilingKey, Pol.Phase.None));
         var preview = (await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false));
         var p = preview.Preview;
         var fk = p.Footprint.TryGetValue(out var footprint);
@@ -197,7 +198,7 @@ public sealed partial class RoundsResourcePlanner
     internal async Task<(RoundsResourceResult Result, bool Handled)> DeepDrillAsync(ControlState state, NeedOwner goal, RoundsReview review, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var items = await reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
-        if (PolicyApi.DeepDrillingResearch([], review.ResourceRunwayState(), items).Count == 0)
+        if (DeepDrillRules.DeepDrillingResearch([], review.ResourceRunwayState(), items).Count == 0)
         {
             return (new RoundsResourceResult(), false);
         }

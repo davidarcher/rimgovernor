@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 public static class Families
 {
     /// <summary>Go's <c>FactFamilies()</c>: every family, in wire order.</summary>
-    public static IReadOnlyList<FactFamily> FactFamilies() => PolicyFunctions.FactFamilies();
+    public static IReadOnlyList<FactFamily> FactFamilies() => FactFamilyRules.FactFamilies();
 
     /// <summary>
     /// Go's <c>FactFamilyFromWire</c>: maps a clock ObservationInvalidated family to its controller name; an

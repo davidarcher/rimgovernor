@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 /// <summary>
@@ -305,7 +306,7 @@ public static class FoodChannelsReads
         var w = new FishableWater
         {
             FishingResearched = researched,
-            ResearchLeadDays = FishingResearchLeadDays(new FishingResearchInputs
+            ResearchLeadDays = FishingFactsRules.FishingResearchLeadDays(new FishingResearchInputs
             {
                 Researched = researched,
                 BaseCost = ColonyDecodeReads.Optional(water.ResearchBaseCost is not null, water.ResearchBaseCost.GetValueOrDefault()),
@@ -343,11 +344,11 @@ public static class FoodChannelsReads
             {
                 cells.Add(new FishingCell { Cell = new Cell(c.Cell?.X ?? 0, c.Cell?.Z ?? 0), Reachable = c.Reachable.GetValueOrDefault(), DistanceSquared = c.DistanceSquared.GetValueOrDefault() });
             }
-            var proposed = FishingFootprint(cells, fishers.Count);
+            var proposed = FishingFactsRules.FishingFootprint(cells, fishers.Count);
             region = region with
             {
                 ProposedCells = proposed,
-                Reachable = FishingReachable(ColonyDecodeReads.Optional(row.Reachable is not null, row.Reachable.GetValueOrDefault()), region.Zoned, proposed.Count, fishers.Count),
+                Reachable = FishingFactsRules.FishingReachable(ColonyDecodeReads.Optional(row.Reachable is not null, row.Reachable.GetValueOrDefault()), region.Zoned, proposed.Count, fishers.Count),
             };
             var zones = new List<FishingZoneState>(row.Zones.Count);
             foreach (var z in row.Zones)
@@ -356,8 +357,8 @@ public static class FoodChannelsReads
             }
             region = region with
             {
-                Delivering = Known(FishingDelivering(zones)),
-                PawnFishWorkCapacity = FishingWorkCapacity(fishers, ColonyDecodeReads.Optional(row.YieldCurveValue is not null, row.YieldCurveValue.GetValueOrDefault()), region.NutritionPerFish, ColonyDecodeReads.Optional(water.BaseFishingDurationTicks is not null, water.BaseFishingDurationTicks.GetValueOrDefault())),
+                Delivering = Known(FishingFactsRules.FishingDelivering(zones)),
+                PawnFishWorkCapacity = FishingFactsRules.FishingWorkCapacity(fishers, ColonyDecodeReads.Optional(row.YieldCurveValue is not null, row.YieldCurveValue.GetValueOrDefault()), region.NutritionPerFish, ColonyDecodeReads.Optional(water.BaseFishingDurationTicks is not null, water.BaseFishingDurationTicks.GetValueOrDefault())),
             };
             regions.Add(region);
         }

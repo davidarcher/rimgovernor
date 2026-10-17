@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -150,7 +151,7 @@ public sealed class RoomsRounds
     internal static RoomsFacts Facts(ColonyProjection projection, RoundsPolicy policy, ComfortHistory history, NeedOwner? spot, RoundsBuildingPlanner? flooring)
     {
         var lighting = Unknown<LightingReview>();
-        var sky = PolicyApi.SkyDarkHold(projection.Facts.DisasterConditions, projection.Facts.OutdoorsDark);
+        var sky = DisasterRules.SkyDarkHold(projection.Facts.DisasterConditions, projection.Facts.OutdoorsDark);
         if (!projection.Facts.Upkeep.Lighting.IsKnown || sky.IsKnown)
         {
             var review = RoundsBuildingPlanner.LightingReviewOf(projection, policy.Lighting);
@@ -161,7 +162,7 @@ public sealed class RoomsRounds
         }
         var floors = Unknown<FlooringReview>();
         var census = flooring is not null ? flooring.FlooringCensus(projection) : RoundsBuildingPlanner.TrafficFlooringFacts(projection, policy.Flooring);
-        var floorReview = PolicyApi.ReviewFlooring(census, projection.Rooms, policy.Flooring);
+        var floorReview = FlooringRules.ReviewFlooring(census, projection.Rooms, policy.Flooring);
         if (floorReview.Known)
         {
             floors = Known(floorReview);
@@ -169,7 +170,7 @@ public sealed class RoomsRounds
         var profiles = projection.WorkPawns.TryGetValue(out var pawns)
             ? Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)])
             : Unknown<EquatableArray<PawnProfile>>();
-        var hosting = PolicyApi.ReviewComfort(projection.Facts.Comfort, history, projection.Identity.Tick);
+        var hosting = ComfortRules.ReviewComfort(projection.Facts.Comfort, history, projection.Identity.Tick);
         return new RoomsFacts
         {
             Lighting = lighting,

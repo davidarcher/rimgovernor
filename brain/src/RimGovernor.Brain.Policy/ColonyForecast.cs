@@ -91,7 +91,7 @@ public sealed record ColonyForecast
     public EquatableArray<string> Unsupported { get; init; } = UnsupportedDomains;
 }
 
-public static partial class PolicyFunctions
+public static class ColonyForecastRules
 {
     /// <summary>Evaluate both alternatives from the same inventory. Target floors are not consumption events.</summary>
     public static ColonyForecast ForecastColony(ColonyForecastRequest request)
@@ -122,7 +122,7 @@ public static partial class PolicyFunctions
             Origin = request.Origin,
             HorizonDays = request.HorizonDays,
             Unsupported = request.Coupled is null ? ColonyForecast.UnsupportedDomains : ["combat_outcomes", "future_weather", "unmodeled_thermal_geometry", "future_meal_thoughts"],
-            Observed = DiagnoseColony(request.Facts),
+            Observed = ColonyDiagnosticsRules.DiagnoseColony(request.Facts),
             Baseline = request.Coupled is null ? ForecastConstruction.ForecastConstructionScenario(request, baseline) : ForecastCoupled.ForecastCoupledScenarioOf(request, baseline),
             Proposed = request.Coupled is null ? ForecastConstruction.ForecastConstructionScenario(request, proposed) : ForecastCoupled.ForecastCoupledScenarioOf(request, proposed),
         };
@@ -141,7 +141,7 @@ public static partial class PolicyFunctions
             }
             foreach (var change in commitment.StockChanges)
             {
-                if (!ValidResource(change.Resource)
+                if (!AdmissionRules.ValidResource(change.Resource)
                     || (change.Day.TryGetValue(out var day) && (!double.IsFinite(day) || day < 0))
                     || (change.Units.TryGetValue(out var units) && !double.IsFinite(units)))
                 {
@@ -159,7 +159,7 @@ public static partial class PolicyFunctions
         var stocks = new Dictionary<Resource, double>();
         foreach (var row in rows)
         {
-            if (!ValidResource(row.Resource) || row.Count < 0)
+            if (!AdmissionRules.ValidResource(row.Resource) || row.Count < 0)
             {
                 throw new DomainException("invalid forecast observed stock");
             }

@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Observation;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -39,11 +38,11 @@ public sealed class ForecastClaimsTests
             Construction = new() { IngredientReservations = Native() },
             Commitments = [Promise("cook", Material, 50, "bill")], Proposed = new() { Remove = ["cook"] },
         };
-        var forecast = ForecastColony(request);
+        var forecast = ColonyForecastRules.ForecastColony(request);
         Assert.Equal(50, forecast.Baseline.MaterialAvailability.Value[Material].Value);
         Assert.Equal(80, forecast.Proposed.MaterialAvailability.Value[Material].Value);
         Assert.Equal(100, forecast.Proposed.Stocks.Single(s => s.Resource == Material).Points[0].BalanceUnits.Value);
-        var released = ForecastColony(request with { Construction = request.Construction with { IngredientReservations = NoReservations } });
+        var released = ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { IngredientReservations = NoReservations } });
         Assert.Equal(100, released.Proposed.MaterialAvailability.Value[Material].Value);
     }
 

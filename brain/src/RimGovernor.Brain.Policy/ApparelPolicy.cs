@@ -43,7 +43,7 @@ public sealed record ApparelPolicyState
     public bool Nude { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ApparelPolicyRules
 {
     // Outfit bounds: the hit-point floor swaps a garment before the tattered thought (below 50%); the quality
     // floor starts at Awful and rises with stock (apparelQualityFloor).
@@ -154,11 +154,11 @@ public static partial class PolicyFunctions
             return false;
         }
 
-        var role = DeriveGearRole(state.Role);
+        var role = GearLoadoutRules.DeriveGearRole(state.Role);
         var modelled = p.LoadoutModel.TryGetValue(out var model);
         if (modelled)
         {
-            role = DeriveGearRole(model!.Role);
+            role = GearLoadoutRules.DeriveGearRole(model!.Role);
         }
 
         if (!RoleApparelPolicy(p.Pawn, role, state, out desired, p.AllowTainted))

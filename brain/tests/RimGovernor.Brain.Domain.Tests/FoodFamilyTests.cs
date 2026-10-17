@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -32,7 +31,7 @@ public sealed class FoodFamilyTests
     public void TheSupplyNeedIsAPlainThresholdOverItsChecks()
     {
         var met = Supply(SupplyFacts());
-        Assert.Equal((FoodSupplyNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
+        Assert.Equal((FoodRules.FoodSupplyNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
 
         // A runway short of the season's target reopens the Need: no latch holds it open or shut.
         var shortRunway = Supply(SupplyFacts(reserve: false));
@@ -61,9 +60,9 @@ public sealed class FoodFamilyTests
         };
         foreach (var f in new[] { facts, met, met with { FoodDays = Known(0.0) }, met with { ButcherBenches = Known<EquatableArray<ButcherBench>>([]) } })
         {
-            var row = Assert.Single(ReviewEssentialServices(f, policy, new() { Work = new() { Tick = f.Tick } }).Coverage,
-                c => c.Service == EssentialService.Food && c.Target == ServiceTarget.ForNeed(FoodSupplyNeed));
-            var expected = FoodSupplyNeedOf(FoodFacts.From(f, policy)).Satisfaction switch
+            var row = Assert.Single(EssentialServicesRules.ReviewEssentialServices(f, policy, new() { Work = new() { Tick = f.Tick } }).Coverage,
+                c => c.Service == EssentialService.Food && c.Target == ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed));
+            var expected = FoodRules.FoodSupplyNeedOf(FoodFacts.From(f, policy)).Satisfaction switch
             {
                 Satisfaction.Met => ServiceCoverage.Adequate,
                 Satisfaction.Unmet => ServiceCoverage.Shortfall,
@@ -71,15 +70,15 @@ public sealed class FoodFamilyTests
             };
             Assert.Equal(expected, row.Coverage);
         }
-        Assert.Equal(Satisfaction.Met, FoodSupplyNeedOf(FoodFacts.From(met, policy)).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, FoodSupplyNeedOf(FoodFacts.From(facts, policy)).Satisfaction);
+        Assert.Equal(Satisfaction.Met, FoodRules.FoodSupplyNeedOf(FoodFacts.From(met, policy)).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, FoodRules.FoodSupplyNeedOf(FoodFacts.From(facts, policy)).Satisfaction);
     }
 
     [Fact]
     public void TheCookingNeedIsMetWhileAMealCanBeMadeAndReopensWhenTheKitchenIsLost()
     {
         var met = Cooking(new() { Cooking = Known(true), CampfireRetireOwed = Known(false) });
-        Assert.Equal((CookingNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
+        Assert.Equal((FoodRules.CookingNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
 
         // A lost stove kitchen: nothing can be cooked on the next review, so the Need is unmet again.
         var lost = Cooking(new() { Cooking = Known(false), CampfireRetireOwed = Known(false) });
@@ -100,7 +99,7 @@ public sealed class FoodFamilyTests
     {
         var facts = new FoodFacts { Cooking = Known(false) };
         Assert.Empty(new FoodFamily(false, false).Derive(facts));
-        Assert.Equal([FoodSupplyNeed, CookingNeed], new FoodFamily(true, true).Derive(facts).Select(n => n.Id));
+        Assert.Equal([FoodRules.FoodSupplyNeed, FoodRules.CookingNeed], new FoodFamily(true, true).Derive(facts).Select(n => n.Id));
         var family = new FoodFamily(true, true);
         Assert.Empty(family.Propose(family.Derive(facts), facts));
     }
@@ -110,8 +109,8 @@ public sealed class FoodFamilyTests
     {
         var facts = new RoundsFacts { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]) };
         ServiceCoverage Coverage(RoundsFacts f) => Assert.Single(
-            ReviewEssentialServices(f, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = f.Tick } }).Coverage,
-            c => c.Service == EssentialService.Cooking && c.Target == ServiceTarget.ForNeed(CookingNeed)).Coverage;
+            EssentialServicesRules.ReviewEssentialServices(f, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = f.Tick } }).Coverage,
+            c => c.Service == EssentialService.Cooking && c.Target == ServiceTarget.ForNeed(FoodRules.CookingNeed)).Coverage;
         Assert.Equal(ServiceCoverage.Adequate, Coverage(facts with { Cooking = Known(true), CampfireRetireOwed = Known(false) }));
         Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts with { Cooking = Known(false) }));
         Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts with { Cooking = Known(true), CampfireRetireOwed = Known(true) }));
@@ -135,13 +134,13 @@ public sealed class FoodFamilyTests
         public FamilyRun Run() =>
             Runner.RunAsync(new FamilyStep { Journal = Journal, World = World }, TestContext.Current.CancellationToken).GetAwaiter().GetResult();
 
-        public static Verdict Report(FamilyRun run, NeedId? need = null) => Assert.Single(run.Reports, r => r.Need == (need ?? CookingNeed)).Verdict;
+        public static Verdict Report(FamilyRun run, NeedId? need = null) => Assert.Single(run.Reports, r => r.Need == (need ?? FoodRules.CookingNeed)).Verdict;
     }
 
     private static PlanSpec Build(string definition, Cell cell)
     {
         var id = PlanIds.MintPlanId();
-        return new PlanSpec(id, new(1), [DomainAction.NewBuildingAction(new(id.Value + "-0"), new Building(definition, cell, Rotation.North, ""), PlannerTier(CookingNeed.FilingKey, Phase.None))]);
+        return new PlanSpec(id, new(1), [DomainAction.NewBuildingAction(new(id.Value + "-0"), new Building(definition, cell, Rotation.North, ""), ConstructionTierRules.PlannerTier(FoodRules.CookingNeed.FilingKey, Phase.None))]);
     }
 
     private static PlanSpec Plan(DomainAction action)
@@ -166,7 +165,7 @@ public sealed class FoodFamilyTests
             (work, _, call) =>
             {
                 var verdicts = new List<Verdict>();
-                if (work.Need.Id == CookingNeed)
+                if (work.Need.Id == FoodRules.CookingNeed)
                 {
                     foreach (var (method, cell) in colony!.Builds)
                     {
@@ -216,13 +215,13 @@ public sealed class FoodFamilyTests
         var run = colony.Run();
         Assert.Equal(Outcome.Admitted, Colony.Report(run).Outcome);
         Assert.Equal(2, run.Methods.Count);
-        Assert.All(run.Methods, m => Assert.Equal((CookingNeed, ClaimOutcome.Admitted), (m.Need, m.Outcome)));
-        Assert.All(run.Methods, m => Assert.Equal(CookingNeed.FilingKey, colony.Journal.PlanMethod(m.Plan, ct)!.Concern));
+        Assert.All(run.Methods, m => Assert.Equal((FoodRules.CookingNeed, ClaimOutcome.Admitted), (m.Need, m.Outcome)));
+        Assert.All(run.Methods, m => Assert.Equal(FoodRules.CookingNeed.FilingKey, colony.Journal.PlanMethod(m.Plan, ct)!.Concern));
 
         // The same MethodIds again: the open plans continue, nothing new is committed.
         var again = colony.Run();
         Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(again));
-        Assert.Equal(2, colony.Journal.LoadNeed(CookingNeed, World, ct).Methods.Count);
+        Assert.Equal(2, colony.Journal.LoadNeed(FoodRules.CookingNeed, World, ct).Methods.Count);
     }
 
     [Fact]
@@ -230,13 +229,13 @@ public sealed class FoodFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        var held = colony.Journal.CommitClaimedMethod(RefrigerationNeed, World, new("held-cooler"), "", Build("Cooler", new(5, 5)), ct);
+        var held = colony.Journal.CommitClaimedMethod(FoodStoresRules.RefrigerationNeed, World, new("held-cooler"), "", Build("Cooler", new(5, 5)), ct);
         Assert.Equal(ClaimOutcome.Admitted, held.Outcome);
 
         colony.Builds.Add(("cooking-campfire", new Cell(5, 5)));
         var refused = Colony.Report(colony.Run());
         Assert.True(refused.Is(Cause.Claim), refused.ToString());
-        Assert.Empty(colony.Journal.LoadNeed(CookingNeed, World, ct).Methods);
+        Assert.Empty(colony.Journal.LoadNeed(FoodRules.CookingNeed, World, ct).Methods);
     }
 
     [Fact]
@@ -256,10 +255,10 @@ public sealed class FoodFamilyTests
     }
 
     private static void File(Colony colony, FamilyRun run) =>
-        colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf(FoodFamilyId, run)!], TestContext.Current.CancellationToken);
+        colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf(FoodRules.FoodFamilyId, run)!], TestContext.Current.CancellationToken);
 
     private static ConcernProgress? Row(Colony colony) =>
-        colony.Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == CookingNeed.FilingKey);
+        colony.Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == FoodRules.CookingNeed.FilingKey);
 
     [Fact]
     public void SupplyFieldsAndForageAreAdmittedSideBySideAndAFieldOnTheSameCellsIsAClaimConflict()
@@ -274,15 +273,15 @@ public sealed class FoodFamilyTests
             ("acquire-berries", Forage("f1", "berry-1"))]);
         var run = colony.Run();
         Assert.Equal(3, run.Methods.Count);
-        Assert.All(run.Methods, m => Assert.Equal((FoodSupplyNeed, ClaimOutcome.Admitted), (m.Need, m.Outcome)));
-        Assert.Equal(3, colony.Journal.LoadNeed(FoodSupplyNeed, World, ct).Methods.Count);
+        Assert.All(run.Methods, m => Assert.Equal((FoodRules.FoodSupplyNeed, ClaimOutcome.Admitted), (m.Need, m.Outcome)));
+        Assert.Equal(3, colony.Journal.LoadNeed(FoodRules.FoodSupplyNeed, World, ct).Methods.Count);
 
         // A third batch on a cell the first holds is refused on that claim; the open Methods continue.
         colony.Supplies.Clear();
         colony.Supplies.Add(("fields-third", Field("z3", (10, 11), (10, 12))));
-        var refused = Colony.Report(colony.Run(), FoodSupplyNeed);
+        var refused = Colony.Report(colony.Run(), FoodRules.FoodSupplyNeed);
         Assert.True(refused.Is(Cause.Claim), refused.ToString());
-        Assert.Equal(3, colony.Journal.LoadNeed(FoodSupplyNeed, World, ct).Methods.Count);
+        Assert.Equal(3, colony.Journal.LoadNeed(FoodRules.FoodSupplyNeed, World, ct).Methods.Count);
     }
 
     [Fact]
@@ -294,10 +293,10 @@ public sealed class FoodFamilyTests
         colony.Supplies.Add(("acquire-berries", Forage("f1", "berry-1")));
         File(colony, colony.Run());
         var review = colony.Journal.LoadRounds(ct);
-        colony.Journal.RecordProgressCooldown(review.Revision, FoodSupplyNeed.FilingKey, "acquire/berry-2", new(review.Tick.Value + 1000), ct);
+        colony.Journal.RecordProgressCooldown(review.Revision, FoodRules.FoodSupplyNeed.FilingKey, "acquire/berry-2", new(review.Tick.Value + 1000), ct);
 
         File(colony, colony.Run());
-        var row = Assert.Single(colony.Journal.LoadRounds(ct).Progress, p => p.Concern == FoodSupplyNeed.FilingKey);
+        var row = Assert.Single(colony.Journal.LoadRounds(ct).Progress, p => p.Concern == FoodRules.FoodSupplyNeed.FilingKey);
         Assert.True(row.Cooled("acquire/berry-2", review.Tick));
     }
 
@@ -314,7 +313,7 @@ public sealed class FoodFamilyTests
     public void TheBabyFeedingNeedIsUnmetWhileBabyFoodIsShortAndUnknownUnread()
     {
         var stocked = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { Babies = 1, StockNutrition = 10, TargetNutrition = 5 }) });
-        Assert.Equal((BabyFeedingNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (stocked.Id, stocked.Tier, stocked.Satisfaction, stocked.Deficit));
+        Assert.Equal((FoodRules.BabyFeedingNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (stocked.Id, stocked.Tier, stocked.Satisfaction, stocked.Deficit));
         Assert.Contains(new NeedEvidence("baby_food", Known("stocked")), stocked.Evidence);
 
         var breastfed = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { Babies = 2, Breastfed = true }) });
@@ -337,7 +336,7 @@ public sealed class FoodFamilyTests
     public void TheBlightNeedIsUnmetWhileABlightedPlantStandsAndUnknownUnread()
     {
         var clear = BlightOf(Census());
-        Assert.Equal((BlightNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (clear.Id, clear.Tier, clear.Satisfaction, clear.Deficit));
+        Assert.Equal((FoodRules.BlightNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (clear.Id, clear.Tier, clear.Satisfaction, clear.Deficit));
 
         // A designated plant still stands: the Need is met by the cut, not the order.
         var standing = BlightOf(Census(Blighted("plant-1", 1, designated: true)));
@@ -346,7 +345,7 @@ public sealed class FoodFamilyTests
 
         var unread = BlightOf(new());
         Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
-        Assert.Equal([FoodSupplyNeed, CookingNeed, BabyFeedingNeed, BlightNeed], new FoodFamily(true, true, true, true).Derive(new()).Select(n => n.Id));
+        Assert.Equal([FoodRules.FoodSupplyNeed, FoodRules.CookingNeed, FoodRules.BabyFeedingNeed, FoodRules.BlightNeed], new FoodFamily(true, true, true, true).Derive(new()).Select(n => n.Id));
     }
 
     [Fact]
@@ -392,24 +391,24 @@ public sealed class FoodFamilyTests
         using var colony = new Colony { Journal = journal, Runner = runner };
 
         var first = colony.Run();
-        Assert.Equal(Outcome.Admitted, Colony.Report(first, BlightNeed).Outcome);
+        Assert.Equal(Outcome.Admitted, Colony.Report(first, FoodRules.BlightNeed).Outcome);
         var batch = Assert.Single(first.Methods);
-        Assert.Equal(BlightNeed.FilingKey, journal.PlanMethod(batch.Plan, ct)!.Concern);
+        Assert.Equal(FoodRules.BlightNeed.FilingKey, journal.PlanMethod(batch.Plan, ct)!.Concern);
 
         // The same census again continues the open batch.
-        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(colony.Run(), BlightNeed));
-        Assert.Single(journal.LoadNeed(BlightNeed, World, ct).Methods);
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(colony.Run(), FoodRules.BlightNeed));
+        Assert.Single(journal.LoadNeed(FoodRules.BlightNeed, World, ct).Methods);
 
         // The first batch's plants designated, a new plant is a second batch beside it: no whole-goal gate holds it.
         facts = Census(Blighted("plant-1", 1, designated: true), Blighted("plant-2", 2, designated: true), Blighted("plant-3", 3));
-        Assert.Equal(Outcome.Admitted, Colony.Report(colony.Run(), BlightNeed).Outcome);
-        Assert.Equal(2, journal.LoadNeed(BlightNeed, World, ct).Methods.Count);
+        Assert.Equal(Outcome.Admitted, Colony.Report(colony.Run(), FoodRules.BlightNeed).Outcome);
+        Assert.Equal(2, journal.LoadNeed(FoodRules.BlightNeed, World, ct).Methods.Count);
 
         // A batch naming a plant an open batch still holds is refused on that plant's claim.
         facts = Census(Blighted("plant-2", 2), Blighted("plant-4", 4));
-        var refused = Colony.Report(colony.Run(), BlightNeed);
+        var refused = Colony.Report(colony.Run(), FoodRules.BlightNeed);
         Assert.True(refused.Is(Cause.Claim), refused.ToString());
-        Assert.Equal(2, journal.LoadNeed(BlightNeed, World, ct).Methods.Count);
+        Assert.Equal(2, journal.LoadNeed(FoodRules.BlightNeed, World, ct).Methods.Count);
         Assert.Empty(BlightRefusedOf(journal));
     }
 
@@ -431,7 +430,7 @@ public sealed class FoodFamilyTests
         {
             _ = CommitReleased(journal, i % 3 == 0 ? batch : new MethodId($"forage-{i}"), i);
         }
-        var owner = journal.LoadNeed(BlightNeed, World, ct);
+        var owner = journal.LoadNeed(FoodRules.BlightNeed, World, ct);
         Assert.Empty(owner.Methods);
         var history = journal.OwnerMethodHistory(owner, ct);
         Assert.Equal(201, history.Count);
@@ -439,10 +438,10 @@ public sealed class FoodFamilyTests
 
         // The family run budgets and commits the batch as its 101st attempt.
         var run = colony.Run();
-        Assert.Equal(Outcome.Admitted, Colony.Report(run, BlightNeed).Outcome);
+        Assert.Equal(Outcome.Admitted, Colony.Report(run, FoodRules.BlightNeed).Outcome);
         var admitted = Assert.Single(run.Methods);
         Assert.Equal(admitted.Plan, journal.OwnerMethodPlan(owner, batch, ct));
-        Assert.Equal(101L, Assert.Single(journal.LoadNeed(BlightNeed, World, ct).Methods).Attempt);
+        Assert.Equal(101L, Assert.Single(journal.LoadNeed(FoodRules.BlightNeed, World, ct).Methods).Attempt);
         var latest = journal.OwnerMethodHistory(owner, ct);
         Assert.Equal(201, latest.Count);
         Assert.Equal((batch, admitted.Plan), (latest[^1].Method, latest[^1].Plan));
@@ -460,7 +459,7 @@ public sealed class FoodFamilyTests
             _ = CommitReleased(journal, new($"forage-{i}"), i);
         }
         var again = CommitReleased(journal, new("forage-1"), 300);
-        var owner = journal.LoadNeed(BlightNeed, World, ct);
+        var owner = journal.LoadNeed(FoodRules.BlightNeed, World, ct);
         // 257 MethodIds: the oldest falls outside the window, and forage-1 is its re-issued attempt, the newest row.
         var history = journal.OwnerMethodHistory(owner, ct);
         Assert.Equal(256, history.Count);
@@ -482,7 +481,7 @@ public sealed class FoodFamilyTests
         var facts = Census(Blighted("plant-1", 1));
         var family = new FoodFamily(false, false, blight: true);
         var plan = Assert.Single(family.Propose([.. family.Derive(facts)], facts)).Plan(PlanIds.MintPlanId());
-        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(BlightNeed, World, method, "", plan, ct).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(FoodRules.BlightNeed, World, method, "", plan, ct).Outcome);
         foreach (var action in plan.Actions)
         {
             journal.Cancel(plan.Id, action.Id, ct);

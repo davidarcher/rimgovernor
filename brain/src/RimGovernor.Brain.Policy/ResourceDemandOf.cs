@@ -41,13 +41,13 @@ public static partial class ResourceRules
     public static DerivedDemand ResourceDemandOf(RoundsFacts f, RoundsPolicy p, RoundsLatches l)
     {
         var clothing = f.ClothingRunway();
-        var works = ConstructionDemandOf(f, p, l);
+        var works = ConstructionDemandRules.ConstructionDemandOf(f, p, l);
         var holds = ProductionRules.ProductionMaterialHoldsOf(f.ProductionPromises, f.BillReservations);
         var material = ProductionRules.SharedMaterialBudgetOf(f.Resources, f.ConstructionDeficit, holds);
         if (holds.TryGetValue(out var held))
         {
             works = new Dictionary<Resource, long>(works);
-            var admitted = AdmittedNeeds(f.Admitted);
+            var admitted = ConstructionDemandRules.AdmittedNeeds(f.Admitted);
             foreach (var (resource, amount) in held)
                 if (amount.TryGetValue(out var units))
                 {
@@ -59,7 +59,7 @@ public static partial class ResourceRules
         }
         IReadOnlyDictionary<Resource, long>[] sources =
         [
-            OpenBillDemand(f.OpenBills, new StockReader { Resources = f.Resources, Wood = f.Wood }),
+            BillDemandRules.OpenBillDemand(f.OpenBills, new StockReader { Resources = f.Resources, Wood = f.Wood }),
             clothing.Needs,
             f.FuelRunway().Needs,
             f.AnimalFeedRunway().Needs,
@@ -99,7 +99,7 @@ public static partial class ResourceRules
         }
         foreach (var (r, v) in derived)
         {
-            if (v > 0 && v > output.GetValueOrDefault(r) && ValidResource(r))
+            if (v > 0 && v > output.GetValueOrDefault(r) && AdmissionRules.ValidResource(r))
             {
                 output[r] = v;
             }

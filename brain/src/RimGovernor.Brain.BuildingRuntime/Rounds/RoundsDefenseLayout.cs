@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -304,7 +305,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     {
                         break;
                     }
-                    var gate = ResearchRules.ResearchGate([PolicyApi.StoneShellResearch], read.Projection.Facts.Research);
+                    var gate = ResearchRules.ResearchGate([FacilityUpkeepRules.StoneShellResearch], read.Projection.Facts.Research);
                     if (gate != "")
                     {
                         return new RoundsDefenseLayoutResult { Verdict = ResearchWait(gate), Tier = name.Value };
@@ -354,7 +355,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         record.VerifiedTick = tick;
         record.VerifiedCombat = combat;
         read.Projection.WorkPawns.TryGetValue(out var workers);
-        var upkeep = DefenseRearm.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, read.Projection.Resources, PolicyApi.PowerOutageHold(read.Projection.Facts.DisasterConditions));
+        var upkeep = DefenseRearm.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, read.Projection.Resources, DisasterRules.PowerOutageHold(read.Projection.Facts.DisasterConditions));
         p.Journal.SaveDefenseLayout(record, call);
         if (upkeep.Rearm)
         {

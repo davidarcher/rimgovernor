@@ -16,7 +16,7 @@ public sealed partial record ForecastCoupledExecution
         var releases = new List<ForecastIncumbentRelease>();
         foreach (var incumbent in incumbents.Where(i => !retained.Contains(i.Commitment)))
         {
-            var decision = ReviewActivityOwnership(incumbent.Batch, Known(false), tick, [incumbent.Ownership, .. incumbent.ReleasedOwnership]);
+            var decision = ActivityContinuationRules.ReviewActivityOwnership(incumbent.Batch, Known(false), tick, [incumbent.Ownership, .. incumbent.ReleasedOwnership]);
             if (decision.Release is not { } release) return new([], null);
             releases.Add(new(incumbent, release));
         }

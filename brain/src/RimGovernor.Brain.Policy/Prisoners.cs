@@ -32,11 +32,11 @@ public sealed record PrisonersFacts
 /// joiners and anomaly families are the rest (#3302).
 /// <list type="bullet">
 /// <item><c>prisoners/recruit</c> (Development): every living prisoner has the interaction the colony has a use for
-/// (recruit, convert, enslave or release, <see cref="PolicyFunctions.PrisonerRecruitDeficit"/>). Each Method sets one
+/// (recruit, convert, enslave or release, <see cref="PopulationRules.PrisonerRecruitDeficit"/>). Each Method sets one
 /// prisoner's interaction, named <c>prisoner-&lt;mode&gt;-&lt;pawn&gt;</c>, one per prisoner owed a change; the runtime also stages the jail (ring,
 /// bed, prisoner flag) while the Need is unmet.</item>
 /// <item><c>prisoners/custody</c> (Wellbeing): no downed humanlike is owed a capture or rescue
-/// (<see cref="PolicyFunctions.CustodyDeficit"/>). Both are held: a rescue belongs to the patient's medical/critical Need
+/// (<see cref="PopulationRules.CustodyDeficit"/>). Both are held: a rescue belongs to the patient's medical/critical Need
 /// owner and a capture needs shared forecast support.</item>
 /// </list>
 /// The two Needs are independent; neither waits on the other.

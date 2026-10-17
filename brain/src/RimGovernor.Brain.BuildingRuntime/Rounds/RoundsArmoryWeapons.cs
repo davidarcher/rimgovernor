@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsArmoryPlanner
@@ -75,8 +76,8 @@ public sealed partial class RoundsArmoryPlanner
                 }
             }
         }
-        var (fighters, hunters) = PolicyApi.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes, products);
-        _reviewer.Exports.SetWeapons(snapshot, PolicyApi.SpareWeaponCounts(tier, pawns, primaries, candidates, recipes, products));
+        var (fighters, hunters) = ArmoryRules.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes, products);
+        _reviewer.Exports.SetWeapons(snapshot, GearSurplusRules.SpareWeaponCounts(tier, pawns, primaries, candidates, recipes, products));
         return (fighters, hunters, WeaponAssignmentRules.UnarmedFighters(pawns, candidates));
     }
 

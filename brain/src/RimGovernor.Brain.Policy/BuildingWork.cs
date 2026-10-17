@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: building_work.go
 
-public static partial class PolicyFunctions
+public static class BuildingWorkRules
 {
     /// <summary>An applied building intent whose blueprint or frame still stands (or whose census is unknown).</summary>
     public static bool AppliedBuildingOpen(Progress p, Fact<CurrentConstruction> census) =>
@@ -83,6 +83,6 @@ public static partial class PolicyFunctions
     private static BuildingWork BuildingWorkOpen(Progress p, Fact<CurrentConstruction> census)
     {
         var building = p.Action.Building;
-        return WorkOpen(building!, census);
+        return ConstructionOwnershipRules.WorkOpen(building!, census);
     }
 }

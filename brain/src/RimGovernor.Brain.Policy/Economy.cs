@@ -116,7 +116,7 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
     public IReadOnlyList<Need> Derive(EconomyFacts facts) =>
         [
             .. research ? [ResearchNeed(facts)] : Array.Empty<Need>(),
-            .. resource ? [PolicyFunctions.ResourceNeedOf(facts.Resource)] : Array.Empty<Need>(),
+            .. resource ? [EconomyRules.ResourceNeedOf(facts.Resource)] : Array.Empty<Need>(),
             .. trade ? [TradeNeed(facts.Trade)] : Array.Empty<Need>(),
             .. caravan ? [CaravanNeed(facts.Trade), TradeMissionNeed(facts.Missions)] : Array.Empty<Need>(),
         ];
@@ -124,7 +124,7 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, EconomyFacts facts)
     {
         var methods = new List<NeedMethod>();
-        if (ready.Any(n => n.Id == Resource) && PolicyFunctions.ResourceHold(facts.Resource) is { } held)
+        if (ready.Any(n => n.Id == Resource) && EconomyRules.ResourceHold(facts.Resource) is { } held)
         {
             methods.Add(NeedMethod.Held(Resource, held.Subject, held.Detail));
         }
@@ -132,7 +132,7 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
         {
             return methods;
         }
-        var step = PolicyFunctions.ResearchStepOf(facts);
+        var step = EconomyRules.ResearchStepOf(facts);
         if (step.Select.Length != 0)
         {
             var project = step.Select;
@@ -155,7 +155,7 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
     public static Need ResearchNeed(EconomyFacts f)
     {
         var needs = f.ResearchNeeds;
-        var census = f.Research.TryGetValue(out var read) ? Known(PolicyFunctions.ResearchSummary(read!)) : Unknown<ResearchFacts>();
+        var census = f.Research.TryGetValue(out var read) ? Known(EconomyRules.ResearchSummary(read!)) : Unknown<ResearchFacts>();
         var (target, derived) = ResearchRules.ResearchConcern(needs, census);
         var (recovered, deficit) = ResearchRules.ResearchTargetNeed(target, derived, census);
         var pick = census.TryGetValue(out var summary) ? summary!.KnowledgePick.Value : "";
@@ -183,7 +183,7 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
     }
 }
 
-public static partial class PolicyFunctions
+public static class EconomyRules
 {
     /// <summary>
     /// Why the resource Need has no Method of its own: while a recorded research need is unfinished (the workshop
@@ -219,7 +219,7 @@ public static partial class PolicyFunctions
                 if (runway.DaysLeft.TryGetValue(out var days))
                 {
                     deficit.TryGetValue(out var old);
-                    deficit = Known(Math.Max(old, 1 - days / MaintenanceHorizonDays));
+                    deficit = Known(Math.Max(old, 1 - days / ColonyDiagnosticsRules.MaintenanceHorizonDays));
                 }
             }
         }

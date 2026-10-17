@@ -229,7 +229,7 @@ body stats (`cell_temperature_c` against `comfortable_min_c`/`max_c`), which mus
 then compares the offset with the card's stage band: none in the band, -4/-8/-12/-16 at deficits 5/15/25/35, none at 15
 with `Temperature_Tough`. Without Ideology the Tough step is skipped and reported as not observed.
 
-`PolicyFunctions.GenerateEffectSources` (pure, #3224; prevention branch #3284; gear warmth #3329) turns the verified
+`EffectSourcesRules.GenerateEffectSources` (pure, #3224; prevention branch #3284; gear warmth #3329) turns the verified
 prevention and temperature cards into per-pawn gear candidates. A prevention card matches a pawn when it is `Live`,
 every site maps to a `disallow-counted` `SiteActions` row, its count guards count one bound decl, and `CardStageOffset`
 for the pawn's worn apparel (its `GearLoadoutInput.Worn`, primary weapon excluded) is known. For each pawn the gear

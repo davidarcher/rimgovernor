@@ -2,11 +2,11 @@ namespace RimGovernor.Brain.Policy;
 
 public static class RoundsFactsSaleExtensions
 {
-    /// <summary>Go <c>RoundsFacts.SaleAnimals</c>: <see cref="PolicyFunctions.HerdSaleAnimals"/> over the herd plan of f.</summary>
-    public static IReadOnlySet<PawnId> SaleAnimals(this RoundsFacts f) => PolicyFunctions.HerdSaleAnimals(f.AnimalUpkeep.Animals, f.HerdPolicy());
+    /// <summary>Go <c>RoundsFacts.SaleAnimals</c>: <see cref="HerdSaleRules.HerdSaleAnimals"/> over the herd plan of f.</summary>
+    public static IReadOnlySet<PawnId> SaleAnimals(this RoundsFacts f) => HerdSaleRules.HerdSaleAnimals(f.AnimalUpkeep.Animals, f.HerdPolicy());
 }
 
-public static partial class PolicyFunctions
+public static class HerdSaleRules
 {
     /// <summary>
     /// Go <c>HerdSaleAnimals</c>: the colony animals the herd plan lets a trader take: the animals
@@ -24,7 +24,7 @@ public static partial class PolicyFunctions
         {
             return @out;
         }
-        var (removals, unknown) = HerdSurplusCandidates(rows, herd.PopulationMax, true, herd);
+        var (removals, unknown) = HerdSurplusRules.HerdSurplusCandidates(rows, herd.PopulationMax, true, herd);
         if (unknown)
         {
             return @out;

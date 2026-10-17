@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
@@ -18,7 +19,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     internal static Fact<EquatableArray<int>> PlanLitRooms(ColonyProjection facts) =>
-        PolicyFunctions.PlanLitRooms(facts.LayoutPlan, facts.Rooms, facts.Facts.Upkeep.Lighting, RoundsTierStyle.PoweredSource(facts));
+        LightingRules.PlanLitRooms(facts.LayoutPlan, facts.Rooms, facts.Facts.Upkeep.Lighting, RoundsTierStyle.PoweredSource(facts));
 
     internal IReadOnlyList<string> LightingDefinitions()
     {
@@ -37,7 +38,7 @@ public sealed partial class RoundsBuildingPlanner
 
     /// <summary>The lighting review of <paramref name="facts"/> with the plan's unlit rooms folded in, measured fresh: the rooms/lighting Need's evidence.</summary>
     internal static LightingReview LightingReviewOf(ColonyProjection facts, LightingPolicy p) =>
-        PolicyFunctions.ReviewLighting(facts.Facts.Upkeep.Lighting, p, PolicyFunctions.SkyDarkHold(facts.Facts.DisasterConditions, facts.Facts.OutdoorsDark))
+        LightingRules.ReviewLighting(facts.Facts.Upkeep.Lighting, p, DisasterRules.SkyDarkHold(facts.Facts.DisasterConditions, facts.Facts.OutdoorsDark))
             .WithPlanned(PlanLitRooms(facts));
 
     /// <summary>The planner resolved to the lighting method the policy picked, or the verdict that says why none applies.</summary>
@@ -72,7 +73,7 @@ public sealed partial class RoundsBuildingPlanner
             lighting = lighting with { Plan = plan };
         }
 
-        var proposal = PolicyFunctions.SelectLightingMethod(review, facts.Facts.Upkeep.Lighting, lighting, p);
+        var proposal = LightingRules.SelectLightingMethod(review, facts.Facts.Upkeep.Lighting, lighting, p);
         switch (proposal.Method)
         {
             case LightingMethod.Build:
@@ -117,7 +118,7 @@ public sealed partial class RoundsBuildingPlanner
             }
 
             var building = new Building(Lighting.Definition, cell, Rotation.North, "");
-            var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, PolicyFunctions.PlannerTier(Concern, Phase));
+            var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
             var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;
             var fk = p.Footprint.TryGetValue(out var footprint);

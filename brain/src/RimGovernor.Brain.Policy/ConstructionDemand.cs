@@ -9,7 +9,7 @@ public readonly record struct StockReader(Fact<EquatableArray<Amount>> Resources
     /// <summary>Resource's usable units, unknown when the census (or, for WoodLog without a wood fact, the census) is unknown.</summary>
     public Fact<long> Count(Resource resource)
     {
-        if (resource == PolicyFunctions.ConstructionWoodLog && Wood.TryGetValue(out var wood))
+        if (resource == ConstructionDemandRules.ConstructionWoodLog && Wood.TryGetValue(out var wood))
         {
             return Known(wood);
         }
@@ -39,16 +39,16 @@ public readonly record struct StockReader(Fact<EquatableArray<Amount>> Resources
             return Resources;
         }
         var known = Resources.TryGetValue(out var rows);
-        if (!known && !(targets.ContainsKey(PolicyFunctions.ConstructionWoodLog) && targets.Count == 1))
+        if (!known && !(targets.ContainsKey(ConstructionDemandRules.ConstructionWoodLog) && targets.Count == 1))
         {
             return Resources;
         }
         var result = new List<Amount>();
         if (known)
         {
-            result.AddRange(rows.Where(row => row.Resource != PolicyFunctions.ConstructionWoodLog));
+            result.AddRange(rows.Where(row => row.Resource != ConstructionDemandRules.ConstructionWoodLog));
         }
-        result.Add(new Amount { Resource = PolicyFunctions.ConstructionWoodLog, Count = n });
+        result.Add(new Amount { Resource = ConstructionDemandRules.ConstructionWoodLog, Count = n });
         return Known(EquatableArray.From(result));
     }
 }
@@ -81,7 +81,7 @@ public sealed record ConstructionDemandInput
     public Fact<IReadOnlyDictionary<Resource, long>> Planned { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ConstructionDemandRules
 {
     public static readonly Resource ConstructionWoodLog = new("WoodLog");
 

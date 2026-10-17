@@ -29,7 +29,7 @@ public sealed record BabyFeeding
     public bool IsShort { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class BabyFeedingRules
 {
     /// <summary>The food/baby-feeding Need's bill purpose.</summary>
     public static readonly BillPurpose BabyFoodBill = new("baby_food");
@@ -59,7 +59,7 @@ public static partial class PolicyFunctions
             return r;
         }
 
-        DomainException.Require(FieldPositive(targetDays) && targetDays <= 60, "food facts unavailable");
+        DomainException.Require(FieldCapacityRules.FieldPositive(targetDays) && targetDays <= 60, "food facts unavailable");
         var isBaby = new HashSet<PawnId>(babies);
         var perDay = 0.0;
         var found = 0;
@@ -71,7 +71,7 @@ public static partial class PolicyFunctions
             }
 
             var known = c.NutritionPerDay.TryGetValue(out var rate);
-            DomainException.Require(known && FoodNumber(rate), "food facts unavailable");
+            DomainException.Require(known && FoodForecastRules.FoodNumber(rate), "food facts unavailable");
             perDay += rate;
             found++;
         }
@@ -82,7 +82,7 @@ public static partial class PolicyFunctions
         {
             var hk = s.Holder.TryGetValue(out var holder);
             var nk = s.Nutrition.TryGetValue(out var amount);
-            DomainException.Require(hk && nk && FoodNumber(amount), "food facts unavailable");
+            DomainException.Require(hk && nk && FoodForecastRules.FoodNumber(amount), "food facts unavailable");
             if (!holder.IsEmpty || s.Corpse)
             {
                 continue;
@@ -115,12 +115,12 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (BillSelection Selection, bool Ok) SelectBabyFoodBill(Fact<EquatableArray<ProductionBench>> benches, BabyFeeding review)
     {
-        if (!benches.TryGetValue(out var rows) || !review.IsShort || !FieldPositive(review.TargetNutrition))
+        if (!benches.TryGetValue(out var rows) || !review.IsShort || !FieldCapacityRules.FieldPositive(review.TargetNutrition))
         {
             return (new BillSelection(), false);
         }
 
-        return SelectTargetBill(
+        return FoodReserveRules.SelectTargetBill(
             rows.Items,
             new TargetBillSpec
             {

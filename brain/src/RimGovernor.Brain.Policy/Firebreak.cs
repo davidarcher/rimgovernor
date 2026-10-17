@@ -88,7 +88,7 @@ public sealed record FirebreakPlan
     public IReadOnlyList<Cell> Deconstruct { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static class FirebreakRules
 {
     /// <summary>The Chebyshev width of the firebreak ring around the base footprint.</summary>
     public const int FirebreakWidth = 2;
@@ -97,7 +97,7 @@ public static partial class PolicyFunctions
     public static readonly Tick FirebreakSettleTicks = new(5L * GameTime.TicksPerDay);
 
     /// <summary>
-    /// Go <c>PlanFirebreak</c>: derives the firebreak ring: <see cref="FirebreakRing"/>'s band less skipped,
+    /// Go <c>PlanFirebreak</c>: derives the firebreak ring: <see cref="FirebreakRingRules.FirebreakRing"/>'s band less skipped,
     /// planned and claimed cells. A cell is paved when the colony is in Development, the cell has been in the
     /// ring FirebreakSettleTicks, and the stock left after claimed material covers the cheapest non-flammable
     /// floor for every such cell; otherwise it is cut. dwell maps each ring cell to its first tick in the ring;
@@ -113,7 +113,7 @@ public static partial class PolicyFunctions
         {
             return (unknown, dwell);
         }
-        var ring = FirebreakRing(r);
+        var ring = FirebreakRingRules.FirebreakRing(r);
         if (!ring.TryGetValue(out var band))
         {
             return (unknown, dwell);
@@ -173,7 +173,7 @@ public static partial class PolicyFunctions
             {
                 left[k] = v - claimed!.GetValueOrDefault(k);
             }
-            if (floor.Length != 0 && AffordableCells(r.Floors.GetValueOrDefault(floor)!, Known<IReadOnlyDictionary<Resource, long>>(left), settled.Count) >= settled.Count)
+            if (floor.Length != 0 && FlooringRules.AffordableCells(r.Floors.GetValueOrDefault(floor)!, Known<IReadOnlyDictionary<Resource, long>>(left), settled.Count) >= settled.Count)
             {
                 foreach (var i in settled)
                 {
@@ -200,7 +200,7 @@ public static partial class PolicyFunctions
         var ak = def.Available.TryGetValue(out var available);
         var tk = def.Terrain.TryGetValue(out var terrain);
         var fk = def.Flammability.TryGetValue(out var flammability);
-        if (!ok || !ak || !tk || !fk || !FloorPriced(def))
+        if (!ok || !ak || !tk || !fk || !FlooringRules.FloorPriced(def))
         {
             return ("", false);
         }

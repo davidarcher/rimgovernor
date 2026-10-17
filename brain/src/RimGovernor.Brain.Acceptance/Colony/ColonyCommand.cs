@@ -227,7 +227,7 @@ public static class ColonyCommand
                         Watch = opts.Watch,
                         Window = (ulong)opts.Ticks,
                         Poll = TimeSpan.FromSeconds(10),
-                        Concern = PolicyFunctions.FoodSupplyNeed.Value,
+                        Concern = FoodRules.FoodSupplyNeed.Value,
                         Extra = ColonyAudits.ColonyConcerns,
                     },
                     Audit = async (h, r, ct) =>

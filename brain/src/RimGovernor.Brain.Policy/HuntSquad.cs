@@ -15,7 +15,7 @@ public enum HuntMode
     Formation,
 }
 
-public static partial class PolicyFunctions
+public static class HuntSquadRules
 {
     /// <summary>Counts the colonists with a hunting weapon (WeaponDef.Hunts) who are capable of hunting.</summary>
     public static int ArmedHunters(IReadOnlyList<PawnProfile> profiles)
@@ -67,15 +67,15 @@ public static partial class PolicyFunctions
         double nutrition = 0, work = 0, risk = 0, exposure = 0;
         var products = new Dictionary<Resource, double>();
         var defs = new List<Resource>();
-        var c = FoodCandidate(CandidateKind.Hunt, id, Unknown<double>());
+        var c = CandidateRules.FoodCandidate(CandidateKind.Hunt, id, Unknown<double>());
         var designated = true;
         foreach (var s in prey)
         {
             designated = designated && s.Designated;
-            var w = FoodHuntWorkTicks / (1 + (s.WeaponRange / 25));
+            var w = FoodPlanRules.FoodHuntWorkTicks / (1 + (s.WeaponRange / 25));
             if (s.Downed)
             {
-                w = FoodForageWorkTicks;
+                w = FoodPlanRules.FoodForageWorkTicks;
             }
             if (s.Sleeping)
             {
@@ -98,16 +98,16 @@ public static partial class PolicyFunctions
         // The animals in reach are all the candidate can deliver: a finite source.
         yields[0] = yields[0] with
         {
-            PerDay = Known(nutrition / FoodHuntCycleDays),
+            PerDay = Known(nutrition / FoodPlanRules.FoodHuntCycleDays),
             StockCap = Known((long)Math.Ceiling(nutrition)),
         };
         foreach (var def in defs)
         {
-            yields.Add(new CandidateYield { Good = new ResourceKey { Def = def }, PerDay = Known(products[def] / FoodHuntCycleDays) });
+            yields.Add(new CandidateYield { Good = new ResourceKey { Def = def }, PerDay = Known(products[def] / FoodPlanRules.FoodHuntCycleDays) });
         }
         var terms = new List<CandidateTerm>
         {
-            new("estimated_cycle_days", FoodHuntCycleDays),
+            new("estimated_cycle_days", FoodPlanRules.FoodHuntCycleDays),
             new("estimated_work_ticks", work),
             new("prey", prey.Count),
             new("revenge_cost", risk),
@@ -119,12 +119,12 @@ public static partial class PolicyFunctions
             terms.Add(new CandidateTerm("herd_size", s.HerdSize));
             terms.Add(new CandidateTerm("weapon_range", s.WeaponRange));
         }
-        var laborPerDay = Known(work / FoodHuntCycleDays);
+        var laborPerDay = Known(work / FoodPlanRules.FoodHuntCycleDays);
         return c with
         {
             LeadDays = Known(0.0),
-            Source = HuntSource,
-            State = FoodState(Known(false), Known(designated)),
+            Source = HuntCreditRules.HuntSource,
+            State = CandidateRules.FoodState(Known(false), Known(designated)),
             Yields = [.. yields],
             LaborPerDay = laborPerDay,
             Risk = [new CandidateRisk(CandidateRiskKind.Revenge, Math.Min(1, exposure))],

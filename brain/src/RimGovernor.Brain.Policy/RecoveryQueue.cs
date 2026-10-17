@@ -300,7 +300,7 @@ public static partial class RecoveryRules
             Kind = RemoteWorkKind.Salvage,
             RoomObstruction = roomObstruction,
             Cell = new Cell((row.Minimum.X + row.Maximum.X) / 2, (row.Minimum.Z + row.Maximum.Z) / 2),
-            Hold = RemoteRules.RemoteHoldReason(RemoteWorkKind.Salvage, ClearanceHoldReason(own)),
+            Hold = RemoteRules.RemoteHoldReason(RemoteWorkKind.Salvage, ClearanceRules.ClearanceHoldReason(own)),
             RouteSafe = Unknown<bool>(),
             Skipped = row.SalvageSkipped,
         };
@@ -410,7 +410,7 @@ public static partial class RecoveryRules
     /// </summary>
     public static RecoveryRequest ReviewRecoveryRequest(RoundsPolicy p, RoundsFacts f, IReadOnlyList<ClearanceTarget> rows, IReadOnlySet<string> roomObstructions)
     {
-        var extent = DeriveColonyExtent(new ColonyExtentRequest { Bounds = f.MapBounds, Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
+        var extent = ColonyExtentRules.DeriveColonyExtent(new ColonyExtentRequest { Bounds = f.MapBounds, Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
         var shortSet = RecoveryShortResources(p, f);
         var threat = Unknown<bool>();
         if (f.Hostiles.TryGetValue(out var hostiles))

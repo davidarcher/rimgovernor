@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// One owned stockpile as the census holds it now: its cells (the planning cells naming it), its stack capacity
-/// and held stacks (<see cref="PolicyFunctions.StorageStacks"/> over its cells and its built shelves' cells) and
+/// and held stacks (<see cref="StockpileRules.StorageStacks"/> over its cells and its built shelves' cells) and
 /// the settings the governor last applied.
 /// </summary>
 public sealed record StockpileZone

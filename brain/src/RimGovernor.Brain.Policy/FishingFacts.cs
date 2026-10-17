@@ -34,7 +34,7 @@ public sealed record FishingResearchInputs
 /// <summary>One available fisher's native rates. (Go <c>Fisher</c>.)</summary>
 public sealed record Fisher(double Yield, double Speed);
 
-public static partial class PolicyFunctions
+public static class FishingFactsRules
 {
     /// <summary>The planning assumption for one fisher or researcher day: eight work hours of 2500 ticks.</summary>
     public const int FishingWorkTicksPerDay = 8 * 2500;
@@ -62,7 +62,7 @@ public static partial class PolicyFunctions
         {
             var c = pending.Dequeue();
             result.Add(c);
-            foreach (var d in OrthogonalSteps)
+            foreach (var d in ExcavationReviewRules.OrthogonalSteps)
             {
                 var n = new Cell(c.X + d.X, c.Z + d.Z);
                 if (available.Remove(n))

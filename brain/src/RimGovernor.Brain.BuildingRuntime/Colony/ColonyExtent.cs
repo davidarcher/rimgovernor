@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class ClockScheduler
@@ -16,7 +17,7 @@ public sealed partial class ClockScheduler
             return;
         }
         var f = p.Facts;
-        var extent = PolicyFunctions.DeriveColonyExtent(new ColonyExtentRequest { Bounds = Known(p.Bounds), Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
+        var extent = ColonyExtentRules.DeriveColonyExtent(new ColonyExtentRequest { Bounds = Known(p.Bounds), Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
         if (extent.TryGetValue(out var value))
         {
             // Cached evidence may predate a player's latest expansion. Record at this review's live tick so

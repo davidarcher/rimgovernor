@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -57,7 +58,7 @@ internal sealed class FirebreakMemory
         var world = StockpileWorld(current);
         var tick = projection.Identity.Tick;
         var request = FirebreakRequest(projection);
-        var ring = PolicyApi.FirebreakRing(request);
+        var ring = FirebreakRingRules.FirebreakRing(request);
         if (!ring.TryGetValue(out var cells))
         {
             return Unknown<bool>();
@@ -124,7 +125,7 @@ internal sealed class FirebreakMemory
             Enter(world);
             dwell = _dwell ?? new Dictionary<Cell, Tick>();
         }
-        var (fact, next) = PolicyApi.PlanFirebreak(request, dwell);
+        var (fact, next) = FirebreakRules.PlanFirebreak(request, dwell);
         if (!fact.TryGetValue(out var plan))
         {
             return Unknown<bool>();
@@ -144,7 +145,7 @@ internal sealed class FirebreakMemory
             open.Add(cell);
             ruins[cell] = clearance;
         }
-        var work = PolicyApi.FirebreakOwed(plan, standing, open);
+        var work = FirebreakConcernRules.FirebreakOwed(plan, standing, open);
         var pave = new List<Cell>();
         if (flooringKnown && flooring is not null)
         {

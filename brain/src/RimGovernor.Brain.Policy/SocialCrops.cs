@@ -47,7 +47,7 @@ public static partial class SocialCropsRules
         var sk = climate.SowingOutdoors().TryGetValue(out var sowing);
         var dk = crop.GrowDays.TryGetValue(out var days);
         var remaining = climate.DaysRemaining.TryGetValue(out var season);
-        if (!known || !available || !sk || !sowing || !dk || !FieldPositive(days) || !remaining || season < days * 2.5)
+        if (!known || !available || !sk || !sowing || !dk || !FieldCapacityRules.FieldPositive(days) || !remaining || season < days * 2.5)
         {
             return 0;
         }

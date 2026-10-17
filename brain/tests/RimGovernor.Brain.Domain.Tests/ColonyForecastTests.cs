@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -27,7 +26,7 @@ public sealed class ColonyForecastTests
     public void EarlierDeliveryChangesShortfallWithoutChangingObservedStock()
     {
         var request = Request(Change("delivery", 2, 10), Change("build", 1, -15));
-        var result = ForecastColony(request with
+        var result = ColonyForecastRules.ForecastColony(request with
         {
             Proposed = new ColonyForecastDelta
             {
@@ -49,8 +48,8 @@ public sealed class ColonyForecastTests
     {
         var a = Change("use", 1, -4);
         var b = Change("delivery", 2, 2);
-        var first = ForecastColony(Request(a, b));
-        var second = ForecastColony(Request(b, a));
+        var first = ColonyForecastRules.ForecastColony(Request(a, b));
+        var second = ColonyForecastRules.ForecastColony(Request(b, a));
         Assert.Equal(first.Baseline, first.Proposed);
         Assert.Equal(first.Baseline, second.Baseline);
         Assert.Equal(8, first.Baseline.Stocks[0].Points[^1].BalanceUnits.Value);
@@ -60,10 +59,10 @@ public sealed class ColonyForecastTests
     public void UnknownStockIsNotKnownEmpty()
     {
         var request = Request(Change("use", 1, -4));
-        var unknown = ForecastColony(request with { Facts = new ColonyForecastFacts() });
+        var unknown = ColonyForecastRules.ForecastColony(request with { Facts = new ColonyForecastFacts() });
         Assert.False(unknown.Baseline.Stocks[0].Points[^1].BalanceUnits.IsKnown);
         Assert.Contains(unknown.Baseline.Findings, f => f.Reason == "unknown_initial_stock");
-        var empty = ForecastColony(request with
+        var empty = ColonyForecastRules.ForecastColony(request with
         {
             Facts = new ColonyForecastFacts { Stock = Known(default(EquatableArray<Amount>)) },
         });
@@ -77,7 +76,7 @@ public sealed class ColonyForecastTests
         {
             new ForecastStockChange(Material, Unknown<double>(), Known(20.0)),
         }));
-        var result = ForecastColony(Request(change));
+        var result = ColonyForecastRules.ForecastColony(Request(change));
         Assert.Equal(10, result.Proposed.Stocks[0].Points[0].BalanceUnits.Value);
         Assert.False(result.Proposed.Stocks[0].Points[^1].BalanceUnits.IsKnown);
         Assert.Equal("unknown_stock_effect", Assert.Single(result.Proposed.Findings).Reason);
@@ -86,17 +85,17 @@ public sealed class ColonyForecastTests
     [Fact]
     public void HorizonDoesNotTurnLaterBenefitsIntoZeroOrCurrentStock()
     {
-        var result = ForecastColony(Request(Change("late", 4, 20)));
+        var result = ColonyForecastRules.ForecastColony(Request(Change("late", 4, 20)));
         Assert.Equal(10, result.Proposed.Stocks[0].Points[^1].BalanceUnits.Value);
         Assert.Equal("beyond_horizon", Assert.Single(result.Proposed.Findings).Reason);
         Assert.Equal(3, result.HorizonDays);
-        Assert.Equal(MaintenanceHorizonDays, result.Observed.HorizonDays);
+        Assert.Equal(ColonyDiagnosticsRules.MaintenanceHorizonDays, result.Observed.HorizonDays);
     }
 
     [Fact]
     public void SameTimeOutputDoesNotFinanceItsOwnInput()
     {
-        var result = ForecastColony(Request(Change("output", 1, 20), Change("input", 1, -15)));
+        var result = ColonyForecastRules.ForecastColony(Request(Change("output", 1, 20), Change("input", 1, -15)));
         Assert.Equal(5, Assert.Single(result.Proposed.Findings).Units.Value);
         Assert.Equal(15, result.Proposed.Stocks[0].Points[^1].BalanceUnits.Value);
     }
@@ -104,10 +103,10 @@ public sealed class ColonyForecastTests
     [Fact]
     public void InvalidChangesAndDuplicateCommitmentsAreRejected()
     {
-        Assert.Throws<DomainException>(() => ForecastColony(Request(Change("a", 0, 1), Change("a", 1, 1))));
-        Assert.Throws<DomainException>(() => ForecastColony(Request(Change("bad", -1, 1))));
-        Assert.Throws<DomainException>(() => ForecastColony(Request() with { HorizonDays = double.NaN }));
-        Assert.Throws<DomainException>(() => ForecastColony(Request() with
+        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastColony(Request(Change("a", 0, 1), Change("a", 1, 1))));
+        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastColony(Request(Change("bad", -1, 1))));
+        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastColony(Request() with { HorizonDays = double.NaN }));
+        Assert.Throws<DomainException>(() => ColonyForecastRules.ForecastColony(Request() with
         {
             Proposed = new ColonyForecastDelta { Remove = EquatableArray.From(new List<string> { "missing" }) },
         }));
@@ -117,7 +116,7 @@ public sealed class ColonyForecastTests
     public void ConstructionDiagnosticsKeepExactResourcesAndUnits()
     {
         var other = new Resource("OtherMaterial");
-        var result = ForecastColony(Request() with
+        var result = ColonyForecastRules.ForecastColony(Request() with
         {
             Facts = new ColonyForecastFacts
             {
@@ -145,7 +144,7 @@ public sealed class ColonyForecastTests
         {
             UnsupportedEffects = EquatableArray.From(new List<string> { "work_completion" }),
         };
-        var result = ForecastColony(Request(Change("use", 1, -2), commitment));
+        var result = ColonyForecastRules.ForecastColony(Request(Change("use", 1, -2), commitment));
         var points = result.Baseline.Stocks[0].Points;
         Assert.Equal(8, points[1].BalanceUnits.Value);
         Assert.False(points[2].BalanceUnits.IsKnown);
@@ -157,7 +156,7 @@ public sealed class ColonyForecastTests
     public void DiagnosticRatesAreNotInventoryEventsAndFloorsOverlapByMaximum()
     {
         var request = Request();
-        var result = ForecastColony(request with
+        var result = ColonyForecastRules.ForecastColony(request with
         {
             HorizonDays = 2,
             Facts = request.Facts with

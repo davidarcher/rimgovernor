@@ -133,7 +133,7 @@ public static partial class TradePolicyRules
     {
         var pk = r.Plan.TryGetValue(out var plan);
         var rk = r.RunwayDays.TryGetValue(out var runway);
-        if (!pk || !rk || !FoodNumber(runway) || !FieldPositive(r.MinDays) || !FieldPositive(r.TargetDays) || r.TargetDays <= r.MinDays)
+        if (!pk || !rk || !FoodForecastRules.FoodNumber(runway) || !FieldCapacityRules.FieldPositive(r.MinDays) || !FieldCapacityRules.FieldPositive(r.TargetDays) || r.TargetDays <= r.MinDays)
         {
             return new TradeFoodNeed();
         }
@@ -156,7 +156,7 @@ public static partial class TradePolicyRules
         }
         var need = new TradeFoodNeed { Nutrition = nutrition };
         // Ingredient upgrades cannot sell away an emergency reserve.
-        if (runway <= r.TargetDays || !FieldPositive(r.IngredientNutrition))
+        if (runway <= r.TargetDays || !FieldCapacityRules.FieldPositive(r.IngredientNutrition))
         {
             return need;
         }
@@ -187,7 +187,7 @@ public static partial class TradePolicyRules
     }
 
     internal static bool ValidTradeFood(TradeFoodGood g) =>
-        FieldPositive(g.Nutrition)
+        FieldCapacityRules.FieldPositive(g.Nutrition)
         && g.Class is FoodIngredientClass.Any or FoodIngredientClass.Meat or FoodIngredientClass.Vegetable or FoodIngredientClass.AnimalProduct
         && (!g.Crop || (!g.Prepared && g.Class == FoodIngredientClass.Vegetable));
 
@@ -218,7 +218,7 @@ public static partial class TradePolicyRules
                 || !row.CurrencyKnown
                 || row.Currency
                 || !row.BuyPriceKnown
-                || !FieldPositive(row.BuyPrice)
+                || !FieldCapacityRules.FieldPositive(row.BuyPrice)
             )
             {
                 continue;
@@ -229,7 +229,7 @@ public static partial class TradePolicyRules
         {
             // Pemmican has a long native rot clock; reserve policy still prefers it over short-lived meals without
             // claiming that it cannot rot.
-            if (g.NonPerishable || ReserveFoodDefinition(new Resource(row.DefName)))
+            if (g.NonPerishable || FoodReserveRules.ReserveFoodDefinition(new Resource(row.DefName)))
             {
                 return 0;
             }
@@ -261,7 +261,7 @@ public static partial class TradePolicyRules
         var used = new Dictionary<string, long>(StringComparer.Ordinal);
         void Buy(double nutrition, FoodIngredientSlot? slot)
         {
-            if (!FieldPositive(nutrition))
+            if (!FieldCapacityRules.FieldPositive(nutrition))
             {
                 return;
             }
@@ -323,7 +323,7 @@ public static partial class TradePolicyRules
     public static IReadOnlyDictionary<string, long> CropSurplusFloors(TradeNeed need)
     {
         var output = new Dictionary<string, long>(StringComparer.Ordinal);
-        if (need.Food.Missing.Count == 0 || !FieldPositive(need.Food.IngredientNutrition))
+        if (need.Food.Missing.Count == 0 || !FieldCapacityRules.FieldPositive(need.Food.IngredientNutrition))
         {
             return output;
         }

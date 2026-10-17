@@ -25,14 +25,14 @@ public sealed record GearApparel
 
     internal bool Valid()
     {
-        if (!PolicyFunctions.ValidResource(Definition) || !PolicyFunctions.FoodNumber(Condition) || Condition > 1)
+        if (!AdmissionRules.ValidResource(Definition) || !FoodForecastRules.FoodNumber(Condition) || Condition > 1)
         {
             return false;
         }
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var g in Groups)
         {
-            if (!PolicyFunctions.FoodId(g) || !seen.Add(g))
+            if (!FoodForecastRules.FoodId(g) || !seen.Add(g))
             {
                 return false;
             }
@@ -88,7 +88,7 @@ public sealed record GearObservation
     /// <summary>The outfits owed a prune: none until every pawn is on its own outfit (OutfitKeep).</summary>
     public IReadOnlyList<string> OutfitsToPrune()
     {
-        var settled = PolicyFunctions.OutfitKeep(Pawns, out var keep);
+        var settled = ApparelPolicyRules.OutfitKeep(Pawns, out var keep);
         if (!settled || !Outfits.TryGetValue(out var all))
         {
             return [];
@@ -106,8 +106,8 @@ public sealed record GearObservation
             {
                 var key = row with { Count = 0 };
                 DomainException.Require(
-                    PolicyFunctions.ValidResource(row.Definition)
-                        && (string.IsNullOrEmpty(row.Stuff.Value) || PolicyFunctions.ValidResource(row.Stuff))
+                    AdmissionRules.ValidResource(row.Definition)
+                        && (string.IsNullOrEmpty(row.Stuff.Value) || AdmissionRules.ValidResource(row.Stuff))
                         && row.Quality >= 0
                         && row.Quality <= 6
                         && row.HPBand >= 5
@@ -122,7 +122,7 @@ public sealed record GearObservation
         foreach (var p in Pawns)
         {
             p.Climate.Validate();
-            DomainException.Require(PolicyFunctions.FoodId(p.Pawn.Value) && PolicyFunctions.FoodId(p.Loadout) && pawns.Add(p.Pawn), "invalid gear pawn or loadout");
+            DomainException.Require(FoodForecastRules.FoodId(p.Pawn.Value) && FoodForecastRules.FoodId(p.Loadout) && pawns.Add(p.Pawn), "invalid gear pawn or loadout");
             if (p.LoadoutModel.TryGetValue(out var model))
             {
                 model.Validate();
@@ -133,7 +133,7 @@ public sealed record GearObservation
                 foreach (var c in candidates)
                 {
                     DomainException.Require(
-                        PolicyFunctions.FoodId(c.Target) && PolicyFunctions.ValidResource(c.Definition) && PolicyFunctions.FoodNumber(c.Gain) && c.Gain > 0 && targets.Add(c.Target),
+                        FoodForecastRules.FoodId(c.Target) && AdmissionRules.ValidResource(c.Definition) && FoodForecastRules.FoodNumber(c.Gain) && c.Gain > 0 && targets.Add(c.Target),
                         "invalid gear candidate"
                     );
                 }
@@ -144,9 +144,9 @@ public sealed record GearObservation
                 foreach (var n in needs)
                 {
                     DomainException.Require(
-                        PolicyFunctions.ValidResource(n.Definition)
-                            && (string.IsNullOrEmpty(n.Stuff.Value) || PolicyFunctions.ValidResource(n.Stuff))
-                            && PolicyFunctions.FoodId(n.Reason)
+                        AdmissionRules.ValidResource(n.Definition)
+                            && (string.IsNullOrEmpty(n.Stuff.Value) || AdmissionRules.ValidResource(n.Stuff))
+                            && FoodForecastRules.FoodId(n.Reason)
                             && identities.Add(n),
                         "invalid gear replacement need"
                     );
@@ -296,7 +296,7 @@ public sealed record GearPlanningRequest
 /// <summary>One definition to produce, attributed to a pawn or to the armory's colony weapon batch.</summary>
 internal readonly record struct GearNeed(GearPawn Pawn, GearReplacement Need);
 
-public static partial class PolicyFunctions
+public static class GearRules
 {
     /// <summary>The hit-point fraction at or under which native upkeep counts a garment as worn out and raises a replacement need.</summary>
     public const double GearTatteredCondition = .5;
@@ -320,7 +320,7 @@ public static partial class PolicyFunctions
             return new GearReview();
         }
         var missing = 0;
-        var loadouts = PlanColonyGear(v.Pawns);
+        var loadouts = GearLoadoutRules.PlanColonyGear(v.Pawns);
         var modeled = new Dictionary<PawnId, GearLoadout>();
         foreach (var l in loadouts)
         {
@@ -333,10 +333,10 @@ public static partial class PolicyFunctions
             {
                 foreach (var gap in l.Gaps)
                 {
-                    deficit = deficit || GearGapWanted(l.Role, gap);
+                    deficit = deficit || GearLoadoutRules.GearGapWanted(l.Role, gap);
                 }
             }
-            var policyNeeded = DesiredApparelPolicy(p, out _);
+            var policyNeeded = ApparelPolicyRules.DesiredApparelPolicy(p, out _);
             if (deficit || policyNeeded)
             {
                 missing++;
@@ -370,7 +370,7 @@ public static partial class PolicyFunctions
             return [];
         }
         f.TryGetValue(out var observed);
-        var v = ModeledGearObservation(observed!, review.Loadouts);
+        var v = GearLoadoutRules.ModeledGearObservation(observed!, review.Loadouts);
         var seen = new HashSet<Resource>();
         var @out = new List<Resource>();
         foreach (var p in v.Pawns)
@@ -442,7 +442,7 @@ public static partial class PolicyFunctions
     /// netting the stored stock. Known is false while the bench census is unread. (Go <c>gearProductionDemand</c>;
     /// the exported <c>GearProductionDemand</c> is the loadout-gap aggregate.)
     /// </summary>
-    private static (IReadOnlyList<GearBench> Benches, Dictionary<GearStockKey, int> Demand, bool Known) GearBenchDemand(
+    internal static (IReadOnlyList<GearBench> Benches, Dictionary<GearStockKey, int> Demand, bool Known) GearBenchDemand(
         IReadOnlyList<GearNeed> needs,
         GearObservation v,
         GearReview review,
@@ -461,7 +461,7 @@ public static partial class PolicyFunctions
             var key = new GearStockKey(n.Need.Definition, n.Need.Stuff);
             demand[key] = demand.GetValueOrDefault(key) + 1;
         }
-        var stored = UnassignedGearStock(v.Stored.ValueOrDefault, review.Loadouts);
+        var stored = GearStockRules.UnassignedGearStock(v.Stored.ValueOrDefault, review.Loadouts);
         foreach (var row in stored)
         {
             if (row.HPBand >= 5 && row.Quality >= 2)
@@ -482,7 +482,7 @@ public static partial class PolicyFunctions
     /// it, Unknown while a bench's bills or a recipe's facts are unread, Produce with the first funded recipe.
     /// Resolved is false when no recipe is funded, so the next need is judged.
     /// </summary>
-    private static (GearMethod Method, bool Resolved) ProduceNeed(GearNeed n, int count, IReadOnlyList<GearBench> benches, GearPlanningRequest r)
+    internal static (GearMethod Method, bool Resolved) ProduceNeed(GearNeed n, int count, IReadOnlyList<GearBench> benches, GearPlanningRequest r)
     {
         // Check every bench before adding a bill, including later-sorted player benches.
         foreach (var b in benches)
@@ -533,7 +533,7 @@ public static partial class PolicyFunctions
                 {
                     return (new GearMethod { Kind = GearMethodKind.Unknown }, true);
                 }
-                var batch = GearBatchIngredients(slots, count);
+                var batch = GearStockRules.GearBatchIngredients(slots, count);
                 if (GearFilter(batch, n.Need.Stuff, r.StuffCategories) is { } filter)
                 {
                     return (
@@ -561,7 +561,7 @@ public static partial class PolicyFunctions
             var seen = new HashSet<Resource>();
             foreach (var p in v)
             {
-                if (!ValidResource(p) || !seen.Add(p))
+                if (!AdmissionRules.ValidResource(p) || !seen.Add(p))
                 {
                     return false;
                 }
@@ -570,7 +570,7 @@ public static partial class PolicyFunctions
         }
         foreach (var b in benches)
         {
-            DomainException.Require(FoodId(b.Id) && ids.Add(b.Id), "invalid gear bench");
+            DomainException.Require(FoodForecastRules.FoodId(b.Id) && ids.Add(b.Id), "invalid gear bench");
             var bills = b.Bills.ValueOrDefault;
             var recipes = b.Recipes.ValueOrDefault;
             foreach (var bill in bills)
@@ -580,7 +580,7 @@ public static partial class PolicyFunctions
             var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (var recipe in recipes)
             {
-                DomainException.Require(FoodId(recipe.Definition) && names.Add(recipe.Definition) && Products(recipe.Products), "invalid gear recipe");
+                DomainException.Require(FoodForecastRules.FoodId(recipe.Definition) && names.Add(recipe.Definition) && Products(recipe.Products), "invalid gear recipe");
                 if (recipe.RequiredWork.TryGetValue(out var work))
                 {
                     WorkRules.AssignWork([], work);
@@ -591,7 +591,7 @@ public static partial class PolicyFunctions
                     var resources = new HashSet<Resource>();
                     foreach (var a in slot)
                     {
-                        DomainException.Require(ValidResource(a.Resource) && a.Count > 0 && resources.Add(a.Resource), "invalid ingredient amount");
+                        DomainException.Require(AdmissionRules.ValidResource(a.Resource) && a.Count > 0 && resources.Add(a.Resource), "invalid ingredient amount");
                     }
                 }
             }

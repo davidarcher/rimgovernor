@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -227,7 +228,7 @@ partial class RoundsBuildingPlanner
         {
             return false;
         }
-        var review = PolicyApi.ReviewExcavation(target, ExcavationStates(site), RoundsBuildingPlanner.ExcavationStageLimit);
+        var review = ExcavationReviewRules.ReviewExcavation(target, ExcavationStates(site), RoundsBuildingPlanner.ExcavationStageLimit);
         return review.Kept.Count == 0 && review.Corridor;
     }
 
@@ -255,7 +256,7 @@ partial class RoundsBuildingPlanner
     /// <summary>The next excavation stage; a verdict when the site blocks it, and the door flag when the corridor is complete.</summary>
     internal static (ExcavationReview Review, Verdict Reason, bool Door) ExcavationNext(ExcavationTarget target, BridgeExcavationSite site)
     {
-        var review = PolicyApi.ReviewExcavation(target, ExcavationStates(site), RoundsBuildingPlanner.ExcavationStageLimit);
+        var review = ExcavationReviewRules.ReviewExcavation(target, ExcavationStates(site), RoundsBuildingPlanner.ExcavationStageLimit);
         if (site.CollapsePending)
         {
             return (review, CollapsePending("excavation_site"), false);

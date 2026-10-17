@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -266,7 +267,7 @@ public sealed partial class Rounder
         growth = growth with { ThroneArea = ThroneRules.ThroneAreaOwed(plan, need, owed) };
         if (projection.Facts.Pasture.TryGetValue(out var pasture))
         {
-            growth = growth with { Grazing = PolicyFunctions.GrazingGround(survey, pasture) };
+            growth = growth with { Grazing = HerdPenRules.GrazingGround(survey, pasture) };
         }
         // A room whose need has ended and that is in use stays.
         if (projection.Facts.CurrentConstruction.TryGetValue(out var construction) && construction.Colony)

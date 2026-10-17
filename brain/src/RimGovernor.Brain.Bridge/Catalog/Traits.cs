@@ -42,7 +42,7 @@ public sealed partial class DefinitionCatalog
     /// undergrounder, and the human-meat ingestion thoughts it disallows as a cannibal. The thoughts it nullifies or is
     /// required by give Execution, HumanButcher, Nudist and MeleeOnly, and a ShootingAccuracyPawn offset RearRanged. A trait
     /// or degree the catalog lacks is an error; effects the game applies in code and no row states come from
-    /// <c>PolicyFunctions.TraitSociable</c>, and a hunger-rate factor above 1 is a gourmand.
+    /// <c>TraitWorthRules.TraitSociable</c>, and a hunger-rate factor above 1 is a gourmand.
     /// </summary>
     public P.TraitEffects TraitEffects(string name, int degree)
     {

@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
@@ -14,7 +15,7 @@ public sealed partial class Rounder
 
         try
         {
-            var reserve = PolicyFunctions.ReviewFoodReserve(supply!, null, staged.FoodReserveDays, Seasonal(p.Facts).FoodMinDays, FoodDeliveryDays(p.Facts.FoodPlan));
+            var reserve = FoodReserveRules.ReviewFoodReserve(supply!, null, staged.FoodReserveDays, Seasonal(p.Facts).FoodMinDays, FoodDeliveryDays(p.Facts.FoodPlan));
             p = p with { Facts = p.Facts with { FoodReserve = Known(reserve) } };
         }
         catch (DomainException)

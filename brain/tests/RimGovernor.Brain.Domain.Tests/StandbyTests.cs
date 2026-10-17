@@ -77,12 +77,12 @@ public sealed class StandbyTests
         var batch = StandbyAssignmentsRules.StandbyActivity("pawn", 7, "standby-1");
 
         // No Concern, no deadline: a satisfied or unknown Need never releases standby into an unassigned hold.
-        var held = PolicyFunctions.ReviewActivityOwnership(batch, Known(false), 900_000, [new("pawn", "standby-1/pawn", "standby-1", 1, "started")]);
+        var held = ActivityContinuationRules.ReviewActivityOwnership(batch, Known(false), 900_000, [new("pawn", "standby-1/pawn", "standby-1", 1, "started")]);
         Assert.False(held.OwnershipEnded);
         Assert.Null(held.Release);
 
         // Selected work acquired the pawn from revision zero: the standby Method has ended.
-        var replaced = PolicyFunctions.ReviewActivityOwnership(batch, Known(true), 1000, [new("pawn", "work-3/pawn", "work-3", 1, "offered")]);
+        var replaced = ActivityContinuationRules.ReviewActivityOwnership(batch, Known(true), 1000, [new("pawn", "work-3/pawn", "work-3", 1, "offered")]);
         Assert.True(replaced.OwnershipEnded);
     }
 

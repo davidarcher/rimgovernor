@@ -216,7 +216,7 @@ public static class QuestDecrees
                 exact.Add(crop with { Harvests = Known(new Resource(crop.Name)), UnitsPerCell = Known(1.0) });
             }
         }
-        var plan = PlanFieldByResource(new ResourceFieldRequest
+        var plan = FieldResourceRules.PlanFieldByResource(new ResourceFieldRequest
         {
             Resource = new Resource(objective.Def),
             Deficit = Known((double)(remaining - standing)),

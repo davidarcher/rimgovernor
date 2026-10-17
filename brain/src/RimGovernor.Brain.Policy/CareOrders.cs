@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 // bill declare-only is its recipe (LedgerBillKind, set by the bench census), not who placed it, so the
 // guarantee holds across a restart and for a bill the ledger itself placed.
 
-public static partial class PolicyFunctions
+public static class CareOrdersRules
 {
     /// <summary>
     /// A bill selection as the ledger's order spec on its bench's definition. Null when the selected bench is

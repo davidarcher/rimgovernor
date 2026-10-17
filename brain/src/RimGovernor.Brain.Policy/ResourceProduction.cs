@@ -370,7 +370,7 @@ public static partial class ResourceRules
         var names = new List<Resource>(targets.Count);
         foreach (var (name, want) in targets)
         {
-            if (!ValidResource(name) || want <= 0)
+            if (!AdmissionRules.ValidResource(name) || want <= 0)
             {
                 throw new DomainException("invalid resource target");
             }
@@ -384,7 +384,7 @@ public static partial class ResourceRules
         var have = new Dictionary<Resource, long>();
         foreach (var q in rows)
         {
-            if (!ValidResource(q.Resource) || q.Count < 0)
+            if (!AdmissionRules.ValidResource(q.Resource) || q.Count < 0)
             {
                 throw new DomainException("invalid resource stock");
             }
@@ -419,14 +419,14 @@ public static partial class ResourceRules
     /// </summary>
     public static ResourceMethod SelectResourceMethod(ResourceMethodRequest r)
     {
-        if (!ValidResource(r.Resource) || r.Target <= 0 || r.Target > int.MaxValue)
+        if (!AdmissionRules.ValidResource(r.Resource) || r.Target <= 0 || r.Target > int.MaxValue)
         {
             return new ResourceMethod { Kind = ResourceMethodKind.Unknown };
         }
         var seen = new HashSet<MethodId>();
         foreach (var id in r.Seen)
         {
-            if (!FoodId(id.Value) || !seen.Add(id))
+            if (!FoodForecastRules.FoodId(id.Value) || !seen.Add(id))
             {
                 throw new DomainException("invalid resource method history");
             }
@@ -435,7 +435,7 @@ public static partial class ResourceRules
         {
             return new ResourceMethod { Kind = ResourceMethodKind.Unknown };
         }
-        ValidateGearProduction(knownBenches);
+        GearRules.ValidateGearProduction(knownBenches);
         var benches = knownBenches.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
         foreach (var b in benches)
         {
@@ -445,7 +445,7 @@ public static partial class ResourceRules
             }
             foreach (var bill in bills)
             {
-                if (!ContainsResource(bill.Products, r.Resource))
+                if (!GearRules.ContainsResource(bill.Products, r.Resource))
                 {
                     continue;
                 }
@@ -468,7 +468,7 @@ public static partial class ResourceRules
             var recipes = knownRecipes.OrderBy(x => x.Definition, StringComparer.Ordinal).ToList();
             foreach (var recipe in recipes)
             {
-                if (!ContainsResource(recipe.Products, r.Resource))
+                if (!GearRules.ContainsResource(recipe.Products, r.Resource))
                 {
                     continue;
                 }
@@ -495,7 +495,7 @@ public static partial class ResourceRules
                     {
                         continue;
                     }
-                    if (!bill.Active.TryGetValue(out var active) || !FoodId(bill.Id))
+                    if (!bill.Active.TryGetValue(out var active) || !FoodForecastRules.FoodId(bill.Id))
                     {
                         return new ResourceMethod { Kind = ResourceMethodKind.Unknown };
                     }

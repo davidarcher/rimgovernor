@@ -433,7 +433,7 @@ public static partial class WorkRules
         return evidence with
         {
             Pawns = Known(EquatableArray.From(pawns.Select(p => batch.Orders.Any(o => o.Pawn == p.Pawn
-            && (observed is not null ? observed.Any(n => MatchesActivityOwner(o, n)
+            && (observed is not null ? observed.Any(n => ActivityContinuationRules.MatchesActivityOwner(o, n)
                 && (n.State is "completed" or "failed" || o.Preparing && n.State == "holding"))
                 : native.Any(n => n.Pawn == o.Pawn && n.Assignment == o.Assignment && n.Revision == o.Revision
                     && (n.State is "completed" or "failed" || o.Preparing && n.State == "holding"))))

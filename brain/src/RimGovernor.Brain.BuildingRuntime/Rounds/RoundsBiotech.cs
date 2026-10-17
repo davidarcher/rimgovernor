@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -248,7 +249,7 @@ public sealed partial class BiotechRounds
         {
             return BuildingReasonNoLayoutPlan;
         }
-        var sites = PolicyFunctions.FreeSites(new FreeSiteRequest { Bounds = f.Bounds, Anchor = anchor, Cells = f.Cells, Light = f.LightTerrains }, size.Width, size.Height);
+        var sites = FreeSitesRules.FreeSites(new FreeSiteRequest { Bounds = f.Bounds, Anchor = anchor, Cells = f.Cells, Light = f.LightTerrains }, size.Width, size.Height);
         var verdict = await PlaceAsync(work, f, definition, method, size, sites, GeneBankSiteTries, "gene_bank_preview", started, call).ConfigureAwait(false);
         return verdict ?? NoSpace("gene_bank_cell");
     }
@@ -268,7 +269,7 @@ public sealed partial class BiotechRounds
         var unknown = false;
         foreach (var site in sites.Take(tries))
         {
-            var building = new Building(definition, PolicyFunctions.AnchorForRect(site, new Cell(size.Width, size.Height), Rotation.North), Rotation.North, "");
+            var building = new Building(definition, InteriorRules.AnchorForRect(site, new Cell(size.Width, size.Height), Rotation.North), Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTier.Expand);
             var got = await _building!.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var pv = got.Preview;
@@ -360,7 +361,7 @@ public sealed class MechBillDeclarer : IOrderDeclarer
             return new Declared();
         }
         var (selected, gap) = MechRules.SelectMechGestationBill(Rounder.MechBenches(benches), gestation);
-        return PolicyFunctions.DeclareSelection(selected, gap == default, benches);
+        return CareOrdersRules.DeclareSelection(selected, gap == default, benches);
     }
 }
 
@@ -463,7 +464,7 @@ partial class BiotechRounds
 
         foreach (var claim in history)
         {
-            if (claim.Building is { } building && names.Contains(building.Definition) && PolicyFunctions.WorkOpen(building, observed) == BuildingWork.BuildingOpen)
+            if (claim.Building is { } building && names.Contains(building.Definition) && ConstructionOwnershipRules.WorkOpen(building, observed) == BuildingWork.BuildingOpen)
             {
                 return true;
             }

@@ -240,7 +240,7 @@ public static class ColonyReviewCommand
                     Window = (ulong)opts.Days * 60000,
                     Poll = TimeSpan.FromSeconds(30),
                     PollTicks = 2500,
-                    Concern = PolicyFunctions.FoodSupplyNeed.Value,
+                    Concern = FoodRules.FoodSupplyNeed.Value,
                     Extra = ColonyAudits.ColonyConcerns,
                 },
                 Prepare = async (h, r, ct) =>

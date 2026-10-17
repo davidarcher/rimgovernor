@@ -142,7 +142,7 @@ public sealed record FoodEater
     public IReadOnlyList<string> Edible { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static class FoodPolicyRules
 {
     /// <summary>How far above the minor break threshold a pawn's mood still counts as near a break.</summary>
     private const double MoodTierMargin = 0.1;
@@ -257,7 +257,7 @@ public static partial class PolicyFunctions
     {
         bool Allowed(Food f)
         {
-            if (ReserveFoodDefinition(new Resource(f.Def)))
+            if (FoodReserveRules.ReserveFoodDefinition(new Resource(f.Def)))
             {
                 return d.Reserve;
             }

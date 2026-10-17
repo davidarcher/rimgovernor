@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Outdoor food fields fill the layout plan's field blocks at every tier. A plan field zone is a block the station
@@ -171,7 +172,7 @@ internal static class LayoutFieldPlanning
             if (first.Count > 0)
             {
                 var neighbours = FieldBlockNeighbours(facts.Cells, new HashSet<Cell>(first), growing);
-                foreach (var o in PolicyFunctions.BlockCropOrder(options, neighbours))
+                foreach (var o in CropChoiceRules.BlockCropOrder(options, neighbours))
                 {
                     if (o.Needed <= 0)
                     {
@@ -229,7 +230,7 @@ internal static class LayoutFieldPlanning
             lo = new Cell(Math.Min(lo.X, c.X), Math.Min(lo.Z, c.Z));
             hi = new Cell(Math.Max(hi.X, c.X), Math.Max(hi.Z, c.Z));
         }
-        var r = PolicyFunctions.FieldBlockNeighbourRadius;
+        var r = CropChoiceRules.FieldBlockNeighbourRadius;
         var output = new HashSet<string>(StringComparer.Ordinal);
         foreach (var c in cells)
         {

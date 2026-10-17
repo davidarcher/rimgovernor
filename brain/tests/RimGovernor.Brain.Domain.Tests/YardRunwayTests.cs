@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -96,8 +95,8 @@ public sealed class YardRunwayTests
     [Fact]
     public void LeadTimeIsBuildWorkAtBaseSpeedPlusTheHorizon()
     {
-        Assert.Equal(Known(MaintenanceHorizonDays), StoreRules.StorageLeadDays(Known(StoreRules.FurtherYardWorkTicks)));
-        Assert.Equal(Known(MaintenanceHorizonDays + 0.5), StoreRules.StorageLeadDays(Known(GameTime.TicksPerDay / 2.0)));
+        Assert.Equal(Known(ColonyDiagnosticsRules.MaintenanceHorizonDays), StoreRules.StorageLeadDays(Known(StoreRules.FurtherYardWorkTicks)));
+        Assert.Equal(Known(ColonyDiagnosticsRules.MaintenanceHorizonDays + 0.5), StoreRules.StorageLeadDays(Known(GameTime.TicksPerDay / 2.0)));
         Assert.False(StoreRules.StorageLeadDays(Unknown<double>()).IsKnown);
     }
 }

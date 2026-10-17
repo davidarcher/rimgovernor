@@ -268,12 +268,12 @@ public static partial class SiteRules
         {
             w = DefaultSiteTypeWeights();
         }
-        if (!FoodNumber(w.Construction) || !FoodNumber(w.Power) || !(r.LampGrowthRadius >= 0 && r.LampGrowthRadius <= 64))
+        if (!FoodForecastRules.FoodNumber(w.Construction) || !FoodForecastRules.FoodNumber(w.Power) || !(r.LampGrowthRadius >= 0 && r.LampGrowthRadius <= 64))
         {
             return (new SiteTypePlan(), false);
         }
         var candidates = new List<SiteTypeCandidate>();
-        var (field, ok) = PlanField(r.Field);
+        var (field, ok) = CropChoiceRules.PlanField(r.Field);
         var sk = r.Field.Climate.SowingOutdoors().TryGetValue(out var sowing);
         var darkKnown = r.Field.Climate.OutdoorsDark.TryGetValue(out var dark);
         var notPossible = "outdoor sowing not possible";
@@ -304,10 +304,10 @@ public static partial class SiteRules
         var urgent = field.Urgent;
         if (r.Environment.TryGetValue(out var env))
         {
-            var (viables, excluded, vk) = ViableCrops(r.Field, true);
+            var (viables, excluded, vk) = CropChoiceRules.ViableCrops(r.Field, true);
             if (vk)
             {
-                urgent = urgent || FieldUrgency(r.Field, viables, true);
+                urgent = urgent || CropChoiceRules.FieldUrgency(r.Field, viables, true);
                 foreach (var kind in new[] { SiteKind.GreenhouseReuse, SiteKind.DarkRoom, SiteKind.GreenhouseNew, SiteKind.Hydroponics })
                 {
                     foreach (var c in excluded)
@@ -320,8 +320,8 @@ public static partial class SiteRules
                         if (candidate.Cells > 0)
                         {
                             var terms = candidate.Terms.ToList();
-                            terms.AddRange(CropChoiceTerms(r.Field, v.Crop, candidate.Cells));
-                            terms.AddRange(SiteRiskTerms(r.Field, v.Crop, candidate.Cells));
+                            terms.AddRange(CropResilienceRules.CropChoiceTerms(r.Field, v.Crop, candidate.Cells));
+                            terms.AddRange(CropResilienceRules.SiteRiskTerms(r.Field, v.Crop, candidate.Cells));
                             var total = 0.0;
                             foreach (var term in terms)
                             {
@@ -425,7 +425,7 @@ public static partial class SiteRules
             {
                 var gk = n.GenerationW.TryGetValue(out var generation);
                 var ck = n.ConsumptionW.TryGetValue(out var consumption);
-                if (gk && ck && FoodNumber(generation) && FoodNumber(consumption))
+                if (gk && ck && FoodForecastRules.FoodNumber(generation) && FoodForecastRules.FoodNumber(consumption))
                 {
                     room = Known(generation - consumption);
                 }
@@ -452,17 +452,17 @@ public static partial class SiteRules
     private static SiteTypeCandidate SiteCandidate(SiteTypeRequest r, SiteTypeWeights w, ControlledEnvironment env, SiteKind kind, ViableCrop v)
     {
         var c = new SiteTypeCandidate { Kind = kind, Crop = v.Crop, Needed = v.Needed };
-        if (kind != SiteKind.DarkRoom && GrowsInDark(v.Crop))
+        if (kind != SiteKind.DarkRoom && ControlledEnvironmentRules.GrowsInDark(v.Crop))
         {
             return c with { Reason = "crop needs a dark room" };
         }
         var mk = v.Crop.FertilityMin.TryGetValue(out var minimum);
-        if (!mk || !FieldPositive(minimum))
+        if (!mk || !FieldCapacityRules.FieldPositive(minimum))
         {
             return c with { Reason = "incomplete crop facts" };
         }
         var unit = CropRate(v.Crop, 1);
-        if (!FieldPositive(unit))
+        if (!FieldCapacityRules.FieldPositive(unit))
         {
             return c with { Reason = "incomplete crop facts" };
         }
@@ -490,7 +490,7 @@ public static partial class SiteRules
             }
             var hk = r.Heater.TryGetValue(out var heater);
             var dk = heater.PowerW.TryGetValue(out var draw);
-            if (!hk || !RoundsRules.Positive(heater.Available) || !dk || !FoodNumber(draw))
+            if (!hk || !RoundsRules.Positive(heater.Available) || !dk || !FoodForecastRules.FoodNumber(draw))
             {
                 reason = "room too cold and no heater available";
                 return false;
@@ -534,7 +534,7 @@ public static partial class SiteRules
         switch (kind)
         {
             case SiteKind.Hydroponics:
-                if (RoundsRules.Positive(v.Crop.RequiresPollution) || GrowsInDark(v.Crop))
+                if (RoundsRules.Positive(v.Crop.RequiresPollution) || ControlledEnvironmentRules.GrowsInDark(v.Crop))
                 {
                     return c with { Reason = "crop needs a compatible soil or dark site" };
                 }
@@ -580,7 +580,7 @@ public static partial class SiteRules
             }
             case SiteKind.DarkRoom:
             {
-                if (!GrowsInDark(v.Crop))
+                if (!ControlledEnvironmentRules.GrowsInDark(v.Crop))
                 {
                     return c with { Reason = "crop needs light" };
                 }
@@ -601,7 +601,7 @@ public static partial class SiteRules
             {
                 var lk = r.Lamp.TryGetValue(out var lamp);
                 var dk = lamp.PowerW.TryGetValue(out var draw);
-                if (!lk || !RoundsRules.Positive(lamp.Available) || !dk || !FoodNumber(draw) || lamp.Name == "")
+                if (!lk || !RoundsRules.Positive(lamp.Available) || !dk || !FoodForecastRules.FoodNumber(draw) || lamp.Name == "")
                 {
                     return c with { Reason = "sun lamp unavailable" };
                 }
@@ -609,8 +609,8 @@ public static partial class SiteRules
                 foreach (var s in r.Field.Site.Cells)
                 {
                     var isLit = lit.ContainsKey(s.Cell);
-                    var (soil, sok) = FreeCropSoil(SiteUnroofed(s), minimum, null);
-                    if (sok && RoofedIndoorSoil(s) && !isLit && FoodNumber(soil))
+                    var (soil, sok) = CropChoiceRules.FreeCropSoil(SiteUnroofed(s), minimum, null);
+                    if (sok && RoofedIndoorSoil(s) && !isLit && FoodForecastRules.FoodNumber(soil))
                     {
                         eligible.Add(s.Cell);
                     }
@@ -684,7 +684,7 @@ public static partial class SiteRules
         var bk = r.Basin.TryGetValue(out var basin);
         var dk = basin.PowerW.TryGetValue(out var draw);
         var fk = basin.Fertility.TryGetValue(out var fertility);
-        if (!bk || !RoundsRules.Positive(basin.Available) || !dk || !FoodNumber(draw) || !fk || !FieldPositive(fertility) || basin.Name == "")
+        if (!bk || !RoundsRules.Positive(basin.Available) || !dk || !FoodForecastRules.FoodNumber(draw) || !fk || !FieldCapacityRules.FieldPositive(fertility) || basin.Name == "")
         {
             return c with { Reason = "hydroponics basin unavailable" };
         }
@@ -712,7 +712,7 @@ public static partial class SiteRules
         {
             limit = Math.Min(limit, (int)Math.Floor(room / draw));
         }
-        limit = Math.Min(limit, FarmSitePatchLimit);
+        limit = Math.Min(limit, FarmSiteRules.FarmSitePatchLimit);
         var placed = SiteBasinPlacements(free, basin.Name, r.Field.Site.Anchor, limit);
         var walk = SiteBasinWalk(placed, r.Field.Site.Anchor);
         if (placed.Count == 0)
@@ -733,7 +733,7 @@ public static partial class SiteRules
         var terms = new List<FarmSiteTerm>
         {
             new("yield", CropRate(v.Crop, fertility) * cellCount),
-            new("travel", -SiteTravelWeight * unit * walk),
+            new("travel", -FarmSiteRules.SiteTravelWeight * unit * walk),
             new("construction", build),
             new("power", -w.Power * unit * draw * n / 1000),
         };
@@ -820,11 +820,11 @@ public static partial class SiteRules
         var groups = new Dictionary<string, HashSet<Cell>>(StringComparer.Ordinal);
         foreach (var s in site.Cells)
         {
-            if (!keep(s) || !CropSoilCompatible(v.Crop, s))
+            if (!keep(s) || !CropResilienceRules.CropSoilCompatible(v.Crop, s))
             {
                 continue;
             }
-            var (f, ok) = FreeCropSoil(SiteUnroofed(s), minimum, blocked);
+            var (f, ok) = CropChoiceRules.FreeCropSoil(SiteUnroofed(s), minimum, blocked);
             if (!ok)
             {
                 continue;
@@ -888,7 +888,7 @@ public static partial class SiteRules
                 reward += Rate(soil[c]);
                 walk += SiteManhattan(c, anchor);
             }
-            var terms = new[] { new FarmSiteTerm("yield", reward), new FarmSiteTerm("travel", -SiteTravelWeight * unit * walk) };
+            var terms = new[] { new FarmSiteTerm("yield", reward), new FarmSiteTerm("travel", -FarmSiteRules.SiteTravelWeight * unit * walk) };
             double n = patch.Width * patch.Height;
             patches.Add(patch);
             selected.Add(new FarmSiteCandidate { Terms = EquatableArray.From(terms) });

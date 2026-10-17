@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -339,7 +340,7 @@ public sealed partial class RoundsTradePlanner
                 selection = selection with { Selected = [.. selection.Selected, pawn] };
             }
             // A wanted animal is a second purchase line under the same reserve; native needs no allow_pawns to buy a pawn row.
-            var (animal, animalOk) = Pol.PolicyFunctions.SelectAnimalPurchase(facts.HerdWants, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected);
+            var (animal, animalOk) = HerdPurchaseRules.SelectAnimalPurchase(facts.HerdWants, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected);
             if (animalOk)
             {
                 selection = selection with { Selected = [.. selection.Selected, animal] };
@@ -451,17 +452,17 @@ public sealed partial class RoundsTradePlanner
         var rows = TradeSheetRowFacts(sheet.Rows, catalog);
         // The plan counts the animals this trader offers as obtainable, so its wants (bought below) and its surplus (sold) agree.
         var planInput = projection.Facts.HerdPlanInput();
-        planInput = planInput with { Offers = Pol.PolicyFunctions.HerdOffers(rows, projection.Facts.AnimalUpkeep.AnimalRaces) };
-        var herd = Pol.PolicyFunctions.PlanHerd(planInput);
-        var saleAnimals = Pol.PolicyFunctions.HerdSaleAnimals(projection.Facts.AnimalUpkeep.Animals, herd.Policy);
+        planInput = planInput with { Offers = HerdPurchaseRules.HerdOffers(rows, projection.Facts.AnimalUpkeep.AnimalRaces) };
+        var herd = HerdPlanRules.PlanHerd(planInput);
+        var saleAnimals = HerdSaleRules.HerdSaleAnimals(projection.Facts.AnimalUpkeep.Animals, herd.Policy);
         var food = Pol.TradePolicyRules.RoundsTradeFood(projection.Facts, seasonal);
         var reviewed = Pol.TradePolicyRules.ReviewTradeNeed(projection.Facts.Items, medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, retained, food);
-        var exportSurplus = Pol.PolicyFunctions.ExportSaleSurplus(projection.Facts.Items, reviewed, medicalFacts.Resources, projection.Facts.Colonists, Reviewer.Exports.Products(state.Snapshot));
+        var exportSurplus = ExportOrdersRules.ExportSaleSurplus(projection.Facts.Items, reviewed, medicalFacts.Resources, projection.Facts.Colonists, Reviewer.Exports.Products(state.Snapshot));
         var organSurplus = Pol.OrganHarvestRules.OrganSaleSurplus(projection.Facts.Items, exportSurplus, medicalFacts.Resources, projection.Facts.Colonists, projection.Facts.Recipes);
         var reserved = Pol.OrganHarvestRules.ReserveSurgeryStock(organSurplus, projection.Facts.MedicalPawns);
         var surgery = Pol.SurgeryRules.SurgeryTradeNeed(reserved, Pol.SurgeryRules.SurgeryPurchaseParts(projection.Facts.MedicalPawns, projection.SurgeryContext(), parts, Pol.SurgeryRules.FabricableParts(benches)));
         var shed = Pol.TradePolicyRules.ShedArtNeed(surgery, headroom, artCount);
-        if (!Pol.PolicyFunctions.AnimalSaleNeed(projection.Facts.Items, shed, saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).TryGetValue(out var need))
+        if (!HerdSaleRules.AnimalSaleNeed(projection.Facts.Items, shed, saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).TryGetValue(out var need))
         {
             throw new ControlException("selection: !known");
         }
@@ -498,14 +499,14 @@ public sealed partial class RoundsTradePlanner
             var (surplus, surplusOk) = Reviewer.Exports.Surplus(state.Snapshot);
             if (surplusOk)
             {
-                foreach (var id in Pol.PolicyFunctions.SaleGearSurplus(rows, warehouses, surplus, gap))
+                foreach (var id in GearSurplusRules.SaleGearSurplus(rows, warehouses, surplus, gap))
                 {
                     saleGear.Add(id);
                 }
             }
         }
         facts = facts with { SaleGear = saleGear };
-        facts = facts with { HerdWants = [.. Pol.PolicyFunctions.HerdWants(herd), .. Pol.PolicyFunctions.PlannedAnimalPurchases(projection.Facts.FoodPlan, trader)] };
+        facts = facts with { HerdWants = [.. HerdPurchaseRules.HerdWants(herd), .. AnimalAcquireRules.PlannedAnimalPurchases(projection.Facts.FoodPlan, trader)] };
         if (need.SurplusAnimals > 0)
         {
             facts = facts with { SaleAnimals = saleAnimals };

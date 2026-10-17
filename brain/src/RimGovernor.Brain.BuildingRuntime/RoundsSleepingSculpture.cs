@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 partial class RoundsSleepingUpkeepPlanner
@@ -14,7 +15,7 @@ partial class RoundsSleepingUpkeepPlanner
             return Unknown<bool>();
         }
         facts.TechTier.TryGetValue(out var tier);
-        return SculptureRoomsOwed(facts.Facts.Sleeping, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells));
+        return ArtRules.SculptureRoomsOwed(facts.Facts.Sleeping, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells));
     }
 
     /// <summary>The policy view of packed sculpture stock.</summary>
@@ -46,7 +47,7 @@ partial class RoundsSleepingUpkeepPlanner
         }
         var items = await native.ReadPackedItemsAsync(identity, RoomQualityRules.PackedSculptureDefinition, ct).ConfigureAwait(false);
         facts.TechTier.TryGetValue(out var tier);
-        return RoomQualityRules.SaleSculptures(obs!, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness), FurnitureRooms(rooms!, census, facts.Cells), PackedSculptures(items, facts.Facts.Items), facts.Facts.Items);
+        return RoomQualityRules.SaleSculptures(obs!, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), PackedSculptures(items, facts.Facts.Items), facts.Facts.Items);
     }
 
     /// <summary>
@@ -104,7 +105,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             inner[item.Id] = item;
         }
-        var (step, due) = RoomQualityRules.NextSculpture(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells), packed, facts.Facts.Items);
+        var (step, due) = RoomQualityRules.NextSculpture(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), packed, facts.Facts.Items);
         if (!due)
         {
             return none;

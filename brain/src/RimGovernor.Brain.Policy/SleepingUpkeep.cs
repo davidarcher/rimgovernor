@@ -105,7 +105,7 @@ public sealed record SleepingHistory
         var seen = new HashSet<PawnId>();
         foreach (var use in Uses)
         {
-            if (!PolicyFunctions.FoodId(use.Pawn.Value) || !PolicyFunctions.FoodId(use.Bed) || use.Tick.Value < 0 || !seen.Add(use.Pawn))
+            if (!FoodForecastRules.FoodId(use.Pawn.Value) || !FoodForecastRules.FoodId(use.Bed) || use.Tick.Value < 0 || !seen.Add(use.Pawn))
             {
                 throw new DomainException("invalid sleeping use history");
             }
@@ -260,12 +260,12 @@ public static partial class SleepingRules
         }
         foreach (var p in everyone)
         {
-            if (!FoodId(p.Id.Value) || !people.Add(p.Id))
+            if (!FoodForecastRules.FoodId(p.Id.Value) || !people.Add(p.Id))
             {
                 throw invalid;
             }
             var bk = p.OwnedBed.TryGetValue(out var bed);
-            if (bk && bed != "" && !FoodId(bed!))
+            if (bk && bed != "" && !FoodForecastRules.FoodId(bed!))
             {
                 throw invalid;
             }
@@ -284,7 +284,7 @@ public static partial class SleepingRules
         var beds = new Dictionary<string, SleepingBed>(StringComparer.Ordinal);
         foreach (var b in v.Beds)
         {
-            if (!FoodId(b.Id) || !ValidResource(b.Definition))
+            if (!FoodForecastRules.FoodId(b.Id) || !AdmissionRules.ValidResource(b.Definition))
             {
                 throw invalid;
             }
@@ -301,7 +301,7 @@ public static partial class SleepingRules
                 var seen = new HashSet<PawnId>();
                 foreach (var id in ids)
                 {
-                    if (!FoodId(id.Value) || !seen.Add(id))
+                    if (!FoodForecastRules.FoodId(id.Value) || !seen.Add(id))
                     {
                         throw invalid;
                     }

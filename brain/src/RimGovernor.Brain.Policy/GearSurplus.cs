@@ -17,7 +17,7 @@ public sealed record GearSurplus
     public bool Empty() => Apparel.Count == 0 && Weapons.Count == 0;
 }
 
-public static partial class PolicyFunctions
+public static class GearSurplusRules
 {
     /// <summary>
     /// The serviceable stored apparel above demand. Demand is the gear planners' own: the stored garments the
@@ -34,13 +34,13 @@ public static partial class PolicyFunctions
         GearReview review;
         try
         {
-            review = ReviewGear(input.Gear);
+            review = GearRules.ReviewGear(input.Gear);
         }
         catch (DomainException)
         {
             return ([], false);
         }
-        var left = UnassignedGearStock(stored, review.Loadouts).Where(s => s.Serviceable() && s.Count > 0).ToList();
+        var left = GearStockRules.UnassignedGearStock(stored, review.Loadouts).Where(s => s.Serviceable() && s.Count > 0).ToList();
         // The best of a kind is claimed first, so the cheapest is what remains.
         left = left
             .OrderBy(s => s.Definition.Value, StringComparer.Ordinal)
@@ -72,7 +72,7 @@ public static partial class PolicyFunctions
                 Claim(n.Definition, n.Stuff);
             }
         }
-        var reserve = ClothingSpareReserve(input);
+        var reserve = ClothingDemandRules.ClothingSpareReserve(input);
         foreach (var definition in reserve.Keys.OrderBy(d => d.Value, StringComparer.Ordinal))
         {
             for (var i = 0; i < reserve[definition]; i++)
@@ -97,7 +97,7 @@ public static partial class PolicyFunctions
         IReadOnlyDictionary<Resource, WeaponDef> products
     )
     {
-        var spare = new Dictionary<Resource, int>(ArmoryWeaponAccounting(tier, pawns, primaries, weapons, recipes, products).Spare);
+        var spare = new Dictionary<Resource, int>(ArmoryRules.ArmoryWeaponAccounting(tier, pawns, primaries, weapons, recipes, products).Spare);
         var @out = new Dictionary<Resource, int>();
         foreach (var w in weapons)
         {

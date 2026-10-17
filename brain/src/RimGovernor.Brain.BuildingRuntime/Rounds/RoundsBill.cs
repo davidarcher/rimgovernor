@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>Plans the food bills of one purpose (cook, preserve, butcher, cook ahead) through the ledger.</summary>
@@ -7,10 +8,10 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
     /// The subject keys the purposes' verdicts file under: each Need's bills, a subject of the Need it serves, so
     /// none is a Concern and none collides with the Need's own report.
     /// </summary>
-    internal static readonly ConcernId CookingBillsKey = Subject(PolicyApi.CookingNeed, "bills");
-    internal static readonly ConcernId PreservationBillsKey = Subject(PolicyApi.FoodStorageNeed, "bills");
-    internal static readonly ConcernId ButcherBillsKey = Subject(PolicyApi.FoodSupplyNeed, "bills");
-    internal static readonly ConcernId CookAheadBillsKey = Subject(PolicyApi.RefrigerationNeed, "bills");
+    internal static readonly ConcernId CookingBillsKey = Subject(FoodRules.CookingNeed, "bills");
+    internal static readonly ConcernId PreservationBillsKey = Subject(FoodStoresRules.FoodStorageNeed, "bills");
+    internal static readonly ConcernId ButcherBillsKey = Subject(FoodRules.FoodSupplyNeed, "bills");
+    internal static readonly ConcernId CookAheadBillsKey = Subject(FoodStoresRules.RefrigerationNeed, "bills");
 
     private static ConcernId Subject(NeedId need, string subject) => NeedId.Of(need.Family, need.Kind, subject).FilingKey;
 
@@ -26,18 +27,18 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
         {
             throw new ControlException("NewRoundsBillPlanner: reviewer == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood)");
         }
-        var need = PolicyApi.FoodSupplyNeed.FilingKey;
+        var need = FoodRules.FoodSupplyNeed.FilingKey;
         if (purpose == PolicyConstants.CookFood)
         {
-            need = PolicyApi.CookingNeed.FilingKey;
+            need = FoodRules.CookingNeed.FilingKey;
         }
         else if (purpose == PolicyConstants.PreserveFood)
         {
-            need = PolicyApi.FoodStorageNeed.FilingKey;
+            need = FoodStoresRules.FoodStorageNeed.FilingKey;
         }
         else if (purpose == PolicyConstants.CookAheadFood)
         {
-            need = PolicyApi.RefrigerationNeed.FilingKey;
+            need = FoodStoresRules.RefrigerationNeed.FilingKey;
         }
         _reviewer = reviewer;
         _purpose = purpose;
@@ -83,15 +84,15 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
 
     internal PurposeReport FoodReport(FoodOrderRequest request, ColonyProjection projection)
     {
-        var order = PolicyApi.SelectFoodOrder(request);
+        var order = FoodOrdersRules.SelectFoodOrder(request);
         // Every food bill serves a Need: the Need's standing, not an owner's open work, gates the report.
         var report = _purpose == PolicyConstants.CookFood
-            ? new PurposeReport { Need = PolicyApi.CookingNeedOf(FoodRounds.Facts(projection, _reviewer.Policy)) }
+            ? new PurposeReport { Need = FoodRules.CookingNeedOf(FoodRounds.Facts(projection, _reviewer.Policy)) }
             : _purpose == PolicyConstants.PreserveFood
-                ? new PurposeReport { Need = PolicyApi.FoodStorageNeedOf(FoodStoresFacts.From(projection.Facts), _reviewer.Policy.FoodStorage) }
+                ? new PurposeReport { Need = FoodStoresRules.FoodStorageNeedOf(FoodStoresFacts.From(projection.Facts), _reviewer.Policy.FoodStorage) }
             : _purpose == PolicyConstants.CookAheadFood
-                ? new PurposeReport { Need = PolicyApi.RefrigerationNeedOf(FoodStoresFacts.From(projection.Facts), _reviewer.Policy.FoodStorage) }
-                : new PurposeReport { Need = PolicyApi.FoodSupplyNeedOf(FoodRounds.Facts(projection, _reviewer.Policy)) };
+                ? new PurposeReport { Need = FoodStoresRules.RefrigerationNeedOf(FoodStoresFacts.From(projection.Facts), _reviewer.Policy.FoodStorage) }
+                : new PurposeReport { Need = FoodRules.FoodSupplyNeedOf(FoodRounds.Facts(projection, _reviewer.Policy)) };
         switch (order.Gap)
         {
             case FoodOrderGap.Plan:
@@ -164,7 +165,7 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
             return RoundsGearPlanner.AbstainOnRead(Cause.UnreadFoodFacts, ex, ct);
         }
         Note(FoodReport(request, projection));
-        return PolicyApi.DeclareFoodOrders(request, benches);
+        return FoodOrdersRules.DeclareFoodOrders(request, benches);
     }
 
     internal Verdict NoBill(Fact<EquatableArray<ProductionBench>> benches, Fact<long> colonists)

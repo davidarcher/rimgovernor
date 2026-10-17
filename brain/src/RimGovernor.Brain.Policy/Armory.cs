@@ -64,7 +64,7 @@ public sealed record ArmoryPrimary
     public WeaponDef Facts { get; init; } = new();
 }
 
-public static partial class PolicyFunctions
+public static class ArmoryRules
 {
     /// <summary>The research project each tier above neolithic needs.</summary>
     private static readonly Dictionary<ArmoryTier, ResearchProjectId> _armoryResearch = new()

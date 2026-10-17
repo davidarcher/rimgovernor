@@ -255,7 +255,7 @@ public static partial class SleepingRules
     /// </summary>
     public static IReadOnlyList<WantedPiece>? BedroomTemplate(PlannedRoom room, PieceShapes shapes, string bed)
     {
-        var (room0, ok) = InteriorRoomFromLayout(room, shapes);
+        var (room0, ok) = InteriorRules.InteriorRoomFromLayout(room, shapes);
         if (!ok)
         {
             return null;
@@ -266,7 +266,7 @@ public static partial class SleepingRules
         {
             return null;
         }
-        var (plan, planOk) = PlanRoomInterior(interior, piece);
+        var (plan, planOk) = InteriorRegionRules.PlanRoomInterior(interior, piece);
         if (!planOk)
         {
             return null;

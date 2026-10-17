@@ -42,14 +42,14 @@ internal static class CombatLabStops
         InjuryStopCooldownMs = 0,
         AcknowledgedHostileIds = [.. hostiles],
         CombatStopEvents = [Clock.CombatEvent.Downed, Clock.CombatEvent.EnteredRange],
-        SeriousSingleHitDamage = (float)PolicyFunctions.SeriousSingleHitDamage,
-        SeriousSummaryHealthFloor = (float)PolicyFunctions.SeriousSummaryHealthFloor,
-        SeriousBleedRateFloor = (float)PolicyFunctions.SeriousBleedRateFloor,
-        SeriousVitalPartFloor = (float)PolicyFunctions.SeriousVitalPartFloor,
-        ExplosiveNearMarginCells = (float)PolicyFunctions.ExplosiveNearMarginCells,
-        MeleeReachCells = (float)PolicyFunctions.MeleeReachCells,
-        InjurySeverityFloorTicks = (uint)PolicyFunctions.InjurySeverityFloorTicks,
-        PredatorMarginCells = (float)PolicyFunctions.HuntPredatorMarginCells,
+        SeriousSingleHitDamage = (float)HazardThresholdsRules.SeriousSingleHitDamage,
+        SeriousSummaryHealthFloor = (float)HazardThresholdsRules.SeriousSummaryHealthFloor,
+        SeriousBleedRateFloor = (float)HazardThresholdsRules.SeriousBleedRateFloor,
+        SeriousVitalPartFloor = (float)HazardThresholdsRules.SeriousVitalPartFloor,
+        ExplosiveNearMarginCells = (float)HazardThresholdsRules.ExplosiveNearMarginCells,
+        MeleeReachCells = (float)HazardThresholdsRules.MeleeReachCells,
+        InjurySeverityFloorTicks = (uint)HazardThresholdsRules.InjurySeverityFloorTicks,
+        PredatorMarginCells = (float)HazardThresholdsRules.HuntPredatorMarginCells,
     };
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)

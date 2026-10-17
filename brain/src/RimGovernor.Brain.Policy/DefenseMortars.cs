@@ -173,7 +173,7 @@ public static class DefenseMortarsPolicy
     {
         foreach (var o in cells)
         {
-            if (Chebyshev(c, o) < DefenseTurretsPolicy.TurretSpacing)
+            if (LightingRules.Chebyshev(c, o) < DefenseTurretsPolicy.TurretSpacing)
             {
                 return true;
             }

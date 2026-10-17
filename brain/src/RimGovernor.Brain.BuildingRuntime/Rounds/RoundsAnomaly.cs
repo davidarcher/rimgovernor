@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 partial class AnomalyRounds
@@ -152,12 +153,12 @@ public sealed partial class AnomalyRounds
     /// <summary>Reports each containment, bioferrite and monolith fact the rules could not decide: a loud issue, never a pass.</summary>
     private static void Report(RoundsFacts f, CancellationToken ct)
     {
-        foreach (var issue in PolicyFunctions.ContainmentDoorUpkeep(f.Containment).Issues)
+        foreach (var issue in EntityUpkeepRules.ContainmentDoorUpkeep(f.Containment).Issues)
         {
             DefensePipeline.DefenseAction(Component, TelemetryLevel.Warn, "refused", "containment_upkeep_issue", $"{issue.Cell.X},{issue.Cell.Z}",
                 new Dictionary<string, object?> { ["x"] = issue.Cell.X, ["z"] = issue.Cell.Z, ["detail"] = issue.Reason }, ct);
         }
-        foreach (var reason in PolicyFunctions.BioferriteHarvestOwed(f.Containment, f.Research).Issues)
+        foreach (var reason in EntityBioferriteRules.BioferriteHarvestOwed(f.Containment, f.Research).Issues)
         {
             DefensePipeline.DefenseAction(Component, TelemetryLevel.Warn, "refused", "bioferrite_harvest_unread", "bioferrite", new Dictionary<string, object?> { ["detail"] = reason }, ct);
         }

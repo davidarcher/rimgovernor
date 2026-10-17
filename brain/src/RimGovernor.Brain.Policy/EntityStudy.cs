@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 // only while CompStudiable.CurrentlyStudiable holds. The interval is the game's and the planner reads the
 // result rather than restating it: a DarkStudy owner is owed while at least one held entity is currently
 // studiable and not between studies. Nothing here forces a job, so the interval cannot be broken.
-public static partial class PolicyFunctions
+public static class EntityStudyRules
 {
     /// <summary>
     /// Go <c>StudyWork</c>: the DarkStudy requirement the held entities owe the work planner: one owner while

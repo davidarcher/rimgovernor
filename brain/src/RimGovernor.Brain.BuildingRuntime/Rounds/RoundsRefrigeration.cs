@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -7,7 +8,7 @@ public sealed partial class RoundsBuildingPlanner
     internal const uint RefrigerationCoolingTicks = 2 * GameTime.TicksPerDay;
 
     /// <summary>The definitions the refrigeration step reads: the cooler, and the wall and door of the cold rooms it shells.</summary>
-    internal IReadOnlyList<string> RefrigerationDefinitions() => [Definition, PolicyFunctions.ShellWallDefinition, PolicyFunctions.ShellDoorDefinition];
+    internal IReadOnlyList<string> RefrigerationDefinitions() => [Definition, ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition];
 
     /// <summary>The shared building planner under the food-stores/refrigeration Need (#3280): its Methods bind under the Need and are admitted by claims.</summary>
     public static RoundsBuildingPlanner NewRoundsRefrigerationPlanner(Rounder reviewer, IRoundsBuildingSource native)
@@ -22,7 +23,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("NewRoundsRefrigerationPlanner: native lacks the rounds or refrigeration source");
         }
 
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.RefrigerationNeed.FilingKey, Need = PolicyFunctions.RefrigerationNeed, Definition = "Cooler" };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = FoodStoresRules.RefrigerationNeed.FilingKey, Need = FoodStoresRules.RefrigerationNeed, Definition = "Cooler" };
     }
 
     internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectRefrigerationAsync(ColonyProjection facts, bool allowance, CancellationToken ct)
@@ -288,7 +289,7 @@ public sealed partial class RoundsBuildingPlanner
     internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPlannedBuildingAsync(GenerationSnapshot snapshot, ColonyProjection facts, Building building, int index, bool overRock, bool goOpen, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
-        var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{index}"), building, PolicyFunctions.PlannerTier(Concern, Phase));
+        var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{index}"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
         BuildingPreview preview;
         if (overRock)
         {

@@ -169,7 +169,7 @@ public static partial class WeaponAssignmentRules
                 {
                     continue;
                 }
-                pairs.Add((new EquipAssignment((PawnId)p.Pawn, w, score), DistanceSquared(p.Position, w.Cell)));
+                pairs.Add((new EquipAssignment((PawnId)p.Pawn, w, score), EquipRules.DistanceSquared(p.Position, w.Cell)));
             }
         }
         pairs.Sort((a, b) =>

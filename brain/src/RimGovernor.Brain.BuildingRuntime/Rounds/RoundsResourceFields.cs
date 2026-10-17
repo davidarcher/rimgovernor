@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
@@ -140,7 +141,7 @@ internal sealed class ResourceFieldPlanner
         {
             if (byName.TryGetValue(farm.Crop, out var crop))
             {
-                units += PolicyFunctions.StandingFieldYield(crop, resource, farm.UsableCells);
+                units += FieldResourceRules.StandingFieldYield(crop, resource, farm.UsableCells);
             }
         }
 
@@ -155,7 +156,7 @@ internal sealed class ResourceFieldPlanner
             return (new SupplyCandidate(), new FieldPlan(), false);
         }
 
-        var plan = PolicyFunctions.PlanFieldByResource(new ResourceFieldRequest
+        var plan = FieldResourceRules.PlanFieldByResource(new ResourceFieldRequest
         {
             Resource = resource,
             Deficit = Known((double)need),
@@ -169,7 +170,7 @@ internal sealed class ResourceFieldPlanner
             return (new SupplyCandidate(), new FieldPlan(), false);
         }
 
-        var candidate = PolicyFunctions.ResourceFieldCandidate(resource, plan);
+        var candidate = FieldResourceRules.ResourceFieldCandidate(resource, plan);
         return candidate is null ? (new SupplyCandidate(), plan, false) : (candidate, plan, true);
     }
 }

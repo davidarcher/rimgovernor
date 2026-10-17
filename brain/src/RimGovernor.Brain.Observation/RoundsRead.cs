@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 /// <summary>
@@ -212,7 +213,7 @@ public static class RoundsReads
             Facts = p.Facts with
             {
                 MechChargerOwed = MechRules.MechChargerNeed(p.Mechs, BiotechColonyReads.MechChargerFact(p.Biotech)),
-                GeneBankOwed = PolicyFunctions.GeneBankNeed(BiotechColonyReads.GeneBankFact(p.Biotech)),
+                GeneBankOwed = GeneBankConcernRules.GeneBankNeed(BiotechColonyReads.GeneBankFact(p.Biotech)),
                 RecoveryWorkers = ColonyFramesReads.RecoveryWorkers(p.Facts.MoodPawns),
                 Gear = ColonyGearReads.RoundsGear(p.Facts.Gear, emergency),
                 Research = FrameResearch(frame.Research),
@@ -257,7 +258,7 @@ public static class RoundsReads
         {
             Facts = p.Facts with
             {
-                AnimalUpkeep = p.Facts.AnimalUpkeep with { Animals = PolicyFunctions.ApplyHerdPrecepts(p.Facts.AnimalUpkeep.Animals, p.Facts.Ideology, ideologyDefs is not null) },
+                AnimalUpkeep = p.Facts.AnimalUpkeep with { Animals = HerdPreceptsRules.ApplyHerdPrecepts(p.Facts.AnimalUpkeep.Animals, p.Facts.Ideology, ideologyDefs is not null) },
             },
         };
         // A pawn row or def the royalty read cannot use leaves the fact unknown; it must not fail the routine
@@ -509,7 +510,7 @@ public static class RoundsReads
 
     /// <summary>The research census; unknown when the frame carries none.</summary>
     internal static Fact<ResearchFacts> FrameResearch(ResearchRead? read) =>
-        read is null ? Unknown<ResearchFacts>() : Known(PolicyFunctions.ResearchSummary(read.Census()));
+        read is null ? Unknown<ResearchFacts>() : Known(EconomyRules.ResearchSummary(read.Census()));
 
     /// <summary>The primary ideoligion; unknown when the frame carries no ideology section.</summary>
     internal static Fact<Ideoligion> FrameIdeology(Ideoligion? read) => read is null ? Unknown<Ideoligion>() : Known(read);
@@ -546,7 +547,7 @@ public static class RoundsReads
         }
         try
         {
-            return Known(PolicyFunctions.HostedComfort(v, census));
+            return Known(ComfortRules.HostedComfort(v, census));
         }
         catch (DomainException)
         {

@@ -196,7 +196,7 @@ public sealed record ViableCrop
 /// <summary>One viable crop for a new outdoor field block and the cells it still needs.</summary>
 public sealed record FieldBlockOption(CropChoice Crop, int Needed);
 
-public static partial class PolicyFunctions
+public static class CropChoiceRules
 {
     /// <summary>How near (cells) a growing zone must be to a new block for its crop to count as a neighbour.</summary>
     public const int FieldBlockNeighbourRadius = 11;
@@ -229,7 +229,7 @@ public static partial class PolicyFunctions
     internal static (List<ViableCrop> Viables, List<FieldCandidate> Excluded, bool Ok) ViableCrops(FieldRequest r, bool indoor)
     {
         var seasonKnown = r.Climate.DaysRemaining.TryGetValue(out var season);
-        if (!r.Coverage.TryGetValue(out var fraction) || !FoodNumber(fraction) || (!indoor && seasonKnown && !FieldPositive(season)))
+        if (!r.Coverage.TryGetValue(out var fraction) || !FoodForecastRules.FoodNumber(fraction) || (!indoor && seasonKnown && !FieldCapacityRules.FieldPositive(season)))
         {
             return ([], [], false);
         }
@@ -247,7 +247,7 @@ public static partial class PolicyFunctions
         foreach (var crop in r.Choices)
         {
             var known = crop.DietAllowed.TryGetValue(out var allowed);
-            if ((known && !allowed) || (GrowsInDark(crop) && !known))
+            if ((known && !allowed) || (ControlledEnvironmentRules.GrowsInDark(crop) && !known))
             {
                 Exclude(crop, "crop diet unavailable or penalised");
                 continue;
@@ -255,7 +255,7 @@ public static partial class PolicyFunctions
             var ak = crop.Available.TryGetValue(out var available);
             var ek = crop.Edible.TryGetValue(out var edible);
             var gk = crop.GrowDays.TryGetValue(out var days);
-            if (!ak || !ek || !gk || !FieldPositive(days))
+            if (!ak || !ek || !gk || !FieldCapacityRules.FieldPositive(days))
             {
                 Exclude(crop, "incomplete crop facts");
                 continue;
@@ -265,7 +265,7 @@ public static partial class PolicyFunctions
                 Exclude(crop, "not an available edible crop");
                 continue;
             }
-            if (!indoor && GrowsInDark(crop))
+            if (!indoor && ControlledEnvironmentRules.GrowsInDark(crop))
             {
                 Exclude(crop, "crop needs a dark room");
                 continue;
@@ -308,7 +308,7 @@ public static partial class PolicyFunctions
         }
         var seasonKnown = r.Climate.DaysRemaining.IsKnown;
         var runwayKnown = r.Runway.TryGetValue(out var foodDays);
-        return (!indoor && !seasonKnown) || (runwayKnown && FoodNumber(foodDays) && foodDays < fastest * 2.5);
+        return (!indoor && !seasonKnown) || (runwayKnown && FoodForecastRules.FoodNumber(foodDays) && foodDays < fastest * 2.5);
     }
 
     /// <summary>The Go <c>planField</c>: PlanField with the indoor switch.</summary>
@@ -346,7 +346,7 @@ public static partial class PolicyFunctions
         var terms = new List<FarmSiteTerm>(SiteRules.SiteTerms(sites));
         if (v.Units == 0)
         {
-            terms.AddRange(CropChoiceTerms(r, v.Crop, sites.Cells));
+            terms.AddRange(CropResilienceRules.CropChoiceTerms(r, v.Crop, sites.Cells));
         }
         var total = 0.0;
         foreach (var term in terms)
@@ -412,7 +412,7 @@ public static partial class PolicyFunctions
         var zk = cell.Zone.TryGetValue(out var zone);
         var rk = cell.Roofed.TryGetValue(out var roof);
         var fk = cell.Fertility.TryGetValue(out var soil);
-        return (soil, (blocked is null || !blocked.Contains(cell.Cell)) && wk && walk && !cell.Occupied() && zk && !zone && rk && !roof && fk && FoodNumber(soil) && soil >= minimum);
+        return (soil, (blocked is null || !blocked.Contains(cell.Cell)) && wk && walk && !cell.Occupied() && zk && !zone && rk && !roof && fk && FoodForecastRules.FoodNumber(soil) && soil >= minimum);
     }
 
     /// <summary>
@@ -439,17 +439,17 @@ public static partial class PolicyFunctions
         var dk = crop.Demand.TryGetValue(out var demand);
         var gk = crop.GrowDays.TryGetValue(out var days);
         var yk = crop.HarvestNutrition.TryGetValue(out var yield);
-        if (!ck || count < 0 || !dk || !gk || !yk || !FieldPositive(demand) || !FieldPositive(days) || !FieldPositive(yield) || !FieldPositive(reserve))
+        if (!ck || count < 0 || !dk || !gk || !yk || !FieldCapacityRules.FieldPositive(demand) || !FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(yield) || !FieldCapacityRules.FieldPositive(reserve))
         {
             return Unknown<int>();
         }
         var harvests = 1.0;
-        if (season.TryGetValue(out var left) && FieldPositive(left))
+        if (season.TryGetValue(out var left) && FieldCapacityRules.FieldPositive(left))
         {
             harvests = Math.Max(1, Math.Floor(left / days));
         }
         var target = Math.Max(count * 10.0, Math.Ceiling(demand * (days + (reserve / harvests)) / yield));
-        if (!FieldPositive(target) || target > 65536)
+        if (!FieldCapacityRules.FieldPositive(target) || target > 65536)
         {
             return Unknown<int>();
         }

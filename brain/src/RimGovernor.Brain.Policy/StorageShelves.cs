@@ -52,7 +52,7 @@ public sealed record ShelfRequest
 
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
 
-    /// <summary>The planned route cells (<see cref="PolicyFunctions.PlannedWalkways"/>) no shelf may stand on.</summary>
+    /// <summary>The planned route cells (<see cref="StorageRules.PlannedWalkways"/>) no shelf may stand on.</summary>
     public IReadOnlySet<Cell> Walkways { get; init; } = new HashSet<Cell>();
 
     public bool Available { get; init; }
@@ -286,7 +286,7 @@ public static partial class StorageRules
                 {
                     continue;
                 }
-                var piece = NewInteriorPiece(
+                var piece = InteriorHelpersRules.NewInteriorPiece(
                     string.Create(CultureInfo.InvariantCulture, $"shelf.{c.X}.{c.Z}.{Wire.Name(rot)}"),
                     ShelfDefinition,
                     new Cell(2, 1),

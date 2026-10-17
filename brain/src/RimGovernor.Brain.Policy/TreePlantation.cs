@@ -24,7 +24,7 @@ public static partial class TreePlantationRules
         var mk = crop.HarvestMinGrowth.TryGetValue(out var minGrowth);
         var sk = crop.SowWork.TryGetValue(out var sow);
         var fk = crop.HarvestWork.TryGetValue(out var fell);
-        if (!gk || !yk || !mk || !sk || !fk || !FieldPositive(days) || !FieldPositive(yield) || !(minGrowth > 0 && minGrowth < 1) || sow < 0 || fell < 0)
+        if (!gk || !yk || !mk || !sk || !fk || !FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(yield) || !(minGrowth > 0 && minGrowth < 1) || sow < 0 || fell < 0)
         {
             return (0, 0, 0, false);
         }

@@ -46,7 +46,7 @@ public sealed record FishingRequest
     public Fact<double> ResearchLeadDays { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class FishingRules
 {
     /// <summary>The ordinary game's fraction of a water body's maximum population restored per day. It is a fish count, not nutrition.</summary>
     public const double FishingRegenerationPerDay = 0.025;
@@ -59,7 +59,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static IReadOnlyList<SupplyCandidate> FishingChannels(FishingRequest r)
     {
-        if (r.ResearchLeadDays.TryGetValue(out var leadDays) && !FoodNumber(leadDays))
+        if (r.ResearchLeadDays.TryGetValue(out var leadDays) && !FoodForecastRules.FoodNumber(leadDays))
         {
             throw new FoodPlanFactsException();
         }
@@ -67,13 +67,13 @@ public static partial class PolicyFunctions
         var channels = new List<SupplyCandidate>();
         foreach (var region in r.Regions)
         {
-            if (!FoodId(region.Id) || !seen.Add(region.Id))
+            if (!FoodForecastRules.FoodId(region.Id) || !seen.Add(region.Id))
             {
                 throw new FoodPlanFactsException();
             }
             foreach (var f in (ReadOnlySpan<Fact<double>>)[region.Population, region.MaxPopulation, region.NutritionPerFish, region.FishPerBatch, region.WorkTicksPerBatch, region.PawnFishWorkCapacity])
             {
-                if (f.TryGetValue(out var v) && !FoodNumber(v))
+                if (f.TryGetValue(out var v) && !FoodForecastRules.FoodNumber(v))
                 {
                     throw new FoodPlanFactsException();
                 }
@@ -90,7 +90,7 @@ public static partial class PolicyFunctions
             }
             var open = NotDelivering(region.Designated);
             var designated = region.Designated;
-            var channel = FoodCandidate(CandidateKind.Fishing, region.Id, Unknown<double>());
+            var channel = CandidateRules.FoodCandidate(CandidateKind.Fishing, region.Id, Unknown<double>());
             var terms = new List<CandidateTerm> { new("fish_regeneration_fraction", FishingRegenerationPerDay) };
             channel = channel with { Source = region.Source, DistanceSquared = region.DistanceSquared };
             if (r.Researched.TryGetValue(out var researched))
@@ -134,14 +134,14 @@ public static partial class PolicyFunctions
             {
                 // The sustainable average, not today's catch quota. Native population-floor control permits bursts and subsequent recovery.
                 var regen = maximum * FishingRegenerationPerDay * nutrition;
-                if (!FoodNumber(regen))
+                if (!FoodForecastRules.FoodNumber(regen))
                 {
                     throw new FoodPlanFactsException();
                 }
                 var dailyNutrition = Math.Min(regen, capacity);
                 var draw = dailyNutrition / nutrition;
                 var dailyWork = draw / batch * work;
-                if (!FoodNumber(dailyNutrition) || !FoodNumber(dailyWork))
+                if (!FoodForecastRules.FoodNumber(dailyNutrition) || !FoodForecastRules.FoodNumber(dailyWork))
                 {
                     throw new FoodPlanFactsException();
                 }
@@ -149,7 +149,7 @@ public static partial class PolicyFunctions
                 terms.Add(new CandidateTerm("fish_draw_per_day", draw));
                 terms.Add(new CandidateTerm("fish_per_batch", batch));
             }
-            channels.Add(channel with { Terms = [.. terms], State = FoodState(open, designated) });
+            channels.Add(channel with { Terms = [.. terms], State = CandidateRules.FoodState(open, designated) });
         }
         return channels;
     }

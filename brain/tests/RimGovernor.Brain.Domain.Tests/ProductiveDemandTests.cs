@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -31,7 +30,7 @@ public sealed class ProductiveDemandTests
         var eat = generated.Alternatives.Single(c => c.ActivityCompletions.Contains(eating.Task));
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = [batch, eat] });
-        var alternatives = ForecastColony(request).Proposed.Coupled!.Alternatives;
+        var alternatives = ColonyForecastRules.ForecastColony(request).Proposed.Coupled!.Alternatives;
         Assert.Equal(feasible, alternatives.Any(a => a.Feasible == Known(true)));
         if (feasible)
             Assert.Contains(alternatives.Where(a => a.Feasible == Known(true)), a => a.Stocks.Single(s => s.Resource.Value == "Meal").Points[^1].BalanceUnits.Value == 3);

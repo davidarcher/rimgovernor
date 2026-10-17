@@ -122,7 +122,7 @@ internal sealed partial class GraphBuilder
         {
             return;
         }
-        var ticks = owners * (double)PolicyFunctions.CookTicksPerDay / wanted.Count;
+        var ticks = owners * (double)FoodPlanRules.CookTicksPerDay / wanted.Count;
         foreach (var s in wanted)
         {
             var limit = In.StackLimit.GetValueOrDefault(s.Good);
@@ -150,7 +150,7 @@ internal sealed partial class GraphBuilder
         var (store, ok) = StoreOf(true);
         if (ok)
         {
-            AddEdge(store, PolicyConstants.OutsideNode, hunters * (double)PolicyFunctions.HuntKillsPerHunterDay, false);
+            AddEdge(store, PolicyConstants.OutsideNode, hunters * (double)HuntCreditRules.HuntKillsPerHunterDay, false);
         }
     }
 }

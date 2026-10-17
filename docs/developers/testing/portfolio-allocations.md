@@ -266,7 +266,7 @@ not bind. A variant in which the developing pawn cooks the first two meals (100
 then 80 ticks) and the helper the rest is also accepted.
 
 `ReferenceScheduleChecker` re-derives the constraints from the fixture's data
-records and plain arithmetic; it calls no `PolicyFunctions` scheduling code (a test
+records and plain arithmetic; it calls no policy scheduling code (a test
 fails if its source mentions it). It validates per-worker non-overlap including
 travel and waiting, routes and availability windows; the single stove's exclusive
 use and location; dependencies, earliest/latest bounds and the horizon; exact

@@ -53,7 +53,7 @@ internal static class RefrigerationBuild
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var policy = PolicyFunctions.DefaultFoodStoragePolicy();
+        var policy = FoodStorageUpkeepRules.DefaultFoodStoragePolicy();
         var room = await s.FixtureAsync("prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         if (!room.Success || room.Meat.Count == 0 || room.Walls.Count == 0)
         {

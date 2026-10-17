@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -58,8 +59,8 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (null, FieldUnavailable("comfort"));
         }
-        var review = PolicyApi.ReviewComfort(facts.Facts.Comfort, history, facts.Identity.Tick);
-        var method = PolicyApi.SelectComfortMethod(v, review);
+        var review = ComfortRules.ReviewComfort(facts.Facts.Comfort, history, facts.Identity.Tick);
+        var method = ComfortRules.SelectComfortMethod(v, review);
         if (method == Pol.ComfortMethod.NoMethod)
         {
             return (null, BuildingReasonNoDeficit);
@@ -101,8 +102,8 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (null, FieldUnavailable("basic_comfort"));
         }
-        var review = PolicyApi.ReviewBasicComfort(facts.Facts.BasicComfort);
-        var method = PolicyApi.SelectBasicComfortMethod(v, review);
+        var review = BasicComfortRules.ReviewBasicComfort(facts.Facts.BasicComfort);
+        var method = BasicComfortRules.SelectBasicComfortMethod(v, review);
         if (method == Pol.ComfortMethod.NoMethod && !review.VarietyKnown)
         {
             return (null, FieldUnavailable("comfort_variety"));

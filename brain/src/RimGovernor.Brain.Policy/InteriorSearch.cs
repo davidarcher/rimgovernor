@@ -92,7 +92,7 @@ public sealed record InteriorSearchResult
     public IReadOnlyList<InteriorPiece> Stood() => [.. Pieces.Skip(Fixed)];
 }
 
-public static partial class PolicyFunctions
+public static class InteriorSearchRules
 {
     /// <summary>
     /// Places req's wants with the greedy placer and improves the layout by seeded local search. It throws when
@@ -144,7 +144,7 @@ public static partial class PolicyFunctions
             Beauty = s.Beauty,
             Dining = s.Dining,
         };
-        InteriorScore Score(IReadOnlyList<InteriorPiece> ps) => ScoreInterior(obj with { Pieces = ps });
+        InteriorScore Score(IReadOnlyList<InteriorPiece> ps) => InteriorObjectiveRules.ScoreInterior(obj with { Pieces = ps });
         var cur = Score(pieces);
         var seedScore = cur;
         var free = pinned.Count;
@@ -214,7 +214,7 @@ public static partial class PolicyFunctions
                 break;
             case 1:
                 kind = "rotate";
-                output[i] = Replaced(p, RotateCW(p.Rot, 1 + rng.Intn(3)), corner);
+                output[i] = Replaced(p, InteriorRules.RotateCW(p.Rot, 1 + rng.Intn(3)), corner);
                 break;
             case 2:
                 kind = "mirror";
@@ -243,7 +243,7 @@ public static partial class PolicyFunctions
                 break;
             default:
                 kind = "replace";
-                output[i] = Replaced(p, RotationOrder[rng.Intn(4)], cells[rng.Intn(cells.Count)]);
+                output[i] = Replaced(p, InteriorRules.RotationOrder[rng.Intn(4)], cells[rng.Intn(cells.Count)]);
                 break;
         }
         return (output, kind, i, true);
@@ -251,7 +251,7 @@ public static partial class PolicyFunctions
 
     /// <summary>The piece stood at the footprint corner in rotation rot.</summary>
     private static InteriorPiece Replaced(InteriorPiece p, Rotation rot, Cell corner) =>
-        NewInteriorPiece(p.Slot, p.Def, p.Size, rot, corner) with
+        InteriorHelpersRules.NewInteriorPiece(p.Slot, p.Def, p.Size, rot, corner) with
         {
             InteractionOffset = p.InteractionOffset,
             Row = p.Row,

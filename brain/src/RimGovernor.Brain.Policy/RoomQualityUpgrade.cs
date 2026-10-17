@@ -82,7 +82,7 @@ public static partial class RoomQualityRules
     public static IReadOnlyList<string> RoomBeautyDefinitions()
     {
         var output = new List<string> { StandingLampDef, PlantPotDefinition };
-        output.AddRange(DefaultFlooringPolicy().Floors);
+        output.AddRange(FlooringRules.DefaultFlooringPolicy().Floors);
         return output;
     }
 
@@ -127,7 +127,7 @@ public static partial class RoomQualityRules
             {
                 continue;
             }
-            var (plan, ok) = PlanRoomInterior(room!.Planning(), new InteriorPieceDef());
+            var (plan, ok) = InteriorRegionRules.PlanRoomInterior(room!.Planning(), new InteriorPieceDef());
             if (!ok)
             {
                 continue;

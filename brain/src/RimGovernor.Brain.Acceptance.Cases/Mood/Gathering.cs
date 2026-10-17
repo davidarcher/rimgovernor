@@ -23,8 +23,8 @@ internal static class Gathering
             + "organizer in its lord. This proves native mechanics, not automatic participant choice.",
         Ticks = 600,
         Tier = CaseTier.Nightly,
-        Start = new LabStart { Colonists = PolicyFunctions.GatheringMinColonists + 1 },
-        Crew = new Crew { Size = PolicyFunctions.GatheringMinColonists + 1 },
+        Start = new LabStart { Colonists = GatheringRules.GatheringMinColonists + 1 },
+        Crew = new Crew { Size = GatheringRules.GatheringMinColonists + 1 },
         QuietWorld = true,
         Stage = new Fx.StageSpec
         {
@@ -59,7 +59,7 @@ internal static class Gathering
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         _ = await TypedPawnOps.ApplyAsync(s, "explicit-party", new Operations.GatheringIntent
         {
-            GatheringDef = PolicyFunctions.PartyGatheringDef,
+            GatheringDef = GatheringRules.PartyGatheringDef,
             Organizer = new Common.Ref { Id = organizer },
         }, cancellationToken).ConfigureAwait(false);
         _ = await s.RunUntilAsync("party-lord", s.TicksLeft, async ct =>

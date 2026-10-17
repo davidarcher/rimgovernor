@@ -15,7 +15,7 @@ public enum FactFamily
     Research,
 }
 
-public static partial class PolicyFunctions
+public static class FactFamilyRules
 {
     /// <summary>Lists every family, in wire order.</summary>
     public static IReadOnlyList<FactFamily> FactFamilies() =>

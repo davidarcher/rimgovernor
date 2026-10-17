@@ -96,7 +96,7 @@ public static partial class TradePolicyRules
                 continue;
             }
             var afford = (long)Math.Floor((double)(silver - reserve) / best.Price);
-            if (TradeCandidate(resource, record.Trader, Math.Min(Math.Min(deficit, best.Count), afford), best.Price, out var c))
+            if (AcquisitionCatalogRules.TradeCandidate(resource, record.Trader, Math.Min(Math.Min(deficit, best.Count), afford), best.Price, out var c))
             {
                 output.Add(c);
             }
@@ -161,7 +161,7 @@ public static partial class TradePolicyRules
             var stock = (long)Math.Floor(nutrition);
             if (stock >= 1)
             {
-                var c = FoodCandidate(CandidateKind.Trade, record.Trader, Unknown<double>());
+                var c = CandidateRules.FoodCandidate(CandidateKind.Trade, record.Trader, Unknown<double>());
                 var yields = c.Yields.Items.ToBuilder();
                 yields[0] = yields[0] with { StockCap = Known(stock) };
                 output.Add(
@@ -169,9 +169,9 @@ public static partial class TradePolicyRules
                     {
                         Yields = yields.ToImmutable(),
                         LaborPerDay = Known(0.0),
-                        UpfrontCost = c.UpfrontCost with { LaborTicks = Known(spent * TradeLaborPerSilver) },
+                        UpfrontCost = c.UpfrontCost with { LaborTicks = Known(spent * AcquisitionCatalogRules.TradeLaborPerSilver) },
                         LeadDays = Known(0.0),
-                        State = FoodState(Known(false), Unknown<bool>()),
+                        State = CandidateRules.FoodState(Known(false), Unknown<bool>()),
                         Terms = EquatableArray.From([new CandidateTerm("trade_silver", spent)]),
                     }
                 );

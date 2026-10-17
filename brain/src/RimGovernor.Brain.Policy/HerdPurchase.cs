@@ -9,7 +9,7 @@ public sealed record HerdWant(Resource Race, bool Male, bool Female)
     }
 }
 
-public static partial class PolicyFunctions
+public static class HerdPurchaseRules
 {
     /// <summary>Go <c>HerdWants</c>: lists what the plan lacks, best first: each job's target race in job order, then each founder's missing sex by race. A race is listed once.</summary>
     public static IReadOnlyList<HerdWant> HerdWants(HerdPlan plan)
@@ -25,7 +25,7 @@ public static partial class PolicyFunctions
             listed.Add(race);
             @out.Add(new HerdWant(race, role.WantMale, role.WantFemale));
         }
-        foreach (var job in HerdWorkJobs)
+        foreach (var job in HerdPlanRules.HerdWorkJobs)
         {
             if (plan.Jobs.TryGetValue(job, out var jp) && jp.Target.Value.Length != 0)
             {

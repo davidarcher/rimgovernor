@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// Release is selective: FilterLootRelease keeps back what a native spawner forbids on purpose and whatever lies
 /// in danger.
 /// </summary>
-public static partial class PolicyFunctions
+public static class LootReleaseRules
 {
     /// <summary>Hold reasons FilterLootRelease records.</summary>
     public const string LootHoldSpawnForbidden = "spawn_forbidden";

@@ -54,7 +54,7 @@ public static partial class LayoutInfestationRules
                     {
                         continue;
                     }
-                    if (!found || DistanceSquared(c, mid) < DistanceSquared(best, mid))
+                    if (!found || EquipRules.DistanceSquared(c, mid) < EquipRules.DistanceSquared(best, mid))
                     {
                         (best, found) = (c, true);
                     }
@@ -67,7 +67,7 @@ public static partial class LayoutInfestationRules
         }
         foreach (var c in cells)
         {
-            if (!output.Any(l => Distance(l, c) <= reach))
+            if (!output.Any(l => LightingRules.Distance(l, c) <= reach))
             {
                 output.Add(c);
             }

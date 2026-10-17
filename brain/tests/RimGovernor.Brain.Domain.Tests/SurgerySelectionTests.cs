@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -120,11 +119,11 @@ public sealed class SurgerySelectionTests
         };
         var pawn = Patient([Op(SurgeryKind.Amputate, "RemoveBodyPart", HandPart, "Hand", stocked: true)], [infection]);
 
-        var amputation = Assert.Single(LifeSavingAmputations(pawn));
+        var amputation = Assert.Single(EmergencyRules.LifeSavingAmputations(pawn));
 
         Assert.Equal((Colonist, "RemoveBodyPart", HandPart), (amputation.Pawn, amputation.Recipe, amputation.Part));
         // Winning the race (immunity outpaces severity) cuts nothing.
-        Assert.Empty(LifeSavingAmputations(pawn with { Conditions = Known(EquatableArray.From([infection with { ImmunityPerDay = Known(2.0) }])) }));
+        Assert.Empty(EmergencyRules.LifeSavingAmputations(pawn with { Conditions = Known(EquatableArray.From([infection with { ImmunityPerDay = Known(2.0) }])) }));
     }
 
     /// <summary>A colonist missing a kidney, none stocked: a part-short want for InstallNaturalKidney.</summary>
@@ -195,7 +194,7 @@ public sealed class SurgerySelectionTests
             [Op(SurgeryKind.Restore, "InstallPegLeg", LegPart, "Leg", stocked: true, "PegLeg", tier: 0.6)],
             [new MissingPart { PartIndex = Known(LegPart), PartDefName = Known("Leg") }]);
 
-        var install = SelectPegCycle(Prisoners(legless), Known(Colony), Known(20.0), policy, [], Recipes, null);
+        var install = DoctorTrainingRules.SelectPegCycle(Prisoners(legless), Known(Colony), Known(20.0), policy, [], Recipes, null);
 
         Assert.NotNull(install);
         Assert.Equal((Captive, "InstallPegLeg", LegPart, PegCycleStep.Training), (install.Prisoner, install.Recipe, install.Part, install.Step));
@@ -205,11 +204,11 @@ public sealed class SurgerySelectionTests
             MissingParts = Known(EquatableArray.From(new List<MissingPart>())),
             Operations = Known(EquatableArray.From([Op(SurgeryKind.Amputate, "RemoveBodyPart", LegPart, "Leg", stocked: true) with { AddedPart = Known("PegLeg") }])),
         };
-        var removal = SelectPegCycle(Prisoners(pegged), Known(Colony), Known(20.0), policy, [], Recipes, null);
+        var removal = DoctorTrainingRules.SelectPegCycle(Prisoners(pegged), Known(Colony), Known(20.0), policy, [], Recipes, null);
 
         Assert.NotNull(removal);
         Assert.Equal(("RemoveBodyPart", LegPart, PegCycleStep.Training), (removal.Recipe, removal.Part, removal.Step));
         // A doctor at the floor trains nobody.
-        Assert.Null(SelectPegCycle(Prisoners(legless), Known(Colony with { Medicine = new Dictionary<PawnId, int> { [Doctor] = 10 } }), Known(20.0), policy, [], Recipes, null));
+        Assert.Null(DoctorTrainingRules.SelectPegCycle(Prisoners(legless), Known(Colony with { Medicine = new Dictionary<PawnId, int> { [Doctor] = 10 } }), Known(20.0), policy, [], Recipes, null));
     }
 }

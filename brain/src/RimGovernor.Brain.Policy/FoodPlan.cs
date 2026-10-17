@@ -130,7 +130,7 @@ public sealed record CropKitchen
     {
         var bk = Benches.TryGetValue(out var benches);
         var ck = Cooks.TryGetValue(out var cooks);
-        if (!bk || !ck || !PolicyFunctions.FoodNumber(cooks))
+        if (!bk || !ck || !FoodForecastRules.FoodNumber(cooks))
         {
             return Unknown<CropCooking>();
         }
@@ -158,7 +158,7 @@ public sealed record CropKitchen
                 var ek = r.NutrientEfficiency.TryGetValue(out var eff);
                 var wk = r.WorkPerNutrition.TryGetValue(out var work);
                 var ik = r.IngredientClasses.TryGetValue(out var classes);
-                if (!ek || !wk || !ik || !PolicyFunctions.FieldPositive(eff) || !PolicyFunctions.FoodNumber(work))
+                if (!ek || !wk || !ik || !FieldCapacityRules.FieldPositive(eff) || !FoodForecastRules.FoodNumber(work))
                 {
                     unknown = true;
                     continue;
@@ -178,7 +178,7 @@ public sealed record CropKitchen
         {
             return Unknown<CropCooking>();
         }
-        return Known(best with { CapacityTicks = Math.Min(usable, cooks) * PolicyFunctions.CookTicksPerDay });
+        return Known(best with { CapacityTicks = Math.Min(usable, cooks) * FoodPlanRules.CookTicksPerDay });
     }
 }
 
@@ -198,7 +198,7 @@ public sealed record CropCooking
     public double CapacityTicks { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class FoodPlanRules
 {
     /// <summary>
     /// Go <c>SupplyFoodPlan</c>: the food view of PlanSupply: the request's forecast becomes the Nutrition
@@ -296,11 +296,11 @@ public static partial class PolicyFunctions
     /// preconditions.
     /// </summary>
     public static SupplyCandidate FoodSupportCandidate(CandidateKind kind, string id) =>
-        FoodCandidate(kind, id, Known(0.0)) with
+        CandidateRules.FoodCandidate(kind, id, Known(0.0)) with
         {
             LaborPerDay = Known(0.0),
             LeadDays = Known(0.0),
-            State = FoodState(Known(false), Unknown<bool>()),
+            State = CandidateRules.FoodState(Known(false), Unknown<bool>()),
             Terms = EquatableArray.From([new CandidateTerm("supporting_method", 1)]),
         };
 
@@ -311,11 +311,11 @@ public static partial class PolicyFunctions
         {
             if (s.Food && !s.Tree && !s.Hunt)
             {
-                var c = FoodCandidate(CandidateKind.Forage, s.Id, Known(s.NutritionYield / FoodForageCycleDays)) with
+                var c = CandidateRules.FoodCandidate(CandidateKind.Forage, s.Id, Known(s.NutritionYield / FoodForageCycleDays)) with
                 {
                     LaborPerDay = Known(FoodForageWorkTicks / FoodForageCycleDays),
                     LeadDays = Known(0.0),
-                    State = FoodState(Known(false), Known(s.Designated)),
+                    State = CandidateRules.FoodState(Known(false), Known(s.Designated)),
                     Terms = EquatableArray.From([new CandidateTerm("estimated_cycle_days", FoodForageCycleDays), new CandidateTerm("estimated_work_ticks", FoodForageWorkTicks)]),
                 };
                 if (s.Definition.Length != 0)
@@ -352,9 +352,9 @@ public static partial class PolicyFunctions
                 continue;
             }
             var c = PriceCrop(f.Plan.Crop, f.Plan.Sites.Cells, f.WorkPerDay, cooking);
-            var lead = WithCropPause(f.RemainingGrowDays, season.Conditions);
+            var lead = CropRiskRules.WithCropPause(f.RemainingGrowDays, season.Conditions);
             c = c with { Id = f.Id, LeadDays = lead, Source = "crop:" + f.Id };
-            c = c with { Risk = EquatableArray.From(CropRisks(season, lead, f.Exposure)), State = FoodState(Known(false), Known(true)) };
+            c = c with { Risk = EquatableArray.From(CropRiskRules.CropRisks(season, lead, f.Exposure)), State = CandidateRules.FoodState(Known(false), Known(true)) };
             @out.Add(c);
         }
         return @out;
@@ -370,7 +370,7 @@ public static partial class PolicyFunctions
         var work = baseWork;
         var terms = new List<CandidateTerm>();
         // Preserve malformed known numbers for PlanSupply's error boundary.
-        if ((yk && !FoodNumber(yield)) || (dk && !FieldPositive(days)) || cells < 0)
+        if ((yk && !FoodForecastRules.FoodNumber(yield)) || (dk && !FieldCapacityRules.FieldPositive(days)) || cells < 0)
         {
             nutrition = Known(double.NaN);
         }
@@ -396,16 +396,16 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        var c = FoodCandidate(CandidateKind.Crop, "", nutrition) with { LaborPerDay = work };
-        if (dk && FieldPositive(days))
+        var c = CandidateRules.FoodCandidate(CandidateKind.Crop, "", nutrition) with { LaborPerDay = work };
+        if (dk && FieldCapacityRules.FieldPositive(days))
         {
             terms.Add(new CandidateTerm("grow_days", days));
         }
-        if (nutrition.TryGetValue(out var n) && FoodNumber(n))
+        if (nutrition.TryGetValue(out var n) && FoodForecastRules.FoodNumber(n))
         {
             var rk = crop.RotDays.TryGetValue(out var rot);
             var pk = crop.Perishable.TryGetValue(out var perishable);
-            if (rk && pk && perishable && FieldPositive(rot))
+            if (rk && pk && perishable && FieldCapacityRules.FieldPositive(rot))
             {
                 var yields = c.Yields.Items.ToBuilder();
                 yields[0] = yields[0] with { StockCap = Known((long)Math.Ceiling(n * rot)) };
@@ -428,7 +428,7 @@ public static partial class PolicyFunctions
     {
         var dk = growDays.TryGetValue(out var days);
         var ck = calendar.TryGetValue(out var c);
-        if (!dk || !ck || !c!.Valid() || !FieldPositive(days))
+        if (!dk || !ck || !c!.Valid() || !FieldCapacityRules.FieldPositive(days))
         {
             return Unknown<double>();
         }
@@ -436,7 +436,7 @@ public static partial class PolicyFunctions
         {
             days += c.NonGrowingDays;
         }
-        return Known(Math.Min(YearDays, days));
+        return Known(Math.Min(CalendarRules.YearDays, days));
     }
 
     /// <summary>
@@ -451,7 +451,7 @@ public static partial class PolicyFunctions
         {
             return [];
         }
-        var (viables, _, ok) = ViableCrops(r, false);
+        var (viables, _, ok) = CropChoiceRules.ViableCrops(r, false);
         if (!ok)
         {
             return [];
@@ -466,16 +466,16 @@ public static partial class PolicyFunctions
                 work = Known(harvest * v.Needed / v.Days);
             }
             var c = PriceCrop(v.Crop, v.Needed, work, cooking);
-            var lead = WithCropPause(NewFieldLeadDays(v.Crop.GrowDays, r.Calendar), r.Conditions);
+            var lead = CropRiskRules.WithCropPause(NewFieldLeadDays(v.Crop.GrowDays, r.Calendar), r.Conditions);
             // A field not yet sown lies under open sky and carries no blight.
             var open = Known((long)v.Needed);
             c = c with
             {
                 Id = NewFieldPrefix + v.Crop.Name,
                 LeadDays = lead,
-                Risk = EquatableArray.From(CropRisks(new CropSeason { Calendar = r.Calendar, Conditions = r.Conditions }, lead, new FieldExposure { ZoneCells = open, UnroofedCells = open })),
+                Risk = EquatableArray.From(CropRiskRules.CropRisks(new CropSeason { Calendar = r.Calendar, Conditions = r.Conditions }, lead, new FieldExposure { ZoneCells = open, UnroofedCells = open })),
                 UpfrontCost = c.UpfrontCost with { LaborTicks = Known(v.Needed * FieldSowTicksPerCell) },
-                State = FoodState(Known(false), Known(false)),
+                State = CandidateRules.FoodState(Known(false), Known(false)),
                 Terms = EquatableArray.From(c.Terms.Append(new CandidateTerm("new_field_cells", v.Needed))),
             };
             @out.Add(c);

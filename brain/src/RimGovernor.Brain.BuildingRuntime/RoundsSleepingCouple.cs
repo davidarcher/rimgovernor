@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsSleepingUpkeepPlanner
@@ -48,7 +49,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var packed = CouplePacked(goal, call);
         facts.DefinitionAvailable(SleepingRules.SleepingCoupleBedDefinition).TryGetValue(out var buildable);
         facts.LayoutPlan.TryGetValue(out var plan);
-        if (NextCoupleBed(obs!, plan!, CoupleBedRooms(rooms!, census, facts.Cells), packed, buildable) is not { } step)
+        if (CoupleBedRules.NextCoupleBed(obs!, plan!, CoupleBedRules.CoupleBedRooms(rooms!, census, facts.Cells), packed, buildable) is not { } step)
         {
             return none;
         }
@@ -72,7 +73,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                 for (var i = 0; i < step.Pack.Count; i++)
                 {
                     var piece = step.Pack[i];
-                    var value = new MoveBuilding(piece.Thing, piece.Def, AnchorForRect(piece.Rect, piece.Size, piece.Rot), piece.Rot);
+                    var value = new MoveBuilding(piece.Thing, piece.Def, InteriorRules.AnchorForRect(piece.Rect, piece.Size, piece.Rot), piece.Rot);
                     actions.Add(DomainAction.NewUninstallBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), value));
                 }
                 return CommitCouple(state, goal, method, id, actions, call, epoch);
@@ -113,13 +114,13 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         }
         var hosting = new HashSet<Cell>(choice.Cells);
         var p = Reviewer.Player;
-        foreach (var room in FurnitureRooms(rooms!, census, facts.Cells))
+        foreach (var room in FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells))
         {
-            if (BedSpot(room, new Pol.Resource(choice.Definition)) is not var (anchor, rot) || !hosting.Contains(anchor))
+            if (CoupleBedRules.BedSpot(room, new Pol.Resource(choice.Definition)) is not var (anchor, rot) || !hosting.Contains(anchor))
             {
                 continue;
             }
-            var move = await stock.InstallAsync(PackedFurnitureDefinition, choice.Definition, anchor, rot, call).ConfigureAwait(false);
+            var move = await stock.InstallAsync(CoupleBedRules.PackedFurnitureDefinition, choice.Definition, anchor, rot, call).ConfigureAwait(false);
             if (move is null)
             {
                 return none;

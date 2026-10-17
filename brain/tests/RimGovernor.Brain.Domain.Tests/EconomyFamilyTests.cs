@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -69,7 +68,7 @@ public sealed class EconomyFamilyTests
             projects: [Project("Smithing"), Project("Study", category: "Basic")]);
         var need = EconomyFamily.ResearchNeed(facts);
         Assert.Equal((Satisfaction.Unmet, 1.0), (need.Satisfaction, need.Deficit.Value));
-        Assert.Equal(new ResearchStep("Study", null, false, false), ResearchStepOf(facts));
+        Assert.Equal(new ResearchStep("Study", null, false, false), EconomyRules.ResearchStepOf(facts));
 
         // A slot already funding is no spending need.
         var funding = facts with { Research = Known(facts.Research.Value! with { Knowledge = [new KnowledgeSlot { Category = "Basic", Current = new("Other") }] }) };
@@ -79,19 +78,19 @@ public sealed class EconomyFamilyTests
     [Fact]
     public void TheStepSelectsThePrerequisiteFirstAndHoldsForTheBenchOrTheCurrentProject()
     {
-        var next = ResearchStepOf(Facts(["Smithing"], projects: [Project("Smithing", ["Stonecutting"]), Project("Stonecutting")]));
+        var next = EconomyRules.ResearchStepOf(Facts(["Smithing"], projects: [Project("Smithing", ["Stonecutting"]), Project("Stonecutting")]));
         Assert.Equal(new ResearchStep("Stonecutting", null, false, true), next);
 
-        var bench = ResearchStepOf(Facts(["Smithing"], projects: Project("Smithing", locks: [ResearchRules.ResearchLockBench])));
+        var bench = EconomyRules.ResearchStepOf(Facts(["Smithing"], projects: Project("Smithing", locks: [ResearchRules.ResearchLockBench])));
         Assert.Equal(("", "research_bench", "Smithing", true, true), (bench.Select, bench.Hold!.Subject, bench.Hold.Detail, bench.Bench, bench.BuildAhead));
 
-        var current = ResearchStepOf(Facts(["Smithing"], current: "Smithing", projects: Project("Smithing")));
+        var current = EconomyRules.ResearchStepOf(Facts(["Smithing"], current: "Smithing", projects: Project("Smithing")));
         Assert.Equal(("current_research_project", true, true), (current.Hold!.Subject, current.Bench, current.BuildAhead));
 
-        var broken = ResearchStepOf(Facts(["Smithing"], projects: Project("Smithing", ["Missing"])));
+        var broken = EconomyRules.ResearchStepOf(Facts(["Smithing"], projects: Project("Smithing", ["Missing"])));
         Assert.Equal(("field_unavailable", "research_prerequisites", false), (broken.Hold!.Subject, broken.Hold.Detail, broken.BuildAhead));
 
-        Assert.Equal("research", ResearchStepOf(new EconomyFacts { ResearchNeeds = ["Smithing"] }).Hold!.Detail);
+        Assert.Equal("research", EconomyRules.ResearchStepOf(new EconomyFacts { ResearchNeeds = ["Smithing"] }).Hold!.Detail);
     }
 
     [Fact]
@@ -159,25 +158,25 @@ public sealed class EconomyFamilyTests
     [Fact]
     public void TheResourceNeedIsMetUnmetOrUnknownByTheTargetsTheCensusAndTheRunways()
     {
-        var met = ResourceNeedOf(Stock(150));
+        var met = EconomyRules.ResourceNeedOf(Stock(150));
         Assert.Equal((EconomyFamily.Resource, Satisfaction.Met, NeedTier.Wellbeing), (met.Id, met.Satisfaction, met.Tier));
         Assert.Contains(met.Evidence, e => e.Fact == "resource_targets");
 
-        var unmet = ResourceNeedOf(Stock(25));
+        var unmet = EconomyRules.ResourceNeedOf(Stock(25));
         Assert.Equal(Satisfaction.Unmet, unmet.Satisfaction);
         Assert.True(unmet.Deficit.TryGetValue(out var deficit) && deficit > 0, unmet.Deficit.ToString());
 
         // A runway known short is unmet with targets covered; its missing horizon share is the deficit.
-        var runway = ResourceNeedOf(Stock(150, Runway(Known(true), Known(1.0))));
+        var runway = EconomyRules.ResourceNeedOf(Stock(150, Runway(Known(true), Known(1.0))));
         Assert.Equal(Satisfaction.Unmet, runway.Satisfaction);
         Assert.True(runway.Deficit.TryGetValue(out var share) && share > 0, runway.Deficit.ToString());
 
         // An unread census, or an unread runway with nothing short, is unknown: no latch holds the last answer.
-        var unread = ResourceNeedOf(Stock(150) with { Stock = Unknown<EquatableArray<Amount>>() });
+        var unread = EconomyRules.ResourceNeedOf(Stock(150) with { Stock = Unknown<EquatableArray<Amount>>() });
         Assert.Equal(Satisfaction.Unknown, unread.Satisfaction);
         Assert.False(unread.Deficit.IsKnown);
-        Assert.Equal(Satisfaction.Unknown, ResourceNeedOf(Stock(150, Runway(Unknown<bool>(), Unknown<double>()))).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, ResourceNeedOf(Stock(25, Runway(Unknown<bool>(), Unknown<double>()))).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, EconomyRules.ResourceNeedOf(Stock(150, Runway(Unknown<bool>(), Unknown<double>()))).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, EconomyRules.ResourceNeedOf(Stock(25, Runway(Unknown<bool>(), Unknown<double>()))).Satisfaction);
     }
 
     [Fact]

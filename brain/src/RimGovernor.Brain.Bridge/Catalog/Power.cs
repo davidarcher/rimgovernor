@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using P = RimGovernor.Brain.Policy;
@@ -109,7 +110,7 @@ public sealed partial class DefinitionCatalog
     // power supply.
     internal P.PowerModel PowerModel()
     {
-        string[] needed = [WindTurbineDefinition, P.LayoutUtilityRules.SolarDefinition, BatteryDefinition, P.LayoutPowerDeriveRules.PowerConduitDefinition, ShellWallDefinition];
+        string[] needed = [WindTurbineDefinition, P.LayoutUtilityRules.SolarDefinition, BatteryDefinition, P.LayoutPowerDeriveRules.PowerConduitDefinition, ContainmentCellRules.ShellWallDefinition];
         if (needed.Any(name => !_thingDefs.ContainsKey(name)))
         {
             return new P.PowerModel();
@@ -129,7 +130,7 @@ public sealed partial class DefinitionCatalog
             Solar = Supply(P.LayoutUtilityRules.SolarDefinition),
             Battery = PowerBattery(BatteryDefinition),
             Conduit = CheapestCostValue(P.LayoutPowerDeriveRules.PowerConduitDefinition),
-            Wall = CheapestCostValue(ShellWallDefinition),
+            Wall = CheapestCostValue(ContainmentCellRules.ShellWallDefinition),
         };
     }
 

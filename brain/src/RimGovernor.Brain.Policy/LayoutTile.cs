@@ -156,7 +156,7 @@ public static partial class LayoutTileRules
         {
             return GroupCold(g) ? (LayoutSurveyRules.PlannedFreezer, true) : (LayoutSurveyRules.PlannedStorage, true);
         }
-        return PlannedRoleOf(g.Role);
+        return InteriorRules.PlannedRoleOf(g.Role);
     }
 
     /// <summary>The ordered pair of two room indices.</summary>
@@ -230,7 +230,7 @@ public static partial class LayoutTileRules
         {
             return (RegionRules.PlaceInRegion(req), []);
         }
-        var res = SearchInterior(req, req.Search);
+        var res = InteriorSearchRules.SearchInterior(req, req.Search);
         return (res.Stood(), res.Moves);
     }
 }
@@ -875,7 +875,7 @@ internal sealed partial class Tiler(TileInput input)
                 rooms[i] = r; // no ring, no door
                 continue;
             }
-            var (rot, _) = DoorSide(r.Region.Bounds(), door);
+            var (rot, _) = InteriorRules.DoorSide(r.Region.Bounds(), door);
             rooms[i] = r with { Door = door, DoorRot = rot };
         }
         LayoutSiteGroundRules.SortCells(entrances);
@@ -974,7 +974,7 @@ internal sealed partial class Tiler(TileInput input)
             Candidates = doors,
             Shapes = new PieceShapes { Defs = defs, Furniture = In.Furniture },
             Dining = In.Dining,
-            Flows = new GraphFlows(In.Graph, SleepPurposeOf(role), In.Furniture),
+            Flows = new GraphFlows(In.Graph, InteriorObjectiveRules.SleepPurposeOf(role), In.Furniture),
             Seed = unchecked(siting ^ ((ulong)(uint)id * 0x9e3779b97f4a7c15UL)),
         };
     }

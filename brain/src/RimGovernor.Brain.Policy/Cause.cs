@@ -169,7 +169,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     public void Validate() => DomainException.Require(All.Contains(this), $"unknown cause \"{Value}\"");
 }
 
-public static partial class PolicyFunctions
+public static class CauseRules
 {
     /// <summary>The Cause of an admission Reason. Reason and its held map are untouched; a test fails when a declared Reason is not a Cause.</summary>
     public static Cause CauseOfReason(Reason r) => new(r.Value);

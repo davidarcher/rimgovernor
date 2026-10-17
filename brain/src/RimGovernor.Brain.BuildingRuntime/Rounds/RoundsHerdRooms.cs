@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 internal static class RoundsHerdRooms
@@ -6,9 +7,9 @@ internal static class RoundsHerdRooms
     [
         "Wall",
         "Door",
-        PolicyFunctions.PenFenceDefinition,
-        PolicyFunctions.PenGateDefinition,
-        PolicyFunctions.PenMarkerDefinition,
+        HerdPenRules.PenFenceDefinition,
+        HerdPenRules.PenGateDefinition,
+        HerdPenRules.PenMarkerDefinition,
     ];
 
     /// <summary>The animal furniture the herd rooms are built from (the ward's bed, the pen's marker); unusable when a definition is unavailable or unsized, and a control fault when native never read it.</summary>
@@ -40,13 +41,13 @@ internal static class RoundsHerdRooms
             output = output with { Bed = new InteriorPieceDef { Def = name, Size = new Cell(size.Width, size.Height) } };
         }
 
-        var marker = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, PolicyFunctions.PenMarkerDefinition);
+        var marker = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, HerdPenRules.PenMarkerDefinition);
         if (marker is not null)
         {
             var sizeKnown = marker.Size.TryGetValue(out var size);
             if (marker.Available.TryGetValue(out var available) && available && sizeKnown && size.Width >= 1 && size.Height >= 1)
             {
-                output = output with { Marker = new InteriorPieceDef { Def = PolicyFunctions.PenMarkerDefinition, Size = new Cell(size.Width, size.Height) } };
+                output = output with { Marker = new InteriorPieceDef { Def = HerdPenRules.PenMarkerDefinition, Size = new Cell(size.Width, size.Height) } };
             }
         }
 
@@ -80,7 +81,7 @@ internal static class RoundsHerdRooms
             return (default!, false);
         }
 
-        return (PolicyFunctions.NextPenStep(plan, plan.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, furniture), true);
+        return (HerdRoomsRules.NextPenStep(plan, plan.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, furniture), true);
     }
 
     /// <summary>
@@ -99,7 +100,7 @@ internal static class RoundsHerdRooms
             return (default!, false);
         }
 
-        var ward = PolicyFunctions.WardBeds(animals!, facts.Facts.HerdPolicy());
+        var ward = HerdWardRules.WardBeds(animals!, facts.Facts.HerdPolicy());
         if (animals!.Count == 0 || ward == 0 || plan!.RoomsOf(PlannedRole.Hospital).Count == 0)
         {
             return (new HerdStep(), true);
@@ -111,7 +112,7 @@ internal static class RoundsHerdRooms
             return (default!, false);
         }
 
-        return (PolicyFunctions.NextWardStep(plan, rooms!, census.Buildings, sleeping!.Beds, ward, furniture), true);
+        return (HerdRoomsRules.NextWardStep(plan, rooms!, census.Buildings, sleeping!.Beds, ward, furniture), true);
     }
 
     internal static Fact<bool> WardReadyOf(ColonyProjection facts)
@@ -125,6 +126,6 @@ internal static class RoundsHerdRooms
             return Unknown<bool>();
         }
 
-        return PolicyFunctions.WardReady(plan!, rooms!, census.Buildings, sleeping!.Beds, facts.Shapes.Furniture.AnimalBed);
+        return HerdWardRules.WardReady(plan!, rooms!, census.Buildings, sleeping!.Beds, facts.Shapes.Furniture.AnimalBed);
     }
 }

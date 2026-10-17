@@ -182,7 +182,7 @@ partial record PlannedRoom
     internal static (int Width, int Depth) FrameDims(PlannedRoom r)
     {
         var b = r.Region.Bounds();
-        var (side, ok) = DoorSide(b, r.Door);
+        var (side, ok) = InteriorRules.DoorSide(b, r.Door);
         if (ok && side is Rotation.East or Rotation.West)
         {
             return (b.Height, b.Width);

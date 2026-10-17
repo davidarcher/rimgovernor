@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
@@ -15,7 +16,7 @@ public sealed partial class Rounder
     internal bool RoomsEnabled() =>
         // Housing: suite claims and the plan's suite wing read the census's standing bedrooms.
         // shelter/safe-area: the Safe area covers the census's enclosed roofed rooms.
-        TemperatureEnabled() || Needs.Contains(ShelterFamily.SafeArea) || HousingEnabled() || Needs.Contains(RoomsFamily.Comfort) || Needs.Contains(RefrigerationNeed) || Needs.Contains(RoomsFamily.Lighting) || Needs.Contains(RoomsFamily.Flooring) || Needs.Contains(LayoutFamily.Routes) || Needs.Contains(AdminFamily.Burial) || Needs.Contains(LayoutFamily.ClimateEnvelope) || Needs.Contains(MilitaryFamily.Training) || Needs.Contains(AdminFamily.Stockpiles);
+        TemperatureEnabled() || Needs.Contains(ShelterFamily.SafeArea) || HousingEnabled() || Needs.Contains(RoomsFamily.Comfort) || Needs.Contains(FoodStoresRules.RefrigerationNeed) || Needs.Contains(RoomsFamily.Lighting) || Needs.Contains(RoomsFamily.Flooring) || Needs.Contains(LayoutFamily.Routes) || Needs.Contains(AdminFamily.Burial) || Needs.Contains(LayoutFamily.ClimateEnvelope) || Needs.Contains(MilitaryFamily.Training) || Needs.Contains(AdminFamily.Stockpiles);
 
 }
 
@@ -123,7 +124,7 @@ partial class RoundsBuildingPlanner
             }
         }
         // Campfires burn wood: a finite stock unless a tree species can be sown.
-        return cooling with { HeatFuelFinite = !TreePlantationRules.ResourceGrowable(RoundsFieldPlanner.CropChoices(facts), PolicyFunctions.ConstructionWoodLog, facts.CropClimate.Biome, TreePlantationRules.GrowerSkill(facts.WorkPawns)) };
+        return cooling with { HeatFuelFinite = !TreePlantationRules.ResourceGrowable(RoundsFieldPlanner.CropChoices(facts), ConstructionDemandRules.ConstructionWoodLog, facts.CropClimate.Biome, TreePlantationRules.GrowerSkill(facts.WorkPawns)) };
     }
 
     /// <summary>The planning definitions the temperature planner reads: every method it can place, so availability and draw are known before one is chosen.</summary>

@@ -98,7 +98,7 @@ public static partial class LayoutPowerDeriveRules
         }
         var w = SiteRules.DefaultSiteTypeWeights();
         var p = f.Catalog.Power;
-        return new SitePrice { Weights = w, WindW = p.Wind.NominalW * p.Wind.Profile.Daily, ConduitW = BuildW(w, p.Conduit, steel), WallW = BuildW(w, p.Wall, steel) };
+        return new SitePrice { Weights = w, WindW = p.Wind.NominalW * p.Wind.Profile.Daily, ConduitW = ClimateRules.BuildW(w, p.Conduit, steel), WallW = ClimateRules.BuildW(w, p.Wall, steel) };
     }
 
     /// <summary>
@@ -159,7 +159,7 @@ public static partial class LayoutPowerDeriveRules
         var p = f.Catalog.Power;
         var steel = SteelValue(f) ?? 0;
         var w = SiteRules.DefaultSiteTypeWeights();
-        double windBuild = BuildW(w, p.Wind.Build, steel), solarBuild = BuildW(w, p.Solar.Build, steel);
+        double windBuild = ClimateRules.BuildW(w, p.Wind.Build, steel), solarBuild = ClimateRules.BuildW(w, p.Solar.Build, steel);
         var solarW = p.Solar.NominalW * p.Solar.Profile.Daily;
         int turbines = 0, plots = 0;
         while (true)

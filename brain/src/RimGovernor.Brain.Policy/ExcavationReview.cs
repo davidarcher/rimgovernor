@@ -45,7 +45,7 @@ public sealed record ExcavationReview
     public bool Complete { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ExcavationReviewRules
 {
     internal static readonly Cell[] OrthogonalSteps = [new(0, 1), new(1, 0), new(0, -1), new(-1, 0)];
 

@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 /// <summary>Serves the load's definition catalog. A colony source without it reads no definitions; one that is also a <see cref="IResearchSource"/> makes a definition available by its finished research.</summary>
@@ -93,7 +94,7 @@ public static class DefinitionsReads
         "Fence", "FenceGate", "FueledStove", "GeothermalGenerator", "Heater", "PartySpot", "PassiveCooler", "PenMarker",
         "Plant_Corn", "Plant_Potato", "Plant_Rice", "PowerConduit", "Sandbags", "SimpleResearchBench", "SleepingSpot",
         "SolarGenerator", "StandingLamp", "TableStonecutter", "Wall", "WindTurbine", "WoodFiredGenerator",
-        PolicyFunctions.ClimateDefs().VentDef, // the vent the tiler prices (#2915)
+        ClimateRules.ClimateDefs().VentDef, // the vent the tiler prices (#2915)
     ];
 
     /// <summary>

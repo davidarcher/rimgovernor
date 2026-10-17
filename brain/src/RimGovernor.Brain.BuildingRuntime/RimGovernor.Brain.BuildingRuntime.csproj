@@ -35,7 +35,6 @@
     <Using Include="RimGovernor.Brain.Facts" />
     <Using Include="RimGovernor.Contracts.Wire" />
     <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
-    <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Static="true" />
     <Using Include="RimGovernor.Brain.BuildingRuntime.Verdict" Static="true" />
     <!-- Namespace and class share a name in the unported packages, so the namespace shadows the class; these name the class. -->
     <Using Include="RimGovernor.Brain.Store.Store" Alias="JournalStore" />
@@ -84,7 +83,6 @@
     <Using Include="RimGovernor.Brain.Store.World" Alias="StoreWorld" />
     <Using Include="RimGovernor.Brain.Store.Rounds" Alias="RoundsReview" />
     <Using Include="RimGovernor.Brain.Observation.Policies" Alias="ObservationPolicies" />
-    <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Alias="PolicyApi" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.PlanningWindow" Alias="PlanningWindowRead" />
     <Using Include="RimGovernor.Brain.Policy.DefenseCell" Alias="DefenseCell" />
   </ItemGroup>

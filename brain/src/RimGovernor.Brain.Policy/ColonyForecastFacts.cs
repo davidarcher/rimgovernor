@@ -11,7 +11,7 @@ public sealed record ColonyForecastObserved
     public IReadOnlyList<PowerNetworkFact> Power { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static class ColonyForecastFactsRules
 {
     /// <summary>Assembles observed facts, never proposed stock or duplicated resource targets.</summary>
     public static ColonyForecastFacts ColonyForecastFactsOf(RoundsFacts f)

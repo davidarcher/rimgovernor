@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -96,7 +95,7 @@ public sealed class ForecastIncumbentSelectionTests
         var helper = new ForecastCommitment("helper-joy", []) { ActivityCompletions = ["helper-joy"] };
         // No native dispatch bindings exist for the synthetic incumbent. The exact need target
         // must still prevent a second owner, even when native participant capacity allows it.
-        var forecast = ForecastColony(request with { Coupled = context,
+        var forecast = ColonyForecastRules.ForecastColony(request with { Coupled = context,
             Commitments = candidates.Incumbents, Proposed = new() { Add = [helper] } });
         Assert.DoesNotContain(forecast.Proposed.Coupled!.Alternatives, a => a.Feasible == Known(true));
         Assert.Contains(forecast.Proposed.Coupled.Alternatives.SelectMany(a => a.Findings),
@@ -124,7 +123,7 @@ public sealed class ForecastIncumbentSelectionTests
                 Pawns = [.. context.Activities.Pawns, .. names.Select(n => new ForecastPawnCapacity(n, "start", Known<EquatableArray<ForecastTimeWindow>>([new(0, 300)]), Known(1d)))]
             }
         };
-        var forecast = ForecastColony(request with { Coupled = context, Commitments = candidates.Incumbents,
+        var forecast = ColonyForecastRules.ForecastColony(request with { Coupled = context, Commitments = candidates.Incumbents,
             Proposed = new() { Add = [.. names.Select(n => new ForecastCommitment(n + "-joy", []) { ActivityCompletions = [n + "-joy"] })] } });
         anyFeasible = forecast.Proposed.Coupled!.Alternatives.Any(a => a.Feasible == Known(true));
         return [.. forecast.Proposed.Coupled.Alternatives.SelectMany(a => a.Findings)];

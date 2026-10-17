@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -202,7 +203,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             request = request with { Runways = review.ResourceRunwayState() };
         }
-        var (apparel, apparelKnown) = Pol.PolicyFunctions.ApparelSurplus(new Pol.ClothingDemandInput { Garments = f.Garments, Categories = f.Items.StuffCategories, Gear = f.Gear, Stock = new Pol.StockReader { Resources = f.Resources, Wood = f.Wood } });
+        var (apparel, apparelKnown) = GearSurplusRules.ApparelSurplus(new Pol.ClothingDemandInput { Garments = f.Garments, Categories = f.Items.StuffCategories, Gear = f.Gear, Stock = new Pol.StockReader { Resources = f.Resources, Wood = f.Wood } });
         if (apparelKnown)
         {
             request = request with { Surplus = request.Surplus with { Apparel = apparel } };
@@ -213,8 +214,8 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             request = request with { Surplus = request.Surplus with { Weapons = weapons.Weapons }, SurplusKnown = apparelKnown };
         }
         // The sale path learns the rankable goods even when this Round abstains.
-        var ranked = Pol.PolicyFunctions.DeclareExportOrders(request);
-        rd.Exports.SetPlan(snapshot, Pol.PolicyFunctions.ExportSaleProducts(f.Items, ranked.Products), apparel, apparelKnown);
+        var ranked = ExportOrdersRules.DeclareExportOrders(request);
+        rd.Exports.SetPlan(snapshot, ExportOrdersRules.ExportSaleProducts(f.Items, ranked.Products), apparel, apparelKnown);
         rd.Exports.SetView(snapshot, Pol.WorkRules.NewExportView(ranked, gap));
         if (!stockKnown)
         {
@@ -252,7 +253,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         var (cashCap, buys) = ExportBuyers(catalog, kinds, ranked.Products);
         request = request with { CashCap = cashCap, Buys = buys };
         request = request with { WorkFor = ExportWorkFor(catalog) };
-        var names = Pol.PolicyFunctions.ExportIngredients(request);
+        var names = ExportOrdersRules.ExportIngredients(request);
         var strs = names.Select(n => n.Value).ToList();
         if (strs.Count > 0)
         {
@@ -287,7 +288,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
                     mines.Add(row);
                 }
             }
-            var sources = Pol.PolicyFunctions.MineCandidates(name, mines, Unknown<long>()).ToList();
+            var sources = AcquisitionCatalogRules.MineCandidates(name, mines, Unknown<long>()).ToList();
             if (centered)
             {
                 var hand = new List<Pol.AcquisitionSource>();
@@ -298,7 +299,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
                         hand.Add(s);
                     }
                 }
-                sources.AddRange(Pol.PolicyFunctions.AcquisitionSourceCandidates(name, hand, center, Unknown<long>()));
+                sources.AddRange(AcquisitionCatalogRules.AcquisitionSourceCandidates(name, hand, center, Unknown<long>()));
             }
             candidateSources[name] = sources;
         }
@@ -310,7 +311,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             // An unread packed count leaves the fact unknown, as Go ignores the error.
         }
-        var plan = Pol.PolicyFunctions.DeclareExportOrders(request);
+        var plan = ExportOrdersRules.DeclareExportOrders(request);
         rd.Exports.SetView(snapshot, Pol.WorkRules.NewExportView(plan, gap));
         SetWorking(plan.Declared.Orders.Count > 0);
         return plan.Declared;

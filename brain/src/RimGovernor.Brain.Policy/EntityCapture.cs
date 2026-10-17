@@ -68,7 +68,7 @@ public sealed record EntityVerdict(Domain.PawnId Pawn, EntityDecision Decision, 
 // Capture a downed entity only when the cell's containment strength reaches what the entity needs with a
 // margin, and kill the rest. A fact that is not read means no capture and a loud refusal, never a kill or a
 // guess. The margin is the strength the cell loses when a lapse of upkeep opens its door.
-public static partial class PolicyFunctions
+public static class EntityCaptureRules
 {
     /// <summary>
     /// Go <c>CaptureMargin</c>: the strength a holder of defs loses when its room's doors are forced open: the
@@ -78,7 +78,7 @@ public static partial class PolicyFunctions
     public static double CaptureMargin(ContainmentDefs defs)
     {
         DomainException.Require(defs.DoorHP > 0, "the cell's door has no hit points");
-        return defs.DoorHP / ContainmentDoorHPDivisor * defs.HolderFactor;
+        return defs.DoorHP / ContainmentStrengthRules.ContainmentDoorHPDivisor * defs.HolderFactor;
     }
 
     /// <summary>

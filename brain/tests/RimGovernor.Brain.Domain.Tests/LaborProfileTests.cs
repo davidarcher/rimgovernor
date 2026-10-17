@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -25,9 +24,9 @@ public sealed class LaborProfileTests
         { LayoutFamily.HomeCoverage.Value, [WorkType.Construction] },
         { LayoutFamily.ClimateEnvelope.Value, [WorkType.Construction] },
         { LayoutFamily.Firebreak.Value, [WorkType.PlantCutting, WorkType.Construction] },
-        { FoodStorageNeed.Value, [WorkType.Construction] },
-        { BlightNeed.Value, [WorkType.PlantCutting] },
-        { BabyFeedingNeed.Value, [WorkType.Cooking] },
+        { FoodStoresRules.FoodStorageNeed.Value, [WorkType.Construction] },
+        { FoodRules.BlightNeed.Value, [WorkType.PlantCutting] },
+        { FoodRules.BabyFeedingNeed.Value, [WorkType.Cooking] },
         { AnimalsFamily.Containment.Value, [WorkType.Construction] },
         { AnimalsFamily.Herd.Value, [WorkType.Handling] },
         { EconomyFamily.Research.Value, [WorkType.Research] },
@@ -47,15 +46,15 @@ public sealed class LaborProfileTests
     {
         var id = new NeedId(need);
         Assert.True(id.IsValid);
-        Assert.Equal(profile, NeedLabor(id));
-        Assert.Equal(profile, ConcernLabor(id.FilingKey));
+        Assert.Equal(profile, LaborRules.NeedLabor(id));
+        Assert.Equal(profile, LaborRules.ConcernLabor(id.FilingKey));
     }
 
     [Fact]
     public void ASubjectNeedSharesItsKindsProfile()
     {
-        Assert.Equal([WorkType.Handling], NeedLabor(NeedId.Of(AnimalsFamily.FamilyId, "herd", "pawn-1")));
-        Assert.Empty(NeedLabor(AdminFamily.CreepJoiners));
-        Assert.Equal([WorkType.Construction], NeedLabor(LayoutFamily.Routes));
+        Assert.Equal([WorkType.Handling], LaborRules.NeedLabor(NeedId.Of(AnimalsFamily.FamilyId, "herd", "pawn-1")));
+        Assert.Empty(LaborRules.NeedLabor(AdminFamily.CreepJoiners));
+        Assert.Equal([WorkType.Construction], LaborRules.NeedLabor(LayoutFamily.Routes));
     }
 }

@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -58,7 +59,7 @@ public sealed class AnimalsReader
         Fact<EquatableArray<PawnId>> uncontained;
         try
         {
-            uncontained = PolicyFunctions.ReviewAnimalUpkeep(f.AnimalUpkeep).Containment;
+            uncontained = AnimalUpkeepRules.ReviewAnimalUpkeep(f.AnimalUpkeep).Containment;
         }
         catch (DomainException)
         {
@@ -77,7 +78,7 @@ public sealed class AnimalsReader
             Animals = f.AnimalUpkeep.Animals,
             Wild = f.AnimalUpkeep.WildAnimals,
             Herd = f.HerdPolicy(),
-            FeedShort = PolicyFunctions.HerdFeedShort(f.AnimalFeedRunway().Projection),
+            FeedShort = HusbandryUpkeepRules.HerdFeedShort(f.AnimalFeedRunway().Projection),
             FoodPlan = f.FoodPlan,
             Handlers = handlers,
             Uncontained = uncontained,
@@ -144,7 +145,7 @@ public sealed class AnimalsReader
         {
             return FieldUnavailable("animal_handler");
         }
-        var choice = PolicyApi.SelectAnimalContainmentMethod(animals, handler, RoundsAnimalContainment.PensStand(projection));
+        var choice = AnimalUpkeepRules.SelectAnimalContainmentMethod(animals, handler, RoundsAnimalContainment.PensStand(projection));
         return choice.Reason == AnimalContainmentReason.NoDeficit ? Verdict.AwaitingPlan(work.Need.Id.Value, "no_method") : RoundsAnimalContainment.ContainmentWait(choice.Reason);
     }
 

@@ -55,7 +55,7 @@ public sealed partial class Store
         };
         try
         {
-            PolicyFunctions.ValidateConcernProgress(row, tick);
+            ConcernProgressRules.ValidateConcernProgress(row, tick);
         }
         catch (DomainException e)
         {
@@ -107,8 +107,8 @@ public sealed partial class Store
                         progress.Add(p);
                         continue;
                     }
-                    var updated = PolicyFunctions.AddProgressCooldown(p, key, until, review.Tick);
-                    PolicyFunctions.ValidateConcernProgress(updated, review.Tick);
+                    var updated = ConcernProgressRules.AddProgressCooldown(p, key, until, review.Tick);
+                    ConcernProgressRules.ValidateConcernProgress(updated, review.Tick);
                     progress.Add(updated);
                     changed = true;
                 }
@@ -214,7 +214,7 @@ public sealed partial class Store
                         }
                         try
                         {
-                            PolicyFunctions.ValidateConcernProgress(p, review.Tick);
+                            ConcernProgressRules.ValidateConcernProgress(p, review.Tick);
                         }
                         catch (DomainException e)
                         {

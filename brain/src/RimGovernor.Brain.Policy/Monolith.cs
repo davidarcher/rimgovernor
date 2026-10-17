@@ -267,7 +267,7 @@ public static partial class MonolithRules
             return (false, "", ["the holding platforms are unread"]);
         }
         var reason = "";
-        var upkeep = ContainmentDoorUpkeep(p);
+        var upkeep = EntityUpkeepRules.ContainmentDoorUpkeep(p);
         foreach (var issue in upkeep.Issues)
         {
             unread.Add(issue.Reason);

@@ -76,7 +76,7 @@ public static class ForecastActivityEffects
             try
             {
                 // Allocation is once per physical terminal output, including all competing eaters.
-                var allocated = ForecastFood(request.Facts.Food with { Stocks = [stock] }, null);
+                var allocated = FoodForecastRules.ForecastFood(request.Facts.Food with { Stocks = [stock] }, null);
                 supplies.Add((allocations[group.Key.Completion].End, expiry, allocated.Consumers));
             }
             catch (FoodFactsException) { return Unknown("unknown_edible_eligibility"); }

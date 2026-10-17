@@ -12,7 +12,7 @@ public sealed record HaulConsumer
     public long Weight { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class HaulDistanceRules
 {
     /// <summary>
     /// Go <c>HaulCosts</c>: the traffic-weighted walking distance from every census cell to the consumers: for

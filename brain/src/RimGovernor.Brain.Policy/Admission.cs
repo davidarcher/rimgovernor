@@ -214,7 +214,7 @@ public sealed record Decision
     public List<Refusal> Refused { get; } = [];
 }
 
-public static partial class PolicyFunctions
+public static class AdmissionRules
 {
     /// <summary>Whether <paramref name="p"/> names a spending class.</summary>
     public static bool ValidPurpose(Purpose p) => p is Purpose.Rounds or Purpose.Defense or Purpose.Shelter;

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -33,8 +34,8 @@ public sealed partial class LayoutRounds
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, call).ConfigureAwait(false);
         var projection = read.Projection;
-        var owned = OwnedConstructions(claims, projection.Facts.CurrentConstruction);
-        var targets = ReviewStoneShell(owned, projection.Facts.StoneStructures);
+        var owned = ConstructionOwnershipRules.OwnedConstructions(claims, projection.Facts.CurrentConstruction);
+        var targets = FacilityUpkeepRules.ReviewStoneShell(owned, projection.Facts.StoneStructures);
         if (!targets.TryGetValue(out var walls))
         {
             return FieldUnavailable(owned.TryGetValue(out _) ? "stone_structures" : "current_construction");
@@ -74,7 +75,7 @@ public sealed partial class LayoutRounds
         // nothing cuts the blocks a stone wall needs.
         if (unstocked)
         {
-            var gate = ResearchRules.ResearchGate([StoneShellResearch], projection.Facts.Research);
+            var gate = ResearchRules.ResearchGate([FacilityUpkeepRules.StoneShellResearch], projection.Facts.Research);
             if (gate != "")
             {
                 return ResearchWait(gate);

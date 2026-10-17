@@ -27,7 +27,7 @@ public static partial class WantedFloorRules
         {
             // The containment cell takes the catalog's containment floor when the stock pays for tiles not already
             // laid or ordered, else no floor.
-            if (!ContainmentRoomFloorLaid(facts.ContainmentFloor, facts, room))
+            if (!ContainmentCellRules.ContainmentRoomFloorLaid(facts.ContainmentFloor, facts, room))
             {
                 return None;
             }
@@ -37,7 +37,7 @@ public static partial class WantedFloorRules
         {
             return None;
         }
-        var (name, _, _) = ChooseFloor(d, facts, cells.Count, p);
+        var (name, _, _) = FlooringRules.ChooseFloor(d, facts, cells.Count, p);
         if (name.Length == 0)
         {
             return None;
@@ -50,11 +50,11 @@ public static partial class WantedFloorRules
     private static (FloorDeficit Deficit, bool Ok) RoomFloorDeficit(PlannedRoom room, IReadOnlyList<string> tags)
     {
         // A planned role with no census role (morgue, ...) asks for no floor.
-        if (!ModuleRoomRoles.TryGetValue(room.Role, out var role))
+        if (!InteriorRules.ModuleRoomRoles.TryGetValue(room.Role, out var role))
         {
             return (new FloorDeficit(), false);
         }
-        var roleTier = RoleFloorTier(role);
+        var roleTier = FlooringRules.RoleFloorTier(role);
         var tier = roleTier ?? default;
         var ok = roleTier is not null;
         if (tags.Count > 0 && role == RoomRole.ThroneRoom)
@@ -95,10 +95,10 @@ public static partial class WantedFloorRules
             }
             if (d.Tier == FloorTier.Throne)
             {
-                return HasAnyTag(def.Tags, d.Tags);
+                return FlooringRules.HasAnyTag(def.Tags, d.Tags);
             }
             var weights = d.Tier == FloorTier.Living ? p.Living : p.Clean;
-            var (_, meets) = FloorScore(d.Tier, def, weights);
+            var (_, meets) = FlooringRules.FloorScore(d.Tier, def, weights);
             return meets;
         };
     }

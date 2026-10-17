@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -111,9 +112,9 @@ public sealed class MilitaryRounds
                 // The crafting spot owed down and the shell review, as the review derives them.
                 var retire = await _reviewer.CraftingSpotRetireOwedAsync(scope.World, reading.Projection, call).ConfigureAwait(false);
                 var shells = await RoundsArmoryShells.ShellTargetsAsync(_reviewer.Native, _reviewer.Player.Journal, scope.World, reading.Projection, call).ConfigureAwait(false);
-                f = f with { CraftingSpotRetireOwed = retire, ShellsShort = PolicyApi.ShellsShort(shells, reading.Projection.Resources) };
+                f = f with { CraftingSpotRetireOwed = retire, ShellsShort = ArmoryShellsRules.ShellsShort(shells, reading.Projection.Resources) };
             }
-            facts = MilitaryFacts.From(f with { Hostiles = PolicyApi.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles });
+            facts = MilitaryFacts.From(f with { Hostiles = EmergencyNeedsRules.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles });
         }
         if (_pests)
         {
@@ -148,9 +149,9 @@ public sealed class MilitaryRounds
         if (!hostiles.IsKnown)
         {
             var tick = new Tick((long)(frame.Context?.Tick ?? 0));
-            hostiles = PolicyApi.EmergencyNeeds(EmergencySnapshot.New(world, tick, frame.Emergency.Facts), world, tick).Hostiles;
+            hostiles = EmergencyNeedsRules.EmergencyNeeds(EmergencySnapshot.New(world, tick, frame.Emergency.Facts), world, tick).Hostiles;
         }
-        var prey = PolicyApi.HuntRequest(_reviewer.HeldFoodPlan(world));
+        var prey = HuntSquadRules.HuntRequest(_reviewer.HeldFoodPlan(world));
         return facts with { Hostiles = hostiles, HuntPrey = [.. prey], StrayDrafts = DraftNeeds.StrayDrafts(state, frame.Emergency.Facts, frame.Pawns, needed) };
     }
 
@@ -254,7 +255,7 @@ public sealed class MilitaryRounds
             var result = await _workshop.Copy().StepAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false);
             verdicts.Add(result.Decision?.Admitted == true ? BuildingReasonAdmitted : result.Verdict);
         }
-        return EquipmentVerdict(verdicts, PolicyApi.ReviewGear(facts.Gear).Recovered);
+        return EquipmentVerdict(verdicts, GearRules.ReviewGear(facts.Gear).Recovered);
     }
 
     /// <summary>

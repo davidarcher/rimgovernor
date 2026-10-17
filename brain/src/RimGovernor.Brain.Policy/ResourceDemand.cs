@@ -47,7 +47,7 @@ public static partial class ResourceRules
     internal const long MaxAcquisitionCount = 1_000_000_000;
 
     internal static bool ValidAcquisitionKey(ResourceKey k) =>
-        ValidResource(k.Def) && (k.Stuff.Value.Length == 0 || ValidResource(k.Stuff));
+        AdmissionRules.ValidResource(k.Def) && (k.Stuff.Value.Length == 0 || AdmissionRules.ValidResource(k.Stuff));
 
     internal static bool ValidAcquisitionCount(long n) => n >= 0 && n <= MaxAcquisitionCount;
 

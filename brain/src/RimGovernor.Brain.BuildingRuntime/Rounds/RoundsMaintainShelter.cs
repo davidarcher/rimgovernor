@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 internal sealed class OwnedArea
@@ -72,7 +73,7 @@ public sealed partial class SafeAreaMemory
             Plan(SafeAreaRules.SafeAreaKey, SafeAreaRules.SafeAreaCells(rooms, [.. killbox, .. isolation]));
             if (hospital.Count > 0)
             {
-                Plan(PolicyFunctions.HospitalAreaKey, hospital);
+                Plan(HerdWardRules.HospitalAreaKey, hospital);
             }
 
             if (isolation.Count > 0)

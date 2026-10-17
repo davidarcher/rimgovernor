@@ -38,17 +38,17 @@ public sealed record RecoveryPlanning
     /// <summary>Throws when the planning facts are inconsistent.</summary>
     public void Validate()
     {
-        PolicyFunctions.RecoveryPending(Buildings);
+        DisasterRules.RecoveryPending(Buildings);
         if (Safety.TryGetValue(out var s))
         {
             var pawns = new HashSet<PawnId>();
             foreach (var r in s.Restrictions)
             {
-                if (!PolicyFunctions.FoodId(r.Pawn.Value) || !pawns.Add(r.Pawn))
+                if (!FoodForecastRules.FoodId(r.Pawn.Value) || !pawns.Add(r.Pawn))
                 {
                     throw new DomainException("invalid recovery restriction pawn");
                 }
-                if (r.Area.TryGetValue(out var id) && id.Length != 0 && !PolicyFunctions.FoodId(id))
+                if (r.Area.TryGetValue(out var id) && id.Length != 0 && !FoodForecastRules.FoodId(id))
                 {
                     throw new DomainException("invalid current restriction");
                 }
@@ -59,7 +59,7 @@ public sealed record RecoveryPlanning
             var seen = new HashSet<PawnId>();
             foreach (var w in workers)
             {
-                if (!PolicyFunctions.FoodId(w.Pawn.Value) || !seen.Add(w.Pawn))
+                if (!FoodForecastRules.FoodId(w.Pawn.Value) || !seen.Add(w.Pawn))
                 {
                     throw new DomainException("invalid recovery worker");
                 }
@@ -117,13 +117,13 @@ public sealed record RecoveryCandidate
     /// <summary>The id as Go derived it: a hash of the candidate's JSON with the ID blanked.</summary>
     internal MethodId MethodIdOf()
     {
-        var json = "{\"ID\":\"\",\"Kind\":" + PolicyFunctions.GoJsonString(Wire.Name(Kind))
-            + ",\"Pawn\":" + PolicyFunctions.GoJsonString(Pawn.Value)
-            + ",\"Building\":" + PolicyFunctions.GoJsonString(Building)
-            + ",\"Method\":" + PolicyFunctions.GoJsonString(Wire.Name(Method))
+        var json = "{\"ID\":\"\",\"Kind\":" + GearRules.GoJsonString(Wire.Name(Kind))
+            + ",\"Pawn\":" + GearRules.GoJsonString(Pawn.Value)
+            + ",\"Building\":" + GearRules.GoJsonString(Building)
+            + ",\"Method\":" + GearRules.GoJsonString(Wire.Name(Method))
             + ",\"HitPoints\":" + (HitPoints is { } h ? h.ToString(CultureInfo.InvariantCulture) : "null")
             + ",\"Fuel\":" + (Fuel is { } f ? RecoveryRules.GoJsonFloat(f) : "null")
-            + ",\"PriorArea\":" + (PriorArea is { } a ? PolicyFunctions.GoJsonString(a) : "null") + "}";
+            + ",\"PriorArea\":" + (PriorArea is { } a ? GearRules.GoJsonString(a) : "null") + "}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(json));
         return new MethodId("recovery-" + Convert.ToHexStringLower(hash.AsSpan(0, 16)));
     }
@@ -155,16 +155,16 @@ public sealed record RecoverySelection
         var seen = new HashSet<MethodId>();
         foreach (var c in Candidates)
         {
-            if (!PolicyFunctions.FoodId(c.Pawn.Value) || c.ID != c.MethodIdOf() || !seen.Add(c.ID) || c.PriorArea is null
-                || (c.PriorArea.Length != 0 && !PolicyFunctions.FoodId(c.PriorArea)))
+            if (!FoodForecastRules.FoodId(c.Pawn.Value) || c.ID != c.MethodIdOf() || !seen.Add(c.ID) || c.PriorArea is null
+                || (c.PriorArea.Length != 0 && !FoodForecastRules.FoodId(c.PriorArea)))
             {
                 throw new DomainException("invalid recovery candidate identity");
             }
-            if ((c.HitPoints is < 0) || (c.Fuel is { } fuel && !PolicyFunctions.FoodNumber(fuel)))
+            if ((c.HitPoints is < 0) || (c.Fuel is { } fuel && !FoodForecastRules.FoodNumber(fuel)))
             {
                 throw new DomainException("invalid recovery candidate state");
             }
-            if (c.Kind != RecoveryProposalKind.ServiceWork || !PolicyFunctions.FoodId(c.Building)
+            if (c.Kind != RecoveryProposalKind.ServiceWork || !FoodForecastRules.FoodId(c.Building)
                 || (c.Method != RecoveryMethod.Refuel && c.Method != RecoveryMethod.Breakdown && c.Method != RecoveryMethod.Repair)
                 || (c.Method == RecoveryMethod.Refuel && c.Fuel is null) || (c.Method == RecoveryMethod.Repair && c.HitPoints is null))
             {
@@ -253,7 +253,7 @@ public static partial class RecoveryRules
         Fact<EquatableArray<RecoveryWork>> pending;
         try
         {
-            pending = RecoveryPending(Known(EquatableArray.From(targetBuildings)));
+            pending = DisasterRules.RecoveryPending(Known(EquatableArray.From(targetBuildings)));
         }
         catch (DomainException)
         {
@@ -326,7 +326,7 @@ public static partial class RecoveryRules
         var seen = new HashSet<MethodId>();
         foreach (var id in used)
         {
-            if (!FoodId(id.Value) || !seen.Add(id))
+            if (!FoodForecastRules.FoodId(id.Value) || !seen.Add(id))
             {
                 throw new DomainException("invalid used recovery method");
             }
@@ -335,7 +335,7 @@ public static partial class RecoveryRules
         {
             return output with { Reason = RecoverySelectionReason.NoWork };
         }
-        var pending = RecoveryPending(p.Buildings);
+        var pending = DisasterRules.RecoveryPending(p.Buildings);
         var wk = pending.TryGetValue(out var work);
         var sk = p.Safety.TryGetValue(out var safety);
         var pk = p.Workers.TryGetValue(out var workers);

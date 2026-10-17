@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
@@ -137,7 +138,7 @@ public sealed partial class RoundsBuildingPlanner
             check();
             var name = i == 0 ? "Door" : "Wall";
             var b = new Building(name, c, Rotation.North, stuff);
-            var a = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), b, PolicyFunctions.PlannerTier(Concern, Phase));
+            var a = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), b, ConstructionTierRules.PlannerTier(Concern, Phase));
             var p = await Native.PreviewBuildingAsync(a, snapshot, ct).ConfigureAwait(false);
             var v = p.Preview;
             var fk = v.Footprint.TryGetValue(out var footprint);
@@ -171,7 +172,7 @@ public sealed partial class RoundsBuildingPlanner
 
         check();
         var building = new Building(Definition, Power.Center, Rotation.North, "");
-        var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, PolicyFunctions.PlannerTier(Concern, Phase));
+        var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
         var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
         var p = preview.Preview;
         var fk = p.Footprint.TryGetValue(out var footprint);
@@ -273,7 +274,7 @@ async
         {
             check();
             var b = new Building(name, c, rot, stuff);
-            var a = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{n}"), b, PolicyFunctions.PlannerTier(Concern, Phase));
+            var a = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{n}"), b, ConstructionTierRules.PlannerTier(Concern, Phase));
             n++;
             var p = await Native.PreviewBuildingAsync(a, snapshot, ct).ConfigureAwait(false);
             var v = p.Preview;
@@ -368,7 +369,7 @@ async
 
             check();
             var building = new Building(Wire.Name(PowerMethod.Connect), cell, Rotation.North, "");
-            var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), building, PolicyFunctions.PlannerTier(Concern, Phase));
+            var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
             var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;
             var fk = p.Footprint.TryGetValue(out var footprint);

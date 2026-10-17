@@ -55,7 +55,7 @@ public sealed record ExtentRegionEligibility
     public IReadOnlyList<string> HoldReasons { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static class ExtentEligibilityRules
 {
     /// <summary>Go <c>ExtentEligibility</c>.</summary>
     public static ExtentEligibilityView ExtentEligibility(ExtentEligibilityRequest r)

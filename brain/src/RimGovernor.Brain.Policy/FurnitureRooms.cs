@@ -44,7 +44,7 @@ public sealed record FurnitureRoom
     }
 }
 
-public static partial class PolicyFunctions
+public static class FurnitureRoomsRules
 {
     /// <summary>
     /// Go <c>FurnitureRooms</c>: reads the rectangular census rooms that have a derived interior plan as
@@ -68,7 +68,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var (planned, ok) = InteriorRoomFromCensus(room, role, doorways, rooms.Shapes);
+            var (planned, ok) = InteriorRules.InteriorRoomFromCensus(room, role, doorways, rooms.Shapes);
             if (!ok)
             {
                 continue;
@@ -103,7 +103,7 @@ public static partial class PolicyFunctions
             }
             standing.Sort(StringComparer.Ordinal);
             input = input with { Standing = standing };
-            if (!RoomHasInterior(input, new InteriorPieceDef()))
+            if (!InteriorRegionRules.RoomHasInterior(input, new InteriorPieceDef()))
             {
                 continue;
             }

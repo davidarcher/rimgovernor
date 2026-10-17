@@ -309,7 +309,7 @@ public static partial class NewColony
             new("all", "All pawns"),
             new("non_player", "Non-colonists"),
         ],
-        ThingOptions(PolicyFunctions.ScenarioThingChoices),
+        ThingOptions(DefTablesRules.ScenarioThingChoices),
         [
             new("NaturalMood", 2, "Sanguine"),
             new("NaturalMood", 1, "Optimist"),
@@ -393,7 +393,7 @@ public static partial class NewColony
     /// </summary>
     private static NewColonySpec Rhadamant()
     {
-        var d = PolicyFunctions.RhadamantThings;
+        var d = DefTablesRules.RhadamantThings;
         StartingThingPart Thing(string placement, string def, uint count) => new() { Placement = placement, ThingDef = def, Count = count };
         ForcedTraitPart Trait(string def, int degree) => new() { Trait = def, Degree = degree, Chance = 1, Context = "player_starter" };
         return new NewColonySpec

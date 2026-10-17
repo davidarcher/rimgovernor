@@ -266,7 +266,7 @@ internal sealed class SupplyCand
 public static partial class SupplyPlanRules
 {
     /// <summary>The demand and yield key of nutrition.</summary>
-    public static ResourceKey NutritionKey { get; } = new() { Def = CandidateNutrition };
+    public static ResourceKey NutritionKey { get; } = new() { Def = CandidateRules.CandidateNutrition };
 
     /// <summary>
     /// The nutrition flow demand. Usable runway is max(0, forecast runway - reserve). Below MinDays the horizon
@@ -277,10 +277,10 @@ public static partial class SupplyPlanRules
     public static SupplyDemand NutritionDemand(NutritionDemandInput input)
     {
         if (!input.Forecast.RunwayDays.TryGetValue(out var runway)
-            || !FoodNumber(runway)
-            || !FoodNumber(input.ReserveDays)
-            || !FoodNumber(input.MinDays)
-            || !FoodNumber(input.TargetDays)
+            || !FoodForecastRules.FoodNumber(runway)
+            || !FoodForecastRules.FoodNumber(input.ReserveDays)
+            || !FoodForecastRules.FoodNumber(input.MinDays)
+            || !FoodForecastRules.FoodNumber(input.TargetDays)
             || input.TargetDays <= input.MinDays
             || input.Forecast.Consumers.Count == 0)
         {
@@ -290,12 +290,12 @@ public static partial class SupplyPlanRules
         var perDay = 0.0;
         foreach (var c in input.Forecast.Consumers)
         {
-            if (!FoodId(c.Id.Value)
+            if (!FoodForecastRules.FoodId(c.Id.Value)
                 || consumers.Contains(c.Id)
-                || !FoodNumber(c.NutritionPerDay)
-                || !FoodNumber(c.RunwayDays)
-                || !FoodNumber(c.UsableNutrition)
-                || !FoodNumber(c.AllocatedNutrition))
+                || !FoodForecastRules.FoodNumber(c.NutritionPerDay)
+                || !FoodForecastRules.FoodNumber(c.RunwayDays)
+                || !FoodForecastRules.FoodNumber(c.UsableNutrition)
+                || !FoodForecastRules.FoodNumber(c.AllocatedNutrition))
             {
                 throw new SupplyPlanFactsException();
             }
@@ -303,14 +303,14 @@ public static partial class SupplyPlanRules
             perDay += c.NutritionPerDay;
         }
         var f = input.Forecast;
-        if (!FoodNumber(perDay) || perDay == 0 || !FoodNumber(f.UsableNutrition) || !FoodNumber(f.AtRiskNutrition) || !FoodNumber(f.InventoryNutrition))
+        if (!FoodForecastRules.FoodNumber(perDay) || perDay == 0 || !FoodForecastRules.FoodNumber(f.UsableNutrition) || !FoodForecastRules.FoodNumber(f.AtRiskNutrition) || !FoodForecastRules.FoodNumber(f.InventoryNutrition))
         {
             throw new SupplyPlanFactsException();
         }
         var usable = Math.Max(0, runway - input.ReserveDays);
-        var cover = 1 + (RunwayShortfall(usable, input.TargetDays) / input.TargetDays);
+        var cover = 1 + (ColonyDiagnosticsRules.RunwayShortfall(usable, input.TargetDays) / input.TargetDays);
         var target = perDay * cover;
-        if (!FoodNumber(target))
+        if (!FoodForecastRules.FoodNumber(target))
         {
             throw new SupplyPlanFactsException();
         }
@@ -404,7 +404,7 @@ public static partial class SupplyPlanRules
         var known = r.Candidates.TryGetValue(out var rows);
         var lk = r.Labor.TryGetValue(out var labor);
         var dk = r.Demands.TryGetValue(out var demandRows);
-        if (!known || (lk && !FoodNumber(labor)))
+        if (!known || (lk && !FoodForecastRules.FoodNumber(labor)))
         {
             throw new SupplyPlanFactsException();
         }
@@ -414,11 +414,11 @@ public static partial class SupplyPlanRules
         {
             var d = demands[i];
             if (!ResourceRules.ValidAcquisitionKey(d.Good)
-                || !FoodNumber(d.PerDay)
+                || !FoodForecastRules.FoodNumber(d.PerDay)
                 || !ResourceRules.ValidAcquisitionCount(d.Units)
                 || (d.PerDay > 0 && d.Units > 0)
-                || !FoodNumber(d.HorizonDays)
-                || !FoodNumber(d.Cover)
+                || !FoodForecastRules.FoodNumber(d.HorizonDays)
+                || !FoodForecastRules.FoodNumber(d.Cover)
                 || (i > 0 && demands[i - 1].Good == d.Good))
             {
                 throw new SupplyPlanFactsException();
@@ -483,7 +483,7 @@ public static partial class SupplyPlanRules
                 openOrder.Add(c);
             }
         }
-        if (!FoodNumber(used))
+        if (!FoodForecastRules.FoodNumber(used))
         {
             throw new SupplyPlanFactsException();
         }
@@ -542,7 +542,7 @@ public static partial class SupplyPlanRules
             {
                 gap = remaining[i];
             }
-            if (!FoodNumber(delivered[i]) || double.IsInfinity(gap) || double.IsNaN(gap))
+            if (!FoodForecastRules.FoodNumber(delivered[i]) || double.IsInfinity(gap) || double.IsNaN(gap))
             {
                 throw new SupplyPlanFactsException();
             }
@@ -555,7 +555,7 @@ public static partial class SupplyPlanRules
     private static (SupplyCand Cand, List<string> Missing) NewSupplyCand(SupplyCandidate row, HashSet<(CandidateKind, string)> identities)
     {
         if (!ValidCandidateKind(row.Kind)
-            || !FoodId(row.Id)
+            || !FoodForecastRules.FoodId(row.Id)
             || identities.Contains((row.Kind, row.Id))
             || row.Yields.Count == 0
             || !ResourceRules.ValidAcquisitionCount(row.UnitsPerTrip)
@@ -567,7 +567,7 @@ public static partial class SupplyPlanRules
         static (double Value, bool Ok) Num(Fact<double> f, double max)
         {
             var ok = f.TryGetValue(out var v);
-            if (ok && (!FoodNumber(v) || v > max))
+            if (ok && (!FoodForecastRules.FoodNumber(v) || v > max))
             {
                 throw new SupplyPlanFactsException();
             }
@@ -629,7 +629,7 @@ public static partial class SupplyPlanRules
         var risks = new HashSet<CandidateRiskKind>();
         foreach (var v in row.Risk)
         {
-            if (!ValidCandidateRisk(v.Kind) || risks.Contains(v.Kind) || !FoodNumber(v.Weight) || v.Weight > 1)
+            if (!ValidCandidateRisk(v.Kind) || risks.Contains(v.Kind) || !FoodForecastRules.FoodNumber(v.Weight) || v.Weight > 1)
             {
                 throw new SupplyPlanFactsException();
             }
@@ -638,7 +638,7 @@ public static partial class SupplyPlanRules
         }
         foreach (var v in row.Terms)
         {
-            if (!FoodId(v.Name) || double.IsNaN(v.Value) || double.IsInfinity(v.Value))
+            if (!FoodForecastRules.FoodId(v.Name) || double.IsNaN(v.Value) || double.IsInfinity(v.Value))
             {
                 throw new SupplyPlanFactsException();
             }

@@ -273,7 +273,7 @@ public sealed record EmergencySnapshot
     public bool PodsPending => IsValid && Facts.PodsOpen.Value > 0 && Facts.PodsOpen >= Tick;
 }
 
-public static partial class PolicyFunctions
+public static class EmergencyRules
 {
     /// <summary>
     /// Go <c>EvaluateEmergency</c>: clears only known complete, current facts. It does not decide how to treat,
@@ -312,10 +312,10 @@ public static partial class PolicyFunctions
             }
             statuses[id] = (Combine(prior.Dead, dead), Combine(prior.Downed, downed));
         }
-        foreach (var pawn in EmergencyPatients(snapshot.Facts))
+        foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
         {
             Merge(pawn.Id, pawn.Dead, pawn.Downed);
-            if (AggressiveBreak(pawn))
+            if (BreakResponseRules.AggressiveBreak(pawn))
             {
                 Hold(EmergencyReason.UnsafeThreat, pawn.Id);
             }
@@ -377,7 +377,7 @@ public static partial class PolicyFunctions
     /// colony without a bed the hold suspended the very goal that would build one. An unknown InBed keeps the
     /// hold. Callers have established that every health fact is known.
     /// </summary>
-    private static bool UrgentPatient(EmergencyPawn pawn)
+    internal static bool UrgentPatient(EmergencyPawn pawn)
     {
         var downed = pawn.Downed.ValueOrDefault;
         var bleeding = pawn.Bleeding.ValueOrDefault;

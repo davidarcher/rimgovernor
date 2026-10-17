@@ -47,12 +47,12 @@ public sealed class SnapshotFirebreak
         {
             dwell[d.Cell] = d.Since;
         }
-        var (fact, _) = PolicyFunctions.PlanFirebreak(r, dwell);
+        var (fact, _) = FirebreakRules.PlanFirebreak(r, dwell);
         if (!fact.TryGetValue(out var plan))
         {
             throw new DomainException("snapshot: firebreak plan unknown");
         }
-        return (plan, PolicyFunctions.FirebreakOwed(plan, new HashSet<Cell>(Standing), new HashSet<Cell>(Open)));
+        return (plan, FirebreakConcernRules.FirebreakOwed(plan, new HashSet<Cell>(Standing), new HashSet<Cell>(Open)));
     }
 }
 

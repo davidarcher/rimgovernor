@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -30,30 +29,30 @@ public sealed class CoordinatedActivityTests
             [new(PawnActivityKind.Hold, "", "", "", 0, 2000)]) { Task = "delivery", Preparing = true };
         var batch = new PawnActivities(1, [idle, waiting])
             { Tasks = [new("idle", "producer", [], idleStep, new(3, 3), 0), delivery] };
-        var cleanup = ContinueCoordinatedActivity(batch, Known(true), Read(batch, bindings:
+        var cleanup = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, bindings:
             [new("delivery", step with { Target = "shared-stack" })]))!;
         Assert.True(cleanup.Orders[0].Release);
         Assert.True(PawnActivities.SameOrder(waiting, cleanup.Orders[1]));
         Assert.Equal(delivery, Assert.Single(cleanup.Tasks));
-        var rebound = ContinueCoordinatedActivity(cleanup, Known(true), Read(cleanup, bindings:
+        var rebound = CoordinatedActivitiesRules.ContinueCoordinatedActivity(cleanup, Known(true), Read(cleanup, bindings:
             [new("delivery", step with { Target = "shared-stack" })]))!;
         Assert.Equal("shared-stack", Assert.Single(rebound.Orders).Steps[0].Target);
         Assert.Equal(6, rebound.Tasks[0].Step.Count);
-        Assert.All(ContinueCoordinatedActivity(cleanup, Known(true), Read(cleanup, tick: 2000))!.Orders,
+        Assert.All(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cleanup, Known(true), Read(cleanup, tick: 2000))!.Orders,
             o => Assert.True(o.Release));
     }
     [Fact]
     public void NoProgressDoesNotRestartParticipantsAndObservedOutputBindsExactHelper()
     {
         var batch = Start();
-        Assert.Null(ContinueCoordinatedActivity(batch, Known(true), Read(batch, "started")));
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "started")));
         var delivery = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver);
-        var next = ContinueCoordinatedActivity(batch, Known(true), Read(batch, bindings:
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, bindings:
             [new(delivery.Id, delivery.Step with { Target = "merged-observed-stack", Count = 3 })]))!;
         Assert.True(next.Orders.Single(o => o.Pawn == "producer").Release);
         Assert.True(PawnActivities.SameOrder(batch.Orders.Single(o => o.Pawn == "helper"),
             next.Orders.Single(o => o.Pawn == "helper")));
-        next = ContinueCoordinatedActivity(next, Known(true), Read(next, bindings:
+        next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Read(next, bindings:
             [new(delivery.Id, delivery.Step with { Target = "merged-observed-stack", Count = 3 })]))!;
         Assert.Equal("merged-observed-stack", next.Orders.Single(o => o.Pawn == "helper").Steps[0].Target);
         Assert.Equal(8, next.Tasks.Single().Step.Count); // Partial binding is not eight units delivered.
@@ -66,7 +65,7 @@ public sealed class CoordinatedActivityTests
         var batch = Start(false);
         var delivery = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver) with { DepartTick = 500 };
         batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == delivery.Id ? delivery : t)) };
-        var waiting = ContinueCoordinatedActivity(batch, Known(true), Read(batch, tick: 300))!;
+        var waiting = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, tick: 300))!;
         var order = Assert.Single(waiting.Orders);
         Assert.True(order.Preparing);
         Assert.Equal(delivery.Id, order.Task);
@@ -75,9 +74,9 @@ public sealed class CoordinatedActivityTests
         Assert.Equal(500, order.Steps[0].NotBefore);
         Assert.Equal(PawnActivityKind.Hold, order.Steps[1].Kind);
         Assert.All(order.Steps, step => Assert.Equal(2000, step.Deadline));
-        Assert.Null(ContinueCoordinatedActivity(waiting, Known(true), Read(waiting, "holding", tick: 400)));
-        Assert.True(ContinueCoordinatedActivity(waiting, Known(true), Read(waiting, "failed", tick: 400))!.Orders[0].Release);
-        var resumed = ContinueCoordinatedActivity(waiting, Known(true), Read(waiting, "holding", tick: 500,
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(waiting, Known(true), Read(waiting, "holding", tick: 400)));
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(waiting, Known(true), Read(waiting, "failed", tick: 400))!.Orders[0].Release);
+        var resumed = CoordinatedActivitiesRules.ContinueCoordinatedActivity(waiting, Known(true), Read(waiting, "holding", tick: 500,
             bindings: [new(delivery.Id, delivery.Step with { Target = "actual-output" })]))!;
         Assert.False(resumed.Orders[0].Preparing);
         Assert.Equal("actual-output", resumed.Orders[0].Steps[0].Target);
@@ -91,10 +90,10 @@ public sealed class CoordinatedActivityTests
             { Resource = "Rice", Source = new(10, 10) };
         var batch = new PawnActivities(1, [new("producer", "method/producer", "method", 1, 2, false,
             [task.Step with { Target = "split", Count = 3 }]) { Task = "deliver" }]) { Tasks = [task] };
-        var remaining = ContinueCoordinatedActivity(batch, Known(true), Read(batch, bindings:
+        var remaining = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, bindings:
             [new("deliver", task.Step with { Target = "fresh", Count = 5 })]))!;
         Assert.Equal(5, remaining.Tasks.Single().Step.Count);
-        var retry = ContinueCoordinatedActivity(remaining, Known(true), Read(remaining, "failed", bindings:
+        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(remaining, Known(true), Read(remaining, "failed", bindings:
             [new("deliver", task.Step with { Target = "observed-carried", Count = 5 })]))!;
         Assert.Equal("observed-carried", retry.Orders.Single().Steps[0].Target);
         Assert.Equal(2, retry.Tasks.Single().AttemptsLeft);
@@ -105,10 +104,10 @@ public sealed class CoordinatedActivityTests
     public void KnownTimeoutAndTakeoverReleaseRemainingOwnersDespiteUnknownConcern()
     {
         var batch = Start();
-        Assert.All(ContinueCoordinatedActivity(batch, default, Read(batch, "started", tick: 2000))!.Orders, o => Assert.True(o.Release));
+        Assert.All(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, default, Read(batch, "started", tick: 2000))!.Orders, o => Assert.True(o.Release));
         var read = Read(batch, "started");
         read = read with { Pawns = EquatableArray.From(read.Pawns.Select(p => p.Pawn == "helper" ? p with { Execution = null } : p)) };
-        var cleanup = ContinueCoordinatedActivity(batch, default, read)!;
+        var cleanup = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, default, read)!;
         Assert.Equal("producer", Assert.Single(cleanup.Orders).Pawn);
         Assert.True(cleanup.Orders[0].Release);
     }
@@ -117,10 +116,10 @@ public sealed class CoordinatedActivityTests
     public void FailedConsumingWorkNeverReplaysAndUnknownExecutionNeverCompletes()
     {
         var batch = Start(false);
-        Assert.True(ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed"))!.Orders.Single().Release);
-        Assert.Null(ContinueCoordinatedActivity(batch, Known(true), Read(batch) with { Known = false }));
-        Assert.Null(ContinueCoordinatedActivity(batch, Known(true), Read(batch) with { Pawns = [] }));
-        Assert.All(ContinueCoordinatedActivity(batch, Known(false), Read(batch, "started"))!.Orders, o => Assert.True(o.Release));
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed"))!.Orders.Single().Release);
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch) with { Known = false }));
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch) with { Pawns = [] }));
+        Assert.All(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(false), Read(batch, "started"))!.Orders, o => Assert.True(o.Release));
     }
 
     [Fact]
@@ -130,10 +129,10 @@ public sealed class CoordinatedActivityTests
         var a = new PawnActivityOrder("producer", "m/a", "m", 0, 1, false, [work]) { Task = "a" };
         var b = new PawnActivityOrder("helper", "m/b", "m", 0, 1, false, [work with { Target = "target-b" }]) { Task = "b" };
         var batch = new PawnActivities(1, [a, b]) { Tasks = [new("a", a.Pawn, [], work, new(1, 1), 100), new("b", b.Pawn, [], b.Steps[0], new(2, 2), 100)] };
-        var next = ContinueCoordinatedActivity(batch, Known(true), Read(batch, helper: "started"))!;
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, helper: "started"))!;
         Assert.True(PawnActivities.SameOrder(b, next.Orders.Single(o => o.Pawn == b.Pawn)));
         Assert.Equal("b", next.Tasks.Single().Id);
         var exhausted = batch with { Orders = [a with { Revision = long.MaxValue }, b] };
-        Assert.Null(ContinueCoordinatedActivity(exhausted, Known(true), Read(exhausted, helper: "started")));
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(exhausted, Known(true), Read(exhausted, helper: "started")));
     }
 }

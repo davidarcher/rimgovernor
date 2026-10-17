@@ -6,7 +6,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -148,10 +147,10 @@ public sealed class PlannedRoomGateTests
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = Known<EquatableArray<WorkBuildingCost>>([
-                    new(ShellWallDefinition, "WoodLog", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 5)])) { Size = Known(new Cell(1, 1)) },
-                    new(ShellDoorDefinition, "WoodLog", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 25)])) { Size = Known(new Cell(1, 1)) },
-                    new(ShellWallDefinition, "BlocksGranite", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("BlocksGranite"), 5)])) { Size = Known(new Cell(1, 1)) },
-                    new(ShellDoorDefinition, "BlocksGranite", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("BlocksGranite"), 25)])) { Size = Known(new Cell(1, 1)) }]),
+                    new(ContainmentCellRules.ShellWallDefinition, "WoodLog", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 5)])) { Size = Known(new Cell(1, 1)) },
+                    new(ContainmentCellRules.ShellDoorDefinition, "WoodLog", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 25)])) { Size = Known(new Cell(1, 1)) },
+                    new(ContainmentCellRules.ShellWallDefinition, "BlocksGranite", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("BlocksGranite"), 5)])) { Size = Known(new Cell(1, 1)) },
+                    new(ContainmentCellRules.ShellDoorDefinition, "BlocksGranite", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("BlocksGranite"), 25)])) { Size = Known(new Cell(1, 1)) }]),
             },
         };
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
@@ -171,8 +170,8 @@ public sealed class PlannedRoomGateTests
             Rooms = Known(new RoomObservation()),
             Definitions =
             [
-                new PlanningDefinition { Name = ShellWallDefinition, Available = Known(true) },
-                new PlanningDefinition { Name = ShellDoorDefinition, Available = Known(true) },
+                new PlanningDefinition { Name = ContainmentCellRules.ShellWallDefinition, Available = Known(true) },
+                new PlanningDefinition { Name = ContainmentCellRules.ShellDoorDefinition, Available = Known(true) },
             ],
         };
         Colony? colony = null;
@@ -194,7 +193,7 @@ public sealed class PlannedRoomGateTests
     }
 
     private static SelectedPlannedSite Site(OpKind op, string stuff, params Cell[] cells) =>
-        new("planned/room1/" + (op == OpKind.WallIn ? "wall" : "door") + "/" + stuff, 1, op, op == OpKind.WallIn ? ShellWallDefinition : ShellDoorDefinition,
+        new("planned/room1/" + (op == OpKind.WallIn ? "wall" : "door") + "/" + stuff, 1, op, op == OpKind.WallIn ? ContainmentCellRules.ShellWallDefinition : ContainmentCellRules.ShellDoorDefinition,
             stuff, Rotation.North, [.. cells]);
 
     private static void Select(Colony colony, params SelectedPlannedSite[] sites) =>
@@ -233,7 +232,7 @@ public sealed class PlannedRoomGateTests
         Assert.Equal(Outcome.Admitted, Colony.Report(first).Outcome);
         var placed = colony.Placed(first);
         Assert.Equal(south.ToHashSet(), placed.Select(b => b.Cell).ToHashSet());
-        Assert.All(placed, b => Assert.Equal((ShellWallDefinition, "BlocksGranite"), (b.Definition, b.Stuff)));
+        Assert.All(placed, b => Assert.Equal((ContainmentCellRules.ShellWallDefinition, "BlocksGranite"), (b.Definition, b.Stuff)));
 
         // Its blueprints stand on the room's own ring: the room is started, so the rest is placed as before, whatever the record says.
         colony.Census = Known(new CurrentConstruction { Colony = true, Sites = [.. placed.Select(b => new ConstructionSite { Building = b, Stage = "blueprint" })] });
@@ -242,7 +241,7 @@ public sealed class PlannedRoomGateTests
         var next = await colony.RunAsync();
         Assert.Equal(Outcome.Admitted, Colony.Report(next).Outcome);
         var rest = colony.Placed(next);
-        Assert.Contains(rest, b => b.Definition == ShellDoorDefinition && b.Cell == Room.Door);
+        Assert.Contains(rest, b => b.Definition == ContainmentCellRules.ShellDoorDefinition && b.Cell == Room.Door);
         Assert.DoesNotContain(rest, b => south.Contains(b.Cell));
         Assert.All(rest, b => Assert.Equal("WoodLog", b.Stuff));
         Assert.Equal(2, colony.Journal.OwnerMethodHistory(colony.Journal.LoadNeed(Bedroom, World, ct), ct).Count);
@@ -256,7 +255,7 @@ public sealed class PlannedRoomGateTests
         colony.Census = Known(new CurrentConstruction
         {
             Colony = true,
-            Buildings = [new CurrentBuilding { Id = "w", Building = new Building(ShellWallDefinition, new(4, 8), Rotation.North, "WoodLog"), Cells = [new(4, 8)] }],
+            Buildings = [new CurrentBuilding { Id = "w", Building = new Building(ContainmentCellRules.ShellWallDefinition, new(4, 8), Rotation.North, "WoodLog"), Cells = [new(4, 8)] }],
         });
         Select(colony);
         var run = await colony.RunAsync();

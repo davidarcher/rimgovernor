@@ -19,7 +19,7 @@ public sealed record GearStock
 /// <summary>The definition and stuff a stock row or need is netted under. (Go <c>gearStockKey</c>.)</summary>
 internal readonly record struct GearStockKey(Resource Definition, Resource Stuff);
 
-public static partial class PolicyFunctions
+public static class GearStockRules
 {
     /// <summary>
     /// Stored options assigned by the ensemble planner already satisfied one gap. Remove those physical units
@@ -32,7 +32,7 @@ public static partial class PolicyFunctions
         {
             foreach (var g in l.Gaps)
             {
-                if (g.Source != GearSource.Stored || !GearGapWanted(l.Role, g))
+                if (g.Source != GearSource.Stored || !GearLoadoutRules.GearGapWanted(l.Role, g))
                 {
                     continue;
                 }

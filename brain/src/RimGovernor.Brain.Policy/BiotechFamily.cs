@@ -102,7 +102,7 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
         }
         if (_needs.Pollution)
         {
-            output.Add(PolicyFunctions.PollutionNeedOf(facts));
+            output.Add(BiotechFamilyRules.PollutionNeedOf(facts));
         }
         return output;
     }
@@ -178,7 +178,7 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
     };
 }
 
-public static partial class PolicyFunctions
+public static class BiotechFamilyRules
 {
     /// <summary>
     /// The pollution Need: unmet while PollutionDeficit finds an exposed or forbidden pack or an uncovered polluted

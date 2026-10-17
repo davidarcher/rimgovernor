@@ -60,7 +60,7 @@ public sealed record FieldHarvest
     public double WorkPerDay { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ClothingDemandRules
 {
     /// <summary>How far ahead a wearing garment's replacement is wanted: replacement is gradual, so a field that delivers within it (cotton grows in about a week) serves the demand as well as a hunt.</summary>
     public const double ClothingHorizonDays = 15.0;
@@ -84,7 +84,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static bool TatteredWithin(this GearOption o, double days)
     {
-        if (o.Condition <= GearTatteredCondition)
+        if (o.Condition <= GearRules.GearTatteredCondition)
         {
             return true;
         }
@@ -94,7 +94,7 @@ public static partial class PolicyFunctions
             return false;
         }
 
-        return (o.Condition - GearTatteredCondition) * o.MaxHitPoints / o.WearPerDay <= days;
+        return (o.Condition - GearRules.GearTatteredCondition) * o.MaxHitPoints / o.WearPerDay <= days;
     }
 
     /// <summary>
@@ -109,7 +109,7 @@ public static partial class PolicyFunctions
         var (bills, _) = ClothingReplacements(input);
         var needs = new Dictionary<Resource, long>();
         var serves = new Dictionary<Resource, Resource>();
-        foreach (var (resource, n) in OpenBillDemand(bills, input.Stock))
+        foreach (var (resource, n) in BillDemandRules.OpenBillDemand(bills, input.Stock))
         {
             needs[resource] = n;
             serves[resource] = resource;
@@ -190,7 +190,7 @@ public static partial class PolicyFunctions
                     continue;
                 }
 
-                var filter = GearFilter(g.Slots, worn.Stuff, input.Categories);
+                var filter = GearRules.GearFilter(g.Slots, worn.Stuff, input.Categories);
                 if (filter is null)
                 {
                     continue;
@@ -228,7 +228,7 @@ public static partial class PolicyFunctions
     {
         foreach (var c in garments)
         {
-            if (spare.GetValueOrDefault(c.Definition) > 0 && g.Groups.Items.Any(group => GearCoreGroups.Contains(group) && c.Groups.Items.Contains(group)))
+            if (spare.GetValueOrDefault(c.Definition) > 0 && g.Groups.Items.Any(group => GearRules.GearCoreGroups.Contains(group) && c.Groups.Items.Contains(group)))
             {
                 spare[c.Definition]--;
                 return c.Definition;

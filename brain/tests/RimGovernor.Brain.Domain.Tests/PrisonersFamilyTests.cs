@@ -4,7 +4,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -228,7 +227,7 @@ public sealed class PrisonersFamilyTests
     /// <summary>The Needs a thought owner may name: the migrated families' Needs whose facility removes a thought.</summary>
     private static readonly NeedId[] OwnerNeeds =
     [
-        HomeUpkeepFamily.Repairs, HomeUpkeepFamily.Clearance, FoodStorageNeed, CookingNeed, PrisonersFamily.Recruit, PrisonersFamily.Custody, MilitaryFamily.Equipment, ShelterFamily.Sleeping, ShelterFamily.Temperature,
+        HomeUpkeepFamily.Repairs, HomeUpkeepFamily.Clearance, FoodStoresRules.FoodStorageNeed, FoodRules.CookingNeed, PrisonersFamily.Recruit, PrisonersFamily.Custody, MilitaryFamily.Equipment, ShelterFamily.Sleeping, ShelterFamily.Temperature,
         RoomsFamily.Comfort, RoomsFamily.Lighting, MedicalRules.MedicalCareNeed,
     ];
 

@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -76,7 +75,7 @@ public sealed class ServiceInvestmentTests
         ForecastCoupledSelection Select(RoundsFacts f) => ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("world", 100),
             300d / GameTime.TicksPerDay, f,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(f) }, [], new()), f.CoupledAlternatives!);
         var proposal = Assert.Single(Select(facts).ServiceInvestments);
-        Assert.Equal(FoodSupplyNeed.FilingKey, proposal.Target.Owner);
+        Assert.Equal(FoodRules.FoodSupplyNeed.FilingKey, proposal.Target.Owner);
         Assert.Equal("pawn", Assert.Single(proposal.Beneficiaries));
         Assert.True(proposal.AvoidedExposure.Value > 0);
         Assert.Empty(Select(ForecastCoupledSelectionTests.Review(level: 1, fall: 0)).ServiceInvestments);
@@ -86,7 +85,7 @@ public sealed class ServiceInvestmentTests
     public void DisabledShelterControlCannotGenerateRoofOrFinishWork()
     {
         var facts = ForecastThermalPortfolioTests.Review(-10) with
-        { AvailableNeeds = Known<EquatableArray<NeedId>>([AdminFamily.WorkAssignments, FoodSupplyNeed]) };
+        { AvailableNeeds = Known<EquatableArray<NeedId>>([AdminFamily.WorkAssignments, FoodRules.FoodSupplyNeed]) };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1000)!;
         Assert.DoesNotContain(generated.Alternatives, c => c.ExclusiveOutcome.StartsWith("shelter/", StringComparison.Ordinal)
             || c.ExclusiveOutcome.StartsWith("construction/", StringComparison.Ordinal));

@@ -216,7 +216,7 @@ public sealed record LedgerView
         }
         foreach (var d in Declarers)
         {
-            var why = d.Abstains.Select(a => a.Concern + ": " + PolicyFunctions.Wording(a.Fact, ""));
+            var why = d.Abstains.Select(a => a.Concern + ": " + CauseRules.Wording(a.Fact, ""));
             Add(
                 WorkRules.LedgerSectionDeclarer,
                 new()
@@ -480,7 +480,7 @@ public static partial class WorkRules
     public static ExportView NewExportView(ExportPlan plan, Fact<double> gap)
     {
         var dropped = new List<ExportDropView>();
-        foreach (var why in AllExportDrops)
+        foreach (var why in ExportOrdersRules.AllExportDrops)
         {
             if (plan.Dropped.TryGetValue(why, out var n) && n > 0)
             {

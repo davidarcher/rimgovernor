@@ -554,7 +554,7 @@ public sealed record RoundsLatches
     /// <summary>
     /// <see cref="Phase.HousingShelter"/> while this review finds the starter shelter not standing (a sleeping or an
     /// indoor place short for everyone, or unread), else empty: the starter shelter then holds the colony's
-    /// Construction labor (<see cref="PolicyFunctions.ConstructionLaborHeld"/>). A per-review value, not a latch.
+    /// Construction labor (<see cref="ConstructionLaborRules.ConstructionLaborHeld"/>). A per-review value, not a latch.
     /// </summary>
     public Phase Housing { get; set; }
 
@@ -588,14 +588,14 @@ public static partial class RoundsRules
     public static RoundsPolicy DefaultRoundsPolicy() => new()
     {
         MedicalReserve = MedicalReservePolicy.Default(),
-        FoodStorage = DefaultFoodStoragePolicy(),
+        FoodStorage = FoodStorageUpkeepRules.DefaultFoodStoragePolicy(),
         Lighting = LightingPolicy.Default(),
-        Flooring = DefaultFlooringPolicy(),
+        Flooring = FlooringRules.DefaultFlooringPolicy(),
         Routes = RoutesRules.DefaultRoutesPolicy(),
         FoodMinDays = 3,
         FoodTargetDays = 7,
         FootholdFoodDays = 3,
-        FoodReserveDays = DefaultFoodReserveDays,
+        FoodReserveDays = FoodReserveRules.DefaultFoodReserveDays,
         PrisonerReleaseAfterDays = 15,
         ColdEnter = 12,
         ColdExit = 16,
@@ -687,7 +687,7 @@ public static partial class RoundsRules
 
     /// <summary>Whether combat has nothing to answer: <see cref="CombatSituation"/> is clear.</summary>
     internal static Fact<bool> CombatCleared(RoundsFacts f) =>
-        CombatSituation(f.Hostiles, HuntRequest(f.FoodPlan).Count) switch
+        CombatSituation(f.Hostiles, HuntSquadRules.HuntRequest(f.FoodPlan).Count) switch
         {
             Situation.Clear => Known(true),
             Situation.Active => Known(false),
@@ -778,7 +778,7 @@ public static partial class RoundsRules
         var latches = new RoundsLatches
         {
             MedicalReserve = medicine.Active,
-            Dash = DashLatch(f.Dash),
+            Dash = DashPlanRules.DashLatch(f.Dash),
             Housing = ShelterRules.StarterShelterOwed(f) ? Phase.HousingShelter : Phase.None,
         };
         var demand = ResourceRules.ResourceDemandOf(f, p, latches);
@@ -787,10 +787,10 @@ public static partial class RoundsRules
             r.CoupledSelection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
                 1, f, demand, [], new()), coupled);
         // The disaster history the disaster family's Needs read (#3304).
-        r.Disaster = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
+        r.Disaster = DisasterRules.ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
         r.Trade = TradeReviewOf(f, p, medicine, demand);
         r.WorkAssignments = WorkAssignmentsOwed(f, r.CoupledSelection);
-        r.EssentialServices = ReviewEssentialServices(f, p, demand, medicineActive: latches.MedicalReserve);
+        r.EssentialServices = EssentialServicesRules.ReviewEssentialServices(f, p, demand, medicineActive: latches.MedicalReserve);
         return r;
     }
 
@@ -811,7 +811,7 @@ public static partial class RoundsRules
         {
             return Known(false);
         }
-        if (!KitchenSeparation(f.Upkeep.Rooms).TryGetValue(out var shared))
+        if (!KitchenSeparationRules.KitchenSeparation(f.Upkeep.Rooms).TryGetValue(out var shared))
         {
             return Known(true);
         }

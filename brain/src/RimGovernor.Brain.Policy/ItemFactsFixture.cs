@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class ItemFactsFixtureRules
 {
     private static Resource R(string def) => new(def);
 

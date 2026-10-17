@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
@@ -52,7 +53,7 @@ public sealed partial class RoundsBuildingPlanner
         var p = Reviewer.Policy.Flooring;
         var census = FlooringCensus(facts);
         LogTrafficFindings(census);
-        var review = PolicyFunctions.ReviewFlooring(census, facts.Rooms, p);
+        var review = FlooringRules.ReviewFlooring(census, facts.Rooms, p);
         if (!review.Active)
         {
             return (null, BuildingReasonNoDeficit);
@@ -63,7 +64,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null, FieldUnavailable("flooring"));
         }
 
-        var proposal = PolicyFunctions.SelectFlooringMethod(review, FlooringFactsOf(facts), p);
+        var proposal = FlooringRules.SelectFlooringMethod(review, FlooringFactsOf(facts), p);
         switch (proposal.Method)
         {
             case FlooringMethod.Build:
@@ -132,7 +133,7 @@ public sealed partial class RoundsBuildingPlanner
             }
 
             var building = new Building(Flooring.Definition, cell, Rotation.North, "");
-            var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{selected.Count}"), building, PolicyFunctions.PlannerTier(Concern, Phase));
+            var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{selected.Count}"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
             var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;
             var fk = p.Footprint.TryGetValue(out var footprint);

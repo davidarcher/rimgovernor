@@ -76,13 +76,13 @@ public sealed record DashWindow
     public bool OpenAt(Tick now) => !Pawn.IsEmpty && now < Until;
 }
 
-public static partial class PolicyFunctions
+public static class DashPlanRules
 {
     /// <summary>
     /// The hypothermia severity a dash never reaches: the serious stage floor (Moving -0.3, Manipulation -0.5,
     /// pain). The estimator plans the whole trip set, return included, to stay below it.
     /// </summary>
-    public const double DashSeverityCap = HypothermiaSerious;
+    public const double DashSeverityCap = DashEstimateRules.HypothermiaSerious;
 
     /// <summary>The headroom, in hypothermia growth intervals, kept under the cap for review and step granularity (the pawn is recalled at a review, not the instant the bound passes).</summary>
     public const int DashMarginIntervals = 3;
@@ -108,11 +108,11 @@ public static partial class PolicyFunctions
     /// </summary>
     public static double HypothermiaMovingFactor(double severity)
     {
-        if (severity >= HypothermiaSerious)
+        if (severity >= DashEstimateRules.HypothermiaSerious)
         {
             return 0.7;
         }
-        if (severity >= HypothermiaMinor)
+        if (severity >= DashEstimateRules.HypothermiaMinor)
         {
             return 0.9;
         }
@@ -162,7 +162,7 @@ public static partial class PolicyFunctions
                 }
                 cells -= v * dt / 60;
                 spent += dt;
-                severity += growth * dt / HypothermiaInterval;
+                severity += growth * dt / DashEstimateRules.HypothermiaInterval;
             }
             return (severity, spent);
         }
@@ -173,7 +173,7 @@ public static partial class PolicyFunctions
                 continue;
             }
             var (s, outbound) = Walk(sev, c.PathCells);
-            s += growth * DashPickupTicks / HypothermiaInterval;
+            s += growth * DashPickupTicks / DashEstimateRules.HypothermiaInterval;
             var (s2, back) = Walk(s, c.PathCells);
             s = s2;
             if (growth > 0 && s + (DashMarginIntervals * growth) >= DashSeverityCap)

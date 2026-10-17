@@ -118,7 +118,7 @@ public static partial class RoomQualityRules
         IReadOnlyList<PackedSculpture> packed,
         ItemFacts items)
     {
-        foreach (var room in SculptureRooms(obs, targets, rooms))
+        foreach (var room in ArtRules.SculptureRooms(obs, targets, rooms))
         {
             var (p, cell, rot, ok) = FitSculpture(room.Room, RankSculptures(packed), null, items);
             if (ok)
@@ -162,7 +162,7 @@ public static partial class RoomQualityRules
     {
         var ranked = RankSculptures(packed);
         var reserved = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var room in SculptureRooms(obs, targets, rooms))
+        foreach (var room in ArtRules.SculptureRooms(obs, targets, rooms))
         {
             var (p, _, _, ok) = FitSculpture(room.Room, ranked, reserved, items);
             if (ok)
@@ -218,7 +218,7 @@ public static partial class RoomQualityRules
             var ak = d.Available.TryGetValue(out var avail);
             var tk = d.Terrain.TryGetValue(out var terrain);
             var bk = d.Beauty.TryGetValue(out var beauty);
-            if (!ak || !avail || !tk || !terrain || !bk || AffordableCells(d, floors.Stock, 1) == 0)
+            if (!ak || !avail || !tk || !terrain || !bk || FlooringRules.AffordableCells(d, floors.Stock, 1) == 0)
             {
                 continue;
             }

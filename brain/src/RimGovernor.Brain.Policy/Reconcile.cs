@@ -113,7 +113,7 @@ public sealed record WantedPiece
     private Rectangle Footprint => new(Minimum.X, Minimum.Z, Maximum.X - Minimum.X + 1, Maximum.Z - Minimum.Z + 1);
 
     /// <summary>The cell a native order names for the piece's footprint.</summary>
-    public Cell Anchor() => PolicyFunctions.AnchorForRect(Footprint, Size, Rot);
+    public Cell Anchor() => InteriorRules.AnchorForRect(Footprint, Size, Rot);
 
     internal List<Cell> Cells() => PlannedRules.RectCells(Footprint);
 }
@@ -291,24 +291,24 @@ public static partial class ReconcileRules
 
         foreach (var row in rows)
         {
-            if (!row.Player || !Overlaps(row, ground))
+            if (!row.Player || !ClearanceGroundRules.Overlaps(row, ground))
             {
                 continue;
             }
             if (row.Class == "ancient_wall_door")
             {
-                if (Overlaps(row, interior))
+                if (ClearanceGroundRules.Overlaps(row, interior))
                 {
                     innerWalls.Add(row);
                 }
                 continue;
             }
-            if (row.DefName.StartsWith("Frame_", StringComparison.Ordinal) || StandInBed(row))
+            if (row.DefName.StartsWith("Frame_", StringComparison.Ordinal) || ClearanceGroundRules.StandInBed(row))
             {
                 Cover(row);
                 continue;
             }
-            if (vents.ContainsKey(row.Minimum) && row.DefName == ClimateDefs().VentDef)
+            if (vents.ContainsKey(row.Minimum) && row.DefName == ClimateRules.ClimateDefs().VentDef)
             {
                 Cover(row); // the planned vent stands in the ring: no furniture to remove
                 continue;
@@ -441,7 +441,7 @@ public static partial class ReconcileRules
         List<Cell> roof = [];
         if (wallTargets.Count > 0 && !r.Outdoor)
         {
-            roof = EnclosedRoof(wallTargets, [ground], input.Rooms);
+            roof = ClearanceGroundRules.EnclosedRoof(wallTargets, [ground], input.Rooms);
         }
         foreach (var c in allWallOut)
         {

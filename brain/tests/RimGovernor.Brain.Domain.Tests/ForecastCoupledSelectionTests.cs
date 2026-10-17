@@ -4,7 +4,6 @@ using RimGovernor.Contracts.Wire.Common;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -361,7 +360,7 @@ public sealed class ForecastCoupledSelectionTests
         // #3284: the generated "tainted not allowed" candidate (+5 mood, 20 less cold insulation). #3285 parity: near the break
         // the candidate is selected and the pawn's filter keeps tainted disallowed; the content pawn's is rejected, so allowed.
         var (facts, result, root) = TaintedParkaReview(nearBreak);
-        var allowed = GearChoices(facts.CoupledAlternatives, result);
+        var allowed = EffectSourcesRules.GearChoices(facts.CoupledAlternatives, result);
         if (nearBreak)
         {
             Assert.Equal([root.Id], result.Selection.Selected);
@@ -376,7 +375,7 @@ public sealed class ForecastCoupledSelectionTests
         // The content pawn's break risk does not move, and with the selected outdoor work the thinner parka adds cold exposure.
         Assert.Equal(result.BaselineVector.BreakRisk, result.Rejected.First(r => r.Commitments.SequenceEqual([root.Id])).Consequences!.BreakRisk);
         var work = facts.CoupledAlternatives!.Alternatives.Where(c => result.Selection.Selected.Contains(c.Id)).ToArray();
-        double Cold(params ForecastCommitment[] add) => ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay,
+        double Cold(params ForecastCommitment[] add) => ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay,
                 facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }))
             .Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).ThermalExposure.Single().AssessedColdDegreeTicks;
         Assert.True(Cold([.. work, root]) > Cold(work));
@@ -402,7 +401,7 @@ public sealed class ForecastCoupledSelectionTests
 
     private static (RoundsFacts Facts, ForecastCoupledSelection Result, ForecastCommitment Root) TaintedParkaReview(bool nearBreak)
     {
-        var root = Assert.Single(GenerateEffectSources(EffectSourceCandidatesTests.Facts(),
+        var root = Assert.Single(EffectSourcesRules.GenerateEffectSources(EffectSourceCandidatesTests.Facts(),
             new Dictionary<string, MechanicCard> { ["DeadMansApparel"] = MechanicCards.ByDef["DeadMansApparel"] with { Status = MechanicCardStatus.Verified } }).Roots);
         // Near the break the pawn is fed; the content pawn is hungry, so it takes the outdoor harvest work.
         var facts = nearBreak ? Review(level: 1, fall: 0) : Review();
@@ -469,7 +468,7 @@ public sealed class ForecastCoupledSelectionTests
     }
 
     private static ForecastCoupledOutcome Outcome(RoundsFacts facts, params ForecastCommitment[] add) =>
-        ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
+        ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             [], new() { Add = EquatableArray.From(add) })).Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
 
     [Fact]
@@ -549,9 +548,9 @@ public sealed class ForecastCoupledSelectionTests
         var (facts, work, _) = ColdWorkReview(mood, generated: root, mild: mild);
         var result = Select(facts, 16384, work);
         Assert.Contains(result.Selected.Plan.Allocations, a => work.ActivityCompletions.Contains(a.Activity));
-        var choices = GearChoices(facts.CoupledAlternatives, result);
+        var choices = EffectSourcesRules.GearChoices(facts.CoupledAlternatives, result);
         var census = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(new RoundsFacts { Gear = Known(EffectSourceCandidatesTests.Census(pawn)) }, choices).Gear;
-        return (choices, PlanColonyGear(census.Value.Pawns)[0].Target);
+        return (choices, GearLoadoutRules.PlanColonyGear(census.Value.Pawns)[0].Target);
     }
 
     [Fact]
@@ -699,13 +698,13 @@ public sealed class ForecastCoupledSelectionTests
     public void ABloodlustPawnHasNoCandidateSoItsFilterKeepsTheDefault()
     {
         // #3285 parity: the card is nullified, so nothing is compared and the pawn keeps tainted disallowed.
-        var generated = GenerateEffectSources(EffectSourceCandidatesTests.Facts(pawns: EffectSourceCandidatesTests.Pawn(traits: ["Bloodlust"])),
+        var generated = EffectSourcesRules.GenerateEffectSources(EffectSourceCandidatesTests.Facts(pawns: EffectSourceCandidatesTests.Pawn(traits: ["Bloodlust"])),
             new Dictionary<string, MechanicCard> { ["DeadMansApparel"] = MechanicCards.ByDef["DeadMansApparel"] with { Status = MechanicCardStatus.Verified } });
         Assert.Empty(generated.Roots);
         var facts = Review();
         facts = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Alternatives = [.. facts.CoupledAlternatives.Alternatives, .. generated.Roots] } };
-        Assert.Empty(GearChoices(facts.CoupledAlternatives, Select(facts)));
-        Assert.Empty(GearChoices(null, null));
+        Assert.Empty(EffectSourcesRules.GearChoices(facts.CoupledAlternatives, Select(facts)));
+        Assert.Empty(EffectSourcesRules.GearChoices(null, null));
     }
 
     [Fact]

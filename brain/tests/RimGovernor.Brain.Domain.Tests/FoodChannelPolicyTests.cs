@@ -31,7 +31,7 @@ public sealed class FoodChannelPolicyTests
     [InlineData(0.2, 0.2)] // the lake outpaces the fishers: their capacity bounds it
     public void FishingRateIsTheLesserOfRegenerationAndFisherCapacity(double capacity, double want)
     {
-        var channel = Assert.Single(PolicyFunctions.FishingChannels(new FishingRequest { Regions = [Lake(capacity)], Researched = Fact.Known(true) }));
+        var channel = Assert.Single(FishingRules.FishingChannels(new FishingRequest { Regions = [Lake(capacity)], Researched = Fact.Known(true) }));
 
         Assert.Equal(want, channel.Yields[0].PerDay.ValueOrDefault, 9);
     }
@@ -44,8 +44,8 @@ public sealed class FoodChannelPolicyTests
         var lastGrowing = new Calendar { GrowingDays = 30, GrowingDaysRemaining = 1, GrowingDaysUntil = 0, NonGrowingDays = stretch };
         var firstFrost = lastGrowing with { GrowingDaysRemaining = 0, GrowingDaysUntil = stretch };
 
-        var before = PolicyFunctions.HarvestGapDays(Fact.Known(lastGrowing), NoConditions).ValueOrDefault;
-        var after = PolicyFunctions.HarvestGapDays(Fact.Known(firstFrost), NoConditions).ValueOrDefault;
+        var before = CalendarRules.HarvestGapDays(Fact.Known(lastGrowing), NoConditions).ValueOrDefault;
+        var after = CalendarRules.HarvestGapDays(Fact.Known(firstFrost), NoConditions).ValueOrDefault;
 
         Assert.True(before > 0);
         Assert.Equal(before, after, 9);

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record ConstructionSkillChoice(ConstructionSite Site, int Minimum);
 
-public static partial class PolicyFunctions
+public static class ConstructionSkillRules
 {
     /// <summary>
     /// Adopts each unconfigured quality site once. Current jobs, timetable, priorities and sleep do not reduce

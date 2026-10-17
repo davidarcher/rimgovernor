@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -78,7 +79,7 @@ public sealed partial class Rounder
     {
         if (selection is not null)
         {
-            memory.Set(snapshot, PolicyApi.GearChoices(candidates, selection));
+            memory.Set(snapshot, EffectSourcesRules.GearChoices(candidates, selection));
         }
     }
 

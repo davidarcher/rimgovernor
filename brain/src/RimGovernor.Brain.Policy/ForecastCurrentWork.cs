@@ -12,7 +12,7 @@ public sealed partial record ForecastCurrentWork
         if (remainingTicks.TryGetValue(out var remaining) && (!double.IsFinite(remaining) || remaining < 0))
             throw new DomainException("invalid current job remaining time");
         if (!pawn.Job.TryGetValue(out var job)) return new(pawn.Id, default, default, default);
-        if (IdleJob(job)) return new(pawn.Id, Known(false), Known(WorkType.None), Known(0.0));
+        if (ConstructionHelpersRules.IdleJob(job)) return new(pawn.Id, Known(false), Known(WorkType.None), Known(0.0));
         return new(pawn.Id, Known(true), Known(job.Work), remainingTicks);
     }
 }

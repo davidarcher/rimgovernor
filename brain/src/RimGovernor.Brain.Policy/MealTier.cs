@@ -91,7 +91,7 @@ public static partial class MealRules
     {
         var pk = r.Plan.TryGetValue(out var plan);
         var dk = r.RawRunwayDays.TryGetValue(out var days);
-        if (!pk || !dk || !FoodNumber(days) || !FoodNumber(r.MinDays) || !FieldPositive(r.TargetDays) || r.TargetDays > 60 || r.MinDays >= r.TargetDays || !ValidMealTier(r.Previous))
+        if (!pk || !dk || !FoodForecastRules.FoodNumber(days) || !FoodForecastRules.FoodNumber(r.MinDays) || !FieldCapacityRules.FieldPositive(r.TargetDays) || r.TargetDays > 60 || r.MinDays >= r.TargetDays || !ValidMealTier(r.Previous))
         {
             throw new MealTierFactsException();
         }
@@ -106,7 +106,7 @@ public static partial class MealRules
         var seen = new HashSet<PawnId>();
         foreach (var cook in cooks)
         {
-            if (!FoodId(cook.Pawn.Value) || seen.Contains(cook.Pawn) || cook.Skill < 0 || cook.Skill > 20)
+            if (!FoodForecastRules.FoodId(cook.Pawn.Value) || seen.Contains(cook.Pawn) || cook.Skill < 0 || cook.Skill > 20)
             {
                 throw new MealTierFactsException();
             }
@@ -160,7 +160,7 @@ public static partial class MealRules
         var tierNow = review.Tier;
         foreach (var bench in rows)
         {
-            if (!FoodId(bench.Id) || seenBenches.Contains(bench.Id))
+            if (!FoodForecastRules.FoodId(bench.Id) || seenBenches.Contains(bench.Id))
             {
                 throw new MealTierFactsException();
             }
@@ -172,7 +172,7 @@ public static partial class MealRules
             var seenRecipes = new HashSet<string>(StringComparer.Ordinal);
             foreach (var recipe in bench.Recipes)
             {
-                if (!FoodId(recipe.Name) || seenRecipes.Contains(recipe.Name))
+                if (!FoodForecastRules.FoodId(recipe.Name) || seenRecipes.Contains(recipe.Name))
                 {
                     throw new MealTierFactsException();
                 }
@@ -232,7 +232,7 @@ public static partial class MealRules
     internal static (HashSet<FoodIngredientClass>? Sources, bool Protein, bool Ok) MealIngredientSources(FoodPlan p)
     {
         var sources = new HashSet<FoodIngredientClass>();
-        if (!FieldPositive(p.DemandPerDay) || !FoodNumber(p.DeliveredPerDay) || double.IsNaN(p.GapPerDay) || double.IsInfinity(p.GapPerDay))
+        if (!FieldCapacityRules.FieldPositive(p.DemandPerDay) || !FoodForecastRules.FoodNumber(p.DeliveredPerDay) || double.IsNaN(p.GapPerDay) || double.IsInfinity(p.GapPerDay))
         {
             return (null, false, false);
         }
@@ -242,7 +242,7 @@ public static partial class MealRules
         {
             var c = e.Channel;
             var key = Wire.Name(c.Kind) + "/" + c.Id;
-            if (!ValidFoodChannelKind(c.Kind) || !FoodId(c.Id) || seen.Contains(key) || !FoodNumber(e.DeliveredPerDay) || (e.Decision != FoodPlanDecision.Open && e.Decision != FoodPlanDecision.Hold && e.Decision != FoodPlanDecision.Close))
+            if (!FoodPlanRules.ValidFoodChannelKind(c.Kind) || !FoodForecastRules.FoodId(c.Id) || seen.Contains(key) || !FoodForecastRules.FoodNumber(e.DeliveredPerDay) || (e.Decision != FoodPlanDecision.Open && e.Decision != FoodPlanDecision.Hold && e.Decision != FoodPlanDecision.Close))
             {
                 return (null, false, false);
             }
@@ -283,13 +283,13 @@ public static partial class MealRules
         var wk = r.WorkPerNutrition.TryGetValue(out var work);
         var powerKnown = r.NeedsPower.IsKnown;
         var ik = r.IngredientClasses.TryGetValue(out var classes);
-        if (!RoundsRules.Positive(r.Available) || !fk || floor < 0 || floor > 20 || skill < floor || !mk || !FoodNumber(mood) || !ek || !FieldPositive(efficiency) || !wk || !FoodNumber(work) || !powerKnown || !ik || !MealSlotsSupported(classes!, sources) || r.Products.Count != 1)
+        if (!RoundsRules.Positive(r.Available) || !fk || floor < 0 || floor > 20 || skill < floor || !mk || !FoodForecastRules.FoodNumber(mood) || !ek || !FieldCapacityRules.FieldPositive(efficiency) || !wk || !FoodForecastRules.FoodNumber(work) || !powerKnown || !ik || !MealSlotsSupported(classes!, sources) || r.Products.Count != 1)
         {
             return (choice, MealTier.None, false);
         }
         var product = r.Products[0];
         var nk = product.Nutrition.TryGetValue(out var nutrition);
-        if (!RoundsRules.Positive(product.Edible) || !nk || !FieldPositive(nutrition))
+        if (!RoundsRules.Positive(product.Edible) || !nk || !FieldCapacityRules.FieldPositive(nutrition))
         {
             return (choice, MealTier.None, false);
         }
@@ -355,7 +355,7 @@ public static partial class MealRules
     {
         var ik = r.Paste.TryGetValue(out var infra);
         var ek = r.Environment.TryGetValue(out var env);
-        if (!ik || !ek || !infra!.PowerW.TryGetValue(out var watts) || !FoodId(infra.Name) || !RoundsRules.Positive(infra.Available) || !FieldPositive(watts))
+        if (!ik || !ek || !infra!.PowerW.TryGetValue(out var watts) || !FoodForecastRules.FoodId(infra.Name) || !RoundsRules.Positive(infra.Available) || !FieldCapacityRules.FieldPositive(watts))
         {
             return ("", 0, false);
         }
@@ -364,7 +364,7 @@ public static partial class MealRules
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var network in env!.Networks)
         {
-            if (!FoodId(network.Id) || seen.Contains(network.Id))
+            if (!FoodForecastRules.FoodId(network.Id) || seen.Contains(network.Id))
             {
                 return ("", 0, false);
             }

@@ -19,7 +19,7 @@ public static partial class PolicyConstants
 /// <summary>One room holding both a cooking bench and a butcher bench: butchery filth lands in the workspace the game reads for food poisoning.</summary>
 public sealed record SeparationRoom(string Id, EquatableArray<Cell> Cells);
 
-public static partial class PolicyFunctions
+public static class KitchenSeparationRules
 {
     private static bool RoomHolds(Room room, IReadOnlySet<Resource> set)
     {

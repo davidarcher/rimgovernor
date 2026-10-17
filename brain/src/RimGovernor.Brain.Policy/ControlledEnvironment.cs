@@ -117,7 +117,7 @@ public sealed record PowerHeadroom
         var gk = GenerationW.TryGetValue(out var generation);
         var sk = SolarW.TryGetValue(out var solar);
         var ck = ConsumptionW.TryGetValue(out var consumption);
-        if (!gk || !sk || !ck || !FoodNumber(generation) || !FoodNumber(solar) || !FoodNumber(consumption))
+        if (!gk || !sk || !ck || !FoodForecastRules.FoodNumber(generation) || !FoodForecastRules.FoodNumber(solar) || !FoodForecastRules.FoodNumber(consumption))
         {
             return Unknown<double>();
         }
@@ -132,7 +132,7 @@ public sealed record PowerHeadroom
     {
         var nk = NightHeadroomW().TryGetValue(out var night);
         var wk = WindW.TryGetValue(out var wind);
-        if (!nk || !wk || !FoodNumber(wind))
+        if (!nk || !wk || !FoodForecastRules.FoodNumber(wind))
         {
             return Unknown<double>();
         }
@@ -140,7 +140,7 @@ public sealed record PowerHeadroom
     }
 }
 
-public static partial class PolicyFunctions
+public static class ControlledEnvironmentRules
 {
     /// <summary>Reports whether a crop's native sow tags include the grower's sow tag; unknown tags never match.</summary>
     public static bool GrowerAccepts(PlantGrower grower, CropChoice crop)
@@ -152,5 +152,5 @@ public static partial class PolicyFunctions
 
     /// <summary>Reports a crop whose native minimum glow is zero, such as cave fungus, so an unlit roofed room is eligible for it.</summary>
     public static bool GrowsInDark(CropChoice crop) =>
-        crop.MinGlow.TryGetValue(out var glow) && FoodNumber(glow) && glow <= 0;
+        crop.MinGlow.TryGetValue(out var glow) && FoodForecastRules.FoodNumber(glow) && glow <= 0;
 }

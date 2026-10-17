@@ -46,7 +46,7 @@ internal static class FarmCalendar
         }
 
         // Both walks sample the same daily seasonal temperature.
-        var year = PolicyFunctions.YearDays;
+        var year = CalendarRules.YearDays;
         var walksAgree = (remaining == year && until == 0) || (remaining == 0 && until == year) || (remaining > 0 && until == 0) || (remaining == 0 && until > 0);
         if (!walksAgree)
         {

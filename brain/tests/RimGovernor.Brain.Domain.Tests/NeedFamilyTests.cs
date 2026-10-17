@@ -5,7 +5,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -240,7 +239,7 @@ public sealed class NeedFamilyTests
         Assert.Contains('/', Bleeding.FilingKey.Value);
         Assert.Equal(Bleeding, ServiceTarget.ForNeed(Bleeding).OwnerNeed);
         Assert.Equal(default, new ServiceTarget(default, "", "", default).OwnerNeed);
-        Assert.Equal(ServiceCoverage.Unknown, NeedCoverage(new Need { Id = Rest, Tier = NeedTier.Wellbeing }));
+        Assert.Equal(ServiceCoverage.Unknown, EssentialServicesRules.NeedCoverage(new Need { Id = Rest, Tier = NeedTier.Wellbeing }));
     }
 
     [Fact]

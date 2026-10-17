@@ -104,7 +104,7 @@ public sealed class DeliveryCredit
     /// <summary>The most rot ticks seen per unbutchered hunt corpse (HuntDelivered).</summary>
     internal Dictionary<string, long> RotPeak { get; set; } = new(StringComparer.Ordinal);
 
-    private static double CreditWindowDays(CreditChannel c) => Math.Max(LedgerWindowDays, c.CycleDays + LedgerReplantDays);
+    private static double CreditWindowDays(CreditChannel c) => Math.Max(DeliveryCreditRules.LedgerWindowDays, c.CycleDays + DeliveryCreditRules.LedgerReplantDays);
 
     /// <summary>
     /// Folds one Round's ledger read into the factors and returns them by counter group. Groups absent from
@@ -138,7 +138,7 @@ public sealed class DeliveryCredit
             var window = CreditWindowDays(c);
             h.LeadNow = Math.Max(0, c.LeadDays);
             CandidateState? previous = previousResults.TryGetValue(c.Source, out var pr) ? pr.State : null;
-            var reason = CreditWindow;
+            var reason = DeliveryCreditRules.CreditWindow;
             var cum = input.Delivered.GetValueOrDefault(c.Source);
             if (!input.Known)
             {
@@ -147,7 +147,7 @@ public sealed class DeliveryCredit
             else if (rebaselined)
             {
                 h.Samples = [];
-                reason = CreditRebaseline;
+                reason = DeliveryCreditRules.CreditRebaseline;
             }
             else
             {
@@ -161,8 +161,8 @@ public sealed class DeliveryCredit
             }
             var state = h.Delivered && h.Evaluated ? CandidateState.Delivering : CandidateState.Designated;
             results[c.Source] = new CreditResult(h.Factor, state);
-            var held = reason != CreditWindow && h.Evaluated && rebaselined;
-            var moved = Math.Abs(h.Factor - h.Reported) >= CreditMoveThreshold;
+            var held = reason != DeliveryCreditRules.CreditWindow && h.Evaluated && rebaselined;
+            var moved = Math.Abs(h.Factor - h.Reported) >= DeliveryCreditRules.CreditMoveThreshold;
             if (held || moved || (previous is not null && state != previous))
             {
                 h.Reported = h.Factor;
@@ -294,7 +294,7 @@ public sealed class DeliveryCredit
     {
         if (c.Kind == CandidateKind.Hunt)
         {
-            return PolicyFunctions.HuntCreditWindowDays - LedgerReplantDays;
+            return HuntCreditRules.HuntCreditWindowDays - DeliveryCreditRules.LedgerReplantDays;
         }
         foreach (var t in c.Terms)
         {
@@ -307,7 +307,7 @@ public sealed class DeliveryCredit
     }
 }
 
-public static partial class PolicyFunctions
+public static class DeliveryCreditRules
 {
     /// <summary>The trailing window a channel's observed deliveries are compared with its expected ones over. A channel that delivers in bursts is judged over at least one of its cycles plus LedgerReplantDays.</summary>
     public const double LedgerWindowDays = 3.0;

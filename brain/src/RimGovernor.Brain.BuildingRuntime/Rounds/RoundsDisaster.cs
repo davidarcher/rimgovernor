@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -49,7 +50,7 @@ public sealed partial class DisasterRounds
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         var f = read.Projection.Facts;
         var emergency = EmergencySnapshot.New(scope.World, expected.Tick, read.Emergency);
-        f = f with { Hostiles = PolicyFunctions.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles };
+        f = f with { Hostiles = EmergencyNeedsRules.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles };
         f = f with { DangerSeeds = SafeAreaMemory.DangerSeedFact(f.Hostiles, read.Emergency.Threats) };
         f.DangerSeeds.TryGetValue(out var seeds);
         f = f with

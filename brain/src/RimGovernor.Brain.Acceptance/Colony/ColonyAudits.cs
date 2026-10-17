@@ -25,7 +25,7 @@ public static class ColonyAudits
         ShelterFamily.Starter.Value,
         ShelterFamily.Sleeping.Value,
         ShelterFamily.Expansion.Value,
-        PolicyFunctions.CookingNeed.Value,
+        FoodRules.CookingNeed.Value,
         ShelterFamily.Temperature.Value,
         EconomyFamily.Resource.Value,
         AdminFamily.WorkAssignments.Value,

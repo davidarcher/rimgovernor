@@ -28,7 +28,7 @@ public static partial class TendRules
             }
         }
         var output = new HashSet<PawnId>();
-        foreach (var p in EmergencyPatients(facts))
+        foreach (var p in EmergencyPatientsRules.EmergencyPatients(facts))
         {
             if (!p.Position.TryGetValue(out var at))
             {
@@ -36,7 +36,7 @@ public static partial class TendRules
             }
             foreach (var t in threats)
             {
-                if (Chebyshev(at, t) <= TendThreatCells)
+                if (LightingRules.Chebyshev(at, t) <= TendThreatCells)
                 {
                     output.Add(p.Id);
                     break;

@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>One short resource: its target, the sources that could cover it and the field plans on offer.</summary>
@@ -73,7 +74,7 @@ internal sealed class ResourceSupplyState
             }
             else
             {
-                if (others == PolicyFunctions.MaxCatalogSelection)
+                if (others == AcquisitionCatalogRules.MaxCatalogSelection)
                 {
                     continue;
                 }
@@ -170,7 +171,7 @@ internal static class DeepDrillReadingExtensions
                 continue;
             }
 
-            if (PolicyFunctions.DeepDrillCandidate(resource, place.Id, Math.Min(place.Site.Count, deficit), place.Distance, headroom, out var c))
+            if (AcquisitionCatalogRules.DeepDrillCandidate(resource, place.Id, Math.Min(place.Site.Count, deficit), place.Distance, headroom, out var c))
             {
                 output.Add(c);
             }
@@ -277,7 +278,7 @@ public sealed partial class Rounder
             var candidates = new List<SupplyCandidate>();
             if (serves.TryGetValue(resource, out var servedBy) && servedBy == resource)
             {
-                input = input with { HorizonDays = PolicyFunctions.ClothingHorizonDays };
+                input = input with { HorizonDays = ClothingDemandRules.ClothingHorizonDays };
             }
 
             if (planner is not null)
@@ -290,14 +291,14 @@ public sealed partial class Rounder
 
                 var (choice, ingredients) = await planner.MethodChoiceAsync(identity, resource, target.Target, call).ConfigureAwait(false);
                 row.Choice = choice;
-                input = input with { Usable = [.. PolicyFunctions.UsableIngredients(runways, ingredients)] };
+                input = input with { Usable = [.. AcquisitionCatalogRules.UsableIngredients(runways, ingredients)] };
                 (row.Sel, row.SelKnown) = await planner.SourcesForDeficitAsync(identity, resource, target.Target, stock, reach, call).ConfigureAwait(false);
                 if (row.SelKnown)
                 {
-                    candidates.AddRange(PolicyFunctions.MineCandidates(resource, row.Sel.Selected ?? [], Known(row.Sel.Storage.Capacity)));
+                    candidates.AddRange(AcquisitionCatalogRules.MineCandidates(resource, row.Sel.Selected ?? [], Known(row.Sel.Storage.Capacity)));
                 }
 
-                if (PolicyFunctions.ProduceCandidate(row.Choice, deficit, out var produce))
+                if (AcquisitionCatalogRules.ProduceCandidate(row.Choice, deficit, out var produce))
                 {
                     candidates.Add(produce);
                     foreach (var cost in produce.UpfrontCost.Resources)
@@ -326,7 +327,7 @@ public sealed partial class Rounder
             var priced = new List<AcquisitionSource>();
             foreach (var source in rows)
             {
-                var offered = PolicyFunctions.ResourceSourceFor(source, resource, serves);
+                var offered = ClothingDemandRules.ResourceSourceFor(source, resource, serves);
                 if (offered is null)
                 {
                     continue;
@@ -363,7 +364,7 @@ public sealed partial class Rounder
             input = input with { Deficit = Math.Max(need, 0) };
             if (centered)
             {
-                candidates.AddRange(PolicyFunctions.AcquisitionSourceCandidates(resource, priced, center, Known(need)));
+                candidates.AddRange(AcquisitionCatalogRules.AcquisitionSourceCandidates(resource, priced, center, Known(need)));
             }
 
             candidates.AddRange(output.Drill.Candidates(resource, deficit, row));

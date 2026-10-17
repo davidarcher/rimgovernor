@@ -77,11 +77,11 @@ public sealed record ContainmentDefs
             DomainException.Require(Floor.Def.Length != 0, "the catalog has no floor that adds containment strength");
             floor = Floor.Strength;
         }
-        var terms = (room.MeanGlow * ContainmentLightingFactor) + ContainmentWallTerm(WallHP) + (DoorHP / ContainmentDoorHPDivisor) + floor;
-        terms *= Math.Pow(ContainmentOtherHolderFactor, room.OtherHolders);
+        var terms = (room.MeanGlow * ContainmentStrengthRules.ContainmentLightingFactor) + ContainmentStrengthRules.ContainmentWallTerm(WallHP) + (DoorHP / ContainmentStrengthRules.ContainmentDoorHPDivisor) + floor;
+        terms *= Math.Pow(ContainmentStrengthRules.ContainmentOtherHolderFactor, room.OtherHolders);
         if (room.OpenRoof)
         {
-            terms += ContainmentOpenRoofPenalty;
+            terms += ContainmentStrengthRules.ContainmentOpenRoofPenalty;
         }
         var strength = HolderBase + (terms * HolderFactor);
         foreach (var f in Facilities)
@@ -124,7 +124,7 @@ public sealed record ContainmentRoom
     public IReadOnlyDictionary<string, int> Facilities { get; init; } = new Dictionary<string, int>();
 }
 
-public static partial class PolicyFunctions
+public static class ContainmentStrengthRules
 {
     /// <summary>Scales the room's mean ground glow.</summary>
     internal const double ContainmentLightingFactor = 10.0;

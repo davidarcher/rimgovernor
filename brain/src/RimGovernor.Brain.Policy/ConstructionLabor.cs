@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class ConstructionLaborRules
 {
     /// <summary>
     /// Reports whether an action's execution is Construction work, the labor the initial shelter's builders

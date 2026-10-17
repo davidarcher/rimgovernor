@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The equip candidate facts the armory and combat loadout read from native weapon and pawn rows.</summary>
@@ -11,7 +12,7 @@ internal static class EquipCandidates
             Thing = w.Thing,
             Definition = w.Definition,
             Cell = w.Cell,
-            Class = PolicyApi.ClassifyWeapon(facts.ByTrade, facts.Ranged, facts.Melee),
+            Class = EquipRules.ClassifyWeapon(facts.ByTrade, facts.Ranged, facts.Melee),
             BiocodedTo = w.BiocodedTo,
             Biocoded = w.Biocoded,
             Facts = facts,

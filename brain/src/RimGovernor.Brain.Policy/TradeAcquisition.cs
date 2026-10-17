@@ -182,7 +182,7 @@ public static partial class TradePolicyRules
         var ek = o.Eligible.TryGetValue(out var eligible);
         var lk = o.LeadDays.TryGetValue(out var lead);
         var wk = o.LaborTicks.TryGetValue(out var labor);
-        if (!FoodId(o.ID) || !ek || !lk || !wk || !FoodNumber(lead) || !FoodNumber(labor))
+        if (!FoodForecastRules.FoodId(o.ID) || !ek || !lk || !wk || !FoodForecastRules.FoodNumber(lead) || !FoodForecastRules.FoodNumber(labor))
         {
             return "unknown_eligibility_or_cost";
         }
@@ -198,7 +198,7 @@ public static partial class TradePolicyRules
                 var ck = o.GoodwillCost.TryGetValue(out var cost);
                 var rk = o.RelationAfterPayment.TryGetValue(out var relation);
                 var dk = o.CooldownTicks.TryGetValue(out var cooldown);
-                if (!ck || !rk || !dk || cost < 0 || cooldown < 0 || !FoodId(o.Faction) || !FoodId(o.TraderKind) || !FoodId(o.Console) || !FoodId(o.Negotiator))
+                if (!ck || !rk || !dk || cost < 0 || cooldown < 0 || !FoodForecastRules.FoodId(o.Faction) || !FoodForecastRules.FoodId(o.TraderKind) || !FoodForecastRules.FoodId(o.Console) || !FoodForecastRules.FoodId(o.Negotiator))
                 {
                     return "unknown_request_facts";
                 }
@@ -228,7 +228,7 @@ public static partial class TradePolicyRules
             {
                 // Scouting precedes native caravan creation. Executable trade keeps the strict participant
                 // contract; a predeparture option has only its seller.
-                if (o.Participant.Kind != TradeParticipantKind.Settlement || !FoodId(o.Participant.Id) || (o.Participant.Caravan.Length != 0 && !o.Participant.IsValid))
+                if (o.Participant.Kind != TradeParticipantKind.Settlement || !FoodForecastRules.FoodId(o.Participant.Id) || (o.Participant.Caravan.Length != 0 && !o.Participant.IsValid))
                 {
                     return "unknown_target";
                 }
@@ -239,7 +239,7 @@ public static partial class TradePolicyRules
                 var ok = o.OutboundDays.TryGetValue(out var outbound);
                 var hk = o.ReturnDays.TryGetValue(out var home);
                 var reachableKnown = o.RoutesReachable.TryGetValue(out var reachable);
-                if (!sk || !pk || !fk || !rk || !ok || !hk || !reachableKnown || !FoodNumber(food) || !FoodNumber(rot) || !FoodNumber(outbound) || !FoodNumber(home) || lead < outbound + home)
+                if (!sk || !pk || !fk || !rk || !ok || !hk || !reachableKnown || !FoodForecastRules.FoodNumber(food) || !FoodForecastRules.FoodNumber(rot) || !FoodForecastRules.FoodNumber(outbound) || !FoodForecastRules.FoodNumber(home) || lead < outbound + home)
                 {
                     return "unknown_trip_facts";
                 }

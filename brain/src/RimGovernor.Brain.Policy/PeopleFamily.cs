@@ -53,7 +53,7 @@ public sealed record PeopleFacts
 /// <item><c>people/mood/&lt;pawn&gt;</c> (Wellbeing): one per pawn the review tracks, unmet while its mood is at risk
 /// (the review's mood state), unknown while the pawn is missing or unread. It replaced the per-pawn mood incident
 /// Concern and the mood relief planner. Nothing is committed: the step defers to the owner Need of the pawn's
-/// dominant thought pressure while that Need is at work (<see cref="PolicyFunctions.MoodNeedProposal"/>), leaves
+/// dominant thought pressure while that Need is at work (<see cref="MoodRules.MoodNeedProposal"/>), leaves
 /// need relief to the shared portfolio, and holds a preventative cast as unsupported. An unread review is one
 /// unknown <c>people/mood</c>.</item>
 /// </list>
@@ -131,7 +131,7 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
                 Id = Mood(s.Pawn.Id),
                 Tier = NeedTier.Wellbeing,
                 Satisfaction = satisfaction,
-                Deficit = PolicyFunctions.WholeDeficit(satisfaction),
+                Deficit = FoodRules.WholeDeficit(satisfaction),
                 Evidence = [new("mood_risk", satisfaction == Satisfaction.Unknown ? default : Fact.Known(satisfaction == Satisfaction.Unmet ? "active" : "recovered"))],
             };
         })];

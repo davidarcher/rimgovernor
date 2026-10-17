@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 public sealed partial record ColonyProjection
@@ -29,7 +30,7 @@ public sealed partial record ColonyProjection
             {
                 try
                 {
-                    var f = PolicyFunctions.ForecastFood(supply with { Stocks = kept }, null);
+                    var f = FoodForecastRules.ForecastFood(supply with { Stocks = kept }, null);
                     if (FoodSupply.TryGetValue(out var human))
                     {
                         var ids = new List<PawnId>(human.Consumers.Count);

@@ -410,7 +410,7 @@ public static partial class LayoutStationPlanRules
         {
             throw UnknownStationFact("colonists");
         }
-        var (ill, ok) = IllPatients(f.Patients, f.Surgical);
+        var (ill, ok) = HospitalRules.IllPatients(f.Patients, f.Surgical);
         if (!ok)
         {
             throw UnknownStationFact("patients");
@@ -574,7 +574,7 @@ public static partial class LayoutStationPlanRules
         foreach (var m in MatchGroupRooms(clustering.Groups, built))
         {
             var g = clustering.Groups[m.Group];
-            groups.Add(new GroupAdvice { Group = g, Rooms = m.Rooms, Capacity = m.Capacity, Outgrown = GroupOutgrown(g, m), Climate = GroupClimateOf(f, g) });
+            groups.Add(new GroupAdvice { Group = g, Rooms = m.Rooms, Capacity = m.Capacity, Outgrown = GroupOutgrown(g, m), Climate = ClimateRules.GroupClimateOf(f, g) });
         }
         return output with { Groups = groups };
     }
@@ -741,7 +741,7 @@ partial record LayoutPlan
         var nodeRoles = LayoutStationPlanRules.RoomNodeRoles;
         foreach (var r in plan.Rooms)
         {
-            var ok = ModuleRoomRoles.TryGetValue(r.Role, out var role);
+            var ok = InteriorRules.ModuleRoomRoles.TryGetValue(r.Role, out var role);
             var planned = default(PlannedRole);
             if (matched.TryGetValue(r.Role, out var native))
             {

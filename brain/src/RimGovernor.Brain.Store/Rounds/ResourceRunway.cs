@@ -14,7 +14,7 @@ public sealed partial class Store
     {
         var facts = r.Facts;
         var reserves = r.Policy.RunwayReserves(facts.Items, facts.Colonists, facts.ResourceConsumption);
-        foreach (var (resource, reserve) in PolicyFunctions.DrugRunwayReserves(facts.Items, facts.DrugUsers ?? new Dictionary<Resource, long>()))
+        foreach (var (resource, reserve) in DrugRunwayRules.DrugRunwayReserves(facts.Items, facts.DrugUsers ?? new Dictionary<Resource, long>()))
         {
             reserves[resource] = reserve;
         }

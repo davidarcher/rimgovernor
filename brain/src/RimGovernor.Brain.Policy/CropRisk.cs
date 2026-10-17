@@ -26,7 +26,7 @@ public sealed record FieldExposure
     public Fact<long> Blighted { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class CropRiskRules
 {
     /// <summary>
     /// The observed remaining duration, in game days, of the conditions that stop crops growing: an eclipse, a
@@ -35,7 +35,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static double CropPauseDays(Fact<EquatableArray<DisasterCondition>> conditions)
     {
-        if (!ConditionRemainingTicks(conditions, ConditionEclipse, ConditionVolcanicWinter, ConditionColdSnap).TryGetValue(out var ticks) || ticks <= 0)
+        if (!DisasterRules.ConditionRemainingTicks(conditions, DisasterRules.ConditionEclipse, DisasterRules.ConditionVolcanicWinter, DisasterRules.ConditionColdSnap).TryGetValue(out var ticks) || ticks <= 0)
         {
             return 0;
         }
@@ -49,7 +49,7 @@ public static partial class PolicyFunctions
         {
             return Unknown<bool>();
         }
-        return Known(rows.Any(c => c.Definition == ConditionToxicFallout));
+        return Known(rows.Any(c => c.Definition == DisasterRules.ConditionToxicFallout));
     }
 
     /// <summary>Part/whole as a fact in [0, 1]; unknown while either count is, the whole is not positive or the part exceeds it.</summary>
@@ -129,10 +129,10 @@ public static partial class PolicyFunctions
     /// <summary>A harvest lead pushed back by the crop pause, capped at a year; an unknown lead stays unknown.</summary>
     internal static Fact<double> WithCropPause(Fact<double> lead, Fact<EquatableArray<DisasterCondition>> conditions)
     {
-        if (!lead.TryGetValue(out var days) || !FoodNumber(days))
+        if (!lead.TryGetValue(out var days) || !FoodForecastRules.FoodNumber(days))
         {
             return lead;
         }
-        return Known(Math.Min(YearDays, days + CropPauseDays(conditions)));
+        return Known(Math.Min(CalendarRules.YearDays, days + CropPauseDays(conditions)));
     }
 }

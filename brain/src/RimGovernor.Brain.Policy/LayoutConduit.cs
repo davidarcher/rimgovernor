@@ -117,7 +117,7 @@ internal sealed class ConduitNet(HashSet<Cell> allowed, IReadOnlyDictionary<Cond
         var reason = PolicyConstants.ReasonConduitKept;
         if (!Keeps(n, link))
         {
-            var path = PolicyFunctions.RouteCells(n.Cells, Net, _allowed);
+            var path = ConduitRouterRules.RouteCells(n.Cells, Net, _allowed);
             if (path.Count == 0)
             {
                 return (null, new ConduitDecision(n.Ref, default, LayoutTileRules.TileUnsatisfied, PolicyConstants.ReasonConduitBlocked), false);
@@ -249,7 +249,7 @@ partial record LayoutPlan
     /// <summary>The ground the plan's nodes may route over: the survey's conduit cells, and each node's own cells, which are the plan's ground whatever the survey holds there.</summary>
     private static ConduitNet NewConduitNet(LayoutPlan plan, IEnumerable<ConduitNode> nodes, MapSurvey survey, IReadOnlyDictionary<ConduitRef, ConduitLink> held)
     {
-        var allowed = new HashSet<Cell>(ConduitCells(survey, plan.Rooms));
+        var allowed = new HashSet<Cell>(ConduitRouterRules.ConduitCells(survey, plan.Rooms));
         foreach (var n in nodes)
         {
             foreach (var c in n.Cells)

@@ -29,7 +29,7 @@ public static class GearClimateExtensions
             return;
         }
         DomainException.Require(
-            c.Temperatures.Count == 12 && c.CurrentTwelfth >= 0 && c.CurrentTwelfth < 12 && c.TicksToNextTwelfth > 0 && c.TicksToNextTwelfth <= PolicyFunctions.GearTwelfthTicks,
+            c.Temperatures.Count == 12 && c.CurrentTwelfth >= 0 && c.CurrentTwelfth < 12 && c.TicksToNextTwelfth > 0 && c.TicksToNextTwelfth <= GearClimateRules.GearTwelfthTicks,
             "invalid gear seasonal curve"
         );
         foreach (var n in c.Temperatures)
@@ -62,7 +62,7 @@ public static class GearClimateExtensions
             long start = 0;
             if (ahead > 0)
             {
-                start = c.TicksToNextTwelfth + (long)(ahead - 1) * PolicyFunctions.GearTwelfthTicks;
+                start = c.TicksToNextTwelfth + (long)(ahead - 1) * GearClimateRules.GearTwelfthTicks;
             }
             var w = c.Weather;
             var active = w is not null && (w.RemainingTicks == -1 || w.RemainingTicks > start);
@@ -87,7 +87,7 @@ public static class GearClimateExtensions
     }
 }
 
-public static partial class PolicyFunctions
+public static class GearClimateRules
 {
     internal const long GearTwelfthTicks = 300000;
 }

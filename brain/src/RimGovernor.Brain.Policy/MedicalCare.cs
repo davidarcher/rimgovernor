@@ -119,14 +119,14 @@ public sealed record MedicalCareHistory
             for (var i = 0; i < ids.Count; i++)
             {
                 var id = ids[i];
-                if (!FoodId(id.Value) || seen.Contains(id) || (i > 0 && ids[i - 1] >= id))
+                if (!FoodForecastRules.FoodId(id.Value) || seen.Contains(id) || (i > 0 && ids[i - 1] >= id))
                 {
                     throw new DomainException("invalid medical care patient history");
                 }
                 seen.Add(id);
             }
         }
-        ValidateDiseaseRest(Resting);
+        DiseaseRestRules.ValidateDiseaseRest(Resting);
     }
 
     public Fact<bool> Recovered()
@@ -158,13 +158,13 @@ public static partial class MedicalRules
             }
         }
         var known = observed.TryGetValue(out var rows);
-        var resting = ReviewDiseaseRest(observed, previous.Resting);
+        var resting = DiseaseRestRules.ReviewDiseaseRest(observed, previous.Resting);
         var patients = new List<PawnId>();
         var unknown = new List<PawnId>();
         var seen = new HashSet<PawnId>();
         foreach (var pawn in rows)
         {
-            if (!FoodId(pawn.Id.Value) || seen.Contains(pawn.Id))
+            if (!FoodForecastRules.FoodId(pawn.Id.Value) || seen.Contains(pawn.Id))
             {
                 throw new DomainException("invalid medical care census");
             }

@@ -182,10 +182,10 @@ public sealed record GearLoadoutInput
         foreach (var o in Worn.Concat(Options))
         {
             DomainException.Require(
-                PolicyFunctions.FoodId(o.ID)
+                FoodForecastRules.FoodId(o.ID)
                     && ids.Add(o.ID)
-                    && PolicyFunctions.ValidResource(o.Definition)
-                    && (string.IsNullOrEmpty(o.Stuff.Value) || PolicyFunctions.ValidResource(o.Stuff))
+                    && AdmissionRules.ValidResource(o.Definition)
+                    && (string.IsNullOrEmpty(o.Stuff.Value) || AdmissionRules.ValidResource(o.Stuff))
                     && o.Quality >= 0
                     && o.Quality <= 6,
                 "invalid gear option identity"
@@ -194,29 +194,29 @@ public sealed record GearLoadoutInput
             DomainException.Require(o.Source is >= GearSource.Worn and <= GearSource.Bill, "invalid gear source");
             foreach (var n in new[] { o.Condition, o.Sharp, o.Blunt, o.Cold, o.Heat, o.Cost, o.Range, o.MaxHitPoints, o.WearPerDay })
             {
-                DomainException.Require(PolicyFunctions.FoodNumber(n), "invalid gear stat");
+                DomainException.Require(FoodForecastRules.FoodNumber(n), "invalid gear stat");
             }
             DomainException.Require(o.Condition <= 1 && double.IsFinite(o.MoveSpeed), "invalid gear condition or speed");
             foreach (var project in o.Research)
             {
-                DomainException.Require(PolicyFunctions.ValidResource(new Resource(project)), "invalid gear research");
+                DomainException.Require(AdmissionRules.ValidResource(new Resource(project)), "invalid gear research");
             }
             foreach (var a in o.Ingredients)
             {
-                DomainException.Require(PolicyFunctions.ValidResource(a.Resource) && a.Count > 0, "invalid gear ingredient");
+                DomainException.Require(AdmissionRules.ValidResource(a.Resource) && a.Count > 0, "invalid gear ingredient");
             }
             foreach (var list in new[] { o.Layers, o.Groups })
             {
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var v in list)
                 {
-                    DomainException.Require(PolicyFunctions.FoodId(v) && seen.Add(v), "invalid gear coverage");
+                    DomainException.Require(FoodForecastRules.FoodId(v) && seen.Add(v), "invalid gear coverage");
                 }
             }
         }
         foreach (var project in Research)
         {
-            DomainException.Require(PolicyFunctions.ValidResource(new Resource(project)), "invalid gear research");
+            DomainException.Require(AdmissionRules.ValidResource(new Resource(project)), "invalid gear research");
         }
         foreach (var o in Options)
         {
@@ -228,7 +228,7 @@ public sealed record GearLoadoutInput
             DomainException.Require(o.Source == GearSource.Worn, "invalid worn gear source");
             for (var j = 0; j < i; j++)
             {
-                DomainException.Require(!PolicyFunctions.GearConflicts(o, Worn[j]), "conflicting worn gear");
+                DomainException.Require(!GearLoadoutRules.GearConflicts(o, Worn[j]), "conflicting worn gear");
             }
         }
     }
@@ -260,7 +260,7 @@ public sealed record GearLoadout
     public bool FloorUnmet { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class GearLoadoutRules
 {
     /// <summary>The gear slots in search order.</summary>
     private static readonly GearSlot[] GearSlots =
@@ -464,7 +464,7 @@ public static partial class PolicyFunctions
         return medic;
     }
 
-    private static bool GearEligible(GearLoadoutInput p, GearOption o)
+    internal static bool GearEligible(GearLoadoutInput p, GearOption o)
     {
         var role = DeriveGearRole(p.Role);
         var def = o.Definition.Value ?? "";
@@ -563,7 +563,7 @@ public static partial class PolicyFunctions
         var role = DeriveGearRole(p.Role);
         if (GearConstrained(role))
         {
-            return o.Condition <= GearTatteredCondition ? -20 : 0;
+            return o.Condition <= GearRules.GearTatteredCondition ? -20 : 0;
         }
         var armor = (o.Sharp * 2 + o.Blunt) * a * o.Condition;
         var score = armor;
@@ -571,7 +571,7 @@ public static partial class PolicyFunctions
         {
             // A primary is worth its quality-scaled damage, so the armory's crafted upgrade outscores the worn
             // weapon and a replace swaps it in.
-            score += o.Weapon.DPS * WeaponQualityMultiplier(o.Quality) * o.Condition;
+            score += o.Weapon.DPS * ArmoryRules.WeaponQualityMultiplier(o.Quality) * o.Condition;
         }
         switch (role)
         {
@@ -585,7 +585,7 @@ public static partial class PolicyFunctions
                 }
                 break;
         }
-        if (o.Condition <= GearTatteredCondition)
+        if (o.Condition <= GearRules.GearTatteredCondition)
         {
             score -= 20;
         }
@@ -996,7 +996,7 @@ public static partial class PolicyFunctions
         var seen = new HashSet<PawnId>();
         foreach (var p in pawns)
         {
-            DomainException.Require(FoodId(p.Pawn.Value) && seen.Add(p.Pawn), "invalid gear pawn identity");
+            DomainException.Require(FoodForecastRules.FoodId(p.Pawn.Value) && seen.Add(p.Pawn), "invalid gear pawn identity");
         }
         var rows = pawns.OrderBy(p => p.Pawn.Value, StringComparer.Ordinal).ToList();
         var used = new HashSet<string>(StringComparer.Ordinal);

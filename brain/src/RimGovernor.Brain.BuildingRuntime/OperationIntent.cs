@@ -1,4 +1,5 @@
 using System.Text;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -8,8 +9,8 @@ public static class OperationIntent
     // The in-game names of Concerns whose split identifier reads poorly; every other kind falls back to its words.
     private static readonly Dictionary<ConcernId, string> ConcernLabels = new()
     {
-        [FoodSupplyNeed.FilingKey] = "Food supply",
-        [FoodStorageNeed.FilingKey] = "Food storage",
+        [FoodRules.FoodSupplyNeed.FilingKey] = "Food supply",
+        [FoodStoresRules.FoodStorageNeed.FilingKey] = "Food storage",
         [EconomyFamily.Resource.FilingKey] = "Resource",
         [EconomyFamily.Trade.FilingKey] = "Export goods",
         [RoomsFamily.Flooring.FilingKey] = "Flooring",
@@ -20,7 +21,7 @@ public static class OperationIntent
         [ShelterFamily.Expansion.FilingKey] = "Housing expansion",
         [ShelterFamily.Temperature.FilingKey] = "Temperature",
         [ShelterFamily.SafeArea.FilingKey] = "Safe area",
-        [CookingNeed.FilingKey] = "Cooking",
+        [FoodRules.CookingNeed.FilingKey] = "Cooking",
         [PowerFamily.Basic.FilingKey] = "Power",
         [MilitaryFamily.Defense.FilingKey] = "Defense",
         [MilitaryFamily.Pests.FilingKey] = "Clear pests",
@@ -29,7 +30,7 @@ public static class OperationIntent
         [MedicalRules.MedicalCareNeed.FilingKey] = "Medical care",
         [MedicalRules.MedicalReservesNeed.FilingKey] = "Medicine",
         [MedicalRules.SurgeryNeed.FilingKey] = "Surgery",
-        [RefrigerationNeed.FilingKey] = "Refrigeration",
+        [FoodStoresRules.RefrigerationNeed.FilingKey] = "Refrigeration",
         [RoomsFamily.Comfort.FilingKey] = "Comfort",
         [RoomsFamily.Hosting.FilingKey] = "Hosting rooms",
         [RoomsFamily.PartySpot.FilingKey] = "Party spot",
@@ -43,7 +44,7 @@ public static class OperationIntent
         [AdminFamily.CreepJoiners.FilingKey] = "Creep joiners",
         [EconomyFamily.Caravan.FilingKey] = "Trade",
         [MilitaryFamily.Combat.FilingKey] = "Combat",
-        [BlightNeed.FilingKey] = "Blight",
+        [FoodRules.BlightNeed.FilingKey] = "Blight",
         [BiotechFamily.Mechs.FilingKey] = "Mechs",
         [BiotechFamily.MechCharger.FilingKey] = "Mech charger",
         [BiotechFamily.GeneBank.FilingKey] = "Gene bank",

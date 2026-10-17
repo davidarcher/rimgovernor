@@ -64,7 +64,7 @@ public sealed record ClearanceCensus
     public EquatableArray<ClearanceFloor> Floors { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ClearanceRules
 {
     /// <summary>
     /// The census row's own native verdict, wherever it stands: empty when nothing about the thing itself

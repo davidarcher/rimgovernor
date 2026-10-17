@@ -112,7 +112,7 @@ public sealed record DisasterHistory
     /// <summary>Throws when the history is inconsistent.</summary>
     public void Validate()
     {
-        var all = PolicyFunctions.DisasterServices;
+        var all = DisasterRules.DisasterServices;
         if (Started.Value < 0 || Observed < Started || Services.Count != all.Count || Affected.Count > all.Count)
         {
             throw new DomainException("invalid disaster history bounds");
@@ -124,7 +124,7 @@ public sealed record DisasterHistory
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var c in Conditions)
         {
-            if (!PolicyFunctions.FoodId(c.Id) || !PolicyFunctions.FoodId(c.Definition) || seen.Contains(c.Id) || (c.TicksLeft is { } left && (c.Permanent || left < 0)))
+            if (!FoodForecastRules.FoodId(c.Id) || !FoodForecastRules.FoodId(c.Definition) || seen.Contains(c.Id) || (c.TicksLeft is { } left && (c.Permanent || left < 0)))
             {
                 throw new DomainException("invalid disaster condition");
             }
@@ -133,7 +133,7 @@ public sealed record DisasterHistory
         seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var id in Damaged)
         {
-            if (!PolicyFunctions.FoodId(id) || !seen.Add(id))
+            if (!FoodForecastRules.FoodId(id) || !seen.Add(id))
             {
                 throw new DomainException("invalid damaged building history");
             }
@@ -171,7 +171,7 @@ public sealed record DisasterHistory
         var workSeen = new HashSet<RecoveryWork>();
         foreach (var w in Work)
         {
-            if (!PolicyFunctions.FoodId(w.Building) || !workSeen.Add(w))
+            if (!FoodForecastRules.FoodId(w.Building) || !workSeen.Add(w))
             {
                 throw new DomainException("invalid recovery work method");
             }
@@ -186,7 +186,7 @@ public sealed record DisasterHistory
     }
 }
 
-public static partial class PolicyFunctions
+public static class DisasterRules
 {
     internal static readonly IReadOnlyList<DisasterService> DisasterServices =
     [
@@ -277,13 +277,13 @@ public static partial class PolicyFunctions
         var complete = true;
         foreach (var row in rows)
         {
-            if (!FoodId(row.Id) || !seen.Add(row.Id))
+            if (!FoodForecastRules.FoodId(row.Id) || !seen.Add(row.Id))
             {
                 throw new DomainException("invalid recovery identity");
             }
             foreach (var f in new[] { row.Fuel, row.FuelTarget })
             {
-                if (f.TryGetValue(out var v) && !FoodNumber(v))
+                if (f.TryGetValue(out var v) && !FoodForecastRules.FoodNumber(v))
                 {
                     throw new DomainException("invalid recovery fuel");
                 }
@@ -394,7 +394,7 @@ public static partial class PolicyFunctions
         var seenConditions = new HashSet<string>(StringComparer.Ordinal);
         foreach (var c in currentRows)
         {
-            if (!FoodId(c.Id) || !FoodId(c.Definition) || !seenConditions.Add(c.Id))
+            if (!FoodForecastRules.FoodId(c.Id) || !FoodForecastRules.FoodId(c.Definition) || !seenConditions.Add(c.Id))
             {
                 throw new DomainException("invalid environmental condition");
             }

@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 public static class ColonyProductionReads
@@ -110,7 +111,7 @@ public static class ColonyProductionReads
             {
                 Id = (farm.Zone.Id ?? ""),
                 Plan = new FieldPlan { Crop = crop, Sites = new FarmSitePlan { Cells = (int)growing } },
-                RemainingGrowDays = HarvestLeadDays(growth, crop.GrowDays, calendar),
+                RemainingGrowDays = CalendarRules.HarvestLeadDays(growth, crop.GrowDays, calendar),
                 WorkPerDay = work,
                 Exposure = new FieldExposure
                 {
@@ -437,5 +438,5 @@ public sealed partial record ColonyProjection
 {
     /// <summary>Uses the configured reserve target at the review boundary.</summary>
     public ColonyProjection ApplyFieldBudget(double reserveDays) =>
-        this with { Facts = Facts with { FieldCoverage = PolicyFunctions.FieldCoverage(Facts.Colonists, FieldCrops, reserveDays) } };
+        this with { Facts = Facts with { FieldCoverage = FieldCapacityRules.FieldCoverage(Facts.Colonists, FieldCrops, reserveDays) } };
 }

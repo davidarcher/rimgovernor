@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -75,7 +74,7 @@ public sealed record PieceShapes
                 throw new DomainException(
                     $"interior templates plan {w.Def} as a {Wire.Name(w.Family)} piece, its row puts it in family \"{Wire.Name(shape.Family)}\"");
             }
-            if (w.Bench && !FrontInteraction(shape))
+            if (w.Bench && !InteriorHelpersRules.FrontInteraction(shape))
             {
                 throw new DomainException($"interior templates plan {w.Def} as a bench, its row has no interaction cell in front of it");
             }
@@ -119,5 +118,5 @@ public static class InteriorPieceShapeExtensions
     }
 
     /// <summary>Reports whether a worker uses the piece from the open floor in front of it at rotation North, as a bench row needs.</summary>
-    public static bool WorkedFromFront(this InteriorPieceDef d) => FrontInteraction(d);
+    public static bool WorkedFromFront(this InteriorPieceDef d) => InteriorHelpersRules.FrontInteraction(d);
 }

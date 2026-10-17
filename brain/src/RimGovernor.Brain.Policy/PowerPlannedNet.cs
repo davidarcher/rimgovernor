@@ -52,7 +52,7 @@ public sealed record PlannedNet
                 }
             }
         }
-        return PolicyFunctions.PowerRoute(start, destinations, allowed);
+        return ConduitRouterRules.PowerRoute(start, destinations, allowed);
     }
 }
 
@@ -87,6 +87,6 @@ public static partial class PowerRules
     internal static IReadOnlyList<Cell>? PlannedRoute(PlannedNet net, Cell start, IReadOnlySet<Cell> destinations, IReadOnlySet<Cell> allow)
     {
         var path = net.Route(start, destinations, allow);
-        return path is { Count: > 0 } ? path : PowerRoute(start, destinations, allow);
+        return path is { Count: > 0 } ? path : ConduitRouterRules.PowerRoute(start, destinations, allow);
     }
 }

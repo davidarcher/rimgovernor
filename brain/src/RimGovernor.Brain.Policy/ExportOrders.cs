@@ -74,7 +74,7 @@ public sealed record ExportPlan
     /// </summary>
     public double InFlight { get; init; }
 
-    /// <summary>The best <see cref="PolicyFunctions.ExportViewCandidates"/> scored pairs, ordered or not, for the reader.</summary>
+    /// <summary>The best <see cref="ExportOrdersRules.ExportViewCandidates"/> scored pairs, ordered or not, for the reader.</summary>
     public IReadOnlyList<ExportCandidate> Candidates { get; init; } = [];
 
     /// <summary>Counts the (recipe, variant, worker) candidates that never reached an order, by why.</summary>
@@ -133,7 +133,7 @@ public sealed record ExportCandidate
 /// Decides how much of a draw on the colony's stock an export may take. Admit grants up to want pieces of unit,
 /// counting every draw it has granted before (the orders declared this Round, placed or not) and the standing
 /// bills'. The level-1 guard: every resource is treated as finite, so an export keeps the reserve and
-/// <see cref="PolicyFunctions.ExportRunwayHorizonDays"/> of the colony's own observed use. (Go <c>ExportRunwayGuard</c>
+/// <see cref="ExportOrdersRules.ExportRunwayHorizonDays"/> of the colony's own observed use. (Go <c>ExportRunwayGuard</c>
 /// and <c>horizonGuard</c>.)
 /// </summary>
 internal sealed class HorizonGuard
@@ -187,7 +187,7 @@ internal sealed class HorizonGuard
                 {
                     return (0, false);
                 }
-                line = row.Reserve + (long)Math.Ceiling(Math.Max(0, rate) * PolicyFunctions.ExportRunwayHorizonDays);
+                line = row.Reserve + (long)Math.Ceiling(Math.Max(0, rate) * ExportOrdersRules.ExportRunwayHorizonDays);
             }
             var free = have - line - _committed.GetValueOrDefault(a.Resource);
             granted = Math.Min(granted, Math.Max(0, free) / a.Count);
@@ -222,7 +222,7 @@ internal sealed record ExportVariant(Resource Stuff, IReadOnlyList<Resource> Fil
 /// <summary>A pawn able to do a recipe's work, with the skill that sets the quality it makes.</summary>
 internal readonly record struct ExportWorker(PawnId Id, int Skill);
 
-public static partial class PolicyFunctions
+public static class ExportOrdersRules
 {
     // The economy/trade Need (#3316) closes the colony's silver gap with goods the bench crafts: while SilverGap is
     // positive it ranks the craftable sale goods and declares the winners to the work ledger (OrderDeclarer) as
@@ -467,7 +467,7 @@ public static partial class PolicyFunctions
         var result = new List<ExportVariant>();
         foreach (var stuff in stuffs)
         {
-            var filter = GearFilter(e.Slots, stuff, i.StuffCategories);
+            var filter = GearRules.GearFilter(e.Slots, stuff, i.StuffCategories);
             if (filter is null)
             {
                 continue;
@@ -519,14 +519,14 @@ public static partial class PolicyFunctions
     }
 
     private static double ExportAcquisition(ExportRequest r, Resource resource) =>
-        AcquisitionTicksPerUnit(r.Sources.GetValueOrDefault(resource)) ?? AcquisitionLaborPerUnit[CandidateKind.Produce];
+        AcquisitionTicksPerUnit(r.Sources.GetValueOrDefault(resource)) ?? AcquisitionCatalogRules.AcquisitionLaborPerUnit[CandidateKind.Produce];
 
     private static List<ExportWorker> ExportWorkers(IReadOnlyList<PawnProfile> profiles, IReadOnlyList<WorkRequirement> required)
     {
         var result = new List<ExportWorker>();
         foreach (var p in profiles)
         {
-            if (p.Child || !FoodId(p.Id.Value))
+            if (p.Child || !FoodForecastRules.FoodId(p.Id.Value))
             {
                 continue;
             }
@@ -781,7 +781,7 @@ public static partial class PolicyFunctions
         var guard = new HorizonGuard(r.Runways, r.Supply, draws);
         var pairs = new List<ExportCandidate>();
         var usable = new Dictionary<Resource, long>();
-        foreach (var q in UsableIngredients(r.Runways, r.Supply))
+        foreach (var q in AcquisitionCatalogRules.UsableIngredients(r.Runways, r.Supply))
         {
             usable[q.Key.Def] = q.Count;
         }

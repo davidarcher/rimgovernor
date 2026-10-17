@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -46,7 +47,7 @@ public sealed partial class RoundsDefensePlanner
                     {
                         foreach (var pawn in combat.Emergency.Facts.Colonists)
                         {
-                            active = active || (pawn.Id == subdue.Target && PolicyApi.AggressiveBreak(pawn));
+                            active = active || (pawn.Id == subdue.Target && BreakResponseRules.AggressiveBreak(pawn));
                         }
                     }
                 }
@@ -166,7 +167,7 @@ public sealed partial class RoundsDefensePlanner
     {
         foreach (var p in f.Colonists)
         {
-            if (PolicyApi.AggressiveBreak(p))
+            if (BreakResponseRules.AggressiveBreak(p))
             {
                 return true;
             }
@@ -196,7 +197,7 @@ public sealed partial class RoundsDefensePlanner
         var targets = new List<EmergencyPawn>();
         foreach (var p0 in f.Colonists)
         {
-            if (PolicyApi.AggressiveBreak(p0) && !interrupted.Contains(p0.Id))
+            if (BreakResponseRules.AggressiveBreak(p0) && !interrupted.Contains(p0.Id))
             {
                 targets.Add(p0);
             }
@@ -221,7 +222,7 @@ public sealed partial class RoundsDefensePlanner
         PawnId victim = default;
         foreach (var target in targets)
         {
-            chosen = PolicyApi.SelectBreakSquad(target, BreakDispatch.BreakCell(rows[target.Id.Value]), responders);
+            chosen = BreakResponseRules.SelectBreakSquad(target, BreakDispatch.BreakCell(rows[target.Id.Value]), responders);
             if (chosen.Count > 0)
             {
                 victim = target.Id;

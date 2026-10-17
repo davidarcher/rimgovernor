@@ -64,7 +64,7 @@ public sealed record ContainmentVerdict
     public string Reason { get; init; } = "";
 }
 
-public static partial class PolicyFunctions
+public static class ContainmentCellRules
 {
     /// <summary>The defs a planned room's shell is built from (reconcileRoom); the prediction reads their hit points.</summary>
     public const string ShellWallDefinition = "Wall";
@@ -106,7 +106,7 @@ public static partial class PolicyFunctions
         double margin;
         try
         {
-            margin = CaptureMargin(defs);
+            margin = EntityCaptureRules.CaptureMargin(defs);
         }
         catch (DomainException e)
         {
@@ -188,7 +188,7 @@ public static partial class PolicyFunctions
         }
         var ak = def.Available.TryGetValue(out var available);
         var tk = def.Terrain.TryGetValue(out var terrain);
-        return ak && tk && available && terrain && AffordableCells(def, facts.Stock, tiles) >= tiles;
+        return ak && tk && available && terrain && FlooringRules.AffordableCells(def, facts.Stock, tiles) >= tiles;
     }
 
     /// <summary>

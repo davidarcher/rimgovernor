@@ -20,7 +20,6 @@
     <Using Include="RimGovernor.Brain.Policy" />
     <Using Include="RimGovernor.Brain.Facts" />
     <!-- Go package-level policy functions and constants live on two static partial classes. -->
-    <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Static="true" />
     <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts" />
     <Using Include="RimGovernor.Brain.Bridge.DefinitionCatalog" Alias="DefinitionCatalog" />

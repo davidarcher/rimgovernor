@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// The next pest hunt the census supports (#3259): the selected pest rows, at most the hunting budget. The runtime
-/// selects them (<see cref="PolicyFunctions.SelectPestAcquisition"/>) and names the Method by the rows, so the same
+/// selects them (<see cref="PestRules.SelectPestAcquisition"/>) and names the Method by the rows, so the same
 /// selection continues its open Method.
 /// </summary>
 /// <param name="Method">The hunt's MethodId, <c>pest-hunt-&lt;hash of the rows&gt;</c>.</param>
@@ -29,7 +29,7 @@ public sealed record MilitaryFacts
     public Fact<long> Hostiles { get; init; }
 
     /// <summary>
-    /// The food plan's squad-hunt prey (<see cref="PolicyFunctions.HuntRequest"/>): a fight with no hostile standing.
+    /// The food plan's squad-hunt prey (<see cref="HuntSquadRules.HuntRequest"/>): a fight with no hostile standing.
     /// Empty when the plan opens no squad hunt or is unread; the combat Need is judged on the hostiles first.
     /// </summary>
     public EquatableArray<PawnId> HuntPrey { get; init; }
@@ -39,10 +39,10 @@ public sealed record MilitaryFacts
     /// <summary>Living, conscious colonists able to fight who hold no weapon.</summary>
     public Fact<long> Unarmed { get; init; }
 
-    /// <summary>The colonist count the foothold sizes for (<see cref="PolicyFunctions.FootholdCount"/>).</summary>
+    /// <summary>The colonist count the foothold sizes for (<see cref="RoundsRules.FootholdCount"/>).</summary>
     public Fact<long> Foothold { get; init; }
 
-    /// <summary>The pests in the wild-animal census (<see cref="PolicyFunctions.PestCensus"/>).</summary>
+    /// <summary>The pests in the wild-animal census (<see cref="PestRules.PestCensus"/>).</summary>
     public Fact<int> Pests { get; init; }
 
     /// <summary>The Need's undispatched hunts whose animal died or left the map: the work step cancels them.</summary>
@@ -68,7 +68,7 @@ public sealed record MilitaryFacts
     /// <summary>A weapon bench stands beside the crafting spot that stood in for it: the spot is owed its deconstruction.</summary>
     public Fact<bool> CraftingSpotRetireOwed { get; init; }
 
-    /// <summary>A built mortar's shell stock is below half its target (<see cref="PolicyFunctions.ShellsShort"/>).</summary>
+    /// <summary>A built mortar's shell stock is below half its target (<see cref="ArmoryShellsRules.ShellsShort"/>).</summary>
     public Fact<bool> ShellsShort { get; init; }
 
     /// <summary>
@@ -113,7 +113,7 @@ public sealed record MilitaryFacts
 /// <item><c>military/restore-workers</c> (SeriousHarm, #3311): no drafted colonist stands that no live plan needs
 /// while no hostile does; unknown while the census is unread. It has no Methods: its work step is the undraft
 /// sweep, which replaced the RestoreWorkers Concern and the undraft planner.</item>
-/// <item><c>military/combat</c> (SeriousHarm, #3311): one per map, <see cref="PolicyFunctions.CombatSituation"/> over
+/// <item><c>military/combat</c> (SeriousHarm, #3311): one per map, <see cref="RoundsRules.CombatSituation"/> over
 /// the hostiles and the squad-hunt prey: unmet while a hostile stands or a squad hunt is open, met otherwise, unknown
 /// while the hostile count is. It proposes no Methods: the defense runner fights it (<c>engage-&lt;map&gt;</c>,
 /// <c>subdue-&lt;colonist&gt;</c>, <c>strip-&lt;raider&gt;</c>, <c>permit-&lt;hash&gt;</c>, its batches and the
@@ -226,7 +226,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             {
                 break;
             }
-            if (pawn.Blocked || !PolicyFunctions.DesiredApparelPolicy(pawn, out var desired) || desired is not { } value)
+            if (pawn.Blocked || !ApparelPolicyRules.DesiredApparelPolicy(pawn, out var desired) || desired is not { } value)
             {
                 continue;
             }
@@ -258,12 +258,12 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         {
             return Known(false);
         }
-        return PolicyFunctions.ReviewGear(f.Gear).Recovered;
+        return GearRules.ReviewGear(f.Gear).Recovered;
     }
 
     private static Need EquipmentNeed(MilitaryFacts f)
     {
-        var gear = PolicyFunctions.ReviewGear(f.Gear);
+        var gear = GearRules.ReviewGear(f.Gear);
         var evidence = EquatableArray.From<NeedEvidence>([
             new("gear_recovered", Flag(gear.Recovered)),
             new("crafting_spot_retire", Flag(f.CraftingSpotRetireOwed)),
@@ -321,13 +321,13 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     private static Fact<string> Flag(Fact<bool> v) => v.TryGetValue(out var b) ? Known(b ? "true" : "false") : default;
 
     /// <summary>
-    /// The basic-defense predicate: the foothold's armed fighters (<see cref="PolicyFunctions.ArmedTarget"/>) with
+    /// The basic-defense predicate: the foothold's armed fighters (<see cref="RoundsRules.ArmedTarget"/>) with
     /// no hostile standing, and no fighting-capable colonist left unarmed; unknown when the facts do not say.
     /// </summary>
     public static Fact<bool> DefenseMet(MilitaryFacts f)
     {
         var armed = f.Foothold.TryGetValue(out var n) ? RoundsRules.Measured(f.Armed, v => v >= Math.Min(2, n)) : Unknown<bool>();
-        return PolicyFunctions.BasicDefenseRecovered(RoundsRules.AllFacts(armed, RoundsRules.Measured(f.Hostiles, v => v == 0)), f.Unarmed);
+        return BasicDefenseRules.BasicDefenseRecovered(RoundsRules.AllFacts(armed, RoundsRules.Measured(f.Hostiles, v => v == 0)), f.Unarmed);
     }
 
     private static Need DefenseNeed(MilitaryFacts f)
@@ -388,7 +388,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     }
 
     /// <summary>
-    /// The combat Need: <see cref="PolicyFunctions.CombatSituation"/> over the hostiles and the squad-hunt prey. Its
+    /// The combat Need: <see cref="RoundsRules.CombatSituation"/> over the hostiles and the squad-hunt prey. Its
     /// deficit is the hostiles standing plus the prey.
     /// </summary>
     private static Need CombatNeed(MilitaryFacts f)

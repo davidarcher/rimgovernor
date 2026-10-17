@@ -60,7 +60,7 @@ public sealed record HusbandryChoice
     public string Argument { get; init; } = string.Empty;
 }
 
-public static partial class PolicyFunctions
+public static class HusbandryUpkeepRules
 {
     /// <summary>The role of a race, or the zero role when the plan has none.</summary>
     internal static HerdRole HerdRoleOrZero(HerdPolicy herd, Resource race) =>
@@ -81,11 +81,11 @@ public static partial class PolicyFunctions
         }
         if (job == HerdJob.Haul)
         {
-            return ["Obedience", HerdHaulTraining];
+            return ["Obedience", HerdPlanRules.HerdHaulTraining];
         }
         if (job == HerdJob.War)
         {
-            return ["Obedience", HerdWarTraining, "Rescue"];
+            return ["Obedience", HerdPlanRules.HerdWarTraining, "Rescue"];
         }
         return ["Obedience"];
     }
@@ -178,7 +178,7 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        var (removals, removalUnknown) = HerdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd);
+        var (removals, removalUnknown) = HerdSurplusRules.HerdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd);
         if (removalUnknown)
         {
             return Unknown<bool>();
@@ -239,7 +239,7 @@ public static partial class PolicyFunctions
                 counts[a.Definition] = counts.GetValueOrDefault(a.Definition) + 1;
                 continue;
             }
-            if (tameable && !HerdDangerous(a))
+            if (tameable && !HerdSurplusRules.HerdDangerous(a))
             {
                 if (!eligible.TryGetValue(a.Definition, out var list))
                 {
@@ -293,9 +293,9 @@ public static partial class PolicyFunctions
     internal static int HerdWantRank(HerdRole role)
     {
         var rank = -1;
-        for (var i = 0; i < HerdWorkJobs.Count; i++)
+        for (var i = 0; i < HerdPlanRules.HerdWorkJobs.Count; i++)
         {
-            if (HerdWorkJobs[i] == role.Job)
+            if (HerdPlanRules.HerdWorkJobs[i] == role.Job)
             {
                 rank = i;
                 break;
@@ -303,11 +303,11 @@ public static partial class PolicyFunctions
         }
         if (rank < 0)
         {
-            rank = HerdWorkJobs.Count;
+            rank = HerdPlanRules.HerdWorkJobs.Count;
         }
         if (!role.Preferred)
         {
-            rank += HerdWorkJobs.Count + 1;
+            rank += HerdPlanRules.HerdWorkJobs.Count + 1;
         }
         return rank;
     }
@@ -428,7 +428,7 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        var (removals, removalUnknown) = HerdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd);
+        var (removals, removalUnknown) = HerdSurplusRules.HerdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd);
         if (removalUnknown)
         {
             return unknownChoice;

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: climate_envelope.go
 
-public static partial class PolicyFunctions
+public static class ClimateEnvelopeRules
 {
     /// <summary>
     /// Keeps the vents and roofs of a room's ready operations: the plan-wide climate envelope (#2962, the

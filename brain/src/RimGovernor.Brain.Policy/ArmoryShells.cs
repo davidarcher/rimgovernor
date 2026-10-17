@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: armory_shells.go
 
-public static partial class PolicyFunctions
+public static class ArmoryShellsRules
 {
     // Shells per built mortar: a base stock, doubled at the fabrication tier. EMP is stocked only when mech
     // threats are plausible, read as a threat tier of fabrication (raid points at armoryFabricationPoints and

@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// The per-animal facts the herd Need sizes and culls by. The census fills age, life expectancy, sickness,
 /// adulthood, veneration and tame danger natively; MeatNutrition, FeedPerDay and Product merge in from the colony
 /// food channels by animal ID; SlaughterBarred and EatingBarred merge in from the ideoligion
-/// (<see cref="PolicyFunctions.ApplyHerdPrecepts"/>). Unknown age or sickness ranks an animal as ordinary (not old,
+/// (<see cref="HerdPreceptsRules.ApplyHerdPrecepts"/>). Unknown age or sickness ranks an animal as ordinary (not old,
 /// not sick, adult); an unknown SlaughterBarred leaves removal, sale and slaughter unplanned, an unknown
 /// EatingBarred food slaughter. (Go <c>HerdFacts</c>.)
 /// </summary>
@@ -59,7 +59,7 @@ public sealed record HerdLayer
 /// <summary>A removal the herd plan lists: the animal and how it leaves. (Go <c>herdRemoval</c>.)</summary>
 internal sealed record HerdRemoval(UpkeepAnimal Animal, HusbandryMethod Method);
 
-public static partial class PolicyFunctions
+public static class HerdSurplusRules
 {
     /// <summary>
     /// Breeding pair the herd Need never culls below: one male and two females of each race, so a race can still
@@ -134,7 +134,7 @@ public static partial class PolicyFunctions
             var dk = p.DemandPerDay.TryGetValue(out var d);
             var gk = p.PasturePerDay.TryGetValue(out var g);
             var sk = p.StoredNutrition.TryGetValue(out var s);
-            if (!dk || !gk || !sk || !FoodNumber(d) || !FoodNumber(g) || !FoodNumber(s))
+            if (!dk || !gk || !sk || !FoodForecastRules.FoodNumber(d) || !FoodForecastRules.FoodNumber(g) || !FoodForecastRules.FoodNumber(s))
             {
                 return (0, false);
             }
@@ -149,7 +149,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The work trainables whose loss costs the colony labor: hauling, rescue and attack ("Release" in RimWorld's TrainableDefs).</summary>
-    private static readonly HashSet<string> HerdTrainables = new(StringComparer.Ordinal) { "Haul", "Rescue", "Release" };
+    internal static readonly HashSet<string> HerdTrainables = new(StringComparer.Ordinal) { "Haul", "Rescue", "Release" };
 
     internal static bool HerdTrained(UpkeepAnimal a)
     {

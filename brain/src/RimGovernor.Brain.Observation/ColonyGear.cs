@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 public static class ColonyGearReads
@@ -109,7 +110,7 @@ public static class ColonyGearReads
         HashSet<string>? allowed = null;
         if (role.Definitions.Count > 0)
         {
-            allowed = new HashSet<string>(RoleApparelDefinitions(DeriveGearRole(role.Role), role), StringComparer.Ordinal);
+            allowed = new HashSet<string>(ApparelPolicyRules.RoleApparelDefinitions(GearLoadoutRules.DeriveGearRole(role.Role), role), StringComparer.Ordinal);
         }
         var worn = new List<GearOption>();
         foreach (var x in m.Worn)
@@ -472,7 +473,7 @@ public static class ColonyGearReads
         {
             if (p.Policy.TryGetValue(out var state))
             {
-                foreach (var name in RoleApparelDefinitions(DeriveGearRole(state.Role), state))
+                foreach (var name in ApparelPolicyRules.RoleApparelDefinitions(GearLoadoutRules.DeriveGearRole(state.Role), state))
                 {
                     allowed.Add(name);
                 }
@@ -483,7 +484,7 @@ public static class ColonyGearReads
         {
             var apparel = GearDefinitionsReads.ApparelRow(catalog, name).Apparel;
             var groups = (apparel?.bodyPartGroups ?? []).Select(group => group.defName).ToList();
-            if (!GearCoreGroups.Any(groups.Contains))
+            if (!GearRules.GearCoreGroups.Any(groups.Contains))
             {
                 continue;
             }

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What one Method holds for claim-overlap admission (#3249): the labor pawns and exclusive targets
-/// <see cref="PolicyFunctions.WorkClaimsOf"/> derives (buildings at their whole footprint), plus the subject of every
+/// <see cref="WorkRules.WorkClaimsOf"/> derives (buildings at their whole footprint), plus the subject of every
 /// other action kind that has one. <see cref="Shared"/> targets are capacity targets (a bed, an observed food
 /// stack); two Methods may both share one, and work resource admission bounds them by capacity.
 /// </summary>
@@ -87,7 +87,7 @@ public static partial class MethodClaimsRules
             : default;
         if (size.TryGetValue(out var known))
         {
-            var rect = OccupiedRect(building.Cell, known, building.Rotation);
+            var rect = InteriorRules.OccupiedRect(building.Cell, known, building.Rotation);
             if (rect.Width > 0 && rect.Height > 0) return [.. LayoutUtilityRules.RectangleCells(rect).Select(CellClaimTarget)];
         }
         return [WorkRules.BuildingClaimTarget(building)];

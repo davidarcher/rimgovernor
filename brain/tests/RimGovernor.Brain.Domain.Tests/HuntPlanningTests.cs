@@ -25,15 +25,15 @@ public sealed class HuntPlanningTests
     public void AnOpenedFormationIsHeldWhileItsPreyStandEvenWhenItsEstimatesGoStale()
     {
         var sources = new[] { Source("boar") };
-        var asked = PolicyFunctions.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
+        var asked = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
         var view = new HuntEstimateView(asked.ToDictionary(r => r.Key, r => Estimate(r)), new Dictionary<string, string>(), new HashSet<string>());
-        var answered = PolicyFunctions.PlanHunt(Read(), sources, Routes, view, 5);
+        var answered = HuntPlanningRules.PlanHunt(Read(), sources, Routes, view, 5);
         var admission = new HuntAdmission();
         var opened = admission.Formation(answered.Channel(sources), answered, sources)!;
         admission.Admit(opened.Prey.Select(id => new Domain.PawnId(id)));
 
         // The animals moved, the estimates are gone and the pool is smaller: the plan offers nothing, the admitted formation stands.
-        var stale = PolicyFunctions.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5);
+        var stale = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5);
         Assert.Null(stale.Channel(sources));
         var held = admission.Formation(stale.Channel(sources), stale, sources)!;
         Assert.Equal((opened.Hunters, opened.Prey), (held.Hunters, held.Prey));
@@ -46,7 +46,7 @@ public sealed class HuntPlanningTests
     [Fact]
     public void UnansweredRostersAreAskedForAndNoHuntIsOfferedUntilAllAreAnswered()
     {
-        var plan = PolicyFunctions.PlanHunt(Read(), [Source("boar")], Routes, HuntEstimateView.None, 5);
+        var plan = HuntPlanningRules.PlanHunt(Read(), [Source("boar")], Routes, HuntEstimateView.None, 5);
         Assert.Null(plan.Selection);
         Assert.NotEmpty(plan.Unestimated);
         Assert.All(plan.Unestimated, r => Assert.Equal(["boar"], r.Prey));
@@ -57,7 +57,7 @@ public sealed class HuntPlanningTests
     [Fact]
     public void PreyTheFoodPlanMayNotSendAHuntAtIsNeverProposed()
     {
-        var plan = PolicyFunctions.PlanHunt(Read(), [Source("boar", designated: true), Source("far", downed: true)], Routes, HuntEstimateView.None, 5);
+        var plan = HuntPlanningRules.PlanHunt(Read(), [Source("boar", designated: true), Source("far", downed: true)], Routes, HuntEstimateView.None, 5);
         Assert.Empty(plan.Unestimated);
         Assert.Null(plan.Selection);
     }
@@ -65,7 +65,7 @@ public sealed class HuntPlanningTests
     [Fact]
     public void NoNutritionNeededOffersNoHunt()
     {
-        var plan = PolicyFunctions.PlanHunt(Read(), [Source("boar")], Routes, HuntEstimateView.None, 0);
+        var plan = HuntPlanningRules.PlanHunt(Read(), [Source("boar")], Routes, HuntEstimateView.None, 0);
         Assert.Empty(plan.Unestimated);
         Assert.Contains("no_nutrition_needed", plan.Findings);
     }
@@ -74,10 +74,10 @@ public sealed class HuntPlanningTests
     public void AnsweredRostersYieldAChannelThatNamesTheSelectedHuntersAndCarriesTheirHarm()
     {
         var sources = new[] { Source("boar") };
-        var asked = PolicyFunctions.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
+        var asked = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
         var estimates = asked.ToDictionary(r => r.Key, r => Estimate(r, harm: r.Gunners.Count == 1 ? 2 : 4));
         var view = new HuntEstimateView(estimates, new Dictionary<string, string>(), new HashSet<string>());
-        var plan = PolicyFunctions.PlanHunt(Read(), sources, Routes, view, 5);
+        var plan = HuntPlanningRules.PlanHunt(Read(), sources, Routes, view, 5);
         Assert.Empty(plan.Unestimated);
         var channel = plan.Channel(sources)!;
         // Fewer harmed samples rank first, so a solo hunter is sent.
@@ -93,10 +93,10 @@ public sealed class HuntPlanningTests
     public void ARefusedRosterIsAnsweredButNeverChosen()
     {
         var sources = new[] { Source("boar") };
-        var asked = PolicyFunctions.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
+        var asked = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5).Unestimated;
         var refusals = asked.ToDictionary(r => r.Key, _ => "prediction_busy");
         var view = new HuntEstimateView(new Dictionary<string, HuntEstimate>(), refusals, new HashSet<string>());
-        var plan = PolicyFunctions.PlanHunt(Read(), sources, Routes, view, 5);
+        var plan = HuntPlanningRules.PlanHunt(Read(), sources, Routes, view, 5);
         Assert.Empty(plan.Unestimated);
         Assert.Null(plan.Channel(sources));
         Assert.Contains("no_usable_hunt_roster", plan.Findings);
@@ -106,9 +106,9 @@ public sealed class HuntPlanningTests
     public void LoneChannelsWaitForPreyWhoseRostersAreStillBeingPredicted()
     {
         var sources = new[] { Source("boar"), Source("deer") };
-        var plan = PolicyFunctions.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5);
+        var plan = HuntPlanningRules.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5);
         Assert.NotEmpty(plan.Unestimated);
-        var candidates = PolicyFunctions.HuntCandidates(sources, 2, plan.Channel(sources), plan.Awaiting);
+        var candidates = HuntSquadRules.HuntCandidates(sources, 2, plan.Channel(sources), plan.Awaiting);
         Assert.DoesNotContain(candidates, c => c.Id == "boar");
     }
 
@@ -117,8 +117,8 @@ public sealed class HuntPlanningTests
     {
         var sources = new[] { Source("boar"), Source("deer") };
         var roster = new HuntRoster(EquatableArray.From(["a"]), EquatableArray.From(["boar"]));
-        var formation = PolicyFunctions.HuntRosterChannel(new(roster, "", Estimate(roster), 700), roster, sources);
-        var candidates = PolicyFunctions.HuntCandidates(sources, 2, formation);
+        var formation = HuntPlanningRules.HuntRosterChannel(new(roster, "", Estimate(roster), 700), roster, sources);
+        var candidates = HuntSquadRules.HuntCandidates(sources, 2, formation);
         Assert.Contains(candidates, c => c.Mode() == HuntMode.Formation && c.Hunters.SequenceEqual(["a"]));
         Assert.Contains(candidates, c => c.Id == "deer" && c.Mode() == HuntMode.Lone);
         Assert.DoesNotContain(candidates, c => c.Id == "boar");

@@ -242,7 +242,7 @@ public static class ForecastActivities
                 throw new DomainException("duplicate activity output");
             foreach (var output in task.Outputs.Concat(task.Inputs))
             {
-                if (!ValidResource(output.Resource)) throw new DomainException("invalid activity output resource");
+                if (!AdmissionRules.ValidResource(output.Resource)) throw new DomainException("invalid activity output resource");
                 Number(output.Units);
             }
         }

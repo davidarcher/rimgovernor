@@ -39,14 +39,14 @@ public static partial class RoundsRules
     /// </summary>
     internal static Fact<bool> CaravanRecoveredOf(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand)
     {
-        var tradeNeed = AnimalSaleNeed(
+        var tradeNeed = HerdSaleRules.AnimalSaleNeed(
             f.Items,
             TradePolicyRules.ShedArtNeed(
                 SurgeryRules.SurgeryTradeNeed(
                     OrganHarvestRules.ReserveSurgeryStock(
                         OrganHarvestRules.OrganSaleSurplus(
                             f.Items,
-                            ExportSaleSurplus(
+                            ExportOrdersRules.ExportSaleSurplus(
                                 f.Items,
                                 TradePolicyRules.ReviewTradeNeed(f.Items, medicine, f.Resources, demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), f.Wealth, demand.Retained, TradePolicyRules.RoundsTradeFood(f, p)),
                                 f.Resources,

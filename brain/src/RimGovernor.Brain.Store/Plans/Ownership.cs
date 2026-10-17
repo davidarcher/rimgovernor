@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Store;
 
@@ -132,7 +131,7 @@ public sealed partial class Store
                 var decision = new Decision();
                 if (candidates.Count != 0)
                 {
-                    var input = NewInput(
+                    var input = AdmissionRules.NewInput(
                         new Request
                         {
                             Current = r.Current,
@@ -143,7 +142,7 @@ public sealed partial class Store
                             Held = BuildingMethodHolds(tx, r.Current),
                         }
                     );
-                    decision = Admit(input);
+                    decision = AdmissionRules.Admit(input);
                     if (decision.Refused.Count != 0 || decision.Admitted.Count != candidates.Count)
                     {
                         return new BuildingMethodDecision(false, (NeedOwner)owner, decision.Refused);

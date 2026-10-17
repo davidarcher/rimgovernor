@@ -16,7 +16,7 @@ public static partial class PolicyConstants
     internal static readonly Cell ShelterBunkSize = new(1, 2);
 }
 
-public static partial class PolicyFunctions
+public static class InteriorShelterRules
 {
     /// <summary>Reports whether the piece is one of the shelter's bunk slots.</summary>
     public static bool IsBunk(this InteriorPiece p) => p.Slot.StartsWith(ShelterBunkSlotPrefix, StringComparison.Ordinal) && p.Slot.Length > ShelterBunkSlotPrefix.Length;

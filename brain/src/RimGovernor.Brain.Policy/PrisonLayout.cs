@@ -163,7 +163,7 @@ public static partial class PrisonLayoutRules
         {
             foreach (var p in prisons)
             {
-                if (Chebyshev(c, p) <= PrisonWeaponClearance)
+                if (LightingRules.Chebyshev(c, p) <= PrisonWeaponClearance)
                 {
                     return true;
                 }

@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using RimGovernor.Brain.Domain;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -392,7 +391,7 @@ public static partial class PowerRules
         {
             return new PowerProposal { Method = PowerMethod.Unknown };
         }
-        if (!FoodNumber(planning.ReserveMinDays) || !FoodNumber(planning.StorageMargin) || !FoodNumber(planning.PendingDemandW)
+        if (!FoodForecastRules.FoodNumber(planning.ReserveMinDays) || !FoodForecastRules.FoodNumber(planning.StorageMargin) || !FoodForecastRules.FoodNumber(planning.PendingDemandW)
             || planning.StorageMargin > 10 || planning.PendingDemandW > 1e12)
         {
             throw new DomainException("invalid power planning");
@@ -404,7 +403,7 @@ public static partial class PowerRules
         var networks = new Dictionary<string, PowerNetworkFact>(StringComparer.Ordinal);
         foreach (var n in v.Networks)
         {
-            if (!FoodId(n.Id))
+            if (!FoodForecastRules.FoodId(n.Id))
             {
                 throw new DomainException("invalid power network identity");
             }
@@ -423,7 +422,7 @@ public static partial class PowerRules
         var complete = true;
         foreach (var b in v.Buildings)
         {
-            if (!FoodId(b.Id) || !FoodId(b.Definition) || seen.Contains(b.Id) || !Inside(b.Cell) || b.Occupied.Count < 1)
+            if (!FoodForecastRules.FoodId(b.Id) || !FoodForecastRules.FoodId(b.Definition) || seen.Contains(b.Id) || !Inside(b.Cell) || b.Occupied.Count < 1)
             {
                 throw new DomainException("invalid power building geometry");
             }
@@ -470,7 +469,7 @@ public static partial class PowerRules
         var geyserSeen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var g in v.Geysers)
         {
-            if (!FoodId(g.Id) || !geyserSeen.Add(g.Id) || !Inside(g.Cell) || g.Cells.Count < 1)
+            if (!FoodForecastRules.FoodId(g.Id) || !geyserSeen.Add(g.Id) || !Inside(g.Cell) || g.Cells.Count < 1)
             {
                 throw new DomainException("invalid steam geyser census");
             }
@@ -900,7 +899,7 @@ public static partial class PowerRules
         // The consumer stands on its own footprint, which the census reports occupied: the search starts from
         // it regardless.
         allowed.Add(start);
-        var path = PowerRoute(start, targets, allowed);
+        var path = ConduitRouterRules.PowerRoute(start, targets, allowed);
         if (path.Count == 0 || path.Count - 1 > PolicyConstants.GeothermalReachCells)
         {
             return null;

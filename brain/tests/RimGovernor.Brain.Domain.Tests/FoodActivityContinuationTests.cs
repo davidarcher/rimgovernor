@@ -6,7 +6,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -46,7 +45,7 @@ public sealed class FoodActivityContinuationTests
         var dispatched = journal.Dispatch(plan.Id, stored.Id, scope, new(100), ct);
         journal.RecordReceipt(plan.Id, stored.Id, dispatched.View.Attempt, Receipt.Accepted, ct);
         var read = Terminal(harvest, "completed", Option("observed-food", 4));
-        var next = new PlanSpec(new("delivery"), new(1), [DomainAction.NewPawnActivitiesAction(new("deliver-action"), ContinueCoordinatedActivity(harvest, Known(true), TaskRead(harvest, read))!)]);
+        var next = new PlanSpec(new("delivery"), new(1), [DomainAction.NewPawnActivitiesAction(new("deliver-action"), CoordinatedActivitiesRules.ContinueCoordinatedActivity(harvest, Known(true), TaskRead(harvest, read))!)]);
         journal.ContinueActivityMethod(plan.Id, Root, new(110), [new("pawn", "method/pawn", "method", 1, "completed")], next, ct);
         journal.AuthorizeRoundsPlan(Root, Root with { Plan = next.Id }, ct);
         var intent = IntentActionRules.IntentAction(next.Actions[0].Id.Value, journal.LoadPlan(next.Id, ct).Spec.Actions[0]).Intent!.PawnActivities!.Batch!;
@@ -67,7 +66,7 @@ public sealed class FoodActivityContinuationTests
         var obligation = Assert.Single(journal.ActivityMethods(Root, ct));
         Assert.Equal(1, obligation.Batch.Orders[0].Revision);
         Assert.False(obligation.Needed.Value);
-        var release = ContinueCoordinatedActivity(obligation.Batch, obligation.Needed, TaskRead(obligation.Batch, read))!;
+        var release = CoordinatedActivitiesRules.ContinueCoordinatedActivity(obligation.Batch, obligation.Needed, TaskRead(obligation.Batch, read))!;
         var cleanup = new PlanSpec(new("cleanup"), new(1), [DomainAction.NewPawnActivitiesAction(new("cleanup-action"), release)]);
         journal.ContinueActivityMethod(next.Id, Root, new(110), [new("pawn", "method/pawn", "method", 1, "completed")], cleanup, ct);
         journal.AuthorizeRoundsPlan(Root, Root with { Plan = cleanup.Id }, ct);

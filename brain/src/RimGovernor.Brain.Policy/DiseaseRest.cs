@@ -12,7 +12,7 @@ public readonly record struct DiseaseProjection(double DaysToLethal, double Days
 /// </summary>
 public sealed record DiseaseRest(PawnId Pawn, EquatableArray<string> Conditions);
 
-public static partial class PolicyFunctions
+public static class DiseaseRestRules
 {
     public static Fact<DiseaseProjection> ProjectDisease(CareCondition c)
     {
@@ -49,14 +49,14 @@ public static partial class PolicyFunctions
         for (var i = 0; i < rows.Count; i++)
         {
             var row = rows[i];
-            if (!FoodId(row.Pawn.Value) || (i > 0 && rows[i - 1].Pawn.CompareTo(row.Pawn) >= 0) || row.Conditions.Count == 0)
+            if (!FoodForecastRules.FoodId(row.Pawn.Value) || (i > 0 && rows[i - 1].Pawn.CompareTo(row.Pawn) >= 0) || row.Conditions.Count == 0)
             {
                 throw new DomainException("invalid disease rest history");
             }
             for (var j = 0; j < row.Conditions.Count; j++)
             {
                 var name = row.Conditions[j];
-                if (!ValidResource(new Resource(name)) || (j > 0 && string.CompareOrdinal(row.Conditions[j - 1], name) >= 0))
+                if (!AdmissionRules.ValidResource(new Resource(name)) || (j > 0 && string.CompareOrdinal(row.Conditions[j - 1], name) >= 0))
                 {
                     throw new DomainException("invalid disease rest condition");
                 }
@@ -80,7 +80,7 @@ public static partial class PolicyFunctions
         var seen = new HashSet<PawnId>();
         foreach (var pawn in pawns)
         {
-            if (!FoodId(pawn.Id.Value) || !seen.Add(pawn.Id))
+            if (!FoodForecastRules.FoodId(pawn.Id.Value) || !seen.Add(pawn.Id))
             {
                 throw new DomainException("invalid disease pawn");
             }
@@ -93,7 +93,7 @@ public static partial class PolicyFunctions
             var unnamed = false;
             foreach (var c in conditions)
             {
-                if (!c.DefName.TryGetValue(out var name) || !ValidResource(new Resource(name)))
+                if (!c.DefName.TryGetValue(out var name) || !AdmissionRules.ValidResource(new Resource(name)))
                 {
                     unnamed = true;
                     continue;

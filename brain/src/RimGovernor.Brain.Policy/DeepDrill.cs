@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyFunctions
+public static class DeepDrillRules
 {
     /// <summary>
     /// Adds the extraction ladder only while a measured runway of a resource the catalog generates as a deep

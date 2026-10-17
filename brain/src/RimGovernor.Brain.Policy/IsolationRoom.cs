@@ -33,7 +33,7 @@ public sealed record IsolationPlanning
     public IReadOnlyList<string> Beds { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static class IsolationRoomRules
 {
     /// <summary>
     /// The room the isolated creepjoiners owe: one bed in its own room (one bed however many creepjoiners; they
@@ -75,7 +75,7 @@ public static partial class PolicyFunctions
         var pieces = need.Resolve(defs) ?? [];
         foreach (var p in pieces)
         {
-            if (StandingChildPieces(room!, p.Defs, built) < p.Count)
+            if (ChildRoomsRules.StandingChildPieces(room!, p.Defs, built) < p.Count)
             {
                 return false;
             }

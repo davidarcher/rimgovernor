@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
@@ -44,7 +45,7 @@ public sealed partial class Rounder
         PlannedOwedOf(colony, flooring) is not { } owed ? null
             : PlannedRules.PlannedSitesOf(owed.Sited, room => PlannedRingStuffsOf(colony, room),
                 (def, stuff) => PlannedRingPrice(colony, def, stuff), def => PlannedPiecePrice(colony, def), owed.FloorPrice,
-                ClimateDefs().VentDef, owed.Placed);
+                ClimateRules.ClimateDefs().VentDef, owed.Placed);
 
     /// <summary>
     /// A planned site's catalog work per piece (WorkToBuild): its def's for its stuff, a floor's own; unknown where the

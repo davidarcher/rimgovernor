@@ -57,11 +57,11 @@ public static partial class MedicalRules
             {
                 continue;
             }
-            if (name == "Plague" || name == WoundInfection || (name == "Malaria" && severity >= 0.5))
+            if (name == "Plague" || name == EmergencyRules.WoundInfection || (name == "Malaria" && severity >= 0.5))
             {
                 return (true, true);
             }
-            var (losing, known) = LosingImmunityRace(row);
+            var (losing, known) = EmergencyRules.LosingImmunityRace(row);
             if (losing)
             {
                 return (true, true);

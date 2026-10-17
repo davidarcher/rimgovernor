@@ -230,7 +230,7 @@ partial record PlannedRoom
         }
         var inner = r.Region.Bounds();
         var output = new List<Rectangle>();
-        foreach (var i in AisleRows(inner.Height, 2))
+        foreach (var i in InteriorHelpersRules.AisleRows(inner.Height, 2))
         {
             var z = inner.Z + i;
             if (r.DoorRot == Rotation.North) // door on the north wall

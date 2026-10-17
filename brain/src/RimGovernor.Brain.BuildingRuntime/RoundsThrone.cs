@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // The throne room: the shelter family's sleeping planner (shelter/sleeping) shells the planned room, places the title's throne and
@@ -77,7 +78,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return (new Pol.ThroneNeed(), false);
         }
-        if (CeremonyThroneNeed(royalty) is { } ceremony)
+        if (CeremonyRules.CeremonyThroneNeed(royalty) is { } ceremony)
         {
             return (ceremony, true);
         }
@@ -114,13 +115,13 @@ partial class RoundsSleepingUpkeepPlanner
         {
             Royalty = royalty!,
             Sleeping = sleeping,
-            BedroomPieces = FurnitureRooms(rooms!, census, facts.Cells),
+            BedroomPieces = FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells),
             Plan = plan!,
             Rooms = rooms!,
             Built = census.Buildings,
             Impressiveness = impressiveness,
         });
-        return ClaimQuests(royalty!, claim);
+        return CeremonyRules.ClaimQuests(royalty!, claim);
     }
 
     /// <summary>The projection's next throne step; none while the plan, the room census or the construction census is unknown.</summary>

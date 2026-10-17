@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
                     throw new InvalidOperationException("The creation scenario lacks its player faction.");
                 var catalog = new BrainCatalog(AllDefs(), RimGovernor.Brain.Bridge.DefStatTable.Empty, NativeDefinitionCatalogTool.BrainDerived());
                 var options = catalog.IdeoligionOptions(faction!);
-                if (!PolicyFunctions.ChooseStartingIdeoligion(options).TryGetValue(out var choice))
+                if (!IdeoligionDesignRules.ChooseStartingIdeoligion(options).TryGetValue(out var choice))
                     throw new InvalidOperationException("No supported legal ideoligion design can be established.");
                 return Orders.WireIdeoligionDesign(choice.Design);
             }, cancellationToken);

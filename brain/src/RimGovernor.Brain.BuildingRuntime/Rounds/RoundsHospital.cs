@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The medical/care Need's work (#3258): a hospital bed built, converted or already standing, under the Need and admitted by claims.</summary>
@@ -67,7 +68,7 @@ public sealed partial class RoundsBuildingPlanner
 {
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectHospital(ColonyProjection facts)
     {
-        var choice = PolicyFunctions.SelectHospitalBed(RoundsHospitalPlanner.HospitalRequestOf(facts));
+        var choice = HospitalRules.SelectHospitalBed(RoundsHospitalPlanner.HospitalRequestOf(facts));
         switch (choice.Method)
         {
             case HospitalMethod.Unknown:
@@ -125,7 +126,7 @@ public sealed partial class RoundsHospitalPlanner
         var reading = await Reviewer.ObserveRoomsAsync((IRoundsSource)Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         var facts = reading.Projection;
         PlannerSnapshot.RecordStepRead("hospital", MedicalRules.MedicalCareNeed.FilingKey, state.Snapshot, facts);
-        var choice = PolicyFunctions.SelectHospitalBed(HospitalRequestOf(facts));
+        var choice = HospitalRules.SelectHospitalBed(HospitalRequestOf(facts));
         switch (choice.Method)
         {
             case HospitalMethod.Unknown:

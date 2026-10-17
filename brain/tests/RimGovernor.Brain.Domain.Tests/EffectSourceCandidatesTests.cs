@@ -2,7 +2,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Policy.Methods.Generation;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -67,7 +66,7 @@ public sealed class EffectSourceCandidatesTests
                 cards[def] = MechanicCards.ByDef[def] with { Status = status };
             }
         }
-        return GenerateEffectSources(facts, cards);
+        return EffectSourcesRules.GenerateEffectSources(facts, cards);
     }
 
     [Fact]
@@ -91,8 +90,8 @@ public sealed class EffectSourceCandidatesTests
     {
         var gear = Pawn(locked: true).Gear;
 
-        Assert.Contains(PlanGearLoadout(gear, o => o.Tainted).Target, o => o.ID == "parka");
-        Assert.DoesNotContain(PlanGearLoadout(Pawn().Gear, o => o.Tainted).Target, o => o.ID == "parka");
+        Assert.Contains(GearLoadoutRules.PlanGearLoadout(gear, o => o.Tainted).Target, o => o.ID == "parka");
+        Assert.DoesNotContain(GearLoadoutRules.PlanGearLoadout(Pawn().Gear, o => o.Tainted).Target, o => o.ID == "parka");
     }
 
     [Fact]
@@ -112,7 +111,7 @@ public sealed class EffectSourceCandidatesTests
         Assert.Equal(["effect_source_card_unverified:" + Def], extracted.Findings);
 
         // The shipped unreachable sarcophagus card is the negative benchmark.
-        var unreachable = GenerateEffectSources(Facts(), new Dictionary<string, MechanicCard> { ["KnowBuriedInSarcophagus"] = MechanicCards.ByDef["KnowBuriedInSarcophagus"] });
+        var unreachable = EffectSourcesRules.GenerateEffectSources(Facts(), new Dictionary<string, MechanicCard> { ["KnowBuriedInSarcophagus"] = MechanicCards.ByDef["KnowBuriedInSarcophagus"] });
         Assert.Empty(unreachable.Roots);
         Assert.Equal(["effect_source_card_unreachable:KnowBuriedInSarcophagus"], unreachable.Findings);
     }
@@ -166,12 +165,12 @@ public sealed class EffectSourceCandidatesTests
         var gear = new GearObservation { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model) }, new GearPawn { Pawn = new("blocked"), Blocked = true }] };
         var care = new CarePawn { Id = new("pawn"), Conditions = Known<EquatableArray<CareCondition>>([new() { DefName = Known("Flu") }]) };
 
-        var facts = EffectSourceFactsOf(gear, Known<EquatableArray<CarePawn>>([care]));
+        var facts = EffectSourcesRules.EffectSourceFactsOf(gear, Known<EquatableArray<CarePawn>>([care]));
         var read = Assert.Single(facts.Pawns);
         Assert.Equal(Known<EquatableArray<string>>(["Flu"]), read.Card.Hediffs);
         Assert.Equal("gear/pawn/disallow-tainted/cold30-heat0", Assert.Single(Generate(facts).Roots).Id);
 
-        var unread = Generate(EffectSourceFactsOf(gear, Unknown<EquatableArray<CarePawn>>()));
+        var unread = Generate(EffectSourcesRules.EffectSourceFactsOf(gear, Unknown<EquatableArray<CarePawn>>()));
         Assert.Empty(unread.Roots);
         Assert.Equal(["effect_source_offset_unknown:" + Def + "/pawn"], unread.Findings);
     }
@@ -190,12 +189,12 @@ public sealed class EffectSourceCandidatesTests
         };
         var pawn = new GearPawn { Pawn = new("pawn"), Policy = Known(state), LoadoutModel = Known(model) };
 
-        Assert.False(DesiredApparelPolicy(pawn, out _));
-        Assert.DoesNotContain(PlanColonyGear([pawn])[0].Target, o => o.ID == "parka");
+        Assert.False(ApparelPolicyRules.DesiredApparelPolicy(pawn, out _));
+        Assert.DoesNotContain(GearLoadoutRules.PlanColonyGear([pawn])[0].Target, o => o.ID == "parka");
 
-        Assert.True(DesiredApparelPolicy(pawn with { AllowTainted = true }, out var allowed));
+        Assert.True(ApparelPolicyRules.DesiredApparelPolicy(pawn with { AllowTainted = true }, out var allowed));
         Assert.True(allowed!.Spec.AllowTainted);
-        Assert.Contains(PlanColonyGear([pawn with { AllowTainted = true }])[0].Target, o => o.ID == "parka");
+        Assert.Contains(GearLoadoutRules.PlanColonyGear([pawn with { AllowTainted = true }])[0].Target, o => o.ID == "parka");
     }
 
     // #3325: the one stamp on the rounds census reaches every gear reader. A pawn the comparator left allowed, in a tainted
@@ -212,13 +211,13 @@ public sealed class EffectSourceCandidatesTests
         var facts = new RoundsFacts { Gear = Known(gear) };
 
         var standing = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, []).Gear;
-        Assert.NotEmpty(GearReplacementNeeds(standing));
+        Assert.NotEmpty(GearRules.GearReplacementNeeds(standing));
 
         var allowed = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, [new GearChoice("pawn", true)]).Gear;
         Assert.True(Assert.Single(allowed.Value.Pawns).AllowTainted);
-        Assert.Equal(Known(true), ReviewGear(allowed).Recovered);
-        Assert.Empty(GearReplacementNeeds(allowed));
-        var (wanted, known) = GearBillsWanted(allowed);
+        Assert.Equal(Known(true), GearRules.ReviewGear(allowed).Recovered);
+        Assert.Empty(GearRules.GearReplacementNeeds(allowed));
+        var (wanted, known) = BillWantedRules.GearBillsWanted(allowed);
         Assert.True(known);
         Assert.Empty(wanted!);
     }
@@ -246,7 +245,7 @@ public sealed class EffectSourceCandidatesTests
         Assert.NotEmpty(Generate(Facts(pawns: warm), temperature: MechanicCardStatus.Verified).Roots);
         Assert.Empty(Generate(Facts(pawns: warm), temperature: MechanicCardStatus.Extracted).Roots);
         Assert.Equal("gear/pawn/disallow-tainted/cold30-heat0", Assert.Single(Generate(Facts(), temperature: MechanicCardStatus.Extracted).Roots).Id);
-        Assert.DoesNotContain(PlanColonyGear(Census(warm).Pawns)[0].Target, o => o.ID == "parka");
+        Assert.DoesNotContain(GearLoadoutRules.PlanColonyGear(Census(warm).Pawns)[0].Target, o => o.ID == "parka");
     }
 
     // #3329 acceptance: with no candidate the floor is the worn insulation and tainted stays disallowed. The pawn in the dead
@@ -259,14 +258,14 @@ public sealed class EffectSourceCandidatesTests
         var model = Pawn().Gear with { Options = [Garment("clean-parka", GearSlot.Outer, "Shell", "Torso", 30, source: GearSource.Stored), thin] };
         var pawn = new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model) };
 
-        var floored = PlanColonyGear([pawn])[0];
+        var floored = GearLoadoutRules.PlanColonyGear([pawn])[0];
         Assert.Contains(floored.Target, o => o.ID == "clean-parka");
         Assert.DoesNotContain(floored.Target, o => o.ID == "parka");
         Assert.False(floored.FloorUnmet);
         Assert.True(Assert.Single(floored.Gaps).Floor);
-        Assert.Contains(PlanGearLoadout(model, o => o.Tainted).Target, o => o.ID == "thin-parka");
+        Assert.Contains(GearLoadoutRules.PlanGearLoadout(model, o => o.Tainted).Target, o => o.ID == "thin-parka");
 
-        var closest = PlanColonyGear([pawn with { LoadoutModel = Known(model with { Options = [thin] }) }])[0];
+        var closest = GearLoadoutRules.PlanColonyGear([pawn with { LoadoutModel = Known(model with { Options = [thin] }) }])[0];
         Assert.Contains(closest.Target, o => o.ID == "thin-parka");
         Assert.True(closest.FloorUnmet);
     }

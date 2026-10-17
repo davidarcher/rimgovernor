@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One pawn taking one role precept. Role is the role precept's id (the thing Assign targets); Def its def.</summary>
 public sealed record RoleAssignment(PawnId Pawn, string Role, string Def);
 
-public static partial class PolicyFunctions
+public static class IdeologyRolesRules
 {
     /// <summary>
     /// Scores pawn for def: the sum, over the def's skill requirements, of the best level among the skills

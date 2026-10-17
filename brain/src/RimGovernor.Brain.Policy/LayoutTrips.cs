@@ -42,7 +42,7 @@ public static partial class LayoutTripsRules
                 {
                     continue;
                 }
-                if (a < b || Abs32(w - d) < Abs32(bw - bd))
+                if (a < b || LightingRules.Abs32(w - d) < LightingRules.Abs32(bw - bd))
                 {
                     (bw, bd) = (w, d);
                 }

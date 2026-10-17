@@ -48,7 +48,7 @@ internal static class EffectSourceCandidates
     /// <summary>
     /// The search over precomputed facts (the Methods stage calls no planner): <paramref name="outfits"/> holds, per pawn, its
     /// worn outfit first and then the gear planner's predicted outfit for each (filter, floor) pair, with each prevention
-    /// card's offset. PolicyFunctions.GenerateEffectSources computes it, and whether a Live temperature card prices a shift of
+    /// card's offset. EffectSourcesRules.GenerateEffectSources computes it, and whether a Live temperature card prices a shift of
     /// the comfortable minimum (<paramref name="cold"/>) or maximum (<paramref name="heat"/>).
     /// </summary>
     internal static EffectSourceResult Generate(EffectSourceFacts facts, IEnumerable<MechanicCard> cards,

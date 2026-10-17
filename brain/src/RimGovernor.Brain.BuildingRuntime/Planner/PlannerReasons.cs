@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -101,7 +102,7 @@ internal static class PlannerReasons
             case Outcome.HoldFallback:
                 return new PlannerNote { Cause = Cause.HoldFallback };
             default:
-                return new PlannerNote { Cause = v.Refusal.Kind, Subject = BoundSubject(v.Refusal.Subject) };
+                return new PlannerNote { Cause = v.Refusal.Kind, Subject = CauseRules.BoundSubject(v.Refusal.Subject) };
         }
     }
 

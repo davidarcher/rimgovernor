@@ -45,7 +45,7 @@ public sealed record HumanMeatRouting
 
 public sealed record HumanMeatAllocation(HumanMeatRoute Route, double Nutrition);
 
-public static partial class PolicyFunctions
+public static class HumanFoodRules
 {
     /// <summary>The HistoryEventDef a butchered human raises (HistoryEventDefOf.ButcheredHuman); the precept rule answers by it.</summary>
     public const string ButcheredHumanEvent = "ButcheredHuman";
@@ -96,7 +96,7 @@ public static partial class PolicyFunctions
         var seen = new HashSet<PawnId>();
         foreach (var row in rows)
         {
-            if (!FoodId(row.ID.Value) || !seen.Add(row.ID))
+            if (!FoodForecastRules.FoodId(row.ID.Value) || !seen.Add(row.ID))
             {
                 return (default, false);
             }
@@ -126,7 +126,7 @@ public static partial class PolicyFunctions
             var uk = b.Usable.TryGetValue(out var usable);
             var nk = b.HumanCorpseNutrition.TryGetValue(out var nutrition);
             var tk = b.Token.TryGetValue(out var token);
-            if (!b.Butcher || !uk || !usable || !nk || !FoodNumber(nutrition) || nutrition <= 0 || !tk || !FoodId(token!) || !FoodId(b.Id) || b.Bills.Count >= 15)
+            if (!b.Butcher || !uk || !usable || !nk || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0 || !tk || !FoodForecastRules.FoodId(token!) || !FoodForecastRules.FoodId(b.Id) || b.Bills.Count >= 15)
             {
                 continue;
             }
@@ -233,7 +233,7 @@ public static partial class PolicyFunctions
         {
             var uk = b.Usable.TryGetValue(out var usable);
             var nk = b.HumanCorpseNutrition.TryGetValue(out var nutrition);
-            if (!b.Butcher || !uk || !usable || !nk || !FoodNumber(nutrition) || nutrition <= 0)
+            if (!b.Butcher || !uk || !usable || !nk || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0)
             {
                 continue;
             }
@@ -254,7 +254,7 @@ public static partial class PolicyFunctions
     /// <summary>Allocates the human meat to its destinations in order. Throws <see cref="FoodFactsException"/> where Go returned ErrFoodFacts.</summary>
     public static IReadOnlyList<HumanMeatAllocation> RouteHumanMeat(HumanMeatRouting r)
     {
-        if (!FoodNumber(r.Nutrition) || !FoodNumber(r.FeedShortfall) || !FoodNumber(r.EligibleMealDemand) || !FoodNumber(r.VegetableNutrition))
+        if (!FoodForecastRules.FoodNumber(r.Nutrition) || !FoodForecastRules.FoodNumber(r.FeedShortfall) || !FoodForecastRules.FoodNumber(r.EligibleMealDemand) || !FoodForecastRules.FoodNumber(r.VegetableNutrition))
         {
             throw new FoodFactsException();
         }

@@ -71,7 +71,7 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
         }
         if (reform)
         {
-            needs.Add(PolicyFunctions.ReformNeedOf(facts));
+            needs.Add(IdeologyFamilyRules.ReformNeedOf(facts));
         }
         return needs;
     }
@@ -123,7 +123,7 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
     };
 }
 
-public static partial class PolicyFunctions
+public static class IdeologyFamilyRules
 {
     /// <summary>
     /// The reform Need: unknown while the chosen design is; met once the pending reform is observed, or while the

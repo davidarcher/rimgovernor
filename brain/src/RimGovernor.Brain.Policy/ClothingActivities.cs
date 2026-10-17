@@ -10,7 +10,7 @@ public sealed record ClothingActivityRequirement(string Wearer, string Product, 
 }
 public sealed record ClothingActivityDemand(EquatableArray<ClothingActivityRequirement> Alternatives, EquatableArray<string> Findings);
 
-public static partial class PolicyFunctions
+public static class ClothingActivitiesRules
 {
     /// <summary>The loadout model owns needs; production retains every eligible shape/material until comparison.</summary>
     public static ClothingActivityDemand ClothingActivityRequirements(GearObservation census)
@@ -26,15 +26,15 @@ public static partial class PolicyFunctions
             if (physical.Count != 0) { findings.Add("physical_clothing_available:" + pawn.Pawn.Value); continue; }
             foreach (var trait in input.Role.Work.Traits.ValueOrDefault)
                 input = input with { Nudist = input.Nudist || trait.Effects.Nudist };
-            foreach (var option in input.Options.Where(o => o.Source == GearSource.Bill && !ArmoryArmor(o.Definition)
-                && GearEligible(input, o)).OrderBy(o => o.Definition.Value, StringComparer.Ordinal).ThenBy(o => o.Stuff.Value, StringComparer.Ordinal))
+            foreach (var option in input.Options.Where(o => o.Source == GearSource.Bill && !GearArmorRules.ArmoryArmor(o.Definition)
+                && GearLoadoutRules.GearEligible(input, o)).OrderBy(o => o.Definition.Value, StringComparer.Ordinal).ThenBy(o => o.Stuff.Value, StringComparer.Ordinal))
             {
-                var effects = ClothingRelief(pawn, input, option);
+                var effects = ClothingRequirementsRules.ClothingRelief(pawn, input, option);
                 if (effects is null) continue;
                 // Warmth is a comfort shift from the craft's completion, priced by the forecast's temperature cards as break
                 // risk (#3330). A garment widening neither side of the comfort range survives only on relief.
-                var (cold, heat) = GearInsulation([option]);
-                var (wornCold, wornHeat) = GearInsulation(input.Worn.Where(w => GearConflicts(w, option)));
+                var (cold, heat) = GearLoadoutRules.GearInsulation([option]);
+                var (wornCold, wornHeat) = GearLoadoutRules.GearInsulation(input.Worn.Where(w => GearLoadoutRules.GearConflicts(w, option)));
                 var comfort = new ForecastComfortShift(pawn.Pawn.Value, wornCold - cold, heat - wornHeat);
                 if (effects.Count == 0 && comfort.MinDelta >= 0 && comfort.MaxDelta <= 0) continue;
                 result.Add(new(pawn.Pawn.Value, option.Definition.Value, option.Stuff.Value,

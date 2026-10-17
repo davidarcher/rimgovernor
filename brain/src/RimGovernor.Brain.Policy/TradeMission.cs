@@ -91,7 +91,7 @@ public static partial class TradePolicyRules
                 }
                 var ck = row.CarryCapacity.TryGetValue(out var carry);
                 var mk = row.CarriedMass.TryGetValue(out var mass);
-                if (!ck || !mk || !FoodNumber(carry) || !FoodNumber(mass) || carry < mass)
+                if (!ck || !mk || !FoodForecastRules.FoodNumber(carry) || !FoodForecastRules.FoodNumber(mass) || carry < mass)
                 {
                     return (0, false);
                 }
@@ -111,11 +111,11 @@ public static partial class TradePolicyRules
     {
         if (
             pack is not { CanPack: true, MassUsage: { } massUsage, MassCapacity: { } massCapacity, FoodDays: { } foodDays, FoodRotDays: { } foodRotDays }
-            || !FoodNumber(massUsage)
-            || !FoodNumber(massCapacity)
+            || !FoodForecastRules.FoodNumber(massUsage)
+            || !FoodForecastRules.FoodNumber(massCapacity)
             || massUsage > massCapacity
-            || !FoodNumber(foodDays)
-            || !FoodNumber(foodRotDays)
+            || !FoodForecastRules.FoodNumber(foodDays)
+            || !FoodForecastRules.FoodNumber(foodRotDays)
         )
         {
             return false;

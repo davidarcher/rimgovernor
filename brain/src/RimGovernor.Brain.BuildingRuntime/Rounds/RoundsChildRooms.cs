@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -48,7 +49,7 @@ partial class RoundsSleepingUpkeepPlanner
     {
         if (facts.Facts.Containment.Defs.TryGetValue(out var defs))
         {
-            var output = new List<string> { defs.Holder, PolicyApi.ContainmentLampDefinition };
+            var output = new List<string> { defs.Holder, ContainmentCellRules.ContainmentLampDefinition };
             if (defs.Floor.Def != "")
             {
                 output.Add(defs.Floor.Def);
@@ -59,17 +60,17 @@ partial class RoundsSleepingUpkeepPlanner
     }
 
     internal static (ChildRoomNeed? Need, ContainmentVerdict Verdict) ContainmentCellNeed(ColonyProjection facts) =>
-        PolicyApi.ContainmentCellNeed(facts.Facts.Containment, FurnitureDefinitions(facts), RoundsBuildingPlanner.FlooringFactsOf(facts));
+        ContainmentCellRules.ContainmentCellNeed(facts.Facts.Containment, FurnitureDefinitions(facts), RoundsBuildingPlanner.FlooringFactsOf(facts));
 
     internal static (ChildRoomNeed Need, bool Owed) IsolationRoomNeed(ColonyProjection facts) =>
-        PolicyApi.IsolationRoomNeed(facts.Isolation, FurnitureDefinitions(facts));
+        IsolationRoomRules.IsolationRoomNeed(facts.Isolation, FurnitureDefinitions(facts));
 
     internal static List<ChildRoomNeed> ChildRoomNeeds(ColonyProjection facts)
     {
         var needs = new List<ChildRoomNeed>();
         if (facts.WorkPawns.TryGetValue(out var pawns))
         {
-            needs.AddRange(PolicyApi.ChildRoomNeeds(pawns));
+            needs.AddRange(ChildRoomsRules.ChildRoomNeeds(pawns));
         }
         if (facts.Facts.Ideology.TryGetValue(out var ideology))
         {
@@ -116,6 +117,6 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return new ChildRoomStep();
         }
-        return PolicyApi.NextChildRoomStep(plan!, rooms!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, ChildRoomNeeds(facts), FurnitureDefinitions(facts));
+        return ChildRoomsRules.NextChildRoomStep(plan!, rooms!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, ChildRoomNeeds(facts), FurnitureDefinitions(facts));
     }
 }

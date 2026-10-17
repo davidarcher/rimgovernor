@@ -325,7 +325,7 @@ public sealed class SiteRun
                         soil += (double)units.Sum(new Rectangle { X = c.X, Z = c.Z, Width = 1, Height = 1 }) / SoilFixed;
                     }
                 }
-                q.CostW = (ConduitCells(b) * price.ConduitW) + (WallCells(b) * price.WallW) + PolicyFunctions.UnitsW(weights, soil);
+                q.CostW = (ConduitCells(b) * price.ConduitW) + (WallCells(b) * price.WallW) + ClimateRules.UnitsW(weights, soil);
                 if (best is not null && q.CostW >= best.PriceW())
                 {
                     continue;

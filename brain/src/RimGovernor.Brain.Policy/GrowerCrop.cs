@@ -32,7 +32,7 @@ public sealed record GrowerCropChoice
     public IReadOnlyList<FieldCandidate> Ranking { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static class GrowerCropRules
 {
     /// <summary>
     /// Go <c>PlanGrowerCrops</c>: ranks, for each grower that can sow, every available edible crop carrying the
@@ -49,7 +49,7 @@ public static partial class PolicyFunctions
             var tk = g.SowTag.TryGetValue(out var tag);
             var ck = g.Crop.TryGetValue(out var current);
             var fk = g.Fertility.TryGetValue(out var fertility);
-            if (!RoundsRules.Positive(g.CanSow) || !tk || tag!.Length == 0 || !ck || !fk || !FieldPositive(fertility) || g.Id.Length == 0)
+            if (!RoundsRules.Positive(g.CanSow) || !tk || tag!.Length == 0 || !ck || !fk || !FieldCapacityRules.FieldPositive(fertility) || g.Id.Length == 0)
             {
                 continue;
             }
@@ -76,11 +76,11 @@ public static partial class PolicyFunctions
             var tk = crop.SowTags.TryGetValue(out var tags);
             var yk = crop.HarvestNutrition.IsKnown;
             var sk = crop.FertilitySensitivity.IsKnown;
-            if (SiteRules.SiteKnownFalse(crop.DietAllowed) || RoundsRules.Positive(crop.RequiresPollution) || GrowsInDark(crop))
+            if (SiteRules.SiteKnownFalse(crop.DietAllowed) || RoundsRules.Positive(crop.RequiresPollution) || ControlledEnvironmentRules.GrowsInDark(crop))
             {
                 c = c with { Reason = "crop needs a compatible soil or dark site" };
             }
-            else if (!ak || !ek || !gk || !FieldPositive(days) || !tk || !yk || !sk)
+            else if (!ak || !ek || !gk || !FieldCapacityRules.FieldPositive(days) || !tk || !yk || !sk)
             {
                 c = c with { Reason = "incomplete crop facts" };
             }
@@ -95,7 +95,7 @@ public static partial class PolicyFunctions
             else
             {
                 var score = SiteRules.CropRate(crop, fertility);
-                foreach (var term in CropChoiceTerms(field, crop, 1))
+                foreach (var term in CropResilienceRules.CropChoiceTerms(field, crop, 1))
                 {
                     score += term.Value;
                 }

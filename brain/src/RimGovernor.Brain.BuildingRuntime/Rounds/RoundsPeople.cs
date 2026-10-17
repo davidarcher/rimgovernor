@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -104,11 +105,11 @@ public sealed class PeopleRounds
         {
             return BuildingReasonNotInteractive;
         }
-        if (PolicyApi.VoidNodeDisruptAbsent(dialog.Options))
+        if (DialogAnswerRules.VoidNodeDisruptAbsent(dialog.Options))
         {
             DefensePipeline.DefenseAction("routine-dialog", TelemetryLevel.Error, "refused", "void_node_disrupt_absent", "void_node", new Dictionary<string, object?> { ["window"] = window }, call);
         }
-        var chosen = PolicyApi.ChooseDialogOption(dialog.Options, _policy);
+        var chosen = DialogAnswerRules.ChooseDialogOption(dialog.Options, _policy);
         if (chosen is null)
         {
             return WaitFor(Cause.MethodUsed, "no_selectable_dialog_option");

@@ -251,8 +251,8 @@ public static partial class LayoutLightRules
             return default;
         }
         var p = new LightPrice(
-            WorkDayW: UnitsW(w, input.UpkeepPerDay / input.UnitNutrition),
-            LampW: input.Model.Standing.PowerW + BuildW(w, input.Model.Standing.Build, input.SteelValue),
+            WorkDayW: ClimateRules.UnitsW(w, input.UpkeepPerDay / input.UnitNutrition),
+            LampW: input.Model.Standing.PowerW + ClimateRules.BuildW(w, input.Model.Standing.Build, input.SteelValue),
             CellWalkDays: input.Climate.TicksPerSecond / CombatManhunterRules.ColonistMoveSpeed / GameTime.TicksPerDay,
             LampReach: input.Model.Standing.Reach(),
             WallLampW: 0,
@@ -266,7 +266,7 @@ public static partial class LayoutLightRules
         var wall = input.Model.Wall;
         if (wall.Priced() && wall.Reach() > 0)
         {
-            p = p with { WallLampW = wall.PowerW + BuildW(w, wall.Build, input.SteelValue), WallReach = wall.Reach() };
+            p = p with { WallLampW = wall.PowerW + ClimateRules.BuildW(w, wall.Build, input.SteelValue), WallReach = wall.Reach() };
         }
         return p;
     }
@@ -318,7 +318,7 @@ public static partial class LayoutLightRules
         {
             return 0;
         }
-        return UnitsW(SiteRules.DefaultSiteTypeWeights(), upkeep / unit);
+        return ClimateRules.UnitsW(SiteRules.DefaultSiteTypeWeights(), upkeep / unit);
     }
 
     /// <summary>
@@ -346,7 +346,7 @@ public static partial class LayoutLightRules
                 var gain = 0.0;
                 for (var j = 0; j < cells.Count; j++)
                 {
-                    if (!lit[j] && Distance(l.Cell, cells[j].Cell) <= l.Reach)
+                    if (!lit[j] && LightingRules.Distance(l.Cell, cells[j].Cell) <= l.Reach)
                     {
                         gain += cells[j].W;
                     }
@@ -366,7 +366,7 @@ public static partial class LayoutLightRules
             taken.Add(pick.Cell);
             for (var j = 0; j < cells.Count; j++)
             {
-                if (!lit[j] && Distance(pick.Cell, cells[j].Cell) <= pick.Reach)
+                if (!lit[j] && LightingRules.Distance(pick.Cell, cells[j].Cell) <= pick.Reach)
                 {
                     lit[j] = true;
                 }

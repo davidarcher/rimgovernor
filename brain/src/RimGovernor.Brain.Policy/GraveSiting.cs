@@ -23,7 +23,7 @@ public sealed record GraveSiteInput
     public IReadOnlyList<Cell> Traffic { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static class GraveSitingRules
 {
     /// <summary>The cells kept clear around each planned room's walls, so a grave never blocks a door or the room's own edge.</summary>
     internal const int GraveRoomMargin = 1;
@@ -73,7 +73,7 @@ public static partial class PolicyFunctions
         {
             return [];
         }
-        var sites = FreeSites(new FreeSiteRequest
+        var sites = FreeSitesRules.FreeSites(new FreeSiteRequest
         {
             Bounds = input.Bounds,
             Anchor = core,
@@ -82,7 +82,7 @@ public static partial class PolicyFunctions
             Light = input.Light,
         }, 1, 2);
         IReadOnlyList<Cell> from = plan.Entrances.Count > 0 ? plan.Entrances : [core];
-        var costs = HaulCosts(input.Cells, [new HaulConsumer { Cells = from, Weight = 1 }]);
-        return [.. RankSitesByHaul(sites, costs).Where(s => PlannedRules.RectCells(s).Any(costs.ContainsKey))];
+        var costs = HaulDistanceRules.HaulCosts(input.Cells, [new HaulConsumer { Cells = from, Weight = 1 }]);
+        return [.. HaulDistanceRules.RankSitesByHaul(sites, costs).Where(s => PlannedRules.RectCells(s).Any(costs.ContainsKey))];
     }
 }

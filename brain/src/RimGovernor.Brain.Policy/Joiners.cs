@@ -20,10 +20,10 @@ public sealed record JoinersFacts
 /// Development and unknown while its census is unread.
 /// <list type="bullet">
 /// <item><c>joiners/offers</c>: no answerable joiner offer waits while the colony has room for one more colonist
-/// (<see cref="PolicyFunctions.JoinerDeficit"/>). Its Method accepts the lowest-id offer, <c>joiner-accept-&lt;quest&gt;</c>.</item>
+/// (<see cref="PopulationRules.JoinerDeficit"/>). Its Method accepts the lowest-id offer, <c>joiner-accept-&lt;quest&gt;</c>.</item>
 /// <item><c>joiners/letters</c>: no acceptable joiner letter waits while the colony has room
-/// (<see cref="PolicyFunctions.JoinerLetterDeficit"/>). Its Method answers the lowest-id letter, <c>joiner-letter-&lt;id&gt;</c>.</item>
-/// <item><c>joiners/ceremony</c>: no accepted bestowing ceremony waits to start (<see cref="PolicyFunctions.CeremonyStartOf"/>).
+/// (<see cref="PopulationRules.JoinerLetterDeficit"/>). Its Method answers the lowest-id letter, <c>joiner-letter-&lt;id&gt;</c>.</item>
+/// <item><c>joiners/ceremony</c>: no accepted bestowing ceremony waits to start (<see cref="CeremonyRules.CeremonyStartOf"/>).
 /// Starting one is not yet a supported forecast outcome, so it is held as <c>unsupported_forecast_bestowing</c>.</item>
 /// <item><c>joiners/quests</c>: no quest is worth accepting, and no accepted quest owes hosting, expedition, site or
 /// ideology work or a refugee (<see cref="QuestSelection.QuestDeficit"/>, <see cref="QuestRefugees.RefugeeDeficit"/>).
@@ -151,7 +151,7 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
         {
             return FromFact(Ceremony, default, "ceremony_waiting", default);
         }
-        var waiting = PolicyFunctions.CeremonyStartOf(royalty) is not null;
+        var waiting = CeremonyRules.CeremonyStartOf(royalty) is not null;
         return FromFact(Ceremony, Fact.Known(waiting), "ceremony_waiting", Count(waiting ? 1 : 0));
     }
 

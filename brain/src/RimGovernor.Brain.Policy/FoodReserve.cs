@@ -38,14 +38,14 @@ internal sealed record TargetBillSpec
     public Func<ProductionProduct, bool>? FirstIf { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class FoodReserveRules
 {
     public const double DefaultFoodReserveDays = 5.0;
 
-    public static bool ReserveFoodDefinition(Resource def) => TravelReserve.Contains(def);
+    public static bool ReserveFoodDefinition(Resource def) => FoodPolicyRules.TravelReserve.Contains(def);
 
     /// <summary>Go <c>ReserveFoodDefinitions</c>: the travel reserve's definition names.</summary>
-    public static IReadOnlyList<string> ReserveFoodDefinitions() => [.. TravelReserve.Select(d => d.Value)];
+    public static IReadOnlyList<string> ReserveFoodDefinitions() => [.. FoodPolicyRules.TravelReserve.Select(d => d.Value)];
 
     /// <summary>
     /// Go <c>DropReserveHeld</c>: removes supply rows the food reserve owns, so the admin/supply-safety Need never
@@ -83,8 +83,8 @@ public static partial class PolicyFunctions
                 ),
             ],
         };
-        var forecast = ForecastFood(baseline, selected);
-        if (!FieldPositive(reserveDays) || reserveDays > 60 || !FieldPositive(minimumDays) || minimumDays > 60)
+        var forecast = FoodForecastRules.ForecastFood(baseline, selected);
+        if (!FieldCapacityRules.FieldPositive(reserveDays) || reserveDays > 60 || !FieldCapacityRules.FieldPositive(minimumDays) || minimumDays > 60)
         {
             throw new FoodFactsException();
         }
@@ -93,7 +93,7 @@ public static partial class PolicyFunctions
         {
             target += reserveDays * consumer.NutritionPerDay;
         }
-        if (!FieldPositive(target))
+        if (!FieldCapacityRules.FieldPositive(target))
         {
             throw new FoodFactsException();
         }
@@ -102,7 +102,7 @@ public static partial class PolicyFunctions
         var arriving = false;
         foreach (var lead in deliveries)
         {
-            if (!FoodNumber(lead))
+            if (!FoodForecastRules.FoodNumber(lead))
             {
                 throw new FoodFactsException();
             }
@@ -167,7 +167,7 @@ public static partial class PolicyFunctions
                 hold.Add(stock.Id);
             }
         }
-        if (!FoodNumber(stockNutrition))
+        if (!FoodForecastRules.FoodNumber(stockNutrition))
         {
             throw new FoodFactsException();
         }
@@ -195,7 +195,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (BillSelection Selection, bool Ok) SelectReserveBill(Fact<EquatableArray<ProductionBench>> benches, FoodReserveReview reserve)
     {
-        if (!benches.TryGetValue(out var rows) || reserve.Emergency || reserve.IsShort || !FieldPositive(reserve.DeficitNutrition) || !FieldPositive(reserve.TargetNutrition))
+        if (!benches.TryGetValue(out var rows) || reserve.Emergency || reserve.IsShort || !FieldCapacityRules.FieldPositive(reserve.DeficitNutrition) || !FieldCapacityRules.FieldPositive(reserve.TargetNutrition))
         {
             return (new BillSelection(), false);
         }
@@ -236,14 +236,14 @@ public static partial class PolicyFunctions
         {
             var uk = bench.Usable.TryGetValue(out var usable);
             var tk = bench.Token.TryGetValue(out var token);
-            if (!uk || !usable || !tk || !FoodId(token!) || !FoodId(bench.Id) || bench.Butcher || bench.Bills.Count > 15)
+            if (!uk || !usable || !tk || !FoodForecastRules.FoodId(token!) || !FoodForecastRules.FoodId(bench.Id) || bench.Butcher || bench.Bills.Count > 15)
             {
                 continue;
             }
             foreach (var recipe in bench.Recipes)
             {
                 var ak = recipe.Available.TryGetValue(out var available);
-                if (!ak || !available || !FoodId(recipe.Name) || recipe.Products.Count != 1)
+                if (!ak || !available || !FoodForecastRules.FoodId(recipe.Name) || recipe.Products.Count != 1)
                 {
                     continue;
                 }
@@ -251,7 +251,7 @@ public static partial class PolicyFunctions
                 var def = new Resource(product.Name);
                 var nk = product.Nutrition.TryGetValue(out var nutrition);
                 var ek = product.Edible.TryGetValue(out var edible);
-                if (!spec.Family(product) || !nk || !FieldPositive(nutrition) || !ek || !edible)
+                if (!spec.Family(product) || !nk || !FieldCapacityRules.FieldPositive(nutrition) || !ek || !edible)
                 {
                     continue;
                 }
@@ -261,7 +261,7 @@ public static partial class PolicyFunctions
                 {
                     target = storable;
                 }
-                if (!FieldPositive(target) || target > int.MaxValue)
+                if (!FieldCapacityRules.FieldPositive(target) || target > int.MaxValue)
                 {
                     continue;
                 }
@@ -281,7 +281,7 @@ public static partial class PolicyFunctions
                             continue;
                         }
                         exists = true;
-                        if (other.Id == bench.Id && !ProductionRules.BillAdequate(bill, selected) && FoodId(bill.Id) && (selected.Replace.Length == 0 || string.CompareOrdinal(bill.Id, selected.Replace) < 0))
+                        if (other.Id == bench.Id && !ProductionRules.BillAdequate(bill, selected) && FoodForecastRules.FoodId(bill.Id) && (selected.Replace.Length == 0 || string.CompareOrdinal(bill.Id, selected.Replace) < 0))
                         {
                             selected = selected with { Replace = bill.Id };
                         }

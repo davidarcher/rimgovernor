@@ -91,7 +91,7 @@ public sealed record PrisonerColony
         {
             return false;
         }
-        var stance = PolicyFunctions.ActionStance(Ideology, new PreceptAction { HistoryEvent = "EnslavedPrisoner" }, new PreceptSubject()).Stance;
+        var stance = IdeologyRuleRules.ActionStance(Ideology, new PreceptAction { HistoryEvent = "EnslavedPrisoner" }, new PreceptSubject()).Stance;
         return stance is PreceptStance.Allowed or PreceptStance.Approved;
     }
 }

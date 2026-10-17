@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 
 internal sealed record ClearedRoom(PlannedRoom Room, Reconciliation Rec);
 
-public static partial class PolicyFunctions
+public static class ClearanceReconcileRules
 {
     /// <summary>
     /// The removal kinds in the order a pass takes them: other buildings first (one at a time, so removals
@@ -84,7 +84,7 @@ public static partial class PolicyFunctions
             var own = row.DefName.Length != 0 && (row.DefName == f.AnimalSpot || row.DefName == f.AnimalBed || row.DefName == f.Heater);
             if (
                 own
-                && RectInside(
+                && FurnitureRoomsRules.RectInside(
                     room.Region.Bounds(),
                     new Rectangle
                     {
@@ -149,7 +149,7 @@ public static partial class PolicyFunctions
 
                     foreach (var f in op.Floors)
                     {
-                        if (seen.Add(GroundFloorID(f.Cell)))
+                        if (seen.Add(ClearanceGroundRules.GroundFloorID(f.Cell)))
                         {
                             groundFloors.Add(f);
                         }
@@ -187,7 +187,7 @@ public static partial class PolicyFunctions
             };
         }
 
-        return RetiredGroundStep(rows, floors, rg.Ground, rooms, rg);
+        return ClearanceGroundRules.RetiredGroundStep(rows, floors, rg.Ground, rooms, rg);
     }
 
     /// <summary>
@@ -204,7 +204,7 @@ public static partial class PolicyFunctions
         RoomFloors? wants
     )
     {
-        var output = RetiredGroundWork(rows, floors, rg.Ground, rg);
+        var output = ClearanceGroundRules.RetiredGroundWork(rows, floors, rg.Ground, rg);
         foreach (var cr in ReconcileGround(plan, g, rows, floors, rooms, wants))
         {
             foreach (var op in cr.Rec.Owed)
@@ -225,7 +225,7 @@ public static partial class PolicyFunctions
 
                 foreach (var f in op.Floors)
                 {
-                    output.Add(GroundFloorID(f.Cell));
+                    output.Add(ClearanceGroundRules.GroundFloorID(f.Cell));
                 }
             }
         }

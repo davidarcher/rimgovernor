@@ -60,15 +60,15 @@ public sealed record FoodStorageObservation
         {
             return;
         }
-        DomainException.Require(PolicyFunctions.Celsius(ChilledMaxC), "invalid food storage facts");
+        DomainException.Require(FoodStorageUpkeepRules.Celsius(ChilledMaxC), "invalid food storage facts");
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var entry in stocks)
         {
             var s = entry.Stock;
-            DomainException.Require(PolicyFunctions.FoodId(s.Id) && seen.Add(s.Id), "invalid food storage facts");
-            DomainException.Require(!(s.Nutrition.TryGetValue(out var nutrition) && !PolicyFunctions.FoodNumber(nutrition)), "invalid food storage facts");
+            DomainException.Require(FoodForecastRules.FoodId(s.Id) && seen.Add(s.Id), "invalid food storage facts");
+            DomainException.Require(!(s.Nutrition.TryGetValue(out var nutrition) && !FoodForecastRules.FoodNumber(nutrition)), "invalid food storage facts");
             DomainException.Require(!(s.RotTicks.TryGetValue(out var ticks) && ticks < 0), "invalid food storage facts");
-            DomainException.Require(!(s.TemperatureC.TryGetValue(out var temperature) && !PolicyFunctions.Celsius(temperature)), "invalid food storage facts");
+            DomainException.Require(!(s.TemperatureC.TryGetValue(out var temperature) && !FoodStorageUpkeepRules.Celsius(temperature)), "invalid food storage facts");
         }
     }
 }
@@ -94,8 +94,8 @@ public sealed record FoodStoragePolicy
     public double FreezerTargetC { get; init; }
 
     internal bool Valid =>
-        PolicyFunctions.FoodNumber(TargetStoredFraction) && PolicyFunctions.FoodNumber(AtRiskNutritionThreshold)
-        && PolicyFunctions.FoodNumber(SafeRotDays) && PolicyFunctions.Celsius(ChilledExitC) && PolicyFunctions.Celsius(FreezerTargetC)
+        FoodForecastRules.FoodNumber(TargetStoredFraction) && FoodForecastRules.FoodNumber(AtRiskNutritionThreshold)
+        && FoodForecastRules.FoodNumber(SafeRotDays) && FoodStorageUpkeepRules.Celsius(ChilledExitC) && FoodStorageUpkeepRules.Celsius(FreezerTargetC)
         && FreezerTargetC <= ChilledExitC
         && TargetStoredFraction > 0 && TargetStoredFraction <= 1;
 }
@@ -191,7 +191,7 @@ public sealed record FoodStoragePlanningRequest
     public IReadOnlyList<MethodId> Seen { get; init; } = [];
 }
 
-public static partial class PolicyFunctions
+public static class FoodStorageUpkeepRules
 {
     /// <summary>Go <c>FoodStorageStocks</c>: lifts a food-supply census into the storage-upkeep census. chilledMaxC is the catalog's full-rot-rate temperature.</summary>
     public static FoodStorageObservation FoodStorageStocks(FoodSupply supply, double chilledMaxC) =>
@@ -283,7 +283,7 @@ public static partial class PolicyFunctions
                 unstored += nutrition;
             }
         }
-        DomainException.Require(FoodNumber(stored) && FoodNumber(unstored) && FoodNumber(total), "invalid food storage facts or thresholds");
+        DomainException.Require(FoodForecastRules.FoodNumber(stored) && FoodForecastRules.FoodNumber(unstored) && FoodForecastRules.FoodNumber(total), "invalid food storage facts or thresholds");
         r = r with { StoredNutrition = Known(stored), UnstoredNutrition = Known(unstored), TotalNutrition = Known(total) };
         if (total == 0)
         {
@@ -292,7 +292,7 @@ public static partial class PolicyFunctions
         var threshold = p.TargetStoredFraction * total;
         var isActive = unstored >= p.AtRiskNutritionThreshold && stored < threshold;
         var deficit = isActive ? Math.Min(unstored, Math.Max(0, threshold - stored)) : 0.0;
-        var larder = SelectCorpseLarder(v).Kind.Length != 0;
+        var larder = CorpseLarderRules.SelectCorpseLarder(v).Kind.Length != 0;
         return r with { Active = isActive || larder, Larder = larder, Target = Known(threshold), Deficit = Known(deficit) };
     }
 
@@ -325,11 +325,11 @@ public static partial class PolicyFunctions
         {
             return new FoodStorageMethod { Kind = FoodStorageMethodKind.Recovered };
         }
-        DomainException.Require(FoodNumber(deficit) && deficit <= 1e9, "invalid food storage deficit");
+        DomainException.Require(FoodForecastRules.FoodNumber(deficit) && deficit <= 1e9, "invalid food storage deficit");
         var seen = new HashSet<MethodId>();
         foreach (var id in r.Seen)
         {
-            DomainException.Require(FoodId(id.Value) && seen.Add(id), "invalid food storage method history");
+            DomainException.Require(FoodForecastRules.FoodId(id.Value) && seen.Add(id), "invalid food storage method history");
         }
         if (!r.Sites.TryGetValue(out var sites))
         {
@@ -339,7 +339,7 @@ public static partial class PolicyFunctions
         var seenSite = new HashSet<string>(StringComparer.Ordinal);
         foreach (var site in candidates)
         {
-            DomainException.Require(FoodId(site.Id) && seenSite.Add(site.Id), "invalid or duplicate food storage site");
+            DomainException.Require(FoodForecastRules.FoodId(site.Id) && seenSite.Add(site.Id), "invalid or duplicate food storage site");
         }
         var sawUnknownCapacity = false;
         foreach (var site in candidates)
@@ -360,7 +360,7 @@ public static partial class PolicyFunctions
         {
             return new FoodStorageMethod { Kind = FoodStorageMethodKind.Unknown };
         }
-        if (!ValidResource(r.Resource))
+        if (!AdmissionRules.ValidResource(r.Resource))
         {
             return new FoodStorageMethod { Kind = FoodStorageMethodKind.Blocked };
         }

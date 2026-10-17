@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // plain grave near the base, the morgue's shell, and the tomb and morgue stores. It is met while no human corpse is
 // owed a shell, a sarcophagus or a grave. Vanilla haulers carry the corpses; nothing here hauls.
 
-public static partial class PolicyFunctions
+public static class BurialRules
 {
     /// <summary>
     /// Ranks the morgue below graves and sarcophagi, which take a colonist corpse the morgue holds until one
@@ -32,7 +32,7 @@ public sealed class BurialOwner : IStoreOwner
         var roles = new (PlannedRole Role, string Prefix, StockpileFilter Filter, StockpilePriority Priority)[]
         {
             (PlannedRole.Tomb, StockpileRolesConstants.TombRolePrefix, StockpileFilter.TombCorpsesFilter(), StockpilePriority.Critical),
-            (PlannedRole.Morgue, StockpileRolesConstants.MorgueRolePrefix, StockpileFilter.MorgueCorpsesFilter(), PolicyFunctions.MorguePriority),
+            (PlannedRole.Morgue, StockpileRolesConstants.MorgueRolePrefix, StockpileFilter.MorgueCorpsesFilter(), BurialRules.MorguePriority),
         };
         foreach (var s in roles)
         {

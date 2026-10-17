@@ -4,7 +4,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -76,7 +75,7 @@ public sealed class JoinersAnomalyFamilyTests
         Assert.Equal("joiner-accept-q1", JoinersFamily.AcceptMethod("joiner", new("q1")).Value);
     }
 
-    private static readonly ResearchFacts Researched = new() { Finished = [ResearchBioferriteExtraction] };
+    private static readonly ResearchFacts Researched = new() { Finished = [EntityBioferriteRules.ResearchBioferriteExtraction] };
 
     private static BuiltHolder Holder(string pawn, int x, bool holdOpen) => new()
     {

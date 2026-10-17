@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>Declares the surgery bills of the care purposes through the rounds review.</summary>
@@ -58,6 +59,6 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
     {
         var (parts, productions) = Rounder.SurgeryPartsOn(projection.Facts.MedicalPawns, projection.SurgeryContext(), benches);
         var (selected, gap) = SurgeryRules.SelectSurgeryPartBill(productions, parts);
-        return PolicyApi.DeclareSelection(selected, gap == default, benches);
+        return CareOrdersRules.DeclareSelection(selected, gap == default, benches);
     }
 }

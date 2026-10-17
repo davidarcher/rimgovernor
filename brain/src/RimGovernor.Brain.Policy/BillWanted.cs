@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: bill_wanted.go
 
-public static partial class PolicyFunctions
+public static class BillWantedRules
 {
     /// <summary>
     /// Whether any product of a bill is in <paramref name="wanted"/>: a finite bill matching none of an
@@ -18,7 +18,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (HashSet<Resource>? Wanted, bool Known) GearBillsWanted(Fact<GearObservation> gear)
     {
-        var review = ReviewGear(gear);
+        var review = GearRules.ReviewGear(gear);
         if (!review.Recovered.IsKnown)
         {
             return (null, false);
@@ -31,7 +31,7 @@ public static partial class PolicyFunctions
         }
 
         gear.TryGetValue(out var v);
-        foreach (var p in ModeledGearObservation(v!, review.Loadouts).Pawns)
+        foreach (var p in GearLoadoutRules.ModeledGearObservation(v!, review.Loadouts).Pawns)
         {
             if (!p.Replacements.TryGetValue(out var needs))
             {
@@ -40,7 +40,7 @@ public static partial class PolicyFunctions
 
             foreach (var n in needs)
             {
-                var (rungs, rungsOk) = ArmoryArmorRungs(n.Definition, ArmoryTier.Fabrication);
+                var (rungs, rungsOk) = GearArmorRules.ArmoryArmorRungs(n.Definition, ArmoryTier.Fabrication);
                 if (rungsOk)
                 {
                     foreach (var rung in rungs)

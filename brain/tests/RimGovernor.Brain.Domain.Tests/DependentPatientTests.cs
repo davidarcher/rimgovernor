@@ -6,7 +6,6 @@ using Xunit;
 using C = RimGovernor.Contracts.Wire.Common;
 using O = RimGovernor.Contracts.Wire.Observations;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -38,12 +37,12 @@ public sealed class DependentPatientTests
             Patient("entity", DependentPatientGroup.HeldEntity, false, true)),
             Pawn("doctor"), Pawn("guest", true), Pawn("refugee", true), Pawn("entity", true));
         Assert.Equal("doctor", Assert.Single(facts.Colonists).Id.Value);
-        Assert.Equal(["doctor", "guest", "refugee"], EmergencyRescuePatients(facts).Select(p => p.Value));
-        Assert.Equal(["doctor", "guest", "entity"], EmergencyTendPatients(facts).Select(p => p.Value));
+        Assert.Equal(["doctor", "guest", "refugee"], EmergencyPatientsRules.EmergencyRescuePatients(facts).Select(p => p.Value));
+        Assert.Equal(["doctor", "guest", "entity"], EmergencyPatientsRules.EmergencyTendPatients(facts).Select(p => p.Value));
         var snapshot = Snapshot(facts);
-        Assert.Equal(3, EmergencyNeeds(snapshot, World, new(100)).Patients.Value);
-        Assert.Equal(3, UrgentPatients(snapshot, World, new(100)).Value);
-        Assert.Equal(3, EvaluateEmergency(snapshot, World, new(100)).Holds.Count(h => h.Reason == EmergencyReason.CriticalMedical));
+        Assert.Equal(3, EmergencyNeedsRules.EmergencyNeeds(snapshot, World, new(100)).Patients.Value);
+        Assert.Equal(3, EmergencyNeedsRules.UrgentPatients(snapshot, World, new(100)).Value);
+        Assert.Equal(3, EmergencyRules.EvaluateEmergency(snapshot, World, new(100)).Holds.Count(h => h.Reason == EmergencyReason.CriticalMedical));
     }
 
     [Fact]
@@ -55,21 +54,21 @@ public sealed class DependentPatientTests
         var unknownCapability = Decode(Status(patient with { Tend = null }), Pawn("doctor"), Pawn("guest", true));
         foreach (var facts in new[] { missing, unresolved, unknownCapability })
         {
-            Assert.False(EmergencyNeeds(Snapshot(facts), World, new(100)).Patients.IsKnown);
-            Assert.Contains(EvaluateEmergency(Snapshot(facts), World, new(100)).Holds, h => h.Reason == EmergencyReason.UnknownFacts);
+            Assert.False(EmergencyNeedsRules.EmergencyNeeds(Snapshot(facts), World, new(100)).Patients.IsKnown);
+            Assert.Contains(EmergencyRules.EvaluateEmergency(Snapshot(facts), World, new(100)).Holds, h => h.Reason == EmergencyReason.UnknownFacts);
         }
         var empty = Decode(Status(), Pawn("doctor"));
-        Assert.True(EvaluateEmergency(Snapshot(empty), World, new(100)).Clear);
-        Assert.Equal(0, EmergencyNeeds(Snapshot(empty), World, new(100)).Patients.Value);
+        Assert.True(EmergencyRules.EvaluateEmergency(Snapshot(empty), World, new(100)).Clear);
+        Assert.Equal(0, EmergencyNeedsRules.EmergencyNeeds(Snapshot(empty), World, new(100)).Patients.Value);
     }
 
     [Fact]
     public void RecoveredDependentDoesNotKeepEmergencyOpen()
     {
         var facts = Decode(Status(Patient("guest", DependentPatientGroup.HostedGuest, true, true)), Pawn("doctor"), Pawn("guest"));
-        Assert.True(EvaluateEmergency(Snapshot(facts), World, new(100)).Clear);
-        Assert.Equal(0, EmergencyNeeds(Snapshot(facts), World, new(100)).Patients.Value);
+        Assert.True(EmergencyRules.EvaluateEmergency(Snapshot(facts), World, new(100)).Clear);
+        Assert.Equal(0, EmergencyNeedsRules.EmergencyNeeds(Snapshot(facts), World, new(100)).Patients.Value);
         var unknown = facts with { DependentPatients = default };
-        Assert.False(EmergencyNeeds(Snapshot(unknown), World, new(100)).Patients.IsKnown);
+        Assert.False(EmergencyNeedsRules.EmergencyNeeds(Snapshot(unknown), World, new(100)).Patients.IsKnown);
     }
 }

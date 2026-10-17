@@ -108,7 +108,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
         var selected = new List<UpkeepStructure>();
         foreach (var row in structures)
         {
-            if (!PolicyFunctions.FoodId(row.Id) || !seen.Add(row.Id) || row.HitPoints < 0 || row.MaxHitPoints < row.HitPoints || row.Priority < 0 || row.Priority > 2 || row.Cell.X < 0 || row.Cell.Z < 0)
+            if (!FoodForecastRules.FoodId(row.Id) || !seen.Add(row.Id) || row.HitPoints < 0 || row.MaxHitPoints < row.HitPoints || row.Priority < 0 || row.Priority > 2 || row.Cell.X < 0 || row.Cell.Z < 0)
             {
                 throw new DomainException("invalid upkeep structure");
             }
@@ -136,7 +136,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
     }
 
     /// <summary>
-    /// The clearance targets: every census row nothing about the thing itself refuses (<see cref="PolicyFunctions.ClearanceHoldReason"/>),
+    /// The clearance targets: every census row nothing about the thing itself refuses (<see cref="ClearanceRules.ClearanceHoldReason"/>),
     /// then the planned-ground work. Throws on an invalid or repeated id.
     /// </summary>
     public static IReadOnlyList<string> ClearanceTargets(IReadOnlyList<ClearanceTarget> rows, Fact<EquatableArray<string>> ground)
@@ -145,11 +145,11 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
         var selected = new List<string>();
         foreach (var row in rows)
         {
-            if (!PolicyFunctions.FoodId(row.EntityId) || !seen.Add(row.EntityId))
+            if (!FoodForecastRules.FoodId(row.EntityId) || !seen.Add(row.EntityId))
             {
                 throw new DomainException("invalid clearance target");
             }
-            if (PolicyFunctions.ClearanceHoldReason(row).Length == 0)
+            if (ClearanceRules.ClearanceHoldReason(row).Length == 0)
             {
                 selected.Add(row.EntityId);
             }
@@ -158,7 +158,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
         {
             foreach (var id in planned)
             {
-                if (!PolicyFunctions.FoodId(id) || !seen.Add(id))
+                if (!FoodForecastRules.FoodId(id) || !seen.Add(id))
                 {
                     throw new DomainException("invalid planned ground target");
                 }

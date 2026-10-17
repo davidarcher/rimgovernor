@@ -14,7 +14,7 @@ internal static class FoodReserve
     // The share of the reserve target seeded as unforbidden pemmican: short of the target, so the Need must both hold the
     // stock and fill the rest with a bill, with little left to cook.
     private const double SeedShare = 0.9;
-    private const double ReserveDays = PolicyFunctions.DefaultFoodReserveDays;
+    private const double ReserveDays = FoodReserveRules.DefaultFoodReserveDays;
     private const int FillTicks = 35000;
 
     private static readonly FixtureOp<NoArgs, Fx.ReservePrepared> Prepare = new(

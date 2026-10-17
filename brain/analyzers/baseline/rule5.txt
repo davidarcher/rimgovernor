@@ -6,8 +6,8 @@ Policy/Combat/CombatMortar.cs|CombatMortarRules.CounterBattery|double.MaxValue
 Policy/Combat/CombatPermit.cs|CombatPermitRules.AidCell|double.MaxValue
 Policy/CombatGrenade.cs|CombatGrenadeRules.BestGround|double.MaxValue
 Policy/CombatHunt.cs|CombatHuntRules.HuntFormation|double.MaxValue
-Policy/FoodStorageUpkeep.cs|PolicyFunctions.ReviewFoodStorage|double.MaxValue
-Policy/HerdPlan.cs|PolicyFunctions.HerdLevelingRace|double.MaxValue
+Policy/FoodStorageUpkeep.cs|FoodStorageUpkeepRules.ReviewFoodStorage|double.MaxValue
+Policy/HerdPlan.cs|HerdPlanRules.HerdLevelingRace|double.MaxValue
 Policy/PowerMethod.cs|PowerRules.SelectPowerMethod|sentinel 1e12
 Policy/ResourceCandidates.cs|ResourceRules.FiniteAcquisitionCost|sentinel 1e12
 Policy/SupplyPlan.cs|SupplyPlanRules.NewSupplyCand|double.MaxValue

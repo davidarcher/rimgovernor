@@ -45,7 +45,7 @@ partial record LayoutPlan
         }
         foreach (var r in this.Rooms)
         {
-            if (r.Dug && IsStoreRoom(r.Role) && LayoutMiningRules.InRoomRing(r.Region.Bounds(), cell))
+            if (r.Dug && InteriorOpenRules.IsStoreRoom(r.Role) && LayoutMiningRules.InRoomRing(r.Region.Bounds(), cell))
             {
                 return MineTierStore;
             }

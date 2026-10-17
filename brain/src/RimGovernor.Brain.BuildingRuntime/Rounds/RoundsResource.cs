@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>What the resource planner decided: a plan, a wait, or the sources it settled on.</summary>
@@ -394,10 +395,10 @@ public sealed partial class RoundsResourcePlanner
         var f = reading.Projection.Facts;
         f = f with { ConstructionClaims = reviewer.Player.Journal.ConstructionClaims(state.Snapshot, expected.Tick, ct) };
         var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);
-        f = f with { Hostiles = PolicyFunctions.EmergencyNeeds(emergency, state.Snapshot, expected.Tick).Hostiles };
-        f = f with { UrgentPatients = PolicyFunctions.UrgentPatients(emergency, state.Snapshot, expected.Tick) };
-        f = f with { UrgentPatients = PolicyFunctions.AmputationNeeds(emergency, f.MedicalPawns, Unknown<long>(), f.UrgentPatients).Urgent };
-        var extent = PolicyFunctions.DeriveColonyExtent(new ColonyExtentRequest { Bounds = f.MapBounds, Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
+        f = f with { Hostiles = EmergencyNeedsRules.EmergencyNeeds(emergency, state.Snapshot, expected.Tick).Hostiles };
+        f = f with { UrgentPatients = EmergencyNeedsRules.UrgentPatients(emergency, state.Snapshot, expected.Tick) };
+        f = f with { UrgentPatients = EmergencyNeedsRules.AmputationNeeds(emergency, f.MedicalPawns, Unknown<long>(), f.UrgentPatients).Urgent };
+        var extent = ColonyExtentRules.DeriveColonyExtent(new ColonyExtentRequest { Bounds = f.MapBounds, Construction = f.CurrentConstruction, Claims = f.ConstructionClaims, Home = f.HomeCoverage });
         var request = new RemoteWorkRequest { Safety = RemoteRules.LootSafety(f), Extent = extent, Competition = RemoteRules.RemoteCompetition(f) };
         var (layout, ok) = await reviewer.LayoutPlanAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
         if (ok)

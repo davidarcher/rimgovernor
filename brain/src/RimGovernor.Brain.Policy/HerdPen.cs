@@ -23,7 +23,7 @@ public static class RoundsFactsPenExtensions
         {
             return [];
         }
-        return PolicyFunctions.PlanHerd(f.HerdPlanInput()).PenWants(animals!, f.AnimalUpkeep.AnimalRaces, pasture!);
+        return HerdPlanRules.PlanHerd(f.HerdPlanInput()).PenWants(animals!, f.AnimalUpkeep.AnimalRaces, pasture!);
     }
 }
 
@@ -79,10 +79,10 @@ public sealed partial record HerdPlan
 public sealed partial record LayoutPlan
 {
     /// <summary>The interior cells of the pens of the unit keyed herd.</summary>
-    internal int PenCells(string herd) => HerdRooms(PolicyFunctions.PlannedPen, herd).Sum(r => r.Region.Bounds().Width * r.Region.Bounds().Height);
+    internal int PenCells(string herd) => HerdRooms(HerdRoomsRules.PlannedPen, herd).Sum(r => r.Region.Bounds().Width * r.Region.Bounds().Height);
 }
 
-public static partial class PolicyFunctions
+public static class HerdPenRules
 {
     /// <summary>The def of an outdoor room's ring fence (the pen, the materials yard).</summary>
     public const string PenFenceDefinition = "Fence";
@@ -152,7 +152,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static bool PensStand(LayoutPlan plan, GroundCensus ground, IReadOnlyList<CurrentBuilding> built)
     {
-        var pens = plan.RoomsOf(PlannedPen);
+        var pens = plan.RoomsOf(HerdRoomsRules.PlannedPen);
         foreach (var room in pens)
         {
             if (!plan.GroundMatches(room, ground) || !PenMarkerStanding(room, built))

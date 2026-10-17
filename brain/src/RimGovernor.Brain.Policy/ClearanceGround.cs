@@ -91,7 +91,7 @@ public sealed record GroundStep
     public EquatableArray<Cell> Roof { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ClearanceGroundRules
 {
     /// <summary>
     /// The ground of every open-ground planned room whose ring does not yet match the plan (GroundMatches), in

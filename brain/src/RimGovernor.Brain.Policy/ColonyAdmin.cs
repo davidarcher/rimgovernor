@@ -91,7 +91,7 @@ public sealed record AdminNeeds
 /// zones or builds the next shelf, and the zones it creates are Need-linked (decision 20).</item>
 /// <item><c>admin/work-assignments</c> (Wellbeing): every work type is covered, no cleanup pawn is idle, no coupled
 /// activity is selected or running and no hostility, nickname, medicine carry or medical care setting is owed
-/// (<see cref="PolicyFunctions.WorkAssignmentsOwed"/>). It replaced the EnsureWorkAssignments Concern; the runtime
+/// (<see cref="RoundsRules.WorkAssignmentsOwed"/>). It replaced the EnsureWorkAssignments Concern; the runtime
 /// step commits the colony's work priorities, pawn settings, reading and food policies and finishing-skill choices as
 /// one Method, and the review's coupled activities are admitted and continued under it (decision 13).</item>
 /// </list>

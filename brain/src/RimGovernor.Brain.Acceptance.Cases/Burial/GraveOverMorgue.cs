@@ -19,7 +19,7 @@ internal static class GraveOverMorgue
 
     private static readonly FixtureOp<NoArgs, Fx.BurialStaged> Staged = new(
         StageTool,
-        _ => ServedOps.Args(("priority", DomainWire.Name(PolicyFunctions.MorguePriority))),
+        _ => ServedOps.Args(("priority", DomainWire.Name(BurialRules.MorguePriority))),
         (label, reply) => ServedOps.Reply<Fx.BurialStaged>(StageTool)(label, reply) is { Success: true, ColonistCorpse.Length: > 0, StrangerCorpse.Length: > 0, Grave.Length: > 0 } staged
             ? staged
             : throw new AcceptanceException($"{label}: {StageTool} refused: {reply?.ToJsonString()}"));

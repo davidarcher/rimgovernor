@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Domain;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -33,12 +32,12 @@ public static partial class MoodRules
         {
             return rows;
         }
-        if (rows.Any(row => row.Need == CookingNeed))
+        if (rows.Any(row => row.Need == FoodRules.CookingNeed))
         {
             return rows;
         }
         var result = rows.ToList();
-        result.Add(new MoodProvision(CookingNeed, -Math.Max(1, (target - mood) * 100)));
+        result.Add(new MoodProvision(FoodRules.CookingNeed, -Math.Max(1, (target - mood) * 100)));
         return SortProvision(result);
     }
 
@@ -51,7 +50,7 @@ public static partial class MoodRules
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var t in rows)
         {
-            if (!FoodId(t.Def) || !seen.Add(t.Def) || !double.IsFinite(t.Offset))
+            if (!FoodForecastRules.FoodId(t.Def) || !seen.Add(t.Def) || !double.IsFinite(t.Offset))
             {
                 throw new DomainException("invalid mood thought");
             }

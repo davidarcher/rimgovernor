@@ -2,7 +2,6 @@ using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 using JournalStore = RimGovernor.Brain.Store.Store;
 using Op = RimGovernor.Contracts.Wire.Operations;
 

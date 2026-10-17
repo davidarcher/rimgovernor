@@ -26,7 +26,7 @@ public sealed record ResourceFieldRequest
     public Fact<int> GrowerSkill { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class FieldResourceRules
 {
     /// <summary>Starts the ID of a resource field candidate: the prefix plus the crop name, so the executor reads the plan it priced by ID.</summary>
     public const string ResourceFieldPrefix = "field:";
@@ -44,7 +44,7 @@ public static partial class PolicyFunctions
         var dk = r.Deficit.TryGetValue(out var deficit);
         var sk = r.Climate.SowingOutdoors().TryGetValue(out var sowing);
         var ck = r.Climate.DaysRemaining.TryGetValue(out var season);
-        if (!dk || !FieldPositive(deficit) || !sk || !sowing || !ck || !FieldPositive(season) || r.Resource.IsEmpty)
+        if (!dk || !FieldCapacityRules.FieldPositive(deficit) || !sk || !sowing || !ck || !FieldCapacityRules.FieldPositive(season) || r.Resource.IsEmpty)
         {
             return null;
         }
@@ -78,9 +78,9 @@ public static partial class PolicyFunctions
         var req = new FieldRequest { Site = r.Site };
         foreach (var v in viables)
         {
-            candidates.Add(FieldCandidateFor(req, v, false));
+            candidates.Add(CropChoiceRules.FieldCandidateFor(req, v, false));
         }
-        var (ranked, ok) = RankField(plan with { Candidates = [.. candidates] }, false);
+        var (ranked, ok) = CropChoiceRules.RankField(plan with { Candidates = [.. candidates] }, false);
         return ok ? ranked : null;
     }
 
@@ -100,11 +100,11 @@ public static partial class PolicyFunctions
         {
             return TreeFieldCandidate(resource, plan);
         }
-        if (!dk || !uk || !wk || !FieldPositive(days) || !FieldPositive(units) || work < 0 || cells <= 0)
+        if (!dk || !uk || !wk || !FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(units) || work < 0 || cells <= 0)
         {
             return null;
         }
-        return FieldHarvestCandidate(
+        return ClothingDemandRules.FieldHarvestCandidate(
             resource,
             ResourceFieldPrefix + plan.Crop.Name,
             new FieldHarvest
@@ -112,7 +112,7 @@ public static partial class PolicyFunctions
                 Cells = cells,
                 GrowDays = days,
                 UnitsPerCell = units,
-                SetupTicks = cells * FieldSowTicksPerCell,
+                SetupTicks = cells * FoodPlanRules.FieldSowTicksPerCell,
                 WorkPerDay = work * cells / days,
             }
         );
@@ -133,7 +133,7 @@ public static partial class PolicyFunctions
         {
             return null;
         }
-        return FieldHarvestCandidate(
+        return ClothingDemandRules.FieldHarvestCandidate(
             resource,
             ResourceFieldPrefix + plan.Crop.Name,
             new FieldHarvest
@@ -162,7 +162,7 @@ public static partial class PolicyFunctions
             var (_, wood, _, ok) = TreePlantationRules.TreePricing(crop);
             return ok ? wood * (n / (uint)ZoneCreateConstants.TreeCellsPerTree) : 0;
         }
-        if (!hk || !uk || !nk || harvests != resource || !FieldPositive(units))
+        if (!hk || !uk || !nk || harvests != resource || !FieldCapacityRules.FieldPositive(units))
         {
             return 0;
         }
@@ -176,7 +176,7 @@ public static partial class PolicyFunctions
         var gk = crop.GrowDays.TryGetValue(out var days);
         var uk = crop.UnitsPerCell.TryGetValue(out var units);
         var rk = crop.Harvests.IsKnown;
-        if (!rk || !ak || !gk || !uk || !FieldPositive(days) || !FieldPositive(units))
+        if (!rk || !ak || !gk || !uk || !FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(units))
         {
             return (new ViableCrop(), "incomplete crop facts");
         }
@@ -184,7 +184,7 @@ public static partial class PolicyFunctions
         {
             return (new ViableCrop(), "crop not available");
         }
-        if (GrowsInDark(crop))
+        if (ControlledEnvironmentRules.GrowsInDark(crop))
         {
             return (new ViableCrop(), "crop needs a dark room");
         }
@@ -197,7 +197,7 @@ public static partial class PolicyFunctions
         {
             return TreeViable(crop, deficit, r);
         }
-        if (days * FieldCycles > season)
+        if (days * CalendarRules.FieldCycles > season)
         {
             return (new ViableCrop(), "season too short");
         }

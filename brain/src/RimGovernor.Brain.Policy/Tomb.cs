@@ -118,7 +118,7 @@ public static partial class TombRules
     /// <summary>The room's first template sarcophagus slot no grave stands on.</summary>
     private static (InteriorPiece? Piece, bool Ok) TombSlot(PlannedRoom r, PieceShapes shapes, HashSet<Cell> taken)
     {
-        var (inRoom, ok) = InteriorRoomFromLayout(r, shapes);
+        var (inRoom, ok) = InteriorRules.InteriorRoomFromLayout(r, shapes);
         if (!ok)
         {
             return (null, false);
@@ -128,7 +128,7 @@ public static partial class TombRules
         {
             return (null, false);
         }
-        var (interior, pok) = PlanRoomInterior(inRoom, sarcophagus);
+        var (interior, pok) = InteriorRegionRules.PlanRoomInterior(inRoom, sarcophagus);
         if (!pok)
         {
             return (null, false);

@@ -24,7 +24,7 @@ public sealed record ArtOrderRequest
     public Fact<bool> RoomsOwed { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ArtOrdersRules
 {
     /// <summary>
     /// The rooms/art Need's wanted sculpture orders. While the need is open (an inspired artist or a bedroom below
@@ -40,8 +40,8 @@ public static partial class PolicyFunctions
             return WorkRules.Abstaining(Cause.UnreadArtists);
         }
 
-        var artists = Artists(profiles);
-        var inspired = InspiredArtists(profiles);
+        var artists = ArtRules.Artists(profiles);
+        var inspired = ArtRules.InspiredArtists(profiles);
         var owedKnown = r.RoomsOwed.TryGetValue(out var owed);
         var sculpt = owedKnown && owed;
         var open = sculpt || inspired.Count > 0;
@@ -64,10 +64,10 @@ public static partial class PolicyFunctions
         }
 
         var benches = Known(EquatableArray.From(ArtProductionBenches(r.Benches)));
-        var selected = new List<BillSelection>(SelectInspiredArtBills(benches, inspired, r.Items));
+        var selected = new List<BillSelection>(ArtRules.SelectInspiredArtBills(benches, inspired, r.Items));
         if (sculpt)
         {
-            selected.AddRange(SelectArtBills(benches, r.Colonists, artists, r.Demand));
+            selected.AddRange(ArtRules.SelectArtBills(benches, r.Colonists, artists, r.Demand));
         }
 
         foreach (var s in selected)
@@ -80,7 +80,7 @@ public static partial class PolicyFunctions
                     Worker = s.Worker,
                     Mode = s.Mode,
                     Target = s.Target,
-                    BenchKind = GearBenchDef(r.Benches, s.Bench),
+                    BenchKind = GearOrdersRules.GearBenchDef(r.Benches, s.Bench),
                 }
             );
         }

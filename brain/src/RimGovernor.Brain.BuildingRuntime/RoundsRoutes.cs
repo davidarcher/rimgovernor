@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
@@ -92,7 +93,7 @@ public sealed partial class RoundsBuildingPlanner
             foreach (var rotation in new[] { Rotation.North, Rotation.East })
             {
                 var building = new Building(routes.Definition, cell, rotation, routes.Stuff);
-                var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, PlannerTier(Concern, Phase));
+                var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
                 var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
                 var p = preview.Preview;
                 var fk = p.Footprint.TryGetValue(out var footprint);

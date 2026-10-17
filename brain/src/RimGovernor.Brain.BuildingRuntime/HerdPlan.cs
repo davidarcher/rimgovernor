@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 internal static class HerdPlans
@@ -6,6 +7,6 @@ internal static class HerdPlans
     public static HerdPolicy HerdPolicyOf(RoundsFacts f, FoodPlan plan)
     {
         var input = f.HerdPlanInput() with { Food = Known(plan) };
-        return PlanHerd(input).Policy;
+        return HerdPlanRules.PlanHerd(input).Policy;
     }
 }

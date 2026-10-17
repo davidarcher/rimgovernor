@@ -5,7 +5,7 @@ public sealed record ProductionMaterialView(Fact<EquatableArray<ProductionRecipe
 public sealed record LedgerMaterialSelection(EquatableArray<LedgerPlacement> Selected, EquatableArray<LedgerPlacement> Postponed,
     int Generated, bool GenerationTruncated, ForecastMaterialComparison Comparison);
 
-public static partial class PolicyFunctions
+public static class LedgerMaterialChoicesRules
 {
     /// <summary>Generate ingredient variants before comparing batches jointly; never broaden a declarer's allowed filter.</summary>
     public static LedgerMaterialSelection SelectLedgerMaterials(IReadOnlyList<LedgerPlacement> placements,

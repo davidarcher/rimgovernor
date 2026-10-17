@@ -32,13 +32,13 @@ public sealed record Calendar
     {
         foreach (var days in new[] { GrowingDays, GrowingDaysRemaining, GrowingDaysUntil, NonGrowingDays })
         {
-            if (double.IsNaN(days) || double.IsInfinity(days) || days < 0 || days > PolicyFunctions.YearDays)
+            if (double.IsNaN(days) || double.IsInfinity(days) || days < 0 || days > CalendarRules.YearDays)
             {
                 return false;
             }
         }
 
-        return DayOfYear >= 0 && DayOfYear < PolicyFunctions.YearDays;
+        return DayOfYear >= 0 && DayOfYear < CalendarRules.YearDays;
     }
 }
 
@@ -116,7 +116,7 @@ public sealed record CropGrowth
     }
 }
 
-public static partial class PolicyFunctions
+public static class CalendarRules
 {
     /// <summary>The native 60-day year every calendar fact is bounded by.</summary>
     public const int YearDays = 60;
@@ -149,7 +149,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static Fact<double> HarvestGapDays(Fact<Calendar> calendar, Fact<EquatableArray<DisasterCondition>> conditions)
     {
-        var pause = CropPauseDays(conditions);
+        var pause = CropRiskRules.CropPauseDays(conditions);
         if (!calendar.TryGetValue(out var c) || !c.Valid())
         {
             if (pause <= 0)

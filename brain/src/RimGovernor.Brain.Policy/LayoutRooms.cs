@@ -249,7 +249,7 @@ partial record LayoutPlan
         var names = furniture.Select(d => d.Name).ToList();
         foreach (var r in plan.Rooms)
         {
-            if (!inUse.Contains(r.Id) && StandingChildPieces(r, names, built) > 0)
+            if (!inUse.Contains(r.Id) && ChildRoomsRules.StandingChildPieces(r, names, built) > 0)
             {
                 inUse.Add(r.Id);
             }

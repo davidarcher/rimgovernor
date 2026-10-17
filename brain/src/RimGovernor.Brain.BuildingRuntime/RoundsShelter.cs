@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
@@ -26,7 +27,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>The layout module this planner furnishes: a facility ladder's room role names it, the shelter and expansion planners raise the shelter.</summary>
-    internal (Pol.PlannedRole Role, bool Ok) RoomModule() => PlannedRoleOf(RoomRole());
+    internal (Pol.PlannedRole Role, bool Ok) RoomModule() => InteriorRules.PlannedRoleOf(RoomRole());
 
     /// <summary>The room role a planner sites for: a facility ladder's own role, and Shelter for the shelter and expansion planners, which raise the colony's temporary starter room.</summary>
     internal Pol.RoomRole RoomRole() => Facility is not null ? Facility.Role : Pol.RoomRole.Shelter;

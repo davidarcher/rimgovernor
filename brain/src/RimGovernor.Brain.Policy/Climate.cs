@@ -230,7 +230,7 @@ public sealed record ClimateModel
             case Opening.DoorClosed:
                 return DoorClosed.Conductance(cells);
             case Opening.Door:
-                var f = PolicyFunctions.OpenFraction(passages, Door.Window());
+                var f = ClimateRules.OpenFraction(passages, Door.Window());
                 return (f * DoorOpen.Conductance(cells)) + ((1 - f) * DoorClosed.Conductance(cells));
             case Opening.Airlock:
                 return AirlockConductance(passages);
@@ -253,12 +253,12 @@ public sealed record ClimateModel
     /// </summary>
     internal double AirlockConductance(double passages)
     {
-        var open = DoorOpen.Conductance(PolicyFunctions.AirlockVestibuleCells);
-        var closed = DoorClosed.Conductance(PolicyFunctions.AirlockVestibuleCells);
-        var f = Math.Min(DoorOpen.Rate, PolicyFunctions.AirlockVestibuleCells) / 2;
-        var both = PolicyFunctions.OpenFraction(passages, Door.CloseDelayTicks);
-        var one = Math.Min(Math.Max(0, 2 * (PolicyFunctions.OpenFraction(passages, Door.Window()) - both)), 1 - both);
-        return (both * open / (2 - f)) + (one * PolicyFunctions.Series(open, closed)) + ((1 - both - one) * PolicyFunctions.Series(closed, closed));
+        var open = DoorOpen.Conductance(ClimateRules.AirlockVestibuleCells);
+        var closed = DoorClosed.Conductance(ClimateRules.AirlockVestibuleCells);
+        var f = Math.Min(DoorOpen.Rate, ClimateRules.AirlockVestibuleCells) / 2;
+        var both = ClimateRules.OpenFraction(passages, Door.CloseDelayTicks);
+        var one = Math.Min(Math.Max(0, 2 * (ClimateRules.OpenFraction(passages, Door.Window()) - both)), 1 - both);
+        return (both * open / (2 - f)) + (one * ClimateRules.Series(open, closed)) + ((1 - both - one) * ClimateRules.Series(closed, closed));
     }
 
     /// <summary>
@@ -270,8 +270,8 @@ public sealed record ClimateModel
     {
         static double Units(double peakW, double plantW) => Math.Ceiling((peakW / plantW) - 1e-9);
 
-        return (Units(watts.HeatingPeakW, Heater.PowerW) * PolicyFunctions.BuildW(w, Build.Heater, steelValue))
-            + (Units(watts.CoolingPeakW, Cooler.PowerW) * PolicyFunctions.BuildW(w, Build.Cooler, steelValue));
+        return (Units(watts.HeatingPeakW, Heater.PowerW) * ClimateRules.BuildW(w, Build.Heater, steelValue))
+            + (Units(watts.CoolingPeakW, Cooler.PowerW) * ClimateRules.BuildW(w, Build.Cooler, steelValue));
     }
 }
 
@@ -402,13 +402,13 @@ public sealed record GroupClimate
     public Opening Best { get; init; }
 }
 
-public static partial class PolicyFunctions
+public static class ClimateRules
 {
     private static readonly ClimateTable _climateTable = new()
     {
         VentDef = "Vent",
-        DoorDef = ShellDoorDefinition,
-        WallDef = ShellWallDefinition,
+        DoorDef = ContainmentCellRules.ShellDoorDefinition,
+        WallDef = ContainmentCellRules.ShellWallDefinition,
         RaceDef = "Human",
         ComfyMinStat = "ComfyTemperatureMin",
         ComfyMaxStat = "ComfyTemperatureMax",

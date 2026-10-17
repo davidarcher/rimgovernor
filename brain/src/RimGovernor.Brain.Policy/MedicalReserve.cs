@@ -112,7 +112,7 @@ public static partial class MedicalRules
         var stockByDefinition = new Dictionary<Resource, long>();
         foreach (var q in resources!)
         {
-            if (!ValidResource(q.Resource) || q.Count < 0)
+            if (!AdmissionRules.ValidResource(q.Resource) || q.Count < 0)
             {
                 throw new DomainException(Invalid);
             }
@@ -125,7 +125,7 @@ public static partial class MedicalRules
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in items!)
         {
-            if (!FoodId(item.Id) || seen.Contains(item.Id) || !ValidResource(item.Definition) || item.Count < 0)
+            if (!FoodForecastRules.FoodId(item.Id) || seen.Contains(item.Id) || !AdmissionRules.ValidResource(item.Definition) || item.Count < 0)
             {
                 throw new DomainException(Invalid);
             }
@@ -180,7 +180,7 @@ public static partial class MedicalRules
         {
             return new MedicineMethod { Kind = MedicineMethodKind.Recovered };
         }
-        if (!r.Review.Target.TryGetValue(out var target) || !ValidResource(r.Resource))
+        if (!r.Review.Target.TryGetValue(out var target) || !AdmissionRules.ValidResource(r.Resource))
         {
             return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
         }
@@ -195,7 +195,7 @@ public static partial class MedicalRules
         var seen = new HashSet<MethodId>();
         foreach (var id in r.Seen)
         {
-            if (!FoodId(id.Value) || seen.Contains(id))
+            if (!FoodForecastRules.FoodId(id.Value) || seen.Contains(id))
             {
                 throw new DomainException("invalid medicine method history");
             }
@@ -205,7 +205,7 @@ public static partial class MedicalRules
         {
             return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
         }
-        ValidateGearProduction(benchRows);
+        GearRules.ValidateGearProduction(benchRows);
         var benches = benchRows.OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
         foreach (var b in benches)
         {
@@ -215,7 +215,7 @@ public static partial class MedicalRules
             }
             foreach (var bill in bills)
             {
-                if (!ContainsResource(bill.Products, r.Resource))
+                if (!GearRules.ContainsResource(bill.Products, r.Resource))
                 {
                     continue;
                 }
@@ -237,7 +237,7 @@ public static partial class MedicalRules
             }
             foreach (var recipe in recipeRows.OrderBy(x => x.Definition, StringComparer.Ordinal))
             {
-                if (!ContainsResource(recipe.Products, r.Resource))
+                if (!GearRules.ContainsResource(recipe.Products, r.Resource))
                 {
                     continue;
                 }

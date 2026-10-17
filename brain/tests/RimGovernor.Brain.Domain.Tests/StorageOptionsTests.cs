@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -133,7 +132,7 @@ public sealed class StorageOptionsTests
 
         Assert.Equal("Zone_w", growth.Zone);
         Assert.Empty(growth.Material.ValueOrDefault!);
-        Assert.Equal(Known(MaintenanceHorizonDays), growth.LeadDays);
+        Assert.Equal(Known(ColonyDiagnosticsRules.MaintenanceHorizonDays), growth.LeadDays);
         Assert.Equal(Known(6), growth.CellsTaken);
         Assert.Equal(Known(6), growth.Stacks);
         // Every stranded stack moves under the roof: cloth 2 plus the chunk 1.
@@ -179,7 +178,7 @@ public sealed class StorageOptionsTests
 
         Assert.Equal(8, yard.Room);
         Assert.Empty(yard.Material.ValueOrDefault!);
-        Assert.Equal(Known(MaintenanceHorizonDays), yard.LeadDays);
+        Assert.Equal(Known(ColonyDiagnosticsRules.MaintenanceHorizonDays), yard.LeadDays);
         Assert.Equal(Known(6), yard.Stacks);
         Assert.Equal(Known(0.0), yard.DeteriorationAvoided);
 

@@ -18,7 +18,7 @@ public sealed record FreeSiteRequest
     public LightTerrains Light { get; init; } = new();
 }
 
-public static partial class PolicyFunctions
+public static class FreeSitesRules
 {
     /// <summary>
     /// Go <c>FreeSites</c>: returns a bounded, deterministically ordered list of width x height candidate

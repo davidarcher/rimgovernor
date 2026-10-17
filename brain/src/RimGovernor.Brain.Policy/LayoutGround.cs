@@ -34,20 +34,20 @@ public static partial class LayoutGroundRules
             var def = b.Building!.Definition;
             foreach (var c in b.Cells)
             {
-                if (def == ClimateDefs().VentDef)
+                if (def == ClimateRules.ClimateDefs().VentDef)
                 {
                     g.Vents.Add(c);
                     g.Walls.Add(c);
                 }
-                else if (def == PenFenceDefinition)
+                else if (def == HerdPenRules.PenFenceDefinition)
                 {
                     g.Fences.Add(c);
                 }
-                else if (def == PenGateDefinition)
+                else if (def == HerdPenRules.PenGateDefinition)
                 {
                     g.Gates.Add(c);
                 }
-                else if (def == ShellWallDefinition)
+                else if (def == ContainmentCellRules.ShellWallDefinition)
                 {
                     g.Walls.Add(c);
                     g.Stuff[c] = b.Building.Stuff;
@@ -112,7 +112,7 @@ partial record PlannedRoom
 {
     /// <summary>The defs r's ring is raised from: a wall and a door, or a fence and a gate round an outdoor room.</summary>
     public (string Wall, string Door) RingDefs() =>
-        this.Outdoor ? (PenFenceDefinition, PenGateDefinition) : (ShellWallDefinition, ShellDoorDefinition);
+        this.Outdoor ? (HerdPenRules.PenFenceDefinition, HerdPenRules.PenGateDefinition) : (ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition);
 
     /// <summary>
     /// The cells r's shell stands on: the region's wall ring (Region.Walls). A sparring ring and the unfenced

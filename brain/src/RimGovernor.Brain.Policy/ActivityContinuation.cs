@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ActivityOwnership(string Pawn, string Assignment, string Method, long Revision, string State);
 public sealed record ActivityContinuationDecision(PawnActivities? Release, bool OwnershipEnded, string Reason);
 
-public static partial class PolicyFunctions
+public static class ActivityContinuationRules
 {
     public static bool MatchesActivityOwner(PawnActivityOrder order, ActivityOwnership row) =>
         row.Pawn == order.Pawn && row.Assignment == order.Assignment && row.Method == order.Method && row.Revision == order.Revision;

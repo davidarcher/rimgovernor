@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using static RimGovernor.Brain.Policy.PolicyFunctions;
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class CapabilityMaintenanceTests
@@ -24,19 +23,19 @@ public sealed class CapabilityMaintenanceTests
     [Fact]
     public void OnlyAssignedActiveRequirementsAuthorizeMaintenanceAndPreserveOr()
     {
-        Assert.Empty(AssignedCombatCapabilities(Known(Ideology())));
-        var requirement = Assert.Single(AssignedCombatCapabilities(Known(Ideology("pawn"))));
+        Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(Ideology())));
+        var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(Ideology("pawn"))));
         Assert.Equal(CapabilityDevelopmentKind.Maintenance, requirement.Kind);
         Assert.Equal(2, requirement.Alternatives.Count);
-        Assert.Empty(AssignedCombatCapabilities(default));
+        Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(default));
         var inactive = Ideology("pawn") with { Facts = new() { Roles = [new("role", "soldier", false, [new("pawn")])] } };
-        Assert.Empty(AssignedCombatCapabilities(Known(inactive)));
+        Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(inactive)));
     }
 
     [Fact]
     public void NormalWorkSuppressesPracticeAndUnknownOrBranchDoesNotProveFailure()
     {
-        var requirement = Assert.Single(AssignedCombatCapabilities(Known(Ideology("pawn"))));
+        var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(Ideology("pawn"))));
         WorkSkill[] skills = [new() { Name = "Shooting", Level = 1, Learning = Learning() }, new() { Name = "Melee", Disabled = true }];
         var completed = new Dictionary<string, Fact<bool>> { ["work"] = Known(true) };
         ForecastMaintenanceConsequence Forecast(EquatableArray<WorkSkill> observed, ForecastActivityPlan plan)

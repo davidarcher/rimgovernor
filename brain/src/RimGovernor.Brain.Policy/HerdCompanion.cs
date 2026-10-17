@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 // the title furniture. A master who shares a room, or has none, gets no spot: the animal sleeps where animals
 // sleep.
 
-public static partial class PolicyFunctions
+public static class HerdCompanionRules
 {
     /// <summary>Go <c>CompanionMaster</c>: the colonist who masters a bonded animal: the first of its bond partners by id among people. False for an unbonded animal.</summary>
     public static (PawnId Master, bool Ok) CompanionMaster(UpkeepAnimal a, IReadOnlyList<SleepingPerson> people)

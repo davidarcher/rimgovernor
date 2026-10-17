@@ -395,7 +395,7 @@ public static partial class ReadyWorkRules
     {
         var has = byAction.TryGetValue(a.Id, out var prog);
         var v = has ? prog!.View : new ProgressView();
-        var blueprint = has && AppliedBuildingOpen(prog!, census);
+        var blueprint = has && BuildingWorkRules.AppliedBuildingOpen(prog!, census);
         if (has && !blueprint && (v.Stage is Stage.Completed or Stage.Unsuccessful or Stage.Cancelled) && !v.Unresolved)
         {
             return (new ReadyWork(), false);
@@ -445,7 +445,7 @@ public static partial class ReadyWorkRules
                 var ok = byAction.TryGetValue(d.Requires, out var req);
                 var rv = ok ? req!.View : new ProgressView();
                 var known = rv.Effect.TryGetValue(out var effect);
-                if (!ok || rv.Stage != Stage.Completed || rv.Unresolved || !known || effect != Effect.Completed || AppliedBuildingOpen(req!, census))
+                if (!ok || rv.Stage != Stage.Completed || rv.Unresolved || !known || effect != Effect.Completed || BuildingWorkRules.AppliedBuildingOpen(req!, census))
                 {
                     requires.Add(d.Requires.Value);
                 }

@@ -23,7 +23,7 @@ public sealed record ContainmentUpkeep
 // doorway, and the only write that closes a door is the combat door CLOSE order. A held pawn with a hediff that
 // needs tending is tended like any patient. Only a holder that holds a pawn is kept. An unread fact is a loud
 // issue, never a pass.
-public static partial class PolicyFunctions
+public static class EntityUpkeepRules
 {
     /// <summary>
     /// Go <c>ContainmentDoorUpkeep</c>: reads every holder that holds a pawn. A door held open is closed; a

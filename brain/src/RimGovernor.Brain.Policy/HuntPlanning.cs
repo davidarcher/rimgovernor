@@ -15,10 +15,10 @@ public sealed record HuntPlan(HuntSelection? Selection, EquatableArray<HuntRoste
 
     /// <summary>The hunt formation channel to offer the food plan, or none: no selection, no roster chosen or a no-hunt choice.</summary>
     public SupplyCandidate? Channel(IReadOnlyList<AcquisitionSource> sources) =>
-        Selection is { Selected: { Roster: { } roster } selected } ? PolicyFunctions.HuntRosterChannel(selected, roster, sources) : null;
+        Selection is { Selected: { Roster: { } roster } selected } ? HuntPlanningRules.HuntRosterChannel(selected, roster, sources) : null;
 }
 
-public static partial class PolicyFunctions
+public static class HuntPlanningRules
 {
     /// <summary>
     /// Compares the hunt alternatives for the observed colony. Rosters without an answer yet (neither an estimate nor a
@@ -49,11 +49,11 @@ public static partial class PolicyFunctions
         var estimate = selected.Estimate!;
         var prey = roster.Prey.Select(id => sources.FirstOrDefault(s => s.Id == id)).Where(s => s is not null).Select(s => s!).ToArray();
         var downed = estimate.Samples == 0 ? 0 : (double)estimate.DownedSamples / estimate.Samples;
-        var c = FoodCandidate(CandidateKind.Hunt, "roster:" + roster.Key, Unknown<double>());
+        var c = CandidateRules.FoodCandidate(CandidateKind.Hunt, "roster:" + roster.Key, Unknown<double>());
         var yields = new List<CandidateYield>(c.Yields);
         yields[0] = yields[0] with
         {
-            PerDay = Known(estimate.ExpectedNutrition / FoodHuntCycleDays),
+            PerDay = Known(estimate.ExpectedNutrition / FoodPlanRules.FoodHuntCycleDays),
             StockCap = Known((long)Math.Ceiling(estimate.ExpectedNutrition)),
         };
         var products = new Dictionary<Resource, double>();
@@ -63,22 +63,22 @@ public static partial class PolicyFunctions
         }
         foreach (var (def, amount) in products.OrderBy(p => p.Key.Value, StringComparer.Ordinal))
         {
-            yields.Add(new CandidateYield { Good = new ResourceKey { Def = def }, PerDay = Known(amount / FoodHuntCycleDays) });
+            yields.Add(new CandidateYield { Good = new ResourceKey { Def = def }, PerDay = Known(amount / FoodPlanRules.FoodHuntCycleDays) });
         }
         var harmRate = estimate.Samples == 0 ? 1 : (double)estimate.HarmSamples / estimate.Samples;
         return c with
         {
             LeadDays = Known(0.0),
-            Source = HuntSource,
-            State = FoodState(Known(false), Known(prey.Length > 0 && prey.All(s => s.Designated))),
+            Source = HuntCreditRules.HuntSource,
+            State = CandidateRules.FoodState(Known(false), Known(prey.Length > 0 && prey.All(s => s.Designated))),
             Prey = EquatableArray.From(roster.Prey.Order(StringComparer.Ordinal)),
             Hunters = EquatableArray.From(roster.Gunners.Order(StringComparer.Ordinal)),
             Yields = [.. yields],
-            LaborPerDay = Known(selected.LaborTicks / FoodHuntCycleDays),
+            LaborPerDay = Known(selected.LaborTicks / FoodPlanRules.FoodHuntCycleDays),
             Risk = [new CandidateRisk(CandidateRiskKind.Revenge, Math.Min(1, harmRate))],
             Terms =
             [
-                new("estimated_cycle_days", FoodHuntCycleDays),
+                new("estimated_cycle_days", FoodPlanRules.FoodHuntCycleDays),
                 new("estimated_work_ticks", selected.LaborTicks),
                 new("prey", roster.Prey.Count),
                 new("hunters", roster.Gunners.Count),

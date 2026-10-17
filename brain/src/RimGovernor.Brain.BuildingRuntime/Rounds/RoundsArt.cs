@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
@@ -33,7 +34,7 @@ public sealed class RoundsArtPlanner : IPurposeReporter
 
     internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
-        var sculpting = PolicyApi.SculptureInProgress(benches);
+        var sculpting = ArtOrdersRules.SculptureInProgress(benches);
         var request = new ArtOrderRequest
         {
             Benches = [.. benches],
@@ -55,7 +56,7 @@ public sealed class RoundsArtPlanner : IPurposeReporter
             _sculpting = sculpting;
             _need = need;
         }
-        return PolicyApi.DeclareArtOrders(request);
+        return ArtOrdersRules.DeclareArtOrders(request);
     }
 
     (ConcernId Key, ConcernId Need) IPurposeReporter.ReportTarget() => ReportTarget();
@@ -83,9 +84,9 @@ public sealed class RoundsArtPlanner : IPurposeReporter
         IReadOnlyDictionary<Resource, long> stock = known ?? new Dictionary<Resource, long>();
         if (!facts.Rooms.TryGetValue(out var rooms) || !facts.Facts.CurrentConstruction.TryGetValue(out var census) || !facts.Facts.Sleeping.TryGetValue(out var obs) || !census.Colony || RoundsSleepingUpkeepPlanner.SleepingTraits(facts) is not { } traits)
         {
-            return PolicyApi.NewArtDemand(Unknown<SleepingObservation>(), new Dictionary<string, RoomTarget>(), [], stock, profiles, facts.Facts.Items);
+            return ArtRules.NewArtDemand(Unknown<SleepingObservation>(), new Dictionary<string, RoomTarget>(), [], stock, profiles, facts.Facts.Items);
         }
         facts.TechTier.TryGetValue(out var tier);
-        return PolicyApi.NewArtDemand(facts.Facts.Sleeping, RoomQualityRules.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), PolicyApi.FurnitureRooms(rooms, census, facts.Cells), stock, profiles, facts.Facts.Items);
+        return ArtRules.NewArtDemand(facts.Facts.Sleeping, RoomQualityRules.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), FurnitureRoomsRules.FurnitureRooms(rooms, census, facts.Cells), stock, profiles, facts.Facts.Items);
     }
 }
