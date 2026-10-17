@@ -159,7 +159,9 @@ is rejected atomically and a lost participant never releases its new owner
 (`RecoveryReleasesButStableOrUnknownNeedDoesNotChurnUsefulWork`), a tired participant is released
 at the task boundary while a running task is never interrupted (`ActivityNeedBoundaryTests`),
 and changed skill or decay is covered by `ProductiveLearningTests` and `CapabilityMaintenanceTests`.
-Changed assignments and obsolescence by changed demand have no separate real-game case: a
-reassigned or lost participant is the lost-participant test above, and retirement on changed
-demand is the lifecycle case's deleted bill. Peg-leg doctor training is outside this epic
+Retirement on changed demand is the lifecycle case's deleted bill. A reassigned or lost participant is
+the lost-participant unit test above; its real-game case, `production/development-reassignment`,
+currently FAILS: after the Cooking priority is withdrawn the cooking colonist holds its task for
+thousands of ticks and nothing cooks. Whether that is a Method bug or the case's withdrawal is not
+established (no unreassigned control was completed). Peg-leg doctor training is outside this epic
 (#3344).
