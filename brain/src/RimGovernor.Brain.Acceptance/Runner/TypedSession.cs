@@ -148,9 +148,13 @@ public sealed class TypedSession : ITypedSession
         return found ?? throw new AcceptanceException($"{label}: no matching {kind.Name} row");
     }
 
-    public async Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, Clock.RunRequest request, CancellationToken cancellationToken)
+    public Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, Clock.RunRequest request, CancellationToken cancellationToken) =>
+        RunClockUntilHeldAsync(label, ticks, request, static (_, _) => Task.FromResult(false), cancellationToken);
+
+    public async Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, Clock.RunRequest request, ClockRound whileRunning, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(whileRunning);
         Budget(label, ticks);
         var run = await CallAsync(label + "-run", NativeOps.RunClock, request with { Identity = Identity }, cancellationToken).ConfigureAwait(false);
         var status = run.Outcome?.Status is { State: Clock.ClockState.Running } started
@@ -171,7 +175,7 @@ public sealed class TypedSession : ITypedSession
                 },
                 async ct =>
                 {
-                    if (status.State == Clock.ClockState.Held)
+                    if (status.State == Clock.ClockState.Held || await whileRunning(status, ct).ConfigureAwait(false))
                     {
                         return (string.Empty, true);
                     }
@@ -219,6 +223,9 @@ public sealed class TypedSession : ITypedSession
             await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
         }
     }
+
+    public Task<ClockAccounting> ClockAccountingAsync(string label, CancellationToken cancellationToken) =>
+        ClockAccounting.ReadAsync(H, label, cancellationToken);
 
     // The game is held while a hold row is awaited: only the log sink's batch flush stands between the hold and its row.
     private static readonly TimeSpan HoldRowWait = TimeSpan.FromSeconds(30);

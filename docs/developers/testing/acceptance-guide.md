@@ -69,7 +69,12 @@ identity), `Staged` and `TicksLeft`. Its members:
   `Ticks` like the other waits; a wait that ends otherwise holds the clock before it throws. Call it again with the
   same request to resume after a hold. `HoldRowAsync(label, held)` returns that hold's `clock_hold` row (the one whose
   `stop_at_ms` is `HeldAtUnixMs`; `ClockRows` reads its fields) for what the status does not carry: the thing, the
-  detected and occurrence ticks. It spends no ticks. `combatlab/stops` is the worked example.
+  detected and occurrence ticks. It spends no ticks. `combatlab/stops` is the worked example. The overload taking a
+  `ClockRound` calls it once per round while the clock still runs, before the heartbeat, with that round's status:
+  the hook acts mid-run (an injection once the run passes a tick) and returns true to end the wait without a hold,
+  for a claim that the clock keeps running (an invalidation row read with `Telemetry`). It returns the held status, or
+  the running status of the round that ended it; the clock is held either way. `ClockAccountingAsync(label)` reads the
+  supervisor's declared hazard bounds and widest observed gaps. `hazard/*` is the worked example.
 - **Telemetry:** `Telemetry(TelemetryKinds.<Kind>)` returns the game log ring's rows of that kind as `LogRow`s.
   A kind is added to `TelemetryKinds` (`brain/src/RimGovernor.Brain.Telemetry/TelemetryKinds.cs`) with its row in
   the kinds table.

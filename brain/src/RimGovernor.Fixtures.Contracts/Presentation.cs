@@ -32,10 +32,12 @@ public sealed record ChoiceDialogRead
     public int Tick { get; init; }
 }
 
-/// <summary><c>test/deliver_letter</c>: the delivered letter's id.</summary>
+/// <summary><c>test/deliver_letter</c>: the delivered letter's id and the game tick it was delivered (or scheduled) on.</summary>
 public sealed record LetterDelivered
 {
     public bool Success { get; init; }
 
     public string LetterId { get; init; } = "";
+
+    public int Tick { get; init; }
 }

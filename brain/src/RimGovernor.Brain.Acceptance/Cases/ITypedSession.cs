@@ -11,6 +11,12 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
+/// One round of <see cref="ITypedSession.RunClockUntilHeldAsync(string, int, Clock.RunRequest, ClockRound, CancellationToken)"/>
+/// while the clock runs, given that round's status; true ends the wait without a hold.
+/// </summary>
+public delegate Task<bool> ClockRound(Clock.Status running, CancellationToken cancellationToken);
+
+/// <summary>
 /// What a <see cref="TypedCase"/>'s body receives: the opened, staged game behind typed calls. Contracts records go in
 /// and come out (no flat JSON view), waits spend the case's declared ticks and end on a tick count, a probe's signature
 /// or a telemetry event (never on wall time), and telemetry is selected by a registered kind. <see cref="TypedSession"/>
@@ -74,6 +80,21 @@ public interface ITypedSession
     /// the held status. A wait that ends otherwise holds the clock before it throws.
     /// </summary>
     Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, Clock.RunRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <see cref="RunClockUntilHeldAsync(string, int, Clock.RunRequest, CancellationToken)"/> that calls
+    /// <paramref name="whileRunning"/> once per round the clock still runs, before the heartbeat: the hook that acts
+    /// mid-run (an injection at a tick) and can end the wait without a hold by returning true. Returns the held status, or
+    /// the running status of the round that ended the wait (<see cref="Clock.ClockState.Running"/>); either way the clock
+    /// is held when it returns.
+    /// </summary>
+    Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, Clock.RunRequest request, ClockRound whileRunning, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The native clock's acceptance-only accounting now (<see cref="ClockAccounting"/>): the supervisor's declared hazard
+    /// bounds beside the widest gap it observed. A read; it spends no ticks.
+    /// </summary>
+    Task<ClockAccounting> ClockAccountingAsync(string label, CancellationToken cancellationToken);
 
     /// <summary>
     /// The <c>clock_hold</c> row of the hold <paramref name="held"/> reports (a held status, as

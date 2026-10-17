@@ -24,9 +24,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Floor/FloorStandingRoom.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Hazard/HazardCases.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Layout/Fixture.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 

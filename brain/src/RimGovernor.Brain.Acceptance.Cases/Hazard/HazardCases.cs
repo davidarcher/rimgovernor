@@ -1,16 +1,18 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Telemetry;
 using Clock = RimGovernor.Contracts.Wire.Clock;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// The <c>hazard/*</c> cases (Go <c>hazard/hazard.go</c>) prove the supervisor's declared detection bounds
-/// (docs/developers/architecture/hazard-detection-bounds.md): each injects one hazard class into a clock run running
-/// at Ultrafast, the speed that carries the most ticks per frame, and asserts the stop's detect_ticks (detected_tick less
-/// occurrence_tick) and the gap from the injection tick to the detection both lie within the class's bound. The letter
-/// case delivers through the real LetterStack callback (test/deliver_letter); the others use test/hazard_inject.
+/// The <c>hazard/*</c> family proves the supervisor's declared detection bounds
+/// (docs/developers/architecture/hazard-detection-bounds.md): each case injects one hazard class into a native clock run
+/// at Ultrafast, the speed that carries the most ticks per frame, while the clock still runs, and asserts the hold's
+/// detect_ticks (detected_tick less occurrence_tick) and the gap from the injection tick to the detection both lie within
+/// the class's bound. The letter case delivers through the real LetterStack callback (test/deliver_letter); the others use
+/// test/hazard_inject. The demoted tier (injury) instead proves an invalidation wake while the clock keeps running.
 /// </summary>
 public static class HazardCases
 {
@@ -18,15 +20,51 @@ public static class HazardCases
     private const int ProbeIntervalTicks = 30;
     private const int HookedBoundTicks = 1;
 
-
     // How far the run goes before the injection, so the detection is measured under a moving clock, never at the start baseline.
-    private const ulong SettleTicks = 300;
+    private const long SettleTicks = 300;
 
-    // Mirrors policy.InjurySeverityFloorTicks, the floor sent: a wound whose bleed-out lands inside it still holds the
-    // hold, so the demoted case fails if its injection ever grows into one. 0 on the wire means the pawn is not bleeding out at all.
-    private const long InjurySeverityFloorTicks = 5000;
+    // The settle (one status round at Ultrafast is about 2,250 ticks), the bound, and the log sink's flush for the demoted
+    // wake, with room to spare under the lab cap.
+    private const int RunTicks = 30_000;
 
-    private static readonly string[] RequiredTools = ["test/hazard_inject", "test/deliver_letter", "test/letter_pause_mode"];
+    private const string InjectTool = "test/hazard_inject";
+    private const string DeliverTool = "test/deliver_letter";
+    private const string PauseModeTool = "test/letter_pause_mode";
+
+    private static readonly FixtureOp<string, Fx.HazardInjected> Inject = new(
+        InjectTool,
+        op => ServedOps.Args(("op", op)),
+        ServedOps.Succeeded<Fx.HazardInjected>(InjectTool, r => r.Success));
+
+    // A ThreatSmall letter delivered now through LetterStack.ReceiveLetter, the hook the notification_batch bound rests on.
+    private static readonly FixtureOp<NoArgs, Fx.LetterDelivered> Deliver = new(
+        DeliverTool,
+        _ => ServedOps.Args(("definition", "ThreatSmall"), ("label", "hazard letter"), ("delayTicks", 0)),
+        ServedOps.Succeeded<Fx.LetterDelivered>(DeliverTool, r => r.Success && r.LetterId.Length > 0));
+
+    // An empty mode only reads the one in force.
+    private static readonly FixtureOp<string, Fx.LetterPauseMode> PauseMode = new(
+        PauseModeTool,
+        mode => ServedOps.Args(("mode", mode)),
+        ServedOps.Succeeded<Fx.LetterPauseMode>(PauseModeTool, r => r.Success && r.Mode.Length > 0));
+
+    // The colony watch policy (no combat events armed) with the policy's own hazard thresholds, which native requires (#2587).
+    private static readonly Clock.WatchPolicy Policy = new()
+    {
+        Mode = Clock.WatchMode.Colony,
+        HealthDropFraction = 0.1f,
+        MinHealthFraction = 0.5f,
+        HostileWithin = 40,
+        InjuryStopCooldownMs = 0,
+        SeriousSingleHitDamage = (float)PolicyFunctions.SeriousSingleHitDamage,
+        SeriousSummaryHealthFloor = (float)PolicyFunctions.SeriousSummaryHealthFloor,
+        SeriousBleedRateFloor = (float)PolicyFunctions.SeriousBleedRateFloor,
+        SeriousVitalPartFloor = (float)PolicyFunctions.SeriousVitalPartFloor,
+        ExplosiveNearMarginCells = (float)PolicyFunctions.ExplosiveNearMarginCells,
+        MeleeReachCells = (float)PolicyFunctions.MeleeReachCells,
+        InjurySeverityFloorTicks = (uint)PolicyFunctions.InjurySeverityFloorTicks,
+        PredatorMarginCells = (float)PolicyFunctions.HuntPredatorMarginCells,
+    };
 
     /// <summary>Registers every <c>hazard/*</c> case.</summary>
     public static void Register(CaseRegistry registry)
@@ -34,91 +72,74 @@ public static class HazardCases
         ArgumentNullException.ThrowIfNull(registry);
         foreach (var hc in Classes())
         {
-            registry.Register(new AcceptanceCase
+            registry.Register(new TypedCase
             {
                 Name = hc.Name,
                 Scope = hc.Scope,
-                Start = new LabStart(),
+                Ticks = RunTicks,
+                Tier = CaseTier.OnDemand,
                 QuietWorld = true,
-                RequiredOps = RequiredTools,
-                Budget = TimeSpan.FromMinutes(4),
-                Crew = new Crew { Size = 3 },
+                Ops = [InjectTool, DeliverTool, PauseModeTool],
                 Run = (s, cancellationToken) => RunAsync(s, hc, cancellationToken),
             });
         }
     }
 
-    // One class: how it is injected and the stop it must raise, or -- for a demoted tier -- the invalidation wake it must raise
-    // instead while the run goes on.
-    private sealed record HazardCase(string Name, string Class, long Bound, string Scope, bool Demoted, Func<ISession, CancellationToken, Task<(long Tick, JsonObject Reply)>> Inject);
+    // One class: how it is injected and the hold it must raise (with whether a game hook lands it), or -- for a demoted
+    // tier, Reason null -- the invalidation wake it must raise instead while the run goes on.
+    private sealed record HazardCase(string Name, string Class, Clock.HoldReason? Reason, bool Hooked, long Bound, string Scope, Func<ITypedSession, CancellationToken, Task<Injection>> Inject);
+
+    // The tick the fixture acted on, the injury's bleed-out estimate (0: not bleeding out, or not an injury) and the reply as evidence.
+    private sealed record Injection(long Tick, long BleedOutTicks, JsonNode? Evidence);
 
     private static HazardCase[] Classes() =>
     [
-        new("hazard/letter", "notification_batch", ProbeIntervalTicks,
-            "A letter received mid-run at Ultrafast stops the clock as notification_batch within the 30-tick bound (the letter hook lands it next tick).",
-            false, InjectLetterAsync),
-        new("hazard/hostile", "hostile", ProbeIntervalTicks,
-            "A hostile pawn spawned near a colonist mid-run at Ultrafast stops the clock as hostile within the 30-tick bound (the spawn hook lands it next tick).",
-            false, InjectOp("hostile")),
-        new("hazard/downed", "colonist_downed", HookedBoundTicks,
-            "A colonist downed mid-run at Ultrafast stops the clock as colonist_downed within the hooked 1-tick bound.",
-            false, InjectOp("downed")),
-        new("hazard/injury", "colonist_injury", ProbeIntervalTicks,
+        new("hazard/letter", "notification_batch", Clock.HoldReason.NotificationBatch, true, ProbeIntervalTicks,
+            "A letter received mid-run at Ultrafast holds the clock as notification_batch within the 30-tick bound (the letter hook lands it next tick).",
+            InjectLetterAsync),
+        new("hazard/hostile", "hostile", Clock.HoldReason.Hostile, true, ProbeIntervalTicks,
+            "A hostile pawn spawned near a colonist mid-run at Ultrafast holds the clock as hostile within the 30-tick bound (the spawn hook lands it next tick).",
+            InjectOp("hostile")),
+        new("hazard/downed", "colonist_downed", Clock.HoldReason.ColonistDowned, true, HookedBoundTicks,
+            "A colonist downed mid-run at Ultrafast holds the clock as colonist_downed within the hooked 1-tick bound.",
+            InjectOp("downed")),
+        new("hazard/injury", "colonist_injury", null, false, ProbeIntervalTicks,
             "A colonist wounded under the severity floor mid-run at Ultrafast keeps the clock running and invalidates the medical facts within the 30-tick probe bound (#584).",
-            true, InjectOp("injury")),
-        new("hazard/predator", "predator_hunt", ProbeIntervalTicks,
-            "A predator hunting a colonist mid-run at Ultrafast stops the clock as predator_hunt within the 30-tick probe bound.",
-            false, InjectOp("predator")),
+            InjectOp("injury")),
+        new("hazard/predator", "predator_hunt", Clock.HoldReason.PredatorHunt, false, ProbeIntervalTicks,
+            "A predator hunting a colonist mid-run at Ultrafast holds the clock as predator_hunt within the 30-tick probe bound.",
+            InjectOp("predator")),
     ];
 
-    // Calls test/hazard_inject with the op and reports the tick the fixture acted on.
-    private static Func<ISession, CancellationToken, Task<(long, JsonObject)>> InjectOp(string op) =>
+    // Calls test/hazard_inject with the op.
+    private static Func<ITypedSession, CancellationToken, Task<Injection>> InjectOp(string op) =>
         async (s, cancellationToken) =>
         {
-            var reply = await s.Harness.CallAsync("inject-" + op, "test/hazard_inject", new JsonObject { ["op"] = op }, cancellationToken).ConfigureAwait(false);
-            return reply["success"].AsBool() != true
-                ? throw new AcceptanceException($"hazard_inject {op} refused: {reply.ToJson()}")
-                : ((long)reply["tick"].AsNumber(), reply);
+            var reply = await s.FixtureAsync("inject-" + op, Inject, op, cancellationToken).ConfigureAwait(false);
+            return new Injection(reply.Tick, reply.BleedOutTicks, ServedOps.Json(reply));
         };
 
-    // Delivers a ThreatSmall letter now through LetterStack.ReceiveLetter, the hook the notification_batch bound rests on.
-    private static async Task<(long, JsonObject)> InjectLetterAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task<Injection> InjectLetterAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var reply = await s.Harness.CallAsync(
-            "inject-letter",
-            "test/deliver_letter",
-            new JsonObject { ["definition"] = "ThreatSmall", ["label"] = "hazard letter", ["delayTicks"] = 0 },
-            cancellationToken).ConfigureAwait(false);
-        return reply["success"].AsBool() != true
-            ? throw new AcceptanceException($"deliver_letter refused: {reply.ToJson()}")
-            : ((long)reply["tick"].AsNumber(), reply);
+        var reply = await s.FixtureAsync("inject-letter", Deliver, NoArgs.Value, cancellationToken).ConfigureAwait(false);
+        return new Injection(reply.Tick, 0, ServedOps.Json(reply));
     }
 
-    private static async Task RunAsync(ISession s, HazardCase hc, CancellationToken cancellationToken)
+    private static async Task SetPauseModeAsync(ITypedSession s, string mode, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        foreach (var tool in RequiredTools)
+        var reply = await s.FixtureAsync("pause-mode-" + mode, PauseMode, mode, cancellationToken).ConfigureAwait(false);
+        if (reply.Mode != mode)
         {
-            if (!Dyn.Contains(s.Names, tool))
-            {
-                throw new AcceptanceException($"{tool} is not installed: build the mod with -Fixture HazardFixture,LetterFixture");
-            }
+            throw new AcceptanceException($"letter_pause_mode did not take: {reply.Mode}, expected {mode}");
         }
+    }
 
-        // No letter pauses the clock on its own: the stop under test is the supervisor's, not LetterPauseHook's. Prefs are
+    private static async Task RunAsync(ITypedSession s, HazardCase hc, CancellationToken cancellationToken)
+    {
+        // No letter pauses the clock on its own: the hold under test is the supervisor's, not LetterPauseHook's. Prefs are
         // process-wide; put the mode back for the next case.
-        var initial = await h.CallAsync("pause-mode-initial", "test/letter_pause_mode", [], cancellationToken).ConfigureAwait(false);
-
-        async Task SetPauseMode(string mode, CancellationToken token)
-        {
-            var reply = await h.CallAsync("pause-mode-" + mode, "test/letter_pause_mode", new JsonObject { ["mode"] = mode }, token).ConfigureAwait(false);
-            if (reply["mode"].AsString() != mode)
-            {
-                throw new AcceptanceException($"letter_pause_mode did not take: {reply.ToJson()}");
-            }
-        }
-
-        await SetPauseMode("Never", cancellationToken).ConfigureAwait(false);
+        var initial = await s.FixtureAsync("pause-mode-initial", PauseMode, "", cancellationToken).ConfigureAwait(false);
+        await SetPauseModeAsync(s, "Never", cancellationToken).ConfigureAwait(false);
         try
         {
             await RunHazardAsync(s, hc, cancellationToken).ConfigureAwait(false);
@@ -127,7 +148,7 @@ public static class HazardCases
         {
             try
             {
-                _ = await h.CallAsync("cleanup", "test/hazard_inject", new JsonObject { ["op"] = "cleanup" }, CancellationToken.None).ConfigureAwait(false);
+                _ = await s.FixtureAsync("cleanup", Inject, "cleanup", CancellationToken.None).ConfigureAwait(false);
             }
             catch (AcceptanceException tolerated)
             {
@@ -137,7 +158,7 @@ public static class HazardCases
 
             try
             {
-                await SetPauseMode(initial["mode"].AsString(), CancellationToken.None).ConfigureAwait(false);
+                await SetPauseModeAsync(s, initial.Mode, CancellationToken.None).ConfigureAwait(false);
             }
             catch (AcceptanceException tolerated)
             {
@@ -147,129 +168,125 @@ public static class HazardCases
         }
     }
 
-    private static async Task RunHazardAsync(ISession s, HazardCase hc, CancellationToken cancellationToken)
+    private static async Task RunHazardAsync(ITypedSession s, HazardCase hc, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var report = s.Report;
-        var clock = new ScenarioClock(h, s.Identity, report);
-        _ = await clock.AcquireAsync("acquire", cancellationToken).ConfigureAwait(false);
-        JsonObject started;
-        try
-        {
-            started = await clock.RunAsync("Ultrafast", cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException("ultrafast run: " + e.Message, e);
-        }
+        var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
+        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Ultrafast, Policy = Policy };
 
-        var startTick = started["startTick"].AsUInt64() ?? 0;
-
-        // Let the run go on before injecting; a stop before then is a hazard the colony raised on its own and fails the case.
-        var deadline = DateTime.UtcNow.AddSeconds(60);
-        while (true)
-        {
-            await clock.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
-            var status = await clock.StatusAsync(cancellationToken).ConfigureAwait(false);
-            if (status["active"].AsBool() != true)
+        // The run goes on SettleTicks before the injection, which lands while the clock still runs; a hold before then is a
+        // hazard the colony raised on its own and fails the case. The demoted tier ends on its wake instead of a hold.
+        long? startTick = null;
+        Injection? injected = null;
+        long injectedSince = 0;
+        LogRow? wake = null;
+        var status = await s.RunClockUntilHeldAsync(
+            "ultrafast",
+            s.TicksLeft,
+            request,
+            async (running, token) =>
             {
-                throw new AcceptanceException("clock held before the injection: " + status["stopReason"].AsString());
-            }
+                var tick = running.Context?.Tick ?? 0;
+                startTick ??= tick;
+                if (injected is null)
+                {
+                    if (tick < startTick + SettleTicks)
+                    {
+                        return false;
+                    }
 
-            if ((status["lastTick"].AsUInt64() ?? 0) >= startTick + SettleTicks)
-            {
-                break;
-            }
+                    injectedSince = ClockRows.NowUnixMs();
+                    injected = await hc.Inject(s, token).ConfigureAwait(false);
+                }
 
-            if (DateTime.UtcNow > deadline)
-            {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"run did not reach {SettleTicks} ticks in 60 s: {status.ToJson()}"));
-            }
+                if (hc.Reason is not null)
+                {
+                    return false;
+                }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken).ConfigureAwait(false);
-        }
-
-        var (injectTick, injected) = await hc.Inject(s, cancellationToken).ConfigureAwait(false);
-        if (hc.Demoted)
-        {
-            await RunDemotedAsync(clock, hc, report, injectTick, injected, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        // Wait for the run's first clock_hold row; the 90 s deadline bounds the wait.
-        var stopped = await clock.AwaitRowsAsync(
-            () => clock.FirstRunRow(TelemetryKinds.ClockHold),
-            TimeSpan.FromSeconds(90),
-            string.Create(CultureInfo.InvariantCulture, $"a stop after injecting {hc.Class} at tick {injectTick}"),
+                wake = s.Telemetry(TelemetryKinds.ClockInvalidation)
+                    .FirstOrDefault(row => ClockRows.ObservedSince(row, injectedSince) && HasFamily(row, Clock.FactFamily.Pawns));
+                return wake is not null;
+            },
             cancellationToken).ConfigureAwait(false);
-        var kind = ClockRows.Reason(stopped);
-        var stopTick = ClockRows.Tick(stopped);
-        var detected = ClockRows.Whole(stopped, ColonyEventTelemetry.DetectedTickKey);
-        var occurrence = ClockRows.Whole(stopped, ColonyEventTelemetry.OccurrenceTickKey);
-        var shown = $"{kind} at tick {stopTick}: {ClockRows.Text(stopped, "msg")}";
-        var summary = new JsonObject
+        if (injected is null)
         {
-            ["class"] = hc.Class,
-            ["bound_ticks"] = hc.Bound,
-            ["stop_kind"] = kind,
-            ["inject_tick"] = injectTick,
-            ["stop_tick"] = stopTick,
-            ["detected_tick"] = detected,
-            ["occurrence_tick"] = occurrence,
-            ["injected"] = injected.DeepClone(),
-        };
-        report["hazard"] = summary;
-        var response = ResponseEvidence.Create(hc.Name, "Ultrafast", injectTick);
-        response.DetectionSource = "native_supervisor";
-        if (detected is { } detectedTick)
-        {
-            response.DetectionTick = detectedTick;
+            throw new AcceptanceException($"the clock held before the injection ({status.Reason}): {status.Detail}");
         }
 
-        // This case exercises the native supervisor, not a served controller. Controller decision/dispatch and pawn
-        // effects therefore remain absent.
-        report["response"] = response.ToJson();
-        if (kind != hc.Class)
+        if (hc.Reason is { } reason)
         {
-            throw new AcceptanceException($"stop kind {kind}, expected {hc.Class}: {shown}");
+            await AssertHoldAsync(s, hc, reason, injected, status, cancellationToken).ConfigureAwait(false);
         }
+        else
+        {
+            AssertDemoted(s, hc, injected, status, wake);
+        }
+    }
 
-        if (detected is not { } detectedAt)
-        {
-            throw new AcceptanceException($"{kind} stop carries no detectedTick: {shown}");
-        }
-
-        var injectGap = detectedAt - injectTick;
-        summary["inject_gap_ticks"] = injectGap;
-        if (injectGap < 0 || injectGap > hc.Bound)
-        {
-            throw new AcceptanceException($"{kind} detected {injectGap} ticks after the injection, bound {hc.Bound}");
-        }
-
-        if (occurrence is not { } occurredAt)
-        {
-            throw new AcceptanceException($"{kind} stop carries no occurrenceTick: {shown}");
-        }
-
-        var detectTicks = detectedAt - occurredAt;
-        summary["detect_ticks"] = detectTicks;
-        if (detectTicks < 0 || detectTicks > hc.Bound)
-        {
-            throw new AcceptanceException($"{kind} detect_ticks {detectTicks} (detected {detectedAt}, occurred {occurredAt}), bound {hc.Bound}");
-        }
+    private static async Task AssertHoldAsync(ITypedSession s, HazardCase hc, Clock.HoldReason reason, Injection injected, Clock.Status held, CancellationToken cancellationToken)
+    {
+        // The hold row carries what the status does not: the event's detected and occurrence ticks.
+        var row = await s.HoldRowAsync("hold", held, cancellationToken).ConfigureAwait(false);
+        var holdTick = ClockRows.Tick(row);
+        var detected = ClockRows.Whole(row, ColonyEventTelemetry.DetectedTickKey);
+        var occurrence = ClockRows.Whole(row, ColonyEventTelemetry.OccurrenceTickKey);
+        var injectGap = detected - injected.Tick;
+        var detectTicks = detected - occurrence;
 
         // The native declaration in the clock accounting agrees with the bound the case asserts, and the class's own
         // recorded gap is within it.
-        var accounting = await ClockAccounting.ReadAsync(s.Harness, "clock-accounting", cancellationToken).ConfigureAwait(false);
-        var declared = accounting.HazardGaps.LastOrDefault(g => g.HazardClass == hc.Class)
-            ?? throw new AcceptanceException($"clock accounting reports no hazard gap for {hc.Class}: {string.Join(", ", accounting.HazardGaps)}");
-        summary["declared"] = new JsonObject
+        var accounting = await s.ClockAccountingAsync("clock-accounting", cancellationToken).ConfigureAwait(false);
+        var declared = accounting.HazardGaps.LastOrDefault(g => g.HazardClass == hc.Class);
+        s.Record("hazard", CombatLabKit.Obj(
+            ("class", hc.Class),
+            ("bound_ticks", hc.Bound),
+            ("hold_reason", held.Reason?.ToString()),
+            ("inject_tick", injected.Tick),
+            ("hold_tick", holdTick),
+            ("detected_tick", detected),
+            ("occurrence_tick", occurrence),
+            ("inject_gap_ticks", injectGap),
+            ("detect_ticks", detectTicks),
+            ("injected", injected.Evidence?.DeepClone()),
+            ("declared", declared is null ? null : CombatLabKit.Obj(
+                ("hazardClass", declared.HazardClass),
+                ("boundTicks", declared.BoundTicks),
+                ("maxTickGap", declared.MaxTickGap),
+                ("hooked", declared.Hooked)))));
+
+        // This case exercises the native supervisor, not a served controller: controller decision/dispatch and pawn effects
+        // remain absent.
+        var response = ResponseEvidence.Create(hc.Name, "Ultrafast", injected.Tick);
+        response.DetectionSource = "native_supervisor";
+        response.DetectionTick = detected;
+        s.Record("response", response.ToJson());
+
+        var shown = $"{held.Reason} at tick {holdTick}: {held.Detail}";
+        if (held.Reason != reason)
         {
-            ["hazardClass"] = declared.HazardClass,
-            ["boundTicks"] = declared.BoundTicks,
-            ["maxTickGap"] = declared.MaxTickGap,
-            ["hooked"] = declared.Hooked,
-        };
+            throw new AcceptanceException($"hold reason {held.Reason}, expected {reason}: {shown}");
+        }
+
+        if (detected is null || occurrence is null)
+        {
+            throw new AcceptanceException($"the {hc.Class} hold row carries no detected or occurrence tick (detected {detected}, occurred {occurrence}): {shown}");
+        }
+
+        if (injectGap is < 0 || injectGap > hc.Bound)
+        {
+            throw new AcceptanceException($"{hc.Class} detected {injectGap} ticks after the injection, bound {hc.Bound}: {shown}");
+        }
+
+        if (detectTicks is < 0 || detectTicks > hc.Bound)
+        {
+            throw new AcceptanceException($"{hc.Class} detect_ticks {detectTicks} (detected {detected}, occurred {occurrence}), bound {hc.Bound}");
+        }
+
+        if (declared is null)
+        {
+            throw new AcceptanceException($"clock accounting reports no hazard gap for {hc.Class}: {string.Join(", ", accounting.HazardGaps)}");
+        }
+
         if (declared.BoundTicks != hc.Bound)
         {
             throw new AcceptanceException($"native declares a {declared.BoundTicks}-tick bound for {hc.Class}, the case asserts {hc.Bound}");
@@ -282,62 +299,52 @@ public static class HazardCases
 
         // A hooked class (the letter, spawn and downed hooks) lands at the next tick boundary whatever its declared bound:
         // the hook must be installed and the measured gap within the hooked bound.
-        if (declared.Hooked)
-        {
-            if (injectGap > HookedBoundTicks)
-            {
-                throw new AcceptanceException($"{kind} is hooked but was detected {injectGap} ticks after the injection");
-            }
-        }
-        else if (hc.Class is "notification_batch" or "hostile" or "colonist_downed")
+        if (hc.Hooked && !declared.Hooked)
         {
             throw new AcceptanceException($"{hc.Class} hook is not installed: {declared}");
         }
+
+        if (declared.Hooked && injectGap > HookedBoundTicks)
+        {
+            throw new AcceptanceException($"{hc.Class} is hooked but was detected {injectGap} ticks after the injection");
+        }
     }
 
-    // Proves a tier the supervisor no longer stops for: the hazard is detected within the class's bound and published as an
-    // observation_invalidated wake naming the pawn families, and the clock keeps running -- the review the stop used to
-    // buy, without the stop-to-readmit pause.
-    private static async Task RunDemotedAsync(ScenarioClock clock, HazardCase hc, Report report, long injectTick, JsonObject injected, CancellationToken cancellationToken)
+    // Proves a tier the supervisor no longer holds for: the hazard is detected within the class's bound and published as a
+    // clock_invalidation wake naming the pawn and emergency families, and the clock keeps running -- the review the hold
+    // used to buy, without the hold-to-readmit pause.
+    private static void AssertDemoted(ITypedSession s, HazardCase hc, Injection injected, Clock.Status ended, LogRow? wake)
     {
-        var summary = new JsonObject
-        {
-            ["class"] = hc.Class,
-            ["bound_ticks"] = hc.Bound,
-            ["inject_tick"] = injectTick,
-            ["injected"] = injected.DeepClone(),
-            ["demoted"] = true,
-        };
-        report["hazard"] = summary;
+        var wakeTick = wake is null ? (long?)null : ClockRows.Tick(wake);
+        var families = wake is null ? "" : string.Join(",", ClockRows.Strings(wake, "families"));
+        var gap = wakeTick - injected.Tick;
+        s.Record("hazard", CombatLabKit.Obj(
+            ("class", hc.Class),
+            ("bound_ticks", hc.Bound),
+            ("inject_tick", injected.Tick),
+            ("injected", injected.Evidence?.DeepClone()),
+            ("demoted", true),
+            ("ended", ended.State.ToString()),
+            ("wake_tick", wakeTick),
+            ("wake_families", families),
+            ("wake_reason", wake is null ? null : ClockRows.Text(wake, ColonyEventTelemetry.ReasonKey)),
+            ("inject_gap_ticks", gap)));
 
         // The wound is only demotable below the severity floor; the fixture reports the game's own bleed-out estimate so
         // the case fails loudly if the injection ever grew into a danger.
-        if (Int64Of(injected["bleedOutTicks"]) is { } ticks && ticks > 0 && ticks <= InjurySeverityFloorTicks)
+        if (injected.BleedOutTicks > 0 && injected.BleedOutTicks <= PolicyFunctions.InjurySeverityFloorTicks)
         {
             throw new AcceptanceException(
-                $"the injected wound bleeds out in {ticks} ticks, inside the {InjurySeverityFloorTicks}-tick severity floor: it is a danger, not a demoted tier: {injected.ToJson()}");
+                $"the injected wound bleeds out in {injected.BleedOutTicks} ticks, inside the {PolicyFunctions.InjurySeverityFloorTicks}-tick severity floor: it is a danger, not a demoted tier");
         }
 
-        var wake = await clock.AwaitRowsAsync(
-            () =>
-            {
-                if (clock.FirstRunRow(TelemetryKinds.ClockHold) is { } stopped)
-                {
-                    throw new AcceptanceException($"the clock was held ({ClockRows.Reason(stopped)}) for a wound under the severity floor: {ClockRows.Text(stopped, "msg")}");
-                }
+        // The run survives the wake: the readmit the hold used to cost is exactly what this tier no longer spends.
+        if (ended.State == Clock.ClockState.Held || wake is null)
+        {
+            throw new AcceptanceException($"the clock was held ({ended.Reason}) for a wound under the severity floor: {ended.Detail}");
+        }
 
-                return clock.RunRows(TelemetryKinds.ClockInvalidation).FirstOrDefault(row => HasFamily(row, Clock.FactFamily.Pawns));
-            },
-            TimeSpan.FromSeconds(90),
-            string.Create(CultureInfo.InvariantCulture, $"a medical wake after injecting {hc.Class} at tick {injectTick}"),
-            cancellationToken).ConfigureAwait(false);
-        var wakeTick = ClockRows.Tick(wake);
-        var families = string.Join(",", ClockRows.Strings(wake, "families"));
-        summary["wake"] = new JsonObject { ["families"] = families, ["reason"] = ClockRows.Text(wake, ColonyEventTelemetry.ReasonKey) };
-        summary["wake_tick"] = wakeTick;
-        var gap = wakeTick - injectTick;
-        summary["inject_gap_ticks"] = gap;
-        if (gap < 0 || gap > hc.Bound)
+        if (gap is < 0 || gap > hc.Bound)
         {
             throw new AcceptanceException($"the medical wake landed {gap} ticks after the injection, bound {hc.Bound}: families {families}");
         }
@@ -346,24 +353,9 @@ public static class HazardCases
         {
             throw new AcceptanceException($"the medical wake does not invalidate the emergency family: families {families}");
         }
-
-        // The run survives the wake: the readmit the hold used to cost is exactly what this tier no longer spends.
-        await clock.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
-        var status = await clock.StatusAsync(cancellationToken).ConfigureAwait(false);
-        if (status["active"].AsBool() != true)
-        {
-            throw new AcceptanceException("the clock is no longer running after the wake: " + status["stopReason"].AsString());
-        }
     }
 
     // Reports whether a clock_invalidation row names a fact family; the row carries the enum's C# name.
     private static bool HasFamily(LogRow row, Clock.FactFamily family) =>
         ClockRows.Strings(row, "families").Contains(family.ToString(), StringComparer.Ordinal);
-
-    // Reads a JSON integer the wire carries as a number.
-    private static long? Int64Of(JsonNode? value) => value switch
-    {
-        null => null,
-        _ => (long)value.AsNumber(),
-    };
 }
