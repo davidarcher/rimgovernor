@@ -223,7 +223,7 @@ public static class RunCommand
         var status = outcome.Code == 0 ? "PASS" : "FAIL";
         var rounded = TimeSpan.FromMilliseconds(Math.Round(wall.TotalMilliseconds));
         await stdout.WriteLineAsync($"{status}\t{c.Name}\t{GoDuration.Format(rounded)}\t{Path.Combine(opts.CaseOutput(c), "result.json")}").ConfigureAwait(false);
-        var error = outcome.Report["error"].AsString();
+        var error = outcome.Report.Error;
         if (error.Length > 0)
         {
             await stdout.WriteLineAsync($"\t{error}").ConfigureAwait(false);

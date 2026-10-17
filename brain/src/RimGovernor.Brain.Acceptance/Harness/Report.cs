@@ -34,11 +34,40 @@ public sealed partial class Report
     /// <summary>The report's fields.</summary>
     public JsonObject Data { get; }
 
-    /// <summary>A field; setting one moves a node that already has a parent by copying it.</summary>
+    /// <summary>Sets a field; a node that already has a parent is copied. Fields are read through the typed accessors below, never by key.</summary>
     public JsonNode? this[string key]
     {
-        get => Data.Member(key);
         set => Data.Set(key, value?.Parent is null ? value : value.DeepClone());
+    }
+
+    /// <summary>The error message of a failed run; empty when none was recorded.</summary>
+    public string Error => Raw("error").AsString();
+
+    /// <summary>Whether the run asked to keep its game (the <c>keep</c> field is the boolean true).</summary>
+    public bool Keep => Raw("keep").AsBool() == true;
+
+    /// <summary>The error recorded when the game failed to stop; empty when none.</summary>
+    public string StopError => Raw("stop_error").AsString();
+
+    /// <summary>The recorded <c>world</c> block; null when none.</summary>
+    public JsonObject? World => Raw("world") as JsonObject;
+
+    /// <summary>The recorded <c>package_files</c> block; null when none.</summary>
+    public JsonObject? PackageFiles => Raw("package_files").AsMap();
+
+    /// <summary>The recorded <c>authority_reacquisitions</c> block.</summary>
+    public JsonNode? AuthorityReacquisitions => Raw("authority_reacquisitions");
+
+    /// <summary>Appends a row to the <c>dismissed_letters</c> list, creating it on the first.</summary>
+    public void AddDismissedLetter(JsonObject row)
+    {
+        if (Raw("dismissed_letters") is not JsonArray rows)
+        {
+            rows = [];
+            Data.Set("dismissed_letters", rows);
+        }
+
+        rows.Add(row);
     }
 
     /// <summary>A new report for <paramref name="scope"/>: not passed, started now.</summary>
@@ -52,11 +81,13 @@ public sealed partial class Report
         return report;
     }
 
+    private JsonNode? Raw(string key) => Data.TryGetPropertyValue(key, out var found) ? found : null;
+
     /// <summary>Whether the report has the field.</summary>
     public bool Has(string key) => Data.ContainsKey(key);
 
     /// <summary>Whether the run passed (the <c>passed</c> field is the boolean true).</summary>
-    public bool Passed => Data.Member("passed").AsBool() == true;
+    public bool Passed => Raw("passed").AsBool() == true;
 
     /// <summary>
     /// Fills the timing fields and applies the budget (a passing run over its budget fails), computes the artifact
@@ -105,7 +136,7 @@ public sealed partial class Report
             return true;
         }
 
-        if (Data.Member(SoftFailuresKey) is not JsonArray failures)
+        if (Raw(SoftFailuresKey) is not JsonArray failures)
         {
             failures = [];
             Data.Set(SoftFailuresKey, failures);
@@ -119,9 +150,10 @@ public sealed partial class Report
     public Exception? SoftFailure()
     {
         var errors = new List<Exception>();
-        foreach (var failure in Data.Member(SoftFailuresKey).AsSlice())
+        foreach (var failure in Raw(SoftFailuresKey).AsSlice())
         {
-            errors.Add(new AcceptanceException($"{failure.Member("check").AsString()}: {failure.Member("error").AsString()}"));
+            var row = HarnessJson.TryRead(failure, HarnessJsonContext.Default.SoftFailureRow);
+            errors.Add(new AcceptanceException($"{row?.Check}: {row?.Error}"));
         }
 
         return errors.Count switch
@@ -160,9 +192,9 @@ public sealed partial class Report
             ordered.Add("diagnosis", diagnosis?.DeepClone());
         }
 
-        foreach (var key in Data.Select(pair => pair.Key).Where(key => key != "diagnosis").Order(StringComparer.Ordinal))
+        foreach (var (key, value) in Data.Where(pair => pair.Key != "diagnosis").OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
-            ordered.Add(key, Data.Member(key)?.DeepClone());
+            ordered.Add(key, value?.DeepClone());
         }
 
         return ordered.ToJsonString(WriteOptions);

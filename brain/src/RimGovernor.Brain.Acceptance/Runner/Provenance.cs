@@ -55,7 +55,7 @@ public static class Provenance
 
         // A fresh world is not a fresh process: the runner leaves the game at the main menu for the next case unless the
         // case opted out.
-        var kept = report["keep"].AsBool() == true;
+        var kept = report.Keep;
         block.Add("process", kept ? "reused-after-run" : "not-kept-after-run");
         report[ProvenanceKey] = block;
         return block;

@@ -35,6 +35,66 @@ internal sealed record ContextTick
     public long? Tick { get; init; }
 }
 
+/// <summary>A reply envelope's encoded <c>payload</c> string.</summary>
+internal sealed record ReplyPayload
+{
+    public string? Payload { get; init; }
+}
+
+/// <summary>A report's <c>game_reuse</c> block, read for the open time.</summary>
+internal sealed record GameReuseRow
+{
+    public long? OpenMs { get; init; }
+}
+
+/// <summary>One <see cref="Report.Expect"/> failure row.</summary>
+internal sealed record SoftFailureRow
+{
+    public string Check { get; init; } = "";
+
+    public string Error { get; init; } = "";
+}
+
+/// <summary>A start row (what a start replies), read for the lab block a lab start carries.</summary>
+internal sealed record StartRow
+{
+    public JsonObject? Lab { get; init; }
+}
+
+/// <summary>A tool receipt envelope as <see cref="StepResult"/> classifies it.</summary>
+internal sealed record Receipt
+{
+    public bool? IsError { get; init; }
+
+    public JsonObject? StructuredContent { get; init; }
+
+    public List<ReceiptBlock>? Content { get; init; }
+}
+
+/// <summary>A receipt text block.</summary>
+internal sealed record ReceiptBlock
+{
+    public string? Text { get; init; }
+}
+
+/// <summary>The structured fields of a receipt that name a failure.</summary>
+internal sealed record ReceiptStructured
+{
+    public string? Exception { get; init; }
+
+    public string? AttentionId { get; init; }
+
+    public string? Summary { get; init; }
+
+    public string? Reason { get; init; }
+
+    public string? Message { get; init; }
+
+    public bool? Success { get; init; }
+
+    public bool? Refused { get; init; }
+}
+
 /// <summary>The <c>timeoutMs</c> a lifecycle tool's arguments ask the native side to wait.</summary>
 internal sealed record NativeWaitArguments
 {
@@ -121,6 +181,12 @@ internal static class HarnessJson
 [JsonSerializable(typeof(RecordedReply))]
 [JsonSerializable(typeof(ContextBody))]
 [JsonSerializable(typeof(NativeWaitArguments))]
+[JsonSerializable(typeof(ReplyPayload))]
+[JsonSerializable(typeof(GameReuseRow))]
+[JsonSerializable(typeof(SoftFailureRow))]
+[JsonSerializable(typeof(Receipt))]
+[JsonSerializable(typeof(StartRow))]
+[JsonSerializable(typeof(ReceiptStructured))]
 internal sealed partial class HarnessJsonContext : JsonSerializerContext;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]

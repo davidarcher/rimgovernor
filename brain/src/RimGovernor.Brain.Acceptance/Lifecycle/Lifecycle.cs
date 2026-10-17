@@ -460,7 +460,7 @@ public sealed class Session
         if (start is LabStart)
         {
             // A bare lab start replies the lab itself (centre, colonist ids).
-            Prepared = row.Member("lab").AsMap();
+            Prepared = HarnessJson.TryRead(row, HarnessJsonContext.Default.StartRow)?.Lab;
         }
 
         Report["world"] = Host.RecordWorld(Config, start, StartOps.World(start, Host.StartCache));

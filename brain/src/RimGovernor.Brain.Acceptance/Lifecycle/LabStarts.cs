@@ -95,7 +95,7 @@ public static class LabStarts
 
         var colonists = Colonists(start);
         var name = LabCacheName(cache, colonists);
-        var files = session.Report["package_files"].AsMap() ?? [];
+        var files = session.Report.PackageFiles ?? [];
         var stamp = LabStamp(files);
         var cached = cache.Enabled;
         cache.Seed = "";

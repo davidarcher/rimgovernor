@@ -65,9 +65,6 @@ public static class Dyn
         return null;
     }
 
-    /// <summary>A member of an object value, null when the value is not an object or lacks the key.</summary>
-    public static JsonNode? Member(this JsonNode? value, string key) => value is JsonObject map && map.TryGetPropertyValue(key, out var found) ? found : null;
-
     /// <summary>Whether <paramref name="values"/> holds <paramref name="want"/> (ordinal).</summary>
     public static bool Contains(IEnumerable<string> values, string want) => values.Contains(want, StringComparer.Ordinal);
 

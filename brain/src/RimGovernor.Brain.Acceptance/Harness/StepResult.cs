@@ -20,20 +20,21 @@ public static class StepResult
     /// </summary>
     public static StepFailure? Parse(JsonNode? envelope)
     {
-        if (envelope is not JsonObject result)
+        if (HarnessJson.TryRead(envelope, HarnessJsonContext.Default.Receipt) is not { } result)
         {
             return null;
         }
 
-        var structured = result.Member("structuredContent") as JsonObject;
-        var exception = structured.Member("exception").AsString();
-        var attentionId = structured.Member("attentionId").AsString();
-        var summary = structured.Member("summary").AsString();
-        var reason = structured.Member("reason").AsString();
-        var message = structured.Member("message").AsString();
-        var success = structured.Member("success").AsBool();
-        var refused = structured.Member("refused").AsBool() ?? false;
-        var isError = result.Member("isError").AsBool() ?? false;
+        var structured = result.StructuredContent;
+        var fields = HarnessJson.TryRead(structured, HarnessJsonContext.Default.ReceiptStructured) ?? new ReceiptStructured();
+        var exception = fields.Exception ?? "";
+        var attentionId = fields.AttentionId ?? "";
+        var summary = fields.Summary ?? "";
+        var reason = fields.Reason ?? "";
+        var message = fields.Message ?? "";
+        var success = fields.Success;
+        var refused = fields.Refused ?? false;
+        var isError = result.IsError ?? false;
 
         // An exception alone is not a failure: a successful reply may report one it handled. The refusal flags are
         // what the bridge itself refuses on.
@@ -44,9 +45,9 @@ public static class StepResult
         }
 
         var texts = new List<string>();
-        foreach (var block in result.Member("content").AsSlice())
+        foreach (var block in result.Content ?? [])
         {
-            var text = block.Member("text").AsString();
+            var text = block?.Text ?? "";
             if (text.Trim().Length > 0)
             {
                 texts.Add(text);

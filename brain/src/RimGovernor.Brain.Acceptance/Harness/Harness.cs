@@ -54,7 +54,7 @@ public sealed partial class Harness : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(op);
         ArgumentNullException.ThrowIfNull(request);
         var envelope = await CallAsync(label, op.Tool, new JsonObject { { "request", WireJson.Serialize(request) } }, cancellationToken).ConfigureAwait(false);
-        if (envelope.Member("payload") is not JsonValue value || !value.TryGetValue<string>(out var payload))
+        if (HarnessJson.TryRead(envelope, HarnessJsonContext.Default.ReplyPayload)?.Payload is not { } payload)
         {
             throw new AcceptanceException($"{label}: {op.Name}: reply did not preserve the JSON string envelope");
         }

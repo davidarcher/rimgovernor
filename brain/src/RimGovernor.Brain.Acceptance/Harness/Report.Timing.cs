@@ -34,14 +34,14 @@ public sealed partial class Report
     internal void FinalizeTiming(DateTimeOffset finished)
     {
         this[FinishedAtKey] = finished.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
-        if (ParseReportTime(Data.Member(StartedAtKey)) is not { } started)
+        if (ParseReportTime(Raw(StartedAtKey)) is not { } started)
         {
             return;
         }
 
         var wall = finished - started;
         this[WallMsKey] = (long)wall.TotalMilliseconds;
-        if (!Has(BootMsKey) && Data.Member("game_reuse").Member("openMs").AsUInt64() is { } openMs)
+        if (!Has(BootMsKey) && HarnessJson.TryRead(Raw("game_reuse"), HarnessJsonContext.Default.GameReuseRow)?.OpenMs is >= 0 and { } openMs)
         {
             this[BootMsKey] = (long)openMs;
         }
@@ -59,7 +59,7 @@ public sealed partial class Report
             }
         }
 
-        var advanced = Data.Member(TicksAdvancedKey).AsUInt64();
+        var advanced = Raw(TicksAdvancedKey).AsUInt64();
         if (advanced is null)
         {
             advanced = TickStats.Advanced;
@@ -181,8 +181,7 @@ public static class TickStats
             return null;
         }
 
-        var encoded = payload.Member("payload");
-        if (encoded is not JsonValue value || !value.TryGetValue<string>(out var text))
+        if (HarnessJson.TryRead(payload, HarnessJsonContext.Default.ReplyPayload)?.Payload is not { } text)
         {
             return null;
         }

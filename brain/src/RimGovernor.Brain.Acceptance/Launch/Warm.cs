@@ -412,7 +412,7 @@ public sealed class Game
         game.Keep = true;
         var report = new Report();
         await game.CloseAsync(report, cancellationToken).ConfigureAwait(false);
-        if (report["stop_error"].AsString() is { Length: > 0 } stopError)
+        if (report.StopError is { Length: > 0 } stopError)
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"keep warmed game: {stopError}"));
         }

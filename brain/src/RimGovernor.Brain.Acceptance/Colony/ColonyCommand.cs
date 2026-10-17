@@ -236,7 +236,7 @@ public static class ColonyCommand
                         [
                             await SustainedFoodCase.CaptureAsync(() =>
                             {
-                                ColonyAudits.AuditReacquisitions(ColonyJsonContext.Reacquisitions(r["authority_reacquisitions"]));
+                                ColonyAudits.AuditReacquisitions(ColonyJsonContext.Reacquisitions(r.AuthorityReacquisitions));
                                 return Task.CompletedTask;
                             }).ConfigureAwait(false),
                             await SustainedFoodCase.CaptureAsync(() => ColonyAudits.AuditNutritionAsync(h, r, ct)).ConfigureAwait(false),

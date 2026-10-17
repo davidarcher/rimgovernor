@@ -306,13 +306,7 @@ public static class RunAt
 
             if (report is not null)
             {
-                if (report["dismissed_letters"] is not JsonArray rows)
-                {
-                    rows = [];
-                    report["dismissed_letters"] = rows;
-                }
-
-                rows.Add(OutputJson.Fields(("phase", label), ("tick", (long)tick), ("id", letter.Id), ("label", letter.Label), ("letterDef", letter.DefName)));
+                report.AddDismissedLetter(OutputJson.Fields(("phase", label), ("tick", (long)tick), ("id", letter.Id), ("label", letter.Label), ("letterDef", letter.DefName)));
             }
         }
 

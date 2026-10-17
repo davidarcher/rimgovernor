@@ -123,6 +123,6 @@ public static class WorldRecords
     public static WorldRecord? WorldOf(Report report)
     {
         ArgumentNullException.ThrowIfNull(report);
-        return report["world"] is JsonObject block ? LaunchJson.World(block) : null;
+        return report.World is { } block ? LaunchJson.World(block) : null;
     }
 }
