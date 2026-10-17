@@ -307,7 +307,7 @@ public sealed partial class AdminRounds
         {
             return purpose.Report.Need?.Satisfaction switch
             {
-                Satisfaction.Met => BuildingRuntimePackage.BuildingReasonNoDeficit,
+                Satisfaction.Met => Verdict.BuildingReasonNoDeficit,
                 Satisfaction.Unmet => purpose.Report.Order,
                 Satisfaction.Unknown => Verdict.FieldUnavailable(purpose.Need.Value),
                 _ => purpose.Report.Order,
@@ -315,7 +315,7 @@ public sealed partial class AdminRounds
         }
 
         // A purpose keyed by anything else has no owner to work it.
-        return BuildingRuntimePackage.BuildingReasonNoDeficit;
+        return Verdict.BuildingReasonNoDeficit;
     }
 
     /// <summary>

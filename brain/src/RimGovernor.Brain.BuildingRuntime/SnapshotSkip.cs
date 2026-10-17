@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class SnapshotSkip
 {
     /// <summary>
     /// The snapshot_skip row of a snapshot the recorder could not write: target the snapshot (colony, combat,

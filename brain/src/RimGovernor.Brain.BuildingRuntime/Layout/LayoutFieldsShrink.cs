@@ -38,12 +38,12 @@ internal static class LayoutFieldShrink
                 output[crop.Name] = Math.Max(output.GetValueOrDefault(crop.Name), capacity);
             }
         }
-        var (hayName, hayNeeded, hayFound) = HayTarget(projection);
+        var (hayName, hayNeeded, hayFound) = RoundsHay.HayTarget(projection);
         if (hayFound)
         {
             output[hayName] = hayNeeded;
         }
-        foreach (var crop in SocialCrops(projection))
+        foreach (var crop in RoundsSocialFields.SocialCrops(projection))
         {
             output[crop.Name] = PolicyFunctions.SocialCropCells;
         }

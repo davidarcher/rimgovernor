@@ -80,7 +80,7 @@ internal sealed partial class RoundsStockpilePlanner
                 continue;
             }
             var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
-            stock = MergeRoundsStock(stock, preview.Stock, true);
+            stock = RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock, true);
             var method = ShelfMethod(shelfZone, index);
             var result = await building.AdmitPreviewsAsync(new RoundsAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Reason = "shelf for zone " + shelfZone, Snapshot = snapshot, Selected = [v], Stock = stock, Purpose = Pol.Purpose.Rounds }, call, epoch).ConfigureAwait(false);
             return result.Verdict;
@@ -89,7 +89,7 @@ internal sealed partial class RoundsStockpilePlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsStockpilePlanner
 {
     /// <summary>Bounds the shelves a zone may ever be given.</summary>
     internal const int MaxShelvesPerZone = 8;

@@ -67,7 +67,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var started = Reviewer.Clock.Now();
         var identity = await Native.IdentityAsync(call).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(identity);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("decide: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
@@ -256,7 +256,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             var method = new MethodId(attempt > 0 ? string.Create(CultureInfo.InvariantCulture, $"{baseName}-retry{attempt}") : baseName);
             if (p.Journal.OwnerMethodPlan(goal, method, call) is not { } existing)
             {
-                var (verdict, ok) = AdmitSubject(p.Journal, baseName, refused, world, call);
+                var (verdict, ok) = RoundsRefusalBudget.AdmitSubject(p.Journal, baseName, refused, world, call);
                 if (!ok)
                 {
                     return (new MethodId(""), verdict);
@@ -320,7 +320,7 @@ public sealed partial class RoundsBuildingPlanner
     /// </summary>
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectSleeping(Observation.ColonyProjection facts, Sto.Rounds review)
     {
-        var request = SleepingRequest(facts, review);
+        var request = RoundsSleepingUpkeepPlanner.SleepingRequest(facts, review);
         var choice = SelectSleepingMethod(request);
         switch (choice.Method)
         {
@@ -350,12 +350,12 @@ public sealed partial class RoundsBuildingPlanner
         resolved.Facility = facility;
         resolved.Cells = choice.Cells;
         resolved.Sleeping = choice;
-        resolved.Stuff = BedStuff(facts, resolved.Definition);
+        resolved.Stuff = RoundsSleepingUpkeepPlanner.BedStuff(facts, resolved.Definition);
         return (resolved, new Verdict());
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>
     /// Re-derives the sleeping targets from this step's census against the review's retained use history, so

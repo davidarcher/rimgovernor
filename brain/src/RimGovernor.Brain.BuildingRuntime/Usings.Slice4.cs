@@ -7,7 +7,6 @@
 global using System.Collections.Immutable;
 global using System.Globalization;
 global using RimGovernor.Brain.Domain;
-global using static RimGovernor.Brain.BuildingRuntime.BuildingRuntimePackage;
 // Go's policy package functions and concern ids live in PolicyFunctions (port convention of the policy slices).
 global using static RimGovernor.Brain.Policy.PolicyFunctions;
 global using ClockPb = RimGovernor.Contracts.Wire.Clock;

@@ -46,7 +46,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     /// <summary>Whether every named definition can be raised by any colonist now (no construction skill needed); a shell piece also has to be a single cell.</summary>
     internal static bool RoundsDefinitionsAvailable(Observation.ColonyProjection facts, IReadOnlyList<string> names, bool shell) =>

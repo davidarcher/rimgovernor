@@ -13,7 +13,7 @@ public sealed partial class RoundsArmoryPlanner
             return ([], [], 0);
         }
         var identity = Boundary.Identity(snapshot);
-        var things = await FrameThingsOfAsync(_native, identity, ct).ConfigureAwait(false);
+        var things = await RoundsGear.FrameThingsOfAsync(_native, identity, ct).ConfigureAwait(false);
         var reply = (await source.ReadCombatPawnsAsync(identity, ids, ct).ConfigureAwait(false));
         var observed = reply.Outcome?.Observed;
         if (observed is null)
@@ -99,7 +99,7 @@ public sealed partial class RoundsArmoryPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsArmoryPlanner
 {
     /// <summary>Whether the observation context belongs to the snapshot's world: Go tested <c>boundary.Context</c> for an error, and its only errors are an invalid context and a foreign generation.</summary>
     internal static bool ContextMatches([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] PbCommon.ObservationContext? context, GenerationSnapshot snapshot)
@@ -145,7 +145,7 @@ internal static partial class BuildingRuntimePackage
             {
                 continue;
             }
-            var def = GearDef(things, thing);
+            var def = RoundsGear.GearDef(things, thing);
             if (def == "")
             {
                 continue;

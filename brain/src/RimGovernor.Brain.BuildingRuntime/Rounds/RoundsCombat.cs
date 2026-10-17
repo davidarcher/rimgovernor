@@ -35,7 +35,7 @@ public sealed partial class RoundsDefensePlanner
         if (memory.Roles.Count == 0)
         {
             var refusals = a.In.Hunters.Count > 0 || a.In.Prey.Count > 0 ? CombatHuntRules.HuntFormationRefusals(CombatView(a.Combat, a.In, [], a.Held)) : [];
-            DefenseAction("routine-defense", TelemetryLevel.Info, "refused", "no_squad_roles", EngageMethod(state.Snapshot).Value, new Dictionary<string, object?> { ["tactic"] = memory.Tactic.ToString(), ["gate"] = memory.Refusal, ["hunt_prey"] = a.In.Prey.Count, ["hunt_hunters"] = a.In.Hunters.Count, ["hunt_refusals"] = string.Join(";", refusals), ["hunt_primary"] = string.Join(";", a.In.Hunters.Select(h => h + "=" + (a.In.Primary.TryGetValue(h, out var def) ? "def:" + def : "no_equipment_read") + "/ranged:" + (a.In.Ranged.TryGetValue(h, out var r) ? r.ToString() : "none"))), ["combat_pawns"] = a.Combat.Pawns.Count }, call);
+            DefensePipeline.DefenseAction("routine-defense", TelemetryLevel.Info, "refused", "no_squad_roles", EngageMethod(state.Snapshot).Value, new Dictionary<string, object?> { ["tactic"] = memory.Tactic.ToString(), ["gate"] = memory.Refusal, ["hunt_prey"] = a.In.Prey.Count, ["hunt_hunters"] = a.In.Hunters.Count, ["hunt_refusals"] = string.Join(";", refusals), ["hunt_primary"] = string.Join(";", a.In.Hunters.Select(h => h + "=" + (a.In.Primary.TryGetValue(h, out var def) ? "def:" + def : "no_equipment_read") + "/ranged:" + (a.In.Ranged.TryGetValue(h, out var r) ? r.ToString() : "none"))), ["combat_pawns"] = a.Combat.Pawns.Count }, call);
             return new RoundsDefenseResult { Verdict = BuildingReasonNoSquad };
         }
         var pawns = new List<PawnId>(memory.Roles.Count);
@@ -104,7 +104,7 @@ public sealed partial class RoundsDefensePlanner
             return admitted;
         }
         (results, next) = RecordDrafts(id, drafts, results, next, call);
-        next = BuildingRuntimePackage.CombatStopMemory(view, orders, results, next);
+        next = RoundsDefensePlanner.CombatStopMemory(view, orders, results, next);
         if (orders.Count == 0)
         {
             p.Journal.SaveCombatMemory(id, next, call);
@@ -159,7 +159,7 @@ public sealed partial class RoundsDefensePlanner
         var label = $"{plan}-stop-{view.Tick}";
         var (results, sent) = await SendCombatBatchAsync(state, plan, label, drafts, orders, call).ConfigureAwait(false);
         (results, memory) = RecordDrafts(plan, drafts, results, memory, call);
-        var next = BuildingRuntimePackage.CombatStopMemory(view, sent, results, memory);
+        var next = RoundsDefensePlanner.CombatStopMemory(view, sent, results, memory);
         var batchPlan = CombatBatchPlan(plan, label, drafts, sent);
         return (batchPlan.Id, sent.Count, next);
     }
@@ -208,16 +208,16 @@ public sealed partial class RoundsDefensePlanner
         return (output, orders);
     }
 
-    /// <summary>Answers the policy's geometry question from the native; see <see cref="BuildingRuntimePackage.AnswerGeometry"/>.</summary>
+    /// <summary>Answers the policy's geometry question from the native; see <see cref="RoundsDefensePlanner.AnswerGeometry"/>.</summary>
     internal GeometryReply AnswerGeometry(C.Identity identity, GeometryRequest? ask, CancellationToken ct) =>
-        BuildingRuntimePackage.AnswerGeometry(
+        RoundsDefensePlanner.AnswerGeometry(
             request => _native.CombatGeometry(request, ct),
-            (what, target, ex) => DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", what, target, new Dictionary<string, object?> { ["error"] = ex }, ct),
+            (what, target, ex) => DefensePipeline.DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", what, target, new Dictionary<string, object?> { ["error"] = ex }, ct),
             identity,
             ask);
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsDefensePlanner
 {
     /// <summary>Answers the policy's geometry question from the native: the standable cells, proposals, scored cover lines and sight lines.</summary>
     internal static GeometryReply AnswerGeometry(Func<M.CombatGeometryRequest, M.CombatGeometry> read, Action<string, string, Exception> failed, C.Identity identity, GeometryRequest? ask)
@@ -440,7 +440,7 @@ internal static partial class BuildingRuntimePackage
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            DefenseSnapshotSkip("defense", "combat", ex, ct);
+            DefensePipeline.DefenseSnapshotSkip("defense", "combat", ex, ct);
         }
     }
 

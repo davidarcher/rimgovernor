@@ -63,12 +63,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return (new RoundsDefenseLayoutResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Tier = DefenseRetierTier }, true);
         }
-        DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "retier", DefenseRetierTier, new Dictionary<string, object?> { ["sites"] = sites.Count, ["method"] = method.Value }, call);
+        DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "retier", DefenseRetierTier, new Dictionary<string, object?> { ["sites"] = sites.Count, ["method"] = method.Value }, call);
         return (new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id, Tier = DefenseRetierTier }, true);
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsDefenseLayoutPlanner
 {
     internal static bool DefensePromoted(ColonyProjection projection) =>
         DefenseTier.DefensePromoted(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity);

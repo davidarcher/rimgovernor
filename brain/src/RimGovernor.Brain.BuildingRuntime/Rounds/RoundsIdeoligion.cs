@@ -71,7 +71,7 @@ public sealed partial class Rounder
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class Rounder
 {
     /// <summary>Whether the colony's ideoligion now matches the intended design: unknown when the ideo or its development is unread, false while the reform count has not advanced.</summary>
     internal static Fact<bool> ObservedReform(Ideoligion ideo, IdeoligionDesign actual, IdeoligionReform intent)

@@ -47,11 +47,11 @@ public sealed partial class HomeUpkeepReader
     {
         if (step.Targets.Count == 0)
         {
-            return BuildingRuntimePackage.GroundStepMethod(id, step);
+            return HomeUpkeepReader.GroundStepMethod(id, step);
         }
 
-        var actions = BuildingRuntimePackage.GroundActions(id, step);
-        return (BuildingRuntimePackage.BatchPrefix("deconstruct", step.Targets[0].EntityId, step.Targets.Count), actions);
+        var actions = HomeUpkeepReader.GroundActions(id, step);
+        return (HomeUpkeepReader.BatchPrefix("deconstruct", step.Targets[0].EntityId, step.Targets.Count), actions);
     }
 
     internal async Task<RoofRules> RoofRulesOfAsync(C.Identity identity, CancellationToken call)

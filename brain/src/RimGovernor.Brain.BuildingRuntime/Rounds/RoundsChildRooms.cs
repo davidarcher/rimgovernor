@@ -26,14 +26,14 @@ public sealed partial class Rounder
     /// <summary>Adds the worship and containment definitions the child rooms need to the reading's catalog.</summary>
     internal RoundsReading ReviewChildRooms(RoundsReading reading)
     {
-        var worship = WorshipDefinitions(reading.Projection);
-        var projection = reading.Projection.AddDefinitions(reading.Frame, reading.Catalog, [.. worship, .. ContainmentDefinitions(reading.Projection)]);
+        var worship = RoundsSleepingUpkeepPlanner.WorshipDefinitions(reading.Projection);
+        var projection = reading.Projection.AddDefinitions(reading.Frame, reading.Catalog, [.. worship, .. RoundsSleepingUpkeepPlanner.ContainmentDefinitions(reading.Projection)]);
         Census.RememberWorship(worship);
         return reading.WithProjection(projection);
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsSleepingUpkeepPlanner
 {
     internal static IReadOnlyList<string> WorshipDefinitions(ColonyProjection facts)
     {
@@ -59,7 +59,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     internal static (ChildRoomNeed? Need, ContainmentVerdict Verdict) ContainmentCellNeed(ColonyProjection facts) =>
-        PolicyApi.ContainmentCellNeed(facts.Facts.Containment, FurnitureDefinitions(facts), FlooringFactsOf(facts));
+        PolicyApi.ContainmentCellNeed(facts.Facts.Containment, FurnitureDefinitions(facts), RoundsBuildingPlanner.FlooringFactsOf(facts));
 
     internal static (ChildRoomNeed Need, bool Owed) IsolationRoomNeed(ColonyProjection facts) =>
         PolicyApi.IsolationRoomNeed(facts.Isolation, FurnitureDefinitions(facts));
@@ -111,11 +111,11 @@ internal static partial class BuildingRuntimePackage
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        var (ground, gk) = ColonyGround(facts);
+        var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
         if (!pk || !rk || !ck || !census!.Colony || !gk)
         {
             return new ChildRoomStep();
         }
-        return PolicyApi.NextChildRoomStep(plan!, rooms!, plan!.GroundWithRock(ground, NaturalRock(facts)), census.Buildings, ChildRoomNeeds(facts), FurnitureDefinitions(facts));
+        return PolicyApi.NextChildRoomStep(plan!, rooms!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, ChildRoomNeeds(facts), FurnitureDefinitions(facts));
     }
 }

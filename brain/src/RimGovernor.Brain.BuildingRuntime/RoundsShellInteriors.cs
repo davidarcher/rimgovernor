@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsShellInteriors
 {
     /// <summary>
     /// Lists every cell inside the bounds of each wall ring a plan raises, built or not: the floor a shell

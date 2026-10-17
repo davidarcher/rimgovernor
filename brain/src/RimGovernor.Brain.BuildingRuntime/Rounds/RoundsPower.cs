@@ -21,7 +21,7 @@ public sealed partial class RoundsBuildingPlanner
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectPower(ColonyProjection facts, IReadOnlyList<string> pendingConsumers)
     {
         var planning = PolicyFunctions.DefaultPowerPlanning();
-        var crops = BuildingRuntimePackage.CropChoices(facts);
+        var crops = RoundsFieldPlanner.CropChoices(facts);
         var biome = facts.CropClimate.Biome;
         var skill = PolicyFunctions.GrowerSkill(facts.WorkPawns);
         var generators = facts.GeneratorOptions(fuel => PolicyFunctions.ResourceGrowable(crops, fuel, biome, skill));
@@ -34,7 +34,7 @@ public sealed partial class RoundsBuildingPlanner
             Light = facts.LightTerrains,
             BatteryAvailable = facts.DefinitionAvailable(PolicyConstants.BatteryDefinition),
             GeothermalAvailable = facts.DefinitionAvailable(PolicyConstants.GeothermalDefinition),
-            PendingDemandW = BuildingRuntimePackage.PendingDemand(facts, pendingConsumers),
+            PendingDemandW = RoundsBuildingPlanner.PendingDemand(facts, pendingConsumers),
         };
         if (facts.LayoutPlan.TryGetValue(out var plan))
         {
@@ -52,7 +52,7 @@ public sealed partial class RoundsBuildingPlanner
                 return (null, NoSpace("power_route"));
             case PowerMethod.NoGenerator:
             {
-                var gate = PolicyFunctions.ResearchGate(BuildingRuntimePackage.GeneratorResearch(facts), facts.Facts.Research);
+                var gate = PolicyFunctions.ResearchGate(RoundsBuildingPlanner.GeneratorResearch(facts), facts.Facts.Research);
                 if (gate != "")
                 {
                     return (null, ResearchWait(gate));
@@ -96,14 +96,14 @@ public sealed partial class RoundsBuildingPlanner
     internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerShelterAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
-        var wall = BuildingRuntimePackage.AnimalContainmentDefinition(facts.Definitions, "Wall");
-        var door = BuildingRuntimePackage.AnimalContainmentDefinition(facts.Definitions, "Door");
+        var wall = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, "Wall");
+        var door = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, "Door");
         if (wall is null || door is null)
         {
             return ([], stock, FieldUnavailable("wall_door_definitions"));
         }
 
-        var stuff = BuildingRuntimePackage.ShellSharedStuff(facts, wall, door);
+        var stuff = RoundsAnimalContainment.ShellSharedStuff(facts, wall, door);
         if (stuff is null)
         {
             return ([], stock, FieldUnavailable("wall_door_stuff"));
@@ -254,13 +254,13 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
 
-        foreach (var c in BuildingRuntimePackage.PorchCells(facts))
+        foreach (var c in RoundsBuildingPlanner.PorchCells(facts))
         {
             roofed.Add(c);
         }
 
         var wallStuff = "";
-        var style = BuildingRuntimePackage.ShellStyleOf(facts).WallStuff;
+        var style = RoundsTierStyle.ShellStyleOf(facts).WallStuff;
         if (style != "")
         {
             wallStuff = style;
@@ -281,7 +281,7 @@ async
             var ck = v.CanPlace.TryGetValue(out var can);
             var sk = v.SafeToPlace.TryGetValue(out var safe);
             var mk = v.MadeFromStuff.TryGetValue(out var made);
-            if (!fk || !ck || !sk || !mk || !can || !safe || made != (stuff != "") || !BuildingRuntimePackage.SameCells(footprint!, PolicyFunctions.RectangleCells(area)))
+            if (!fk || !ck || !sk || !mk || !can || !safe || made != (stuff != "") || !RoundsBuildingPlanner.SameCells(footprint!, PolicyFunctions.RectangleCells(area)))
             {
                 return (default!, false);
             }
@@ -393,14 +393,14 @@ async
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     internal static IReadOnlyList<string> PendingBuildingDefinitions(IReadOnlyList<Reservation> held)
     {
         var output = new List<string>();
         foreach (var h in held)
         {
-            if (h.Progress.Action.Building is not { } b || !PendingWork(h.Progress) || PolicyFunctions.PowerFamilyDefinitions().Contains(b.Definition))
+            if (h.Progress.Action.Building is not { } b || !RoundsPendingWork.PendingWork(h.Progress) || PolicyFunctions.PowerFamilyDefinitions().Contains(b.Definition))
             {
                 continue;
             }

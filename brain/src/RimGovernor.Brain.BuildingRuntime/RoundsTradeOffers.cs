@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// candidates, and a record is dropped when its trader leaves the census or the world changes. The food plan
 /// reads the same records to present traders as trade candidates.
 /// </summary>
-internal sealed class TradeOfferBook
+internal sealed partial class TradeOfferBook
 {
     private readonly object _gate = new();
     private GenerationSnapshot _snapshot;
@@ -126,7 +126,7 @@ public sealed partial class RoundsTradePlanner
             var food = TradeFoodFact(row, catalog);
             rows.Add(new Pol.TradeOffer { Def = row.DefName, Count = row.TraderCount, Price = row.BuyPrice, Pawn = row.Pawn?.Gender, Food = food });
         }
-        var offers = new Pol.TradeOffers { Participant = TradeParticipantOf(sheet.Target), Trader = sheet.Trader, Negotiator = sheet.Negotiator, Tick = new Tick(sheet.Context?.Tick ?? 0), Silver = silver, GoodsStacks = stacks, Rows = rows };
+        var offers = new Pol.TradeOffers { Participant = TradeTarget.TradeParticipantOf(sheet.Target), Trader = sheet.Trader, Negotiator = sheet.Negotiator, Tick = new Tick(sheet.Context?.Tick ?? 0), Silver = silver, GoodsStacks = stacks, Rows = rows };
         Reviewer.TradeOffers.Record(state.Snapshot, offers);
     }
 
@@ -143,7 +143,7 @@ public sealed partial class RoundsTradePlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class TradeOfferBook
 {
     /// <summary>
     /// Keeps the resource purchases of need (an economy/resource shortfall, the component target) and its food

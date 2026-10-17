@@ -176,13 +176,13 @@ public abstract class FamilyRunner
     {
         if (reports.Any(r => r.Verdict.Outcome == Outcome.Admitted))
         {
-            return BuildingRuntimePackage.BuildingReasonAdmitted;
+            return Verdict.BuildingReasonAdmitted;
         }
-        if (reports.Any(r => r.Verdict == BuildingRuntimePackage.BuildingReasonExistingWork))
+        if (reports.Any(r => r.Verdict == Verdict.BuildingReasonExistingWork))
         {
-            return BuildingRuntimePackage.BuildingReasonExistingWork;
+            return Verdict.BuildingReasonExistingWork;
         }
-        var best = BuildingRuntimePackage.BuildingReasonNoDeficit;
+        var best = Verdict.BuildingReasonNoDeficit;
         var rank = 1;
         foreach (var report in reports)
         {
@@ -217,7 +217,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         var review = await step.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         if (!review.Enabled || review.Snapshot != step.World)
         {
-            return new FamilyRun { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
+            return new FamilyRun { Verdict = Verdict.BuildingReasonNoReview };
         }
 
         var facts = await ReadAudited(step, call).ConfigureAwait(false);
@@ -234,7 +234,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             switch (standing.Readiness)
             {
                 case NeedReadiness.Met:
-                    reports[standing.Need.Id] = BuildingRuntimePackage.BuildingReasonNoDeficit;
+                    reports[standing.Need.Id] = Verdict.BuildingReasonNoDeficit;
                     break;
                 case NeedReadiness.Unknown:
                     // Unknown never counts as met: the Need is reported unmeasured and nothing is proposed.
@@ -296,7 +296,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
                     working[need.Id] = open;
                     if (reports[need.Id] == Verdict.AwaitingPlan(need.Id.Value, "no_method"))
                     {
-                        reports[need.Id] = BuildingRuntimePackage.BuildingReasonExistingWork;
+                        reports[need.Id] = Verdict.BuildingReasonExistingWork;
                     }
                 }
             }
@@ -375,7 +375,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         var owner = step.Journal.LoadNeed(candidate.Need, step.World, call);
         if (!owner.Methods.Any(m => m.Method == candidate.Method && WorkProgress.Open(step.Journal.LoadPlan(m.Plan, call).Progress)))
         {
-            var (refused, admitted) = BuildingRuntimePackage.AdmitLatestAttempt(step.Journal, owner, candidate.Method, step.World, call);
+            var (refused, admitted) = RoundsRefusalBudget.AdmitLatestAttempt(step.Journal, owner, candidate.Method, step.World, call);
             if (!admitted)
             {
                 return (refused, null);
@@ -410,10 +410,10 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         switch (commit.Outcome)
         {
             case ClaimOutcome.Admitted:
-                return (BuildingRuntimePackage.BuildingReasonAdmitted, new FamilyMethod(candidate.Need, candidate.Method, id, ClaimOutcome.Admitted));
+                return (Verdict.BuildingReasonAdmitted, new FamilyMethod(candidate.Need, candidate.Method, id, ClaimOutcome.Admitted));
             case ClaimOutcome.Continued:
                 var open = commit.Owner.Methods.LastOrDefault(m => m.Method == candidate.Method);
-                return (BuildingRuntimePackage.BuildingReasonExistingWork,
+                return (Verdict.BuildingReasonExistingWork,
                     open is null ? null : new FamilyMethod(candidate.Need, candidate.Method, open.Plan, ClaimOutcome.Continued));
             default:
                 return (Verdict.ClaimHeld(commit.Conflict!.Claim), null);
@@ -448,7 +448,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
     /// <summary>Of two verdicts for one Need, the one it files: admitted, then open work, then a claim or Safeguard refusal over no method.</summary>
     private static Verdict Stronger(Verdict held, Verdict next)
     {
-        static int Rank(Verdict v) => v.Outcome == Outcome.Admitted ? 3 : v == BuildingRuntimePackage.BuildingReasonExistingWork ? 2 : v.Is(Cause.AwaitingPlan) ? 0 : 1;
+        static int Rank(Verdict v) => v.Outcome == Outcome.Admitted ? 3 : v == Verdict.BuildingReasonExistingWork ? 2 : v.Is(Cause.AwaitingPlan) ? 0 : 1;
         return Rank(next) > Rank(held) ? next : held;
     }
 }

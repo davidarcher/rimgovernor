@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsMech
 {
     internal static MechCatalog MechCatalogOf(DefinitionCatalog? catalog) =>
         catalog?.Biotech is { } biotech ? biotech.MechCatalog() : new MechCatalog();

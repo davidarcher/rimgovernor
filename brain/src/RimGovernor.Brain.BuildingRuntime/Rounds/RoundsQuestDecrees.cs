@@ -97,7 +97,7 @@ public sealed partial class JoinersRounds
                         }
 
                         var zone = new ZoneCreate(Domain.ZoneKind.Growing, objective.Def, cells);
-                        var (reply, zoneWhy) = await BuildingRuntimePackage.PreviewZoneAsync(reviewer.ResourceNative, Boundary.Identity(snapshot), zone, call).ConfigureAwait(false);
+                        var (reply, zoneWhy) = await ZonePreviews.PreviewZoneAsync(reviewer.ResourceNative, Boundary.Identity(snapshot), zone, call).ConfigureAwait(false);
                         if (zoneWhy != "")
                         {
                             reason = "plant_site_refused";
@@ -141,7 +141,7 @@ public sealed partial class JoinersRounds
 
             if (reason == "existing_work")
             {
-                return (BuildingRuntimePackage.BuildingReasonExistingWork, true);
+                return (Verdict.BuildingReasonExistingWork, true);
             }
 
             if (reason != "")
@@ -200,12 +200,12 @@ public sealed partial class JoinersRounds
                 Previews = previews,
                 Purpose = Purpose.Rounds,
             }, call).ConfigureAwait(false);
-            return (decision.Admitted ? BuildingRuntimePackage.BuildingReasonAdmitted : AdmissionLog.AdmissionRefused(decision), true);
+            return (decision.Admitted ? Verdict.BuildingReasonAdmitted : AdmissionLog.AdmissionRefused(decision), true);
         }
 
         if (lending)
         {
-            return (BuildingRuntimePackage.BuildingReasonExistingWork, true);
+            return (Verdict.BuildingReasonExistingWork, true);
         }
 
         return (default, false);
@@ -215,7 +215,7 @@ public sealed partial class JoinersRounds
         reviewer.LogQuestSkip(new QuestSkip(offer.Quest, offer.ScriptDef, new QuestSkipReason(reason), ""), ct);
 }
 
-internal static partial class BuildingRuntimePackage
+partial class JoinersRounds
 {
     internal static bool ContainsString(IReadOnlyList<string> values, string want) => values.Contains(want);
 }

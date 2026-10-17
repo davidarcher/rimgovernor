@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>The rooms/art Need's room input: a bedroom below target, weakest in beauty, with a free cell.</summary>
     internal static Fact<bool> SculptureRoomsOwedOf(Observation.ColonyProjection facts)
@@ -110,7 +110,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             return none;
         }
         var p = Reviewer.Player;
-        var method = new MethodId("bedroom-sculpture-install-" + DigestHex(step.Packed, 8));
+        var method = new MethodId("bedroom-sculpture-install-" + RoundsBuildingPlanner.DigestHex(step.Packed, 8));
         if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
             return (new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "sculpture_install") }, true);
@@ -144,9 +144,9 @@ public sealed partial class RoundsTradePlanner
         {
             return null;
         }
-        var expected = await StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
+        var expected = await StepScope.StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
         var claims = Reviewer.Player.Journal.ConstructionClaims(snapshot, expected.Tick, call);
         var read = await Reviewer.ObserveRoomsAsync(Reviewer.Native, expected, claims, call).ConfigureAwait(false);
-        return await SaleSculpturesOfAsync(native, identity, read.Projection, call).ConfigureAwait(false);
+        return await RoundsSleepingUpkeepPlanner.SaleSculpturesOfAsync(native, identity, read.Projection, call).ConfigureAwait(false);
     }
 }

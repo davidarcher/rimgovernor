@@ -130,7 +130,7 @@ public sealed class WakeSignal
 /// <summary>What one batch of colony events says that should wake the step loop (Go's five return values of clockPageWakeStopped).</summary>
 internal sealed record ColonyEventWake(IReadOnlyList<FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt);
 
-internal static partial class Pkg
+partial class ColonyEventConsumer
 {
     /// <summary>
     /// Reads the wake-relevant facts out of one batch of this world's events: the families its

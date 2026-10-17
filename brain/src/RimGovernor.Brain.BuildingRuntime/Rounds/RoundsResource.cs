@@ -55,7 +55,7 @@ public sealed partial class RoundsResourcePlanner
 
     internal static Fact<EquatableArray<Amount>> ResourceStockFacts(O.ColonyFactsSnapshot v)
     {
-        if (BuildingRuntimePackage.MedicalIssue(v.Issues, "resources"))
+        if (RoundsMedicalPlanner.MedicalIssue(v.Issues, "resources"))
         {
             return Unknown<EquatableArray<Amount>>();
         }
@@ -90,7 +90,7 @@ public sealed partial class RoundsResourcePlanner
         var state = p.Session.State();
         if (!state.Enabled)
         {
-            return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonDisabled };
+            return new RoundsResourceResult { Verdict = Verdict.BuildingReasonDisabled };
         }
 
         if (!state.ObservationKnown || !state.Snapshot.IsValid)
@@ -101,13 +101,13 @@ public sealed partial class RoundsResourcePlanner
         var targets = reviewer.ResourceTargets(state.Snapshot);
         if (targets.Count == 0)
         {
-            return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonDisabled };
+            return new RoundsResourceResult { Verdict = Verdict.BuildingReasonDisabled };
         }
 
         var review = p.Journal.LoadRounds(call);
         if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
-            return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
+            return new RoundsResourceResult { Verdict = Verdict.BuildingReasonNoReview };
         }
 
         using var recorded = PlannerSnapshot.RecordPlannerStep(EconomyFamily.Resource.FilingKey, state.Snapshot, review.Tick);
@@ -126,7 +126,7 @@ public sealed partial class RoundsResourcePlanner
         var p = reviewer.Player;
         // A Need-owned step has no whole-owner guard: each mine, tunnel and drill is admitted by its own claims, and
         // a MethodId already committed is not re-issued.
-        BuildingRuntimePackage.CancelStalledExcavation(p.Journal, goal, review.Tick, call);
+        RoundsBuildingPlanner.CancelStalledExcavation(p.Journal, goal, review.Tick, call);
         var started = reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
         var reply = await native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
@@ -189,7 +189,7 @@ public sealed partial class RoundsResourcePlanner
 
         if (first is null)
         {
-            return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
+            return new RoundsResourceResult { Verdict = Verdict.BuildingReasonNoDeficit };
         }
 
         var chosen = first.Value;
@@ -235,7 +235,7 @@ public sealed partial class RoundsResourcePlanner
         {
             case ResourceMethodKind.Produce:
             case ResourceMethodKind.Wait:
-                return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
+                return new RoundsResourceResult { Verdict = Verdict.BuildingReasonExistingWork };
         }
 
         var (result, _) = await AcquireFromSourcesAsync(state, goal, reviewTick, identity, resource, target, stock, started, null, call, epoch).ConfigureAwait(false);
@@ -260,7 +260,7 @@ public sealed partial class RoundsResourcePlanner
             switch (e.Candidate.Kind)
             {
                 case CandidateKind.Produce:
-                    return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
+                    return new RoundsResourceResult { Verdict = Verdict.BuildingReasonExistingWork };
                 case CandidateKind.Mining:
                 {
                     var selection = row.Sel;
@@ -283,7 +283,7 @@ public sealed partial class RoundsResourcePlanner
 
         if (row.Busy)
         {
-            return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
+            return new RoundsResourceResult { Verdict = Verdict.BuildingReasonExistingWork };
         }
 
         var tail = row.Sel;
@@ -327,7 +327,7 @@ public sealed partial class RoundsResourcePlanner
 
         if (selection.Designated)
         {
-            return (new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, Sources = selected }, false);
+            return (new RoundsResourceResult { Verdict = Verdict.BuildingReasonExistingWork, Sources = selected }, false);
         }
 
         if (selection.None)
@@ -385,7 +385,7 @@ public sealed partial class RoundsResourcePlanner
     {
         var last = await reviewer.Native.IdentityAsync(ct).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(last);
-        if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, tick))
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, tick))
         {
             throw new ControlException("miningReach: boundary moved");
         }
@@ -459,7 +459,7 @@ public sealed partial class RoundsResourcePlanner
                 continue;
             }
 
-            var (_, admitted) = BuildingRuntimePackage.AdmitSubject(p.Journal, baseKey, earlier, state.Snapshot, call);
+            var (_, admitted) = RoundsRefusalBudget.AdmitSubject(p.Journal, baseKey, earlier, state.Snapshot, call);
             if (!admitted)
             {
                 continue;

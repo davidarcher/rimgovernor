@@ -52,7 +52,7 @@ public sealed partial class Rounder
     /// </summary>
     internal Task<PbObservations.ColonyFactsReply> ColonyFactsAsync(FacadeNativeClient native, PbCommon.Identity identity, bool planning, CancellationToken ct)
     {
-        if (!SameNativeSource(native, Native))
+        if (!RoundsCensus.SameNativeSource(native, Native))
         {
             return native.ReadColonyFactsAsync(identity, planning, ct);
         }
@@ -93,7 +93,7 @@ public sealed partial class Rounder
         Identity expected;
         try
         {
-            expected = await StepScopeAsync(Native, ct).ConfigureAwait(false);
+            expected = await StepScope.StepScopeAsync(Native, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -103,7 +103,7 @@ public sealed partial class Rounder
         {
             return null;
         }
-        if (!SameObservedIdentity(census.Reading.Projection.Identity, expected))
+        if (!RoundsCensus.SameObservedIdentity(census.Reading.Projection.Identity, expected))
         {
             return null;
         }

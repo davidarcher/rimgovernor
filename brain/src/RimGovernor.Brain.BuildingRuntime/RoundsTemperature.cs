@@ -68,7 +68,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     /// <summary>Names the room fact SelectTemperatureMethod found unknown.</summary>
     internal static string TemperatureGap(Fact<Pol.RoomObservation> rooms)
@@ -123,7 +123,7 @@ internal static partial class BuildingRuntimePackage
             }
         }
         // Campfires burn wood: a finite stock unless a tree species can be sown.
-        return cooling with { HeatFuelFinite = !ResourceGrowable(CropChoices(facts), PolicyFunctions.ConstructionWoodLog, facts.CropClimate.Biome, GrowerSkill(facts.WorkPawns)) };
+        return cooling with { HeatFuelFinite = !ResourceGrowable(RoundsFieldPlanner.CropChoices(facts), PolicyFunctions.ConstructionWoodLog, facts.CropClimate.Biome, GrowerSkill(facts.WorkPawns)) };
     }
 
     /// <summary>The planning definitions the temperature planner reads: every method it can place, so availability and draw are known before one is chosen.</summary>

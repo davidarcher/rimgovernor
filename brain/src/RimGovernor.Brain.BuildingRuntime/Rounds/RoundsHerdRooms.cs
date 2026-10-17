@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsHerdRooms
 {
     internal static readonly string[] HerdDefinitions =
     [
@@ -18,7 +18,7 @@ internal static partial class BuildingRuntimePackage
         var usable = true;
         foreach (var name in new[] { facts.Shapes.Furniture.AnimalBed })
         {
-            var d = AnimalContainmentDefinition(facts.Definitions, name);
+            var d = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, name);
             if (d is null)
             {
                 throw new ControlException($"herdFurniture: {name} was not read from the native catalog");
@@ -40,7 +40,7 @@ internal static partial class BuildingRuntimePackage
             output = output with { Bed = new InteriorPieceDef { Def = name, Size = new Cell(size.Width, size.Height) } };
         }
 
-        var marker = AnimalContainmentDefinition(facts.Definitions, PolicyFunctions.PenMarkerDefinition);
+        var marker = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, PolicyFunctions.PenMarkerDefinition);
         if (marker is not null)
         {
             var sizeKnown = marker.Size.TryGetValue(out var size);
@@ -74,13 +74,13 @@ internal static partial class BuildingRuntimePackage
         }
 
         var (furniture, _) = HerdFurnitureOf(facts);
-        var (ground, gk) = ColonyGround(facts);
+        var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
         if (!gk)
         {
             return (default!, false);
         }
 
-        return (PolicyFunctions.NextPenStep(plan, plan.GroundWithRock(ground, NaturalRock(facts)), census.Buildings, furniture), true);
+        return (PolicyFunctions.NextPenStep(plan, plan.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, furniture), true);
     }
 
     /// <summary>

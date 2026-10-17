@@ -197,7 +197,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     public async Task<IReadOnlyList<Executor.BatchItem>> RunBatchAsync(PlanId plan, IReadOnlyList<ActionId> actions, CancellationToken ct)
     {
         // The plan's method intent rides with the writes the dispatch issues (Go withPlanIntent).
-        using var intent = OperationIntentScope.Begin(await BuildingRuntimePackage.PlanIntentAsync(_journal, plan, ct).ConfigureAwait(false));
+        using var intent = OperationIntentScope.Begin(await Session.PlanIntentAsync(_journal, plan, ct).ConfigureAwait(false));
         return await _executor.RunBatchAsync(plan, actions, ct).ConfigureAwait(false);
     }
 
@@ -398,7 +398,7 @@ internal static class OperationIntentScope
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class Session
 {
     /// <summary>
     /// The method intent of a plan's writes; a plan no goal admitted, or a failed lookup, dispatches without one

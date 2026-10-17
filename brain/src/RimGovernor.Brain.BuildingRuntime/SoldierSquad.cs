@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class SoldierSquad
 {
     /// <summary>
     /// Keeps the persistent soldier squad current: sticky members, gaps filled with the best fighters, saved only

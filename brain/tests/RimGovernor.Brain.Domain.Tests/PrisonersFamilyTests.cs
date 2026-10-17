@@ -170,7 +170,7 @@ public sealed class PrisonersFamilyTests
         var run = colony.Run();
 
         Assert.Equal(Outcome.Admitted, Colony.Report(run, PrisonersFamily.Recruit).Outcome);
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonNoDeficit, Colony.Report(run, PrisonersFamily.Custody));
+        Assert.Equal(Verdict.BuildingReasonNoDeficit, Colony.Report(run, PrisonersFamily.Custody));
         Assert.Equal(["prisoner-recruit-a", "prisoner-recruit-b"], run.Methods.Select(m => m.Method.Value));
         var binding = colony.Journal.PlanMethod(run.Methods[0].Plan, ct)!;
         Assert.Equal(PrisonersFamily.Recruit.FilingKey, binding.Concern);
@@ -178,7 +178,7 @@ public sealed class PrisonersFamilyTests
 
         // The same changes continue their open Methods.
         var again = colony.Run();
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(again, PrisonersFamily.Recruit));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(again, PrisonersFamily.Recruit));
         Assert.All(again.Methods, m => Assert.Equal(ClaimOutcome.Continued, m.Outcome));
         Assert.Equal(2, colony.Journal.LoadNeed(PrisonersFamily.Recruit, World, ct).Methods.Count);
     }

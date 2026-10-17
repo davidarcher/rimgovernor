@@ -245,7 +245,7 @@ public sealed partial class RoundsDefensePlanner
         }
         if (next.Formed == tick && next.Refusal != "" && next.Tactic != CombatTactic.Hold)
         {
-            DefenseAction("routine-defense", TelemetryLevel.Info, "refused", "hold_refused", owner.Need.Value, new Dictionary<string, object?> { ["need"] = owner.Need.Value, ["gate"] = next.Refusal }, call);
+            DefensePipeline.DefenseAction("routine-defense", TelemetryLevel.Info, "refused", "hold_refused", owner.Need.Value, new Dictionary<string, object?> { ["need"] = owner.Need.Value, ["gate"] = next.Refusal }, call);
         }
         if (fight is null)
         {
@@ -295,7 +295,7 @@ public sealed partial class RoundsDefensePlanner
         }
         var (rest, permits) = SplitPermitCalls(orders);
         CommitPermitCalls(state.Snapshot, permits, call, epoch);
-        var guards = CombatMechGuards(combat, inp.HostileIds, inp.Rows);
+        var guards = RoundsMech.CombatMechGuards(combat, inp.HostileIds, inp.Rows);
         drafts.AddRange(guards.Drafts.Select(d => (PawnId)d));
         var allOrders = rest.ToList();
         allOrders.AddRange(guards.Orders);
@@ -403,7 +403,7 @@ internal sealed class CombatInputs
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsDefensePlanner
 {
     /// <summary>The inputs of the combat step; a null inputs value carries the wait verdict when the census is incomplete or there is no fight.</summary>
     internal static (CombatInputs? Inputs, Verdict Reason) CombatFrameInputs(BridgeCombat combat, IReadOnlyList<Domain.PawnId> huntPrey, IReadOnlyList<Domain.PawnId> huntHunters)
@@ -508,7 +508,7 @@ internal static partial class BuildingRuntimePackage
         {
             var row = inp.Rows[pawn.Id.Value];
             inp.Ranged.TryGetValue(pawn.Id.Value, out var ranged);
-            var d = SquadDefenderFacts(row, needed, ranged);
+            var d = Armament.SquadDefenderFacts(row, needed, ranged);
             if (armor.TryGetValue(d.Id, out var a))
             {
                 d = d with { Armor = Known(a) };
@@ -533,7 +533,7 @@ internal static partial class BuildingRuntimePackage
         {
             var row = inp.Rows[id];
             inp.Ranged.TryGetValue(id, out var ranged);
-            var facts = SquadThreatFacts(row, races, ranged);
+            var facts = Armament.SquadThreatFacts(row, races, ranged);
             facts = facts with { Hunting = Known(inp.Hunting.Contains(id)) };
             facts = facts with { MeleePower = melee.TryGetValue(new PawnId(id), out var mp) ? mp : default };
             threats.Add(facts);
@@ -542,7 +542,7 @@ internal static partial class BuildingRuntimePackage
         foreach (var id in inp.Prey)
         {
             inp.Ranged.TryGetValue(id, out var ranged);
-            threats.Add(SquadThreatFacts(inp.Rows[id], races, ranged));
+            threats.Add(Armament.SquadThreatFacts(inp.Rows[id], races, ranged));
         }
         var lines = BuildingLinesOfFire(combat.Lines, inp.Buildings, defenders, inp.Rows, inp.Reach);
         foreach (var building in inp.Buildings)

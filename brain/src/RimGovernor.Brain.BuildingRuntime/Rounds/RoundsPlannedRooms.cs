@@ -16,7 +16,7 @@ public sealed partial class RoundsBuildingPlanner
             return (PlannedRole.Kitchen, true);
         }
 
-        if (ButcherFacility() && BuildingRuntimePackage.ButcherBenchDefinition(Definition))
+        if (ButcherFacility() && RoundsBuildingPlanner.ButcherBenchDefinition(Definition))
         {
             return (PlannedRole.Butchery, true);
         }
@@ -32,7 +32,7 @@ public sealed partial class RoundsBuildingPlanner
             return (this, new RoundsBuildingResult(), false);
         }
 
-        if (Facility.Role == Pol.RoomRole.Laboratory && !AdvancedLab && BuildingRuntimePackage.ResearchHostRooms(facts).Count > 0)
+        if (Facility.Role == Pol.RoomRole.Laboratory && !AdvancedLab && RoundsBuildingPlanner.ResearchHostRooms(facts).Count > 0)
         {
             return (this, new RoundsBuildingResult(), false);
         }
@@ -43,10 +43,10 @@ public sealed partial class RoundsBuildingPlanner
             return (this, new RoundsBuildingResult(), false);
         }
 
-        var (room, owed) = BuildingRuntimePackage.PlannedRoomOwed(facts, module);
+        var (room, owed) = RoundsBuildingPlanner.PlannedRoomOwed(facts, module);
         if (!owed)
         {
-            var cells = BuildingRuntimePackage.PlannedRoomCells(facts, module);
+            var cells = RoundsBuildingPlanner.PlannedRoomCells(facts, module);
             if (cells is null)
             {
                 return (this, new RoundsBuildingResult(), false);
@@ -58,7 +58,7 @@ public sealed partial class RoundsBuildingPlanner
             return (furnish, new RoundsBuildingResult(), false);
         }
 
-        var result = await ReconcileRoomAsync(state, review, goal, new RoundsReading { Reading = reading, Emergency = new EmergencyFacts(), Frame = new BridgeRoundsFrame() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = BuildingRuntimePackage.PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
+        var result = await ReconcileRoomAsync(state, review, goal, new RoundsReading { Reading = reading, Emergency = new EmergencyFacts(), Frame = new BridgeRoundsFrame() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = RoundsBuildingPlanner.PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
         if (!result.Verdict.SkipsToPlacement)
         {
             return (null, result, true);
@@ -66,7 +66,7 @@ public sealed partial class RoundsBuildingPlanner
 
         var placed = Copy();
         placed.Facility = null;
-        placed.Cells = BuildingRuntimePackage.PlannedRoomInterior(room);
+        placed.Cells = RoundsBuildingPlanner.PlannedRoomInterior(room);
         placed.Environment = PlacementEnvironment.Anywhere;
         return (placed, new RoundsBuildingResult(), false);
     }
@@ -102,7 +102,7 @@ public sealed partial class RoundsBuildingPlanner
         (module == PlannedRole.Kitchen || module == PlannedRole.Butchery) && !TakesShelterSlot(facts);
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     internal const string CraftingSpotDefinition = PolicyConstants.CraftingSpotDefinition;
 

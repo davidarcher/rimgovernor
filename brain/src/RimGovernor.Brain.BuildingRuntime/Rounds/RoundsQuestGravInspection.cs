@@ -18,7 +18,7 @@ public sealed partial class JoinersRounds
 
         if (step.Waiting)
         {
-            return (BuildingRuntimePackage.BuildingReasonExistingWork, false);
+            return (Verdict.BuildingReasonExistingWork, false);
         }
 
         return (Verdict.AwaitingPlan("unsupported_forecast_grav_inspection",

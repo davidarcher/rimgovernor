@@ -206,7 +206,7 @@ public sealed class FoodStoresFamilyTests
         Assert.Equal(FoodStorageNeed.FilingKey, colony.Journal.PlanMethod(method.Plan, ct)!.Concern);
 
         var again = colony.Run();
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(again));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(again));
         Assert.Single(colony.Journal.LoadNeed(FoodStorageNeed, World, ct).Methods);
     }
 

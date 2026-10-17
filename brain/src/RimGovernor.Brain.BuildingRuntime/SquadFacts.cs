@@ -77,11 +77,11 @@ internal sealed partial class Armament
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class Armament
 {
     /// <summary>The armament Go's readArmament reads: the newest frame's things table and the load's catalog.</summary>
     internal static async Task<Armament> ReadArmamentAsync(object native, C.Identity identity, CancellationToken ct) =>
-        new() { Things = await FrameThingsOfAsync(native, identity, ct).ConfigureAwait(false), Catalog = await PawnCatalogAsync(native, identity, ct).ConfigureAwait(false) };
+        new() { Things = await RoundsGear.FrameThingsOfAsync(native, identity, ct).ConfigureAwait(false), Catalog = await RoundsEquipPawn.PawnCatalogAsync(native, identity, ct).ConfigureAwait(false) };
 
     /// <summary>Requires the pawn's primary equipped weapon to be found. Unarmed is a known false, never unknown.</summary>
     internal static Fact<bool> RangedWeaponEquipped(ObservationsPb.PawnEquipment? equipment, Armament arms)

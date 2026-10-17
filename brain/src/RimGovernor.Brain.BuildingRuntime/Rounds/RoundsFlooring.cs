@@ -168,7 +168,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     /// <summary>The last finding set logged, so the OTLP log ring names a flagged room when it changes rather than on every review.</summary>
     private static readonly object TrafficFindingsLoggedLock = new();
@@ -240,12 +240,12 @@ internal static partial class BuildingRuntimePackage
         }
 
         v = v with { Floors = floors };
-        v = WithThroneFloor(facts, v);
+        v = RoundsSleepingUpkeepPlanner.WithThroneFloor(facts, v);
         v = v with { Stock = facts.Resources };
-        var style = FloorStyle(facts);
+        var style = RoundsTierStyle.FloorStyle(facts);
         if (style is not null)
         {
-            v = v with { TrafficStyle = style(RoomRole.None).Item1 };
+            v = v with { TrafficStyle = style(Pol.RoomRole.None).Item1 };
         }
 
         return Known(v);

@@ -50,7 +50,7 @@ public sealed partial class HomeUpkeepReader
         var review = _reviewer.Player.Journal.LoadRounds(call);
         var identity = (await _native.IdentityAsync(call).ConfigureAwait(false));
         var expected = ObservationApi.DecodeIdentity(identity);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("home upkeep: the native boundary moved");
         }
@@ -64,7 +64,7 @@ public sealed partial class HomeUpkeepReader
         {
             return facts;
         }
-        var ground = PlannedGround(colony.Projection);
+        var ground = Rounder.PlannedGround(colony.Projection);
         var read = await ObservationApi.ObserveClearanceCensusOnGround(_native, expected, true, ground, call).ConfigureAwait(false);
         if (!read.TryGetValue(out var census))
         {
@@ -115,7 +115,7 @@ public sealed partial class HomeUpkeepReader
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class HomeUpkeepReader
 {
     /// <summary>The step with the already designated targets and floors dropped.</summary>
     internal static GroundStep PendingClearanceStep(GroundStep step) =>
@@ -131,12 +131,12 @@ internal static partial class BuildingRuntimePackage
         {
             return (new GroundStep(), false);
         }
-        var (ground, known) = ColonyGround(colony);
+        var (ground, known) = RoundsBuildingPlanner.ColonyGround(colony);
         if (!known)
         {
             return (new GroundStep(), false);
         }
-        var planned = PolicyApi.PlannedGroundStep(plan, ground, player, floors, ColonyRooms(colony), RetiredGroundOfColony(colony), wants);
+        var planned = PolicyApi.PlannedGroundStep(plan, ground, player, floors, ColonyRooms(colony), Rounder.RetiredGroundOfColony(colony), wants);
         return planned is null ? (new GroundStep(), false) : (planned, true);
     }
 
@@ -146,12 +146,12 @@ internal static partial class BuildingRuntimePackage
         {
             return [];
         }
-        var (ground, known) = ColonyGround(colony);
+        var (ground, known) = RoundsBuildingPlanner.ColonyGround(colony);
         if (!known)
         {
             return [];
         }
-        return PolicyApi.PlannedGroundWork(plan, ground, player, floors, ColonyRooms(colony), RetiredGroundOfColony(colony), wants);
+        return PolicyApi.PlannedGroundWork(plan, ground, player, floors, ColonyRooms(colony), Rounder.RetiredGroundOfColony(colony), wants);
     }
 
     /// <summary>Stamps the packable flag and the in-use flag (a bed with owners or a bench with an active bill) onto the rows.</summary>

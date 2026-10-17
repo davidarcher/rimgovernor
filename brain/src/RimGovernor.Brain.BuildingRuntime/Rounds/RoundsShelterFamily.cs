@@ -80,14 +80,14 @@ public sealed class ShelterRounds
     /// </summary>
     internal async Task<ShelterFacts> ReadAsync(FamilyReadScope scope, CancellationToken call)
     {
-        var world = StockpileWorld(scope.World);
+        var world = RoundsStockpilePlanner.StockpileWorld(scope.World);
         if (scope.Immediate)
         {
             return new ShelterFacts { SafeAreaOwed = _safeArea ? _reviewer.SafeArea.Owed(world) : Unknown<bool>() };
         }
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("shelter read: the scope is another world or older than the review");
         }
@@ -96,14 +96,14 @@ public sealed class ShelterRounds
         var f = projection.Facts;
         // The bed-use review the store retains, with a due bedroom step holding sleeping unmet (as the review does).
         var recovered = PolicyApi.ReviewSleeping(f.Sleeping, review.Sleeping, expected.Tick).Recovered();
-        if (PositiveFact(BedroomsOwedOf(projection)))
+        if (RoundsBuildingPlanner.PositiveFact(RoundsSleepingUpkeepPlanner.BedroomsOwedOf(projection)))
         {
             recovered = Known(false);
         }
         f = f with
         {
             SleepingRecovered = recovered,
-            TemperatureOwed = TemperatureOwed(projection),
+            TemperatureOwed = RoundsBuildingPlanner.TemperatureOwed(projection),
             Upkeep = f.Upkeep with { Rooms = projection.Rooms },
             SafeAreaOwed = _safeArea ? _reviewer.SafeArea.Owed(world) : Unknown<bool>(),
         };
@@ -149,7 +149,7 @@ public sealed class ShelterRounds
     internal Verdict SafeAreaWork(NeedWork work, CancellationToken call)
     {
         var p = _reviewer.Player;
-        var world = StockpileWorld(work.State.Snapshot);
+        var world = RoundsStockpilePlanner.StockpileWorld(work.State.Snapshot);
         var edits = _reviewer.SafeArea.Take(world);
         if (edits.Count == 0)
         {
@@ -207,8 +207,8 @@ public sealed class PowerRounds
             return new PowerFacts();
         }
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("power read: the scope is another world or older than the review");
         }

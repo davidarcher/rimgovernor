@@ -39,17 +39,17 @@ public sealed partial class Rounder
         {
             return reading;
         }
-        projection = (projection with { Royalty = royalty }).AddDefinitions(reading.Frame, catalog, [.. ThroneThings(facts), .. ThroneFloorTerrains(catalog, facts)]);
+        projection = (projection with { Royalty = royalty }).AddDefinitions(reading.Frame, catalog, [.. RoundsSleepingUpkeepPlanner.ThroneThings(facts), .. RoundsSleepingUpkeepPlanner.ThroneFloorTerrains(catalog, facts)]);
         Census.RememberRoyalty(projection.Identity, projection.Royalty);
         return reading with { Reading = reading.Reading with { Projection = projection } };
     }
 
     /// <summary>The throne definitions a planner's read names beside its own: the ladder's, from the review's royalty read.</summary>
     internal IReadOnlyList<string> RememberedThrones() =>
-        Census.Remembered().TryGetValue(out var facts) ? ThroneThings(facts) : [];
+        Census.Remembered().TryGetValue(out var facts) ? RoundsSleepingUpkeepPlanner.ThroneThings(facts) : [];
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>Every throne definition the ladder names, sorted.</summary>
     internal static List<string> ThroneThings(Pol.RoyaltyFacts f)
@@ -143,13 +143,13 @@ internal static partial class BuildingRuntimePackage
                 defs.Add(new Pol.FurnitureDefinition { Name = d.Name, Available = d.Available, Size = d.Size });
             }
         }
-        var (ground, gk) = ColonyGround(facts);
+        var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
         if (!gk)
         {
             return new Pol.ThroneStep();
         }
         facts.Royalty.TryGetValue(out var royalty);
-        var step = NextThroneStep(plan!, rooms!, plan!.GroundWithRock(ground, NaturalRock(facts)), census.Buildings, need, defs, royalty!.Thrones);
+        var step = NextThroneStep(plan!, rooms!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, need, defs, royalty!.Thrones);
         if (step.Kind != Pol.ThroneStepKind.None)
         {
             return step;

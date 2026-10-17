@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsAcquisitionFields
 {
     /// <summary>
     /// Drops plant sources standing in a growing zone: one observed in the planning window, or one a growing-zone

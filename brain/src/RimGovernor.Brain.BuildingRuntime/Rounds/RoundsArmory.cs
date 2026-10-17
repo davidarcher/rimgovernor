@@ -54,7 +54,7 @@ public sealed partial class Rounder
         foreach (var read in reads)
         {
             read.Bench.Usable.TryGetValue(out var usable);
-            if (usable && read.Bench.Def != PolicyApi.CraftingSpotDefinition && WeaponBenchHosted([read.Bench]))
+            if (usable && read.Bench.Def != PolicyApi.CraftingSpotDefinition && RoundsArmoryPlanner.WeaponBenchHosted([read.Bench]))
             {
                 return Known(true);
             }
@@ -87,7 +87,7 @@ public sealed partial class Rounder
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsArmoryPlanner
 {
     internal static RoundsBuildingPlanner? NewCraftingSpotPlanner(Rounder reviewer, FacadeNativeClient native)
     {
@@ -95,6 +95,6 @@ internal static partial class BuildingRuntimePackage
         {
             return null;
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = building, Concern = MilitaryFamily.Equipment.FilingKey, Need = MilitaryFamily.Equipment, Definition = CraftingSpotDefinition, Environment = PlacementEnvironment.Anywhere, CraftingSpot = true };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = building, Concern = MilitaryFamily.Equipment.FilingKey, Need = MilitaryFamily.Equipment, Definition = RoundsBuildingPlanner.CraftingSpotDefinition, Environment = PlacementEnvironment.Anywhere, CraftingSpot = true };
     }
 }

@@ -52,7 +52,7 @@ internal sealed class StockpileMemory
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsStockpilePlanner
 {
     internal static string StockpileWorld(GenerationSnapshot s) =>
         string.Create(CultureInfo.InvariantCulture, $"{s.Colony}/{s.Load}/{s.Map}");
@@ -68,15 +68,15 @@ internal static partial class BuildingRuntimePackage
         var rooms = new List<Pol.PlannedRole>();
         foreach (var module in new[] { Pol.PlannedRole.Storage })
         {
-            var (_, owedRoom) = PlannedRoomOwed(projection, module);
+            var (_, owedRoom) = RoundsBuildingPlanner.PlannedRoomOwed(projection, module);
             if (owedRoom)
             {
                 rooms.Add(module);
             }
         }
         request = request with { Rooms = rooms };
-        request = request with { Zones = OwnedStockpileZones(projection, owned, patches, shelves) };
-        var storage = StoreView(projection, request.Protected);
+        request = request with { Zones = StockpileZones.OwnedStockpileZones(projection, owned, patches, shelves) };
+        var storage = StockpileSitedRoles.StoreView(projection, request.Protected);
         storage = storage with { Gear = gear };
         storage = storage with { Zones = request.Zones };
         storage = storage with { BenchInputs = inputs };
@@ -141,9 +141,9 @@ internal static partial class BuildingRuntimePackage
             return Unknown<IReadOnlyList<Pol.PlannedStoreRoom>>();
         }
         var rooms = plan.Rooms.Where(r => r.Role == Pol.PlannedRole.Storage || r.Role == Pol.PlannedRole.Yard).ToList();
-        var owed = rooms.Any(r => !r.Unfenced()) ? PlannedConstructionOf(projection, flooring) : default;
+        var owed = rooms.Any(r => !r.Unfenced()) ? Rounder.PlannedConstructionOf(projection, flooring) : default;
         var sites = rooms.Any(r => !r.Unfenced()) ? Rounder.PlannedRoomSitesOf(projection, flooring) : null;
-        var floors = sites is null ? null : FlooringFactsOf(projection);
+        var floors = sites is null ? null : RoundsBuildingPlanner.FlooringFactsOf(projection);
         var output = new List<Pol.PlannedStoreRoom>(rooms.Count);
         foreach (var room in rooms)
         {
@@ -195,7 +195,7 @@ public sealed partial class Rounder
         {
             return projection;
         }
-        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.PolicyFunctions.StockpileRoleCounts(OwnedStockpileZones(projection, owned, null, ShelfPlans(snapshot, owned, projection, ct).Shelves))]) } };
+        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.PolicyFunctions.StockpileRoleCounts(StockpileZones.OwnedStockpileZones(projection, owned, null, ShelfPlans(snapshot, owned, projection, ct).Shelves))]) } };
     }
 
     /// <summary>
@@ -214,13 +214,13 @@ public sealed partial class Rounder
         {
             return [];
         }
-        Stockpiles.SetDemand(StockpileWorld(snapshot), request.RoomDemand);
+        Stockpiles.SetDemand(RoundsStockpilePlanner.StockpileWorld(snapshot), request.RoomDemand);
         var review = Pol.PolicyFunctions.PlanStockpileMaintenance(request);
         Stockpiles.SetActive(snapshot, review.Known ? Known(review.Active) : Unknown<bool>());
         foreach (var e in review.Edits)
         {
             ct.ThrowIfCancellationRequested();
-            Tel.Decide(StockpileEditDecision("proposed", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["detail"] = e.Explanation }));
+            Tel.Decide(RoundsStockpilePlanner.StockpileEditDecision("proposed", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["detail"] = e.Explanation }));
         }
         return review.ShelfCandidates;
     }
@@ -263,12 +263,12 @@ public sealed partial class Rounder
         var gear = GearStore(projection);
         var protectedCells = ReservedGround(snapshot, projection, ct);
         var (plans, spent) = ShelfPlans(snapshot, owned, projection, ct);
-        var request = BuildingRuntimePackage.StockpileRequest(projection, owned, patches, plans, Known<IReadOnlyDictionary<string, bool>>(benches), BenchInputs(census, projection), gear, protectedCells);
+        var request = RoundsStockpilePlanner.StockpileRequest(projection, owned, patches, plans, Known<IReadOnlyDictionary<string, bool>>(benches), StockpileBenchInputs.BenchInputs(census, projection), gear, protectedCells);
         var canBuild = Native is IRoundsBuildingSource;
-        request = request with { ShelfAvailable = canBuild && ShelfAvailable(projection) };
+        request = request with { ShelfAvailable = canBuild && RoundsStockpilePlanner.ShelfAvailable(projection) };
         request = request with { Walkways = projection.LayoutPlan.TryGetValue(out var layout) ? Pol.PolicyFunctions.PlannedWalkways(layout) : Unknown<EquatableArray<Cell>>() };
         request = request with { ShelfStacks = await ShelfStacksAsync(snapshot, ct).ConfigureAwait(false) };
-        var cells = CensusByCell(projection);
+        var cells = StockpileZones.CensusByCell(projection);
         var shelfSpent = new Dictionary<string, bool>();
         var shelfRecords = new List<Pol.ShelfRecord>();
         var shelfRows = new List<Pol.StockpileShelf>();
@@ -279,7 +279,7 @@ public sealed partial class Rounder
             shelfSpent[z.Id] = spent.GetValueOrDefault(z.Id);
             foreach (var s in shelves)
             {
-                if (!BuiltShelf(s))
+                if (!StockpileZones.BuiltShelf(s))
                 {
                     continue;
                 }
@@ -299,7 +299,7 @@ public sealed partial class Rounder
         request = request with { Shelves = shelfRows };
         request = request with { Occupancy = await StorageOccupancyAsync(request, tick, ct).ConfigureAwait(false) };
         request = request with { RoomDemand = request.RoomDemand with { Yard = Pol.PolicyFunctions.YardDemand(request) } };
-        request = request with { ShelfCost = ShelfCost(projection), StoreRooms = StoreRooms(projection, Policy.Flooring), Items = projection.Facts.Items };
+        request = request with { ShelfCost = RoundsStockpilePlanner.ShelfCost(projection), StoreRooms = RoundsStockpilePlanner.StoreRooms(projection, Policy.Flooring), Items = projection.Facts.Items };
         return (request, "");
     }
 
@@ -348,9 +348,9 @@ public sealed partial class Rounder
         var spent = new Dictionary<string, bool>();
         foreach (var zone in owned.Where(z => z.Kind == Domain.ZoneKind.Stockpile).Select(z => z.Id).Distinct())
         {
-            var (records, next) = ZoneShelves(Player.Journal, need, zone, projection.Facts.CurrentConstruction, ct);
+            var (records, next) = RoundsStockpilePlanner.ZoneShelves(Player.Journal, need, zone, projection.Facts.CurrentConstruction, ct);
             shelves[zone] = records;
-            spent[zone] = next >= MaxShelvesPerZone;
+            spent[zone] = next >= RoundsStockpilePlanner.MaxShelvesPerZone;
         }
         return (shelves, spent);
     }
@@ -381,7 +381,7 @@ public sealed partial class Rounder
                 unroofed.Add(c.Cell);
             }
         }
-        foreach (var cell in ShellInteriors([], rows))
+        foreach (var cell in RoundsShellInteriors.ShellInteriors([], rows))
         {
             if (unroofed.Contains(cell))
             {
@@ -454,12 +454,12 @@ internal sealed partial class RoundsStockpilePlanner
         {
             return (FieldUnavailable("building_source"), false);
         }
-        var (room, owed) = PlannedRoomOwed(read.Projection, module);
+        var (room, owed) = RoundsBuildingPlanner.PlannedRoomOwed(read.Projection, module);
         if (!owed)
         {
             return (WaitFor(Pol.Cause.MethodUsed, "stockpile_room_built"), false);
         }
-        var result = await _building.ReconcileRoomAsync(work.State, review, work.Owner, read, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value, Reason = "storage-planner room" }, call, work.Epoch).ConfigureAwait(false);
+        var result = await _building.ReconcileRoomAsync(work.State, review, work.Owner, read, null, new RoomReconcile { RingOnly = true, Room = room, Name = RoundsBuildingPlanner.PlannedRoomMethod(room).Value, Reason = "storage-planner room" }, call, work.Epoch).ConfigureAwait(false);
         Tel.Decide(StockpileEditDecision("proposed", result.Verdict.ToString() ?? "", Wire.Name(module), new Dictionary<string, object?> { ["kind"] = "room" }));
         return (result.Verdict, result.Verdict == BuildingReasonAdmitted);
     }
@@ -477,12 +477,12 @@ internal sealed partial class RoundsStockpilePlanner
         {
             return BuildingReasonNoReview;
         }
-        if (OpenEditPlan(p.Journal, work.Owner, call))
+        if (StockpileZones.OpenEditPlan(p.Journal, work.Owner, call))
         {
             return BuildingReasonExistingWork;
         }
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("stockpiles: the scope is another world or older than the review");
         }
@@ -542,7 +542,7 @@ internal sealed partial class RoundsStockpilePlanner
             DomainAction action;
             try
             {
-                action = StockpileEditAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}")), e);
+                action = StockpileZones.StockpileEditAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}")), e);
             }
             catch (Exception err) when (err is not OperationCanceledException)
             {

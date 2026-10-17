@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // Go: internal/bridge/trade_target.go (TradeParticipantOf). The Bridge port has no counterpart yet, so the
 // building runtime carries it next to its only callers.
-internal static partial class BuildingRuntimePackage
+internal static class TradeTarget
 {
     /// <summary>The closed participant a wire trade target names; an unset target reads as the empty map participant.</summary>
     internal static TradeParticipant TradeParticipantOf(C.TradeTarget? target)

@@ -28,7 +28,7 @@ public sealed partial class RoundsBuildingPlanner
     internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectRefrigerationAsync(ColonyProjection facts, bool allowance, CancellationToken ct)
     {
         var review = PolicyFunctions.ReviewRefrigeration(facts.Facts.FoodStorageUpkeep, Reviewer.Policy.FoodStorage);
-        review = review.WithWarmRooms(WarmCoolingRooms(facts));
+        review = review.WithWarmRooms(RoundsBurialFacts.WarmCoolingRooms(facts));
         if (!review.Active)
         {
             return (null, BuildingReasonNoDeficit);
@@ -96,7 +96,7 @@ public sealed partial class RoundsBuildingPlanner
         var (exhausted, committed) = RefrigerationCooling(p.Journal, goal, state.Snapshot, facts.Identity.Tick, call);
         // The dining room's meal closet stands before its cooler; a shell already committed, or refused, leaves the
         // cooling to go on.
-        var (closet, closetOwed) = PlannedMealCloset(facts);
+        var (closet, closetOwed) = RoundsBurialFacts.PlannedMealCloset(facts);
         if (PositiveFact(closetOwed))
         {
             var closetResult = await ReconcileRoomAsync(state, review, goal, rounds, null, new RoomReconcile { RingOnly = true, Room = closet, Name = PlannedRoomMethod(closet).Value, Reason = "cold meal shelf" }, call, epoch).ConfigureAwait(false);

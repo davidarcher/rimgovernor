@@ -9,7 +9,7 @@ public sealed partial class Rounder
         var held = p.Journal.BuildingReservations(state.Snapshot, call);
         var protectedCells = new List<Cell>();
         var plans = p.Journal.LoadPlans(call);
-        protectedCells.AddRange(BuildingRuntimePackage.PendingMonumentCells(plans, projection.Facts.QuestOffers));
+        protectedCells.AddRange(RoundsQuestMonumentClaims.PendingMonumentCells(plans, projection.Facts.QuestOffers));
         foreach (var h in held)
         {
             protectedCells.AddRange(h.Footprint);
@@ -30,8 +30,8 @@ public sealed partial class Rounder
         }
 
         claims.TryGetValue(out var claimed);
-        protectedCells.AddRange(BuildingRuntimePackage.ShellInteriors(shells, claimed));
-        protectedCells.AddRange(BuildingRuntimePackage.FirebreakRing(projection));
+        protectedCells.AddRange(RoundsShellInteriors.ShellInteriors(shells, claimed));
+        protectedCells.AddRange(RoundsFieldPlanner.FirebreakRing(projection));
         return protectedCells;
     }
 
@@ -48,7 +48,7 @@ public sealed partial class Rounder
 
     internal ResourceFieldPlanner NewResourceFieldPlanner(ControlState state, Rounds review, Identity expected, ColonyProjection projection, CancellationToken call)
     {
-        var (_, choices) = BuildingRuntimePackage.FieldRequestOf(projection, 0);
+        var (_, choices) = RoundsFieldPlanner.FieldRequestOf(projection, 0);
         return new ResourceFieldPlanner(
             choices,
             projection.CropClimate,
@@ -76,7 +76,7 @@ public sealed partial class Rounder
 
     internal double ChopMinGrowth(ColonyProjection projection)
     {
-        var (fraction, ok) = PolicyFunctions.TreeFellFraction(BuildingRuntimePackage.CropChoices(projection), new Resource("WoodLog"), projection.CropClimate.Biome, PolicyFunctions.GrowerSkill(projection.WorkPawns));
+        var (fraction, ok) = PolicyFunctions.TreeFellFraction(RoundsFieldPlanner.CropChoices(projection), new Resource("WoodLog"), projection.CropClimate.Biome, PolicyFunctions.GrowerSkill(projection.WorkPawns));
         return ok ? fraction : Policy.ChopMinGrowth;
     }
 }

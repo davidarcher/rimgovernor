@@ -457,7 +457,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             tier.Buildings = tier.Buildings.Where(b => !lost.Contains(b.Cell)).ToList();
             record.SetTier(tier);
-            DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "nothing_removable", tier.Name.Value, new Dictionary<string, object?> { ["cells"] = lost.Count }, call);
+            DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "nothing_removable", tier.Name.Value, new Dictionary<string, object?> { ["cells"] = lost.Count }, call);
             p.Journal.SaveDefenseLayout(record, call);
         }
         if (actions.Count == 0)
@@ -483,7 +483,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         tier.Attempts++;
         record.SetTier(tier);
         p.Journal.SaveDefenseLayout(record, call);
-        DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "removals", tier.Name.Value, new Dictionary<string, object?> { ["removals"] = actions.Count, ["method"] = key.Value }, call);
+        DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "removals", tier.Name.Value, new Dictionary<string, object?> { ["removals"] = actions.Count, ["method"] = key.Value }, call);
         return new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id, Tier = tier.Name.Value };
     }
 

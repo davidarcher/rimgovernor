@@ -131,8 +131,8 @@ public sealed class FoodRounds
     {
         var started = _reviewer.Clock.Now();
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("food read: the scope is another world or older than the review");
         }
@@ -172,7 +172,7 @@ public sealed class FoodRounds
     internal static FoodFacts Facts(ColonyProjection projection, RoundsPolicy policy)
     {
         var budgeted = projection.ApplyFieldBudget(policy.Seasonal(projection.Facts.Calendar, projection.Facts.DisasterConditions).FoodTargetDays);
-        return FoodFacts.From(budgeted.Facts, policy) with { CampfireRetireOwed = CampfireRetireOwed(projection) };
+        return FoodFacts.From(budgeted.Facts, policy) with { CampfireRetireOwed = RoundsBuildingPlanner.CampfireRetireOwed(projection) };
     }
 }
 

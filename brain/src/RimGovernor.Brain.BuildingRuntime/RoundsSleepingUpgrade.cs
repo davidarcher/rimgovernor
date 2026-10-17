@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>The stuff a bedroom upgrade piece is built in: the allowed stocked one with the best rest effectiveness, else the ordinary placement stuff.</summary>
     internal static string PieceStuff(Observation.ColonyProjection facts, string def)
@@ -110,7 +110,7 @@ internal static partial class BuildingRuntimePackage
         {
             return (new Pol.RoomUpgrade(), false);
         }
-        if (AnimalContainmentDefinition(facts.Definitions, facts.Shapes.Furniture.AnimalSpot) is not { } d)
+        if (RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, facts.Shapes.Furniture.AnimalSpot) is not { } d)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -152,7 +152,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     internal async Task<RoundsBuildingResult> RemoveOldBedAsync(ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Observation.RoundsReading reading, Pol.BedReplacement rep, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
-        var method = new MethodId("bedroom-replace-remove-" + DigestHex(rep.Bed, 8));
+        var method = new MethodId("bedroom-replace-remove-" + RoundsBuildingPlanner.DigestHex(rep.Bed, 8));
         if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "old_bed_removal") };
@@ -174,7 +174,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     {
         var p = Reviewer.Player;
         var facts = reading.Projection;
-        var method = new MethodId($"bedroom-upgrade-{u.Slot}-{DigestHex(u.Room, 8)}");
+        var method = new MethodId($"bedroom-upgrade-{u.Slot}-{RoundsBuildingPlanner.DigestHex(u.Room, 8)}");
         if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "bedroom_upgrade") };
@@ -205,7 +205,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             {
                 continue;
             }
-            stock = MergeRoundsStock(stock, preview.Stock, selected.Count == 0);
+            stock = RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock, selected.Count == 0);
             selected.Add(v);
         }
         if (selected.Count == 0)

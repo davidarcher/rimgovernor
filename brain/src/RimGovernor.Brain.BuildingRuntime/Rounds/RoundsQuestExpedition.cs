@@ -62,7 +62,7 @@ public sealed partial class JoinersRounds
 
         if (expedition.Departure is null)
         {
-            return (BuildingRuntimePackage.BuildingReasonExistingWork, false);
+            return (Verdict.BuildingReasonExistingWork, false);
         }
 
         if (expedition.Departure.Mode == CaravanDepartureMode.Formation)

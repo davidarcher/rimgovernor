@@ -34,8 +34,6 @@
     <Using Include="RimGovernor.Brain.Executor" />
     <Using Include="RimGovernor.Brain.Facts" />
     <Using Include="RimGovernor.Contracts.Wire" />
-    <!-- Go package-level functions with no owning type live on one static partial class per package. -->
-    <Using Include="RimGovernor.Brain.BuildingRuntime.BuildingRuntimePackage" Static="true" />
     <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
     <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Static="true" />
     <Using Include="RimGovernor.Brain.BuildingRuntime.Verdict" Static="true" />

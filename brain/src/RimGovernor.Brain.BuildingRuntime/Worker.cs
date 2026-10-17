@@ -643,7 +643,7 @@ public sealed partial class Worker
                     {
                         // The decoded store drops what the dispatch changed: only a clock events page would
                         // drop it otherwise, and a next decision replans from the rows before this write.
-                        var (everything, families) = BuildingRuntimePackage.OperationFamilies(lead.Kind, true);
+                        var (everything, families) = ClockScheduler.OperationFamilies(lead.Kind, true);
                         if (everything)
                         {
                             _config.Store?.InvalidateAll();

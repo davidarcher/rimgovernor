@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class ZonePreviews
 {
     /// <summary>
     /// Runs a zone preview and separates the game refusing the site (a cell the zone designator will not take)

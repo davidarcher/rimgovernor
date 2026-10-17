@@ -87,7 +87,7 @@ public sealed class PlannerQueueStarvationTests
         var open = new ActionId("a1");
         AssertWithinCadence(LongestGaps(
             (_, _) => true,
-            name => name == "six_hour" ? BuildingRuntimePackage.BuildingReasonExistingWork : null,
+            name => name == "six_hour" ? Verdict.BuildingReasonExistingWork : null,
             _ => [open],
             id => id == open));
     }

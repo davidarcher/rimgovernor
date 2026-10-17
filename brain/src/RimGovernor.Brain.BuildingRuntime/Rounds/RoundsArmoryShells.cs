@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsArmoryShells
 {
     /// <summary>The count of built mortars in the defense layout record; zero without a record.</summary>
     internal static int MortarsBuilt(StoreJournal journal, GenerationSnapshot snapshot, CancellationToken ct)

@@ -106,7 +106,7 @@ public sealed class PeopleRounds
         }
         if (PolicyApi.VoidNodeDisruptAbsent(dialog.Options))
         {
-            DefenseAction("routine-dialog", TelemetryLevel.Error, "refused", "void_node_disrupt_absent", "void_node", new Dictionary<string, object?> { ["window"] = window }, call);
+            DefensePipeline.DefenseAction("routine-dialog", TelemetryLevel.Error, "refused", "void_node_disrupt_absent", "void_node", new Dictionary<string, object?> { ["window"] = window }, call);
         }
         var chosen = PolicyApi.ChooseDialogOption(dialog.Options, _policy);
         if (chosen is null)

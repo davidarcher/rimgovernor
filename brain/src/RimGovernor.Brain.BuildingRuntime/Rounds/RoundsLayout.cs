@@ -97,8 +97,8 @@ public sealed partial class LayoutRounds
         }
         var journal = _reviewer.Player.Journal;
         var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("layout read: the scope is another world or older than the review");
         }
@@ -133,14 +133,14 @@ public sealed partial class LayoutRounds
         }
         if (_firebreak is not null)
         {
-            var (work, ruins, ok) = _firebreak.Take(StockpileWorld(scope.World), review.Tick);
+            var (work, ruins, ok) = _firebreak.Take(RoundsStockpilePlanner.StockpileWorld(scope.World), review.Tick);
             facts = ok
                 ? facts with { Firebreak = Known(work), FirebreakStep = FirebreakCandidate(work, ruins ?? []) }
                 : facts with { Firebreak = Unknown<FirebreakWork>() };
         }
         if (_defense is not null)
         {
-            facts = facts with { Defense = Known(DefenseLayoutFactsOf(_reviewer.Player, review, ct)) };
+            facts = facts with { Defense = Known(RoundsDefenseLayoutPlanner.DefenseLayoutFactsOf(_reviewer.Player, review, ct)) };
         }
         return facts;
     }
@@ -182,7 +182,7 @@ public sealed partial class LayoutRounds
         {
             return null;
         }
-        var probe = FirebreakActions(PlanIds.MintPlanId(), work, ruins);
+        var probe = FirebreakPlan.FirebreakActions(PlanIds.MintPlanId(), work, ruins);
         if (probe.Actions.Count == 0)
         {
             return null;
@@ -200,8 +200,8 @@ public sealed partial class LayoutRounds
             }
         }
         return new LayoutCandidate(
-            new MethodId(FirebreakPrefix + DigestHex(key.ToString(), 8)),
+            new MethodId(FirebreakPlan.FirebreakPrefix + RoundsBuildingPlanner.DigestHex(key.ToString(), 8)),
             string.Create(CultureInfo.InvariantCulture, $"firebreak cut {probe.Cut} cells, deconstruct {probe.Ruins} ruins"),
-            id => FirebreakActions(id, work, ruins).Actions);
+            id => FirebreakPlan.FirebreakActions(id, work, ruins).Actions);
     }
 }

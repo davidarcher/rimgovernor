@@ -28,7 +28,7 @@ public interface IColonyEventNative
 /// native's loss counter, or a batch that could not be read against a context, wakes a Full step. It never takes the
 /// player gate.
 /// </summary>
-internal sealed class ColonyEventConsumer(Session session, IColonyEventNative native, WakeSignal? wake, ClockRunConfig config)
+internal sealed partial class ColonyEventConsumer(Session session, IColonyEventNative native, WakeSignal? wake, ClockRunConfig config)
 {
     // One native queue's worth (ColonyEventChannel.Capacity): a batch never grows past what native can hold.
     private const int BatchLimit = 1024;
@@ -162,7 +162,7 @@ internal sealed class ColonyEventConsumer(Session session, IColonyEventNative na
                 ClockEvents.Event("clock-scheduler", "authority", "authority changed under the colony events");
             }
         }
-        var events = batch.Where(e => !Pkg.OtherWorld(e, current.Identity)).ToList();
+        var events = batch.Where(e => !ColonyEventConsumer.OtherWorld(e, current.Identity)).ToList();
         if (lossChanged)
         {
             Lost(("lost", native.ColonyEventsLost));
@@ -172,8 +172,8 @@ internal sealed class ColonyEventConsumer(Session session, IColonyEventNative na
             return;
         }
         Tel.ObserveTick(current.Tick);
-        var found = Pkg.EventsWake(events);
-        wake?.NotifySections(found.Families, Pkg.EventSections(events), found.Authority, found.Stopped, found.StopAt);
+        var found = ColonyEventConsumer.EventsWake(events);
+        wake?.NotifySections(found.Families, ColonyEventConsumer.EventSections(events), found.Authority, found.Stopped, found.StopAt);
         Interlocked.Add(ref _seen, events.Count);
     }
 

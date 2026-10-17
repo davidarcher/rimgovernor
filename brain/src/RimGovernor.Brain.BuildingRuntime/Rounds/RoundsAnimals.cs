@@ -65,8 +65,8 @@ public sealed class AnimalsReader
             // A malformed census row is an unread census, never a contained herd.
             uncontained = Unknown<EquatableArray<PawnId>>();
         }
-        var (pen, penKnown) = PenStepOf(projection);
-        var (ward, wardKnown) = WardStepOf(projection);
+        var (pen, penKnown) = RoundsHerdRooms.PenStepOf(projection);
+        var (ward, wardKnown) = RoundsHerdRooms.WardStepOf(projection);
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
         {
@@ -83,7 +83,7 @@ public sealed class AnimalsReader
             Uncontained = uncontained,
             Pen = penKnown ? Known(pen) : Unknown<HerdStep>(),
             Ward = wardKnown ? Known(ward) : Unknown<HerdStep>(),
-            WardRoom = f.AnimalWard with { Ready = WardReadyOf(projection) },
+            WardRoom = f.AnimalWard with { Ready = RoundsHerdRooms.WardReadyOf(projection) },
         };
     }
 
@@ -91,13 +91,13 @@ public sealed class AnimalsReader
     private async Task<(Rounds Review, RoundsReading Reading)> ReadingAsync(GenerationSnapshot world, CancellationToken call)
     {
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, world, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, world, review.Tick))
         {
             throw new ControlException("animals read: the scope is another world or older than the review");
         }
         var claims = _reviewer.Player.Journal.ConstructionClaims(world, expected.Tick, call);
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, HerdDefinitions, call).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, RoundsHerdRooms.HerdDefinitions, call).ConfigureAwait(false);
         return (review, reading);
     }
 
@@ -139,13 +139,13 @@ public sealed class AnimalsReader
         {
             return FieldUnavailable("work_pawns");
         }
-        var handler = AnimalHandlerAvailable(workPawns);
+        var handler = RoundsAnimalContainment.AnimalHandlerAvailable(workPawns);
         if (!handler.IsKnown)
         {
             return FieldUnavailable("animal_handler");
         }
-        var choice = PolicyApi.SelectAnimalContainmentMethod(animals, handler, PensStand(projection));
-        return choice.Reason == AnimalContainmentReason.NoDeficit ? Verdict.AwaitingPlan(work.Need.Id.Value, "no_method") : ContainmentWait(choice.Reason);
+        var choice = PolicyApi.SelectAnimalContainmentMethod(animals, handler, RoundsAnimalContainment.PensStand(projection));
+        return choice.Reason == AnimalContainmentReason.NoDeficit ? Verdict.AwaitingPlan(work.Need.Id.Value, "no_method") : RoundsAnimalContainment.ContainmentWait(choice.Reason);
     }
 
     private async Task<Verdict> WardAsync(NeedWork work, AnimalsFacts facts, CancellationToken call)

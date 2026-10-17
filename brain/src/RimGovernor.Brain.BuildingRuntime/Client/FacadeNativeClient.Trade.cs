@@ -52,7 +52,7 @@ public sealed partial class FacadeNativeClient
         }
 
         var session = outcome.Observed!;
-        var trader = BuildingRuntimePackage.TradeParticipantOf(session.Target).Key();
+        var trader = TradeTarget.TradeParticipantOf(session.Target).Key();
         return new TradeSessionRead { Target = session.Target, Context = session.Context, Trader = trader, Negotiator = session.NegotiatorId ?? "", Open = session.Open ?? false };
     }
 
@@ -91,7 +91,7 @@ public sealed partial class FacadeNativeClient
             Context = v.Snapshot?.Context,
             SessionId = v.SessionId ?? "",
             Target = v.Target,
-            Trader = BuildingRuntimePackage.TradeParticipantOf(v.Target).Key(),
+            Trader = TradeTarget.TradeParticipantOf(v.Target).Key(),
             Negotiator = v.Negotiator?.Id ?? "",
             GiftMode = v.GiftMode ?? false,
             CanTradeNow = v.CanTradeNow ?? false,

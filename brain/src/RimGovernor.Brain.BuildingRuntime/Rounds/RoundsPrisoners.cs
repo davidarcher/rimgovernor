@@ -43,8 +43,8 @@ public sealed class PrisonersRounds
             return new PrisonersFacts();
         }
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await BuildingRuntimePackage.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
-        if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("prisoners read: the scope is another world or older than the review");
         }
@@ -65,8 +65,8 @@ public sealed class PrisonersRounds
         }
         var state = work.State;
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await BuildingRuntimePackage.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("prisoners jail: the native boundary moved");
         }
@@ -78,7 +78,7 @@ public sealed class PrisonersRounds
             {
                 var stock = new PackedStock(_reviewer.Native, Boundary.Identity(state.Snapshot));
                 var room = step.Room ?? throw new ControlException("prisoners jail: reconcile step without a room");
-                var rr = new RoomReconcile { Room = room, Template = step.Template, Name = RoomName("jail", room), Reason = "jail" };
+                var rr = new RoomReconcile { Room = room, Template = step.Template, Name = RoundsBurialFacts.RoomName("jail", room), Reason = "jail" };
                 return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, rr, call, work.Epoch).ConfigureAwait(false)).Verdict;
             }
             case JailStepKind.Mark:
@@ -87,7 +87,7 @@ public sealed class PrisonersRounds
                 foreach (var bed in step.Marks)
                 {
                     var one = await MarkJailBedAsync(state, work.Owner, reading.Projection, bed, call, work.Epoch).ConfigureAwait(false);
-                    if (one == BuildingRuntimePackage.BuildingReasonAdmitted || verdict.Is(Cause.MethodUsed))
+                    if (one == Verdict.BuildingReasonAdmitted || verdict.Is(Cause.MethodUsed))
                     {
                         verdict = one;
                     }
@@ -101,7 +101,7 @@ public sealed class PrisonersRounds
 
     internal static JailStep JailStep(ColonyProjection facts)
     {
-        var (plan, rooms, known) = BuildingRuntimePackage.PlannedLayout(facts);
+        var (plan, rooms, known) = RoundsBuildingPlanner.PlannedLayout(facts);
         var pk = facts.Facts.Prisoners.TryGetValue(out var prisoners);
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
         var bk = facts.Facts.CurrentConstruction.TryGetValue(out var built);

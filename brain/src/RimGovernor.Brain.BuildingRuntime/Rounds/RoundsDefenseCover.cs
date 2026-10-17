@@ -21,7 +21,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             throw DefenseControlErr(248);
         }
         SameTick(observed.Context, state, read.Projection.Identity.Tick);
-        var arms = await ReadArmamentAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+        var arms = await Armament.ReadArmamentAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         var (defenders, minRange) = DefenderRangeOf(observed.Pawns, arms);
         return (defenders, minRange, defenders > 0);
     }
@@ -68,7 +68,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         request = request with { Defenders = defenders };
         request = request with { MinRange = minRange };
         var layout = DefenseRecordLayout(record, killbox);
-        RecordLayoutSnapshot(state.Snapshot, tick, new SnapshotLayout { Point = SnapshotApi.LayoutCover, Request = request, Record = record, Site = site.Cells }, call);
+        DefenseRecorder.RecordLayoutSnapshot(state.Snapshot, tick, new SnapshotLayout { Point = SnapshotApi.LayoutCover, Request = request, Record = record, Site = site.Cells }, call);
         DefenseApproaches approaches;
         try
         {
@@ -76,12 +76,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         catch (DomainException ex)
         {
-            DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "cover_census", "cover", new Dictionary<string, object?> { ["error"] = ex }, call);
+            DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "cover_census", "cover", new Dictionary<string, object?> { ["error"] = ex }, call);
             return (new RoundsDefenseLayoutResult(), false);
         }
         if (approaches.Hold != "")
         {
-            DefenseAction("defense-layout", TelemetryLevel.Info, "waiting", "cover_held", "cover", new Dictionary<string, object?> { ["detail"] = approaches.Hold }, call);
+            DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "waiting", "cover_held", "cover", new Dictionary<string, object?> { ["detail"] = approaches.Hold }, call);
             return (new RoundsDefenseLayoutResult(), false);
         }
         var (clearances, _) = DefenseCoverSelection(approaches, byCell);
@@ -93,7 +93,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             clearances = clearances.GetRange(0, MaxDefenseCoverBatch);
         }
-        var (verdict, admitted) = AdmitOwnerSubject(p.Journal, goal, DefenseCoverPrefix, state.Snapshot, call);
+        var (verdict, admitted) = RoundsRefusalBudget.AdmitOwnerSubject(p.Journal, goal, DefenseCoverPrefix, state.Snapshot, call);
         if (!admitted)
         {
             return (new RoundsDefenseLayoutResult { Verdict = verdict }, true);
@@ -117,12 +117,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return (new RoundsDefenseLayoutResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) }, true);
         }
-        DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "cover_clearance", method.Value, new Dictionary<string, object?> { ["things"] = clearances.Count }, call);
+        DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "cover_clearance", method.Value, new Dictionary<string, object?> { ["things"] = clearances.Count }, call);
         return (new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsDefenseLayoutPlanner
 {
     /// <summary>The policy layout of a stored defense record: its firing positions, trap lane and the tier buildings.</summary>
     internal static DefenseLayout DefenseRecordLayout(DefenseLayoutRecord record, DefenseKillbox killbox)

@@ -48,7 +48,7 @@ BuildingRuntime/PlannerSnapshot.cs|PlannerSnapshot.RecordStepRead
 BuildingRuntime/Player.cs|Player.Player
 BuildingRuntime/Rounds/Rounder.cs|Rounder.ReviewStepAsync
 BuildingRuntime/Rounds/RoundsAcquisition.cs|RoundsAcquisitionPlanner.StepAsync
-BuildingRuntime/Rounds/RoundsAnimalContainment.cs|BuildingRuntimePackage.ShellSharedStuff
+BuildingRuntime/Rounds/RoundsAnimalContainment.cs|RoundsAnimalContainment.ShellSharedStuff
 BuildingRuntime/Rounds/RoundsBabyFeeding.cs|Rounder.ReviewBabyFeeding
 BuildingRuntime/Rounds/RoundsDefenseLayoutTiers.cs|RoundsDefenseLayoutPlanner.ProposeAsync
 BuildingRuntime/Rounds/RoundsDefenseTiers.cs|RoundsDefenseLayoutPlanner.AdviseBlocksAsync
@@ -56,7 +56,7 @@ BuildingRuntime/Rounds/RoundsFoodReserve.cs|Rounder.ReviewReserve
 BuildingRuntime/Rounds/RoundsIdeoligion.cs|Rounder.ReformChoice
 BuildingRuntime/Rounds/RoundsResourceRunway.cs|Rounder.ResourceSurfaceOreAsync
 BuildingRuntime/RoundsSleepingShellBed.cs|RoundsSleepingUpkeepPlanner.PackShellBedAsync
-BuildingRuntime/RoundsSleepingUpgrade.cs|BuildingRuntimePackage.PieceStuff
+BuildingRuntime/RoundsSleepingUpgrade.cs|RoundsSleepingUpkeepPlanner.PieceStuff
 BuildingRuntime/RoundsTradeAcquisition.cs|Rounder.PlanFoodAcquisitionAsync
 BuildingRuntime/RoundsTradeExport.cs|RoundsTradeExportPlanner.DeclareOrdersInnerAsync
 BuildingRuntime/Worker.cs|Worker.Flush

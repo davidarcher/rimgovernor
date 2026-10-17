@@ -15,7 +15,7 @@ public interface IRoundsWorkBenchSource
 /// changes it writes, so the same changes are committed once; an open plan whose actions the fresh review no longer
 /// wants has them cancelled first.
 /// </summary>
-public sealed class RoundsWorkPlanner
+public sealed partial class RoundsWorkPlanner
 {
     private readonly Rounder _reviewer;
     private readonly IRoundsWorkBenchSource _benches;
@@ -52,9 +52,9 @@ public sealed class RoundsWorkPlanner
 
         var plans = p.Journal.LoadPlans(call);
         var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(state.Snapshot), call);
-        var definitions = RoundsProjectDefinitions(plans, state.Snapshot, playerPlans);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, state.Snapshot, playerPlans);
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
@@ -69,30 +69,30 @@ public sealed class RoundsWorkPlanner
         {
             construction = construction[..8];
         }
-        if (!RoundsProjectWork(definitions, read.Projection.Definitions).TryGetValue(out var required))
+        if (!RoundsProjectBill.RoundsProjectWork(definitions, read.Projection.Definitions).TryGetValue(out var required))
         {
             return Existing(FieldUnavailable("project_work"));
         }
         var resourceTargets = _reviewer.ResourceTargets(state.Snapshot);
         // The resource targets are in deficit when the economy/resource Need's threshold reads short now.
         var deficit = PolicyApi.ResourceTargetNeed(resourceTargets, read.Projection.Facts.Resources).Recovered.TryGetValue(out var recovered) && !recovered;
-        var targets = RoundsDeficitTargets(resourceTargets, deficit, read.Projection.Facts.Gear);
-        var benchWork = await RoundsBenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, playerPlans, targets, targets.Count > 0, read.Projection.Facts.Items.Wort, call).ConfigureAwait(false);
+        var targets = RoundsProjectBill.RoundsDeficitTargets(resourceTargets, deficit, read.Projection.Facts.Gear);
+        var benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, playerPlans, targets, targets.Count > 0, read.Projection.Facts.Items.Wort, call).ConfigureAwait(false);
         if (!benchWork.TryGetValue(out var benchRows))
         {
             return Existing(FieldUnavailable("bench_work"));
         }
-        required = MergeWorkRequirements([.. required], benchRows);
-        var needs = RoundsResearchNeeds(p.Journal, _reviewer.Policy, read.Projection.Facts.Items, state.Snapshot, _reviewer.EquipmentOwed(state.Snapshot), call);
+        required = RoundsProjectBill.MergeWorkRequirements([.. required], benchRows);
+        var needs = RoundsProjectBill.RoundsResearchNeeds(p.Journal, _reviewer.Policy, read.Projection.Facts.Items, state.Snapshot, _reviewer.EquipmentOwed(state.Snapshot), call);
         needs = _reviewer.CensusResearchNeeds(needs);
-        required = MergeWorkRequirements([.. required], RoundsResearchWork(needs, read.Projection.Facts.Research));
-        required = MergeWorkRequirements([.. required], FishingWork(read.Projection));
-        if (!StudyWork(read.Projection, call).TryGetValue(out var study))
+        required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsProjectBill.RoundsResearchWork(needs, read.Projection.Facts.Research));
+        required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsFieldPlanner.FishingWork(read.Projection));
+        if (!RoundsFieldPlanner.StudyWork(read.Projection, call).TryGetValue(out var study))
         {
             return Existing(FieldUnavailable("study_work"));
         }
-        required = MergeWorkRequirements([.. required], study);
-        var demand = RoundsDiseaseDemand(read.Projection, definitions, review, state.Snapshot);
+        required = RoundsProjectBill.MergeWorkRequirements([.. required], study);
+        var demand = RoundsDisease.RoundsDiseaseDemand(read.Projection, definitions, review, state.Snapshot);
         var sharedWork = p.Journal.WorkResources(state.Snapshot, call);
         demand = demand with { CommittedPawns = sharedWork.Claims.Pawns, WorkClaimsTruncated = sharedWork.Claims.Truncated };
         var decision = PolicyApi.PlanWork(pawns, required, demand);
@@ -131,7 +131,7 @@ public sealed class RoundsWorkPlanner
             care = care[..8];
         }
         settings.AddRange(care);
-        settings.AddRange(RoundsMechSettings(read));
+        settings.AddRange(RoundsMech.RoundsMechSettings(read));
         var reading = new List<ReadingPolicy>();
         var readingChanges = RoundsReadingChanges(read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns);
         if (readingChanges.Count > 0)
@@ -206,7 +206,7 @@ public sealed class RoundsWorkPlanner
         {
             hash.Append(inv, $"food/{GoQuote(f.Name)}/{GoQuoteList(f.Definitions)}\n");
         }
-        var methodId = new MethodId("work-" + HashHex16(hash.ToString()));
+        var methodId = new MethodId("work-" + RoundsAcquisitionPlanner.HashHex16(hash.ToString()));
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>();
         for (var i = 0; i < work.Count; i++)
@@ -245,7 +245,7 @@ public sealed class RoundsWorkPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsWorkPlanner
 {
     /// <summary>
     /// Cancels the not-yet-dispatched work and settings actions of an open plan of the admin/work-assignments Need that

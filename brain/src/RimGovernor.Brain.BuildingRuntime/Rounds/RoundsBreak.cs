@@ -26,7 +26,7 @@ public sealed partial class RoundsDefensePlanner
             }
             var plan = p.Journal.LoadPlan(method.Plan, call);
             var combat = await _native.ReadCombatAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
-            if (combat.Context is not { } combatContext || !BuildingRuntimePackage.ContextMatches(combatContext, state.Snapshot))
+            if (combat.Context is not { } combatContext || !RoundsArmoryPlanner.ContextMatches(combatContext, state.Snapshot))
             {
                 throw new ControlException("subdue needs a complete current census");
             }
@@ -208,12 +208,12 @@ public sealed partial class RoundsDefensePlanner
         targets.Sort((a, b) => string.CompareOrdinal(a.Id.Value, b.Id.Value));
         var needed = await DraftNeeds.PlannedDraftsAsync(_reviewer.Player.Journal, call).ConfigureAwait(false);
         var responders = new List<BreakResponder>();
-        var arms = await ReadArmamentAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+        var arms = await Armament.ReadArmamentAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         foreach (var p0 in f.Colonists)
         {
             var row = rows[p0.Id.Value];
-            var ranged = RangedWeaponEquipped(row.Equipment, arms);
-            var d = SquadDefenderFacts(row, needed.Select(n => n).ToHashSet(), ranged);
+            var ranged = Armament.RangedWeaponEquipped(row.Equipment, arms);
+            var d = Armament.SquadDefenderFacts(row, needed.Select(n => n).ToHashSet(), ranged);
             d = d with { MeleeEquipped = BreakMelee(row, arms) };
             responders.Add(new BreakResponder { SquadDefenderFacts = d, Cell = BreakDispatch.BreakCell(row) });
         }

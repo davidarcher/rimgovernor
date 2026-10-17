@@ -1,12 +1,12 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsHay
 {
     internal static (CropChoice Crop, bool Found) HayCrop(ColonyProjection p)
     {
         foreach (var d in p.Definitions)
         {
-            var crop = WithHarvestFacts(
+            var crop = RoundsFieldPlanner.WithHarvestFacts(
                 new CropChoice
                 {
                     Name = d.Name,

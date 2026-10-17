@@ -82,19 +82,19 @@ public sealed partial class AdminRounds
         }
         var journal = _reviewer.Player.Journal;
         var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("admin read: the scope is another world or older than the review");
         }
         var reading = _needs.Burial
-            ? await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), BurialDefinitions, ct).ConfigureAwait(false)
+            ? await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), RoundsBurialFacts.BurialDefinitions, ct).ConfigureAwait(false)
             : await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
         var facts = new AdminFacts();
         if (_needs.CreepJoiners)
         {
             var record = await journal.LoadCreepJoinersAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false);
-            facts = facts with { CreepJoiners = CreepJoinerWorkOf(reading.Projection, reading.Frame, reading.Catalog, record) };
+            facts = facts with { CreepJoiners = RoundsCreepJoiner.CreepJoinerWorkOf(reading.Projection, reading.Frame, reading.Catalog, record) };
         }
         if (_needs.SupplySafety)
         {
@@ -107,7 +107,7 @@ public sealed partial class AdminRounds
         }
         if (_needs.Burial)
         {
-            facts = facts with { Burial = BurialOwed(reading.Projection) };
+            facts = facts with { Burial = RoundsBurialFacts.BurialOwed(reading.Projection) };
         }
         if (_needs.WorkLedger)
         {

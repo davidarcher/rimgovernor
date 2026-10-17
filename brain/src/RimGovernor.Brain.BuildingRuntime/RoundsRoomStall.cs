@@ -1,9 +1,9 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>Remembers since when a room has had unfinished sites and when the stall was last reported. Derived, in memory only.</summary>
-internal readonly record struct RoomStall(Tick Since, Tick Reported = default);
+internal readonly partial record struct RoomStall(Tick Since, Tick Reported = default);
 
-internal static partial class BuildingRuntimePackage
+partial record struct RoomStall
 {
     /// <summary>
     /// How long a room's blueprints or frames may stand unfinished before the planner reports the stall, and
@@ -151,13 +151,13 @@ public sealed partial class Rounder
             RoomStalls[name] = new RoomStall(now);
             return;
         }
-        if (now.Value - st.Since.Value < RoomBuildStallTicks || (st.Reported.Value != 0 && now.Value - st.Reported.Value < RoomBuildStallTicks))
+        if (now.Value - st.Since.Value < RoomStall.RoomBuildStallTicks || (st.Reported.Value != 0 && now.Value - st.Reported.Value < RoomStall.RoomBuildStallTicks))
         {
             return;
         }
         st = st with { Reported = now };
         RoomStalls[name] = st;
-        var (blueprints, frames, reasons) = SiteCounts(sites);
+        var (blueprints, frames, reasons) = RoomStall.SiteCounts(sites);
         var tiers = new Dictionary<string, int>(StringComparer.Ordinal);
         var eligible = 0;
         var skill = 0;
@@ -190,7 +190,7 @@ public sealed partial class Rounder
             Component = "building-planner",
             Level = TelemetryLevel.Warn,
             Verdict = "waiting",
-            Reason = StallReason(reasons, obstructions),
+            Reason = RoomStall.StallReason(reasons, obstructions),
             Target = name,
             Attrs = new Dictionary<string, object?>
             {

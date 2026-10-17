@@ -24,7 +24,7 @@ public sealed partial class JoinersRounds
 
         if (step.Waiting)
         {
-            return (BuildingRuntimePackage.BuildingReasonExistingWork, false);
+            return (Verdict.BuildingReasonExistingWork, false);
         }
 
         if (step.Shuttle is null)

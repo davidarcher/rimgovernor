@@ -1,9 +1,9 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>One open production bill's bench and recipe, the pair whose census row names the work type a pawn needs enabled for it.</summary>
-internal readonly record struct RoundsProjectBill(string Bench, string Recipe);
+internal readonly partial record struct RoundsProjectBill(string Bench, string Recipe);
 
-internal static partial class BuildingRuntimePackage
+partial record struct RoundsProjectBill
 {
     /// <summary>
     /// Visits every open action of every live plan that is either admitted for the current world or selected

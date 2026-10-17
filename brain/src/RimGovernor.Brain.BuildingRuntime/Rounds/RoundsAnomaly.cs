@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+partial class AnomalyRounds
 {
     /// <summary>The able colonists wearing a lance item, with the item they would use.</summary>
     internal static IReadOnlyList<LanceUser> LanceUsers(IReadOnlyList<O.PawnState> rows, Things things)
@@ -8,7 +8,7 @@ internal static partial class BuildingRuntimePackage
         var output = new List<LanceUser>();
         foreach (var row in rows)
         {
-            var facts = SquadDefenderFacts(row, new HashSet<Domain.PawnId>(), Unknown<bool>());
+            var facts = Armament.SquadDefenderFacts(row, new HashSet<Domain.PawnId>(), Unknown<bool>());
             var dk = facts.Dead.TryGetValue(out var dead);
             var wk = facts.Downed.TryGetValue(out var downed);
             var vk = facts.ViolenceCapable.TryGetValue(out var violent);
@@ -19,7 +19,7 @@ internal static partial class BuildingRuntimePackage
 
             foreach (var item in row.Equipment?.Apparel ?? [])
             {
-                if (PolicyConstants.LanceDefs.ContainsKey(new Resource(GearDef(things, item.Thing))) && (item.Thing?.Id ?? "") != "")
+                if (PolicyConstants.LanceDefs.ContainsKey(new Resource(RoundsGear.GearDef(things, item.Thing))) && (item.Thing?.Id ?? "") != "")
                 {
                     output.Add(new LanceUser(new PawnId(row.Pawn.Id ?? ""), item.Thing?.Id ?? ""));
                     break;
@@ -36,7 +36,7 @@ internal static partial class BuildingRuntimePackage
 /// bioferrite and monolith facts it reports) and the lance check of a ready <c>anomaly/lance</c>, which reads who can
 /// use a lance now. Door closes and extract flags are the family's pure proposals.
 /// </summary>
-public sealed class AnomalyRounds
+public sealed partial class AnomalyRounds
 {
     private const string Component = "routine-anomaly";
 
@@ -68,8 +68,8 @@ public sealed class AnomalyRounds
             return new AnomalyFacts();
         }
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await BuildingRuntimePackage.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
-        if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("anomaly read: the scope is another world or older than the review");
         }
@@ -145,8 +145,8 @@ public sealed class AnomalyRounds
             }
         }
 
-        var things = await BuildingRuntimePackage.FrameThingsOfAsync(_native, identity, call).ConfigureAwait(false);
-        return PolicyFunctions.SelectLanceUse(target, BuildingRuntimePackage.LanceUsers(observed.Pawns, things)) is not null;
+        var things = await RoundsGear.FrameThingsOfAsync(_native, identity, call).ConfigureAwait(false);
+        return PolicyFunctions.SelectLanceUse(target, AnomalyRounds.LanceUsers(observed.Pawns, things)) is not null;
     }
 
     /// <summary>Reports each containment, bioferrite and monolith fact the rules could not decide: a loud issue, never a pass.</summary>
@@ -154,18 +154,18 @@ public sealed class AnomalyRounds
     {
         foreach (var issue in PolicyFunctions.ContainmentDoorUpkeep(f.Containment).Issues)
         {
-            BuildingRuntimePackage.DefenseAction(Component, TelemetryLevel.Warn, "refused", "containment_upkeep_issue", $"{issue.Cell.X},{issue.Cell.Z}",
+            DefensePipeline.DefenseAction(Component, TelemetryLevel.Warn, "refused", "containment_upkeep_issue", $"{issue.Cell.X},{issue.Cell.Z}",
                 new Dictionary<string, object?> { ["x"] = issue.Cell.X, ["z"] = issue.Cell.Z, ["detail"] = issue.Reason }, ct);
         }
         foreach (var reason in PolicyFunctions.BioferriteHarvestOwed(f.Containment, f.Research).Issues)
         {
-            BuildingRuntimePackage.DefenseAction(Component, TelemetryLevel.Warn, "refused", "bioferrite_harvest_unread", "bioferrite", new Dictionary<string, object?> { ["detail"] = reason }, ct);
+            DefensePipeline.DefenseAction(Component, TelemetryLevel.Warn, "refused", "bioferrite_harvest_unread", "bioferrite", new Dictionary<string, object?> { ["detail"] = reason }, ct);
         }
         if (PolicyFunctions.MonolithInPlay(f.Monolith))
         {
             foreach (var issue in PolicyFunctions.MonolithAdvanceOwed(f.Monolith, PolicyFunctions.MonolithGate(f)).Issues)
             {
-                BuildingRuntimePackage.DefenseAction(Component, TelemetryLevel.Warn, "refused", "monolith_advance_unread", "monolith", new Dictionary<string, object?> { ["detail"] = issue }, ct);
+                DefensePipeline.DefenseAction(Component, TelemetryLevel.Warn, "refused", "monolith_advance_unread", "monolith", new Dictionary<string, object?> { ["detail"] = issue }, ct);
             }
         }
     }

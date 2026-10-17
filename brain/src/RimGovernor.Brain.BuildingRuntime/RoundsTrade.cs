@@ -89,7 +89,7 @@ public sealed partial class RoundsTradePlanner
         {
             // An open that ended is walked again until native's refusals bar it: a permanent one for good, a
             // transient one until the world changes.
-            var (_, ok) = AdmitSubject(Reviewer.Player.Journal, TradeOpenSubject(trader), open.Plans, world, ct);
+            var (_, ok) = RoundsRefusalBudget.AdmitSubject(Reviewer.Player.Journal, TradeOpenSubject(trader), open.Plans, world, ct);
             if (!ok)
             {
                 return true;
@@ -233,8 +233,8 @@ public sealed partial class RoundsTradePlanner
     /// </summary>
     private async Task<NegotiatorRead> NegotiatorAsync(ControlState state, Sto.Rounds review, IReadOnlyList<NegotiatorRead> eligible, CancellationToken call)
     {
-        var expected = await StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("negotiator: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
@@ -430,7 +430,7 @@ public sealed partial class RoundsTradePlanner
         // A wealth-driven sale keeps what the review's demand retains: the stock the trade detector held the sale to.
         var retained = Reviewer.Demand.Get(state.Snapshot).Retained;
         // Restore parts no bench can fabricate are bought.
-        var partDemand = await SurgeryPartDemandAsync(Native, identity, projection.Facts.MedicalPawns, projection.SurgeryContext(), call).ConfigureAwait(false);
+        var partDemand = await Rounder.SurgeryPartDemandAsync(Native, identity, projection.Facts.MedicalPawns, projection.SurgeryContext(), call).ConfigureAwait(false);
         var parts = partDemand.Parts;
         var benches = partDemand.Benches;
         // A harvested organ sells while the silver runway is short.
@@ -467,7 +467,7 @@ public sealed partial class RoundsTradePlanner
         }
         // A resource is bought only as far as the supply plan opened this trader's offer for it.
         var planned = await PlannedPurchasesAsync(state, review, trader, call).ConfigureAwait(false);
-        need = RestrictToPlan(need, planned, Pol.PolicyFunctions.PlannedTradeNutrition(projection.Facts.FoodPlan, trader));
+        need = TradeOfferBook.RestrictToPlan(need, planned, Pol.PolicyFunctions.PlannedTradeNutrition(projection.Facts.FoodPlan, trader));
         var economic = Pol.PolicyFunctions.RoundsTradeTargets(projection.Facts.Items, need, rows, targets, projection.Facts.Colonists);
         var (colonySilver, traderSilver, silverKnown) = TradeSheetSilver(sheet.Rows);
         var facts = new Pol.TradeSelectionFacts { Complete = true, Rows = rows, Floors = floors, CropSurplusFloors = Pol.PolicyFunctions.CropSurplusFloors(need), ColonySilver = colonySilver, TraderSilver = traderSilver, SilverKnown = silverKnown };
@@ -522,8 +522,8 @@ public sealed partial class RoundsTradePlanner
     /// </summary>
     private async Task<IReadOnlySet<PawnId>> FavorPrisonersAsync(ControlState state, Sto.Rounds review, CancellationToken call)
     {
-        var expected = await StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("favorPrisoners: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
@@ -550,7 +550,7 @@ public sealed partial class RoundsTradePlanner
             var session = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             if (session.Trader == trader && session.Target is not null)
             {
-                value = value.WithParticipant(TradeParticipantOf(session.Target));
+                value = value.WithParticipant(TradeTarget.TradeParticipantOf(session.Target));
             }
         }
         var action = DomainAction.NewTradeAction(tradeId, value);
@@ -575,7 +575,7 @@ public sealed partial class RoundsTradePlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsTradePlanner
 {
     /// <summary>The MethodId of one caravan's phase: its trader and phase; a retry is the next attempt of the same MethodId.</summary>
     internal static MethodId TradeMethod(TradeOperationKind kind, string trader)

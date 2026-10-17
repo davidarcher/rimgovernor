@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // Individual bedrooms. The sleeping Need (shelter/sleeping) stays unmet while a bedroom step is due; the sleeping planner
 // answers it once every colonist owns a bed: move, furnish, then shell (NextBedroomStep).
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>
     /// The projection's next bedroom step: none without the layout plan, the room census or the sleeping
@@ -129,7 +129,7 @@ internal static partial class BuildingRuntimePackage
     /// <summary>Builds both from the one stuff the colony can raise a shell from (ShellSharedStuff).</summary>
     internal static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) SharedShellStuff(Observation.ColonyProjection facts, Observation.PlanningDefinition wall, Observation.PlanningDefinition door)
     {
-        if (ShellSharedStuff(facts, wall, door) is not { } stuff)
+        if (RoundsAnimalContainment.ShellSharedStuff(facts, wall, door) is not { } stuff)
         {
             return ("", "", FieldUnavailable("wall_door_stuff"), false);
         }

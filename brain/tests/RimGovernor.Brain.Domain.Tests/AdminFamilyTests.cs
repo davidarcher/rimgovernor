@@ -274,7 +274,7 @@ public sealed class AdminFamilyTests
 
         // The same orders continue their open Methods.
         var again = colony.Run();
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(again));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(again));
         Assert.Equal(2, colony.Journal.LoadNeed(AdminFamily.CreepJoiners, World, ct).Methods.Count);
 
         colony.File(run);

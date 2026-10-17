@@ -104,7 +104,7 @@ public sealed partial class Rounder
         var latest = PolicyFunctions.PlannedSelectionOf(facts.CoupledAlternatives, selection, facts.PlannedSites, facts.Tick.Value);
         var rooms = colony.LayoutPlan.TryGetValue(out var plan) ? plan.Rooms.DistinctBy(r => r.Id).ToDictionary(r => r.Id) : [];
         return PolicyFunctions.PlannedSelectionMemory(previous, latest,
-            room => rooms.TryGetValue(room, out var planned) && PlannedRoomStartedOf(colony, plan!, planned) == true);
+            room => rooms.TryGetValue(room, out var planned) && RoundsBuildingPlanner.PlannedRoomStartedOf(colony, plan!, planned) == true);
     }
 
     private static void RecordCoupledSelection(ForecastCoupledSelection selection, long tick, string method, bool protectedContinuation = false, string? admissionFailure = null)

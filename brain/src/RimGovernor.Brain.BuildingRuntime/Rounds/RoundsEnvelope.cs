@@ -17,8 +17,8 @@ public sealed partial class LayoutRounds
         var p = _reviewer.Player;
         var state = work.State;
         var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("envelope: the scope is another world or older than the review");
         }
@@ -32,7 +32,7 @@ public sealed partial class LayoutRounds
         var working = false;
         foreach (var room in rooms)
         {
-            var rr = new RoomReconcile { Room = room, Name = RoomName("envelope", room), Reason = "envelope", RingOnly = true, ClimateOnly = true };
+            var rr = new RoomReconcile { Room = room, Name = RoundsBurialFacts.RoomName("envelope", room), Reason = "envelope", RingOnly = true, ClimateOnly = true };
             var result = await _building.ReconcileRoomAsync(state, review, work.Owner, reading, null, rr, call, work.Epoch).ConfigureAwait(false);
             verdict = result.Verdict;
             if (verdict.Outcome == Outcome.Admitted)
@@ -45,7 +45,7 @@ public sealed partial class LayoutRounds
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class LayoutRounds
 {
     /// <summary>The planned rooms whose ring or roof the envelope still has to build; not known without a layout plan or colony ground.</summary>
     internal static (List<PlannedRoom> Rooms, bool Known) EnvelopeWork(ColonyProjection facts)
@@ -61,7 +61,7 @@ internal static partial class BuildingRuntimePackage
             {
                 continue; // an airlock rides its parent's ring and roof
             }
-            var (input, ground) = RoomRingInput(facts, plan, room);
+            var (input, ground) = RoundsBuildingPlanner.RoomRingInput(facts, plan, room);
             if (!ground)
             {
                 return ([], false);
@@ -71,7 +71,7 @@ internal static partial class BuildingRuntimePackage
                 rooms.Add(room);
             }
         }
-        var (_, colonyGround) = ColonyGround(facts);
+        var (_, colonyGround) = RoundsBuildingPlanner.ColonyGround(facts);
         if (!colonyGround)
         {
             return ([], false);

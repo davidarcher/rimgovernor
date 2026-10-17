@@ -51,12 +51,12 @@ public sealed partial class RoundsResourcePlanner
         {
             var prefix = $"deconstruct-drill-{drill.ID}-";
             var plans = history.Where(m => m.Method.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(m => m.Plan).ToList();
-            var (_, ok) = AdmitSubject(reviewer.Player.Journal, prefix, plans, state.Snapshot, call);
+            var (_, ok) = RoundsRefusalBudget.AdmitSubject(reviewer.Player.Journal, prefix, plans, state.Snapshot, call);
             if (!ok)
             {
                 continue;
             }
-            var method = NextMethodId(prefix, [.. history.Select(m => m.Method)]);
+            var method = RoundsRefusalBudget.NextMethodId(prefix, [.. history.Select(m => m.Method)]);
             var planId = PlanIds.MintPlanId();
             var action = DomainAction.NewDeconstructionAction(new ActionId(planId.Value + "-0"), new Deconstruction(drill.ID, drill.Definition, drill.Position));
             var spec = new PlanSpec(planId, new PlanRevision(1), [action]);
@@ -99,7 +99,7 @@ public sealed partial class RoundsResourcePlanner
         {
             throw new ControlException("deepDrillReading: err != nil || !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("deepDrillReading: err != nil || !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
@@ -114,7 +114,7 @@ public sealed partial class RoundsResourcePlanner
         {
             throw new ControlException("deepDrillReading: stale research context");
         }
-        if (!RoundsCachedFresh(FactFamily.Research, new Tick(research.Context?.Tick ?? 0), f.Identity.Tick))
+        if (!RoundsBuildingPlanner.RoundsCachedFresh(FactFamily.Research, new Tick(research.Context?.Tick ?? 0), f.Identity.Tick))
         {
             throw new ControlException("deepDrillReading: err != nil || !roundsCachedFresh(bridge.FactResearch, domain.Tick(research.Context.GetTick()), f.Identity");
         }
@@ -140,7 +140,7 @@ public sealed partial class RoundsResourcePlanner
         {
             throw new ControlException("deepDrillReading: stale buildings context");
         }
-        if (!RoundsCachedFresh(FactFamily.Colony, new Tick(buildings.AsOf()), f.Identity.Tick))
+        if (!RoundsBuildingPlanner.RoundsCachedFresh(FactFamily.Colony, new Tick(buildings.AsOf()), f.Identity.Tick))
         {
             throw new ControlException("deepDrillReading: err != nil || !roundsCachedFresh(bridge.FactColony, domain.Tick(buildings.AsOf()), f.Identity.Tick)");
         }
@@ -263,7 +263,7 @@ public sealed partial class RoundsResourcePlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsResourcePlanner
 {
     /// <summary>The deep resource lumps of the needed resources, nearest the colony centre first; empty without a scanner, the research or the drill.</summary>
     internal static List<DeepResourceLump> DeepDrillSites(ColonyProjection f, IReadOnlyList<ResourceRunway> runways, ItemFacts items)

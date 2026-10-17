@@ -106,7 +106,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return;
         }
         ApplyTurretReplacement(record, old, replacement, standing, request.Turret.Size);
-        DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "turret_replace", request.Turret.Definition, new Dictionary<string, object?> { ["x"] = old.Cell.X, ["z"] = old.Cell.Z }, call);
+        DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "turret_replace", request.Turret.Definition, new Dictionary<string, object?> { ["x"] = old.Cell.X, ["z"] = old.Cell.Z }, call);
         journal.SaveDefenseLayout(record, call);
     }
 
@@ -347,7 +347,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 return (new DefenseLayout(), [], result.Verdict, false);
             }
         }
-        RecordLayoutSnapshot(state.Snapshot, projection.Identity.Tick, new SnapshotLayout { Point = SnapshotApi.LayoutPropose, Request = request }, call);
+        DefenseRecorder.RecordLayoutSnapshot(state.Snapshot, projection.Identity.Tick, new SnapshotLayout { Point = SnapshotApi.LayoutPropose, Request = request }, call);
         DefenseLayout layout;
         try
         {
@@ -363,7 +363,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         foreach (var g in layout.Gated)
         {
-            DefenseTierGated(g.Tier.Value, g.Reason, call);
+            DefensePipeline.DefenseTierGated(g.Tier.Value, g.Reason, call);
         }
         return (layout, request.Entrances.ToList(), default, true);
     }
@@ -389,7 +389,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsDefenseLayoutPlanner
 {
     /// <summary>
     /// The layout/defense Need's facts, read from the journal alone (#3314): the stored layout of this world, whether

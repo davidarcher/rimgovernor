@@ -18,10 +18,10 @@ public sealed partial class Rounder
             ThroneArea = Known(growth.ThroneArea),
             RetireShelter = growth.RetireShelter,
             Demand = demand,
-            Child = PolicyFunctions.ChildRoomShapes(BuildingRuntimePackage.ChildRoomNeeds(projection), BuildingRuntimePackage.FurnitureDefinitions(projection)),
+            Child = PolicyFunctions.ChildRoomShapes(RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection), RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)),
             Crops = FieldCrops.Of(projection),
             FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays,
-            Suites = BuildingRuntimePackage.SuiteWishesOf(projection, plan) is { } wishes ? [.. wishes] : [],
+            Suites = RoundsSleepingUpkeepPlanner.SuiteWishesOf(projection, plan) is { } wishes ? [.. wishes] : [],
         };
         var inputs = new LayoutInputs(default, string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}|{f.InputsKey()}"), survey.Bounds, [.. survey.Cells]);
         if (inputs.Same(StationInputs))
@@ -362,7 +362,7 @@ internal static class StationFactsBuilder
         try
         {
             // an unread or inconsistent census leaves the guard off
-            f = f with { Mismatches = BuildingRuntimePackage.RoleMismatches(projection) };
+            f = f with { Mismatches = RoundsBuildingPlanner.RoleMismatches(projection) };
         }
         catch (DomainException)
         {
@@ -371,7 +371,7 @@ internal static class StationFactsBuilder
         {
             f = f with { Dining = rooms.Dining };
         }
-        if (BuildingRuntimePackage.ColonyGround(projection) is (var ground, true))
+        if (RoundsBuildingPlanner.ColonyGround(projection) is (var ground, true))
         {
             f = f with { Built = PolicyFunctions.BuiltRooms(plan, ground) };
         }
@@ -411,7 +411,7 @@ internal static class StationFactsBuilder
     public static StationFacts FirstPlanFacts(ColonyProjection projection, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
     {
         var f = StationFactsOf(projection, new LayoutPlan(), survey, needs, ledger) with { Derive = true };
-        var (need, owed) = BuildingRuntimePackage.ThroneNeed(projection);
+        var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);
         return f with { ThroneArea = Known(PolicyFunctions.ThroneAreaOwed(new LayoutPlan(), need, owed)) };
     }
 
@@ -452,7 +452,7 @@ internal static class FieldCrops
                 sown.Add(farm.Crop);
             }
         }
-        return BuildingRuntimePackage.CropChoices(projection).Where(choice => sown.Contains(choice.Name)).ToList();
+        return RoundsFieldPlanner.CropChoices(projection).Where(choice => sown.Contains(choice.Name)).ToList();
     }
 
     /// <summary>
@@ -467,6 +467,6 @@ internal static class FieldCrops
         {
             return sown;
         }
-        return PolicyFunctions.DefaultFieldCrop(BuildingRuntimePackage.CropChoices(projection)) is ({ } crop, true) ? [crop] : [];
+        return PolicyFunctions.DefaultFieldCrop(RoundsFieldPlanner.CropChoices(projection)) is ({ } crop, true) ? [crop] : [];
     }
 }

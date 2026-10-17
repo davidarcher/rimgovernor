@@ -47,8 +47,8 @@ public sealed class IdeologyReader
         }
         var started = _reviewer.Clock.Now();
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("ideology read: the scope is another world or older than the review");
         }
@@ -96,7 +96,7 @@ public sealed class IdeologyReader
             {
                 return facts with { Reform = Unknown<DesignChoice>() };
             }
-            if (ObservedReform(ideo!, current, pending).TryGetValue(out var complete) && complete)
+            if (Rounder.ObservedReform(ideo!, current, pending).TryGetValue(out var complete) && complete)
             {
                 await journal.ClearIdeologyReformAsync(call).ConfigureAwait(false);
                 return facts with { Reform = choice, ReformObserved = true };

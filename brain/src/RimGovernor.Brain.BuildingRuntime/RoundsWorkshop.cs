@@ -104,7 +104,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("prepareWorkshop: err != nil || observed.Context.GetTick() < int64(review.Tick)");
         }
-        var defs = await GearDefinitionsOfAsync(Native, identity, call).ConfigureAwait(false);
+        var defs = await RoundsGear.GearDefinitionsOfAsync(Native, identity, call).ConfigureAwait(false);
         if (defs.Catalog is null || !defs.Finished.TryGetValue(out var finished))
         {
             throw new ControlException("prepareWorkshop: the recipe hosts need the definition catalog and the finished research");
@@ -118,8 +118,8 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (null, FieldUnavailable("gear_census"));
             }
-            var things = await FrameThingsOfAsync(Native, identity, call).ConfigureAwait(false);
-            var (facts, factsKnown) = GearObservationFacts(observed, new Tables(Buildings.Of(), Pawns.Of(), things), defs);
+            var things = await RoundsGear.FrameThingsOfAsync(Native, identity, call).ConfigureAwait(false);
+            var (facts, factsKnown) = RoundsGear.GearObservationFacts(observed, new Tables(Buildings.Of(), Pawns.Of(), things), defs);
             if (!factsKnown)
             {
                 return (null, FieldUnavailable("gear_census"));
@@ -330,7 +330,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     /// <summary>
     /// Whether any generator definition the power family compiles is buildable now, so a powered bench can be

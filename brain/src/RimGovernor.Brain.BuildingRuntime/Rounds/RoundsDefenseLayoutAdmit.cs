@@ -52,12 +52,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
             if (!ok)
             {
                 var cell = building.Cell;
-                DefenseAction("defense-layout", TelemetryLevel.Warn, "refused", "placement_preview_refused", tier.Name.Value, new Dictionary<string, object?> { ["definition"] = building.Definition, ["x"] = cell.X, ["z"] = cell.Z, ["native_reason"] = evaluated[i].Reason }, call);
+                DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Warn, "refused", "placement_preview_refused", tier.Name.Value, new Dictionary<string, object?> { ["definition"] = building.Definition, ["x"] = cell.X, ["z"] = cell.Z, ["native_reason"] = evaluated[i].Reason }, call);
                 return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("placement_preview"), Tier = tier.Name.Value };
             }
             actions.Add(action);
             previews.Add(preview.Preview);
-            MergeRoundsStock(stock, preview.Stock, actions.Count == 1);
+            RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock, actions.Count == 1);
         }
         if (actions.Count == 0 && placed > 0 && unfloorable.Count == 0)
         {
@@ -67,7 +67,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             tier.Buildings = DefenseWithoutFloors(tier.Buildings, unfloorable, PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == DefenseIEDs.TierIEDs);
             record.SetTier(tier);
-            DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "placement_refused_natively", tier.Name.Value, new Dictionary<string, object?> { ["cells"] = unfloorable.Count }, call);
+            DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "placement_refused_natively", tier.Name.Value, new Dictionary<string, object?> { ["cells"] = unfloorable.Count }, call);
             p.Journal.SaveDefenseLayout(record, call);
             if (actions.Count == 0)
             {
@@ -112,13 +112,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
             var (skippedId, skipped) = access.Skipped();
             if (skipped)
             {
-                DefenseAction("defense-layout", TelemetryLevel.Info, "unavailable", "access_audit", tier.Name.Value, new Dictionary<string, object?> { ["blocked_cells"] = blockedCells.Count, ["skipped_pawn"] = skippedId }, call);
+                DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "unavailable", "access_audit", tier.Name.Value, new Dictionary<string, object?> { ["blocked_cells"] = blockedCells.Count, ["skipped_pawn"] = skippedId }, call);
                 return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("spatial_access_skipped"), Tier = tier.Name.Value };
             }
             var refusal = access.Refusal();
             if (refusal != "")
             {
-                DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "access_audit", tier.Name.Value, new Dictionary<string, object?> { ["blocked_cells"] = blockedCells.Count, ["detail"] = refusal }, call);
+                DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "access_audit", tier.Name.Value, new Dictionary<string, object?> { ["blocked_cells"] = blockedCells.Count, ["detail"] = refusal }, call);
                 return new RoundsDefenseLayoutResult { Verdict = NoSpace("walkable_layout"), Tier = tier.Name.Value };
             }
         }
@@ -132,7 +132,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             try
             {
-                pipe.Scope = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+                pipe.Scope = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
             }
             catch (ControlException)
             {
@@ -141,7 +141,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             pipe.Scoped = true;
         }
         var actual = pipe.Scope;
-        if (!RoundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick))
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick))
         {
             throw DefenseControlErr(366);
         }
@@ -376,7 +376,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         output = output with { CoverFill = Known(cell.CoverFill) };
         output = output with { Edifice = cell.EdificeDefName };
         output = output with { Roofed = Known(cell.Roofed) };
-        output = output with { Cover = DefenseCover(cell) };
+        output = output with { Cover = TierOverlay.DefenseCover(cell) };
         return output;
     }
 
@@ -485,13 +485,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 continue;
             }
             Unbuilt[tier.Name.Value] = summary;
-            DefenseAction("defense-layout", TelemetryLevel.Info, "waiting", "tier_unbuilt", tier.Name.Value, new Dictionary<string, object?> { ["buildings"] = tier.Buildings.Count, ["census"] = summary }, ct);
+            DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "waiting", "tier_unbuilt", tier.Name.Value, new Dictionary<string, object?> { ["buildings"] = tier.Buildings.Count, ["census"] = summary }, ct);
         }
     }
 
     internal async Task<BridgeDefenseSite> DefenseSiteAsync(C.Identity identity, ColonyProjection projection, BridgeCellRect region, CancellationToken call)
     {
-        var catalog = await PawnCatalogAsync(_native, identity, call).ConfigureAwait(false) ?? throw new ControlException("defense site: no definition catalog");
+        var catalog = await RoundsEquipPawn.PawnCatalogAsync(_native, identity, call).ConfigureAwait(false) ?? throw new ControlException("defense site: no definition catalog");
         return catalog.DefenseSiteFromCells(projection.Cells, projection.Bounds, region);
     }
 }

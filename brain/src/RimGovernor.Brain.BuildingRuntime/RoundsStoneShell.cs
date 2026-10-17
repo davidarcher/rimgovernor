@@ -25,8 +25,8 @@ public sealed partial class LayoutRounds
         var p = _reviewer.Player;
         var state = work.State;
         var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("stone shell: the scope is another world or older than the review");
         }
@@ -116,7 +116,7 @@ public sealed partial class LayoutRounds
         {
             return none;
         }
-        var catalog = await PawnCatalogAsync(_stone!, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+        var catalog = await RoundsEquipPawn.PawnCatalogAsync(_stone!, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         if (catalog is null)
         {
             throw new ControlException("propose: the source serves no definition catalog");
@@ -172,7 +172,7 @@ public sealed partial class LayoutRounds
             }
             actions.Add(action);
             previews.Add(preview.Preview);
-            stock = MergeRoundsStock(stock, preview.Stock, first);
+            stock = RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock, first);
             first = false;
             backupIds.Add(actionId);
         }
@@ -190,7 +190,7 @@ public sealed partial class LayoutRounds
         }
         actions.Add(permanent);
         previews.Add(permanentPreview.Preview);
-        stock = MergeRoundsStock(stock, permanentPreview.Stock, first);
+        stock = RoundsBuildingPlanner.MergeRoundsStock(stock, permanentPreview.Stock, first);
         var dependencies = new List<ActionDependency> { new(permanentId, demolishId) };
         // Native lists a straight site as demolition-ready only once every backup stands; in between it is no site at all.
         foreach (var backupId in backupIds)
@@ -220,13 +220,13 @@ public sealed partial class LayoutRounds
         Observation.Identity actual;
         try
         {
-            actual = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+            actual = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             throw new ControlException("propose: err != nil || !roundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick)");
         }
-        if (!RoundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick))
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick))
         {
             throw new ControlException("propose: err != nil || !roundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick)");
         }

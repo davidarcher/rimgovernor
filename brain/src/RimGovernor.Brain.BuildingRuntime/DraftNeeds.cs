@@ -139,7 +139,7 @@ internal static class DraftNeeds
                 level = TelemetryLevel.Warn;
                 detail = failed.Detail;
             }
-            BuildingRuntimePackage.DefenseAction(MilitaryFamily.RestoreWorkers.Value, level, verdict, "undraft", pawns[i].Value, new Dictionary<string, object?> { ["detail"] = detail }, ct);
+            DefensePipeline.DefenseAction(MilitaryFamily.RestoreWorkers.Value, level, verdict, "undraft", pawns[i].Value, new Dictionary<string, object?> { ["detail"] = detail }, ct);
         }
     }
 }
@@ -157,7 +157,7 @@ public sealed partial class Rounder
         var state = p.State();
         if (!state.Enabled)
         {
-            return BuildingRuntimePackage.BuildingReasonDisabled;
+            return Verdict.BuildingReasonDisabled;
         }
         if (Undraft is null)
         {
@@ -189,7 +189,7 @@ public sealed partial class Rounder
         var pawns = DraftNeeds.IdleDrafts(state, frame.Emergency.Facts, frame.Pawns, needed);
         if (pawns.Count == 0)
         {
-            return BuildingRuntimePackage.BuildingReasonNoDeficit;
+            return Verdict.BuildingReasonNoDeficit;
         }
         if (!arbiter.TryClaim(pawns))
         {
@@ -202,6 +202,6 @@ public sealed partial class Rounder
             throw new ControlException("sweepDrafts: session changed or read too old");
         }
         await DraftNeeds.UndraftAsync(Undraft, Boundary.Identity(state.Snapshot), new Tick((long)(frame.Context?.Tick ?? 0)), pawns, ct).ConfigureAwait(false);
-        return BuildingRuntimePackage.BuildingReasonCombatOrders;
+        return Verdict.BuildingReasonCombatOrders;
     }
 }

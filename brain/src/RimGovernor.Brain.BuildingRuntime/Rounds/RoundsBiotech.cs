@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// bank are one building Method each. The pollution Need's batches are the family's pure Methods, and the mechs
 /// Need's gestation bill is the work ledger's (<see cref="MechBillDeclarer"/>).
 /// </summary>
-public sealed class BiotechRounds
+public sealed partial class BiotechRounds
 {
     private readonly Rounder _reviewer;
     private readonly BiotechNeeds _needs;
@@ -58,8 +58,8 @@ public sealed class BiotechRounds
         var started = _reviewer.Clock.Now();
         var journal = _reviewer.Player.Journal;
         var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("biotech read: the scope is another world or older than the review");
         }
@@ -73,7 +73,7 @@ public sealed class BiotechRounds
             Pollution = projection.Facts.Pollution,
             PollutedCells = [.. PolicyFunctions.PollutedWindowCells(projection.Cells)],
         };
-        if (_needs.Mechs && await MechGestationAsync(_reviewer.Native, Boundary.Identity(scope.World), projection, ct).ConfigureAwait(false) is { } gestation)
+        if (_needs.Mechs && await Rounder.MechGestationAsync(_reviewer.Native, Boundary.Identity(scope.World), projection, ct).ConfigureAwait(false) is { } gestation)
         {
             facts = facts with { MechsOwed = PolicyFunctions.MechGestationOwed(gestation) };
         }
@@ -129,8 +129,8 @@ public sealed class BiotechRounds
     {
         var journal = _reviewer.Player.Journal;
         var review = await journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, work.State.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, work.State.Snapshot, review.Tick))
         {
             throw new ControlException("biotech step: boundary moved");
         }
@@ -338,11 +338,11 @@ public sealed class MechBillDeclarer : IOrderDeclarer
         MechGestation? gestation;
         try
         {
-            gestation = await MechGestationAsync(_native, Boundary.Identity(snapshot), projection, ct).ConfigureAwait(false);
+            gestation = await Rounder.MechGestationAsync(_native, Boundary.Identity(snapshot), projection, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return AbstainOnRead(Cause.UnreadMechs, ex, ct);
+            return RoundsGearPlanner.AbstainOnRead(Cause.UnreadMechs, ex, ct);
         }
         if (gestation is null)
         {
@@ -359,12 +359,12 @@ public sealed class MechBillDeclarer : IOrderDeclarer
         {
             return new Declared();
         }
-        var (selected, gap) = PolicyFunctions.SelectMechGestationBill(MechBenches(benches), gestation);
+        var (selected, gap) = PolicyFunctions.SelectMechGestationBill(Rounder.MechBenches(benches), gestation);
         return PolicyFunctions.DeclareSelection(selected, gap == default, benches);
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class BiotechRounds
 {
     internal const int GeneBankSiteTries = 8;
 

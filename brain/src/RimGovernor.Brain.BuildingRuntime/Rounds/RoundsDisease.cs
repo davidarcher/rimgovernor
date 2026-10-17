@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsDisease
 {
     /// <summary>The work demand of the review: the policy demand, the construction help owed and the disease rest of the medical pawns.</summary>
     internal static WorkDemand RoundsDiseaseDemand(ColonyProjection facts, IReadOnlyList<string> definitions, RoundsReview previous, GenerationSnapshot current)

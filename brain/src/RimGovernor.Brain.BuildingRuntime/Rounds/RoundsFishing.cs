@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsFieldPlanner
 {
     internal static IReadOnlyList<WorkRequirement> FishingWork(ColonyProjection p)
     {
@@ -83,7 +83,7 @@ public sealed partial class Rounder
 
             var p = census.Reading.Projection;
             var state = Player.Session.State();
-            if (!RoundsBuildingBoundary(p.Identity, state.Snapshot, new Tick(0)))
+            if (!RoundsBuildingPlanner.RoundsBuildingBoundary(p.Identity, state.Snapshot, new Tick(0)))
             {
                 return needs;
             }
@@ -110,7 +110,7 @@ public sealed partial class Rounder
                 && p.Rooms.TryGetValue(out var rooms)
                 && p.Facts.Sleeping.TryGetValue(out var sleeping))
             {
-                needs = PolicyFunctions.BedResearchRequest(needs, layout, rooms, sleeping, BedroomTargets(p));
+                needs = PolicyFunctions.BedResearchRequest(needs, layout, rooms, sleeping, RoundsSleepingUpkeepPlanner.BedroomTargets(p));
             }
 
             return needs;
@@ -172,7 +172,7 @@ public sealed partial class RoundsFieldPlanner
                 var zone = ZoneCreate.NewFishingZone(region.ProposedCells);
                 var id = PlanIds.MintPlanId();
                 var action = DomainAction.NewZoneCreateAction(new ActionId(id.Value + "-0"), zone);
-                var (reply, refused) = await PreviewZoneAsync(_native, Boundary.Identity(state.Snapshot), zone, call).ConfigureAwait(false);
+                var (reply, refused) = await ZonePreviews.PreviewZoneAsync(_native, Boundary.Identity(state.Snapshot), zone, call).ConfigureAwait(false);
                 if (refused.Length != 0)
                 {
                     continue;
@@ -184,14 +184,14 @@ public sealed partial class RoundsFieldPlanner
                 Identity actual;
                 try
                 {
-                    actual = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+                    actual = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
                     throw new ControlException("fishing: step scope unreadable", e);
                 }
 
-                if (!RoundsBuildingBoundary(actual, state.Snapshot, p.Identity.Tick) || _reviewer.Player.Session.State() != state)
+                if (!RoundsBuildingPlanner.RoundsBuildingBoundary(actual, state.Snapshot, p.Identity.Tick) || _reviewer.Player.Session.State() != state)
                 {
                     throw new ControlException("fishing: boundary moved or session state changed");
                 }

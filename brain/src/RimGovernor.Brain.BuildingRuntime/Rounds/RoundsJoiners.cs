@@ -82,7 +82,7 @@ public sealed partial class JoinersRounds
     {
         foreach (var (verdict, handled) in steps)
         {
-            if (handled && verdict == BuildingRuntimePackage.BuildingReasonAdmitted)
+            if (handled && verdict == Verdict.BuildingReasonAdmitted)
             {
                 return verdict;
             }
@@ -120,8 +120,8 @@ public sealed partial class JoinersRounds
     private async Task<(RoundsReading Reading, DateTimeOffset Started)> ObserveAsync(GenerationSnapshot world, CancellationToken ct)
     {
         var review = await reviewer.Player.Journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await BuildingRuntimePackage.StepScopeAsync(reviewer.Native, ct).ConfigureAwait(false);
-        if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, world, review.Tick))
+        var expected = await StepScope.StepScopeAsync(reviewer.Native, ct).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, world, review.Tick))
         {
             throw new ControlException("joiners read: the scope is another world or older than the review");
         }
@@ -145,7 +145,7 @@ public sealed partial class JoinersRounds
         {
             return (default, true);
         }
-        return BuildingRuntimePackage.AdmitLatestAttempt(journal, work.Owner, method, work.State.Snapshot, call);
+        return RoundsRefusalBudget.AdmitLatestAttempt(journal, work.Owner, method, work.State.Snapshot, call);
     }
 
     /// <summary>Throws when the world or the session moved since the read, or the read is older than the review's age bound.</summary>

@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>A native source that serves the definition catalog.</summary>
-internal static partial class BuildingRuntimePackage
+internal static class RoundsEquipPawn
 {
     /// <summary>The dining furniture and the joy buildings of the definition catalog, for the recreation foothold.</summary>
     internal static async Task<(DiningFurniture Furniture, List<string> Joy)> RecreationDefinitionsAsync(object native, C.Identity identity, CancellationToken ct)

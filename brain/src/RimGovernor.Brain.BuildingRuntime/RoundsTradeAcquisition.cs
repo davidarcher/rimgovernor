@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The derived trade-acquisition state of one world; Mu guards every field.</summary>
-internal sealed class TradeAcquisitionMemory
+internal sealed partial class TradeAcquisitionMemory
 {
     public readonly object Mu = new();
     public GenerationSnapshot World;
@@ -135,7 +135,7 @@ public sealed partial class Rounder
                 }
                 if (catalog is not null)
                 {
-                    options.AddRange(RequestAcquisitionOptions(facts, catalog, demands));
+                    options.AddRange(TradeAcquisitionMemory.RequestAcquisitionOptions(facts, catalog, demands));
                     options.AddRange(await SettlementAcquisitionOptionsAsync(world, owner, p, demands, catalog, ct).ConfigureAwait(false));
                 }
             }
@@ -150,7 +150,7 @@ public sealed partial class Rounder
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class TradeAcquisitionMemory
 {
     internal static List<Pol.TradeAcquisitionOption> RequestAcquisitionOptions(ObservationsPb.TradeAcquisition facts, Bridge.DefinitionCatalog catalog, IReadOnlyList<Pol.SupplyDemandResult> demands)
     {

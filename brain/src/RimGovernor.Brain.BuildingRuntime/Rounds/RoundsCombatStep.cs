@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>One combat decision over a combat read: the wire orders to apply, the pawns it drafts and the memory it leaves.</summary>
-/// <param name="View">The view the policy decided over; hand it back to <see cref="BuildingRuntimePackage.CombatStepResults"/>.</param>
+/// <param name="View">The view the policy decided over; hand it back to <see cref="CombatReads.CombatStepResults"/>.</param>
 /// <param name="Orders">The policy's orders.</param>
 /// <param name="Drafts">The roles the memory names that are not orderable yet; drafted ahead of the orders.</param>
 /// <param name="Batch">The wire batch (drafts first, then orders), or null when there is nothing to send.</param>
@@ -15,7 +15,7 @@ internal sealed record CombatStep(CombatView View, IReadOnlyList<CombatOrder> Or
 /// </summary>
 /// <param name="Drugs">The catalog's combat drug definitions in preference order.</param>
 /// <param name="Royalty">The royalty read; unknown holds every permit and psycast call.</param>
-internal sealed record CombatReads(IReadOnlyList<string> Drugs, Fact<RoyaltyFacts> Royalty)
+internal sealed partial record CombatReads(IReadOnlyList<string> Drugs, Fact<RoyaltyFacts> Royalty)
 {
     /// <summary>No reads: no drugs, unknown royalty.</summary>
     internal static CombatReads None { get; } = new([], default);
@@ -23,7 +23,7 @@ internal sealed record CombatReads(IReadOnlyList<string> Drugs, Fact<RoyaltyFact
     internal CombatView Complete(CombatView view, CombatMemory memory) => view with { Royalty = Royalty, Drugs = [.. Drugs] };
 }
 
-internal static partial class BuildingRuntimePackage
+partial record CombatReads
 {
     /// <summary>
     /// The combat step the defense round takes, without its plan store: the frame inputs, the view, the newest stop,
@@ -33,12 +33,12 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static CombatStep? DecideCombatStep(BridgeCombat combat, IReadOnlyList<PawnId> orderable, CombatMemory memory, string key, PbCommon.Identity identity, Func<M.CombatGeometryRequest, M.CombatGeometry> read, Fact<CombatLayout> layout, CombatReads reads)
     {
-        var (inputs, _) = CombatFrameInputs(combat, [], []);
+        var (inputs, _) = RoundsDefensePlanner.CombatFrameInputs(combat, [], []);
         if (inputs is null)
         {
             return null;
         }
-        var stop = CombatStop(combat, memory.Tick);
+        var stop = RoundsDefensePlanner.CombatStop(combat, memory.Tick);
         // A geometry ask is answered from the game and the question asked again with the answer, as the defense round does.
         (List<CombatOrder> Orders, CombatMemory Next) Decide(CombatView v)
         {
@@ -47,24 +47,24 @@ internal static partial class BuildingRuntimePackage
             {
                 return (o, n);
             }
-            var reply = AnswerGeometry(read, (_, _, _) => { }, identity, ask);
+            var reply = RoundsDefensePlanner.AnswerGeometry(read, (_, _, _) => { }, identity, ask);
             var (o2, _, n2) = CombatDecideRules.DecideCombat(v, reply, stop, memory);
             return (o2, n2);
         }
-        var view = reads.Complete(CombatView(combat, inputs, orderable, layout), memory);
+        var view = reads.Complete(RoundsDefensePlanner.CombatView(combat, inputs, orderable, layout), memory);
         var (orders, next) = Decide(view);
-        var drafts = UndraftedRoles(next, orderable, view);
+        var drafts = RoundsDefensePlanner.UndraftedRoles(next, orderable, view);
         if (drafts.Count > 0)
         {
             var all = orderable.Concat(drafts).OrderBy(d => d.Value, StringComparer.Ordinal).ToList();
-            view = reads.Complete(CombatView(combat, inputs, all, layout), memory);
+            view = reads.Complete(RoundsDefensePlanner.CombatView(combat, inputs, all, layout), memory);
             (orders, next) = Decide(view);
         }
         // The permit and psycast calls leave the batch as Ability actions, as the defense round sends them.
-        var (rest, calls) = SplitPermitCalls(orders);
+        var (rest, calls) = RoundsDefensePlanner.SplitPermitCalls(orders);
         orders = rest;
-        var callActions = PermitCallActions(new PlanId(key), calls).Select((a, i) => BridgeApi.IntentAction($"{key}-c{i}", a)).ToList();
-        var commands = CombatBatchCommands(drafts, orders);
+        var callActions = RoundsDefensePlanner.PermitCallActions(new PlanId(key), calls).Select((a, i) => BridgeApi.IntentAction($"{key}-c{i}", a)).ToList();
+        var commands = RoundsDefensePlanner.CombatBatchCommands(drafts, orders);
         PbOperations.CombatOrders? batch = null;
         if (commands.Count > 0)
         {
@@ -82,6 +82,6 @@ internal static partial class BuildingRuntimePackage
         {
             shaped.Add(new BridgeCombatOrderResult { Index = (int)(r.Index ?? 0), PawnId = r.PawnId ?? "", Applied = r.Applied == true, Refusal = r.Refusal ?? "" });
         }
-        return CombatStopMemory(step.View, step.Orders, shaped, step.Memory);
+        return RoundsDefensePlanner.CombatStopMemory(step.View, step.Orders, shaped, step.Memory);
     }
 }

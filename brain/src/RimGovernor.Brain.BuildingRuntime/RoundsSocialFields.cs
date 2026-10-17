@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsSocialFields
 {
     /// <summary>The catalog's crops that harvest a social-drug ingredient, ordered by name.</summary>
     internal static IReadOnlyList<Pol.CropChoice> SocialCrops(Observation.ColonyProjection projection)
@@ -8,7 +8,7 @@ internal static partial class BuildingRuntimePackage
         var output = new List<Pol.CropChoice>();
         foreach (var d in projection.Definitions)
         {
-            var crop = WithHarvestFacts(
+            var crop = RoundsFieldPlanner.WithHarvestFacts(
                 new Pol.CropChoice
                 {
                     Name = d.Name,

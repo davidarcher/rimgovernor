@@ -219,15 +219,15 @@ public sealed partial class Rounder
         foreach (var method in goal.OpenMethods)
         {
             var plan = Player.Journal.LoadPlan(method.Plan, call);
-            foreach (var thing in BuildingRuntimePackage.UndispatchedAcquisitions(plan.Progress))
+            foreach (var thing in RoundsAcquisitionPlanner.UndispatchedAcquisitions(plan.Progress))
             {
                 undispatched.Add(thing);
             }
         }
 
         var progress = review.ConcernProgress(EconomyFamily.Resource.FilingKey);
-        var held = BuildingRuntimePackage.CooledSources(projection.Acquisition, ChopMinGrowth(projection), id => BuildingRuntimePackage.AcquisitionCooled(progress, Policy, id, expected.Tick));
-        var busy = BuildingRuntimePackage.HoldWorked(projection.Acquisition, undispatched, held);
+        var held = RoundsAcquisitionPlanner.CooledSources(projection.Acquisition, ChopMinGrowth(projection), id => RoundsAcquisitionPlanner.AcquisitionCooled(progress, Policy, id, expected.Tick));
+        var busy = RoundsAcquisitionPlanner.HoldWorked(projection.Acquisition, undispatched, held);
         var (slots, _) = RoundsResourcePlanner.HuntSlots(projection);
         slots.TryGetValue(out var hunts);
         output.Hunts = hunts;
@@ -343,7 +343,7 @@ public sealed partial class Rounder
                 }
             }
 
-            row.Standing = Math.Max(fieldPlanner.Standing(resource) - BuildingRuntimePackage.GrownPlantationYield(rows, resource), 0);
+            row.Standing = Math.Max(fieldPlanner.Standing(resource) - RoundsResourcePlanner.GrownPlantationYield(rows, resource), 0);
             need -= row.Standing;
             if (need > 0 && fieldPlanner.Serves(resource))
             {
@@ -422,7 +422,7 @@ public sealed partial class RoundsResourcePlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsResourcePlanner
 {
     internal static long GrownPlantationYield(IReadOnlyList<AcquisitionSource> rows, Resource resource)
     {

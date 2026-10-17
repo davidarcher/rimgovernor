@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsRefusalBudget
 {
     internal static GenerationSnapshot BudgetWorld(GenerationSnapshot s) => s with { Plan = default, Revision = default };
 

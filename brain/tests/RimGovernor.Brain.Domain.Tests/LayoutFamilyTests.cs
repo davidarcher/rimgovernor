@@ -109,7 +109,7 @@ public sealed class LayoutFamilyTests
         Assert.True(actions[1].Area is { Home: true, Operation: AreaOperation.SetCells });
 
         // The same diff again continues the open Method.
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(colony.Run(), LayoutFamily.HomeCoverage));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(colony.Run(), LayoutFamily.HomeCoverage));
         Assert.Single(colony.Journal.LoadNeed(LayoutFamily.HomeCoverage, World, ct).Methods);
     }
 
@@ -146,7 +146,7 @@ public sealed class LayoutFamilyTests
         Assert.StartsWith("firebreak-", Assert.Single(first.Methods).Method.Value, StringComparison.Ordinal);
 
         // The same order continues; an order over other cells is admitted beside it.
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(colony.Run(), LayoutFamily.Firebreak));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(colony.Run(), LayoutFamily.Firebreak));
         colony.Facts = Order(Ring((12, 10)));
         Assert.Equal(Outcome.Admitted, Colony.Report(colony.Run(), LayoutFamily.Firebreak).Outcome);
         Assert.Equal(2, colony.Journal.LoadNeed(LayoutFamily.Firebreak, World, ct).Methods.Count);

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsBurialFacts
 {
     internal static readonly string[] BurialDefinitions = ["Wall", "Door", PolicyApi.GraveDefinition];
 
@@ -45,12 +45,12 @@ internal static partial class BuildingRuntimePackage
     {
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var wk = facts.Facts.Waste.TryGetValue(out var waste);
-        var (ground, gk) = ColonyGround(facts);
+        var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
         if (!pk || !wk || !gk)
         {
             return (new PlannedRoom(), false);
         }
-        var room = PolicyApi.MorgueRoomOwed(plan!, plan!.GroundWithRock(ground, NaturalRock(facts)), waste!);
+        var room = PolicyApi.MorgueRoomOwed(plan!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), waste!);
         return room is null ? (new PlannedRoom(), false) : (room, true);
     }
 

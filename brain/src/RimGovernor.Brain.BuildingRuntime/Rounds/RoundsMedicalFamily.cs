@@ -101,8 +101,8 @@ public sealed class MedicalRounds
         var medicalPawns = Unknown<EquatableArray<CarePawn>>();
         if (!scope.Immediate)
         {
-            var expected = await StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
-            if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+            var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+            if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
             {
                 throw new ControlException("medical read: the scope is another world or older than the review");
             }
@@ -380,7 +380,7 @@ public sealed class MedicalRounds
     {
         var p = _reviewer.Player;
         var attempts = p.Journal.OwnerMethodHistory(work.Owner, call).Where(m => m.Method == method).Select(m => m.Plan).ToList();
-        var (refused, admitted) = AdmitSubject(p.Journal, method.Value, attempts, work.State.Snapshot, call);
+        var (refused, admitted) = RoundsRefusalBudget.AdmitSubject(p.Journal, method.Value, attempts, work.State.Snapshot, call);
         if (!admitted)
         {
             // Native refused this patient's care and the refusal still stands; the Need stays visible and the

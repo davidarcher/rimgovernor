@@ -96,7 +96,7 @@ internal sealed class FirebreakMemory
         {
             var rect = tile with
             {
-                Max = new Cell(Math.Min(tile.Min.X + BuildingRuntimePackage.FirebreakTile, projection.Bounds.Width) - 1, Math.Min(tile.Min.Z + BuildingRuntimePackage.FirebreakTile, projection.Bounds.Height) - 1),
+                Max = new Cell(Math.Min(tile.Min.X + FirebreakPlan.FirebreakTile, projection.Bounds.Width) - 1, Math.Min(tile.Min.Z + FirebreakPlan.FirebreakTile, projection.Bounds.Height) - 1),
             };
             var read = await Native.ReadDefenseSiteAsync(identity, rect, ct).ConfigureAwait(false);
             try
@@ -215,12 +215,12 @@ internal sealed class FirebreakMemory
         var held = new HashSet<Cell>();
         foreach (var cell in cells)
         {
-            var key = new Cell(cell.X / BuildingRuntimePackage.FirebreakTile, cell.Z / BuildingRuntimePackage.FirebreakTile);
+            var key = new Cell(cell.X / FirebreakPlan.FirebreakTile, cell.Z / FirebreakPlan.FirebreakTile);
             if (!held.Add(key))
             {
                 continue;
             }
-            yield return new BridgeCellRect { Min = new Cell(key.X * BuildingRuntimePackage.FirebreakTile, key.Z * BuildingRuntimePackage.FirebreakTile) };
+            yield return new BridgeCellRect { Min = new Cell(key.X * FirebreakPlan.FirebreakTile, key.Z * FirebreakPlan.FirebreakTile) };
         }
     }
 
@@ -282,14 +282,14 @@ internal sealed class FirebreakMemory
         return FirebreakGround.StoneRuin;
     }
 
-    private static FirebreakRequest FirebreakRequest(ColonyProjection projection) => BuildingRuntimePackage.FirebreakRequest(projection);
+    private static FirebreakRequest FirebreakRequest(ColonyProjection projection) => FirebreakPlan.FirebreakRequest(projection);
 
-    private static string StockpileWorld(GenerationSnapshot current) => BuildingRuntimePackage.StockpileWorld(current);
+    private static string StockpileWorld(GenerationSnapshot current) => RoundsStockpilePlanner.StockpileWorld(current);
 
-    private static Func<RoomRole, (string Floor, bool Ok)>? FloorStyle(ColonyProjection projection) => BuildingRuntimePackage.FloorStyle(projection);
+    private static Func<RoomRole, (string Floor, bool Ok)>? FloorStyle(ColonyProjection projection) => RoundsTierStyle.FloorStyle(projection);
 }
 
-internal sealed class FirebreakPlan
+internal sealed partial class FirebreakPlan
 {
     internal PlanId Id { get; init; }
 
@@ -300,7 +300,7 @@ internal sealed class FirebreakPlan
     internal int Ruins { get; set; }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class FirebreakPlan
 {
     internal const string FirebreakPrefix = "firebreak-";
     internal const int FirebreakTile = 32;
@@ -355,7 +355,7 @@ internal static partial class BuildingRuntimePackage
     internal static HashSet<Cell> FirebreakBusy(IReadOnlyList<PlanState> plans, GenerationSnapshot current, IReadOnlyDictionary<PlanId, ulong> player)
     {
         var busy = new HashSet<Cell>();
-        RoundsOpenActions(plans, current, player, a =>
+        RoundsProjectBill.RoundsOpenActions(plans, current, player, a =>
         {
             if (a.Building is { } b)
             {

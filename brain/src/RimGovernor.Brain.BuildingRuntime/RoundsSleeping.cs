@@ -184,7 +184,7 @@ public sealed partial class RoundsBuildingPlanner
                 // Bills share the goal and run for days: only a pending spot is the planner's own work.
                 foreach (var progress in plan.Progress)
                 {
-                    if (PendingFacility(progress, BuildingRuntimePackage.CraftingSpotDefinition))
+                    if (PendingFacility(progress, RoundsBuildingPlanner.CraftingSpotDefinition))
                     {
                         return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
                     }
@@ -280,7 +280,7 @@ public sealed partial class RoundsBuildingPlanner
         if (r.Phase == Pol.Phase.ComfortRanked || r.Phase == Pol.Phase.ComfortBasic)
         {
             IReadOnlyList<string> joy;
-            (furniture, joy) = await RecreationDefinitionsAsync(r.Native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+            (furniture, joy) = await RoundsEquipPawn.RecreationDefinitionsAsync(r.Native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             var names = furniture.Definitions().ToList();
             if (r.Phase != Pol.Phase.ComfortBasic)
             {
@@ -1183,7 +1183,7 @@ public sealed partial class RoundsBuildingPlanner
             Environment = Pol.PlacementEnvironment.Indoors,
             Radius = Math.Max(facts.Bounds.Width, facts.Bounds.Height),
             Limit = 64,
-            StockpileZones = StockpileZoneIds(facts)?.ToDictionary(id => id, _ => true) ?? new Dictionary<string, bool>(),
+            StockpileZones = StockpileZones.StockpileZoneIds(facts)?.ToDictionary(id => id, _ => true) ?? new Dictionary<string, bool>(),
         };
         if (Facility is not null)
         {
@@ -1526,7 +1526,7 @@ internal sealed class PlacementChoice
     public Pol.PlacementScore Score { get; init; } = null!;
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     /// <summary>
     /// The scope every routine planner checks its own identity read against: the reviewed world and native

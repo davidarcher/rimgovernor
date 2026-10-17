@@ -118,7 +118,7 @@ public sealed class NeedFamilyTests
         var waiting = Colony.Report(run, Rest);
         Assert.True(waiting.Is(Cause.WaitingOnNeed));
         Assert.Equal(Bleeding.Value, waiting.Refusal.Subject);
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonAdmitted, run.Verdict);
+        Assert.Equal(Verdict.BuildingReasonAdmitted, run.Verdict);
         Assert.Empty(run.UndeclaredReads);
 
         var method = Assert.Single(run.Methods);
@@ -158,7 +158,7 @@ public sealed class NeedFamilyTests
         var first = Assert.Single(colony.Run().Methods);
 
         var again = colony.Run();
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(again, Bleeding));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(again, Bleeding));
         Assert.Equal((first.Plan, ClaimOutcome.Continued), (Assert.Single(again.Methods).Plan, Assert.Single(again.Methods).Outcome));
         Assert.Single(colony.Journal.LoadNeed(Bleeding, World, ct).Methods);
 
@@ -203,9 +203,9 @@ public sealed class NeedFamilyTests
 
         colony.Facts = new(Known(false), Known(true));
         run = colony.Run();
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonNoDeficit, Colony.Report(run, Bleeding));
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonNoDeficit, Colony.Report(run, Rest));
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonNoDeficit, run.Verdict);
+        Assert.Equal(Verdict.BuildingReasonNoDeficit, Colony.Report(run, Bleeding));
+        Assert.Equal(Verdict.BuildingReasonNoDeficit, Colony.Report(run, Rest));
+        Assert.Equal(Verdict.BuildingReasonNoDeficit, run.Verdict);
     }
 
     [Fact]
@@ -253,7 +253,7 @@ public sealed class NeedFamilyTests
         var entry = Assert.Single(catalog, e => e.Family is not null);
         Assert.Equal("test-care", entry.Name);
         Assert.True(entry.Immediate);
-        Assert.True(BuildingRuntimePackage.OrdinaryPlanner(entry));
+        Assert.True(ClockScheduler.OrdinaryPlanner(entry));
         Assert.Equal([ActionKind.PawnActivities], entry.Kinds);
         Assert.True(entry.Declared().SetEquals([FactFamily.Definitions, FactFamily.Identity, FactFamily.Pawns, FactFamily.Emergency]));
         Assert.NotEmpty(entry.Sections);

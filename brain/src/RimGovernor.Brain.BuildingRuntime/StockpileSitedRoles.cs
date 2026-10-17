@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // Important food zone hauls raw food into the cold.
 //
 // All are fixed-size: the admin/stockpiles Need never resizes them.
-internal static partial class BuildingRuntimePackage
+internal static class StockpileSitedRoles
 {
     /// <summary>The fewest meals a day the colony eats before a warm spot by the table pays: fewer, and the meals wait in the store.</summary>
     internal const double MealSpotMinPerDay = 3.0;
@@ -122,7 +122,7 @@ internal static partial class BuildingRuntimePackage
     internal static Pol.StoreView StoreView(Observation.ColonyProjection projection, IReadOnlyList<Cell> protectedCells)
     {
         var request = new Pol.StoreView { Bounds = projection.Bounds, Cells = projection.Cells, Protected = protectedCells };
-        if (PlannedLayout(projection) is var (plan, rooms, known) && known)
+        if (RoundsBuildingPlanner.PlannedLayout(projection) is var (plan, rooms, known) && known)
         {
             request = request with { Layout = plan, Rooms = rooms };
         }

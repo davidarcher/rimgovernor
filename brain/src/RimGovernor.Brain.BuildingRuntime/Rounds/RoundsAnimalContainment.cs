@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsAnimalContainment
 {
     /// <summary>
     /// Whether a free colonist can take animal handling work: unknown while any pawn's availability or work
@@ -54,7 +54,7 @@ internal static partial class BuildingRuntimePackage
     /// <summary>The stuff both shell definitions are made of: the shell style's wall stuff, then the cheapest in stock, then any shared.</summary>
     internal static string? ShellSharedStuff(ColonyProjection facts, PlanningDefinition a, PlanningDefinition b)
     {
-        var want = ShellStyleOf(facts).WallStuff;
+        var want = RoundsTierStyle.ShellStyleOf(facts).WallStuff;
         if (want != "" && a.StuffOptions.Count > 0 && a.MakeableFrom(want) && b.MakeableFrom(want))
         {
             return want;
@@ -90,11 +90,11 @@ internal static partial class BuildingRuntimePackage
     {
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
-        var (ground, gk) = ColonyGround(facts);
+        var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
         if (!pk || !ck || !gk)
         {
             return false;
         }
-        return PolicyApi.PensStand(plan!, plan!.GroundWithRock(ground, NaturalRock(facts)), census!.Buildings);
+        return PolicyApi.PensStand(plan!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census!.Buildings);
     }
 }

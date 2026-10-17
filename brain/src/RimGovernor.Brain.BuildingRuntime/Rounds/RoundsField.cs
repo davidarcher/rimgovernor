@@ -66,11 +66,11 @@ public sealed partial class RoundsFieldPlanner
         var plans = p.Journal.LoadPlans(call);
         var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(state.Snapshot), call);
         var crops = await _reviewer.SowableCropsAsync(state.Snapshot, call).ConfigureAwait(false);
-        var definitions = RoundsProjectDefinitions(plans, state.Snapshot, playerPlans).Concat(crops).ToList();
+        var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, state.Snapshot, playerPlans).Concat(crops).ToList();
         definitions.AddRange(["SunLamp", "HydroponicsBasin", "Heater"]);
         definitions = UniqueFieldDefinitions(definitions);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
@@ -124,7 +124,7 @@ public sealed partial class RoundsFieldPlanner
         {
             return shrunk;
         }
-        if (!(projection.Facts.FoodPlan.TryGetValue(out var foodPlan) && FoodPlanOpensField(foodPlan)))
+        if (!(projection.Facts.FoodPlan.TryGetValue(out var foodPlan) && Rounder.FoodPlanOpensField(foodPlan)))
         {
             return await PlaceOthersAsync(AwaitingFoodPlan("new-field")).ConfigureAwait(false);
         }
@@ -177,14 +177,14 @@ public sealed partial class RoundsFieldPlanner
                 return output;
             }
         }
-        var (hay, hayOk) = HayShortfall(projection);
+        var (hay, hayOk) = RoundsHay.HayShortfall(projection);
         if (hayOk)
         {
             output.Add(new FieldShortfall(rgoal, [hay], "hay"));
         }
         if (review.BrewingFinished && PolicyApi.BrewingFinished(projection.Facts.Research))
         {
-            var (opts, known) = SocialShortfalls(projection);
+            var (opts, known) = RoundsSocialFields.SocialShortfalls(projection);
             if (known && opts.Count > 0)
             {
                 foreach (var opt in opts)
@@ -265,7 +265,7 @@ public sealed partial class RoundsFieldPlanner
                 {
                     return (new RoundsFieldResult { Verdict = NoSpace("field_building_site") }, false);
                 }
-                MergeRoundsStock(stock, preview.Stock, i == 0);
+                RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock, i == 0);
                 if (i > 0 && !FieldAffordable(spent, v, preview.Stock))
                 {
                     break;
@@ -299,7 +299,7 @@ public sealed partial class RoundsFieldPlanner
                 }
                 var value = new ZoneCreate(Domain.ZoneKind.Growing, crop.Name, cells);
                 var action = DomainAction.NewZoneCreateAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), value);
-                var (reply, refused) = await PreviewZoneAsync(_native, Boundary.Identity(snapshot), value, call).ConfigureAwait(false);
+                var (reply, refused) = await ZonePreviews.PreviewZoneAsync(_native, Boundary.Identity(snapshot), value, call).ConfigureAwait(false);
                 if (refused != "")
                 {
                     FieldEdit("refused", "preview_refused", crop.Name, new Dictionary<string, object?> { ["detail"] = refused }, call);
@@ -351,13 +351,13 @@ public sealed partial class RoundsFieldPlanner
         Identity actual;
         try
         {
-            actual = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+            actual = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         }
         catch (ControlException)
         {
             throw new ControlException("enact: err != nil || !roundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick)");
         }
-        if (!RoundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick))
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick))
         {
             throw new ControlException("enact: err != nil || !roundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick)");
         }
@@ -423,7 +423,7 @@ public sealed partial class RoundsFieldPlanner
         }
         var create = new ZoneCreate(Domain.ZoneKind.Growing, edit.Crop, edit.Cells);
         var action = DomainAction.NewZoneCreateAction(new ActionId($"{id}-0"), create);
-        var (reply, refused) = await PreviewZoneAsync(_native, Boundary.Identity(snapshot), create, call).ConfigureAwait(false);
+        var (reply, refused) = await ZonePreviews.PreviewZoneAsync(_native, Boundary.Identity(snapshot), create, call).ConfigureAwait(false);
         if (refused != "")
         {
             FieldEdit("refused", "preview_refused", edit.Crop, new Dictionary<string, object?> { ["detail"] = refused }, call);
@@ -539,7 +539,7 @@ public sealed partial class RoundsFieldPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsFieldPlanner
 {
     internal static List<CropChoice> CropChoices(ColonyProjection projection)
     {
@@ -627,7 +627,7 @@ internal static partial class BuildingRuntimePackage
 
     internal static List<Cell> FirebreakRing(ColonyProjection projection)
     {
-        var ring = PolicyApi.FirebreakRing(FirebreakRequest(projection));
+        var ring = PolicyApi.FirebreakRing(FirebreakPlan.FirebreakRequest(projection));
         return ring.TryGetValue(out var cells) ? cells.ToList() : [];
     }
 

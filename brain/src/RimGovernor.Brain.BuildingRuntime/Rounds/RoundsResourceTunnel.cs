@@ -76,7 +76,7 @@ public sealed partial class RoundsResourcePlanner
             throw new ControlException("tunnelToBuriedOre: boundary", e);
         }
 
-        if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, reviewTick))
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, reviewTick))
         {
             throw new ControlException("tunnelToBuriedOre: boundary");
         }
@@ -133,7 +133,7 @@ public sealed partial class RoundsResourcePlanner
             return (default, false);
         }
 
-        var world = BuildingRuntimePackage.StockpileWorld(state.Snapshot);
+        var world = RoundsStockpilePlanner.StockpileWorld(state.Snapshot);
         var (sited, haveSited) = reviewer.Tunnels.Get(world, resource, ore.Cell);
         if (haveSited && project is null)
         {
@@ -168,7 +168,7 @@ public sealed partial class RoundsResourcePlanner
         var roofs = catalog.RoofRules();
         if (!facts.Center().TryGetValue(out var anchor))
         {
-            return (new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonNoLayoutPlan }, false);
+            return (new RoundsResourceResult { Verdict = Verdict.BuildingReasonNoLayoutPlan }, false);
         }
 
         var request = new ExcavationSiteRequest

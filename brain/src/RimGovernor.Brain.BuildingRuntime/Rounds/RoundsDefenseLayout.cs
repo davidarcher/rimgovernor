@@ -160,7 +160,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         var world = new StoreWorld { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map };
         var wait = DefenseWaitingFight(p.Journal, world, call);
-        var (pipe, pipelinable) = DefenseOpenTiers(goal, id => p.Journal.LoadPlan(id, call));
+        var (pipe, pipelinable) = DefensePipeline.DefenseOpenTiers(goal, id => p.Journal.LoadPlan(id, call));
         if (!pipelinable || (wait is not null && pipe.Piped()))
         {
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork };
@@ -195,8 +195,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit };
         }
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw DefenseControlErr(168);
         }
@@ -232,7 +232,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         else if (DefenseRecutPerimeter(record, cut))
         {
-            DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "perimeter_recut", "perimeter", new Dictionary<string, object?> { ["revision"] = record.PerimeterRevision }, call);
+            DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "perimeter_recut", "perimeter", new Dictionary<string, object?> { ["revision"] = record.PerimeterRevision }, call);
             p.Journal.SaveDefenseLayout(record, call);
         }
         var census = await ObserveTiersAsync(state, read, record, call).ConfigureAwait(false);
@@ -258,7 +258,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         foreach (var name in order)
         {
             var (tier, buildings, tok) = record.Tier(name);
-            if (!tok || buildings.Count == 0 || tier.Built || DefenseTierOpen(pipe.Open, name.Value))
+            if (!tok || buildings.Count == 0 || tier.Built || DefensePipeline.DefenseTierOpen(pipe.Open, name.Value))
             {
                 continue;
             }
@@ -266,7 +266,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 break;
             }
-            var (spent, ok) = AdmitOwnerSubject(p.Journal, goal, DefenseTierSubject(tier), state.Snapshot, call);
+            var (spent, ok) = RoundsRefusalBudget.AdmitOwnerSubject(p.Journal, goal, DefenseTierSubject(tier), state.Snapshot, call);
             if (!ok && pipe.Piped())
             {
                 continue;

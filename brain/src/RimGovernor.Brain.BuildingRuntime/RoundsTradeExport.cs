@@ -170,7 +170,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return AbstainOnRead(Pol.Cause.UnreadReview, e, ct);
+            return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadReview, e, ct);
         }
         var f = projection.Facts;
         var (gap, demand) = Pol.PolicyFunctions.RoundsSilverGap(f, rd.Policy, review.Latches.MedicalReserve);
@@ -238,16 +238,16 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return AbstainOnRead(Pol.Cause.UnreadDefinitions, e, ct);
+            return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadDefinitions, e, ct);
         }
         if (catalog is null)
         {
-            return AbstainOnRead(Pol.Cause.UnreadDefinitions, null, ct);
+            return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadDefinitions, null, ct);
         }
         var (kinds, known) = await TraderKindsAsync(native, snapshot, identity, ct).ConfigureAwait(false);
         if (!known)
         {
-            return AbstainOnRead(Pol.Cause.UnreadBuyers, null, ct);
+            return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadBuyers, null, ct);
         }
         var (cashCap, buys) = ExportBuyers(catalog, kinds, ranked.Products);
         request = request with { CashCap = cashCap, Buys = buys };
@@ -263,7 +263,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                return AbstainOnRead(Pol.Cause.UnreadSupply, e, ct);
+                return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadSupply, e, ct);
             }
         }
         var centered = projection.Center().TryGetValue(out var center);
@@ -277,7 +277,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                return AbstainOnRead(Pol.Cause.UnreadSources, e, ct);
+                return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadSources, e, ct);
             }
             var mines = new List<Pol.ResourceSource>();
             foreach (var row in rows)
@@ -327,7 +327,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             return Unknown<long>();
         }
-        var sale = await SaleSculpturesOfAsync(native, identity, projection, ct).ConfigureAwait(false);
+        var sale = await RoundsSleepingUpkeepPlanner.SaleSculpturesOfAsync(native, identity, projection, ct).ConfigureAwait(false);
         return sale is null ? Unknown<long>() : Known((long)sale.Count);
     }
 

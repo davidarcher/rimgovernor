@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class StockpileBenchInputs
 {
     /// <summary>
     /// The benches consuming stored inputs, read from the bench census and the built-building census for each

@@ -95,7 +95,7 @@ public sealed partial class AdminRounds
         {
             text.Append(CultureInfo.InvariantCulture, $"{supply.Thing}/{supply.Definition}/{supply.Cell.X}/{supply.Cell.Z}/{(supply.Forbidden ? "true" : "false")}\n");
         }
-        var methodId = new MethodId("supply-" + HashHex16(text.ToString()));
+        var methodId = new MethodId("supply-" + RoundsAcquisitionPlanner.HashHex16(text.ToString()));
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>();
         for (var i = 0; i < targets.Count; i++)
@@ -127,25 +127,25 @@ public sealed partial class AdminRounds
         var p = _reviewer.Player;
         var state = work.State;
         var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("burial: the scope is another world or older than the review");
         }
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), BurialDefinitions, call).ConfigureAwait(false);
-        var step = TombStep(reading.Projection);
+        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), RoundsBurialFacts.BurialDefinitions, call).ConfigureAwait(false);
+        var step = RoundsBurialFacts.TombStep(reading.Projection);
         var stock = new PackedStock(_reviewer.Native, Boundary.Identity(state.Snapshot));
         switch (step.Kind)
         {
             case TombStepKind.None:
-                var (morgue, owed) = PlannedMorgue(reading.Projection);
+                var (morgue, owed) = RoundsBurialFacts.PlannedMorgue(reading.Projection);
                 if (!owed)
                 {
                     return BuildingReasonNoDeficit;
                 }
-                return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, new RoomReconcile { Room = morgue, Name = RoomName("morgue", morgue), Reason = "morgue" }, call, work.Epoch).ConfigureAwait(false)).Verdict;
+                return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, new RoomReconcile { Room = morgue, Name = RoundsBurialFacts.RoomName("morgue", morgue), Reason = "morgue" }, call, work.Epoch).ConfigureAwait(false)).Verdict;
             case TombStepKind.Reconcile:
-                return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, new RoomReconcile { Room = step.Room, Template = step.Template, Name = RoomName("tomb", step.Room), Reason = "tomb" }, call, work.Epoch).ConfigureAwait(false)).Verdict;
+                return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, new RoomReconcile { Room = step.Room, Template = step.Template, Name = RoundsBurialFacts.RoomName("tomb", step.Room), Reason = "tomb" }, call, work.Epoch).ConfigureAwait(false)).Verdict;
             case TombStepKind.Grave:
                 return await PlaceGraveAsync(work, reading.Projection, step, call).ConfigureAwait(false);
             case TombStepKind.Full:
@@ -194,7 +194,7 @@ public sealed partial class AdminRounds
                 unknown = true;
                 continue;
             }
-            if (made || !legal || !safe || !reachable || !FootprintIsRect(footprint!, site))
+            if (made || !legal || !safe || !reachable || !BiotechRounds.FootprintIsRect(footprint!, site))
             {
                 continue;
             }

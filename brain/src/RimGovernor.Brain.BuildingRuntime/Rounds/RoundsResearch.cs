@@ -89,13 +89,13 @@ public sealed class EconomyRounds
         var started = _reviewer.Clock.Now();
         var p = _reviewer.Player;
         var review = await p.Journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("economy read: the scope is another world or older than the review");
         }
         var items = await _reviewer.ItemFactsAsync(scope.World, ct).ConfigureAwait(false);
-        var needs = RoundsResearchNeeds(p.Journal, _reviewer.Policy, items, scope.World, _reviewer.EquipmentOwed(scope.World), ct);
+        var needs = RoundsProjectBill.RoundsResearchNeeds(p.Journal, _reviewer.Policy, items, scope.World, _reviewer.EquipmentOwed(scope.World), ct);
         needs = _reviewer.CensusResearchNeeds(needs);
         needs = PolicyFunctions.DeepDrillingResearch(needs, review.ResourceRunwayState(), items);
         var facts = new EconomyFacts { ResearchNeeds = [.. needs] };

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsGearPlanner
 {
     internal static GearPlanningRequest GearRequest(ColonyProjection projection, IReadOnlyList<GearBench> benches) => new()
     {
@@ -21,7 +21,7 @@ internal static partial class BuildingRuntimePackage
 /// The gear batches' work-ledger declarer (#2597), filed under the military/equipment Need. The apparel policies and
 /// outfit prune its planner once committed are that Need's proposals (#3259).
 /// </summary>
-public static class RoundsGearPlanner
+public static partial class RoundsGearPlanner
 {
     public static Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         DeclareOrdersInner(snapshot, projection, benches, ct).For(MilitaryFamily.Equipment.FilingKey.Value);
@@ -60,21 +60,21 @@ public sealed partial class RoundsArmoryPlanner
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return AbstainOnRead(Cause.UnreadWeapons, e, ct);
+            return RoundsGearPlanner.AbstainOnRead(Cause.UnreadWeapons, e, ct);
         }
 
         IReadOnlyList<Amount> shells;
         try
         {
-            shells = await ShellTargetsAsync(_native, _reviewer.Player.Journal, snapshot, projection, ct).ConfigureAwait(false);
+            shells = await RoundsArmoryShells.ShellTargetsAsync(_native, _reviewer.Player.Journal, snapshot, projection, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return AbstainOnRead(Cause.UnreadShells, e, ct);
+            return RoundsGearPlanner.AbstainOnRead(Cause.UnreadShells, e, ct);
         }
 
-        SetSpotNeeded((unarmed > 0 && !WeaponBenchHosted(benches)) || PositiveFact(projection.Facts.CraftingSpotRetireOwed));
-        return PolicyFunctions.DeclareArmoryOrders(GearRequest(projection, benches), tier, MergeAmounts(fighters, hunters), shells);
+        SetSpotNeeded((unarmed > 0 && !WeaponBenchHosted(benches)) || RoundsBuildingPlanner.PositiveFact(projection.Facts.CraftingSpotRetireOwed));
+        return PolicyFunctions.DeclareArmoryOrders(RoundsGearPlanner.GearRequest(projection, benches), tier, MergeAmounts(fighters, hunters), shells);
     }
 
     internal void SetSpotNeeded(bool v)

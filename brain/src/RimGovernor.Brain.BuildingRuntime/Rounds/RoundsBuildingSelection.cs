@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsBuildingPlanner
 {
     internal static bool PendingFacility(Progress progress, string definition) =>
-        progress.Action.Building is { } building && building.Definition == definition && PendingWork(progress);
+        progress.Action.Building is { } building && building.Definition == definition && RoundsPendingWork.PendingWork(progress);
 
     public static RoundsBuildingPlanner NewRoundsCookingPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
@@ -204,7 +204,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (Paste.Count, new MethodId("nutrient-paste"), default);
             }
-            if (!FoodPlanSupportOf(facts.Facts.FoodPlan, CandidateKind.Cook, "cooking-capacity"))
+            if (!Rounder.FoodPlanSupportOf(facts.Facts.FoodPlan, CandidateKind.Cook, "cooking-capacity"))
             {
                 return (0, default, AwaitingFoodPlan("cooking-capacity"));
             }
@@ -248,7 +248,7 @@ public sealed partial class RoundsBuildingPlanner
     internal bool WorkshopLadder() => (Concern == EconomyFamily.Resource.FilingKey || GearLadder()) && !CraftingSpot;
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     internal static bool ButchersAllColocated(IReadOnlyList<CookingBench> benches, Fact<RoomObservation> rooms)
     {

@@ -219,7 +219,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     internal static bool ExcavationVerified(ExcavationTarget target, BridgeExcavationSite site)
     {

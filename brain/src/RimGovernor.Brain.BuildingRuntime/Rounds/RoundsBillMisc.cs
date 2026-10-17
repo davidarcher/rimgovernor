@@ -37,7 +37,7 @@ public sealed partial class Rounder
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class Rounder
 {
     /// <summary>
     /// The mech gestation facts of the review: the mechanitors and their controlled mechs, gestators, wastepacks

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsTradePlanner
 {
     /// <summary>Whether <paramref name="m"/> passes its own validation (Go: <c>m.Validate() == nil</c>).</summary>
     internal static bool TradeMissionValid(TradeMission m)
@@ -18,7 +18,7 @@ internal static partial class BuildingRuntimePackage
 }
 
 /// <summary>The exported trade mission calculations of the package.</summary>
-public static partial class TradeMissions
+partial class RoundsTradePlanner
 {
     /// <summary>
     /// A read-only exact-pack calculation. The caller feeds its returned option to the existing acquisition
@@ -217,7 +217,7 @@ async
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsTradePlanner
 {
     internal static bool TradeMissionCurrentRead(GenerationSnapshot world, WorldProgressionRead? read)
     {

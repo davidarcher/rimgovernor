@@ -157,7 +157,7 @@ public sealed class HomeUpkeepFamilyTests
 
         // The same step continues its open Method.
         var again = colony.Run();
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(again, HomeUpkeepFamily.Clearance));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(again, HomeUpkeepFamily.Clearance));
         Assert.Equal(ClaimOutcome.Continued, Assert.Single(again.Methods).Outcome);
     }
 
@@ -218,7 +218,7 @@ public sealed class HomeUpkeepFamilyTests
         colony.Facts = Unmet(Step("deconstruct-a", "a"));
         _ = colony.Run();
         colony.Facts = Unmet(null);
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(colony.Run(), HomeUpkeepFamily.Clearance));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(colony.Run(), HomeUpkeepFamily.Clearance));
     }
 
     [Fact]

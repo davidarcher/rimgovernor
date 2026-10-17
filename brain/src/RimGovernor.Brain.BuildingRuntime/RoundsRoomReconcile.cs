@@ -81,7 +81,7 @@ internal sealed record RoomBuild
     public bool Vent { get; init; }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     /// <summary>The first <paramref name="count"/> bytes of the SHA-256 of <paramref name="text"/>, as lowercase hex (Go's %x of digest[:n]).</summary>
     internal static string DigestHex(string text, int count) =>
@@ -135,7 +135,7 @@ internal static partial class BuildingRuntimePackage
             Plan = plan,
             Room = room,
             Ground = plan.GroundWithRock(buildings, NaturalRock(facts)),
-            Rooms = ColonyRooms(facts),
+            Rooms = HomeUpkeepReader.ColonyRooms(facts),
             Cells = cells,
             VentAvailable = vent && ventAvailable,
             Unroofed = unroofed,
@@ -188,7 +188,7 @@ internal static partial class BuildingRuntimePackage
         {
             Definitions = definitions,
             Stock = facts.Resources,
-            Style = FloorStyle(facts),
+            Style = RoundsTierStyle.FloorStyle(facts),
             Layout = facts.LayoutPlan,
             Observation = facts.Facts.Upkeep.Flooring,
         };
@@ -344,8 +344,8 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) ShellMaterials(Observation.ColonyProjection facts, string wall, string door, ShellStuff? choose)
     {
-        var wallDef = AnimalContainmentDefinition(facts.Definitions, wall);
-        var doorDef = AnimalContainmentDefinition(facts.Definitions, door);
+        var wallDef = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, wall);
+        var doorDef = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, door);
         if (wallDef is null || doorDef is null)
         {
             return ("", "", FieldUnavailable("wall_door_definitions"), false);
@@ -356,7 +356,7 @@ internal static partial class BuildingRuntimePackage
         {
             return ("", "", FieldUnavailable("wall_door_availability"), false);
         }
-        var (wallStuff, doorStuff, refusal, ok) = choose is not null ? choose(wallDef, doorDef) : SharedShellStuff(facts, wallDef, doorDef);
+        var (wallStuff, doorStuff, refusal, ok) = choose is not null ? choose(wallDef, doorDef) : RoundsSleepingUpkeepPlanner.SharedShellStuff(facts, wallDef, doorDef);
         if (ok && UnstockedUntilKitAllowed(facts, wallStuff, doorStuff))
         {
             return ("", "", AwaitingPlan("start_kit", "forbidden"), false);
@@ -415,13 +415,13 @@ public sealed partial class Rounder
     {
         var throne = new Pol.PlannedRoom();
         IReadOnlyList<string> tags = [];
-        var (need, owed) = ThroneNeed(facts);
+        var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(facts);
         if (owed && need.FloorTags.Count > 0 && facts.LayoutPlan.TryGetValue(out var plan))
         {
             (throne, _) = plan.ThroneRoomFor(need.MinArea);
             tags = need.FloorTags;
         }
-        return FlooringRoomFloors(room => room.Same(throne) ? tags : [], FlooringFactsOf(facts), Policy.Flooring);
+        return FlooringRoomFloors(room => room.Same(throne) ? tags : [], RoundsBuildingPlanner.FlooringFactsOf(facts), Policy.Flooring);
     }
 }
 
@@ -467,8 +467,8 @@ public sealed partial class RoundsBuildingPlanner
                 return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
             }
             var (_, player) = SplitGroundRows(census.Targets);
-            input = input with { Rows = OwnRows(StampPacking(player, facts), rr.Template, rr.Forbidden), Floors = census.Floors, Furniture = rr.Template };
-            var want = ShellStyleOf(facts).WallStuff;
+            input = input with { Rows = OwnRows(HomeUpkeepReader.StampPacking(player, facts), rr.Template, rr.Forbidden), Floors = census.Floors, Furniture = rr.Template };
+            var want = RoundsTierStyle.ShellStyleOf(facts).WallStuff;
             if (want != "" && !rr.Room.Outdoor)
             {
                 input = input with { WallUpgrade = have => facts.StuffUpgrade(ShellWallDefinition, have, want) };
@@ -502,11 +502,11 @@ public sealed partial class RoundsBuildingPlanner
         IReadOnlyList<Pol.ConstructionSite> standing = [];
         if (facts.Facts.CurrentConstruction.TryGetValue(out var census2))
         {
-            standing = RoomSites(census2.Sites, rr.Room.RoomGround());
+            standing = RoomStall.RoomSites(census2.Sites, rr.Room.RoomGround());
         }
-        var obstructed = RoomObstructions(ops);
+        var obstructed = RoomStall.RoomObstructions(ops);
         Reviewer.NoteStall(rr.Name, facts.Identity.Tick, standing, obstructed);
-        var w = new RoomWork { Rr = rr, Ops = ops, Holds = holds, Awaiting = AwaitingKey(standing), Obstructed = obstructed };
+        var w = new RoomWork { Rr = rr, Ops = ops, Holds = holds, Awaiting = RoomStall.AwaitingKey(standing), Obstructed = obstructed };
         // Foreign obstructions first (claim, cut, haul), then removals, then installs from stock, then what is built on site.
         var (obstruction, done) = CommitObstructions(state, goal, w, call, epoch);
         if (done)
@@ -638,7 +638,7 @@ public sealed partial class RoundsBuildingPlanner
             step = step with { Targets = [.. step.Targets.Take(1)] };
         }
         var id = PlanIds.MintPlanId();
-        var (prefix, actions) = GroundStepMethod(id, step);
+        var (prefix, actions) = HomeUpkeepReader.GroundStepMethod(id, step);
         var method = new MethodId(rr.Name + "-" + prefix.TrimEnd('-'));
         if (!MethodOnce(goal, method, call))
         {

@@ -107,7 +107,7 @@ internal static class AdmissionLog
         }
         if (decision.Continued)
         {
-            return BuildingRuntimePackage.BuildingReasonExistingWork;
+            return Verdict.BuildingReasonExistingWork;
         }
         if (decision.Refused.Count == 0)
         {

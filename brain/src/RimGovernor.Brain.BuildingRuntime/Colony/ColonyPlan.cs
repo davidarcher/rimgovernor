@@ -245,7 +245,7 @@ public sealed partial class Rounder
     /// </summary>
     internal async Task<(LayoutInputs Inputs, RoomGrowth Growth)> LayoutInputsOfAsync(GenerationSnapshot snapshot, ColonyProjection projection, HeldLayout layout, MapSurvey survey, DefinitionCatalog catalog, string grown, int pawns, IReadOnlyList<PowerGeyser> geysers, CancellationToken ct)
     {
-        var growth = await RoomGrowthAsync(snapshot, projection, layout.Plan, survey, Stockpiles.LayoutDemand(StockpileWorld(snapshot)), ct).ConfigureAwait(false);
+        var growth = await RoomGrowthAsync(snapshot, projection, layout.Plan, survey, Stockpiles.LayoutDemand(RoundsStockpilePlanner.StockpileWorld(snapshot)), ct).ConfigureAwait(false);
         var keyed = growth with { Grazing = null };
         StationAdviceFor(snapshot, projection, layout.Plan, PolicyFunctions.TilePinned(layout.Plan, growth), growth, growth.Demand, survey, catalog);
         var key = string.Create(CultureInfo.InvariantCulture, $"{grown} {pawns} {string.Join(",", geysers)} {keyed} {StationInputs.Key}");
@@ -262,7 +262,7 @@ public sealed partial class Rounder
     internal async Task<RoomGrowth> RoomGrowthAsync(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, MapSurvey survey, RoomDemand demand, CancellationToken ct)
     {
         var growth = new RoomGrowth { Pens = projection.Facts.PenWants(), Demand = demand };
-        var (need, owed) = BuildingRuntimePackage.ThroneNeed(projection);
+        var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);
         growth = growth with { ThroneArea = PolicyFunctions.ThroneAreaOwed(plan, need, owed) };
         if (projection.Facts.Pasture.TryGetValue(out var pasture))
         {
@@ -271,10 +271,10 @@ public sealed partial class Rounder
         // A room whose need has ended and that is in use stays.
         if (projection.Facts.CurrentConstruction.TryGetValue(out var construction) && construction.Colony)
         {
-            var ended = PolicyFunctions.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, BuildingRuntimePackage.ChildRoomNeeds(projection));
+            var ended = PolicyFunctions.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection));
             if (PolicyFunctions.RoomsOfRoles(plan, ended) > 0)
             {
-                growth = growth with { InUse = PolicyFunctions.RoomsInUse(plan, construction.Buildings, BuildingRuntimePackage.FurnitureDefinitions(projection)) };
+                growth = growth with { InUse = PolicyFunctions.RoomsInUse(plan, construction.Buildings, RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)) };
             }
         }
         // Bedrooms, workshop and laboratory stand and every colonist is housed: the shelter leaves the plan.
@@ -283,7 +283,7 @@ public sealed partial class Rounder
         var occupancy = await LayoutOccupiedAsync(projection, plan, ct).ConfigureAwait(false);
         if (occupancy is { } found)
         {
-            var (ground, _) = BuildingRuntimePackage.ColonyGround(projection);
+            var (ground, _) = RoundsBuildingPlanner.ColonyGround(projection);
             growth = growth with
             {
                 Fixed = PolicyFunctions.FixedRooms(plan, ground, found.Cells),

@@ -24,7 +24,7 @@ public sealed partial class Rounder
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class Rounder
 {
     internal static Fact<EquatableArray<double>> FoodDeliveryDays(Fact<FoodPlan> f)
     {

@@ -3,7 +3,7 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     internal const string PartySpotRetirePrefix = "party-spot-retire";
     internal const string PartySpotPlacePrefix = "party-spot-place";
@@ -44,8 +44,8 @@ public sealed partial class Rounder
     /// <summary>Whether a party spot must be placed or retired, read against the rooms/party-spot Need's unretired Methods.</summary>
     internal static Fact<bool> PartySpotOwed(NeedOwner owner, ColonyProjection facts)
     {
-        var spent = BuildingRuntimePackage.PartySpotSpent(owner.Methods.Select(m => m.Method));
-        if (!BuildingRuntimePackage.PartySpotReview(facts, spent).TryGetValue(out var need))
+        var spent = RoundsBuildingPlanner.PartySpotSpent(owner.Methods.Select(m => m.Method));
+        if (!RoundsBuildingPlanner.PartySpotReview(facts, spent).TryGetValue(out var need))
         {
             return Unknown<bool>();
         }
@@ -59,7 +59,7 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>Retires a stale party spot, or resolves the planner to place a new one; the planner is null when the step is already decided.</summary>
     internal async Task<(RoundsBuildingResult Result, RoundsBuildingPlanner? Placing)> PartySpotStepAsync(ControlState state, Rounds review, IWorkOwner goal, ColonyReading reading, CancellationToken call, CancellationToken epoch)
     {
-        if (!BuildingRuntimePackage.PartySpotReview(reading.Projection, BuildingRuntimePackage.PartySpotSpent(goal.OpenMethods.Select(m => m.Method))).TryGetValue(out var need) || !need.Owed)
+        if (!RoundsBuildingPlanner.PartySpotReview(reading.Projection, RoundsBuildingPlanner.PartySpotSpent(goal.OpenMethods.Select(m => m.Method))).TryGetValue(out var need) || !need.Owed)
         {
             return (new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit }, null);
         }
@@ -67,7 +67,7 @@ public sealed partial class RoundsBuildingPlanner
         if (need.Retire is { } b)
         {
             var retiring = b.Building ?? throw new InvalidOperationException("party spot retire: the retired building carries no building");
-            var result = await RetireBuildingAsync(state, review, goal, reading, b.Id, retiring.Definition, b.Cells[0], BuildingRuntimePackage.PartySpotRetirePrefix, "party_spot_retire_method", call, epoch).ConfigureAwait(false);
+            var result = await RetireBuildingAsync(state, review, goal, reading, b.Id, retiring.Definition, b.Cells[0], RoundsBuildingPlanner.PartySpotRetirePrefix, "party_spot_retire_method", call, epoch).ConfigureAwait(false);
             return (result, null);
         }
 

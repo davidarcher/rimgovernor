@@ -183,10 +183,10 @@ public sealed class MilitaryFamilyTests
     [Fact]
     public void EquipmentWorkReportsTheFirstAdmissionThenAnyRealVerdictThenTheUnsupportedReplacement()
     {
-        var spot = BuildingRuntimePackage.BuildingReasonNoDeficit;
-        var bench = BuildingRuntimePackage.BuildingReasonAdmitted;
+        var spot = Verdict.BuildingReasonNoDeficit;
+        var bench = Verdict.BuildingReasonAdmitted;
         Assert.Equal(bench, MilitaryRounds.EquipmentVerdict([spot, bench], Known(false)));
-        var held = MilitaryRounds.EquipmentVerdict([spot, BuildingRuntimePackage.BuildingReasonDisabled], Known(false));
+        var held = MilitaryRounds.EquipmentVerdict([spot, Verdict.BuildingReasonDisabled], Known(false));
         Assert.True(held.Is(Cause.AwaitingPlan));
         Assert.Equal(MilitaryFamily.UnsupportedApparelReplacement, held.Refusal.Subject);
         Assert.Equal(MilitaryFamily.Equipment.Value, MilitaryRounds.EquipmentVerdict([spot], Known(true)).Refusal.Subject);
@@ -262,7 +262,7 @@ public sealed class MilitaryFamilyTests
 
         // The same selection continues its open Method.
         var again = colony.Run();
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(again, MilitaryFamily.Pests));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(again, MilitaryFamily.Pests));
         Assert.Equal(ClaimOutcome.Continued, Assert.Single(again.Methods).Outcome);
     }
 
@@ -297,7 +297,7 @@ public sealed class MilitaryFamilyTests
         colony.Facts = Unmet(Hunt("pest-hunt-a", Pest("rat-a", 5)));
         _ = colony.Run();
         colony.Facts = Unmet(null);
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(colony.Run(), MilitaryFamily.Pests));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(colony.Run(), MilitaryFamily.Pests));
     }
 
     [Fact]

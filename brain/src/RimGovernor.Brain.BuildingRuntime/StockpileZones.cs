@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // Need on its own zone-edit Method still in flight.
 
 /// <summary>Applies zone edits for the stockpile owner.</summary>
-internal sealed class StockpileZones(Rounder reviewer, FacadeNativeClient native)
+internal sealed partial class StockpileZones(Rounder reviewer, FacadeNativeClient native)
 {
     /// <summary>
     /// Whether the edit's target (the stockpile zone, or the shelf for a shelf patch) is still there; false when
@@ -68,13 +68,13 @@ internal sealed class StockpileZones(Rounder reviewer, FacadeNativeClient native
             }
             catch (NativeFailureException refused)
             {
-                Tel.Decide(StockpileEditDecision("refused", refused.Value.Code.GetValueOrDefault().ToString(), e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = (refused.Value.Detail ?? "") }));
+                Tel.Decide(RoundsStockpilePlanner.StockpileEditDecision("refused", refused.Value.Code.GetValueOrDefault().ToString(), e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = (refused.Value.Detail ?? "") }));
                 continue;
             }
             var v = reply.Outcome?.Evaluated;
             if (v is null || !v.Accepted.GetValueOrDefault())
             {
-                Tel.Decide(StockpileEditDecision("refused", "preview_not_accepted", e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = v?.Reason ?? "" }));
+                Tel.Decide(RoundsStockpilePlanner.StockpileEditDecision("refused", "preview_not_accepted", e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = v?.Reason ?? "" }));
                 continue;
             }
             try
@@ -123,13 +123,13 @@ internal sealed class StockpileZones(Rounder reviewer, FacadeNativeClient native
         }
         foreach (var e in admitted)
         {
-            Tel.Decide(StockpileEditDecision("admitted", "", e.Role, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["cells"] = e.Cells().Count, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
+            Tel.Decide(RoundsStockpilePlanner.StockpileEditDecision("admitted", "", e.Role, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["cells"] = e.Cells().Count, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
         }
         return BuildingReasonAdmitted;
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class StockpileZones
 {
     /// <summary>
     /// The owned-zone view: each journal zone claim of kind stockpile that the projection's planning cells still

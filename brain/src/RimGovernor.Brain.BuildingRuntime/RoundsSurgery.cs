@@ -20,7 +20,7 @@ public sealed class RoundsSurgeryResult : IPlannerMethod
 /// leaving the census), never on the bill. When nothing can be queued the first want (part short or no capable
 /// doctor) is the step's reason.
 /// </summary>
-public sealed class RoundsSurgeryPlanner
+public sealed partial class RoundsSurgeryPlanner
 {
     private readonly Rounder _reviewer;
 
@@ -52,13 +52,13 @@ public sealed class RoundsSurgeryPlanner
         Observation.Identity expected;
         try
         {
-            expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+            expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             throw new ControlException("step: err != nil || !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: err != nil || !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
@@ -146,7 +146,7 @@ public sealed class RoundsSurgeryPlanner
         {
             text.Append(CultureInfo.InvariantCulture, $"harvest/{harvest.Prisoner}/{harvest.Recipe}/{harvest.Part}/{harvest.Surgeon}\n");
         }
-        var method2 = new MethodId("restore-" + HashHex16(text.ToString()));
+        var method2 = new MethodId("restore-" + RoundsAcquisitionPlanner.HashHex16(text.ToString()));
         if (p.Journal.OwnerMethodPlan(work.Owner, method2, call) is not null)
         {
             result.Verdict = WaitFor(Pol.Cause.MethodUsed, "restore_method");
@@ -182,7 +182,7 @@ public sealed class RoundsSurgeryPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsSurgeryPlanner
 {
     /// <summary>The first 16 bytes of the SHA-256 of the text as lowercase hex (Go's "%x" of hash.Sum(nil)[:16]).</summary>
 }

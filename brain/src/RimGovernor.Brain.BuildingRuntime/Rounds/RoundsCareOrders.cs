@@ -56,7 +56,7 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
     /// <summary>The surgery part bill: one batch bill fabricating a part a restore operation lacks.</summary>
     private static Declared SurgeryPartBill(ColonyProjection projection, IReadOnlyList<GearBench> benches)
     {
-        var (parts, productions) = SurgeryPartsOn(projection.Facts.MedicalPawns, projection.SurgeryContext(), benches);
+        var (parts, productions) = Rounder.SurgeryPartsOn(projection.Facts.MedicalPawns, projection.SurgeryContext(), benches);
         var (selected, gap) = PolicyApi.SelectSurgeryPartBill(productions, parts);
         return PolicyApi.DeclareSelection(selected, gap == default, benches);
     }

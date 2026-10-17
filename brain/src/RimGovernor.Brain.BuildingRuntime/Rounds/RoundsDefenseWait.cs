@@ -15,7 +15,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal async Task<(RoundsReading Read, IReadOnlyDictionary<Cell, WaitDoorCell> Census)> FightCensusAsync(ControlState state, BridgeCellRect region, CancellationToken call)
     {
         var p = _reviewer.Player;
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, [], call).ConfigureAwait(false);
         var site = await _native.ReadDefenseSiteAsync(Boundary.Identity(state.Snapshot), region, call).ConfigureAwait(false);
@@ -60,7 +60,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             actions.Add(action);
             previews.Add(preview.Preview);
-            MergeRoundsStock(stockSeen, preview.Stock, actions.Count == 1);
+            RoundsBuildingPlanner.MergeRoundsStock(stockSeen, preview.Stock, actions.Count == 1);
         }
         if (actions.Count == 0)
         {
@@ -94,14 +94,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return new RoundsDefenseLayoutResult { Verdict = AdmissionLog.AdmissionRefused(decision), Plan = id, Tier = tier };
         }
-        DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "builds", tier, new Dictionary<string, object?> { ["builds"] = actions.Count, ["method"] = method.Value }, call);
+        DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "builds", tier, new Dictionary<string, object?> { ["builds"] = actions.Count, ["method"] = method.Value }, call);
         return new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id, Tier = tier };
     }
 
     /// <summary>Marks which cells of the request can carry the wall and the trap, from the terrain affordances of the site.</summary>
     internal async Task<DefenseRequest> MarkWallSupportAsync(C.Identity identity, DefenseRequest request, IReadOnlyList<BridgeDefenseCell> site, CancellationToken call)
     {
-        var catalog = await PawnCatalogAsync(_native, identity, call).ConfigureAwait(false);
+        var catalog = await RoundsEquipPawn.PawnCatalogAsync(_native, identity, call).ConfigureAwait(false);
         if (catalog is null)
         {
             return request;
@@ -139,7 +139,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsDefenseLayoutPlanner
 {
     /// <summary>The open combat memory that needs layout work (a waiting room to harden or a burn to fuel) in the world, if any.</summary>
     internal static CombatMemory? DefenseWaitingFight(StoreJournal journal, StoreWorld world, CancellationToken ct)

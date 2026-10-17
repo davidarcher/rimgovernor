@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// allowed-area move as its own Method; the disaster/services step (full pass only) waits on a running service and
 /// otherwise commits the selection's first repair, breakdown or refuel service. It replaced the recovery planner.
 /// </summary>
-public sealed class DisasterRounds
+public sealed partial class DisasterRounds
 {
     private readonly Rounder _reviewer;
 
@@ -41,8 +41,8 @@ public sealed class DisasterRounds
     {
         var journal = _reviewer.Player.Journal;
         var review = await journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("disaster read: the scope is another world or older than the review");
         }
@@ -50,11 +50,11 @@ public sealed class DisasterRounds
         var f = read.Projection.Facts;
         var emergency = EmergencySnapshot.New(scope.World, expected.Tick, read.Emergency);
         f = f with { Hostiles = PolicyFunctions.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles };
-        f = f with { DangerSeeds = DangerSeedFact(f.Hostiles, read.Emergency.Threats) };
+        f = f with { DangerSeeds = SafeAreaMemory.DangerSeedFact(f.Hostiles, read.Emergency.Threats) };
         f.DangerSeeds.TryGetValue(out var seeds);
         f = f with
         {
-            DangerWindow = _reviewer.SafeArea.DangerWindow(StockpileWorld(scope.World), f.Hostiles, seeds, expected.Tick),
+            DangerWindow = _reviewer.SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(scope.World), f.Hostiles, seeds, expected.Tick),
             DangerHaulers = PolicyFunctions.DangerHaulers(read.Projection.WorkPawns),
             Tick = expected.Tick,
             Dash = Known(review.Latches.Dash),
@@ -218,7 +218,7 @@ public sealed class DisasterRounds
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class DisasterRounds
 {
     /// <summary>Cancels the pending area actions of a plan whose change the policy no longer wants.</summary>
     internal static void CancelStaleAreaActions(StoreJournal journal, PlanState plan, IReadOnlyList<AllowedAreaChange> changes, IReadOnlyList<WorkPawn> workers, CancellationToken ct)

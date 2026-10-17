@@ -47,7 +47,7 @@ public sealed partial class Rounder
             var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
             var huntView = huntRead is not null && HuntEstimates is { } known ? known.Current(huntRead, p.Identity.Tick.Value) : HuntEstimateView.None;
             if (s.FoodPlanFact.IsKnown && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
-                && s.FoodHunt == huntView.Revision && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && SameObservedIdentity(s.FoodIdentity, p.Identity))
+                && s.FoodHunt == huntView.Revision && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && RoundsCensus.SameObservedIdentity(s.FoodIdentity, p.Identity))
             {
                 return s.FoodPlanFact;
             }
@@ -129,7 +129,7 @@ public sealed partial class Rounder
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class Rounder
 {
     internal static Fact<FoodPlan> ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, IHuntEstimates? estimates, HuntEstimateView huntView, Action<HuntPlan>? onHunt = null)
     {
@@ -241,7 +241,7 @@ internal static partial class BuildingRuntimePackage
                 new CropSeason { Calendar = p.Facts.Calendar, Conditions = p.Facts.DisasterConditions }));
         }
 
-        var (field, _) = FieldRequestOf(p, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays);
+        var (field, _) = RoundsFieldPlanner.FieldRequestOf(p, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays);
         channels.AddRange(PolicyFunctions.NewFieldChannels(field, new CropKitchen { Benches = p.ProductionBenches, Cooks = Known((double)workers) }));
         (CandidateKind Kind, string Id)[] supports = [(CandidateKind.Cook, "cooking-capacity"), (CandidateKind.Reserve, "stock-protection")];
         foreach (var support in supports)

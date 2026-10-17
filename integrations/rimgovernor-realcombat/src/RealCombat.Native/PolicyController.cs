@@ -116,16 +116,16 @@ public sealed class PolicyController : IFightController
 
             PolicyFacade.Publish(_facade!, new NativeFrame(frame, ++_serial, 0));
             var combat = _client!.ReadCombatAsync(_seat!.Identity, CancellationToken.None).GetAwaiter().GetResult();
-            var stop = BuildingRuntimePackage.CombatStop(combat, _memory.Tick);
+            var stop = RoundsDefensePlanner.CombatStop(combat, _memory.Tick);
             if (stop.Kind.IsEmpty && _decided != int.MinValue && tick - _decided < BackstopTicks)
             {
                 return;
             }
 
-            var step = BuildingRuntimePackage.DecideCombatStep(combat, _orderable, _memory with { Tick = new Tick(tick) }, $"rc-{tick}", _seat.Identity, GeometryOf, Layout, ReadsOf(tick, frame));
+            var step = CombatReads.DecideCombatStep(combat, _orderable, _memory with { Tick = new Tick(tick) }, $"rc-{tick}", _seat.Identity, GeometryOf, Layout, ReadsOf(tick, frame));
             if (step is null)
             {
-                Idle = "no fight: " + BuildingRuntimePackage.CombatFrameInputs(combat, []).Reason;
+                Idle = "no fight: " + RoundsDefensePlanner.CombatFrameInputs(combat, []).Reason;
                 return;
             }
 
@@ -171,7 +171,7 @@ public sealed class PolicyController : IFightController
 
             Applied += results.Count(r => r.Applied == true);
             Refused += results.Count(r => r.Applied != true);
-            _memory = BuildingRuntimePackage.CombatStepResults(step, results);
+            _memory = CombatReads.CombatStepResults(step, results);
             foreach (var d in step.Drafts)
             {
                 if (!_orderable.Contains(d))

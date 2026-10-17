@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsCreepJoiner
 {
     /// <summary>
     /// The creepjoiner work a census owes against the stored inspection record (#3264): weapon drops, inspections and
@@ -124,14 +124,14 @@ internal static partial class BuildingRuntimePackage
 
     internal static bool IsolationReady(ColonyProjection facts)
     {
-        var (need, owed) = IsolationRoomNeed(facts);
+        var (need, owed) = RoundsSleepingUpkeepPlanner.IsolationRoomNeed(facts);
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
-        var (ground, gk) = ColonyGround(facts);
+        var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
         var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
         if (!owed || !pk || !gk || !ck || !census!.Colony)
         {
             return false;
         }
-        return PolicyApi.IsolationRoomStanding(plan!, plan!.GroundWithRock(ground, NaturalRock(facts)), census.Buildings, need, FurnitureDefinitions(facts));
+        return PolicyApi.IsolationRoomStanding(plan!, plan!.GroundWithRock(ground, RoundsBuildingPlanner.NaturalRock(facts)), census.Buildings, need, RoundsSleepingUpkeepPlanner.FurnitureDefinitions(facts));
     }
 }

@@ -165,7 +165,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     internal static DiningFurniture ComfortFurniture(ColonyProjection facts)
     {

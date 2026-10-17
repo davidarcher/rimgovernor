@@ -18,7 +18,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     internal static Fact<EquatableArray<int>> PlanLitRooms(ColonyProjection facts) =>
-        PolicyFunctions.PlanLitRooms(facts.LayoutPlan, facts.Rooms, facts.Facts.Upkeep.Lighting, PoweredSource(facts));
+        PolicyFunctions.PlanLitRooms(facts.LayoutPlan, facts.Rooms, facts.Facts.Upkeep.Lighting, RoundsTierStyle.PoweredSource(facts));
 
     internal IReadOnlyList<string> LightingDefinitions()
     {
@@ -59,8 +59,8 @@ public sealed partial class RoundsBuildingPlanner
         {
             Cells = facts.Cells,
             Available = facts.Definitions.ToDictionary(d => d.Name, d => d.Available),
-            PoweredSource = PoweredSource(facts),
-            Styled = LampStyle(facts),
+            PoweredSource = RoundsTierStyle.PoweredSource(facts),
+            Styled = RoundsTierStyle.LampStyle(facts),
         };
         if (facts.Rooms.TryGetValue(out var rooms))
         {

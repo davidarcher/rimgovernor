@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The perimeter methods still open in the defense standard, the cells their buildings occupy and the buildings not yet standing.</summary>
-internal sealed class DefensePipeline
+internal sealed partial class DefensePipeline
 {
     public List<MethodId> Open = [];
     public HashSet<Cell> Cells = [];
@@ -33,7 +33,7 @@ internal sealed class DefensePipeline
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class DefensePipeline
 {
     /// <summary>Whether an open method belongs to the tier: its id is the tier prefix, an optional repair marker and the attempt number.</summary>
     internal static bool DefenseTierOpen(IEnumerable<MethodId> open, string tier)

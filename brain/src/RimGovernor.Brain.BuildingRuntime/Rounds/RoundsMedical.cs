@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// withdrawals and herb harvest, and a patient's life-saving amputation, each under its Need and admitted by claims.
 /// The medicine bill is declared to the work ledger under the reserves Need.
 /// </summary>
-public sealed class RoundsMedicalPlanner : IOrderDeclarer
+public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
 {
     private readonly Rounder reviewer;
     private readonly FacadeNativeClient native;
@@ -42,7 +42,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         var review = p.Journal.LoadRounds(call);
         if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
+            return new RoundsMedicalResult { Verdict = Verdict.BuildingReasonNoReview };
         }
 
         var started = reviewer.Clock.Now();
@@ -78,10 +78,10 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         var sources = ObservationPackage.ColonyAcquisition(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false));
         var stalledSources = new HashSet<string>();
         bool Medicine(AcquisitionSource row) => new Resource(row.Resource) == medicineResource;
-        foreach (var row in BuildingRuntimePackage.StalledDesignations(sources, false, new Tick((observed.Context?.Tick).GetValueOrDefault()), reviewer.Policy.AcquisitionProgress(), Medicine))
+        foreach (var row in RoundsAcquisitionPlanner.StalledDesignations(sources, false, new Tick((observed.Context?.Tick).GetValueOrDefault()), reviewer.Policy.AcquisitionProgress(), Medicine))
         {
             stalledSources.Add(row.Id);
-            var (stallMethod, stallPlan) = BuildingRuntimePackage.StallWithdraw(row);
+            var (stallMethod, stallPlan) = RoundsAcquisitionPlanner.StallWithdraw(row);
             if (p.Journal.OwnerMethodPlan(owner, stallMethod, call) is not null)
             {
                 continue;
@@ -101,7 +101,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         var medicalReview = PolicyFunctions.ReviewMedicalReserve(facts, true, reviewer.Policy.MedicalReserve);
         if (!medicalReview.Active)
         {
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
+            return new RoundsMedicalResult { Verdict = Verdict.BuildingReasonNoDeficit };
         }
 
         var seen = owner.Methods.Select(m => m.Method).ToList();
@@ -115,7 +115,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
 
         if (choice.Kind != MedicineMethodKind.Produce)
         {
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.MedicineChoiceVerdict(choice.Kind, medicineResource) };
+            return new RoundsMedicalResult { Verdict = RoundsMedicalPlanner.MedicineChoiceVerdict(choice.Kind, medicineResource) };
         }
 
         return new RoundsMedicalResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "medicine_bill") };
@@ -179,12 +179,12 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         var state = work.State;
         if (!medicalReview.Replenish.TryGetValue(out var replenish))
         {
-            return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable(BuildingRuntimePackage.UnreadMedicalFact(facts)) };
+            return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable(RoundsMedicalPlanner.UnreadMedicalFact(facts)) };
         }
 
         if (replenish <= 0)
         {
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
+            return new RoundsMedicalResult { Verdict = Verdict.BuildingReasonNoDeficit };
         }
 
         var review = p.Journal.LoadRounds(call);
@@ -242,7 +242,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         {
             if (pending >= replenish)
             {
-                return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
+                return new RoundsMedicalResult { Verdict = Verdict.BuildingReasonExistingWork };
             }
 
             return new RoundsMedicalResult { Verdict = Verdict.AwaitingPlan("medicine_source", "") };
@@ -297,15 +297,15 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
             return null;
         }
 
-        var expected = await BuildingRuntimePackage.StepScopeAsync(reviewer.Native, call).ConfigureAwait(false);
-        if (!BuildingRuntimePackage.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("planAmputation: boundary moved");
         }
 
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, claims, call).ConfigureAwait(false);
-        var window = expected.Tick.Value / BuildingRuntimePackage.AmputationRequeueTicks;
+        var window = expected.Tick.Value / RoundsMedicalPlanner.AmputationRequeueTicks;
         if (!read.Projection.Facts.MedicalPawns.TryGetValue(out var pawns))
         {
             return null;
@@ -345,7 +345,7 @@ public readonly record struct RoundsMedicalResult : IPlannerMethod
     public PlanId Plan { get; init; }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsMedicalPlanner
 {
     internal const long AmputationRequeueTicks = GameTime.TicksPerHour;
 

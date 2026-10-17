@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+internal static class RoundsQuestMonumentClaims
 {
     /// <summary>Cells that open monument-install moves will occupy once the quest marker is placed.</summary>
     internal static IReadOnlyList<Cell> PendingMonumentCells(IReadOnlyList<PlanState> plans, Fact<EquatableArray<JoinerOffer>> offers)

@@ -13,7 +13,7 @@ internal static class ClockEvents
         Tel.Event(TelemetryLevel.Warn, "clock-scheduler", "authority", "authority lost: " + why, [("change", "lost"), ("reason", why), .. attrs]);
 }
 
-internal static partial class BuildingRuntimePackage
+partial class ClockScheduler
 {
     /// <summary>The catalog planner name of the routine defense planner.</summary>
     internal const string DefensePlanner = "defense";

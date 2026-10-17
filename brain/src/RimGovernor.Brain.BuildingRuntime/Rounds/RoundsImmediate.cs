@@ -87,7 +87,7 @@ public sealed partial class Rounder
         }
 
         var previous = p.Journal.LoadRounds(ctx);
-        var expected = await StepScopeAsync(Native, ctx).ConfigureAwait(false);
+        var expected = await StepScope.StepScopeAsync(Native, ctx).ConfigureAwait(false);
         if (expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.Snapshot.Map
             || !expected.NativeGeneration.TryGetValue(out var native) || native != state.Snapshot.Native)
         {
@@ -121,7 +121,7 @@ public sealed partial class Rounder
 
         if (Needs.Contains(ShelterFamily.SafeArea))
         {
-            f = f with { SafeAreaOwed = SafeArea.Review(StockpileWorld(state.Snapshot), projection) };
+            f = f with { SafeAreaOwed = SafeArea.Review(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), projection) };
         }
 
         var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);
@@ -129,9 +129,9 @@ public sealed partial class Rounder
         var urgent = PolicyFunctions.UrgentPatients(emergency, state.Snapshot, expected.Tick);
         (critical, urgent) = PolicyFunctions.AmputationNeeds(emergency, f.MedicalPawns, critical, urgent);
         f = f with { Hostiles = hostiles, CriticalPatients = critical, UrgentPatients = urgent };
-        f = f with { DangerSeeds = DangerSeedFact(f.Hostiles, reading.Emergency.Threats) };
+        f = f with { DangerSeeds = SafeAreaMemory.DangerSeedFact(f.Hostiles, reading.Emergency.Threats) };
         f.DangerSeeds.TryGetValue(out var seeds);
-        f = f with { DangerWindow = SafeArea.DangerWindow(StockpileWorld(state.Snapshot), f.Hostiles, seeds, expected.Tick) };
+        f = f with { DangerWindow = SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), f.Hostiles, seeds, expected.Tick) };
         f = f with { DangerHaulers = PolicyFunctions.DangerHaulers(projection.WorkPawns) };
         f = f with { Tick = expected.Tick };
         f = f with { Dash = PolicyFunctions.ReviewDash(previous.Latches.Dash, f, projection.WorkPawns, expected.Tick, PolicyFunctions.PublishedHypothermiaTuning) };
@@ -164,7 +164,7 @@ public sealed partial class Rounder
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class ClockScheduler
 {
     internal static bool ImmediatePlanner(PlannerEntry e) => e.Immediate;
 
@@ -179,7 +179,7 @@ internal static partial class BuildingRuntimePackage
 
     internal static bool ProtectionNeedsTicks(ClockSchedulerResult result) =>
         (result.Defense is not null && (result.Defense.Plan.Value.Length != 0 || result.Defense.Verdict == BuildingReasonExistingWork))
-        || PositiveFact(ClockShelterHeld(result.Rounds));
+        || RoundsBuildingPlanner.PositiveFact(ClockShelterHeld(result.Rounds));
 }
 
 public sealed partial class ClockScheduler

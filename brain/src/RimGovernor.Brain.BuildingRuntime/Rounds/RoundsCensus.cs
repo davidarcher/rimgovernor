@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>One retained review reading with what it covers, so later planners of the same tick reuse it.</summary>
-internal sealed class RoundsCensus
+internal sealed partial class RoundsCensus
 {
     public RoundsReading Reading = null!;
     public bool Rooms;
@@ -176,7 +176,7 @@ internal sealed class RoundsCensusStore
     internal bool Lookup(object? source, object? reviewerSource, Identity expected, bool rooms, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string>? definitions, out RoundsReading reading)
     {
         reading = default!;
-        if (!BuildingRuntimePackage.SameNativeSource(source, reviewerSource))
+        if (!RoundsCensus.SameNativeSource(source, reviewerSource))
         {
             return false;
         }
@@ -187,7 +187,7 @@ internal sealed class RoundsCensusStore
             census = Latest;
             generation = Generation;
         }
-        if (census is null || census.Generation != generation || !BuildingRuntimePackage.SameObservedIdentity(census.Reading.Projection.Identity, expected))
+        if (census is null || census.Generation != generation || !RoundsCensus.SameObservedIdentity(census.Reading.Projection.Identity, expected))
         {
             return false;
         }
@@ -213,7 +213,7 @@ internal sealed class RoundsCensusStore
         return true;
     }
 
-    private static bool SameObservedIdentity(Identity census, Identity expected) => BuildingRuntimePackage.SameObservedIdentity(census, expected);
+    private static bool SameObservedIdentity(Identity census, Identity expected) => RoundsCensus.SameObservedIdentity(census, expected);
 }
 
 /// <summary>The bench census read answered from the fact mirror when it holds the current table, else published fresh.</summary>
@@ -256,7 +256,7 @@ internal sealed class MirroredBenches : IRoundsWorkBenchSource
         await ClockMirror.PublishBenchesAsync(m, scope, native, id, tick, ct).ConfigureAwait(false);
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsCensus
 {
     internal static bool SameObservedIdentity(Identity census, Identity expected)
     {
@@ -289,7 +289,7 @@ public sealed partial class Rounder
 
     internal async Task<RoundsReading> ObserveOwnedAsync(IRoundsSource source, Identity expected, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken ct)
     {
-        if (ImmediateReview())
+        if (ClockScheduler.ImmediateReview())
         {
             return await ObservationApi.ObserveRoundsProtection(source, Clock, expected, MaxAge, ct).ConfigureAwait(false);
         }
@@ -356,7 +356,7 @@ public sealed partial class Rounder
 
     internal async Task<RoundsReading> ObserveRoomsAsync(IRoundsSource source, Identity expected, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken ct)
     {
-        if (ImmediateReview())
+        if (ClockScheduler.ImmediateReview())
         {
             return await ObservationApi.ObserveRoundsProtection(source, Clock, expected, MaxAge, ct).ConfigureAwait(false);
         }
@@ -371,7 +371,7 @@ public sealed partial class Rounder
 
     internal async Task<ColonyReading> ObserveColonyAsync(IColonySource source, Identity expected, IReadOnlyList<string>? definitions, CancellationToken ct)
     {
-        if (ImmediateReview())
+        if (ClockScheduler.ImmediateReview())
         {
             return (await ObservationApi.ObserveRoundsProtection(Native, Clock, expected, MaxAge, ct).ConfigureAwait(false)).Reading;
         }

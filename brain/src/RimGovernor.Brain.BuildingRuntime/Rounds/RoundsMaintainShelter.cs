@@ -13,7 +13,7 @@ internal sealed class OwnedArea
 /// Remembers the bot-owned allowed areas so each review plans only the edits that differ. The shelter family's
 /// safe-area Need (shelter/safe-area, #3257) reads <see cref="Owed"/> and commits <see cref="Take"/>'s edits.
 /// </summary>
-public sealed class SafeAreaMemory
+public sealed partial class SafeAreaMemory
 {
     private readonly object mu = new();
     private string world = "";
@@ -82,7 +82,7 @@ public sealed class SafeAreaMemory
 
             if (projection.Facts.HomeCoverage.TryGetValue(out var census) && census.Home.TryGetValue(out var home) && home.Count > 0)
             {
-                Plan(PolicyFunctions.NoDangerAreaKey, PolicyFunctions.NoDangerCells(home, killbox, BuildingRuntimePackage.SortedSeeds(danger)));
+                Plan(PolicyFunctions.NoDangerAreaKey, PolicyFunctions.NoDangerCells(home, killbox, SafeAreaMemory.SortedSeeds(danger)));
             }
 
             reviewed = true;
@@ -157,7 +157,7 @@ public sealed class SafeAreaMemory
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class SafeAreaMemory
 {
     internal static Fact<EquatableArray<Cell>> DangerSeedFact(Fact<long> hostiles, IReadOnlyList<EmergencyThreat> threats) =>
         hostiles.IsKnown ? Known<EquatableArray<Cell>>([.. PolicyFunctions.DangerSeeds(threats)]) : Unknown<EquatableArray<Cell>>();

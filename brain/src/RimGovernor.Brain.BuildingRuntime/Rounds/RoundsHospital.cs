@@ -31,7 +31,7 @@ public sealed partial class RoundsHospitalPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsHospitalPlanner
 {
     internal static HospitalRequest HospitalRequestOf(ColonyProjection facts)
     {
@@ -67,7 +67,7 @@ public sealed partial class RoundsBuildingPlanner
 {
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectHospital(ColonyProjection facts)
     {
-        var choice = PolicyFunctions.SelectHospitalBed(HospitalRequestOf(facts));
+        var choice = PolicyFunctions.SelectHospitalBed(RoundsHospitalPlanner.HospitalRequestOf(facts));
         switch (choice.Method)
         {
             case HospitalMethod.Unknown:
@@ -117,7 +117,7 @@ public sealed partial class RoundsHospitalPlanner
         var started = Reviewer.Clock.Now();
         var identity = await Native.IdentityAsync(call).ConfigureAwait(false);
         var expected = ObservationPackage.DecodeIdentity(identity);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");
         }
@@ -164,7 +164,7 @@ public sealed partial class RoundsHospitalPlanner
         var attempts = p.Journal.OwnerMethodHistory(work.Owner, call).Where(m => m.Method == method).Select(m => m.Plan).ToList();
         if (!work.Owner.Methods.Any(m => m.Method == method))
         {
-            var (refused, admitted) = AdmitSubject(p.Journal, method.Value, attempts, state.Snapshot, call);
+            var (refused, admitted) = RoundsRefusalBudget.AdmitSubject(p.Journal, method.Value, attempts, state.Snapshot, call);
             if (!admitted)
             {
                 return new RoundsBuildingResult { Verdict = refused };

@@ -4,7 +4,7 @@ using RimGovernor.Contracts.Wire;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>Wraps the defense source and keeps the latest combat read for the snapshot recorder.</summary>
-internal sealed class DefenseRecorder : IRoundsDefenseSource
+internal sealed partial class DefenseRecorder : IRoundsDefenseSource
 {
     private readonly IRoundsDefenseSource _inner;
 
@@ -63,7 +63,7 @@ public sealed partial class RoundsDefensePlanner
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DefenseSnapshotSkip("defense", "defense", ex, call);
+                DefensePipeline.DefenseSnapshotSkip("defense", "defense", ex, call);
             }
         }
         return result;
@@ -127,7 +127,7 @@ public sealed partial class RoundsDefensePlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class DefenseRecorder
 {
     /// <summary>Records the layout request and record for the snapshot replay tests when the snapshot directory is set; a failed record only logs.</summary>
     internal static void RecordLayoutSnapshot(GenerationSnapshot current, Tick tick, SnapshotLayout l, CancellationToken ct)
@@ -146,7 +146,7 @@ internal static partial class BuildingRuntimePackage
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            DefenseSnapshotSkip("defense-layout", "layout", ex, ct);
+            DefensePipeline.DefenseSnapshotSkip("defense-layout", "layout", ex, ct);
         }
     }
 }

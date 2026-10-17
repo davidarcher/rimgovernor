@@ -124,8 +124,8 @@ public sealed class RoomsRounds
         var started = _reviewer.Clock.Now();
         var journal = _reviewer.Player.Journal;
         var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("rooms read: the scope is another world or older than the review");
         }
@@ -160,7 +160,7 @@ public sealed class RoomsRounds
             }
         }
         var floors = Unknown<FlooringReview>();
-        var census = flooring is not null ? flooring.FlooringCensus(projection) : TrafficFlooringFacts(projection, policy.Flooring);
+        var census = flooring is not null ? flooring.FlooringCensus(projection) : RoundsBuildingPlanner.TrafficFlooringFacts(projection, policy.Flooring);
         var floorReview = PolicyApi.ReviewFlooring(census, projection.Rooms, policy.Flooring);
         if (floorReview.Known)
         {
@@ -175,7 +175,7 @@ public sealed class RoomsRounds
             Lighting = lighting,
             Flooring = floors,
             Profiles = profiles,
-            SculptureRoomsOwed = SculptureRoomsOwedOf(projection),
+            SculptureRoomsOwed = RoundsSleepingUpkeepPlanner.SculptureRoomsOwedOf(projection),
             BasicComfort = projection.Facts.BasicComfort,
             HostingRecovered = hosting.Recovered(),
             HostingDeficit = hosting.Deficit(),

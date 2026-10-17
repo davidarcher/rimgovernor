@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+partial class StockpileZones
 {
     /// <summary>
     /// The native stockpile zones of a complete zones read; null when the read is partial, so no zoned cell is

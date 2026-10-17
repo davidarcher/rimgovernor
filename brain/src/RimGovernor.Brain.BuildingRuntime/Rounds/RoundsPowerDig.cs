@@ -91,7 +91,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 if (step.Unroof.Count > 0)
                 {
-                    var stalled = RoofStalled(s, BuildingRuntimePackage.SkyMethod(Definition, site.Area), call);
+                    var stalled = RoofStalled(s, RoundsBuildingPlanner.SkyMethod(Definition, site.Area), call);
                     if (stalled)
                     {
                         return (new RoundsBuildingResult { Verdict = RockNotDug(Definition, $"roof_standing_{step.Unroof.Count}_cells_after_stall") }, true);
@@ -126,7 +126,7 @@ public sealed partial class RoundsBuildingPlanner
             return (new RoundsBuildingResult { Verdict = RockNotDug(Definition, "no_open_cell_beside_site") }, true);
         }
 
-        return await AdmitRockStepAsync(s, pickCells, access, BuildingRuntimePackage.SkyMethod(Definition, pick.Area), [], check, call, epoch).ConfigureAwait(false);
+        return await AdmitRockStepAsync(s, pickCells, access, RoundsBuildingPlanner.SkyMethod(Definition, pick.Area), [], check, call, epoch).ConfigureAwait(false);
     }
 
     internal bool RoofStalled(ExcavationStep s, MethodId method, CancellationToken call)
@@ -156,7 +156,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     internal static MethodId SkyMethod(string definition, Rectangle area) => new($"plan-dig-sky-{definition}-{area.X}-{area.Z}");
 }

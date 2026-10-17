@@ -14,7 +14,7 @@ public sealed class RoundsAcquisitionResult : IPlannerMethod
 /// chops, forages and hunts toward its ranked floors through
 /// the acquisition catalog, beside RoundsResourcePlanner's bills and mines.
 /// </summary>
-public sealed class RoundsAcquisitionPlanner
+public sealed partial class RoundsAcquisitionPlanner
 {
     private readonly Rounder _reviewer;
     internal Rounder Reviewer => _reviewer;
@@ -227,7 +227,7 @@ public sealed class RoundsAcquisitionPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsAcquisitionPlanner
 {
     /// <summary>
     /// The resource Need's census selection: the chop, harvest and hunt sources the Round's supply plan opened,
@@ -555,18 +555,18 @@ public sealed partial class Rounder
         var p = Player;
         var plans = p.Journal.LoadPlans(call);
         var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(world), call);
-        var definitions = RoundsProjectDefinitions(plans, world, playerPlans);
+        var definitions = RoundsProjectBill.RoundsProjectDefinitions(plans, world, playerPlans);
         var crops = await SowableCropsAsync(world, call).ConfigureAwait(false);
         var unique = RoundsFieldPlanner.UniqueFieldDefinitions([.. definitions, .. crops]);
-        var expected = await StepScopeAsync(Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, world, review.Tick))
+        var expected = await StepScope.StepScopeAsync(Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, world, review.Tick))
         {
             throw new ControlException("acquisitionReading: !roundsBuildingBoundary(expected, world, review.Tick)");
         }
         var claims = p.Journal.ConstructionClaims(world, expected.Tick, call);
         var read = await ObserveOwnedAsync(Native, expected, claims, unique, call).ConfigureAwait(false);
         var projection = read.Projection;
-        projection = projection with { Acquisition = WithoutFieldSources(projection.Acquisition, projection, plans, world) };
+        projection = projection with { Acquisition = RoundsAcquisitionFields.WithoutFieldSources(projection.Acquisition, projection, plans, world) };
         return (expected, projection);
     }
 }

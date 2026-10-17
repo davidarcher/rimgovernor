@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>The occupied cells of a layout and the interior origins of the planned rooms in flight.</summary>
 internal sealed record LayoutOccupancy(HashSet<Cell> Cells, HashSet<Cell> Origins, HashSet<int> Rooms);
 
-internal static partial class Occupancy
+partial class Rounder
 {
     // Matches the method ids of the plans keyed by a planned room's interior origin: its dig, shell, bedroom
     // steps, and the tomb and jail pieces.
@@ -136,13 +136,13 @@ internal static partial class Occupancy
 public sealed partial class Rounder
 {
     /// <summary>
-    /// <see cref="Occupancy.OccupiedCells"/> plus the walls of the planned rooms an open journal plan is working
-    /// on (<see cref="Occupancy.RoomMethodOrigins"/>). Null when the census or the plan catalog is unknown;
+    /// <see cref="Rounder.OccupiedCells"/> plus the walls of the planned rooms an open journal plan is working
+    /// on (<see cref="Rounder.RoomMethodOrigins"/>). Null when the census or the plan catalog is unknown;
     /// otherwise also the interior origins of those rooms.
     /// </summary>
     internal async Task<LayoutOccupancy?> LayoutOccupiedAsync(ColonyProjection projection, LayoutPlan plan, CancellationToken ct)
     {
-        var cells = Occupancy.OccupiedCells(projection);
+        var cells = Rounder.OccupiedCells(projection);
         if (cells is null)
         {
             return null;
@@ -156,8 +156,8 @@ public sealed partial class Rounder
         {
             return null;
         }
-        var origins = Occupancy.RoomMethodOrigins(plans);
-        var rooms = Occupancy.RoomMethodIds(plans);
+        var origins = Rounder.RoomMethodOrigins(plans);
+        var rooms = Rounder.RoomMethodIds(plans);
         foreach (var c in InFlightRoomCells(plan, origins, rooms))
         {
             cells.Add(c);

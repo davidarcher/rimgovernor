@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>Plans the food bills of one purpose (cook, preserve, butcher, cook ahead) through the ledger.</summary>
-public sealed class RoundsBillPlanner : IPurposeReporter
+public sealed partial class RoundsBillPlanner : IPurposeReporter
 {
     /// <summary>
     /// The subject keys the purposes' verdicts file under: each Need's bills, a subject of the Need it serves, so
@@ -151,7 +151,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Note(new PurposeReport { Order = FieldUnavailable("review") });
-            return AbstainOnRead(Cause.UnreadReview, ex, ct);
+            return RoundsGearPlanner.AbstainOnRead(Cause.UnreadReview, ex, ct);
         }
         FoodOrderRequest request;
         try
@@ -161,7 +161,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
         catch (DomainException ex)
         {
             Note(new PurposeReport { Order = FieldUnavailable("food_facts") });
-            return AbstainOnRead(Cause.UnreadFoodFacts, ex, ct);
+            return RoundsGearPlanner.AbstainOnRead(Cause.UnreadFoodFacts, ex, ct);
         }
         Note(FoodReport(request, projection));
         return PolicyApi.DeclareFoodOrders(request, benches);
@@ -189,7 +189,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBillPlanner
 {
     /// <summary>The verdict a bill gap reads as; throws for a gap outside the closed set.</summary>
     internal static Verdict BillGapVerdict(BillGap gap, string subject) => gap switch

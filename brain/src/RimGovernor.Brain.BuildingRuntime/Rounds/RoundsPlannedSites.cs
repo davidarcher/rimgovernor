@@ -56,7 +56,7 @@ public sealed partial class Rounder
         {
             return floors.Definitions.TryGetValue(site.Definition, out var floor) ? floor.WorkToBuild : Unknown<double>();
         }
-        if (AnimalContainmentDefinition(colony.Definitions, site.Definition) is not { } def)
+        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, site.Definition) is not { } def)
         {
             return Unknown<double>();
         }
@@ -75,11 +75,11 @@ public sealed partial class Rounder
     private static IReadOnlyList<string> PlannedRingStuffsOf(ColonyProjection colony, PlannedRoom room)
     {
         var (wallDef, doorDef) = room.RingDefs();
-        if (AnimalContainmentDefinition(colony.Definitions, wallDef) is not { } wall)
+        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, wallDef) is not { } wall)
         {
             return [];
         }
-        var door = AnimalContainmentDefinition(colony.Definitions, doorDef);
+        var door = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, doorDef);
         var common = wall.StuffOptions.Any(o => o.Common);
         colony.TryStock(out var stock);
         var options = wall.StuffOptions
@@ -96,7 +96,7 @@ public sealed partial class Rounder
     /// <summary>The stuff def is built from for a wanted stuff ("" for a def made from no stuff) and its cost list; null where the def is unavailable or cannot be made from it.</summary>
     private static (string Stuff, IReadOnlyList<Amount> Costs)? PlannedRingPrice(ColonyProjection colony, string name, string stuff)
     {
-        if (AnimalContainmentDefinition(colony.Definitions, name) is not { } def)
+        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, name) is not { } def)
         {
             return null;
         }

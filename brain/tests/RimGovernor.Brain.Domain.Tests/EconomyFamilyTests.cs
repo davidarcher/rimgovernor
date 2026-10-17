@@ -136,12 +136,12 @@ public sealed class EconomyFamilyTests
         Assert.Equal("Research: research Stonecutting", OperationIntent.Of(journal.PlanMethod(method.Plan, ct)!));
 
         var again = Run();
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Assert.Single(again.Reports).Verdict);
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Assert.Single(again.Reports).Verdict);
         Assert.Equal(ClaimOutcome.Continued, Assert.Single(again.Methods).Outcome);
 
         // Met: nothing more is proposed.
         economy = Facts(["Smithing"], finished: ["Smithing", "Stonecutting"], projects: [Project("Smithing", ["Stonecutting"]), Project("Stonecutting")]);
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonNoDeficit, Assert.Single(Run().Reports).Verdict);
+        Assert.Equal(Verdict.BuildingReasonNoDeficit, Assert.Single(Run().Reports).Verdict);
     }
 
     private static readonly Resource Steel = new("Steel");

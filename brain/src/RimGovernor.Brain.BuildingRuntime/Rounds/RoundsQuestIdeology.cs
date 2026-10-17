@@ -22,7 +22,7 @@ public sealed partial class JoinersRounds
         {
             return gift.Gift is not null
                 ? (Verdict.AwaitingPlan("unsupported_forecast_quest_gift", "Quest item delivery requires shared participant, material and destination alternatives."), true)
-                : (BuildingRuntimePackage.BuildingReasonExistingWork, false);
+                : (Verdict.BuildingReasonExistingWork, false);
         }
 
         var id = PlanIds.MintPlanId();

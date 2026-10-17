@@ -108,7 +108,7 @@ public sealed partial class RoundsDefensePlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsDefensePlanner
 {
     internal const string StripMethodPrefix = "strip-";
     internal const string StripJob = "Strip";

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public static partial class TradeMissions
+partial class RoundsTradePlanner
 {
     /// <summary>
     /// Requires actual cargo held by the returned native crew. An accept receipt, caravan disappearance, or
@@ -59,7 +59,7 @@ public static partial class TradeMissions
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsTradePlanner
 {
     internal static CaravanJourney? MissionCaravan(TradeMission m, WorldProgressionRead world)
     {
@@ -148,14 +148,14 @@ public sealed partial class RoundsTradePlanner
         var caravan = MissionCaravan(m, world);
         if (m.Phase == TradeMissionPhase.Planned)
         {
-            var (observedPhase, _, observed) = TradeMissions.TradeMissionDepartureEvidence(m, world);
+            var (observedPhase, _, observed) = RoundsTradePlanner.TradeMissionDepartureEvidence(m, world);
             if (observed) return MissionRecord(step, m with { Phase = observedPhase }, call);
             return new RoundsTradeResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
                 "Caravan packing and departure require shared forecast labor admission.") };
         }
         if (m.Phase is TradeMissionPhase.Departing or TradeMissionPhase.Outbound)
         {
-            var (phase, _, known) = TradeMissions.TradeMissionDepartureEvidence(m, world);
+            var (phase, _, known) = RoundsTradePlanner.TradeMissionDepartureEvidence(m, world);
             if (known && phase != m.Phase)
             {
                 return MissionRecord(step, m with { Phase = phase }, call);
@@ -167,7 +167,7 @@ public sealed partial class RoundsTradePlanner
             {
                 var crew = m.Crew.Select(id => id.Value).ToList();
                 var cargo = await source.ReadPawnCargoAsync(Boundary.Identity(state.Snapshot), crew, call).ConfigureAwait(false);
-                if (TradeMissions.TradeMissionDelivered(m, world, cargo))
+                if (RoundsTradePlanner.TradeMissionDelivered(m, world, cargo))
                 {
                     return MissionRecord(step, m with { Phase = TradeMissionPhase.Delivered }, call);
                 }
@@ -208,7 +208,7 @@ public sealed partial class RoundsTradePlanner
             {
                 return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
             }
-            if (!TradeMissions.TradeMissionReturnSafe(m, caravan))
+            if (!RoundsTradePlanner.TradeMissionReturnSafe(m, caravan))
             {
                 return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
             }

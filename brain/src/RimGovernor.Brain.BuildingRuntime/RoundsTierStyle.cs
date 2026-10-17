@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // projection into the rule's inputs: the tech tier, the stock census, the finished research and whether a
 // powered source runs. An unknown tier reads as Camp, so a colony whose research census has not arrived yet is
 // styled as a Camp and never receives a stone, powered or floored proposal.
-internal static partial class BuildingRuntimePackage
+internal static class RoundsTierStyle
 {
     /// <summary>The tech tier the rules read: the projection's, Camp when unknown.</summary>
     internal static Pol.TechTier StyleTier(Observation.ColonyProjection facts) =>
@@ -39,7 +39,7 @@ internal static partial class BuildingRuntimePackage
     internal static ShellStyle ShellStyleOf(Observation.ColonyProjection facts)
     {
         var style = new ShellStyle { WallDef = "Wall", DoorDef = "Door", DoorStuff = "WoodLog" };
-        if (PoweredSource(facts).TryGetValue(out var powered) && powered && StyleResearchFinished(facts, "Autodoors") && RoundsDefinitionsAvailable(facts, ["Autodoor"], true))
+        if (PoweredSource(facts).TryGetValue(out var powered) && powered && StyleResearchFinished(facts, "Autodoors") && RoundsBuildingPlanner.RoundsDefinitionsAvailable(facts, ["Autodoor"], true))
         {
             var ok = facts.TryStockedBuildStuff("Autodoor", out var stuff);
             if (ok)

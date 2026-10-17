@@ -9,8 +9,8 @@ public sealed partial class RoundsDefensePlanner
         {
             return (new RoundsDefenseResult(), false);
         }
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, tick))
         {
             throw new ControlException("postFightEntities: census outside the world");
         }
@@ -29,11 +29,11 @@ public sealed partial class RoundsDefensePlanner
             }
             if (v.Decision == EntityDecision.Refuse)
             {
-                DefenseAction("routine-defense", TelemetryLevel.Warn, "refused", "entity_capture_refused", (raider.Id ?? ""), new Dictionary<string, object?> { ["plan"] = fightPlan.Value, ["outcome"] = "left_alive", ["detail"] = v.Reason }, call);
+                DefensePipeline.DefenseAction("routine-defense", TelemetryLevel.Warn, "refused", "entity_capture_refused", (raider.Id ?? ""), new Dictionary<string, object?> { ["plan"] = fightPlan.Value, ["outcome"] = "left_alive", ["detail"] = v.Reason }, call);
             }
             else if (v.Decision == EntityDecision.Kill)
             {
-                DefenseAction("routine-defense", TelemetryLevel.Info, "applied", "entity_kill", (raider.Id ?? ""), new Dictionary<string, object?> { ["plan"] = fightPlan.Value, ["outcome"] = "not_captured", ["detail"] = v.Reason }, call);
+                DefensePipeline.DefenseAction("routine-defense", TelemetryLevel.Info, "applied", "entity_kill", (raider.Id ?? ""), new Dictionary<string, object?> { ["plan"] = fightPlan.Value, ["outcome"] = "not_captured", ["detail"] = v.Reason }, call);
                 return (await FinishRaiderAsync(state, fightPlan, memory, combat, raider, arbiter, call, epoch).ConfigureAwait(false), true);
             }
         }
@@ -41,7 +41,7 @@ public sealed partial class RoundsDefensePlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsDefensePlanner
 {
     /// <summary>The downed hostile pawns the anomaly read marks as entities, ordinal sorted by id.</summary>
     internal static List<M.CombatPawn> DownedEntities(BridgeCombat combat)
@@ -57,7 +57,7 @@ internal static partial class BuildingRuntimePackage
             {
                 continue;
             }
-            if (BridgeApi.PawnAnomaly(detail.Anomaly).TryGetValue(out var a) && PositiveFact(a.Entity))
+            if (BridgeApi.PawnAnomaly(detail.Anomaly).TryGetValue(out var a) && RoundsBuildingPlanner.PositiveFact(a.Entity))
             {
                 output.Add(row);
             }

@@ -104,8 +104,8 @@ public sealed partial class Rounder
                     definitions.Add(new Pol.MissionSupplyDefinition
                     {
                         Definition = name,
-                        Prepared = MissionOptional(food?.Prepared ?? false, known),
-                        Nutrition = MissionCatalogStat(catalog, name, Bridge.CatalogStats.Nutrition),
+                        Prepared = RoundsTradePlanner.MissionOptional(food?.Prepared ?? false, known),
+                        Nutrition = RoundsTradePlanner.MissionCatalogStat(catalog, name, Bridge.CatalogStats.Nutrition),
                         CanSupply = catalog.TraderKindCanSupply(settlement.TraderKind, new Pol.ResourceKey { Def = new Pol.Resource(name) }),
                     });
                 }
@@ -119,7 +119,7 @@ public sealed partial class Rounder
             Pol.TradeAcquisitionOption option;
             try
             {
-                (mission, option) = await TradeMissions.PrepareTradeMissionAsync(source, world, home, settlement, p.Facts, Seasonal(p.Facts), budget, cargo, null, ct).ConfigureAwait(false);
+                (mission, option) = await RoundsTradePlanner.PrepareTradeMissionAsync(source, world, home, settlement, p.Facts, Seasonal(p.Facts), budget, cargo, null, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

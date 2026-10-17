@@ -30,7 +30,7 @@ public sealed partial class RoundsDefensePlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsDefensePlanner
 {
     /// <summary>Splits the permit and psycast calls from the other orders of a combat decision.</summary>
     internal static (List<CombatOrder> Others, List<CombatOrder> Calls) SplitPermitCalls(IReadOnlyList<CombatOrder> orders)

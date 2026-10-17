@@ -62,7 +62,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                 {
                     key += piece.Thing + "/";
                 }
-                var method = new MethodId(CouplePackMethod + DigestHex(key, 8));
+                var method = new MethodId(CouplePackMethod + RoundsBuildingPlanner.DigestHex(key, 8));
                 if (Used(method))
                 {
                     return none;
@@ -124,7 +124,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             {
                 return none;
             }
-            var method = new MethodId("sleeping-reinstall-" + DigestHex(move.Thing, 8));
+            var method = new MethodId("sleeping-reinstall-" + RoundsBuildingPlanner.DigestHex(move.Thing, 8));
             if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
             {
                 return none;

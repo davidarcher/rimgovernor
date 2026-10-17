@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// access is pending), the stock-target meal order that stores food, which the work ledger places under the
 /// food-stores/storage Need, and the refrigeration Need's building work step.
 /// </summary>
-public sealed class FoodStoresRounds
+public sealed partial class FoodStoresRounds
 {
     private readonly Rounder _reviewer;
     private readonly FacadeNativeClient _native;
@@ -65,8 +65,8 @@ public sealed class FoodStoresRounds
     {
         var started = _reviewer.Clock.Now();
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("food stores read: the scope is another world or older than the review");
         }
@@ -81,8 +81,8 @@ public sealed class FoodStoresRounds
         {
             // Refrigeration reads the room census: its warm stock stands in rooms and its cooling rooms are planned.
             reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), _cooler.RefrigerationDefinitions(), ct).ConfigureAwait(false);
-            warm = WarmCoolingRooms(reading.Projection);
-            closet = MealClosetOwed(reading.Projection);
+            warm = RoundsBurialFacts.WarmCoolingRooms(reading.Projection);
+            closet = RoundsBurialFacts.MealClosetOwed(reading.Projection);
         }
         var facts = FoodStoresFacts.From(reading.Projection.Facts) with
         {
@@ -236,7 +236,7 @@ public sealed class FoodStoresRounds
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class FoodStoresRounds
 {
     internal static readonly Resource FoodStorageResourceDefinition = new("MealSimple");
 

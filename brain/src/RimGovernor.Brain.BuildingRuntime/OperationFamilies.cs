@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-internal static partial class BuildingRuntimePackage
+partial class ClockScheduler
 {
     /// <summary>
     /// The fact families a dispatched action of kind changes (Go <c>operationFamilies</c>, clock_facts.go:96).

@@ -37,7 +37,7 @@ public sealed class StoreStacksTests
     };
 
     private static StockpileZone Zone(Fact<int> shelfStacks, IReadOnlyDictionary<string, List<ShelfRecord>> shelves) =>
-        Assert.Single(BuildingRuntimePackage.OwnedStockpileZones(new ColonyProjection { Cells = Census(shelfStacks) }, [Owned], null, shelves));
+        Assert.Single(StockpileZones.OwnedStockpileZones(new ColonyProjection { Cells = Census(shelfStacks) }, [Owned], null, shelves));
 
     [Fact]
     public void ZoneWithBuiltShelfCountsFloorAndShelfStacks()

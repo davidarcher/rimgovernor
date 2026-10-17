@@ -13,7 +13,7 @@ internal sealed record OverlayState
     public bool Cleared { get; init; }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class Rounder
 {
     /// <summary>How often an unchanged safety or stock layer is resent (one game hour).</summary>
     internal static readonly Tick OverlayResendEvery = new(GameTime.TicksPerHour);

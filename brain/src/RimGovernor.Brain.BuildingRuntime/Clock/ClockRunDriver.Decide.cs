@@ -289,7 +289,7 @@ public sealed partial class ClockRunDriver
             squadUnanswered = Known(defense.Verdict == BuildingReasonNoSquad);
         }
         // A complete sheltering response lets the threat be waited out, watched like a fight's.
-        var sheltered = BuildingRuntimePackage.ClockShelterHeld(step.Rounds);
+        var sheltered = ClockScheduler.ClockShelterHeld(step.Rounds);
         var facts = new ClockWatchFacts
         {
             Current = state.Snapshot,

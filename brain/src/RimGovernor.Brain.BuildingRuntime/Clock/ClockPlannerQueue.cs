@@ -121,7 +121,7 @@ internal sealed class PlannerQueue
             {
                 // Protective waits describe the prior safety facts. A relevant observation must reconsider
                 // them even while issued work is open; family policy decides whether that work should continue.
-                if (ImmediatePlanner(entry))
+                if (ClockScheduler.ImmediatePlanner(entry))
                 {
                     _waits.Remove(entry.Name);
                 }
@@ -280,8 +280,8 @@ internal sealed class PlannerQueue
     /// </summary>
     public void CombatStopped()
     {
-        _waits.Remove(DefensePlanner);
-        Mark(DefensePlanner);
+        _waits.Remove(ClockScheduler.DefensePlanner);
+        Mark(ClockScheduler.DefensePlanner);
     }
 
     /// <summary>

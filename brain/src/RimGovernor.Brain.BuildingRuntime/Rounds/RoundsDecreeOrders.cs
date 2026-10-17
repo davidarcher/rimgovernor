@@ -80,7 +80,7 @@ public sealed partial class JoinersRounds
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class JoinersRounds
 {
     /// <summary>The recipes on the benches that make the quest objective's item, with their standing batch bills.</summary>
     internal static List<DecreeRecipe> DecreeRecipes(IReadOnlyList<GearBench> benches, DefinitionCatalog catalog, QuestObjective objective)

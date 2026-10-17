@@ -15,7 +15,7 @@ public sealed partial class RoundsDefensePlanner
         {
             live[p.Id] = p;
         }
-        var things = await FrameThingsOfAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+        var things = await RoundsGear.FrameThingsOfAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         var defenders = new List<LoadoutDefender>();
         var beltless = false;
         foreach (var pawn in pawns)
@@ -31,7 +31,7 @@ public sealed partial class RoundsDefensePlanner
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_pawn", pawn.Value, new Dictionary<string, object?> { ["error"] = ex }, call);
+                DefensePipeline.DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_pawn", pawn.Value, new Dictionary<string, object?> { ["error"] = ex }, call);
                 return [];
             }
             var d = new LoadoutDefender { Candidate = facts, Primary = PrimaryDef(row, things) };
@@ -49,7 +49,7 @@ public sealed partial class RoundsDefensePlanner
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_primary", pawn.Value, new Dictionary<string, object?> { ["error"] = ex }, call);
+                DefensePipeline.DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_primary", pawn.Value, new Dictionary<string, object?> { ["error"] = ex }, call);
                 return [];
             }
             beltless = beltless || !d.ShieldBelt;
@@ -69,7 +69,7 @@ public sealed partial class RoundsDefensePlanner
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_weapons", "", new Dictionary<string, object?> { ["error"] = ex }, call);
+                DefensePipeline.DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_weapons", "", new Dictionary<string, object?> { ["error"] = ex }, call);
             }
         }
         IReadOnlyList<LoadoutApparel> belts = [];
@@ -81,7 +81,7 @@ public sealed partial class RoundsDefensePlanner
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_belts", "", new Dictionary<string, object?> { ["error"] = ex }, call);
+                DefensePipeline.DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "loadout_belts", "", new Dictionary<string, object?> { ["error"] = ex }, call);
             }
         }
         return CombatLoadoutRules.ThreatLoadout(threat, defenders, weapons, belts);
@@ -131,7 +131,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("loadoutBelts: context");
         }
-        var things = await FrameThingsOfAsync(source, identity, call).ConfigureAwait(false);
+        var things = await RoundsGear.FrameThingsOfAsync(source, identity, call).ConfigureAwait(false);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var output = new List<LoadoutApparel>();
         foreach (var pawn in observed.Planning?.Outcome?.Observed?.Gear?.Pawns ?? [])
@@ -157,7 +157,7 @@ public sealed partial class RoundsDefensePlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsDefensePlanner
 {
     internal static string PrimaryDef(O.PawnState row, Things things)
     {
@@ -171,7 +171,7 @@ internal static partial class BuildingRuntimePackage
             var id = (equipment.PrimaryId ?? "");
             if (id != "" && (item.Thing?.Id ?? "") == id)
             {
-                return GearDef(things, item.Thing);
+                return RoundsGear.GearDef(things, item.Thing);
             }
         }
         return "";

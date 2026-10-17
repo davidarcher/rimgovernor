@@ -205,7 +205,7 @@ public sealed partial class RoundsBuildingPlanner
             return (new RoundsBuildingResult(), false);
         }
 
-        return await DigPlannedAsync(s, plan.RoomRock(room, s.Facts.Cells).Dig, shell.Threshold, BuildingRuntimePackage.DigMethod("room", room), [], check, call, epoch).ConfigureAwait(false);
+        return await DigPlannedAsync(s, plan.RoomRock(room, s.Facts.Cells).Dig, shell.Threshold, RoundsBuildingPlanner.DigMethod("room", room), [], check, call, epoch).ConfigureAwait(false);
     }
 
     internal async Task<(RoundsBuildingResult Result, bool Handled)> DigExhaustAsync(ExcavationStep s, Action check, CancellationToken call, CancellationToken epoch)
@@ -244,14 +244,14 @@ public sealed partial class RoundsBuildingPlanner
                 place.Add(new Building("Cooler", site.Cell, site.Rotation, ""));
             }
 
-            return await DigPlannedAsync(s, rock, cooler.Cold(), BuildingRuntimePackage.DigMethod("exhaust", room), place, check, call, epoch).ConfigureAwait(false);
+            return await DigPlannedAsync(s, rock, cooler.Cold(), RoundsBuildingPlanner.DigMethod("exhaust", room), place, check, call, epoch).ConfigureAwait(false);
         }
 
         return (new RoundsBuildingResult(), false);
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     /// <summary>Prefers excavations that touch an open walkable cell, so the digger can reach them; all of them when none do.</summary>
     internal static IReadOnlyList<Excavation> ExposedFirst(IReadOnlyList<Excavation> excavations, IReadOnlyList<SiteCell> cells)

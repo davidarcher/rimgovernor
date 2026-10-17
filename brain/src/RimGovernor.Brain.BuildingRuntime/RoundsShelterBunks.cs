@@ -43,10 +43,10 @@ internal sealed class ShelterBunkRecord
     public bool Bound(MethodId m) => Placed.ContainsKey(m);
 
     /// <summary>Whether a placement rung of the ladder is already bound.</summary>
-    public bool AnyBound() => Bound(BuildingRuntimePackage.ShelterSpotsMethodId) || Bound(BuildingRuntimePackage.ShelterBedrollsMethodId) || Bound(BuildingRuntimePackage.ShelterBedsMethodId);
+    public bool AnyBound() => Bound(RoundsBuildingPlanner.ShelterSpotsMethodId) || Bound(RoundsBuildingPlanner.ShelterBedrollsMethodId) || Bound(RoundsBuildingPlanner.ShelterBedsMethodId);
 }
 
-internal static partial class BuildingRuntimePackage
+partial class RoundsBuildingPlanner
 {
     internal static readonly MethodId ShelterSpotsMethodId = new("shelter-spots");
     internal static readonly MethodId ShelterBedrollsMethodId = new("shelter-bedrolls");
@@ -408,7 +408,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return none;
         }
-        var stuff = BedStuff(s.Facts, definition);
+        var stuff = RoundsSleepingUpkeepPlanner.BedStuff(s.Facts, definition);
         var snapshot = s.State.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
         var actions = new List<DomainAction>(bunks.Count);
         for (var i = 0; i < bunks.Count; i++)

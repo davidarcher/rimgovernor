@@ -3,7 +3,7 @@ using System.Text;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The tier nodes the latest siting produced, and the key that says whether they changed.</summary>
-internal sealed class TierOverlay
+internal sealed partial class TierOverlay
 {
     public string Key = "";
     public IReadOnlyList<PlannedSite> Nodes = [];
@@ -228,7 +228,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         SiteUnstartedTiers(record, tiers, pins);
         foreach (var g in tiers.Layout.Gated)
         {
-            DefenseTierGated(g.Tier.Value, g.Reason, call);
+            DefensePipeline.DefenseTierGated(g.Tier.Value, g.Reason, call);
         }
         await AdviseBlocksAsync(state, read, census, pins, tiers, call).ConfigureAwait(false);
         var key = TierKey(tiers.Nodes);
@@ -264,7 +264,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         DefinitionCatalog? catalog;
         try
         {
-            catalog = await PawnCatalogAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+            catalog = await RoundsEquipPawn.PawnCatalogAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -334,7 +334,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
 }
 
-internal static partial class BuildingRuntimePackage
+partial class TierOverlay
 {
     /// <summary>The cover the cell's thing offers: its definition and kind, and for a building the stuff when it is the cell's edifice.</summary>
     internal static CoverThing DefenseCover(BridgeDefenseCell cell)

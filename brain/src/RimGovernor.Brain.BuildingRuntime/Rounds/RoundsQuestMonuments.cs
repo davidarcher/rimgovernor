@@ -31,7 +31,7 @@ public sealed partial class JoinersRounds
 
         if (choice.Kind is "protect" or "wait")
         {
-            return (BuildingRuntimePackage.BuildingReasonExistingWork, true);
+            return (Verdict.BuildingReasonExistingWork, true);
         }
 
         var id = PlanIds.MintPlanId();
@@ -100,6 +100,6 @@ public sealed partial class JoinersRounds
             Previews = [built.Preview],
             Purpose = Purpose.Rounds,
         }, call).ConfigureAwait(false);
-        return (decision.Admitted ? BuildingRuntimePackage.BuildingReasonAdmitted : AdmissionLog.AdmissionRefused(decision), true);
+        return (decision.Admitted ? Verdict.BuildingReasonAdmitted : AdmissionLog.AdmissionRefused(decision), true);
     }
 }

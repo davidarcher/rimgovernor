@@ -51,7 +51,7 @@ public readonly record struct Refusal(Cause Kind, string Subject = "", string De
 /// The pair every routine result embeds: its <see cref="Outcome"/> and, when refused or waiting, the
 /// <see cref="Refusal"/>. The default verdict means the step reached no verdict (the caller keeps going).
 /// </summary>
-public readonly record struct Verdict(Outcome Outcome, Refusal Refusal = default)
+public readonly partial record struct Verdict(Outcome Outcome, Refusal Refusal = default)
 {
     // The refusal causes: an Outcome.Refused verdict carries one of these; there is no catch-all. English for
     // them lives in Wording.
@@ -181,7 +181,7 @@ public readonly record struct Verdict(Outcome Outcome, Refusal Refusal = default
 /// The shared verdicts (Go <c>BuildingReason*</c>). Exits that need a more specific refusal build one with
 /// <see cref="Verdict.Refuse"/> and its helpers; none may be a catch-all.
 /// </summary>
-internal static partial class BuildingRuntimePackage
+partial record struct Verdict
 {
     public static readonly Verdict BuildingReasonAdmitted = new(Outcome.Admitted);
     public static readonly Verdict BuildingReasonDisabled = new(Outcome.Disabled);

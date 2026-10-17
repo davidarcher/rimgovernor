@@ -221,7 +221,7 @@ public sealed class FoodFamilyTests
 
         // The same MethodIds again: the open plans continue, nothing new is committed.
         var again = colony.Run();
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(again));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(again));
         Assert.Equal(2, colony.Journal.LoadNeed(CookingNeed, World, ct).Methods.Count);
     }
 
@@ -397,7 +397,7 @@ public sealed class FoodFamilyTests
         Assert.Equal(BlightNeed.FilingKey, journal.PlanMethod(batch.Plan, ct)!.Concern);
 
         // The same census again continues the open batch.
-        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(colony.Run(), BlightNeed));
+        Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(colony.Run(), BlightNeed));
         Assert.Single(journal.LoadNeed(BlightNeed, World, ct).Methods);
 
         // The first batch's plants designated, a new plant is a second batch beside it: no whole-goal gate holds it.

@@ -93,8 +93,8 @@ public sealed class MilitaryRounds
             return _restoreWorkers || _combat ? await RestoreFactsAsync(scope.World, new MilitaryFacts(), call).ConfigureAwait(false) : new MilitaryFacts();
         }
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("military read: the scope is another world or older than the review");
         }
@@ -110,7 +110,7 @@ public sealed class MilitaryRounds
             {
                 // The crafting spot owed down and the shell review, as the review derives them.
                 var retire = await _reviewer.CraftingSpotRetireOwedAsync(scope.World, reading.Projection, call).ConfigureAwait(false);
-                var shells = await ShellTargetsAsync(_reviewer.Native, _reviewer.Player.Journal, scope.World, reading.Projection, call).ConfigureAwait(false);
+                var shells = await RoundsArmoryShells.ShellTargetsAsync(_reviewer.Native, _reviewer.Player.Journal, scope.World, reading.Projection, call).ConfigureAwait(false);
                 f = f with { CraftingSpotRetireOwed = retire, ShellsShort = PolicyApi.ShellsShort(shells, reading.Projection.Resources) };
             }
             facts = MilitaryFacts.From(f with { Hostiles = PolicyApi.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles });
@@ -173,8 +173,8 @@ public sealed class MilitaryRounds
             var plan = journal.LoadPlan(method.Plan, call);
             // An unissued hunt follows its animal wherever the census reports it; one whose animal died to the
             // defense or left the map would be held forever, so the work step cancels it.
-            stale.AddRange(GonePestHunts(plan.Progress, wild).Select(action => new StaleHunt(method.Plan, action)));
-            undispatched.UnionWith(UndispatchedAcquisitions(plan.Progress));
+            stale.AddRange(RoundsAcquisitionPlanner.GonePestHunts(plan.Progress, wild).Select(action => new StaleHunt(method.Plan, action)));
+            undispatched.UnionWith(RoundsAcquisitionPlanner.UndispatchedAcquisitions(plan.Progress));
         }
         facts = facts with { Pests = pests, StaleHunts = [.. stale], HuntingHeld = PolicyApi.OutdoorAcquisitionHeld(projection.Facts) };
         if (!pests.TryGetValue(out var count) || count == 0)
@@ -183,7 +183,7 @@ public sealed class MilitaryRounds
         }
         // A designated or undispatched pest row is held: it is not planned again.
         var held = new Dictionary<string, bool>(StringComparer.Ordinal);
-        _ = HoldWorked(projection.Acquisition, undispatched, held);
+        _ = RoundsAcquisitionPlanner.HoldWorked(projection.Acquisition, undispatched, held);
         var (slots, noHunter) = RoundsResourcePlanner.HuntSlots(projection);
         IReadOnlyList<AcquisitionSource> selected;
         try
@@ -204,7 +204,7 @@ public sealed class MilitaryRounds
             hash.Append(CultureInfo.InvariantCulture, $"{row.Id}/{row.Resource}/{row.Token}/{row.Cell.X}/{row.Cell.Z}\n");
         }
         // The MethodId names the selected rows: the same selection continues its open hunt.
-        return facts with { Hunt = new PestHunt(new MethodId("pest-hunt-" + HashHex16(hash.ToString())), [.. selected]) };
+        return facts with { Hunt = new PestHunt(new MethodId("pest-hunt-" + RoundsAcquisitionPlanner.HashHex16(hash.ToString())), [.. selected]) };
     }
 
     /// <summary>
@@ -317,8 +317,8 @@ public sealed class MilitaryRounds
         {
             return BuildingReasonNoReview;
         }
-        var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
+        if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("training work: the native boundary moved");
         }
@@ -332,13 +332,13 @@ public sealed class MilitaryRounds
         if (ranges.Count > 0)
         {
             var room = ranges[0];
-            rooms.Add(new RoomReconcile { Room = room, Template = RangeTemplate(room), Name = RoomName("range", room), Reason = "range" });
+            rooms.Add(new RoomReconcile { Room = room, Template = RangeTemplate(room), Name = RoundsBurialFacts.RoomName("range", room), Reason = "range" });
         }
         var rings = layout.RingRooms();
         if (rings.Count > 0)
         {
             var room = rings[0];
-            rooms.Add(new RoomReconcile { Room = room, Template = RingTemplate(room), Name = RoomName("ring", room), Reason = "ring" });
+            rooms.Add(new RoomReconcile { Room = room, Template = RingTemplate(room), Name = RoundsBurialFacts.RoomName("ring", room), Reason = "ring" });
         }
         if (rooms.Count == 0)
         {

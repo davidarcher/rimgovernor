@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The bare scope read every routine source offers.</summary>
-internal static partial class BuildingRuntimePackage
+internal static class StepScope
 {
     /// <summary>
     /// Reads the observation scope (load, map, tick, generation, pause state) a Rounds pass or planner validates
