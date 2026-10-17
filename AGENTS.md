@@ -20,10 +20,12 @@
    Make its subject the branch tip: the lane uses it for the squash title.
 4. From the worktree root, run `RimGovernor.cmd land` once. The lane locks,
    updates main from origin, merges, squashes, pushes the squash to origin's
-   main (landing again on top when origin moved, without retesting), then moves
-   local main and the main checkout and resets the branch. Do not combine
-   `test` with `land -test`. Resolve lane-reported conflicts, then build.
-   Main moving is not a reason to rerun tests.
+   main (landing again on top when origin moved), then moves local main and the
+   main checkout and resets the branch. Do not combine `test` with `land -test`.
+   Resolve lane-reported conflicts, then build. Main moving is not a reason to
+   rerun tests yourself: when the merge brought in files the gate builds, the
+   lane runs the gate on the merged tree (a failure lands nothing and undoes the
+   merge); a docs-only merge lands untested.
 5. Continue authorized milestones. Close an issue when its stated acceptance
    is met; a registered, compiling acceptance case satisfies a case-writing
    task. Later nightly failures are separate issues.

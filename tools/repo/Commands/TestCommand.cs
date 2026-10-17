@@ -6,7 +6,7 @@ namespace RimGovernor.Tools.Workflow.Commands;
 /// Runs the gate (<see cref="Gate"/>) when the change touched anything it builds.
 /// <code>RimGovernor.cmd test [-base main] [-full]</code>
 /// Run from anywhere inside the worktree. It diffs the working tree (committed, staged, unstaged and untracked)
-/// against -base, so it is the edit/test loop's check as well as the pre-land one; the landing lane does not test.
+/// against -base, so it is the edit/test loop's check as well as the pre-land one; the landing lane retests only what main brought in.
 /// -full runs the gate regardless.
 /// </summary>
 internal static class TestCommand

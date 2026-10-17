@@ -44,8 +44,13 @@ From the branch worktree's root:
 The lane locks the repository, fast-forwards local main to origin/main, merges
 main into the branch, squashes, pushes the squash to origin's main, then moves local
 main and the main checkout to it and resets the branch. When origin's main moved
-since the fetch, the push is rejected and the lane lands again on top (three tries,
-no retest); a push origin refuses for any other reason lands nothing. It closes the issue named by an `issue-<n>-...` branch or
+since the fetch, the push is rejected and the lane lands again on top (three tries);
+a push origin refuses for any other reason lands nothing. Each merge of main that
+brings in files the gate builds (`Affected.GateOwed`: `brain/`, `tools/`,
+`integrations/`, `contracts/`, `scripts/` and the solution and launcher files) runs the gate on the merged tree
+before the squash, while the lane holds the landing lock; a merge that brings only docs or notes lands
+without a retest. A failed gate lands nothing and resets the branch to before the merge, so the next
+`land` merges and tests again rather than finding nothing new. It closes the issue named by an `issue-<n>-...` branch or
 `-issue <n>`; `-no-close` suppresses that close.
 
 - Run the lane once per ready milestone. `land -test` is an alternative to

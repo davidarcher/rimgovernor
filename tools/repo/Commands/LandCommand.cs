@@ -17,7 +17,9 @@ namespace RimGovernor.Tools.Workflow.Commands;
 /// origin fails the landing), then merges main into the branch's worktree, which must be clean; a conflict aborts the
 /// merge, and a merged tree that puts a path back to its content before one of main's recent landings is refused,
 /// naming the paths and the landings;</item>
-/// <item>optionally runs tests with -test, once; callers normally run the test tool before landing;</item>
+/// <item>runs the gate on the merged tree when the merge brought in files it builds (<see cref="Affected.GateOwed"/>;
+/// a docs-only merge does not), undoing the merge if it fails; -test also runs the affected checks once; callers
+/// normally run the test tool before landing;</item>
 /// <item>commits the merged branch's tree onto main as one squash commit, with a message built from the branch's
 /// commits (-m or -F overrides the subject and body) carrying the branch's Co-Authored-By trailers, and pushes it to
 /// origin's main. Local main moves only after origin accepted it, so the two never diverge. When origin's main moved
@@ -62,6 +64,9 @@ internal static partial class LandCommand
 
         /// <summary>Called with the worktree, branch and short landing hash once the landing is on origin.</summary>
         public Func<string, string, string, Task>? Close { get; init; }
+
+        /// <summary>Runs the gate on the worktree; null runs the real one (tests substitute a probe).</summary>
+        public Func<string, Task>? Gate { get; init; }
 
         /// <summary>Called with the attempt number just before each push (tests move origin's main here).</summary>
         public Func<int, Task>? BeforePush { get; init; }
@@ -154,6 +159,7 @@ internal static partial class LandCommand
         {
             await LandChecks.SyncMainAsync(worktree, mainCheckout, ct).ConfigureAwait(false);
             oldMain = await Git.RunAsync(worktree, ct, "rev-parse", "main").ConfigureAwait(false);
+            var beforeMerge = await Git.RunAsync(worktree, ct, "rev-parse", "HEAD").ConfigureAwait(false);
             var merge = await Proc.CaptureAsync(worktree, "git", ["merge", "--no-edit", oldMain], ct).ConfigureAwait(false);
             if (merge.ExitCode != 0)
             {
@@ -173,9 +179,9 @@ internal static partial class LandCommand
                 await Affected.TestAsync(worktree, changed, full: false, ct).ConfigureAwait(false);
                 tested = true;
             }
-            else if (attempt == 1)
+            else
             {
-                Log.Info("tests: not run by the lane (run the test tool before landing, or pass -test)");
+                await TestMergedInputsAsync(worktree, beforeMerge, options.Gate, ct).ConfigureAwait(false);
             }
 
             var head = await Git.RunAsync(worktree, ct, "rev-parse", "HEAD").ConfigureAwait(false);
@@ -229,6 +235,32 @@ internal static partial class LandCommand
         if (options.Close is { } close)
         {
             await close(worktree, branch, landed).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Runs the gate when merging main brought in files it builds (<see cref="Affected.GateOwed"/>): the branch passed
+    /// the gate without them. A merge that brought only docs lands untested. A failed gate undoes the merge, so the
+    /// next land merges and tests again instead of finding nothing new and landing the failing tree.
+    /// </summary>
+    private static async Task TestMergedInputsAsync(string worktree, string beforeMerge, Func<string, Task>? gate, CancellationToken ct)
+    {
+        var brought = await Git.LinesAsync(worktree, ct, "diff", "--name-only", beforeMerge, "HEAD").ConfigureAwait(false);
+        if (!Affected.GateOwed(brought.Select(file => file.TrimEnd('\r')).Where(file => file.Length > 0)))
+        {
+            return;
+        }
+        Log.Info("main brought in files the gate builds; running the gate on the merged tree");
+        try
+        {
+            await (gate is null ? Gate.RunAsync(worktree, ct) : gate(worktree)).ConfigureAwait(false);
+        }
+        catch (ToolException e)
+        {
+            await Git.RunAsync(worktree, ct, "reset", "--hard", beforeMerge).ConfigureAwait(false);
+            throw new ToolException(
+                $"the gate failed on the merged tree; nothing landed and the merge of main was undone: {e.Message}\n"
+                + "merge main (git merge main), fix the failure, run test, commit, and run land again");
         }
     }
 
