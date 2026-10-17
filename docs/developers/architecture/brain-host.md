@@ -176,7 +176,7 @@ Decided (user, 2026-10-13):
   `HostSeams.Install()` (called from `CaseCatalog.Register`) wires the
   store-backed case readers over that file. Readers that need the game's own data (`StarterSite.Planner`,
   `LayoutSiteHost.Surveyor`, `ColonyFactsSource.Reader`, the catalog and blight readers) call the mod's read-only
-  `rimgovernor/acceptance_read_*` tools (`colony_facts`, `blight`, `starter_site`, `impressiveness`, `animal_races`;
+  `rimgovernor/acceptance_read_*` tools (`colony_facts`, `blight`, `starter_site`, `impressiveness`, `animal_races`, `floor_terrains`;
   `AcceptanceReadTools`) through the generic native route. The tools run `AcceptanceReads` in the Host project: the
   observation layer's colony read with a standalone planning window and the load's definition catalog over the published
   facade, returning JSON in `payload`; they record nothing and need no running brain. The first layout plan is derived

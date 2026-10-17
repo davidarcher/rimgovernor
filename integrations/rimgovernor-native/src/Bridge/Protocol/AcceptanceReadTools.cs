@@ -37,6 +37,8 @@ namespace HomeBridge.BridgeTools
                 ["acceptance_read_capture_profile"] = (args, ct) => ReadCaptureProfile(args["iterations"]?.GetValue<int>() ?? 5, ct),
                 // One row per animal race of the definition catalog; a fact the catalog did not read is absent.
                 ["acceptance_read_animal_races"] = (_, ct) => Reads.Value.AnimalRacesAsync(ct),
+                // One row per TerrainDef: cleanliness stat and natural flag.
+                ["acceptance_read_floor_terrains"] = (_, ct) => Reads.Value.FloorTerrainsAsync(ct),
             };
 
         private static async Task<string> ReadCaptureProfile(int iterations, CancellationToken cancellationToken)

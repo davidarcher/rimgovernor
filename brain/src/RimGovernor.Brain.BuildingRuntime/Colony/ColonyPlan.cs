@@ -95,6 +95,27 @@ internal static class LayoutPlanning
         }
     }
 
+    /// <summary>The layout_conduit row of each conduit decision the tiler made: the node, the node it joined (empty when it found no net) and why.</summary>
+    internal static IEnumerable<Decision> ConduitRows(StationAdvice advice) =>
+        advice.Tiled?.ConduitDecisions.Select(d => new Decision
+        {
+            Kind = "layout_conduit",
+            Component = "layout",
+            Verdict = d.Verdict,
+            Reason = d.Reason,
+            Target = d.From.Value,
+            Attrs = new Dictionary<string, object?> { ["to"] = d.To.Value ?? "" },
+        }) ?? [];
+
+    /// <summary>Writes the layout_conduit rows of a derive or replan: which power links were kept, routed anew or left unrouted.</summary>
+    public static void LogConduits(StationAdvice advice)
+    {
+        foreach (var row in ConduitRows(advice))
+        {
+            Tel.Decide(row);
+        }
+    }
+
     /// <summary>Writes the layout_plan rows of the traced ring and its opening (target perimeter): the ring is traced, the opening stands where the raider routes cross it or is absent.</summary>
     public static void LogPerimeter(LayoutPlan plan, int colonists)
     {
@@ -386,6 +407,7 @@ public sealed partial class Rounder
         row = row with { Dur = DateTimeOffset.UtcNow - start, Attrs = new Dictionary<string, object?>(row.Attrs) { ["derive"] = true } };
         Tel.Decide(row);
         LayoutPlanning.LogInterior(advice);
+        LayoutPlanning.LogConduits(advice);
         switch (error)
         {
             case StationFactsException:
@@ -458,6 +480,7 @@ public sealed partial class Rounder
         decision = decision with { Attrs = tiledAttrs };
         Tel.Decide(decision);
         LayoutPlanning.LogInterior(advice);
+        LayoutPlanning.LogConduits(advice);
         if (!changed)
         {
             return true;

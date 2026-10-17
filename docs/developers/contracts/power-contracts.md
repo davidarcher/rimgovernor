@@ -122,7 +122,7 @@ what budget, and the `connect` contract above is unchanged. No action kind carri
   from its own cells to the nearest cell of the net so far, cells shared. No star forms on any node, the
   battery room included. A node that cannot reach the net gets a `conduit_no_route` decision and no link;
   with no power site every consumer gets `conduit_no_source`; a routed link is `conduit_routed`
-  (`TileResult.ConduitDecisions`, for the caller to journal).
+  (`TileResult.ConduitDecisions`, journalled as `layout_conduit` on a derive and on a replan).
 - **Replan (#2966).** A replan routes against the links the colony holds (`TileInput.Conduits`): a node
   whose held link still starts on it, crosses only `ConduitCells` ground and ends on the net so far keeps it
   (`conduit_kept`); only the nodes a change broke route anew (`conduit_routed`). A room that replaces another

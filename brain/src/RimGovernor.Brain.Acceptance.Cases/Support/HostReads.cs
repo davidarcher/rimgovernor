@@ -122,6 +122,20 @@ internal static class HostReads
         return rows;
     }
 
+    internal static async Task<IReadOnlyDictionary<string, FloorTerrainRow>> FloorTerrainsAsync(Harness harness, JsonObject identity, CancellationToken cancellationToken)
+    {
+        _ = identity;
+        var read = await ReadAsync(harness, "catalog-floor-terrains", "floor_terrains", null, cancellationToken).ConfigureAwait(false);
+        var rows = new Dictionary<string, FloorTerrainRow>(StringComparer.Ordinal);
+        foreach (var raw in read["terrains"] as JsonArray ?? [])
+        {
+            var row = (JsonObject)raw!;
+            rows[Text(row, "def")] = new FloorTerrainRow(Number(row, "cleanliness")!.Value, row["natural"]?.GetValue<bool>() ?? false);
+        }
+
+        return rows;
+    }
+
     /// <summary>Plans the first layout from the mod's read: the plan in the store codec and the map bounds.</summary>
     internal sealed class StarterSiteReader : IStarterSitePlanner
     {

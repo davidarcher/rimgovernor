@@ -651,10 +651,6 @@ Policy|CombatStopKind.IsEmpty
 Policy|CombatTuning.IsValid
 Policy|CombatView.HiveTemperatureC
 Policy|ComfortModel.Beauty
-Policy|ConduitDecision.From
-Policy|ConduitDecision.Reason
-Policy|ConduitDecision.To
-Policy|ConduitDecision.Verdict
 Policy|ConflictCost.Def
 Policy|ConflictCost.Factor
 Policy|ConstructionInputs.Admitted

@@ -207,6 +207,27 @@ public sealed class AcceptanceReads
         });
     }
 
+    /// <summary>One row per TerrainDef of the loaded game's catalog: its cleanliness stat and natural flag.</summary>
+    public async Task<string> FloorTerrainsAsync(CancellationToken cancellationToken)
+    {
+        var (_, catalog) = await ReadIdentityAndCatalogAsync(cancellationToken).ConfigureAwait(false);
+        var terrains = catalog.FloorTerrains();
+        return Write(w =>
+        {
+            w.WriteStartArray("terrains");
+            foreach (var (def, terrain) in terrains.OrderBy(t => t.Key, StringComparer.Ordinal))
+            {
+                w.WriteStartObject();
+                w.WriteString("def", def);
+                w.WriteNumber("cleanliness", terrain.Cleanliness);
+                w.WriteBoolean("natural", terrain.Natural);
+                w.WriteEndObject();
+            }
+
+            w.WriteEndArray();
+        });
+    }
+
     private async Task<(PbCommon.Identity Identity, DefinitionCatalog Catalog, ColonyReading Reading)> ReadColonyAsync(CancellationToken cancellationToken)
     {
         var expected = await ReadIdentityAsync(cancellationToken).ConfigureAwait(false);

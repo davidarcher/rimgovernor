@@ -269,17 +269,12 @@ internal static class FloorKitchen
 
     /// <summary>
     /// Decodes the typed upkeep flooring section the way the projection does, keeping the room that holds the fixture
-    /// interior with each of its interior cells joined to its terrain's census stats.
+    /// interior with each of its interior cells joined to its terrain's catalog stats.
     /// </summary>
     internal static async Task<Summary> ReadAsync(Harness h, JsonObject identity, string label, CellRect interior, CancellationToken cancellationToken)
     {
         var facts = await RoutineService.ReadUpkeepAsync(h, identity, label, "flooring", cancellationToken).ConfigureAwait(false);
-        var terrains = new Dictionary<string, (double Cleanliness, bool Natural)>(StringComparer.Ordinal);
-        foreach (var raw in facts["terrains"].AsSlice())
-        {
-            var row = raw.AsMap() ?? [];
-            terrains[row["defName"].AsString()] = (row["cleanliness"].AsNumber(), row["natural"].AsBool() == true);
-        }
+        var terrains = await GameCatalogReader.FloorTerrainsAsync(h, identity, cancellationToken).ConfigureAwait(false);
 
         foreach (var raw in facts["rooms"].AsSlice())
         {
@@ -298,7 +293,7 @@ internal static class FloorKitchen
                 var name = row["terrain"].AsString();
                 if (!terrains.TryGetValue(name, out var terrain))
                 {
-                    throw new AcceptanceException($"{label}: cell {c} names terrain \"{name}\" missing from the census table");
+                    throw new AcceptanceException($"{label}: cell {c} names terrain \"{name}\" missing from the catalog terrains");
                 }
 
                 var pending = row["pending"].AsString();

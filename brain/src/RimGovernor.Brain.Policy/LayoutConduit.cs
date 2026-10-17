@@ -16,7 +16,7 @@ public static partial class PolicyConstants
     internal const string ConduitRoomTag = "room:";
     internal const string ConduitSiteTag = "site:";
 
-    // Conduit decisions; the caller journals them with telemetry.Decide.
+    // Conduit decisions; the caller journals them as layout_conduit rows.
     public const string ReasonConduitRouted = "conduit_routed";
     public const string ReasonConduitKept = "conduit_kept";
     public const string ReasonConduitBlocked = "conduit_no_route";

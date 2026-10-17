@@ -24,6 +24,22 @@ public static class GameCatalogReader
     /// </summary>
     public static Func<Harness, JsonObject, CancellationToken, Task<IReadOnlyList<AnimalRaceRow>>>? AnimalRacesReader { get; set; }
 
+    /// <summary>
+    /// Reads the terrain table of the loaded game's definition catalog (<c>DefinitionCatalog.FloorTerrains</c>): the
+    /// cleanliness and natural flag of every TerrainDef, for the game identified by <c>identity</c>.
+    /// </summary>
+    public static Func<Harness, JsonObject, CancellationToken, Task<IReadOnlyDictionary<string, FloorTerrainRow>>>? FloorTerrainsReader { get; set; }
+
+    /// <summary>The terrain table of the game identified by <paramref name="identity"/>.</summary>
+    public static Task<IReadOnlyDictionary<string, FloorTerrainRow>> FloorTerrainsAsync(Harness harness, JsonObject identity, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(harness);
+        ArgumentNullException.ThrowIfNull(identity);
+        var read = FloorTerrainsReader
+            ?? throw new AcceptanceException("no catalog reader is wired for the floor terrains (GameCatalogReader.FloorTerrainsReader): the case cannot read terrain stats");
+        return read(harness, identity, cancellationToken);
+    }
+
     /// <summary>The animal race rows of the game identified by <paramref name="identity"/>.</summary>
     public static Task<IReadOnlyList<AnimalRaceRow>> AnimalRacesAsync(Harness harness, JsonObject identity, CancellationToken cancellationToken)
     {
@@ -53,3 +69,6 @@ public sealed record AnimalMilk(double Amount, double IntervalDays);
 /// not read it, and <see cref="Milk"/> is null when the race has no usable milk product.
 /// </summary>
 public sealed record AnimalRaceRow(string Def, double? Wildness, double? BodySize, int? MinimumHandlingSkill, AnimalMilk? Milk);
+
+/// <summary>One terrain of the definition catalog: the cleanliness stat a flooring census scores a cell by, and whether the ground is unbuilt.</summary>
+public sealed record FloorTerrainRow(double Cleanliness, bool Natural);
