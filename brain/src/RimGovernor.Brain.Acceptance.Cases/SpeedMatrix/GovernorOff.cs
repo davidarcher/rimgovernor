@@ -58,16 +58,13 @@ internal sealed partial class SpeedmatrixRun
         var lastTick = startTick;
         var reads = 0;
 
-        // Nothing records an OTLP timeline here, so the row's observation and frame accounts come off its own tick
-        // reads' reply envelopes: the ungoverned update intervals on the same save and renderer.
-        var account = new NativeAccount();
         Exception? waitErr = null;
         try
         {
             await new Wait { Stall = Wait.StallBudget(), Interval = TimeSpan.FromSeconds(2) }.WaitProgressAsync(
                 async ct =>
                 {
-                    var tick = await ReadTickAccountedAsync(h, string.Create(CultureInfo.InvariantCulture, $"tick-{reads}"), account, ct).ConfigureAwait(false);
+                    var tick = await ReadTickAsync(h, string.Create(CultureInfo.InvariantCulture, $"tick-{reads}"), ct).ConfigureAwait(false);
                     reads++;
                     lastTick = tick;
                     return (Wait.Signature(lastTick), lastTick >= startTick + _profile.Ticks);
@@ -131,7 +128,8 @@ internal sealed partial class SpeedmatrixRun
             ["resume_latency_ms_mean"] = 0.0,
             ["tick_reads"] = reads,
         };
-        foreach (var (key, value) in ObservationRow(account.Observation(), account.Frames()))
+        // Nothing records an OTLP timeline here, so the row's observation and frame accounts are empty (unknown, not zero).
+        foreach (var (key, value) in ObservationRow(new ObservationSample(), new FrameSample()))
         {
             metrics[key] = value?.DeepClone();
         }
@@ -148,14 +146,11 @@ internal sealed partial class SpeedmatrixRun
         return loaded["context"].AsMap()?["identity"].AsMap() ?? [];
     }
 
-    // ReadTick over the raw reply envelope, so the reply's companion timing block feeds the row's observation and frame
-    // accounts. Harness.WireAsync unwraps the ProtoJSON payload and drops the block.
-    private static async Task<ulong> ReadTickAccountedAsync(Harness h, string label, NativeAccount account, CancellationToken cancellationToken)
+    // The loaded tick.
+    private static async Task<ulong> ReadTickAsync(Harness h, string label, CancellationToken cancellationToken)
     {
-        var envelope = await h.CallAsync(label, "rimgovernor/lifecycle_read_tick", new JsonObject { ["request"] = "{}" }, cancellationToken).ConfigureAwait(false);
-        _ = account.Reply(envelope);
-        var (message, _) = Harness.DecodeEnvelope("lifecycle_read_tick", envelope);
-        var (_, loaded) = Harness.Outcome(message, "loaded");
+        var reply = await h.WireAsync(label, "lifecycle_read_tick", new JsonObject(), cancellationToken).ConfigureAwait(false);
+        var (_, loaded) = Harness.Outcome(reply, "loaded");
         return (ulong)loaded["context"].AsMap()?["tick"].AsNumber()!;
     }
 }

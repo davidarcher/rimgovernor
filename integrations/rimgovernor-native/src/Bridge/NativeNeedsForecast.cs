@@ -131,7 +131,7 @@ internal static class NativeNeedsForecast
     {
         var room = bed.GetRoom();
         var stage = room == null ? default : Fact.Known(RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(RoomStatDefOf.Impressiveness)));
-        return new(room?.Role?.defName ?? "", stage, bed.ForPrisoners, bed.CostListAdjusted().Count == 0);
+        return new(room?.Role?.defName ?? "", stage, bed.ForPrisoners);
     }
     /// <summary>StatPart_EnvironmentalEffects def data on the DeteriorationRate stat, read by reflection (private fields); null without the part.</summary>
     private static Obs.NeedDeteriorationPart? DeteriorationPart()

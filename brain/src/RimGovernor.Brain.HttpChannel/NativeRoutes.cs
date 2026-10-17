@@ -3,26 +3,21 @@ using System.Text.Json;
 
 namespace RimGovernor.Brain.HttpChannel;
 
-/// <summary>One native tool reply: the ProtoJSON payload and, when the tool reported one, its timing.</summary>
-public sealed record NativeToolReply(string Payload, string? Timing);
-
 /// <summary>
-/// What <c>POST /native/&lt;tool&gt;</c> calls. The mod implements it over its own tools (the same ones the registry
-/// dispatches), so every route runs one implementation with the same admission and
-/// main-thread rules. The channel itself knows no tool.
+/// What <c>POST /native/&lt;op&gt;</c> calls: the mod's explicit op table (the native facade's ops, the acceptance-only
+/// reads, and the host's own and fixture tools). The channel itself knows no op.
 /// </summary>
-public interface INativeToolInvoker
+public interface INativeOpInvoker
 {
-    /// <summary>The tool names a route exists for, without the <c>rimgovernor/</c> prefix.</summary>
-    IReadOnlyCollection<string> ToolNames { get; }
+    /// <summary>The op names a route exists for, without the <c>rimgovernor/</c> prefix.</summary>
+    IReadOnlyCollection<string> Names { get; }
 
     /// <summary>
-    /// Runs one tool with a ProtoJSON request body. <paramref name="admissionClass"/> and <paramref name="trace"/>
-    /// are the optional class and trace arguments of the call. A tool failure is thrown.
+    /// Runs one op on its JSON request body and answers its JSON reply. A body that does not fit the op's request
+    /// throws <see cref="JsonException"/> (a 400); any other failure is the op's own (a 500).
     /// </summary>
-    Task<NativeToolReply> InvokeAsync(string tool, string requestJson, string? admissionClass, string? trace, CancellationToken cancellationToken);
+    Task<string> InvokeAsync(string op, string body, CancellationToken cancellationToken);
 }
-
 /// <summary>The channel's own routes: <c>POST /native/&lt;tool&gt;</c> and <c>GET /api/health</c>.</summary>
 public static class NativeRoutes
 {
@@ -34,13 +29,7 @@ public static class NativeRoutes
     /// <summary>The longest a native call may run. Lifecycle calls (load, new colony) legitimately take minutes.</summary>
     public static readonly TimeSpan CallTimeout = TimeSpan.FromMinutes(5);
 
-    public const string TimingHeader = "X-RimGovernor-Timing";
-
-    public const string ClassHeader = "X-RimGovernor-Class";
-
-    public const string TraceHeader = "X-RimGovernor-Trace";
-
-    public static IDisposable Register(RouteTable routes, INativeToolInvoker invoker)
+    public static IDisposable Register(RouteTable routes, INativeOpInvoker invoker)
     {
         return routes.MapPrefix(
             "POST",
@@ -53,7 +42,7 @@ public static class NativeRoutes
     /// Registers <c>GET /api/tools</c>: the route names <c>POST /native/&lt;name&gt;</c> answers right now (the list can
     /// grow while the game starts, as the host registers its tools), for a controller that checks a tool exists.
     /// </summary>
-    public static IDisposable RegisterToolList(RouteTable routes, INativeToolInvoker invoker)
+    public static IDisposable RegisterToolList(RouteTable routes, INativeOpInvoker invoker)
     {
         return routes.Map(
             "GET",
@@ -65,7 +54,7 @@ public static class NativeRoutes
                 {
                     writer.WriteStartObject();
                     writer.WriteStartArray("tools");
-                    foreach (var name in invoker.ToolNames.OrderBy(n => n, StringComparer.Ordinal))
+                    foreach (var name in invoker.Names.OrderBy(n => n, StringComparer.Ordinal))
                     {
                         writer.WriteStringValue(name);
                     }
@@ -100,40 +89,33 @@ public static class NativeRoutes
             });
     }
 
-    private static async Task<ChannelResponse> HandleAsync(INativeToolInvoker invoker, ChannelRequest request, CancellationToken cancellationToken)
+    private static async Task<ChannelResponse> HandleAsync(INativeOpInvoker invoker, ChannelRequest request, CancellationToken cancellationToken)
     {
         var tool = request.Path[Prefix.Length..];
-        if (!IsToolName(tool) || !invoker.ToolNames.Contains(tool))
+        if (!IsToolName(tool) || !invoker.Names.Contains(tool))
         {
             return ChannelResponse.Failure(404, "not_found", "No such native tool");
         }
 
         var body = request.Body.Length == 0 ? "{}" : DecodeUtf8(request.Body);
-        request.Headers.TryGetValue(ClassHeader, out var admissionClass);
-        request.Headers.TryGetValue(TraceHeader, out var trace);
-        NativeToolReply reply;
         try
         {
-            reply = await invoker.InvokeAsync(tool, body, admissionClass, trace, cancellationToken).ConfigureAwait(false);
+            return ChannelResponse.Json(200, await invoker.InvokeAsync(tool, body, cancellationToken).ConfigureAwait(false));
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-#pragma warning disable CA1031 // The tool's own failure text goes back to the caller as a 500.
+        catch (JsonException e)
+        {
+            return ChannelResponse.Failure(400, "invalid_request", e.Message);
+        }
+#pragma warning disable CA1031 // The op's own failure text goes back to the caller as a 500.
         catch (Exception e)
 #pragma warning restore CA1031
         {
             return ChannelResponse.Failure(500, "tool_failed", e.Message);
         }
-
-        var headers = new Dictionary<string, string>();
-        if (reply.Timing is { Length: > 0 } timing)
-        {
-            headers[TimingHeader] = timing;
-        }
-
-        return ChannelResponse.Json(200, reply.Payload, headers);
     }
 
     private static string DecodeUtf8(byte[] body)

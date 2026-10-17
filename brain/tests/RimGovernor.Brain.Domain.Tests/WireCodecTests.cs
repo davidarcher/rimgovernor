@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
 using RimGovernor.Brain.Acceptance;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Contracts.Wire;
 using Xunit;
 
@@ -15,7 +16,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class WireCodecTests
 {
-    public static TheoryData<string> Methods() => [.. WireMethods.All.Keys.Order(StringComparer.Ordinal)];
+    public static TheoryData<string> Methods() => [.. NativeOps.All.Select(op => op.Name).Order(StringComparer.Ordinal)];
 
     [Fact]
     public void SetModeRequestIsTheHostsPolymorphicOperation()
@@ -66,7 +67,8 @@ public sealed class WireCodecTests
     [MemberData(nameof(Methods))]
     public void EveryRequestAndReplyTypeRoundTrips(string method)
     {
-        var (request, reply) = WireMethods.All[method];
+        Assert.True(NativeOps.TryGet(method, out var op));
+        var (request, reply) = (op.Request, op.Reply);
         foreach (var type in new[] { request, reply })
         {
             var variants = Choices(type, 0, []).DefaultIfEmpty(1).Max();
@@ -346,7 +348,7 @@ public sealed class WireCodecTests
                 Targets = [
                     new("stack", "food", "Meal", 4, default, default, default, default)
                         { Cell = new(known, default, known, known, known), Deterioration = new(50, RimGovernor.Brain.Domain.Fact.Known(10d), true, .5, false) },
-                    new("bed", "rest", "", 1, default, default, default, default) { Bed = new("Bedroom", RimGovernor.Brain.Domain.Fact.Known(2), false, true) },
+                    new("bed", "rest", "", 1, default, default, default, default) { Bed = new("Bedroom", RimGovernor.Brain.Domain.Fact.Known(2), false) },
                     new("pin", "joy", "", 1, default, default, default, default),
                 ],
             }],

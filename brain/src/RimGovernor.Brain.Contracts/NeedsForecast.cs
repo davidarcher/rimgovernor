@@ -26,8 +26,8 @@ public sealed record NeedDeteriorationPart(double UnroofedOffset, double Outdoor
 /// UsesOutdoorTemperature and PsychologicallyOutdoors (no room reads as outdoors, as BeautyUtility does). Unknown when unread.
 /// </summary>
 public sealed record NeedCell(Fact<bool> Roofed, Fact<bool> ThickRoof, Fact<bool> NaturalRoof, Fact<bool> OutdoorTemperature, Fact<bool> PsychologicallyOutdoors);
-/// <summary>A bed's room now (#3339): its RoomRoleDef ("" none) and its Impressiveness score stage; ForPrisoners and an empty cost list (SleptOnGround).</summary>
-public sealed record NeedBedRoom(string Role, Fact<int> Stage, bool ForPrisoners, bool OnGround);
+/// <summary>A bed's room now (#3339): its RoomRoleDef ("" none), its Impressiveness score stage and ForPrisoners.</summary>
+public sealed record NeedBedRoom(string Role, Fact<int> Stage, bool ForPrisoners);
 /// <summary>
 /// A food stack's deterioration inputs (#3339): its HitPoints, SteadyEnvironmentEffects.FinalDeteriorationRate now (every
 /// DeteriorationRate part applied at its cell), whether StatPart_EnvironmentalEffects applies (deteriorateFromEnvironmentalEffects),

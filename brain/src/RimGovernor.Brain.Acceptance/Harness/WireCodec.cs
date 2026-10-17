@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Contracts.Wire;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -31,24 +32,6 @@ public static class WireCodec
         return ToHost(view, Types(method).Request)?.ToJsonString() ?? "null";
     }
 
-    /// <summary>
-    /// Why the host's Contracts record would refuse <paramref name="encoded"/>, the request <see cref="EncodeRequest"/> produced:
-    /// the deserializer's message with the JSON path, or null when the request fits the record. The host's own refusal
-    /// says only that the request is not valid JSON for the method.
-    /// </summary>
-    public static string? Diagnose(string method, string encoded)
-    {
-        try
-        {
-            _ = JsonSerializer.Deserialize(encoded, WireJsonContext.Default.GetTypeInfo(Types(method).Request)!);
-            return null;
-        }
-        catch (JsonException e)
-        {
-            return e.Message;
-        }
-    }
-
     /// <summary>The cases' flat view of a reply payload the host produced for <paramref name="method"/>.</summary>
     public static JsonObject DecodeReply(string method, string payload)
     {
@@ -63,7 +46,7 @@ public static class WireCodec
 
     /// <summary>Like <see cref="DecodeReply"/> for a tool that may not be a wire method: null when it is not one.</summary>
     public static JsonObject? TryDecodeReply(string method, string payload) =>
-        WireMethods.TryGet(method, out _) ? DecodeReply(method, payload) : null;
+        NativeOps.TryGet(method, out _) ? DecodeReply(method, payload) : null;
 
     /// <summary>The Contracts record a flat-view message of type <typeparamref name="T"/> denotes; throws <see cref="JsonException"/> when it does not fit.</summary>
     public static T ToRecord<T>(JsonNode view)
@@ -79,9 +62,9 @@ public static class WireCodec
     public static JsonNode? ToHost(JsonNode? view, Type type) => Convert(view, type, toHost: true);
 
     private static (Type Request, Type Reply) Types(string method) =>
-        WireMethods.TryGet(method, out var types)
-            ? types
-            : throw new AcceptanceException($"{method}: no wire contract is registered for this method in WireMethods");
+        NativeOps.TryGet(method, out var op)
+            ? (op.Request, op.Reply)
+            : throw new AcceptanceException($"{method}: no native op of this name in NativeOps");
 
     private static JsonNode? Convert(JsonNode? node, Type type, bool toHost)
     {

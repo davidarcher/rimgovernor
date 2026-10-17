@@ -55,24 +55,14 @@ public sealed partial class Harness : IAsyncDisposable
     {
         var encoded = WireCodec.EncodeRequest(method, request);
         var reply = await CallAsync(label, "rimgovernor/" + method, new JsonObject { ["request"] = encoded }, cancellationToken).ConfigureAwait(false);
-        var decoded = DecodeEnvelope(method, reply);
-
-        // The host's refusal of a request it cannot read names no field; add the Contracts deserializer's own reason.
-        if (decoded.Message["failure"] is JsonObject failure
-            && failure["detail"].AsString().StartsWith("request is not valid JSON", StringComparison.Ordinal)
-            && WireCodec.Diagnose(method, encoded) is { } why)
-        {
-            failure["harnessDiagnosis"] = why;
-        }
-
-        return decoded;
+        return DecodeEnvelope(method, reply);
     }
 
     /// <summary>
     /// Decodes a wire call's reply envelope (<c>{"payload": "&lt;JSON&gt;"}</c>) into the cases' flat view, with the
-    /// payload's byte count. For a caller that made the raw call itself to keep the envelope's timing block.
+    /// payload's byte count.
     /// </summary>
-    public static (JsonObject Message, int Bytes) DecodeEnvelope(string method, JsonObject envelope)
+    private static (JsonObject Message, int Bytes) DecodeEnvelope(string method, JsonObject envelope)
     {
         if (envelope["payload"] is not JsonValue value || !value.TryGetValue<string>(out var payload))
         {

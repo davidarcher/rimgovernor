@@ -72,8 +72,8 @@ The catalog reads need `CatalogFactory` and the `governor_ideoligion` resolver `
 (`NativeCatalogFactory`), because only the mod may read the Def databases (rule 7): the catalog is built over the game's
 Def objects, the wire catalog's derived and race facts and the load's def stat table (`NativeStatTable`, built on the game
 thread by the catalog read), and the catalog reply carries no def rows or game constants. Both run off the game thread. Every
-`InProcessNativeFacade` operation label must name a registered tool; `NativeFacadeLabelTests` (brain tests) checks it
-from the sources.
+`InProcessNativeFacade` operation is labelled by its `NativeOps` entry, so the label is compile-checked; `NativeOpsTests`
+(brain tests) checks that every facade method is bound by exactly one op.
 
 ## Watchdog thresholds
 

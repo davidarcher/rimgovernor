@@ -62,7 +62,7 @@ public sealed class ForecastRoofConsequencesTests
             Needs = [new("food", Known(1d), Known(0d), Known(.3), Known(1d)), new("rest", Known(.2), Known(0d), Known(.3), Known(1d))],
             // 0.8 rest at 0.00005 a tick: a 16000-tick sleep, long enough that ApplyBedThoughts always runs at the wake.
             Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.00005))
-                { Location = Inside, Cell = OpenCell, Bed = new("None", Known(0), false, false) }],
+                { Location = Inside, Cell = OpenCell, Bed = new("None", Known(0), false) }],
             OwnedBed = "bed",
             ThoughtStages = EquatableArray.From(BedStages),
         };
@@ -167,7 +167,7 @@ public sealed class ForecastRoofConsequencesTests
     }
 
     private static ForecastClosedRoom Room(double closedAt, double roofedAt, int open = 4)
-        => new(1, [Inside], new("1", "WoodLog", "Bedroom", Known(30d), Known(2), 4, open, false), closedAt, roofedAt);
+        => new([Inside], new("1", "WoodLog", "Bedroom", Known(30d), Known(2), 4, open, false), closedAt, roofedAt);
 
     [Fact]
     public void ForAPawnWhoNeedsTheOutdoorsAPlannedRoofIsACost()

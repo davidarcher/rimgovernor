@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// the evidence rows record (an MCP-style <c>{isError, content, structuredContent}</c> object), and
 /// <see cref="Structured"/> the decoded structured content (an object), null when the reply had none.
 /// </summary>
-public sealed record NativeResult(JsonNode? Envelope, JsonObject? Structured, string? Timing = null);
+public sealed record NativeResult(JsonNode? Envelope, JsonObject? Structured);
 
 /// <summary>Per-call settings the transport honours.</summary>
 public sealed record NativeCallOptions
@@ -17,12 +17,6 @@ public sealed record NativeCallOptions
 
     /// <summary>The call's phase in a recorded transcript (the evidence label).</summary>
     public string? Phase { get; init; }
-
-    /// <summary>The optional admission class header (<c>X-RimGovernor-Class</c>).</summary>
-    public string? AdmissionClass { get; init; }
-
-    /// <summary>The optional trace header (<c>X-RimGovernor-Trace</c>).</summary>
-    public string? Trace { get; init; }
 }
 
 /// <summary>The base of every failure the harness reports for a game or case; the message is the report's error text.</summary>
@@ -98,8 +92,8 @@ public interface INativeTransport : IAsyncDisposable
 {
     /// <summary>
     /// Runs <paramref name="tool"/> (a name such as <c>rimgovernor/observations_read_status</c>) with its JSON
-    /// arguments. A tool that takes the ProtoJSON <c>request</c> argument is called with an object holding only a
-    /// string member <c>request</c>, and its reply's structured content is <c>{"payload": "&lt;ProtoJSON&gt;"}</c>.
+    /// arguments. A native op is called with an object holding only the string member <c>request</c> (its JSON
+    /// request record), and its reply's structured content is <c>{"payload": "&lt;JSON reply record&gt;"}</c>.
     /// </summary>
     /// <exception cref="NativeRefusedException">The game refused the call.</exception>
     /// <exception cref="NativeTransportException">The call did not reach the game or the channel does not route the tool.</exception>

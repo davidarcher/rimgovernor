@@ -11,7 +11,7 @@ public sealed record ForecastPlannedClosure(int Room, string Stuff, EquatableArr
     EquatableArray<string> Ring, EquatableArray<string> Roof, PlannedRoomPrediction Prediction);
 
 /// <summary>A planned room closed inside one schedule: the earliest of its stuffs' closures, and when its roof is done (infinity: not).</summary>
-internal sealed record ForecastClosedRoom(int Room, EquatableArray<Cell> Interior, PlannedRoomPrediction Prediction, double ClosedAt, double RoofedAt);
+internal sealed record ForecastClosedRoom(EquatableArray<Cell> Interior, PlannedRoomPrediction Prediction, double ClosedAt, double RoofedAt);
 
 /// <summary>A cell's roof and room state at one tick: the observed NeedCell, changed where a planned room closes or is roofed over it.</summary>
 internal readonly record struct ForecastCellState(Fact<bool> Roofed, Fact<bool> ThickRoof, Fact<bool> NaturalRoof,
@@ -108,7 +108,7 @@ public static partial class PolicyFunctions
             foreach (var shelter in context.Shelters.Where(s => s.Room.Source == ForecastShelterSource.Planned && s.Room.Value == key && s.RoofCells.Count > 0))
                 roofed = Math.Min(roofed, shelter.RoofCells.Select(cell => cell.Where(finishedAt.ContainsKey).Select(f => finishedAt[f])
                     .DefaultIfEmpty(double.PositiveInfinity).Min()).Max());
-            closed.Add(new(room.Key, best.Closure.Interior, best.Closure.Prediction, best.At, roofed));
+            closed.Add(new(best.Closure.Interior, best.Closure.Prediction, best.At, roofed));
         }
         return closed;
     }

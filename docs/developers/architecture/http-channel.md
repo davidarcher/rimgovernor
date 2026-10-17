@@ -15,14 +15,16 @@ listener (`HttpListener`) the mod hosts, with route modules the brain publishes 
   `Sec-Fetch-Site` must be `none` or `same-origin`, any `Origin` must be exactly `http://<the Host header>`, and a
   POST must be `application/json`. Every reply carries `Cache-Control: no-store`, `nosniff` and a `default-src
   'none'` CSP. (`cross-site` and `same-site` are both refused.)
-- **Routes.** `POST /native/<tool>` names the native tools without the `rimgovernor/` prefix. The body is the
-  tool's JSON request record (empty means `{}`), the reply body is the JSON reply record (`WireJson`), and the tool's timing
-  comes back in `X-RimGovernor-Timing`. Optional `X-RimGovernor-Class` and `X-RimGovernor-Trace` request headers are
-  the `class` and `trace` arguments. A namespaced name (`POST /native/test/lab_start`) routes to the host's tool
-  registry, as do host tools and tools with other arguments: the body is the JSON object of the named arguments and a
-  non-object result is wrapped as `{"result": ...}`. `GET /api/tools` lists the routable names (`{"tools":[...]}`,
-  sorted; a `rimgovernor/` tool is listed without its prefix). A tool failure inside the reply (its failure case) is a 200 with the failure arm; an exception is a 500 `tool_failed`; an unknown tool is a 404. Only tools whose sole argument is `request`
-  have a route. Nothing streams over HTTP; frame and clock-event handoff is in-process ([native facade](native-facade.md)).
+- **Routes.** `POST /native/<op>` is a test-only route for the out-of-process acceptance harness. An op is a
+  `NativeOps` entry (brain `RimGovernor.Brain.NativeFacade`), named without the `rimgovernor/` prefix: the body is its JSON
+  request record (empty means `{}`), deserialized with `WireJson` (a body that does not fit is a 400 `invalid_request`
+  with the deserializer's message), and the reply body is its JSON reply record. A namespaced name
+  (`POST /native/test/lab_start`) or any other name routes to the host's tool registry (the host's lifecycle tools and the
+  `test/*` fixtures): the body is the JSON object of the named arguments and a non-object result is wrapped as
+  `{"result": ...}`. `GET /api/tools` lists the routable names (`{"tools":[...]}`, sorted; a `rimgovernor/` name is
+  listed without its prefix). A refusal inside the reply (its failure arm) is a 200; an exception is a 500
+  `tool_failed`; an unknown name is a 404. No headers carry timing, admission class or trace. Nothing streams over
+  HTTP; frame and clock-event handoff is in-process ([native facade](native-facade.md)).
 - **Failure shape.** `{"code","detail"}`. Bodies are bounded per route (8 MiB for `/native`, 8192 bytes for the
   player routes), responses at 16 MiB, handlers have a per-route timeout (5 minutes for `/native`, 30 s otherwise);
   chunked requests are refused with 411.
@@ -33,18 +35,16 @@ listener (`HttpListener`) the mod hosts, with route modules the brain publishes 
 
 | Project | Ships with the mod | Holds |
 | --- | --- | --- |
-| `RimGovernor.Brain.HttpChannel` | yes, beside the other brain DLLs (with `Brain.Telemetry`) | `HttpChannelServer`, `RequestGuard`, `RouteTable`, `Dispatcher`, `EndpointFile`, `NativeRoutes` and `INativeToolInvoker`. Game-free. |
+| `RimGovernor.Brain.HttpChannel` | yes, beside the other brain DLLs (with `Brain.Telemetry`) | `HttpChannelServer`, `RequestGuard`, `RouteTable`, `Dispatcher`, `EndpointFile`, `NativeRoutes` and `INativeOpInvoker`. Game-free. |
 | `RimGovernor.Brain.PlayerApi` | no: the brain host loads it (#3082) | The provider interfaces (`IPlayerControl`, `ISnapshotProvider`, `ILifecycleWriter` and the rest, in `PlayerProviders.cs`) and the player, read, presentation and lifecycle routes over them. Depends on HttpChannel, Domain, Store, Policy, Facts, Observation, Bridge.Contracts, BuildingRuntime and Wire. |
 
-The mod side is `HttpChannelHost.cs` in the Bridge: `NativeToolInvoker` reflects the `[Tool]` methods whose only
-argument is `request` and runs them with a context carrying the caller's arguments and the host's game-thread
-access, so the facade and HTTP share one implementation; `HttpChannelBootstrap` (a module initializer) starts the server
-when `RIMGOVERNOR_OTLP_DIR` is set (the directory of the OTLP rings; `RIMGOVERNOR_RUN_ID` optionally names the run).
-Unset, nothing listens. The channel binds only after the host has built its registry (`RimBridgeToolAccess.Published`,
-on the game thread once play data has loaded) and runs instance tools on the host's own tool-class instances
-(`RimBridgeToolAccess.TryGetInstance`): tool constructors install Harmony patches and add Defs, so each tool class is
-constructed once, by the host (#3289). A type the host did not construct is skipped with a warning.
-
+The mod side is `HttpChannelHost.cs` in the Bridge: `NativeOpTable` is an explicit table, compile-checked by the
+`NativeOps` entries. A facade op runs its `INativeFacade` method on the in-process facade, the same typed call the brain
+makes; the harness's pull read of the newest frame (`NativeOps.ReadSnapshot`) runs `SnapshotStream.Read` in a game-thread
+hop; nothing is found by reflection. `HttpChannelBootstrap` (a module initializer) starts the server when
+`RIMGOVERNOR_OTLP_DIR` is set (the directory of the OTLP rings; `RIMGOVERNOR_RUN_ID` optionally names the run). Unset,
+nothing listens. The channel binds only after the host has built its registry (`RimBridgeToolAccess.Published`, on the
+game thread once play data has loaded), so the registry fallback and the facade's one-time installs are ready.
 The brain host (#3082) registers PlayerApi's routes on the shared `RouteTable` and disposes the results when it
 reloads. A route family whose provider is null is not registered, so it answers 404:
 

@@ -10,8 +10,8 @@ namespace RimGovernor.Brain.Acceptance;
 /// <summary>
 /// The native transport over the mod's local HTTP/JSON channel (#3083). The channel binds an ephemeral loopback port
 /// and announces it in <c>http-endpoint.json</c>, which this transport polls (see
-/// <see cref="EndpointFile"/>). <c>POST /native/&lt;tool&gt;</c> carries the tool's ProtoJSON request (or, for a tool
-/// that takes other arguments, a JSON object of them) and answers its reply body.
+/// <see cref="EndpointFile"/>). <c>POST /native/&lt;op&gt;</c> carries the op's JSON request record (or, for a host or
+/// fixture tool, a JSON object of its arguments) and answers its reply body; a body the op cannot read is a 400.
 /// </summary>
 public sealed class HttpNativeTransport : INativeTransport
 {
@@ -55,20 +55,9 @@ public sealed class HttpNativeTransport : INativeTransport
             {
                 Content = new StringContent(body, new UTF8Encoding(false), "application/json"),
             };
-            if (!string.IsNullOrEmpty(options.AdmissionClass))
-            {
-                message.Headers.TryAddWithoutValidation(NativeRoutes.ClassHeader, options.AdmissionClass);
-            }
-
-            if (!string.IsNullOrEmpty(options.Trace))
-            {
-                message.Headers.TryAddWithoutValidation(NativeRoutes.TraceHeader, options.Trace);
-            }
-
             using var response = await _client.SendAsync(message, HttpCompletionOption.ResponseContentRead, timeout.Token).ConfigureAwait(false);
             var text = await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
-            var timing = response.Headers.TryGetValues(NativeRoutes.TimingHeader, out var timings) ? timings.FirstOrDefault() : null;
-            return Interpret(tool, response.StatusCode, text, timing, requestForm);
+            return Interpret(tool, response.StatusCode, text, requestForm);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -141,7 +130,7 @@ public sealed class HttpNativeTransport : INativeTransport
     }
 
     /// <summary>Turns one HTTP reply into the transport's result, or the failure it reports.</summary>
-    internal static NativeResult Interpret(string tool, HttpStatusCode status, string text, string? timing, bool requestForm)
+    internal static NativeResult Interpret(string tool, HttpStatusCode status, string text, bool requestForm)
     {
         if (status == HttpStatusCode.OK)
         {
@@ -168,7 +157,7 @@ public sealed class HttpNativeTransport : INativeTransport
                 ["content"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = text }),
                 ["structuredContent"] = structured?.DeepClone(),
             };
-            return new NativeResult(envelope, structured, timing);
+            return new NativeResult(envelope, structured);
         }
 
         var (code, detail) = ReadFailure(text);
@@ -190,8 +179,7 @@ public sealed class HttpNativeTransport : INativeTransport
                 ["content"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = text }),
                 ["structuredContent"] = refusal,
             },
-            refusal,
-            timing);
+            refusal);
         throw new NativeRefusedException(tool, Refusals.Cause(refusal), failed);
     }
 
