@@ -185,6 +185,8 @@ public sealed class ScenarioClock
             ["expectedGeneration"] = Dig(Grant, "context", "nativeGeneration")?.DeepClone(),
             ["speed"] = "SPEED_" + speed.ToUpperInvariant(),
             ["policy"] = Policy(),
+            // The harness plans from its pre-run read, as a brain step does: a hold since refuses the resume.
+            ["plannedHoldSerial"] = beforeStatus["holdSerial"]?.DeepClone(),
         };
         var reply = await Wire("clock-run", "clock_run", request, cancellationToken).ConfigureAwait(false);
         var projected = ProjectReply(reply, "clock run");

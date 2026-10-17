@@ -45,6 +45,8 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/SpeedKeyBlockPolicy.cs" Link="Production/SpeedKeyBlockPolicy.cs" />
     <Compile Include="NativeContractProbes/native-clock-ceiling/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockCeiling.cs" Link="Production/ClockCeiling.cs" />
+    <Compile Include="NativeContractProbes/native-clock-hold-serial/Program.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/ClockHoldSerial.cs" Link="Production/ClockHoldSerial.cs" />
     <Compile Include="NativeContractProbes/native-construction-tier-gate/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ConstructionTierGatePolicy.cs" Link="Production/ConstructionTierGatePolicy.cs" />
     <Compile Include="NativeContractProbes/native-team-policy/Program.cs" />

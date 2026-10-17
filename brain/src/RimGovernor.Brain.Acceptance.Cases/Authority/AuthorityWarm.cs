@@ -52,6 +52,8 @@ internal static class AuthorityWarm
             var generation = Authority.GrantGeneration(granted);
             phase1["identity"] = identity.DeepClone();
             phase1["generation"] = generation;
+            var beforeReply = await h.WireAsync("p1-clock-status", "clock_read_status", new JsonObject { ["identity"] = identity.DeepClone() }, cancellationToken).ConfigureAwait(false);
+            var (_, preRun) = Harness.Outcome(beforeReply, "status");
             var startReply = await h.WireAsync(
                 "p1-clock-run",
                 "clock_run",
@@ -68,6 +70,7 @@ internal static class AuthorityWarm
                         ["hostileWithin"] = 40,
                         ["injuryStopCooldownMs"] = 0,
                     },
+                    ["plannedHoldSerial"] = preRun["holdSerial"]?.DeepClone(),
                 },
                 cancellationToken).ConfigureAwait(false);
             JsonObject status;

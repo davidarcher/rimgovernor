@@ -117,6 +117,7 @@ public static partial class BridgeFunctions
             || s.DurableEvents is null
             || s.NewestCursor is null
             || s.NewestCursor.GetValueOrDefault() < 0
+            || s.HoldSerial is null
             || s.ObservedSpeed is null
             || (int)s.ObservedSpeed.GetValueOrDefault() < 1
             || (int)s.ObservedSpeed.GetValueOrDefault() > 5

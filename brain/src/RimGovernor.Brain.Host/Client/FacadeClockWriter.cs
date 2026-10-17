@@ -27,6 +27,10 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         {
             throw BridgeFunctions.Contract("clock run speed");
         }
+        if (request.PlannedHoldSerial is null)
+        {
+            throw BridgeFunctions.Contract("clock run planned hold serial");
+        }
         BridgeFunctions.ValidateClockPolicy(request.Policy);
         var reply = await _facade.RunClockAsync(request, ct).ConfigureAwait(false);
         return FacadeWriteChecks.ClockStatusReply(reply, request.Identity);

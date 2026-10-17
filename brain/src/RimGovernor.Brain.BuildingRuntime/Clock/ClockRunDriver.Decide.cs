@@ -384,18 +384,22 @@ public sealed partial class ClockRunDriver
         {
             throw new AuthorityException();
         }
+        // The Run quotes the hold serial of the step's own read, not this decision's later one: a hold native entered
+        // after the step planned refuses the resume, and the next step re-plans against it.
+        var plannedHoldSerial = step.HoldSerial ?? throw new HeldException("the step read no hold serial");
         PbClock.Status after;
         try
         {
             using var bounded = CancellationTokenSource.CreateLinkedTokenSource(call);
             bounded.CancelAfter(_config.CallTimeout);
             after = await _writer.RunAsync(
-                new PbClock.RunRequest { Identity = Boundary.Identity(state.Snapshot), ExpectedGeneration = (ulong)state.Snapshot.Native.Value, Speed = speed, Policy = policy },
+                new PbClock.RunRequest { Identity = Boundary.Identity(state.Snapshot), ExpectedGeneration = (ulong)state.Snapshot.Native.Value, Speed = speed, Policy = policy, PlannedHoldSerial = plannedHoldSerial },
                 bounded.Token).ConfigureAwait(false);
         }
         catch (Exception e) when (e is NativeFailureException or NativeUnavailableException)
         {
-            // A refusal (a game-forced pause, a generation that moved) is retried at the next step, not a fault.
+            // A refusal (a game-forced pause, a generation that moved, a hold entered after the step's read) is
+            // retried at the next step, not a fault.
             throw new HeldException("clock run refused: " + e.Message);
         }
         _sentPolicy = policy;

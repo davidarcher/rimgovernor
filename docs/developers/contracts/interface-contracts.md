@@ -21,6 +21,11 @@ speed and its clamp relies on.
   the next step sends `Run` at the new speed. Acceptance sets each launch's speed (a speed-matrix row's) through
   that route once the brain is up. While a fight is open and the combat resume-latency gate has tripped, the brain
   asks for the slower fallback speed instead (control loop, Combat).
+- **Run fields.** A `Run` carries the identity, `expected_generation`, `speed`, the complete `policy` and
+  `planned_hold_serial`: the `Status.hold_serial` of the read its plan came from. A client that drives the clock
+  over `/native` (the acceptance harness) reads the status first and quotes its serial; a resume after a hold the
+  client did not read is refused as `Unavailable` and the clock stays held
+  ([clock wire contract](../../../contracts/wire/clock-lifecycle.md#clock-validation)).
 - **Ultrafast.** Native serves Ultrafast with the game's tick boost (150x, 9000 ticks/s) driven up to the one
   ceiling, with no launch gate; a `Run(Ultrafast)` is refused as `Unavailable` where the game does not provide the
   boost. The `-rimgovernor-test-acceleration` launch argument only reports `Status.test_acceleration_available`

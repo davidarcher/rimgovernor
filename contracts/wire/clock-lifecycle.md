@@ -26,6 +26,13 @@ a `Hold` while already held keeps the first reason. After a native hazard hold, 
 sends `Run`; a native never resumes by itself. `Run` is refused (`Unavailable`) while a game-forced pause (a letter,
 a dialog) is active.
 
+`Status.hold_serial` is bumped on the game thread by every hold entry, native hazards and the brain's own
+`Hold` alike (a failed pause's retry is the same hold). `Run` requires `planned_hold_serial`, the serial of the read
+its plan came from. Resuming a held clock is refused (`Unavailable`, the hold stays) when the serial has moved since,
+so a hold the planner did not see is never released; a `Run` that only changes a running clock's speed or policy is
+not guarded. A serial and not a tick: a hold pauses the game, so a read before and after a same-tick hold carry the
+same tick.
+
 `Heartbeat` is explicit and carries the identity. Losing it is neither journalled nor a hold: it lowers the clock
 ceiling to Normal until the next beat. `SPEED_ULTRAFAST` uses the one ceiling's rate with no launch gate; the native
 tick boost behind it is `Status.test_acceleration_available`, set only by a game launched with

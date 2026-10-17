@@ -1,7 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// The scheduler state the run driver shares with the planning step: the pace measurement and the latest step's
-// clock status. The step only plans, so the driver reaches them through these internal members.
+// The scheduler state the run driver shares with the planning step: the pace measurement. The step only plans, so the driver reaches them through these internal members.
 
 /// <summary>The pace the running clock is measured at (Go <c>paceTick</c>, <c>paceAt</c>, <c>pacePerSecond</c>, <c>livePaceTicks</c>); touched only under the player gate.</summary>
 internal sealed class ClockPaceMeasure
@@ -24,9 +23,6 @@ public sealed partial class ClockScheduler
     internal ClockFacts Facts => _facts;
 
     internal ClockPaceMeasure Pace { get; } = new();
-
-    /// <summary>The clock status the latest step read.</summary>
-    internal PbClock.Status? StepStatus { get; private set; }
 
     internal long LastTick => _lastTick;
 

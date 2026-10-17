@@ -67,8 +67,9 @@ namespace HomeBridge.BridgeTools
         internal static Common.Failure? ValidateTypedRun(Clock.RunRequest request)
         {
             if (request.Speed is null || !OrdinarySpeed(request.Speed.GetValueOrDefault()) || request.Policy is null
-                || request.ExpectedGeneration is null || request.ExpectedGeneration.GetValueOrDefault() == 0 || !ValidPolicy(request.Policy))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Run requires an ordinary speed, the current authority generation and a complete bounded watch policy.");
+                || request.ExpectedGeneration is null || request.ExpectedGeneration.GetValueOrDefault() == 0 || !ValidPolicy(request.Policy)
+                || request.PlannedHoldSerial is null)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Run requires an ordinary speed, the current authority generation, a complete bounded watch policy and the hold serial its step read.");
             if (request.Speed.GetValueOrDefault() == Clock.Speed.Ultrafast && !BoostAvailable)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The native tick boost behind Ultrafast is unavailable.");
             lock (Gate)
@@ -98,15 +99,18 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 var typed = new TypedEpoch(context, request.ExpectedGeneration.GetValueOrDefault(), request.Policy ?? throw new InvalidOperationException("Missing policy"));
-                var failure = RunClock(typed, NativeSpeed(request.Speed.GetValueOrDefault()));
+                var failure = RunClock(typed, NativeSpeed(request.Speed.GetValueOrDefault()), request.PlannedHoldSerial.GetValueOrDefault());
                 return new Clock.StatusReply { Outcome = failure != null ? failure : (Clock.StatusReplyOutcome)TypedStatus(context) };
             }
         }
 
-        private static Common.Failure? RunClock(TypedEpoch typed, TimeSpeed speed)
+        private static Common.Failure? RunClock(TypedEpoch typed, TimeSpeed speed, ulong plannedHoldSerial)
         {
             if (Current.Game == null || Find.TickManager == null || Find.CurrentMap == null)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No playable map is loaded.");
+            // The serial as the caller could have read it: retiring another
+            // game's segment below enters a hold no status of this game shows.
+            var refusal = HoldSerial.Refuses(plannedHoldSerial);
             var existing = _state;
             if (existing != null && existing.Active)
             {
@@ -116,6 +120,9 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The clock is entering a hold and its pause has not taken yet.");
                 else return ChangeRun(existing, typed, speed);
             }
+            // Only a resume can release a hold, so only a resume is guarded:
+            // a hold entered after the step's read refuses it and stays.
+            if (refusal != null) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, refusal);
             return ResumeRun(existing, typed, speed);
         }
 
@@ -364,7 +371,7 @@ namespace HomeBridge.BridgeTools
                 var result = new Clock.Status { Context = context, ActualPaused = Find.TickManager.Paused,
                     ObservedSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed), NativeTickBoundary = TypedHooksReady(),
                     DurableEvents = _state?.StopReason != "event_journal_error" && _state?.PendingKind != "event_journal_error",
-                    NewestCursor = Journal.Newest };
+                    NewestCursor = Journal.Newest, HoldSerial = HoldSerial.Current };
                 var s = _state;
                 if (s == null || !ReferenceEquals(s.Session, Current.Game))
                     result = result with { State = Clock.ClockState.Held, Reason = Clock.HoldReason.NeverRun };

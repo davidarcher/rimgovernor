@@ -248,7 +248,7 @@ public sealed partial class ClockScheduler
                 throw new EvidenceException("clock status is behind the scope tick");
             }
             _running = status.State == PbClock.ClockState.Running;
-            StepStatus = status;
+            result.HoldSerial = status.HoldSerial;
             reason = reason with { TickAdvanced = !_lastTickKnown || statusTick != _lastTick };
             (_lastTick, _lastTickKnown) = (statusTick, true);
             LivePace(status, started);

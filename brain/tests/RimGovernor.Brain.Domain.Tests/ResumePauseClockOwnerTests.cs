@@ -84,6 +84,7 @@ public sealed class ResumePauseClockOwnerTests
             NativeTickBoundary = true,
             DurableEvents = true,
             NewestCursor = 0,
+            HoldSerial = 0,
             ObservedSpeed = Held ? PbClock.ObservedSpeed.Paused : PbClock.ObservedSpeed.Fast,
             ActualPaused = Held,
         };
@@ -192,7 +193,7 @@ public sealed class ResumePauseClockOwnerTests
                 HostileWithin = 20f,
                 InjuryStopCooldownMs = 0,
             });
-            _ = await Clock.RunAsync(new PbClock.RunRequest { Identity = WorldIdentity, ExpectedGeneration = Generation, Speed = PbClock.Speed.Ultrafast, Policy = policy }, _lifetime.Token);
+            _ = await Clock.RunAsync(new PbClock.RunRequest { Identity = WorldIdentity, ExpectedGeneration = Generation, Speed = PbClock.Speed.Ultrafast, Policy = policy, PlannedHoldSerial = 0 }, _lifetime.Token);
         }
 
         public void Dispose()

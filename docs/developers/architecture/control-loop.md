@@ -823,6 +823,13 @@ After each planning step the driver reads the clock status and decides:
   captured journal page reviewed, no unacknowledged interruption or gap, no
   unknown threat. A refused decision leaves the clock held and the next step
   retries (`HeldException`).
+- The `Run` quotes the hold serial of the step's own read
+  (`ClockSchedulerResult.HoldSerial`), never the driver's later status read.
+  Native bumps the serial on every hold entry, the brain's own included, and
+  refuses a resume whose serial is stale, on the game thread inside `Run`. A
+  hold that landed after the step read (a hazard between the step and the
+  decision, or the brain's own hold) therefore stays, and the refusal is a
+  `HeldException`: the next step re-plans from a fresh read. It is not a fault.
 - A running clock is never stopped by a refused decision: native holds on what it
   sees. The driver only resends `Run` when the implied watch policy or the speed
   differs from the last one sent. `Run` is idempotent and doubles as the speed

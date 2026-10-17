@@ -29,6 +29,7 @@ internal static class NativeContractProbesDispatcher
                 case "native-construction-tier-gate": NativeConstructionTierGateProbe.Invoke(); return 0;
                 case "native-speed-key-block": NativeSpeedKeyBlockProbe.Invoke(); return 0;
                 case "native-clock-ceiling": NativeClockCeilingProbe.Invoke(); return 0;
+                case "native-clock-hold-serial": NativeClockHoldSerialProbe.Invoke(); return 0;
                 case "native-team-policy": NativeTeamPolicyProbe.Invoke(); return 0;
                 case "native-traffic-counts":NativeTrafficCountsProbe.Invoke(); return 0;
                 case "native-authority": NativeAuthorityProbe.Invoke(); return 0;

@@ -339,6 +339,13 @@ public sealed record RunRequest
     public Speed? Speed { get; init; }
 
     public WatchPolicy? Policy { get; init; }
+
+    /// <summary>
+    /// The <see cref="Status.HoldSerial"/> the step that planned this Run read. Resuming a held clock is refused
+    /// (Unavailable; the hold stays) when native has entered a hold since, so a hold the step did not see is never
+    /// released.
+    /// </summary>
+    public ulong? PlannedHoldSerial { get; init; }
 }
 
 /// <summary>
@@ -389,6 +396,13 @@ public sealed record Status
     public uint? PacedTicksPerSecond { get; init; }
 
     public PacingReason? PacingReason { get; init; }
+
+    /// <summary>
+    /// Bumped on every hold entry (a native hazard and the brain's own holds alike), on the game thread. Holds pause
+    /// the game, so a tick cannot order a read against a same-tick hold; this serial does. A Run quotes it as
+    /// <see cref="RunRequest.PlannedHoldSerial"/>.
+    /// </summary>
+    public ulong? HoldSerial { get; init; }
 
     /// <summary>
     /// The one ceiling on the tick rate (frame budget and brain heartbeat, the

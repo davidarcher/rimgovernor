@@ -25,6 +25,8 @@ namespace HomeBridge.BridgeTools
         private static readonly object Gate = new object();
         private static readonly ClockEventJournal Journal = new ClockEventJournal();
         private static State? _state;
+        // Bumped by every Stop that enters a hold; a resume must quote it (ClockHoldSerial.cs).
+        private static readonly ClockHoldSerial HoldSerial = new ClockHoldSerial();
         // The one ceiling outlives a hold: a Run resumes under the heartbeat and
         // frame-budget state the previous run segment left, beaten at the Run.
         private static ClockCeiling? _ceiling;
@@ -1062,6 +1064,10 @@ namespace HomeBridge.BridgeTools
             Dictionary<string, object?>? payload)
         {
             if (s == null || !ReferenceEquals(s, _state) || !s.Active) return;
+            // The hold is entered when the stop is first raised (Status reports
+            // a pending stop as held); a failed pause's per-frame retry is the
+            // same hold and does not bump the serial again.
+            if (s.PendingKind == null) HoldSerial.Entered();
             // The tick the stop was first raised at; a failed pause retries
             // per frame and keeps it, so the journaled stop tick can be later.
             if (s.PendingKind == null && Find.TickManager != null) s.DetectedTick = Find.TickManager.TicksGame;
