@@ -5,8 +5,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// <c>lab/capture-profile</c> and <c>lab/capture-profile-250</c>: measurement, not a gate. The read-only
 /// <c>rimgovernor/acceptance_read_capture_profile</c> tool times and counts the managed allocation of the snapshot frame
-/// capture, its sections, the cell grid read, each game API the grid read calls over the whole map, the grid encode and
-/// the brain's decode, and the case files the result in the report. A unit test cannot run the game's map APIs.
+/// capture, its sections, the cell grid read, each game API the grid read calls over the whole map and the brain's grid
+/// reads, and the case files the result in the report. A unit test cannot run the game's map APIs.
 /// </summary>
 internal static class LabCaptureProfile
 {
@@ -24,7 +24,7 @@ internal static class LabCaptureProfile
         Reason = reason,
         Name = name,
         Scope = "Frame capture profile (measurement, not a gate) on " + where + ": wall time and allocated bytes of the snapshot capture, "
-            + "its sections, the cached and uncached cell grid read, each grid column's game API pass, the grid encode and the brain's decode.",
+            + "its sections, the cell grid read, each grid column's game API pass and the brain's grid reads.",
         Start = start,
         RequiredOps = [Tool],
         QuietWorld = true,
@@ -42,7 +42,7 @@ internal static class LabCaptureProfile
         }
 
         s.Report["capture_profile"] = profile;
-        if (profile["spans"] is not JsonObject spans || spans["capture.total"] is null || spans["grid.read.cached"] is null)
+        if (profile["spans"] is not JsonObject spans || spans["capture.total"] is null || spans["grid.read"] is null)
         {
             throw new AcceptanceException($"capture profile: no capture spans: {payload}");
         }
