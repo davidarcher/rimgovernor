@@ -168,11 +168,7 @@ public sealed partial class RoundsBuildingPlanner
         var census = (await source.ReadGearBenchesAsync(identity, call).ConfigureAwait(false));
         if (resource.ToString() == "Beer")
         {
-            if (observed.FermentingBarrels is null)
-            {
-                return (null, FieldUnavailable("fermenting_barrels"));
-            }
-            if (observed.FermentingBarrels.GetValueOrDefault() == 0)
+            if (observed.FermentingBarrels == 0)
             {
                 var barrel = new WorkshopSelection { Barrel = true, Resource = resource, Candidates = ["FermentingBarrel"] };
                 return (barrel, new Verdict());

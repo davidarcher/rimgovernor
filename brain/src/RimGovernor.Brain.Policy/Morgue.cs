@@ -11,7 +11,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>Reports a human corpse lying unburied.</summary>
     public static bool MorgueWaiting(IReadOnlyList<WasteItem> waste) =>
-        waste.Any(item => item.State != WasteState.Buried && item.CorpseOf is CorpseOf.Stranger or CorpseOf.Colonist);
+        waste.Any(item => !item.Buried && item.CorpseOf is CorpseOf.Stranger or CorpseOf.Colonist);
 
     /// <summary>
     /// The planned morgue whose ring does not match the ground while a human corpse waits; null otherwise.

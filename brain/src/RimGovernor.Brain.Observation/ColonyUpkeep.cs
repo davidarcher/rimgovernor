@@ -59,34 +59,6 @@ public static partial class ObservationPackage
                 r = r with { Structures = Known(EquatableArray.From(rows)) };
             }
         }
-        if (!HasIssue(u.Issues, "filth") && Headed(tables, u.Filth, f => f.Filth))
-        {
-            var rows = new List<UpkeepFilth>();
-            var known = true;
-            foreach (var item in u.Filth)
-            {
-                if (item.Home is null || item.Thickness is null)
-                {
-                    known = false;
-                    break;
-                }
-                var head = tables.Entity(item.Filth);
-                rows.Add(new UpkeepFilth
-                {
-                    Id = item.Filth?.Id ?? "",
-                    Definition = head?.DefName ?? "",
-                    Cell = CellOf(head?.Position),
-                    Home = item.Home.GetValueOrDefault(),
-                    Room = item.RoomRole ?? "",
-                    RoomId = OptionalRef(item.Room),
-                    Thickness = item.Thickness.GetValueOrDefault(),
-                });
-            }
-            if (known)
-            {
-                r = r with { Filth = Known(EquatableArray.From(rows)) };
-            }
-        }
         if (!HasIssue(u.Issues, "lighting"))
         {
             r = r with { Lighting = ColonyLighting(u.Lighting, buildings, catalog) };

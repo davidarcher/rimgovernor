@@ -76,8 +76,7 @@ public sealed class ColonyStatusTests
         Assert.Equal(ColonyRoster.NoColonists, report.Roster);
         Assert.Empty(report.Pawns);
         Assert.Equal(74338, report.RosterTick.Value);
-        Assert.True(report.Colonists.TryGetValue(out var colonists));
-        Assert.Equal(0, colonists);
+        Assert.Equal(0, report.Colonists);
 
         using var body = JsonDocument.Parse(PlayerJson.Serialize(ReadProjections.Colony(report)));
         Assert.Equal("no_colonists", body.RootElement.GetProperty("roster").GetString());

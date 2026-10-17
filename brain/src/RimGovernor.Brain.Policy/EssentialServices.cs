@@ -325,7 +325,7 @@ public static partial class PolicyFunctions
         {
             scenario(ServiceTarget.ForNeed(PowerFamily.Basic, "", "owner_power_coverage"), "facility/" + generator.Id, () =>
             {
-                var coverage = PowerCoverage(Known<EquatableArray<PowerBuilding>>(power.Buildings.Where(b => b.Id != generator.Id).Cast<PowerBuilding>().ToImmutableArray()));
+                var coverage = PowerCoverage([.. power.Buildings.Where(b => b.Id != generator.Id)]);
                 if (!coverage.Headroom.IsKnown) return (ServiceCoverage.Unknown, ["power_network_output"]);
                 return (coverage.Headroom.Value >= 0 ? ServiceCoverage.Adequate : ServiceCoverage.Shortfall, []);
             });

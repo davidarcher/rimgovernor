@@ -1,8 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
-// The research Need (economy family): pure, native-shape-preserving primitives (prerequisite queue, eligible
-// researchers, usable laboratories). No domain/store/executor/bridge/buildingruntime wiring exists yet for
-// this goal; these functions only make the deterministic method-selection logic available ahead of that wiring.
+// The research Need (economy family): pure, native-shape-preserving primitives (prerequisite queue and the
+// bench lock).
 
 /// <summary>Names a native ResearchProjectDef by defName.</summary>
 public readonly record struct ResearchProjectId(string Value) : IComparable<ResearchProjectId>
@@ -29,27 +28,20 @@ public readonly record struct ResearchProjectId(string Value) : IComparable<Rese
 }
 
 /// <summary>
-/// Mirrors the native research snapshot fields prerequisite_queue inspects for one project. Hidden projects
-/// and anything with unknown prerequisite lists can never be treated as a selectable prerequisite. A
-/// knowledge-category project (Anomaly) is selectable like any other: it fills its category's knowledge slot
-/// instead of the ordinary one and progresses from study knowledge, not research work.
+/// Mirrors the native research snapshot fields prerequisite_queue inspects for one project. A hidden project
+/// can never be treated as a selectable prerequisite. A knowledge-category project (Anomaly) is selectable
+/// like any other: it fills its category's knowledge slot instead of the ordinary one and progresses from
+/// study knowledge, not research work.
 /// </summary>
 public sealed record ResearchProjectFacts
 {
-    public ResearchProjectId Name { get; init; }
-
-    public Fact<bool> Hidden { get; init; }
+    public bool Hidden { get; init; }
 
     public string KnowledgeCategory { get; init; } = "";
 
-    public Fact<EquatableArray<ResearchProjectId>> Prerequisites { get; init; }
+    public EquatableArray<ResearchProjectId> Prerequisites { get; init; }
 
-    public Fact<EquatableArray<ResearchProjectId>> HiddenPrerequisites { get; init; }
-
-    /// <summary>
-    /// The native requiredResearchBuilding defName, empty when the project names none.
-    /// </summary>
-    public string RequiredBuilding { get; init; } = "";
+    public EquatableArray<ResearchProjectId> HiddenPrerequisites { get; init; }
 
     /// <summary>
     /// The native census's CanStartNow predicates the project fails (prerequisite:name, techprints,
@@ -65,40 +57,6 @@ public sealed record ResearchProjectFacts
 
     /// <summary>The project's apparent cost (knowledge points for a knowledge-category project), from the definition catalog.</summary>
     public double Cost { get; init; }
-}
-
-/// <summary>
-/// Mirrors the current or next project's native laboratory requirements
-/// (requiredResearchBuilding/requiredResearchFacilities). RequiredBuilding Unknown means the native project
-/// imposes no specific bench requirement; RequiredFacilities Unknown means the requirement itself has not
-/// been observed and no bench can be proven usable yet.
-/// </summary>
-public sealed record ResearchLabRequirement
-{
-    public Fact<string> RequiredBuilding { get; init; }
-
-    public Fact<EquatableArray<string>> RequiredFacilities { get; init; }
-}
-
-/// <summary>
-/// Mirrors one native colonist's research-eligibility facts: incapacitation state, whether native work
-/// assignment applies to them at all, and their current Research work-type priority/disabled state.
-/// </summary>
-public sealed record ResearchPawn
-{
-    public PawnId Pawn { get; init; }
-
-    public Fact<bool> Dead { get; init; }
-
-    public Fact<bool> Downed { get; init; }
-
-    public Fact<bool> Drafted { get; init; }
-
-    public Fact<bool> MentalState { get; init; }
-
-    public Fact<bool> Applies { get; init; }
-
-    public Fact<EquatableArray<WorkPriority>> Work { get; init; }
 }
 
 public static partial class PolicyFunctions
@@ -172,18 +130,12 @@ public static partial class PolicyFunctions
             {
                 throw new DomainException($"unavailable ordinary research prerequisite: {name}");
             }
-            if (!row.Hidden.TryGetValue(out var hidden) || hidden)
+            if (row.Hidden)
             {
                 throw new DomainException($"unavailable ordinary research prerequisite: {name}");
             }
-            var preKnown = row.Prerequisites.TryGetValue(out var prerequisites);
-            var hiddenPreKnown = row.HiddenPrerequisites.TryGetValue(out var hiddenPrerequisites);
-            if (!preKnown || !hiddenPreKnown)
-            {
-                throw new DomainException($"incomplete native prerequisites: {name}");
-            }
-            var dependencies = new HashSet<ResearchProjectId>(prerequisites);
-            dependencies.UnionWith(hiddenPrerequisites);
+            var dependencies = new HashSet<ResearchProjectId>(row.Prerequisites);
+            dependencies.UnionWith(row.HiddenPrerequisites);
             var ordered = dependencies.OrderBy(d => d).ToList();
             visiting.Add(name);
             foreach (var dependency in ordered)

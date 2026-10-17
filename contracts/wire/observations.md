@@ -127,7 +127,7 @@ a depleted drill for removal from the deep drill step's recorded read.
   definition and body-part index; no stable ID is invented. Duplicate
   indistinguishable conditions remain ambiguous and cannot authorize an exact write.
 - Definition IDs and native state names remain open strings. Protocol outcomes
-  such as waste location are closed enums and unknown values are rejected.
+  such as a corpse class are closed enums and unknown values are rejected.
   Native enums projected as strings are observations, not unchecked command modes.
 - Collection cell coordinates come from current map dimensions; no map-size
   constants or sentinel coordinates. Missing world-map scope remains absent.

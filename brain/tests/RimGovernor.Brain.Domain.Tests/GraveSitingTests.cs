@@ -105,7 +105,7 @@ public sealed class GraveSitingTests
     [Fact]
     public void WithoutASarcophagusTheDeadOweAGraveAndNoRoom()
     {
-        var corpse = new WasteItem { Id = "ann", Kind = "Corpse", State = WasteState.Exposed, Eligible = true, Cell = new Cell(5, 5), CorpseOf = CorpseOf.Colonist };
+        var corpse = new WasteItem { CorpseOf = CorpseOf.Colonist };
         var shapes = new PieceShapes { Furniture = new RoomFurniture { Sarcophagus = "Sarcophagus" } };
         var step = NextTombStep(Plan, [corpse], [], shapes, false);
         Assert.Equal(TombStepKind.Grave, step.Kind);

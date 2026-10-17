@@ -1617,10 +1617,7 @@ internal static partial class BuildingRuntimePackage
         long regular = 0;
         foreach (var bed in sleeping.Beds)
         {
-            var hk = bed.Humanlike.TryGetValue(out var humanlike);
-            var mk = bed.Medical.TryGetValue(out var medical);
-            var pk = bed.Prisoners.TryGetValue(out var prisoners);
-            if (hk && mk && pk && humanlike && !medical && !prisoners)
+            if (bed.Humanlike && !bed.Medical && !bed.Prisoners)
             {
                 regular++;
             }

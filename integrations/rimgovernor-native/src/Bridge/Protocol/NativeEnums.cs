@@ -70,14 +70,6 @@ namespace HomeBridge.BridgeTools
             _ => throw new InvalidOperationException("Unknown holder kind.")
         };
 
-        // Waste is the waste read's kind ("corpse", "spoiled").
-        internal static Obs.WasteKind Waste(string kind) => kind switch
-        {
-            "corpse" => Obs.WasteKind.Corpse,
-            "spoiled" => Obs.WasteKind.Spoiled,
-            _ => throw new InvalidOperationException("Unknown waste kind.")
-        };
-
         internal static Operations.RepeatMode Repeat(BillRepeatModeDef mode) =>
             mode == BillRepeatModeDefOf.Forever ? Operations.RepeatMode.Forever
             : mode == BillRepeatModeDefOf.RepeatCount ? Operations.RepeatMode.Count

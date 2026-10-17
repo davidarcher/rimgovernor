@@ -217,9 +217,9 @@ public static partial class PolicyFunctions
         long spare = 0;
         foreach (var bed in sleeping.Beds)
         {
-            if (bed.Owners.Count == 0 && bed.Users.Count == 0 && Positive(bed.Humanlike) && Positive(bed.Roofed) && Negative(bed.Medical) && !bed.Slaves
-                && ((profile.Family == QuestFamily.HospitalityPrisoners && Positive(bed.Prisoners))
-                    || (profile.Family != QuestFamily.HospitalityPrisoners && Negative(bed.Prisoners))))
+            if (bed.Owners.Count == 0 && bed.Users.Count == 0 && bed.Humanlike && bed.Roofed && !bed.Medical && !bed.Slaves
+                && ((profile.Family == QuestFamily.HospitalityPrisoners && bed.Prisoners)
+                    || (profile.Family != QuestFamily.HospitalityPrisoners && !bed.Prisoners)))
             {
                 spare++;
             }

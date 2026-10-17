@@ -7,27 +7,8 @@ public static partial class ObservationPackage
         var result = new RoomObservation();
         if (sleeping.TryGetValue(out var known))
         {
-            var eligible = new List<string>();
-            var complete = true;
-            foreach (var bed in known.Beds)
-            {
-                var hk = bed.Humanlike.TryGetValue(out var human);
-                var mk = bed.Medical.TryGetValue(out var medical);
-                var pk = bed.Prisoners.TryGetValue(out var prisoners);
-                if (!hk || !mk || !pk)
-                {
-                    complete = false;
-                    break;
-                }
-                if (human && !medical && !prisoners)
-                {
-                    eligible.Add(bed.Id);
-                }
-            }
-            if (complete)
-            {
-                result = result with { EligibleBeds = Known(EquatableArray.From(eligible)) };
-            }
+            var eligible = known.Beds.Where(bed => bed.Humanlike && !bed.Medical && !bed.Prisoners).Select(bed => bed.Id);
+            result = result with { EligibleBeds = Known(EquatableArray.From(eligible)) };
         }
         var output = new List<Room>(rooms.Rooms.Count);
         foreach (var room in rooms.Rooms)

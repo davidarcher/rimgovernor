@@ -267,8 +267,8 @@ public sealed partial record ColonyProjection
 
     public Identity Identity { get; init; } = new();
 
-    /// <summary>The player faction's native TechLevel name, the faction's tech level.</summary>
-    public Fact<string> PlayerTechLevel { get; init; }
+    /// <summary>The player faction's native TechLevel; Undefined until a colony facts read.</summary>
+    public RimGovernor.Contracts.Wire.Defs.TechLevel PlayerTechLevel { get; init; }
 
     /// <summary>The catalog's building defs that pack (minifiedDef); empty without a catalog.</summary>
     public IReadOnlySet<string> Packable { get; init; } = new HashSet<string>();

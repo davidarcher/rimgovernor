@@ -295,7 +295,7 @@ Kept, reason recorded:
 | NativeBuildRoof.cs | 77 | code | BuildRoofIntent: validates cells and designates the BuildRoof area via Designator_AreaBuildRoof. |  |  |
 | NativeRemoveRoof.cs | 93 | code | RemoveRoofIntent: validates cells and designates NoRoof area via Designator_AreaNoRoof plus a Harmony patch on WorkGiver_BuildRoof. |  |  |
 | NativeRepairOperations.cs | 62 | code | GiveJobIntent Repair: checks reach and WorkGiver_Repair.HasJobOnThing then issues a forced Repair job. |  |  |
-| NativeResearchObservationTools.cs | 282 | mixed | Research snapshot (progress, slots, lock reasons, benches, researchers) plus a static per-project catalog row. | Static(ResearchProjectDef,Faction) ~18 lines: base_cost, cost factor, tab, knowledge category, prerequisites, hidden prerequisites, techprint count, required building and facilities | ResearchProjectDef.baseCost/prerequisites/hiddenPrerequisites/techLevel/tab/knowledgeCategory/techprintCount/requiredResearchBuilding/requiredResearchFacilities; cost factor = Go rule over TechLevel (GameConstants) |
+| NativeResearchObservationTools.cs | 197 | mixed | Research snapshot (progress, slots, lock reasons) plus a static per-project catalog row. | Static(ResearchProjectDef,Faction) ~18 lines: base_cost, cost factor, tab, knowledge category, prerequisites, hidden prerequisites, techprint count, required building and facilities | ResearchProjectDef.baseCost/prerequisites/hiddenPrerequisites/techLevel/tab/knowledgeCategory/techprintCount/requiredResearchBuilding/requiredResearchFacilities; cost factor = Go rule over TechLevel (GameConstants) |
 | NativeResearchSelectOperations.cs | 54 | code | ResearchIntent: sets current project through ResearchManager.SetCurrentProject after CanStartNow checks. |  |  |
 | NativeResourceSourcesTool.cs | 195 | mixed | Lists reachable mine/harvest/cut sources and storage capacity for a resource def from live map state. | Cheap census filter def.plant.harvestedThingDef==resource or def.building.mineableThing==resource (~3 lines); Method string mine/cut/harvest from def.plant.IsTree; AutoHomeAreaMaker.BorderWidth read by reflection | ThingDef.plant.harvestedThingDef / ThingDef.building.mineableThing / plant.isTree via Go rule over ThingDef rows; BorderWidth from GameConstants (#2626) |
 | NativeRitual.cs | 243 | code | RitualIntent: starts bestowing ceremony via the bestower toil gizmo and begins held ritual precepts through Command_Ritual and Dialog_BeginRitual. |  |  |
@@ -413,7 +413,6 @@ Kept, reason recorded:
 | ListPawnsRequest | message | 594 | 3 | state | List pawns request |  |  |
 | ListPawnsReply | message | 595 | 3 | state | List pawns reply envelope |  |  |
 | HolderKind | enum | 603 | 5 | state | What holds a stack |  |  |
-| WasteKind | enum | 605 | 3 | state | Why an item is waste |  |  |
 | BenchUnusableReason | enum | 607 | 6 | state | Why a bench takes no bills |  |  |
 | StockItem | message | 614 | 7 | mixed | One stack in a stock row | market_value (of packed item) | ThingDef.statBases MarketValue with quality factor via Go rule over rows |
 | HeldStock | message | 618 | 3 | state | Holder of a held stack |  |  |
@@ -438,7 +437,7 @@ Kept, reason recorded:
 | BuildingServiceState | message | 690 | 11 | mixed | Building power fuel and breakdown state |  |  |
 | BuildingStatus | enum | 696 | 4 | state | Construction stage tag |  |  |
 | BuildingState | message | 702 | 22 | mixed | Canonical building row | uses_hit_points | ThingDef.useHitPoints |
-| PowerNetwork | message | 718 | 15 | state | Power network aggregate producers consumers watts and storage |  |  |
+| PowerNetwork | message | 718 | 4 | state | Power network generation, consumption and stored energy |  |  |
 | BuildingsSnapshot | message | 725 | 5 | state | Buildings table plus power networks for the map |  |  |
 | ListBuildingsRequest | message | 728 | 9 | state | Read request parameters |  |  |
 | ListBuildingsReply | message | 729 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
@@ -460,11 +459,10 @@ Kept, reason recorded:
 | GetCellsRequest | message | 806 | 2 | state | Read request parameters |  |  |
 | GetCellsReply | message | 810 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | ResearchUnlock | message | 811 | 3 | static | What a research project unlocks (def, native type, label) | def_name;native_type;label | Go rule over ThingDef.researchPrerequisites, RecipeDef.researchPrerequisite(s), TerrainDef.researchPrerequisites rows keyed by ResearchProjectDef.defName |
-| ResearchProject | message | 814 | 23 | mixed | Research project row: definition facts plus progress and availability | tab;tech_level;base_cost;prerequisites;hidden_prerequisites;techprints_needed;required_building;required_facilities;unlocks;category | ResearchProjectDef.tab, techLevel, baseCost, prerequisites, hiddenPrerequisites, techprintCount, requiredResearchBuilding, requiredResearchFacilities; unlocks = Go rule over rows; category = Go rule over ResearchProjectDef.tab |
-| Researcher | message | 823 | 6 | code | Pawn research ability/priority/active row |  |  |
+| ResearchProject | message | 814 | 9 | state | Research project row: progress, availability and lock reasons (definition facts are catalog rows) |  |  |
 | ResearchSlot | message | 826 | 2 | state | Current project per research category |  |  |
-| ResearchSnapshot | message | 828 | 9 | state | Research snapshot: slots, projects, researchers |  |  |
-| ResearchRequest | message | 833 | 7 | state | Read request parameters |  |  |
+| ResearchSnapshot | message | 828 | 5 | state | Research snapshot: slots, projects, finished |  |  |
+| ResearchRequest | message | 833 | 6 | state | Read request parameters |  |  |
 | ResearchReply | message | 834 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | AccessTarget | message | 836 | 4 | code | Per-cell native/projected reachability |  |  |
 | PawnAccess | message | 837 | 8 | code | Reachability counts and per-target access for a pawn |  |  |
@@ -491,7 +489,7 @@ Kept, reason recorded:
 | ExcavationSiteRequest | message | 912 | 3 | state | Read request parameters |  |  |
 | ExcavationSiteReply | message | 913 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | StuffOption | message | 916 | 2 | static | A stuff and the cost list for building from it | stuff;costs | Go rule over ThingDef.costList + costStuffCount for stuffCategories stuff rows |
-| WallUpgradeSite | message | 917 | 21 | mixed | Wall upgrade planning row: target, backups, workers, geometry | costs;replacement_materials | Go rule over ThingDef.costList/costStuffCount/stuffCategories rows |
+| WallUpgradeSite | message | 917 | 16 | mixed | Wall upgrade planning row: target, backups, workers, geometry | costs;replacement_materials | Go rule over ThingDef.costList/costStuffCount/stuffCategories rows |
 | WallUpgradeSnapshot | message | 930 | 2 | state | Snapshot table of rows for the read |  |  |
 | WallUpgradeSitesRequest | message | 931 | 2 | state | Read request parameters |  |  |
 | WallUpgradeSitesReply | message | 932 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
@@ -510,8 +508,7 @@ Kept, reason recorded:
 | HusbandrySnapshot | message | 965 | 3 | state | Husbandry census |  |  |
 | HusbandryRequest | message | 966 | 2 | state | Read request parameters |  |  |
 | HusbandryReply | message | 967 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
-| WasteLocation | enum | 968 | 4 | state | Waste item location state (exposed/relocated/buried) |  |  |
-| WasteItem | message | 969 | 11 | state | Waste item row |  |  |
+| WasteItem | message | 969 | 3 | state | Corpse census row (class, grave) |  |  |
 | WasteSnapshot | message | 975 | 2 | state | Waste items |  |  |
 | WasteReply | message | 976 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | RecoveryRestriction | message | 977 | 4 | state | Recovery area restriction/lease on a pawn |  |  |
@@ -620,8 +617,8 @@ Kept, reason recorded:
 | UpkeepItem | message | 1362 | 11 | mixed | Upkeep item: hp, rot, deterioration, storage | max_hit_points;deterioration_rate | ThingDef.statBases MaxHitPoints and Deterioration x stuff (catalog stat table) |
 | UpkeepBed | message | 1363 | 15 | mixed | Upkeep bed: slots, owners, users, quality | slots;humanlike;rest_effectiveness | ThingDef.size (slots), BuildingProperties.bed_humanlike, ThingDef.statBases BedRestEffectiveness x stuff |
 | UpkeepStructure | message | 1365 | 6 | mixed | Upkeep structure: home, roof holder, flammability | holds_roof;flammability | ThingDef.holdsRoof; ThingDef.statBases Flammability x stuff |
-| FireState | message | 1366 | 4 | state | Fire size and safe workers |  |  |
-| FilthState | message | 1367 | 6 | state | Filth thickness and room |  |  |
+| FireState | message | 1366 | 3 | state | Fire size and home flag |  |  |
+| FilthState | message | 1367 | 1 | state | Home-area filth row |  |  |
 | UpkeepPerson | message | 1373 | 8 | state | Pawn comfort temperature range, partners, title |  |  |
 | PermitCooldown | message | 1383 | 3 | state | Permit last used tick and cooldown remaining |  |  |
 | PawnRoyalHolding | message | 1384 | 6 | state | Pawn royal holding: title, favor, permits |  |  |
@@ -633,7 +630,7 @@ Kept, reason recorded:
 | RoyaltySection | message | 1418 | 2 | state | Royalty colony section envelope |  |  |
 | RoyaltyColonyFacts | message | 1419 | 3 | state | Neuroformers, ceremonies, thrones |  |  |
 | AnimalFeed | message | 1422 | 4 | mixed | Animal feed diet and pen requirement | diet | RaceProperties.foodType (ThingDef.race) |
-| DevelopmentPower | message | 1423 | 4 | state | Power consumer/battery stored energy, roof and turret dps (capacity deleted, #2657) |  | turret_dps kept: the live gun's verb output |
+| DevelopmentPower | message | 1423 | 3 | state | Power consumer/battery roof and turret dps (capacity deleted, #2657; stored energy is the network's) |  | turret_dps kept: the live gun's verb output |
 | SteamGeyser | message | 1431 | 3 | state | Steam geyser cells and occupancy |  |  |
 | DevelopmentFacts | message | 1432 | 5 | state | Development power, furniture, networks, geysers |  |  |
 | EnvironmentCondition | message | 1433 | 4 | state | Active game condition with id, def name and ticks left (class and label deleted, #2657) |  |  |
@@ -721,7 +718,7 @@ Kept, reason recorded:
 | ButcherRecord | message | 1752 | 7 | state | Butcher event record |  |  |
 | DeliveryLedgerFacts | message | 1756 | 8 | state | Delivery counters epoch, kills, butchers |  |  |
 | DeliveryLedgerSection | message | 1758 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
-| ColonyFactsSnapshot | message | 1759 | 52 | mixed | Colony facts root: counts, food, sections | policy_resources (dead); player_tech_level (faction def) | policy_resources deleted (#2655); player_tech_level = FactionDef.techLevel of the player faction (def key, keep as state name) |
+| ColonyFactsSnapshot | message | 1759 | 52 | mixed | Colony facts root: counts, food, sections | policy_resources (dead); player_tech_level (faction def) | policy_resources deleted (#2655); player_tech_level = FactionDef.techLevel of the player faction (Defs.TechLevel enum) |
 | OdysseySection | message | 1811 | 2 | excluded | Odyssey section wrapper |  |  excluded #2632 |
 | OdysseyColonyFacts | message | 1812 | 4 | excluded | Odyssey colony facts |  |  excluded #2632 |
 | ActiveCondition | message | 1820 | 7 | excluded | Active game condition (Odyssey section) |  |  excluded #2632 |

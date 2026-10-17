@@ -221,13 +221,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("cells identity mismatch");
         }
-        var size = snapshot.MapSize;
-        if (size is null || size.Width is null || size.Height is null || size.Width.GetValueOrDefault() == 0 || size.Height.GetValueOrDefault() == 0
-            || size.Width.GetValueOrDefault() > int.MaxValue || size.Height.GetValueOrDefault() > int.MaxValue)
-        {
-            throw BridgeFunctions.Contract("invalid map dimensions");
-        }
-        var bounds = new P.Bounds((int)size.Width.GetValueOrDefault(), (int)size.Height.GetValueOrDefault());
+        var bounds = new P.Bounds((int)snapshot.MapSize.Width, (int)snapshot.MapSize.Height);
         if ((long)rect.X + rect.Width > bounds.Width || (long)rect.Z + rect.Height > bounds.Height || (long)rect.Width * rect.Height > MaxCells)
         {
             throw BridgeFunctions.Contract("cells rect off the map");

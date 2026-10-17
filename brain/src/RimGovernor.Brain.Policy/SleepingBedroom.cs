@@ -148,7 +148,7 @@ public static partial class PolicyFunctions
             {
                 foreach (var id in room.Beds)
                 {
-                    if (beds.TryGetValue(id, out var b) && b.Humanlike.TryGetValue(out var human) && human)
+                    if (beds.TryGetValue(id, out var b) && b.Humanlike)
                     {
                         indoor++;
                     }

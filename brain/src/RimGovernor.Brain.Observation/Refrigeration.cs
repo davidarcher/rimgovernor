@@ -33,7 +33,7 @@ public static partial class ObservationPackage
             {
                 continue;
             }
-            rows[b.Id] = new RefrigerationCooler { Id = b.Id, Position = b.Cell, Connected = b.Connected, PowerOn = b.Powered };
+            rows[b.Id] = new RefrigerationCooler { Id = b.Id, Position = b.Cell, Connected = Known(b.Connected), PowerOn = Known(b.Powered) };
             ids.Add(b.Id);
         }
         if (ids.Count == 0)

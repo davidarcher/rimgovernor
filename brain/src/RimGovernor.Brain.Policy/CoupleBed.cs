@@ -110,7 +110,7 @@ public static partial class PolicyFunctions
             foreach (var b in obs.Beds)
             {
                 var only = b.Owners.All(o => o == p || o == q);
-                var humanlike = b.Humanlike.TryGetValue(out var h) && h;
+                var humanlike = b.Humanlike;
                 shared = shared || (SleepingDoubleBeds.Contains(b.Definition) && humanlike && only);
             }
             if (shared)

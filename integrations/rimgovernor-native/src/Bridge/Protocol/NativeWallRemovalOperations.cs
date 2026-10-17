@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
                 Func<Obs.WallUpgradeSite?> reread = () => NativeWallUpgradeObservationTools.Replacement(map, wall, n, context);
                 var site = reread();
                 if (site == null) continue;
-                var left = (site.LeftSupport?.Id ?? ""); var right = (site.RightSupport?.Id ?? "");
+                var left = (site.LeftSupport.Id ?? ""); var right = (site.RightSupport.Id ?? "");
                 if (!WallUpgradeSafety.Corner(normal))
                 {
                     if (site.CompletedBackups.Count != site.BackupCells.Count || site.BackupCells.Count == 0) continue;
@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
                         Func<Obs.WallUpgradeSite?> reread = () => NativeWallUpgradeObservationTools.Cleanup(map, p, n, context);
                         var site = reread();
                         if (site == null || !site.CompletedBackups.Any(b => (b.Id ?? "") == id)) continue;
-                        var record = WallUpgradeSafety.NewRecord(map, id, permanent.GetUniqueLoadID(), (site.LeftSupport?.Id ?? ""), (site.RightSupport?.Id ?? ""),
+                        var record = WallUpgradeSafety.NewRecord(map, id, permanent.GetUniqueLoadID(), (site.LeftSupport.Id ?? ""), (site.RightSupport.Id ?? ""),
                             site.CompletedBackups.Select(b => (b.Id ?? "")), permanent.GetUniqueLoadID(), "", origin.x, origin.z, normal.x, normal.z);
                         if (Try(record, site, reread) is Candidate found) cleanup.Add(found);
                     }

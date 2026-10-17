@@ -351,46 +351,24 @@ internal sealed partial class FacadeNativeClient
             var rows = new List<WallUpgradeSite>(value.Sites.Count);
             foreach (var row in value.Sites)
             {
-                if (row is null || row.Normal is null)
-                {
-                    throw BridgeFunctions.Contract("invalid wall upgrade site");
-                }
                 var x = 0;
                 var z = 0;
 
                 // The original wall's cell is its building row's.
-                if (row.Original is { } reference && buildings.TryRow(reference, out var original) && original.Building.Position is { } position)
+                if (buildings.TryRow(row.Original, out var original) && original.Building.Position is { } position)
                 {
                     (x, z) = (position.X.GetValueOrDefault(), position.Z.GetValueOrDefault());
                 }
-                var targetId = "";
-                var targetPresent = false;
-                if (row.Target is not null)
-                {
-                    targetId = row.Target.Id ?? "";
-                    targetPresent = row.TargetPresent.GetValueOrDefault();
-                }
-                var backups = new List<Cell>(row.BackupCells.Count);
-                foreach (var cell in row.BackupCells)
-                {
-                    if (cell is null)
-                    {
-                        throw BridgeFunctions.Contract("invalid wall upgrade backup cell");
-                    }
-                    backups.Add(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
-                }
                 rows.Add(new WallUpgradeSite
                 {
-                    TargetId = targetId,
-                    TargetPresent = targetPresent,
+                    TargetId = row.Target.Id ?? "",
+                    TargetPresent = row.TargetPresent,
                     Blocker = row.Blocker ?? "",
                     X = x,
                     Z = z,
                     NX = row.Normal.X.GetValueOrDefault(),
                     NZ = row.Normal.Z.GetValueOrDefault(),
-                    BackupCells = backups,
-                    LeftSupport = row.LeftSupport is not null,
-                    RightSupport = row.RightSupport is not null,
+                    BackupCells = [.. row.BackupCells.Select(cell => new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()))],
                 });
             }
             return rows;

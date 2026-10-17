@@ -26,13 +26,13 @@ public sealed record SleepingBed
 
     public Resource Definition { get; init; }
 
-    public Fact<bool> Humanlike { get; init; }
+    public bool Humanlike { get; init; }
 
-    public Fact<bool> Medical { get; init; }
+    public bool Medical { get; init; }
 
-    public Fact<bool> Prisoners { get; init; }
+    public bool Prisoners { get; init; }
 
-    public Fact<bool> Roofed { get; init; }
+    public bool Roofed { get; init; }
 
     /// <summary>Building_Bed.ForSlaves; false without Ideology.</summary>
     public bool Slaves { get; init; }
@@ -40,7 +40,7 @@ public sealed record SleepingBed
     /// <summary>The def's bed_crib flag: native never makes a crib a prisoner bed.</summary>
     public bool Crib { get; init; }
 
-    public Fact<double> RestEffectiveness { get; init; }
+    public double RestEffectiveness { get; init; }
 
     public Fact<double> Temperature { get; init; }
 
@@ -292,16 +292,9 @@ public static partial class PolicyFunctions
             {
                 throw invalid;
             }
-            if (!Finite(b.RestEffectiveness) || !Finite(b.Temperature))
+            if (!Finite(b.Temperature))
             {
                 complete = false;
-            }
-            foreach (var f in new[] { b.Humanlike, b.Medical, b.Prisoners, b.Roofed })
-            {
-                if (!f.TryGetValue(out _))
-                {
-                    complete = false;
-                }
             }
             foreach (var ids in new[] { b.Owners, b.Users, b.AccessibleTo })
             {
@@ -363,18 +356,10 @@ public static partial class PolicyFunctions
             p.ComfortableMax.TryGetValue(out var hi);
             bool Safe(SleepingBed b)
             {
-                b.Humanlike.TryGetValue(out var human);
-                b.Medical.TryGetValue(out var medical);
-                b.Prisoners.TryGetValue(out var prisoner);
-                b.Roofed.TryGetValue(out var roof);
                 b.Temperature.TryGetValue(out var temperature);
-                return human && !medical && !prisoner && b.Slaves == slave.Contains(p.Id) && roof && b.AccessibleTo.Contains(p.Id) && temperature >= lo && temperature <= hi;
+                return b.Humanlike && !b.Medical && !b.Prisoners && b.Slaves == slave.Contains(p.Id) && b.Roofed && b.AccessibleTo.Contains(p.Id) && temperature >= lo && temperature <= hi;
             }
-            bool Suitable(SleepingBed b)
-            {
-                b.RestEffectiveness.TryGetValue(out var rest);
-                return Safe(b) && SleepingRung(b.Definition, v.BedBuildable) && rest > 0;
-            }
+            bool Suitable(SleepingBed b) => Safe(b) && SleepingRung(b.Definition, v.BedBuildable) && b.RestEffectiveness > 0;
             p.OwnedBed.TryGetValue(out var ownedId);
             var bedId = ownedId ?? "";
             var exists = beds.TryGetValue(bedId, out var owned);

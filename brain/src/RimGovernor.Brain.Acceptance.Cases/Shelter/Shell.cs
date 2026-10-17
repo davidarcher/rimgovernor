@@ -293,8 +293,8 @@ internal static class ShelterShell
             }
 
             var (anchor, _) = CellReads.DecodeCells(await Read("-size", 0, 0).ConfigureAwait(false));
-            var width = (long)(anchor.MapSize?.Width ?? 0);
-            var height = (long)(anchor.MapSize?.Height ?? 0);
+            var width = (long)anchor.MapSize.Width;
+            var height = (long)anchor.MapSize.Height;
             var (_, grid) = CellReads.DecodeCells(await Read(string.Empty, width - 1, height - 1).ConfigureAwait(false));
             return new ThingGrid { Grid = grid, Cells = grid.Cells(), Things = grid.Things() };
         }

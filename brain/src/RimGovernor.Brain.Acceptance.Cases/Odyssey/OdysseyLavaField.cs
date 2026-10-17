@@ -195,8 +195,8 @@ internal static class OdysseyLavaField
         }
 
         var (anchor, _) = await Read("lava-cells-size", 0, 0).ConfigureAwait(false);
-        var width = (long)(anchor.MapSize?.Width ?? 0);
-        var height = (long)(anchor.MapSize?.Height ?? 0);
+        var width = (long)anchor.MapSize.Width;
+        var height = (long)anchor.MapSize.Height;
         var (_, grid) = await Read("lava-cells", width - 1, height - 1).ConfigureAwait(false);
         var built = new HashSet<Cell>();
         var cells = grid.Cells();

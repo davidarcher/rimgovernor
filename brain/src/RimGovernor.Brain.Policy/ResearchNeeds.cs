@@ -41,11 +41,7 @@ public static partial class PolicyFunctions
             var cost = 0.0;
             foreach (var (name, row) in projects)
             {
-                if (row.KnowledgeCategory != slot.Category || done.Contains(name) || !row.Census || row.LockReasons.Count != 0)
-                {
-                    continue;
-                }
-                if (!row.Hidden.TryGetValue(out var hidden) || hidden)
+                if (row.KnowledgeCategory != slot.Category || done.Contains(name) || !row.Census || row.LockReasons.Count != 0 || row.Hidden)
                 {
                     continue;
                 }

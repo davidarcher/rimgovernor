@@ -32,13 +32,10 @@ public sealed partial class DefinitionCatalog
 
             facts.Add(name, new P.ResearchProjectFacts
             {
-                Name = new P.ResearchProjectId(name),
-                Hidden = Known(false),
                 KnowledgeCategory = category,
                 Cost = cost,
-                Prerequisites = Known(ProjectIds(row.prerequisites)),
-                HiddenPrerequisites = Known(ProjectIds(row.hiddenPrerequisites)),
-                RequiredBuilding = row.requiredResearchBuilding?.defName ?? string.Empty,
+                Prerequisites = ProjectIds(row.prerequisites),
+                HiddenPrerequisites = ProjectIds(row.hiddenPrerequisites),
             });
         }
 

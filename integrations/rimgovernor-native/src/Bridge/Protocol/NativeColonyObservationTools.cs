@@ -11,6 +11,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Contracts.Wire.Common;
+using Defs = RimGovernor.Contracts.Wire.Defs;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
@@ -90,7 +91,7 @@ namespace HomeBridge.BridgeTools
             Span("cf.nutrition");
             var result = new Obs.ColonyFactsSnapshot { Context = context, ColonistCount = (uint)people.Count,
                 WorkerCount = (uint)workers.Count, Center = Cell(center), MapSize = Size(map), Biome = map.Biome.defName,
-                PlayerTechLevel = player.def.techLevel.ToString(),
+                PlayerTechLevel = (Defs.TechLevel)(int)player.def.techLevel,
                 FermentingBarrels = (uint)things.OfType<Building_FermentingBarrel>().Count(b => b.Faction == player && !b.IsForbidden(player) && reachable(b)),
                 BedCapacity = checked((uint)beds.Sum(b => b.SleepingSlotsCount)), IndoorSleepingCapacity = checked((uint)indoorBeds.Sum(b => b.SleepingSlotsCount)),
                 FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp) };
@@ -259,6 +260,9 @@ namespace HomeBridge.BridgeTools
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
             var nets = map.powerNetManager.AllNetsListForReading.OrderBy(n => n.GetHashCode()).ToList();
             var geysers = map.listerThings.ThingsOfDef(ThingDefOf.SteamGeyser).OfType<Building_SteamGeyser>().OrderBy(g => g.thingIDNumber).ToList();
+            var power = new List<Obs.DevelopmentPower>(traders.Count + batteries.Count);
+            var networks = new List<Obs.PowerNetwork>(nets.Count);
+            var geyserRows = new List<Obs.SteamGeyser>(geysers.Count);
             var result = new Obs.DevelopmentFacts { };
             // Archived letters survive dismissal and saves. Use the game's own
             // translated label rather than matching English message prose.
@@ -269,37 +273,33 @@ namespace HomeBridge.BridgeTools
                     && l.lookTargets.targets.Any(t => t.Map == map))
                 .Select(l => l.arrivalTick).ToList();
             if (incidents.Count > 0) result = result with { ShortCircuitTick = incidents.Max() };
-            foreach (var power in traders) {
-                var building = (Building)power.parent;
+            foreach (var trader in traders) {
+                var building = (Building)trader.parent;
                 var row = new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building),
                     Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) };
                 // A turret's observed damage per second.
                 var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row = row with { TurretDps = Finite(dps.Value) };
-                result = result with { Power = [.. result.Power, row] };
+                power.Add(row);
             }
             foreach (var battery in batteries) {
                 var building = (Building)battery.parent;
-                result = result with { Power = [.. result.Power, new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building), Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
-                    StoredWattDays = Finite(battery.StoredEnergy) }] };
+                power.Add(new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building), Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) });
             }
             foreach (var net in nets) {
                 var generation = net.powerComps.Where(p => p.PowerOn && p.PowerOutput > 0).Sum(p => (double)p.PowerOutput);
                 var consumption = net.powerComps.Where(p => p.PowerOn && p.PowerOutput < 0).Sum(p => (double)-p.PowerOutput);
-                result = result with { Networks = [.. result.Networks, new Obs.PowerNetwork { Id = NetId(net),
+                networks.Add(new Obs.PowerNetwork { Id = NetId(net),
                     GenerationW = Finite(generation), ConsumptionW = Finite(consumption),
-                    StoredWattDays = Finite(net.CurrentStoredEnergy()),
-                    CapacityWattDays = Finite(net.batteryComps.Sum(b => (double)b.Props.storedEnergyMax)) }] };
+                    StoredWattDays = Finite(net.CurrentStoredEnergy()) });
             }
             foreach (var geyser in geysers) {
                 // A geyser is free for a geothermal generator only while no
                 // harvester, blueprint, frame or other building stands on it.
                 var cells = geyser.OccupiedRect().Cells.ToList();
                 var occupied = geyser.harvester != null || cells.Any(c => c.GetThingList(map).Any(t => t != geyser && (t.def.category == ThingCategory.Building || t.def.IsBlueprint || t.def.IsFrame)));
-                var row = new Obs.SteamGeyser { Geyser = NativeRef.Thing(geyser), Occupied = occupied };
-                foreach (var cell in cells) row = row with { Cells = [.. row.Cells, Cell(cell)] };
-                result = result with { Geysers = [.. result.Geysers, row] };
+                geyserRows.Add(new Obs.SteamGeyser { Geyser = NativeRef.Thing(geyser), Occupied = occupied, Cells = [.. cells.Select(c => Cell(c))] });
             }
-            return result;
+            return result with { Power = [.. power], Networks = [.. networks], Geysers = [.. geyserRows] };
         }
 
         private static string NetId(PowerNet net) => NativeBuildingObservationTools.NetId(net);

@@ -54,7 +54,7 @@ public static partial class PolicyFunctions
                 if (HumanlikeBed(st))
                 {
                     var ok = beds.TryGetValue(b.Id, out var bed);
-                    if (!ok || !BedPieceState(bed!, out var state))
+                    if (!ok)
                     {
                         known = false;
                         break;
@@ -65,7 +65,7 @@ public static partial class PolicyFunctions
                         var cluster = clusters.TryGetValue(o, out var cl) ? cl : [o.Value];
                         owners.Add(new BedOwner { Pawn = o.Value, Cluster = EquatableArray.From(cluster) });
                     }
-                    piece = piece with { State = state, Owners = EquatableArray.From(owners) };
+                    piece = piece with { State = BedPieceState(bed), Owners = EquatableArray.From(owners) };
                 }
                 pieces.Add(piece);
             }
@@ -77,25 +77,14 @@ public static partial class PolicyFunctions
         return output;
     }
 
-    /// <summary>The RoomPiece state of a humanlike bed; false while its medical or prisoner flag is unknown.</summary>
-    internal static bool BedPieceState(SleepingBed b, out RoleCondition state)
+    /// <summary>The RoomPiece state of a humanlike bed.</summary>
+    internal static RoleCondition BedPieceState(SleepingBed b) => (b.Medical, b.Prisoners) switch
     {
-        var mk = b.Medical.TryGetValue(out var medical);
-        var pk = b.Prisoners.TryGetValue(out var prisoner);
-        if (!mk || !pk)
-        {
-            state = RoleCondition.Always;
-            return false;
-        }
-        state = (medical, prisoner) switch
-        {
-            (true, true) => RoleCondition.BedPrisonerMedical,
-            (true, false) => RoleCondition.BedMedical,
-            (false, true) => RoleCondition.BedPrisoner,
-            _ => RoleCondition.BedFree,
-        };
-        return true;
-    }
+        (true, true) => RoleCondition.BedPrisonerMedical,
+        (true, false) => RoleCondition.BedMedical,
+        (false, true) => RoleCondition.BedPrisoner,
+        _ => RoleCondition.BedFree,
+    };
 
     /// <summary>
     /// Maps each pawn with a partner to its love cluster (Pawn.GetLoveCluster): the pawn and everyone

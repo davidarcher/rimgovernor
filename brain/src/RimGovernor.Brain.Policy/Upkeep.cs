@@ -15,8 +15,6 @@ public sealed record UpkeepObservation
 
     public Fact<EquatableArray<UpkeepStructure>> Structures { get; init; }
 
-    public Fact<EquatableArray<UpkeepFilth>> Filth { get; init; }
-
     /// <summary>The measured room census of the same read.</summary>
     public Fact<RoomObservation> Rooms { get; init; }
 
@@ -43,23 +41,4 @@ public sealed record UpkeepStructure
     public long MaxHitPoints { get; init; }
 
     public int Priority { get; init; }
-}
-
-public sealed record UpkeepFilth
-{
-    public string Id { get; init; } = "";
-
-    public string Definition { get; init; } = "";
-
-    public Cell Cell { get; init; }
-
-    public bool Home { get; init; }
-
-    /// <summary>The RoomRoleDef name.</summary>
-    public string Room { get; init; } = "";
-
-    /// <summary>The room census identity the filth lies in (unknown outdoors or before the native field existed).</summary>
-    public Fact<string> RoomId { get; init; }
-
-    public uint Thickness { get; init; }
 }

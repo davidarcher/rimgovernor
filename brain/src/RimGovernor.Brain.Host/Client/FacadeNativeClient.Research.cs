@@ -76,11 +76,6 @@ internal sealed partial class FacadeNativeClient
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in v.Projects)
         {
-            if (row is null || row.Project is null || !IsValidId(row.Project.DefName ?? ""))
-            {
-                throw Contract("invalid research project identity");
-            }
-
             var name = row.Project.DefName ?? "";
             if (!seen.Add(name))
             {
@@ -100,14 +95,14 @@ internal sealed partial class FacadeNativeClient
             {
                 if (reason == Policy.PolicyFunctions.ResearchLockHidden)
                 {
-                    facts = facts with { Hidden = Known(true) };
+                    facts = facts with { Hidden = true };
                 }
             }
 
             projects[name] = facts;
             // A knowledge project is current in its category slot, read below: only the ordinary slot's project is the
             // current project.
-            if (row.Current == true && facts.KnowledgeCategory.Length == 0)
+            if (row.Current && facts.KnowledgeCategory.Length == 0)
             {
                 if (current.Length != 0)
                 {
@@ -147,24 +142,12 @@ internal sealed partial class FacadeNativeClient
         }
 
         knowledge.Sort((a, b) => string.CompareOrdinal(a.Category, b.Category));
-        var researchers = new List<string>();
-        foreach (var researcher in v.Researchers)
-        {
-            if (researcher is null || !IsValidId(researcher.Pawn?.Id ?? ""))
-            {
-                throw Contract("invalid researcher identity");
-            }
-
-            researchers.Add(researcher.Pawn!.Id!);
-        }
-
         return new ResearchRead
         {
             Context = v.Context,
             CurrentProject = current,
             Projects = projects,
             Finished = finishedList,
-            Researchers = researchers,
             Knowledge = knowledge,
         };
     }

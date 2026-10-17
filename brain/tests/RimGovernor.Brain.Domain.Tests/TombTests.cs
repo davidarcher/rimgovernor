@@ -30,11 +30,11 @@ public sealed class TombTests
 
     private static readonly LayoutPlan Plan = new() { Rooms = [TombRoom], NextRoomId = 2 };
 
-    private static WasteItem Corpse(string id, CorpseOf of) =>
-        new() { Id = id, Kind = "Corpse", State = WasteState.Exposed, Eligible = true, Cell = new Cell(30, 30), CorpseOf = of };
+    private static WasteItem Corpse(CorpseOf of) =>
+        new() { CorpseOf = of };
 
-    private static WasteItem Buried(string id, CorpseOf of, string grave) =>
-        new() { Id = id, Kind = "Corpse", State = WasteState.Buried, CorpseOf = of, Grave = grave };
+    private static WasteItem Buried(CorpseOf of, string grave) =>
+        new() { CorpseOf = of, Grave = grave };
 
     private static CurrentBuilding Standing(string id, int x, int z) => new()
     {
@@ -49,26 +49,26 @@ public sealed class TombTests
     [Fact]
     public void AColonistCorpseIsStagedIntoAFreeTombSlot()
     {
-        var step = NextTombStep(Plan, [Corpse("ann", CorpseOf.Colonist)], [], Shapes, true);
+        var step = NextTombStep(Plan, [Corpse(CorpseOf.Colonist)], [], Shapes, true);
         Assert.Equal(TombStepKind.Reconcile, step.Kind);
         Assert.Equal(TombRoom.Id, step.Room.Id);
         Assert.Equal(Sarcophagus, Assert.Single(step.Template).DefName);
         Assert.Equal(1, step.Dead);
-        Assert.True(Owed(Corpse("ann", CorpseOf.Colonist)).TryGetValue(out var o) && o);
+        Assert.True(Owed(Corpse(CorpseOf.Colonist)).TryGetValue(out var o) && o);
     }
 
     [Fact]
     public void AStrangerCorpseIsOwedNoTomb()
     {
-        Assert.Equal(TombStepKind.None, NextTombStep(Plan, [Corpse("raider", CorpseOf.Stranger)], [], Shapes, true).Kind);
-        Assert.True(Owed(Corpse("raider", CorpseOf.Stranger)).TryGetValue(out var o) && !o);
+        Assert.Equal(TombStepKind.None, NextTombStep(Plan, [Corpse(CorpseOf.Stranger)], [], Shapes, true).Kind);
+        Assert.True(Owed(Corpse(CorpseOf.Stranger)).TryGetValue(out var o) && !o);
     }
 
     [Fact]
     public void ABuriedStrangerFillsItsSarcophagus()
     {
         var built = new[] { Standing("s1", 10, 11) };
-        var step = NextTombStep(Plan, [Buried("raider", CorpseOf.Stranger, "s1"), Corpse("ann", CorpseOf.Colonist)], built, Shapes, true);
+        var step = NextTombStep(Plan, [Buried(CorpseOf.Stranger, "s1"), Corpse(CorpseOf.Colonist)], built, Shapes, true);
         Assert.Equal(TombStepKind.Reconcile, step.Kind);
         Assert.Equal(0, step.Empty);
     }

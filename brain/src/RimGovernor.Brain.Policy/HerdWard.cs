@@ -215,7 +215,7 @@ public static partial class PolicyFunctions
             }
             foreach (var s in sleeping)
             {
-                if (s.Id == b.Id && s.Medical.TryGetValue(out var medical) && !medical)
+                if (s.Id == b.Id && !s.Medical)
                 {
                     return (b.Id, true);
                 }
@@ -253,12 +253,11 @@ public static partial class PolicyFunctions
                     {
                         continue;
                     }
-                    var known = s.Medical.TryGetValue(out var medical);
-                    if (known && medical)
+                    if (s.Medical)
                     {
                         return Known(true);
                     }
-                    read = read || known;
+                    read = true;
                 }
                 unread = unread || !read;
             }

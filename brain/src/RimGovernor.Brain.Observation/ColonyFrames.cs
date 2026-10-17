@@ -34,21 +34,16 @@ public static partial class ObservationPackage
     }
 
     /// <summary>
-    /// Whether the frame's biome keeps the sky dark for good (its map conditions' class family). A frame with
-    /// no biome, or no catalog to read its conditions from, throws naming which is missing, as does a biome the
-    /// catalog has no row for: lit is never assumed.
+    /// Whether the frame's biome keeps the sky dark for good (its map conditions' class family). No catalog to
+    /// read its conditions from throws, as does a biome the catalog has no row for: lit is never assumed.
     /// </summary>
     internal static Fact<bool> ColonyOutdoorsDark(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
     {
-        if (v.Biome is null)
-        {
-            throw new OutdoorsDarkUnknownException();
-        }
         if (catalog is null)
         {
             throw new OutdoorsDarkUnknownException();
         }
-        return Known(catalog.OutdoorsPermanentlyDark((v.Biome ?? "")));
+        return Known(catalog.OutdoorsPermanentlyDark(v.Biome));
     }
 
     internal static RoundsFacts ColonyDisaster(O.ColonyFactsSnapshot v, RoundsFacts facts, Buildings buildings, DefinitionCatalog? catalog, EquatableArray<DisasterCondition> conditions, bool conditionsKnown)
@@ -208,21 +203,10 @@ public static partial class ObservationPackage
         return Known(new PollutionFacts { UncoveredCells = b.PollutedUncoveredCells, Wastepacks = packs });
     }
 
-    private static WasteState WasteLocation(O.WasteLocation v) => v switch
-    {
-        O.WasteLocation.Exposed => WasteState.Exposed,
-        O.WasteLocation.Relocated => WasteState.Relocated,
-        O.WasteLocation.Buried => WasteState.Buried,
-        _ => WasteState.None,
-    };
-
     /// <summary>
-    /// Decodes the same generic per-tick ColonyFactsSnapshot's embedded WasteReply (no dedicated read call
-    /// needed, unlike husbandry/population's own dedicated census reads) into the plain census MorgueWaiting
-    /// and RouteStranger read. A missing observed snapshot or an incomplete page (unlike the exact-CAS
-    /// husbandry/resource reads, this generic census is never repaged mid-review) stays unknown; a row's own
-    /// missing eligibility/state is treated as not-pending (a truthy eligible check) rather than failing the
-    /// whole census over one partial row.
+    /// Decodes the colony read's corpse census (its embedded WasteReply) into the rows MorgueWaiting and the
+    /// tomb census read. A missing observed snapshot, or a row whose corpse the frame's entity table does not
+    /// hold, stays unknown.
     /// </summary>
     internal static Fact<EquatableArray<WasteItem>> ColonyWaste(O.ColonyFactsSnapshot v, Tables tables)
     {
@@ -234,28 +218,7 @@ public static partial class ObservationPackage
         var items = new List<WasteItem>(snapshot.Items.Count);
         foreach (var row in snapshot.Items)
         {
-            var id = row.Thing?.Id ?? "";
-            if (id == "")
-            {
-                continue;
-            }
-            var position = tables.Entity(row.Thing)?.Position;
-            if (position is null || position.X is null || position.Z is null || position.X < 0 || position.Z < 0)
-            {
-                continue;
-            }
-            items.Add(new WasteItem
-            {
-                Id = id,
-                Kind = WasteKindName(row.Kind.GetValueOrDefault()),
-                State = WasteLocation(row.State.GetValueOrDefault()),
-                Eligible = row.Eligible.GetValueOrDefault(),
-                Cell = new Cell(position.X.GetValueOrDefault(), position.Z.GetValueOrDefault()),
-                CorpseOf = CorpseOf(row.CorpseClass.GetValueOrDefault()),
-                RotStage = RotOf(row.RotStage.GetValueOrDefault()),
-                Grave = row.Grave?.Id ?? "",
-                EverBuriedInSarcophagus = row.EverBuriedInSarcophagus.GetValueOrDefault(),
-            });
+            items.Add(new WasteItem { CorpseOf = (CorpseOf)row.CorpseClass, Grave = row.Grave?.Id ?? "" });
         }
         return Known(EquatableArray.From(items));
     }
@@ -308,7 +271,7 @@ public static partial class ObservationPackage
     /// </summary>
     public static MedicalReserveObservation ColonyMedicalReserve(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog)
     {
-        var r = new MedicalReserveObservation { Colonists = CountFact(v.ColonistCount is not null, v.ColonistCount.GetValueOrDefault()) };
+        var r = new MedicalReserveObservation { Colonists = Known((long)v.ColonistCount) };
         if (!HasIssue(v.Issues, "resources"))
         {
             var rows = new List<Amount>();

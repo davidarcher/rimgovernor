@@ -57,7 +57,7 @@ public static partial class PolicyFunctions
     /// <summary>Picks the next jail step from the plan, the room census, the held prisoner count, the bed census and the colony's buildings.</summary>
     public static JailStep NextJailStep(LayoutPlan plan, RoomObservation rooms, int held, IReadOnlyList<SleepingBed> beds, IReadOnlyList<CurrentBuilding> built)
     {
-        var bedCount = beds.Count(b => b.Prisoners.ValueOrDefault);
+        var bedCount = beds.Count(b => b.Prisoners);
         if (held == 0)
         {
             return new JailStep();
@@ -87,10 +87,7 @@ public static partial class PolicyFunctions
             var marks = new List<string>();
             foreach (var b in beds)
             {
-                var humanlike = b.Humanlike.ValueOrDefault;
-                var mk = b.Medical.IsKnown;
-                var pk = b.Prisoners.TryGetValue(out var prisoners);
-                if (!stands || b.Room.ValueOrDefault != standing!.Id || !humanlike || !mk || !pk || prisoners)
+                if (!stands || b.Room.ValueOrDefault != standing!.Id || !b.Humanlike || b.Prisoners)
                 {
                     continue;
                 }

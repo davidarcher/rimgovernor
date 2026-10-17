@@ -96,20 +96,6 @@ public enum HolderKind
 }
 
 /// <summary>
-/// WasteKind is why an item is waste: a rotten corpse or spoiled food.
-/// </summary>
-[JsonConverter(typeof(WireEnumConverter<WasteKind>))]
-public enum WasteKind
-{
-    [WireName("WASTE_KIND_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("WASTE_KIND_CORPSE")]
-    Corpse = 1,
-    [WireName("WASTE_KIND_SPOILED")]
-    Spoiled = 2,
-}
-
-/// <summary>
 /// BenchUnusableReason is why a bench takes no bills.
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<BenchUnusableReason>))]
@@ -211,19 +197,6 @@ public enum ExcavationSupport
     Unknown = 2,
     [WireName("EXCAVATION_SUPPORT_UNSUPPORTED")]
     Unsupported = 3,
-}
-
-[JsonConverter(typeof(WireEnumConverter<WasteLocation>))]
-public enum WasteLocation
-{
-    [WireName("WASTE_LOCATION_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("WASTE_LOCATION_EXPOSED")]
-    Exposed = 1,
-    [WireName("WASTE_LOCATION_RELOCATED")]
-    Relocated = 2,
-    [WireName("WASTE_LOCATION_BURIED")]
-    Buried = 3,
 }
 
 [JsonConverter(typeof(WireEnumConverter<QuestObjectiveKind>))]
@@ -638,9 +611,9 @@ public abstract record ClearanceTargetsReplyOutcome
 
 public sealed record MapSize
 {
-    public uint? Width { get; init; }
+    public uint Width { get; init; }
 
-    public uint? Height { get; init; }
+    public uint Height { get; init; }
 }
 
 public sealed record DefinitionRef
@@ -2499,8 +2472,6 @@ public sealed record PowerNetwork
     public double ConsumptionW { get; init; }
 
     public double StoredWattDays { get; init; }
-
-    public double CapacityWattDays { get; init; }
 }
 
 public sealed record BuildingsSnapshot
@@ -2942,7 +2913,7 @@ public sealed record CellsSnapshot
 {
     public Common.ObservationContext? Context { get; init; }
 
-    public MapSize? MapSize { get; init; }
+    public MapSize MapSize { get; init; } = new();
 
     public Mirror.CellGrid? Grid { get; init; }
 }
@@ -2997,52 +2968,35 @@ public abstract record GetCellsReplyOutcome
     public static implicit operator GetCellsReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
+/// <summary>
+/// Progress and availability only: the project's definition facts (cost, tab,
+/// prerequisites, techprints, required bench) are ResearchProjectDef rows of
+/// the definition catalog, and what a project unlocks is a reverse index over
+/// the rows that name it as a prerequisite. progress_fraction is absent for a
+/// zero-cost project; available and can_start are set exactly when the census
+/// computed the lock reasons.
+/// </summary>
 public sealed record ResearchProject
 {
-    /// <summary>
-    /// Progress and availability only: the project's definition facts (cost, tab,
-    /// prerequisites, techprints, required bench) are ResearchProjectDef rows of
-    /// the definition catalog, and what a project unlocks is a reverse index over
-    /// the rows that name it as a prerequisite.
-    /// </summary>
-    public DefinitionRef? Project { get; init; }
+    public DefinitionRef Project { get; init; } = new();
 
-    public double? Progress { get; init; }
+    public double Progress { get; init; }
 
     public double? ProgressFraction { get; init; }
 
-    public bool? Finished { get; init; }
+    public bool Finished { get; init; }
 
-    public bool? Current { get; init; }
+    public bool Current { get; init; }
 
     public bool? Available { get; init; }
 
     public bool? CanStart { get; init; }
 
-    public uint? TechprintsApplied { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> LockReasons { get; init; }
 
-    public string? LockDetail { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
-}
-
-public sealed record Researcher
-{
-    public Common.Ref? Pawn { get; init; }
-
-    public double? Intellectual { get; init; }
-
-    public int? Priority { get; init; }
-
-    public bool? Disabled { get; init; }
-
-    public bool? EverWork { get; init; }
-
-    public bool? Active { get; init; }
 }
 
 public sealed record ResearchSlot
@@ -3067,15 +3021,6 @@ public sealed record ResearchSnapshot
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResearchProject>))]
     public EquatableArray<ResearchProject> Projects { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Researcher>))]
-    public EquatableArray<Researcher> Researchers { get; init; }
-
-    public bool? AnomalyActive { get; init; }
-
-    public string? PlayerTechLevel { get; init; }
-
-    public Completeness? Completeness { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Finished { get; init; }
 }
@@ -3091,8 +3036,6 @@ public sealed record ResearchRequest
     public bool? IncludeLocked { get; init; }
 
     public bool? IncludeFinished { get; init; }
-
-    public bool? IncludeCapability { get; init; }
 
     public string? NameContains { get; init; }
 
@@ -3341,7 +3284,7 @@ public sealed record DefenseSiteSnapshot
 {
     public Common.ObservationContext? Context { get; init; }
 
-    public MapSize? MapSize { get; init; }
+    public MapSize MapSize { get; init; } = new();
 
     public Rectangle? Region { get; init; }
 
@@ -3638,38 +3581,37 @@ public abstract record ExcavationSiteReplyOutcome
     public static implicit operator ExcavationSiteReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
+/// <summary>
+/// One wall-upgrade site: the target wall a stone upgrade replaces (the original itself, or a cleanup's first
+/// completed backup), the original wall, its two colonist-wall supports, the outward normal and the backup cells.
+/// </summary>
 public sealed record WallUpgradeSite
 {
-    public Common.Ref? Target { get; init; }
+    public Common.Ref Target { get; init; } = new();
 
-    public bool? TargetPresent { get; init; }
+    public bool TargetPresent { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
     public EquatableArray<Common.Cell> BackupCells { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ResourceStock>))]
-    public EquatableArray<ResourceStock> Materials { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Workers { get; init; }
 
     public string? Blocker { get; init; }
 
-    public bool? Designated { get; init; }
+    public bool Designated { get; init; }
 
     public string? RemovalId { get; init; }
 
-    public long? CompletedTick { get; init; }
-
     public SnapshotRef? Snapshot { get; init; }
 
-    public Common.Cell? Normal { get; init; }
+    public Common.Cell Normal { get; init; } = new();
 
-    public Common.Ref? Original { get; init; }
+    public Common.Ref Original { get; init; } = new();
 
-    public Common.Ref? LeftSupport { get; init; }
+    public Common.Ref LeftSupport { get; init; } = new();
 
-    public Common.Ref? RightSupport { get; init; }
+    public Common.Ref RightSupport { get; init; } = new();
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> CompletedBackups { get; init; }
@@ -3682,8 +3624,6 @@ public sealed record WallUpgradeSite
     public SnapshotRef? TargetSnapshot { get; init; }
 
     public CellsSnapshot? Geometry { get; init; }
-
-    public RoofSupportSnapshot? RoofSupport { get; init; }
 }
 
 public sealed record WallUpgradeSnapshot
@@ -4106,34 +4046,17 @@ public abstract record HusbandryReplyOutcome
     public static implicit operator HusbandryReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
+/// <summary>
+/// One corpse the census counts: the corpse, its inner pawn's class and, for
+/// a buried body, the grave holding it (absent while unburied).
+/// </summary>
 public sealed record WasteItem
 {
-    public Common.Ref? Thing { get; init; }
+    public Common.Ref Thing { get; init; } = new();
 
-    public long? Count { get; init; }
-
-    public WasteLocation? State { get; init; }
-
-    public Common.Ref? Zone { get; init; }
+    public Common.CorpseClass CorpseClass { get; init; }
 
     public Common.Ref? Grave { get; init; }
-
-    public Common.RotStage? RotStage { get; init; }
-
-    public WasteKind? Kind { get; init; }
-
-    public bool? Eligible { get; init; }
-
-    /// <summary>
-    /// A corpse's inner pawn; unset for non-corpses.
-    /// </summary>
-    public Common.CorpseClass? CorpseClass { get; init; }
-
-    /// <summary>
-    /// A corpse's vanilla everBuriedInSarcophagus: set once it has lain in a
-    /// sarcophagus, after which a re-burial fires no memory.
-    /// </summary>
-    public bool? EverBuriedInSarcophagus { get; init; }
 }
 
 public sealed record WasteSnapshot
@@ -6530,31 +6453,20 @@ public sealed record UpkeepStructure
     public bool Home { get; init; }
 }
 
+/// <summary>One visible fire: its thing, its fireSize and whether it burns in the home area.</summary>
 public sealed record FireState
 {
-    public Common.Ref? Fire { get; init; }
+    public Common.Ref Fire { get; init; } = new();
 
-    public double? Size { get; init; }
+    public double Size { get; init; }
 
-    public bool? Home { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> SafeWorkers { get; init; }
+    public bool Home { get; init; }
 }
 
+/// <summary>One filth thing in the home area (the census counts home filth only).</summary>
 public sealed record FilthState
 {
-    public Common.Ref? Filth { get; init; }
-
-    public bool? Home { get; init; }
-
-    public uint? Thickness { get; init; }
-
-    public string? RoomRole { get; init; }
-
-    public bool? Cleanable { get; init; }
-
-    public Common.Ref? Room { get; init; }
+    public Common.Ref Filth { get; init; } = new();
 }
 
 /// <summary>
@@ -6779,13 +6691,15 @@ public sealed record AnimalFeed
     public Common.Ref? SuitablePen { get; init; }
 }
 
+/// <summary>
+/// One player power trader or battery: the building (its service state is its building table row) and
+/// whether a roof covers its whole footprint.
+/// </summary>
 public sealed record DevelopmentPower
 {
-    public Common.Ref? Building { get; init; }
+    public Common.Ref Building { get; init; } = new();
 
-    public double? StoredWattDays { get; init; }
-
-    public bool? Roofed { get; init; }
+    public bool Roofed { get; init; }
 
     /// <summary>
     /// A turret gun's damage per second from its own verb and burst timing; absent for other consumers.
@@ -6801,12 +6715,12 @@ public sealed record DevelopmentPower
 /// </summary>
 public sealed record SteamGeyser
 {
-    public Common.Ref? Geyser { get; init; }
+    public Common.Ref Geyser { get; init; } = new();
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
     public EquatableArray<Common.Cell> Cells { get; init; }
 
-    public bool? Occupied { get; init; }
+    public bool Occupied { get; init; }
 }
 
 public sealed record DevelopmentFacts
@@ -8570,36 +8484,36 @@ public sealed record ColonyFactsSnapshot
     public EquatableArray<WorkResourcePawn>? WorkResources { get; init; }
     public Common.ObservationContext? Context { get; init; }
 
-    public uint? ColonistCount { get; init; }
+    public uint ColonistCount { get; init; }
 
-    public uint? WorkerCount { get; init; }
+    public uint WorkerCount { get; init; }
 
-    public Common.Cell? Center { get; init; }
+    public Common.Cell Center { get; init; } = new();
 
-    public MapSize? MapSize { get; init; }
+    public MapSize MapSize { get; init; } = new();
 
-    public string? Biome { get; init; }
+    public string Biome { get; init; } = "";
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
     public EquatableArray<Quantity> Resources { get; init; }
 
-    public double? FoodNutrition { get; init; }
+    public double FoodNutrition { get; init; }
 
-    public double? NutritionPerDay { get; init; }
+    public double NutritionPerDay { get; init; }
 
     public double? FoodRunwayDays { get; init; }
 
     public double? PendingFoodNutrition { get; init; }
 
-    public uint? BedCapacity { get; init; }
+    public uint BedCapacity { get; init; }
 
-    public uint? IndoorSleepingCapacity { get; init; }
+    public uint IndoorSleepingCapacity { get; init; }
 
     public double? SleepingTemperatureMinC { get; init; }
 
     public double? SleepingTemperatureMaxC { get; init; }
 
-    public double? OutdoorTemperatureC { get; init; }
+    public double OutdoorTemperatureC { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<EnvironmentCondition>))]
     public EquatableArray<EnvironmentCondition> Environment { get; init; }
@@ -8642,9 +8556,9 @@ public sealed record ColonyFactsSnapshot
     public uint? PendingHunts { get; init; }
 
     /// <summary>
-    /// Player faction TechLevel name (e.g. Neolithic, Industrial); shapes the starter shelter.
+    /// Player faction TechLevel; shapes the starter shelter.
     /// </summary>
-    public string? PlayerTechLevel { get; init; }
+    public Defs.TechLevel PlayerTechLevel { get; init; }
 
     /// <summary>
     /// Present only while exactly one force-pausing choice dialog is open.
@@ -8665,7 +8579,7 @@ public sealed record ColonyFactsSnapshot
 
     public DeepResourcesSection? DeepResources { get; init; }
 
-    public uint? FermentingBarrels { get; init; }
+    public uint FermentingBarrels { get; init; }
 
     /// <summary>
     /// Every outfit, drug, food and reading policy and every allowed area.

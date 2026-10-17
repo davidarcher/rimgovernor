@@ -198,9 +198,9 @@ internal sealed partial class FacadeNativeClient
             CombatHiveTemperatureC = v.CombatHiveTemperatureC,
             WorldProgression = v.WorldProgression,
         };
-        if (v.ColonyFacts?.OutdoorTemperatureC is { } outdoor)
+        if (v.ColonyFacts is { } colony)
         {
-            frame = frame with { ColonyFacts = new PbObservations.ColonyFactsSnapshot { OutdoorTemperatureC = outdoor } };
+            frame = frame with { ColonyFacts = new PbObservations.ColonyFactsSnapshot { OutdoorTemperatureC = colony.OutdoorTemperatureC } };
         }
         return frame with { Things = things };
     }
@@ -364,9 +364,9 @@ internal sealed partial class FacadeNativeClient
             });
         }
         output = output with { Mortars = mortars };
-        if (v.ColonyFacts?.OutdoorTemperatureC is { } outdoor)
+        if (v.ColonyFacts is { } colony)
         {
-            output = output with { OutdoorTemperatureC = Fact.Known(outdoor) };
+            output = output with { OutdoorTemperatureC = Fact.Known(colony.OutdoorTemperatureC) };
         }
         if (v.CombatHiveTemperatureC is { } hive)
         {
@@ -442,7 +442,7 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>validateCombat</c>: checks a frame's combat rows.</summary>
     private static void ValidateCombat(PbObservations.BundleSnapshot v)
     {
-        if (v.ColonyFacts?.OutdoorTemperatureC is { } outdoor && (double.IsNaN(outdoor) || outdoor < -300 || outdoor > 300))
+        if (v.ColonyFacts is { OutdoorTemperatureC: var outdoor } && (double.IsNaN(outdoor) || outdoor < -300 || outdoor > 300))
         {
             throw BridgeFunctions.Contract("combat outdoor temperature");
         }

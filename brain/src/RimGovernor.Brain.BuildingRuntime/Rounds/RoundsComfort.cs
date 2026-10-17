@@ -268,19 +268,15 @@ internal static partial class BuildingRuntimePackage
         }
         foreach (var b in topology.Buildings)
         {
-            var ok = b.OutputW.TryGetValue(out var output);
-            var nk = b.Network.TryGetValue(out var net);
             var dx = cell.X - b.Cell.X;
             var dz = cell.Z - b.Cell.Z;
-            if (!ok || output <= 0 || !nk || b.Connected != Known(true) || (dx * dx) + (dz * dz) > 36)
+            if (b.OutputW <= 0 || !b.Connected || (dx * dx) + (dz * dz) > 36)
             {
                 continue;
             }
             foreach (var n in topology.Networks)
             {
-                var gk = n.GenerationW.TryGetValue(out var generation);
-                var ck = n.ConsumptionW.TryGetValue(out var consumption);
-                if (n.Id == net && gk && ck && generation - consumption >= watts)
+                if (n.Id == b.Network && n.GenerationW - n.ConsumptionW >= watts)
                 {
                     return true;
                 }

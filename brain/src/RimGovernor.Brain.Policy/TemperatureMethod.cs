@@ -144,7 +144,7 @@ public sealed record TemperatureCooling
             {
                 continue;
             }
-            if (b.Powered.TryGetValue(out var powered) && powered && inside.Contains(b.Cell))
+            if (b.Powered && inside.Contains(b.Cell))
             {
                 return true;
             }
@@ -344,28 +344,22 @@ public static partial class PolicyFunctions
     /// <summary>
     /// The largest surplus of nominal producer capacity over consumer demand across the topology's connected
     /// power networks, the same capacity-versus-demand reading the power family sizes its budget by. Unknown when
-    /// any connected building's draw or network is unknown, or when no network has a producer.
+    /// any connected building's draw is unknown, or when no network has a producer.
     /// </summary>
     public static Fact<double> SpareW(this PowerTopology t)
     {
         var nets = new Dictionary<string, (double Capacity, double Demand)>(StringComparer.Ordinal);
         foreach (var b in t.Buildings)
         {
-            if (!b.Connected.TryGetValue(out var connected))
-            {
-                return Unknown<double>();
-            }
-            if (!connected)
+            if (!b.Connected)
             {
                 continue;
             }
-            var wk = b.BaseW.TryGetValue(out var w);
-            var nk = b.Network.TryGetValue(out var id);
-            if (!wk || !nk)
+            if (!b.BaseW.TryGetValue(out var w))
             {
                 return Unknown<double>();
             }
-            nets.TryGetValue(id!, out var n);
+            nets.TryGetValue(b.Network, out var n);
             if (w > 0)
             {
                 n.Capacity += w;
@@ -374,7 +368,7 @@ public static partial class PolicyFunctions
             {
                 n.Demand -= w;
             }
-            nets[id!] = n;
+            nets[b.Network] = n;
         }
         var spare = 0.0;
         var have = false;

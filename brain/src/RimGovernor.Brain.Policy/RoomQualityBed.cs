@@ -170,10 +170,7 @@ public static partial class PolicyFunctions
         {
             beds[bed.Id] = bed;
             var ok = bed.Room.TryGetValue(out var bedRoom);
-            bed.Humanlike.TryGetValue(out var humanlike);
-            bed.Medical.TryGetValue(out var medical);
-            bed.Prisoners.TryGetValue(out var prisoners);
-            if (ok && !string.IsNullOrEmpty(bedRoom) && humanlike && !medical && !prisoners && !bed.Slaves)
+            if (ok && !string.IsNullOrEmpty(bedRoom) && bed.Humanlike && !bed.Medical && !bed.Prisoners && !bed.Slaves)
             {
                 if (!inRoom.TryGetValue(bedRoom, out var list))
                 {

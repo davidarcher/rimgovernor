@@ -48,15 +48,6 @@ public static partial class BridgeFunctions
             _ => "",
         };
 
-    /// <summary>Go's <c>WasteKindName</c>: policy's waste kind ("corpse", "spoiled").</summary>
-    public static string WasteKindName(WasteKind kind) =>
-        kind switch
-        {
-            WasteKind.Corpse => "corpse",
-            WasteKind.Spoiled => "spoiled",
-            _ => "",
-        };
-
     /// <summary>Go's <c>RepeatModeName</c>: the vanilla BillRepeatModeDef name of a repeat mode.</summary>
     public static string RepeatModeName(RepeatMode mode) =>
         mode switch

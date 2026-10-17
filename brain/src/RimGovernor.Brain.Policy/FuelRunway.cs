@@ -48,9 +48,9 @@ public sealed record FuelConsumer
 
     public Fact<bool> OutOfFuel { get; init; }
 
-    public Fact<bool> SwitchedOn { get; init; }
+    public bool SwitchedOn { get; init; }
 
-    public Fact<bool> Powered { get; init; }
+    public bool Powered { get; init; }
 
     public Fact<FuelBurn> Burn { get; init; }
 
@@ -58,7 +58,7 @@ public sealed record FuelConsumer
 
     /// <summary>
     /// Go <c>FuelConsumer.perDay</c>: the fuel units a day the building burns now, unknown for a comp that burns
-    /// per use or in rain, and when a fact its gate reads is unknown.
+    /// per use or in rain and when its burn is unknown.
     /// </summary>
     internal Fact<double> PerDay()
     {
@@ -66,27 +66,9 @@ public sealed record FuelConsumer
         {
             return Unknown<double>();
         }
-        if (burn.Flickable)
+        if ((burn.Flickable && !SwitchedOn) || (burn.WhenPowered && !Powered))
         {
-            if (!SwitchedOn.TryGetValue(out var on))
-            {
-                return Unknown<double>();
-            }
-            if (!on)
-            {
-                return Known(0.0);
-            }
-        }
-        if (burn.WhenPowered)
-        {
-            if (!Powered.TryGetValue(out var powered))
-            {
-                return Unknown<double>();
-            }
-            if (!powered)
-            {
-                return Known(0.0);
-            }
+            return Known(0.0);
         }
         return Known(burn.PerDay);
     }

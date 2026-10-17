@@ -259,7 +259,7 @@ public static partial class PolicyFunctions
         }
         foreach (var bed in obs.Beds)
         {
-            if (Positive(bed.Medical) && Positive(bed.Humanlike) && !Positive(bed.Prisoners))
+            if (bed.Medical && bed.Humanlike && !bed.Prisoners)
             {
                 return Known(true);
             }

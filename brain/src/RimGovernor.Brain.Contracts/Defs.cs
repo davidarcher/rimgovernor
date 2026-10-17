@@ -119,3 +119,25 @@ public enum TradeCurrency
     Favor = 1,
 }
 
+/// <summary>RimWorld.TechLevel, value for value.</summary>
+[JsonConverter(typeof(WireEnumConverter<TechLevel>))]
+public enum TechLevel
+{
+    [WireName("TECH_LEVEL_UNDEFINED")]
+    Undefined = 0,
+    [WireName("TECH_LEVEL_ANIMAL")]
+    Animal = 1,
+    [WireName("TECH_LEVEL_NEOLITHIC")]
+    Neolithic = 2,
+    [WireName("TECH_LEVEL_MEDIEVAL")]
+    Medieval = 3,
+    [WireName("TECH_LEVEL_INDUSTRIAL")]
+    Industrial = 4,
+    [WireName("TECH_LEVEL_SPACER")]
+    Spacer = 5,
+    [WireName("TECH_LEVEL_ULTRA")]
+    Ultra = 6,
+    [WireName("TECH_LEVEL_ARCHOTECH")]
+    Archotech = 7,
+}
+

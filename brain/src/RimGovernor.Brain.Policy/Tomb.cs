@@ -82,7 +82,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            if (item.State == WasteState.Buried)
+            if (item.Buried)
             {
                 filled.Add(item.Grave);
             }

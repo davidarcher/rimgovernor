@@ -63,8 +63,7 @@ public static partial class PolicyFunctions
             var connected = false;
             foreach (var b in power.Buildings)
             {
-                var nk = b.Network.TryGetValue(out var net);
-                connected = connected || (nk && net == review.PasteNetwork && Positive(b.Connected) && DistanceSquared(c.Cell, b.Cell) <= 36);
+                connected = connected || (b.Connected && b.Network == review.PasteNetwork && DistanceSquared(c.Cell, b.Cell) <= 36);
             }
             if (!connected)
             {

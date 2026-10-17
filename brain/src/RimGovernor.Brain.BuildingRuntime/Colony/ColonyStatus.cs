@@ -57,13 +57,13 @@ public sealed record ColonyStatusReport
     /// <summary>Whether the roster read found any living home colonist.</summary>
     public ColonyRoster Roster { get; init; }
 
-    public Fact<long> Colonists { get; init; }
+    public long Colonists { get; init; }
 
-    public Fact<long> Workers { get; init; }
+    public long Workers { get; init; }
 
-    public Fact<double> FoodNutrition { get; init; }
+    public double FoodNutrition { get; init; }
 
-    public Fact<double> NutritionPerDay { get; init; }
+    public double NutritionPerDay { get; init; }
 
     public Fact<double> FoodRunwayDays { get; init; }
 
@@ -72,8 +72,8 @@ public sealed record ColonyStatusReport
     /// <summary>The census's wealth split and raid points; unknown under a native build that does not report the section.</summary>
     public ColonyThreat Threat { get; init; } = new();
 
-    /// <summary>The player faction's native TechLevel name.</summary>
-    public Fact<string> PlayerTechLevel { get; init; }
+    /// <summary>The player faction's native TechLevel.</summary>
+    public RimGovernor.Contracts.Wire.Defs.TechLevel PlayerTechLevel { get; init; }
 
     /// <summary>The construction tier the last rounds derived from the tech level and finished research; unknown until a review with the research census has filed.</summary>
     public Fact<TechTier> TechTier { get; init; }
@@ -133,14 +133,14 @@ public sealed class ColonyStatus
         {
             Tick = new Tick((long)(observed.Context?.Tick ?? 0)),
             RosterTick = new Tick((long)(pawns.Context?.Tick ?? 0)),
-            Colonists = CountFact(observed.ColonistCount is not null, observed.ColonistCount.GetValueOrDefault()),
-            Workers = CountFact(observed.WorkerCount is not null, observed.WorkerCount.GetValueOrDefault()),
-            FoodNutrition = OptionalFact(observed.FoodNutrition is not null, observed.FoodNutrition.GetValueOrDefault()),
-            NutritionPerDay = OptionalFact(observed.NutritionPerDay is not null, observed.NutritionPerDay.GetValueOrDefault()),
+            Colonists = observed.ColonistCount,
+            Workers = observed.WorkerCount,
+            FoodNutrition = observed.FoodNutrition,
+            NutritionPerDay = observed.NutritionPerDay,
             FoodRunwayDays = OptionalFact(observed.FoodRunwayDays is not null, observed.FoodRunwayDays.GetValueOrDefault()),
             PendingFoodNutrition = OptionalFact(observed.PendingFoodNutrition is not null, observed.PendingFoodNutrition.GetValueOrDefault()),
             Threat = BridgeApi.ProjectColonyThreat(observed),
-            PlayerTechLevel = observed.PlayerTechLevel is not null ? Known((observed.PlayerTechLevel ?? "")) : Unknown<string>(),
+            PlayerTechLevel = observed.PlayerTechLevel,
             TechTier = Unknown<TechTier>(),
             Stockpiles = Unknown<EquatableArray<StockpileRoleCount>>(),
             ForbiddenSupplies = Unknown<bool>(),
@@ -192,8 +192,6 @@ public sealed class ColonyStatus
         report = report with { Pawns = rows, Roster = rows.Count == 0 ? ColonyRoster.NoColonists : ColonyRoster.Colonists };
         return report;
     }
-
-    private static Fact<long> CountFact(bool has, uint value) => has ? Known((long)value) : Unknown<long>();
 
     private static Fact<double> OptionalFact(bool has, double value) => has ? Known(value) : Unknown<double>();
 

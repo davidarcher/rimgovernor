@@ -80,10 +80,6 @@ public sealed record WallUpgradeSite
 
     public IReadOnlyList<DomainCell> BackupCells { get; init; } = [];
 
-    public bool LeftSupport { get; init; }
-
-    public bool RightSupport { get; init; }
-
     /// <summary>Whether the site names a present target and nothing blocks it.</summary>
     public bool Eligible() => TargetId.Length != 0 && TargetPresent && Blocker.Length == 0;
 }

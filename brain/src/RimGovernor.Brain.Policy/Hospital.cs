@@ -167,18 +167,11 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var hk = bed.Humanlike.TryGetValue(out var humanlike);
-            var mk = bed.Medical.TryGetValue(out var isMedical);
-            var pk = bed.Prisoners.TryGetValue(out var prisoners);
-            if (!hk || !mk || !pk)
-            {
-                return choice with { Method = HospitalMethod.Unknown };
-            }
-            if (!humanlike || prisoners)
+            if (!bed.Humanlike || bed.Prisoners)
             {
                 continue;
             }
-            if (isMedical)
+            if (bed.Medical)
             {
                 medical++;
                 continue;
@@ -285,10 +278,7 @@ public static partial class PolicyFunctions
         {
             foreach (var bed in sleeping.Beds)
             {
-                var humanlike = bed.Humanlike.ValueOrDefault;
-                var mk = bed.Medical.TryGetValue(out var medical);
-                var prisoners = bed.Prisoners.ValueOrDefault;
-                if (humanlike && mk && !medical && !prisoners)
+                if (bed.Humanlike && !bed.Medical && !bed.Prisoners)
                 {
                     capacity++;
                 }

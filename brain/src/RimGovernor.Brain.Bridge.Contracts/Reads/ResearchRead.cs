@@ -20,8 +20,6 @@ public sealed record ResearchRead
 
     public IReadOnlyList<string> Finished { get; init; } = [];
 
-    public IReadOnlyList<string> Researchers { get; init; } = [];
-
     /// <summary>Every Anomaly knowledge category's slot, sorted by category; empty when Anomaly is inactive.</summary>
     public IReadOnlyList<KnowledgeSlot> Knowledge { get; init; } = [];
 

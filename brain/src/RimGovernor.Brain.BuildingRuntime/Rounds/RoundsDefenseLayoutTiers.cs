@@ -150,7 +150,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var output = new List<Cell>();
         foreach (var b in topology.Buildings)
         {
-            if (!b.Network.TryGetValue(out var id) || id != network)
+            if (b.Network != network)
             {
                 continue;
             }

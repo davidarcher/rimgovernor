@@ -412,13 +412,6 @@ public static partial class PolicyFunctions
             {
                 throw new DomainException("duplicate power network");
             }
-            foreach (var w in new[] { n.GenerationW, n.ConsumptionW, n.StoredWD, n.CapacityWD })
-            {
-                if (w.TryGetValue(out var x) && (double.IsNaN(x) || double.IsInfinity(x) || x < 0 || x > 1e12))
-                {
-                    throw new DomainException("invalid power network energy");
-                }
-            }
             networks[n.Id] = n;
         }
         if (bounds.Width < 1 || bounds.Height < 1 || bounds.Width > 4096 || bounds.Height > 4096 || v.Buildings.Count + v.Conduits.Count > 256)
@@ -447,32 +440,7 @@ public static partial class PolicyFunctions
             {
                 throw new DomainException("power anchor outside footprint");
             }
-            foreach (var watts in new[] { b.BaseW, b.OutputW })
-            {
-                var k = watts.TryGetValue(out var w);
-                if (k && (double.IsNaN(w) || double.IsInfinity(w) || Math.Abs(w) > 1e12))
-                {
-                    throw new DomainException("invalid power wattage");
-                }
-                complete = complete && k;
-            }
-            foreach (var amount in new[] { b.Fuel, b.TargetFuel, b.Stored, b.Capacity })
-            {
-                if (amount.TryGetValue(out var x) && (double.IsNaN(x) || double.IsInfinity(x) || x < 0 || x > 1e12))
-                {
-                    throw new DomainException("invalid power service amount");
-                }
-            }
-            var ck = b.Connected.TryGetValue(out var connected);
-            var nk = b.Network.TryGetValue(out var net);
-            if (nk && (!FoodId(net!) || (ck && !connected)))
-            {
-                throw new DomainException("invalid power network");
-            }
-            var pk = b.Powered.TryGetValue(out _);
-            var fk = b.Forbidden.TryGetValue(out _);
-            var sk = b.SwitchedOn.TryGetValue(out _);
-            complete = complete && ck && (!connected || nk) && pk && fk && sk;
+            complete = complete && b.BaseW.IsKnown;
         }
         var existing = new HashSet<Cell>();
         foreach (var c in v.Conduits)
@@ -547,17 +515,13 @@ public static partial class PolicyFunctions
         // vulnerable definitions; weather need not already be wet.
         foreach (var b in v.Buildings)
         {
-            if (!Positive(b.RainVulnerable) || Positive(b.Roofed))
+            if (!b.RainVulnerable || b.Roofed)
             {
                 continue;
             }
-            if (!b.Forbidden.TryGetValue(out var forbidden) || forbidden)
+            if (b.Forbidden)
             {
                 return new PowerProposal { Method = PowerMethod.WaitPlayer };
-            }
-            if (!b.Roofed.TryGetValue(out _))
-            {
-                return new PowerProposal { Method = PowerMethod.Unknown };
             }
             var (room, ok) = PowerShelter(b, cells, blocked, bounds, planning.Light);
             if (!ok)
@@ -604,22 +568,15 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            target.Forbidden.TryGetValue(out var targetForbidden);
-            target.SwitchedOn.TryGetValue(out var targetSwitched);
-            if (targetForbidden || !targetSwitched)
+            if (target.Forbidden || !target.SwitchedOn)
             {
                 result = result with { Method = PowerMethod.WaitPlayer };
                 continue;
             }
-            target.Connected.TryGetValue(out var connected);
-            target.Powered.TryGetValue(out var powered);
-            target.Network.TryGetValue(out var network);
-            bool Same(PowerSite b)
-            {
-                b.Network.TryGetValue(out var n);
-                b.Connected.TryGetValue(out var c);
-                return connected && c && n == network;
-            }
+            var connected = target.Connected;
+            var powered = target.Powered;
+            var network = target.Network;
+            bool Same(PowerSite b) => connected && b.Connected && b.Network == network;
             double demand = 0, capacity = 0, output = 0;
             var connectedProducers = 0;
             bool disabledProducer = false, unfueledProducer = false, brokenProducer = false;
@@ -632,8 +589,7 @@ public static partial class PolicyFunctions
                     continue;
                 }
                 b.BaseW.TryGetValue(out var w);
-                b.OutputW.TryGetValue(out var actual);
-                output += actual;
+                output += b.OutputW;
                 if (b.Capacity.TryGetValue(out var storage))
                 {
                     budgetCapacity += storage;
@@ -651,13 +607,10 @@ public static partial class PolicyFunctions
                         throw new DomainException($"power producer {b.Definition} has no catalog power source profile");
                     }
                     budgetProducers.Add(new PowerProducer { Definition = b.Definition, NominalW = w, Profile = profile });
-                    b.Forbidden.TryGetValue(out var f);
-                    b.SwitchedOn.TryGetValue(out var s);
-                    disabledProducer = disabledProducer || f || !s;
+                    disabledProducer = disabledProducer || b.Forbidden || !b.SwitchedOn;
                     b.OutOfFuel.TryGetValue(out var empty);
-                    b.BrokenDown.TryGetValue(out var broken);
                     unfueledProducer = unfueledProducer || empty;
-                    brokenProducer = brokenProducer || broken;
+                    brokenProducer = brokenProducer || b.BrokenDown;
                 }
             }
             var budget = new PowerBudgetInput
@@ -675,20 +628,10 @@ public static partial class PolicyFunctions
             var reserveShort = false;
             if (connected && powered)
             {
-                if (network is not null && networks.TryGetValue(network, out var net))
+                if (networks.TryGetValue(network, out var net))
                 {
-                    if (net.ReserveDays().TryGetValue(out var days) && days < planning.ReserveMinDays)
-                    {
-                        reserveShort = true;
-                    }
-                    if (net.StoredWD.TryGetValue(out var stored))
-                    {
-                        var night = ComputePowerBudget(budget).NightDeficitWD;
-                        if (night > 0 && stored < night)
-                        {
-                            reserveShort = true;
-                        }
-                    }
+                    var night = ComputePowerBudget(budget).NightDeficitWD;
+                    reserveShort = net.ReserveDays() < planning.ReserveMinDays || (night > 0 && net.StoredWD < night);
                 }
             }
             if (connected && powered && output >= 0 && !reserveShort)
@@ -738,9 +681,7 @@ public static partial class PolicyFunctions
                 var destinations = new HashSet<Cell>();
                 foreach (var b in producers)
                 {
-                    b.Forbidden.TryGetValue(out var f);
-                    b.SwitchedOn.TryGetValue(out var s);
-                    if (f || !s)
+                    if (b.Forbidden || !b.SwitchedOn)
                     {
                         continue;
                     }
@@ -784,11 +725,7 @@ public static partial class PolicyFunctions
         foreach (var b in v.Buildings)
         {
             b.BaseW.TryGetValue(out var w);
-            b.OutputW.TryGetValue(out var output);
-            b.Powered.TryGetValue(out var powered);
-            b.Forbidden.TryGetValue(out var f);
-            b.SwitchedOn.TryGetValue(out var s);
-            if (w <= 0 || output <= 0 || !powered || f || !s)
+            if (w <= 0 || b.OutputW <= 0 || !b.Powered || b.Forbidden || !b.SwitchedOn)
             {
                 continue;
             }
@@ -805,10 +742,7 @@ public static partial class PolicyFunctions
         foreach (var target in v.Buildings)
         {
             target.BaseW.TryGetValue(out var baseW);
-            var ck = target.Connected.TryGetValue(out var connected);
-            target.Forbidden.TryGetValue(out var f);
-            target.SwitchedOn.TryGetValue(out var s);
-            if (baseW >= 0 || !ck || connected || f || !s)
+            if (baseW >= 0 || target.Connected || target.Forbidden || !target.SwitchedOn)
             {
                 continue;
             }

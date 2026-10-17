@@ -144,8 +144,8 @@ public static partial class ObservationPackage
     private static Fact<EquatableArray<MoodPawn>> RoundsMood(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot)
     {
         var unknown = Unknown<EquatableArray<MoodPawn>>();
-        if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || colony.ColonistCount is null || snapshot is null
-            || colony.ColonistCount.GetValueOrDefault() != emergency.Colonists.Count)
+        if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || snapshot is null
+            || colony.ColonistCount != emergency.Colonists.Count)
         {
             return unknown;
         }
@@ -317,7 +317,7 @@ public static partial class ObservationPackage
     private static (Fact<long> Armed, Fact<long> Unarmed) RoundsArmed(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns, CreepJoinerDownsides downsides)
     {
         var unknown = Unknown<long>();
-        if (colony is null || colony.ColonistCount is null || colony.ColonistCount.GetValueOrDefault() != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
+        if (colony is null || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
         {
             return (unknown, unknown);
         }
@@ -383,7 +383,7 @@ public static partial class ObservationPackage
     private static Fact<EquatableArray<SquadDefenderFacts>> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns)
     {
         var unknown = Unknown<EquatableArray<SquadDefenderFacts>>();
-        if (colony is null || colony.ColonistCount is null || colony.ColonistCount.GetValueOrDefault() != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
+        if (colony is null || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
         {
             return unknown;
         }

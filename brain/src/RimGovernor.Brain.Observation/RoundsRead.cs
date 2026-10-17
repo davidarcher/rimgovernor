@@ -196,7 +196,7 @@ public static partial class ObservationPackage
             var thoughtFacts = catalog?.AllThoughtFacts() ?? new Dictionary<string, ThoughtFacts>();
             p = p with { Facts = p.Facts with { MoodLedger = RoundsMoodLedger(p.Facts.MoodPawns, pawns, thoughtFacts) } };
         }
-        else if (emergency.ColonistsComplete.TryGetValue(out var complete) && complete && emergency.Colonists.Count == 0 && colony.ColonistCount is not null && colony.ColonistCount.GetValueOrDefault() == 0)
+        else if (emergency.ColonistsComplete.TryGetValue(out var complete) && complete && emergency.Colonists.Count == 0 && colony.ColonistCount == 0)
         {
             p = p with
             {

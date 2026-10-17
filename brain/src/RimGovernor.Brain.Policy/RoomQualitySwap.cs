@@ -50,10 +50,7 @@ public static partial class PolicyFunctions
         foreach (var bed in obs.Beds)
         {
             var ok = bed.Room.TryGetValue(out var room);
-            bed.Humanlike.TryGetValue(out var humanlike);
-            bed.Medical.TryGetValue(out var medical);
-            bed.Prisoners.TryGetValue(out var prisoners);
-            if (!ok || string.IsNullOrEmpty(room) || !humanlike || medical || prisoners || bed.Slaves || bed.Owners.Count == 0)
+            if (!ok || string.IsNullOrEmpty(room) || !bed.Humanlike || bed.Medical || bed.Prisoners || bed.Slaves || bed.Owners.Count == 0)
             {
                 continue;
             }

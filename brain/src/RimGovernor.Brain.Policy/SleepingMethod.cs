@@ -345,14 +345,9 @@ public static partial class PolicyFunctions
             }
             foreach (var b in beds)
             {
-                b.Humanlike.TryGetValue(out var human);
-                var mk = b.Medical.TryGetValue(out var medical);
-                var pk = b.Prisoners.TryGetValue(out var prisoner);
-                b.Roofed.TryGetValue(out var roof);
-                b.RestEffectiveness.TryGetValue(out var rest);
                 var tk = b.Temperature.TryGetValue(out var temperature);
-                if (!human || !mk || medical || !pk || prisoner || b.Slaves || !roof || b.Owners.Count != 0 || b.Definition.Value == SleepingSpotDefinition
-                    || rest <= 0 || !tk || temperature < lo || temperature > hi || !b.AccessibleTo.Contains(p.Id))
+                if (!b.Humanlike || b.Medical || b.Prisoners || b.Slaves || !b.Roofed || b.Owners.Count != 0 || b.Definition.Value == SleepingSpotDefinition
+                    || b.RestEffectiveness <= 0 || !tk || temperature < lo || temperature > hi || !b.AccessibleTo.Contains(p.Id))
                 {
                     continue;
                 }

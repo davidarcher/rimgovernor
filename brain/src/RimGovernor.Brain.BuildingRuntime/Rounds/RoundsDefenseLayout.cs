@@ -414,7 +414,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     facts = facts with { Definition = site.Definition };
                     facts = facts with { Dps = site.TurretDps };
                     facts = facts with { Id = site.Id };
-                    facts = facts with { Powered = site.Powered };
+                    facts = facts with { Powered = Known(site.Powered) };
                     facts = facts with { OutOfFuel = site.OutOfFuel };
                     facts = facts with { FuelDefinitions = [.. site.FuelDefinitions.Select(d => new Resource(d))] };
                 }
@@ -527,12 +527,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var spare = 0.0;
         foreach (var net in topology.Networks)
         {
-            var gk = net.GenerationW.TryGetValue(out var generation);
-            var ck = net.ConsumptionW.TryGetValue(out var consumption);
-            if (gk && ck && generation > 0 && (best == "" || generation - consumption > spare))
+            if (net.GenerationW > 0 && (best == "" || net.GenerationW - net.ConsumptionW > spare))
             {
                 best = net.Id;
-                spare = generation - consumption;
+                spare = net.GenerationW - net.ConsumptionW;
             }
         }
         if (best == "")

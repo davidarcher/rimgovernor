@@ -146,10 +146,7 @@ public static partial class PolicyFunctions
         var shortfall = 0.0;
         foreach (var n in nets)
         {
-            if (!n.ReserveDays().TryGetValue(out var days) || double.IsNaN(days) || days < 0)
-            {
-                return Unknown<PowerProjection>();
-            }
+            var days = n.ReserveDays();
             var row = new PowerNetProjection(n.Id, days, RunwayShortfall(days, MaintenanceHorizonDays));
             shortfall = Math.Max(shortfall, row.ShortfallDays);
             rows.Add(row);

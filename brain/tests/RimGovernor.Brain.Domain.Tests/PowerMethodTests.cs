@@ -20,12 +20,12 @@ public sealed class PowerMethodTests
         Cell = cell,
         Occupied = [cell],
         BaseW = Known(watts),
-        OutputW = Known(output),
-        Connected = Known(true),
-        Network = Known("net"),
-        Powered = Known(powered),
-        Forbidden = Known(false),
-        SwitchedOn = Known(true),
+        OutputW = output,
+        Connected = true,
+        Network = "net",
+        Powered = powered,
+        Forbidden = false,
+        SwitchedOn = true,
     };
 
     // power/fuel's native half stages the generator and the refuel; this is the planner's half: an empty generator that

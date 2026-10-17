@@ -5,7 +5,7 @@ public static partial class ObservationPackage
     internal static Fact<SleepingObservation> ColonySleeping(O.ColonyFactsSnapshot v, Buildings buildings, DefinitionCatalog? catalog)
     {
         var u = v.Upkeep?.Outcome?.Observed;
-        if (u is null || v.ColonistCount is null || HasIssue(u.Issues, "people") || HasIssue(u.Issues, "beds"))
+        if (u is null || HasIssue(u.Issues, "people") || HasIssue(u.Issues, "beds"))
         {
             return Unknown<SleepingObservation>();
         }
@@ -43,7 +43,7 @@ public static partial class ObservationPackage
         }
         var r = new SleepingObservation
         {
-            Colonists = (int)v.ColonistCount.GetValueOrDefault(),
+            Colonists = (int)v.ColonistCount,
             People = People(u.People),
             Slaves = People(u.Slaves),
             Guests = People(u.Guests),
@@ -77,13 +77,13 @@ public static partial class ObservationPackage
             {
                 Id = b.Bed.Id ?? "",
                 Definition = new Resource((head.DefName ?? "")),
-                Humanlike = Known(humanlike),
+                Humanlike = humanlike,
                 Crib = crib,
-                Medical = Known(b.Medical),
-                Prisoners = Known(b.Prisoners),
+                Medical = b.Medical,
+                Prisoners = b.Prisoners,
                 Slaves = b.ForSlaves,
-                Roofed = Known(b.Roofed),
-                RestEffectiveness = Known((double)(float)rest),
+                Roofed = b.Roofed,
+                RestEffectiveness = (float)rest,
                 Temperature = Optional(b.TemperatureC is not null, b.TemperatureC.GetValueOrDefault()),
                 Owners = Ids(RefIds(b.Owners)),
                 Users = Ids(RefIds(b.Users)),
@@ -100,21 +100,14 @@ public static partial class ObservationPackage
     /// <summary>
     /// The room-quality view of the frame's rooms census: every room holding a colonist bed (humanlike, not
     /// medical, not for prisoners) or carrying a common role (dining, rec room) and not fogged, with its native
-    /// stats. Unknown when a bed's kind or room is unknown; a room missing any quality stat has unknown quality.
+    /// stats. Unknown when a bed's room is unknown; a room missing any quality stat has unknown quality.
     /// </summary>
     internal static Fact<EquatableArray<UpkeepRoom>> UpkeepRooms(O.RoomsSnapshot? census, EquatableArray<SleepingBed> beds)
     {
         var owned = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var b in beds)
         {
-            var hk = b.Humanlike.TryGetValue(out var human);
-            var mk = b.Medical.TryGetValue(out var medical);
-            var pk = b.Prisoners.TryGetValue(out var prisoners);
-            if (!hk || !mk || !pk)
-            {
-                return Unknown<EquatableArray<UpkeepRoom>>();
-            }
-            if (!human || medical || prisoners)
+            if (!b.Humanlike || b.Medical || b.Prisoners)
             {
                 continue;
             }

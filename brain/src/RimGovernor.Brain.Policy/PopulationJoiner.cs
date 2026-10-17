@@ -263,10 +263,7 @@ public static partial class PolicyFunctions
         }
         foreach (var bed in census.Beds)
         {
-            var hk = bed.Humanlike.TryGetValue(out var humanlike);
-            var mk = bed.Medical.TryGetValue(out var medical);
-            var pk = bed.Prisoners.TryGetValue(out var prisoners);
-            if (hk && mk && pk && humanlike && !medical && !prisoners && bed.Owners.Count == 0)
+            if (bed.Humanlike && !bed.Medical && !bed.Prisoners && bed.Owners.Count == 0)
             {
                 return Known(true);
             }

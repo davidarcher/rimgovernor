@@ -214,8 +214,8 @@ public static class CellReads
     public static async Task<MapCellGrid> MapCellsAsync(this Harness harness, string label, JsonNode identity, CancellationToken cancellationToken)
     {
         var (anchor, _) = await harness.ReadCellsAsync(label + "-size", identity, new Cell(0, 0), new Cell(0, 0), cancellationToken).ConfigureAwait(false);
-        var width = checked((int)(anchor.MapSize?.Width ?? 0));
-        var height = checked((int)(anchor.MapSize?.Height ?? 0));
+        var width = checked((int)anchor.MapSize.Width);
+        var height = checked((int)anchor.MapSize.Height);
         var (_, grid) = await harness.ReadCellsAsync(label, identity, new Cell(0, 0), new Cell(width - 1, height - 1), cancellationToken).ConfigureAwait(false);
         return grid;
     }

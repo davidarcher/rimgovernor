@@ -112,7 +112,7 @@ namespace HomeBridge.BridgeTools
             });
             Read("fires", () => {
                 var rows = sets.Fires.OrderBy(f => f.thingIDNumber).ToList();
-                var values = rows.Select(f => new Obs.FireState { Fire = NativeRef.Thing(f), Home = map.areaManager.Home[f.Position], Size = Number(f.fireSize) }).ToList();
+                var values = rows.Select(f => new Obs.FireState { Fire = NativeRef.Thing(f), Home = map.areaManager.Home[f.Position], Size = f.fireSize }).ToList();
                 result = result with { Fires = [.. result.Fires, .. values] };
             });
             Read("filth", () => {
@@ -121,16 +121,7 @@ namespace HomeBridge.BridgeTools
                 // ever target (upkeep orders require the home area), and a
                 // whole-map census exceeded the bound on every real map.
                 var rows = sets.Filth.Where(f => map.areaManager.Home[f.Position]).OrderBy(f => f.thingIDNumber).ToList();
-                var values = rows.Select(f => {
-                    var value = new Obs.FilthState { Filth = NativeRef.Thing(f), Home = map.areaManager.Home[f.Position], Thickness = checked((uint)f.thickness) };
-                    var room = f.GetRoom();
-                    if (room?.Role != null) value = value with { RoomRole = Id(room.Role.defName) };
-                    // The same room identity the typed room census reports, so
-                    // the controller can pair filth with a measured room
-                    // cleanliness instead of a role name alone.
-                    if (room != null) value = value with { Room = NativeRef.Room(room) };
-                    return value;
-                }).ToList();
+                var values = rows.Select(f => new Obs.FilthState { Filth = NativeRef.Thing(f) }).ToList();
                 result = result with { Filth = [.. result.Filth, .. values] };
             });
             // Home-area auto-expand, a save-level setting.

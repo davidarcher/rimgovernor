@@ -38,7 +38,7 @@ public static partial class ObservationPackage
     internal static Fact<EquatableArray<WorkPawn>> RoundsWork(
         O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot snapshot, DefinitionCatalog? catalog, Things things)
     {
-        if (colony is null || colony.ColonistCount is null || (int)colony.ColonistCount.GetValueOrDefault() != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
+        if (colony is null || (int)colony.ColonistCount != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
         {
             return Unknown<EquatableArray<WorkPawn>>();
         }

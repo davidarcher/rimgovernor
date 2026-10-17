@@ -25,7 +25,7 @@ public sealed class JoinersAnomalyFamilyTests
         FoodDays = Known(20.0),
         Sleeping = Known(new SleepingObservation
         {
-            Beds = [new SleepingBed { Id = "bed", Humanlike = Known(true), Medical = Known(false), Prisoners = Known(false) }],
+            Beds = [new SleepingBed { Id = "bed", Humanlike = true }],
         }),
     };
 

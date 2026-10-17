@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
                 var player = Faction.OfPlayerSilentFail;
                 if (manager == null || player?.def == null)
                     return new Obs.ResearchReply { Outcome = Missing(Common.UnavailableReason.NativeComponentMissing, "Research manager or player faction is unavailable.") };
-                return new Obs.ResearchReply { Outcome = Read(parsed, context, map, manager, player) };
+                return new Obs.ResearchReply { Outcome = Read(parsed, context, manager) };
             }
             catch (Exception thrown) { ModLog.Error("observe", "Research read failed: " + thrown); return new Obs.ResearchReply { Outcome = Missing(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Research state or required native eligibility facts could not be read completely: " + thrown.GetType().Name + ": " + thrown.Message)) }; }
         }
@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
             var manager = Find.ResearchManager;
             var player = Faction.OfPlayerSilentFail;
             if (manager == null || player?.def == null) throw new InvalidOperationException("Research manager or player faction unavailable.");
-            return Read(request, context, map, manager, player);
+            return Read(request, context, manager);
         }
 
         internal static bool Validate(Obs.ResearchRequest request, out Common.Failure failure)
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
             return Math.Min(1, progress / cost);
         }
 
-        private static Obs.ResearchSnapshot Read(Obs.ResearchRequest request, Common.ObservationContext context, Map map, ResearchManager manager, Faction player)
+        private static Obs.ResearchSnapshot Read(Obs.ResearchRequest request, Common.ObservationContext context, ResearchManager manager)
         {
             var points = new Dictionary<string, double>(StringComparer.Ordinal);
             var progress = Backing<Dictionary<ResearchProjectDef, float>>(manager, "progress");
@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
             var anomaly = ModsConfig.AnomalyActive;
             var current = manager.GetProject(); // Null-category overload reads only currentProj.
             var selected = new HashSet<ResearchProjectDef>();
-            var snapshot = new Obs.ResearchSnapshot { Context = context, AnomalyActive = anomaly, PlayerTechLevel = Id(player.def.techLevel.ToString()) };
+            var snapshot = new Obs.ResearchSnapshot { Context = context };
             var ordinary = new Obs.ResearchSlot();
             if (current != null) { ordinary = ordinary with { CurrentProject = Id(current.defName) }; selected.Add(current); }
             snapshot = snapshot with { Slots = [.. snapshot.Slots, ordinary] };
@@ -103,7 +103,6 @@ namespace HomeBridge.BridgeTools
                 if (slots != null && slots.Any(s => s == null || !categories.Contains(s.category))) throw new InvalidOperationException();
             }
             var definitions = DefDatabase<ResearchProjectDef>.AllDefsListForReading;
-            var filtered = 0;
             var built = new List<Obs.ResearchProject>();
             foreach (var def in definitions.OrderBy(d => d.defName, StringComparer.Ordinal))
             {
@@ -121,26 +120,24 @@ namespace HomeBridge.BridgeTools
                     // knowledge slots are filled from this list.
                     var selectedRow = selected.Contains(def);
                     var knowledgeRow = anomaly && def.knowledgeCategory != null && !finished;
-                    if (hidden && !knowledgeRow || finished && !selectedRow || !selectedRow && !knowledgeRow && reached <= 0) { filtered++; continue; }
+                    if (hidden && !knowledgeRow || finished && !selectedRow || !selectedRow && !knowledgeRow && reached <= 0) continue;
                     var slim = Project(def, manager, progress, knowledge, anomaly, reached, cost, finished, selectedRow);
                     var kept = new Obs.ResearchProject { Project = slim.Project, Finished = slim.Finished, Current = slim.Current, Progress = slim.Progress };
                     if (slim.ProgressFraction is not null) kept = kept with { ProgressFraction = slim.ProgressFraction };
-                    if (selectedRow || knowledgeRow) { kept = kept with { LockReasons = [.. kept.LockReasons, .. slim.LockReasons] }; kept = kept with { CanStart = slim.CanStart }; kept = kept with { Available = slim.Available }; kept = kept with { TechprintsApplied = slim.TechprintsApplied }; }
+                    if (selectedRow || knowledgeRow) { kept = kept with { LockReasons = [.. kept.LockReasons, .. slim.LockReasons] }; kept = kept with { CanStart = slim.CanStart }; kept = kept with { Available = slim.Available }; }
                     points[def.defName] = reached;
                     built.Add(kept);
                     continue;
                 }
                 if (hidden || finished && !request.IncludeFinished.GetValueOrDefault() || request.NameContains is not null && (request.NameContains ?? "").Length != 0
                     && def.defName.IndexOf((request.NameContains ?? ""), StringComparison.OrdinalIgnoreCase) < 0
-                    && (def.label ?? "").IndexOf((request.NameContains ?? ""), StringComparison.OrdinalIgnoreCase) < 0) { filtered++; continue; }
+                    && (def.label ?? "").IndexOf((request.NameContains ?? ""), StringComparison.OrdinalIgnoreCase) < 0) continue;
                 var row = Project(def, manager, progress, knowledge, anomaly, reached, cost, finished, selected.Contains(def));
                 points[def.defName] = reached;
-                if (!finished && !row.CanStart.GetValueOrDefault() && !request.IncludeLocked.GetValueOrDefault()) { filtered++; continue; }
+                if (!finished && !row.CanStart.GetValueOrDefault() && !request.IncludeLocked.GetValueOrDefault()) continue;
                 built.Add(row);
             }
             snapshot = snapshot with { Projects = [.. snapshot.Projects, .. built] };
-            snapshot = snapshot with { Completeness = Complete(built.Count, filtered) };
-            if (request.IncludeCapability.GetValueOrDefault()) snapshot = Capability(snapshot, map);
             snapshot = snapshot with { Snapshot = Token(context, snapshot, points) };
             return snapshot;
         }
@@ -160,7 +157,6 @@ namespace HomeBridge.BridgeTools
                 if (!Finished(Progress(prerequisite, progress, knowledge, anomaly), prerequisite.Cost)) row = row with { LockReasons = [.. row.LockReasons, "hidden_prerequisite:" + Id(prerequisite.defName)] };
             var applied = manager.GetTechprints(def); var needed = def.TechprintCount;
             if (applied < 0 || needed < 0) throw new InvalidOperationException();
-            row = row with { TechprintsApplied = (uint)applied };
             if (applied < needed) row = row with { LockReasons = [.. row.LockReasons, "techprints"] };
             // Native CanStartNow only demands a bench for a project that names
             // one, yet no project progresses without a bench the researcher can
@@ -182,39 +178,20 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        private static Obs.ResearchSnapshot Capability(Obs.ResearchSnapshot snapshot, Map map)
-        {
-            var pawns = map.mapPawns.FreeColonistsSpawned; 
-            if (WorkTypeDefOf.Research == null || SkillDefOf.Intellectual == null) throw new InvalidOperationException();
-            foreach (var pawn in pawns)
-            {
-                var row = new Obs.Researcher { Pawn = NativeRef.Thing(pawn) };
-                var settings = pawn.workSettings;
-                row = row with { EverWork = settings != null && settings.EverWork };
-                row = row with { Disabled = pawn.WorkTypeIsDisabled(WorkTypeDefOf.Research) };
-                if (row.EverWork.GetValueOrDefault() && !row.Disabled.GetValueOrDefault()) { row = row with { Priority = settings!.GetPriority(WorkTypeDefOf.Research) }; row = row with { Active = row.Priority.GetValueOrDefault() > 0 }; }
-                else row = row with { Active = false };
-                var skill = pawn.skills?.skills?.SingleOrDefault(s => s.def == SkillDefOf.Intellectual);
-                if (skill != null) row = row with { Intellectual = skill.Level };
-                snapshot = snapshot with { Researchers = [.. snapshot.Researchers, row] };
-            }
-            return snapshot;
-        }
         private static void Number(double value) { if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) throw new InvalidOperationException("Invalid research quantity."); }
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid research identifier.");
         private static Obs.DefinitionRef Definition(Def def) => new Obs.DefinitionRef { DefName = Id(def.defName) };
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(Common.UnavailableReason.ReadFailed, detail) };
-        private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Filtered = (ulong)filtered };
         // Stateless hash over the fields this reply actually returned; recomputed
         // fresh each call, same pattern as NativeObservationSnapshot's other tokens.
         private static Obs.SnapshotRef Token(Common.ObservationContext context, Obs.ResearchSnapshot snapshot, IDictionary<string, double> points)
             => NativeObservationSnapshot.Snapshot("research", context, "research-manager", w => {
-                w.Write(snapshot.AnomalyActive.GetValueOrDefault()); w.Write(snapshot.PlayerTechLevel ?? "");
+                w.Write(ModsConfig.AnomalyActive);
                 foreach (var name in snapshot.Finished) w.Write(name);
                 foreach (var slot in snapshot.Slots) { w.Write(slot.Category ?? ""); w.Write(slot.CurrentProject ?? ""); }
-                foreach (var project in snapshot.Projects.OrderBy(p => (p.Project?.DefName ?? ""), StringComparer.Ordinal))
-                { w.Write((project.Project?.DefName ?? "")); w.Write(points[(project.Project?.DefName ?? "")]); w.Write(project.Finished.GetValueOrDefault()); w.Write(project.Current.GetValueOrDefault()); }
+                foreach (var project in snapshot.Projects.OrderBy(p => p.Project.DefName ?? "", StringComparer.Ordinal))
+                { w.Write(project.Project.DefName ?? ""); w.Write(points[project.Project.DefName ?? ""]); w.Write(project.Finished); w.Write(project.Current); }
             });
     }
 }

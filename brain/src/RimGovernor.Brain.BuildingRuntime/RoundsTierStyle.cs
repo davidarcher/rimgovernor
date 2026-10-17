@@ -26,14 +26,7 @@ internal static partial class BuildingRuntimePackage
         {
             return Unknown<bool>();
         }
-        foreach (var net in topology.Networks)
-        {
-            if (net.GenerationW.TryGetValue(out var generation) && generation > 0)
-            {
-                return Known<bool>(true);
-            }
-        }
-        return Known<bool>(false);
+        return Known(topology.Networks.Any(net => net.GenerationW > 0));
     }
 
     /// <summary>

@@ -18,25 +18,22 @@ public sealed class EconomyFamilyTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
-    private static ResearchProjectFacts Project(string name, string[]? prerequisites = null, string[]? locks = null, string category = "", double cost = 1) => new()
+    private static KeyValuePair<string, ResearchProjectFacts> Project(string name, string[]? prerequisites = null, string[]? locks = null, string category = "", double cost = 1) => new(name, new()
     {
-        Name = new(name),
-        Hidden = Known(false),
         KnowledgeCategory = category,
-        Prerequisites = Known(EquatableArray.From((prerequisites ?? []).Select(p => new ResearchProjectId(p)))),
-        HiddenPrerequisites = Known<EquatableArray<ResearchProjectId>>([]),
+        Prerequisites = EquatableArray.From((prerequisites ?? []).Select(p => new ResearchProjectId(p))),
         LockReasons = EquatableArray.From(locks ?? []),
         Census = true,
         Cost = cost,
-    };
+    });
 
-    private static EconomyFacts Facts(string[] needs, string current = "", string[]? finished = null, KnowledgeSlot[]? slots = null, params ResearchProjectFacts[] projects) => new()
+    private static EconomyFacts Facts(string[] needs, string current = "", string[]? finished = null, KnowledgeSlot[]? slots = null, params KeyValuePair<string, ResearchProjectFacts>[] projects) => new()
     {
         ResearchNeeds = EquatableArray.From(needs),
         Research = Known(new ResearchCensus
         {
             Current = current,
-            Projects = projects.ToDictionary(p => p.Name.Value, p => p, StringComparer.Ordinal),
+            Projects = projects.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal),
             Finished = EquatableArray.From(finished ?? []),
             Knowledge = EquatableArray.From(slots ?? []),
         }),

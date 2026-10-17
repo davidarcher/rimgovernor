@@ -1,3 +1,5 @@
+using TechLevel = RimGovernor.Contracts.Wire.Defs.TechLevel;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -17,18 +19,6 @@ public enum TechTier
 
 public static partial class PolicyFunctions
 {
-    /// <summary>Orders the native TechLevel names a faction def carries; Undefined and anything unrecognised rank unknown.</summary>
-    private static readonly Dictionary<string, int> TechLevelRank = new Dictionary<string, int>(StringComparer.Ordinal)
-    {
-        ["Animal"] = 1,
-        ["Neolithic"] = 2,
-        ["Medieval"] = 3,
-        ["Industrial"] = 4,
-        ["Spacer"] = 5,
-        ["Ultra"] = 6,
-        ["Archotech"] = 7,
-    };
-
     /// <summary>
     /// Derives the tech tier from the finished research and the faction tech level. A faction floor satisfies
     /// every tier at or below it; research raises the tier above the floor one condition at a time:
@@ -42,42 +32,38 @@ public static partial class PolicyFunctions
     /// A faction floor satisfies every tier at or below it, so an Industrial faction stands at Industrial
     /// without Electricity in its finished list.
     ///
-    /// Unknown research or an unknown faction level is an unknown fact; the tier never advances on unknown
-    /// inputs, and consumers treat unknown as Camp.
+    /// Unknown research or an Undefined faction level (no colony facts read yet) is an unknown fact; the tier
+    /// never advances on unknown inputs, and consumers treat unknown as Camp.
     /// </summary>
-    public static Fact<TechTier> SelectTechTier(Fact<EquatableArray<ResearchProjectId>> finished, Fact<string> factionLevel) =>
+    public static Fact<TechTier> SelectTechTier(Fact<EquatableArray<ResearchProjectId>> finished, TechLevel factionLevel) =>
         TechTierOf(finished, factionLevel).Tier;
 
     /// <summary>
     /// Names the condition that satisfied the selected tier (a research project, or "faction &lt;level&gt;" for
     /// a floor); empty for Camp or an unknown tier.
     /// </summary>
-    public static string TechTierEvidence(Fact<EquatableArray<ResearchProjectId>> finished, Fact<string> factionLevel) =>
+    public static string TechTierEvidence(Fact<EquatableArray<ResearchProjectId>> finished, TechLevel factionLevel) =>
         TechTierOf(finished, factionLevel).Evidence;
 
-    private static (Fact<TechTier> Tier, string Evidence) TechTierOf(Fact<EquatableArray<ResearchProjectId>> finished, Fact<string> factionLevel)
+    private static (Fact<TechTier> Tier, string Evidence) TechTierOf(Fact<EquatableArray<ResearchProjectId>> finished, TechLevel level)
     {
-        var known = finished.TryGetValue(out var projects);
-        var levelKnown = factionLevel.TryGetValue(out var level);
-        var ranked = levelKnown && TechLevelRank.TryGetValue(level!, out _);
-        if (!known || !levelKnown || !ranked)
+        if (!finished.TryGetValue(out var projects) || level == TechLevel.Undefined)
         {
             return (Unknown<TechTier>(), "");
         }
-        var rank = TechLevelRank[level!];
-        var done = new HashSet<ResearchProjectId>(projects!);
+        var done = new HashSet<ResearchProjectId>(projects);
         // The floor: the tier the faction level satisfies outright.
         var tier = TechTier.Camp;
         var evidence = "";
-        if (rank >= TechLevelRank["Spacer"])
+        if (level >= TechLevel.Spacer)
         {
             tier = TechTier.Spacer;
         }
-        else if (rank >= TechLevelRank["Industrial"])
+        else if (level >= TechLevel.Industrial)
         {
             tier = TechTier.Industrial;
         }
-        else if (rank >= TechLevelRank["Medieval"])
+        else if (level >= TechLevel.Medieval)
         {
             tier = TechTier.Masonry;
         }

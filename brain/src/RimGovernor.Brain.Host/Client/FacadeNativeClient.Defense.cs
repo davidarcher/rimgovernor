@@ -156,10 +156,6 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("invalid defense site context");
         }
-        if (v.MapSize is null || v.MapSize.Width is null || v.MapSize.Height is null || v.MapSize.Width.GetValueOrDefault() == 0 || v.MapSize.Height.GetValueOrDefault() == 0)
-        {
-            throw BridgeFunctions.Contract("defense site map size missing");
-        }
         var minOk = BridgeFunctions.TryProtoCell(v.Region?.Minimum, out var min);
         var maxOk = BridgeFunctions.TryProtoCell(v.Region?.Maximum, out var max);
         if (!minOk || !maxOk || min != region.Min || max != region.Max)
@@ -171,8 +167,8 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("incomplete defense site census");
         }
-        var width = v.MapSize.Width.GetValueOrDefault();
-        var height = v.MapSize.Height.GetValueOrDefault();
+        var width = v.MapSize.Width;
+        var height = v.MapSize.Height;
         var cells = new List<DefenseCell>(want);
         var seen = new HashSet<DomainCell>(want);
         foreach (var row in v.Cells)

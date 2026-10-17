@@ -103,13 +103,8 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Whether b is an unowned colonist bed: humanlike, not medical, not for prisoners or slaves.</summary>
-    internal static bool VacantColonistBed(SleepingBed b)
-    {
-        var hk = b.Humanlike.TryGetValue(out var human);
-        var mk = b.Medical.TryGetValue(out var medical);
-        var pk = b.Prisoners.TryGetValue(out var prisoner);
-        return b.Owners.Count == 0 && hk && human && mk && !medical && pk && !prisoner && !b.Slaves;
-    }
+    internal static bool VacantColonistBed(SleepingBed b) =>
+        b.Owners.Count == 0 && b.Humanlike && !b.Medical && !b.Prisoners && !b.Slaves;
 
     /// <summary>
     /// The next migration step: move a pawn owning a bed in a retiring room to a vacant bed in a room that

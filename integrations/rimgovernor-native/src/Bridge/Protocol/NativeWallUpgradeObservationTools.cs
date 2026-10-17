@@ -162,7 +162,7 @@ namespace HomeBridge.BridgeTools
             if (pending != null) row = row with { RemovalId = pending.Id };
             row = row with { Snapshot = NativeObservationSnapshot.Snapshot("wall-site", context, target.GetUniqueLoadID(), w => {
                 w.Write(original.GetUniqueLoadID()); w.Write(normal.x); w.Write(normal.z); w.Write(target.HitPoints);
-                w.Write(row.Designated.GetValueOrDefault()); w.Write(row.RemovalId ?? "");
+                w.Write(row.Designated); w.Write(row.RemovalId ?? "");
                 w.Write((row.LeftSupport.Id ?? "")); w.Write((row.RightSupport.Id ?? ""));
                 foreach (var backup in row.CompletedBackups) w.Write((backup.Id ?? ""));
             }) };

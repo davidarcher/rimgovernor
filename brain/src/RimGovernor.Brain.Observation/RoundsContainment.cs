@@ -267,8 +267,8 @@ public static partial class ObservationPackage
     {
         var unknown = Unknown<EquatableArray<CarePawn>>();
         var parts = new DefinitionPartCatalog(catalog);
-        if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || colony.ColonistCount is null || snapshot is null
-            || colony.ColonistCount.GetValueOrDefault() != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
+        if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || snapshot is null
+            || colony.ColonistCount != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
         {
             return unknown;
         }

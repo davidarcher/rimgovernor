@@ -167,8 +167,8 @@ public sealed class ColonyForecastTests
                 {
                     new PowerNetworkFact
                     {
-                        Id = "net", GenerationW = Known(0.0),
-                        ConsumptionW = Known(10.0), StoredWD = Known(30.0),
+                        Id = "net", GenerationW = 0.0,
+                        ConsumptionW = 10.0, StoredWD = 30.0,
                     },
                 },
                 Construction = new ConstructionInputs

@@ -11,7 +11,7 @@ public static partial class ObservationPackage
     public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs)
     {
         var gear = v.Planning?.Outcome?.Observed?.Gear;
-        if (gear is null || defs.Catalog is null || !defs.Finished.IsKnown || v.OutdoorTemperatureC is null || v.ColonistCount is null || (uint)gear.Pawns.Count != v.ColonistCount.GetValueOrDefault())
+        if (gear is null || defs.Catalog is null || !defs.Finished.IsKnown || (uint)gear.Pawns.Count != v.ColonistCount)
         {
             return Unknown<GearObservation>();
         }
@@ -31,7 +31,7 @@ public static partial class ObservationPackage
             };
             try
             {
-                row = row with { LoadoutModel = GearLoadoutModelFacts(defs, v.OutdoorTemperatureC.GetValueOrDefault(), p, policy) };
+                row = row with { LoadoutModel = GearLoadoutModelFacts(defs, v.OutdoorTemperatureC, p, policy) };
             }
             catch (DomainException e)
             {
