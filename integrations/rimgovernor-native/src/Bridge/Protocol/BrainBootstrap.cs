@@ -79,6 +79,8 @@ namespace HomeBridge.BridgeTools
                 {
                     Profile = inputs.ProfileDirectory,
                     LayoutOverlay = inputs.LayoutOverlay,
+                    // The acceptance harness narrows the families through the launch environment; unset composes every family.
+                    Families = BrainFamilies.FromEnvironment(Environment.GetEnvironmentVariable(BrainFamilies.EnvironmentVariable)),
                     NativeTimeout = NativeTimeout,
                     // The acceptance launch flag the clock runtime also reads; read here too so no game-touching static initialises off the game thread.
                     ClockTestAcceleration = Array.IndexOf(Environment.GetCommandLineArgs(), "-rimgovernor-test-acceleration") >= 0,

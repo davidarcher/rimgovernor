@@ -923,6 +923,11 @@ public sealed class CaseRunner
             QuietWorld = c.QuietWorld,
         };
         cfg.LaunchEnv[HeadlessProfile.StateVariable] = Path.Combine(output, Checkpoints.CheckpointStoreFile);
+        if (c.Serve?.Families is { } families)
+        {
+            cfg.LaunchEnv["RIMGOVERNOR_ROUTINE_FAMILIES"] = string.Join(",", families);
+        }
+
         foreach (var (name, value) in ServiceLaunchEnv.Applied(c.Serve?.Env ?? []))
         {
             cfg.LaunchEnv[name] = value;
