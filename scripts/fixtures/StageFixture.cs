@@ -128,6 +128,12 @@ namespace HomeBridge.BridgeTools
                             if (b.HitPoints > 0 && b.State == StageBuildState.Complete && def.useHitPoints) thing.HitPoints = Math.Max(1, Math.Min(b.HitPoints, thing.MaxHitPoints));
                             thing = GenSpawn.Spawn(thing, cell, map, rot);
                         }
+                        if (b.Fuel is float fuel)
+                        {
+                            var refuelable = b.State == StageBuildState.Complete ? thing.TryGetComp<CompRefuelable>() : null;
+                            if (refuelable == null) throw new ArgumentException($"Building {b.Name}: only a finished refuelable building takes fuel.");
+                            refuelable.Refuel(Math.Max(0f, Math.Min(fuel, refuelable.Props.fuelCapacity) - refuelable.Fuel));
+                        }
                         made.Add(thing);
                     }
                     Add(buildings, b.Name, new StagedThings(Ids(made), made.Select(t => Out(t.Position)).ToList()));

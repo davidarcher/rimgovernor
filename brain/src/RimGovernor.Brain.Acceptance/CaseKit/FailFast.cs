@@ -31,20 +31,6 @@ public sealed record FailFast
     /// </summary>
     public int RefusalSamples { get; init; }
 
-    /// <summary>
-    /// Treats a review whose row reads method_unavailable as neutral for the no-method count: neither a count nor a
-    /// reset. A goal whose methods are exhausted by design (the economy/resource Need while the project gating its bench is
-    /// unfinished) returns method_unavailable and waits for the next review, which reads like a planner that found no
-    /// method, so the case that knows the design opts in.
-    /// </summary>
-    public bool MethodUnavailableWaits { get; init; }
-
-    /// <summary>
-    /// Reasons the unsuccessful shape skips like interrupted and cancelled: a goal serving several resources retries a
-    /// shortfall on one of them (a MedicineHerbal acquisition ending outcome_not_achieved under the economy/resource Need)
-    /// without the case failing.
-    /// </summary>
-    public IReadOnlyList<string> RetryableUnsuccessful { get; init; } = [];
 
     internal const int DefaultNoMethodReviews = 5;
     internal const int DefaultRefusalSamples = 6;
@@ -98,7 +84,6 @@ internal sealed class FailFastState
     };
 
     private const string HeldOptIn = "held:opt-in";
-    private const string HeldUnavailable = "held:unavailable";
 
     private readonly FailFast _cfg;
     private readonly string _concern;
@@ -154,7 +139,7 @@ internal sealed class FailFastState
             foreach (var row in plan["unsuccessful"].AsSlice().OfType<JsonObject>())
             {
                 var reason = row["reason"].AsString();
-                if (reason is "interrupted" or "cancelled" || _cfg.RetryableUnsuccessful.Contains(reason, StringComparer.Ordinal))
+                if (reason is "interrupted" or "cancelled")
                 {
                     continue;
                 }
@@ -188,7 +173,7 @@ internal sealed class FailFastState
             return null;
         }
 
-        if (vetoed || WaitingCauses.Contains(blocked) || blocked == HeldOptIn || (_cfg.MethodUnavailableWaits && blocked == HeldUnavailable))
+        if (vetoed || WaitingCauses.Contains(blocked) || blocked == HeldOptIn)
         {
             return null;
         }

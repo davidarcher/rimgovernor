@@ -492,9 +492,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Presentation/PresentationRoster.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/Production/ProductionLadder.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/ProductiveCookingCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 

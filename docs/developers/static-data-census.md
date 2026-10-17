@@ -462,10 +462,8 @@ Kept, reason recorded:
 | ResearchUnlock | message | 811 | 3 | static | What a research project unlocks (def, native type, label) | def_name;native_type;label | Go rule over ThingDef.researchPrerequisites, RecipeDef.researchPrerequisite(s), TerrainDef.researchPrerequisites rows keyed by ResearchProjectDef.defName |
 | ResearchProject | message | 814 | 23 | mixed | Research project row: definition facts plus progress and availability | tab;tech_level;base_cost;prerequisites;hidden_prerequisites;techprints_needed;required_building;required_facilities;unlocks;category | ResearchProjectDef.tab, techLevel, baseCost, prerequisites, hiddenPrerequisites, techprintCount, requiredResearchBuilding, requiredResearchFacilities; unlocks = Go rule over rows; category = Go rule over ResearchProjectDef.tab |
 | Researcher | message | 823 | 6 | code | Pawn research ability/priority/active row |  |  |
-| ResearchFacility | message | 824 | 2 | state | Linked research facility and whether active |  |  |
-| ResearchBench | message | 825 | 3 | state | Research bench with linked facilities |  |  |
 | ResearchSlot | message | 826 | 2 | state | Current project per research category |  |  |
-| ResearchSnapshot | message | 828 | 10 | state | Research snapshot: slots, projects, benches, researchers |  |  |
+| ResearchSnapshot | message | 828 | 9 | state | Research snapshot: slots, projects, researchers |  |  |
 | ResearchRequest | message | 833 | 7 | state | Read request parameters |  |  |
 | ResearchReply | message | 834 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | AccessTarget | message | 836 | 4 | code | Per-cell native/projected reachability |  |  |

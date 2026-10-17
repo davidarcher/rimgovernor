@@ -104,8 +104,8 @@ unresolved capability cannot certify the requested unlock.
 
 ## Acceptance
 
-`production/ladder` proves a derived need (Smithing finished natively and the gated bench built) on the
-Core tribal baseline. A colony snapshot replay covers
+No native case proves a derived research need: `production/ladder` stages Fabrication finished. A colony
+snapshot replay covers
 the default ladder and its bench: with Stonecutting at 97% and no bench the research step selects
 Stonecutting and owes a bench, the bench step admits an indoor research bench, and with Stonecutting
 finished Electricity is next. Advanced facility installation, all research projects and sustained

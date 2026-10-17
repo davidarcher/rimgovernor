@@ -261,6 +261,9 @@ public sealed record StageBuilding
 
     /// <summary>Above zero stages a finished building damaged to that many hit points.</summary>
     public int HitPoints { get; init; }
+
+    /// <summary>A finished refuelable building's fuel, at most its capacity; null leaves it as it spawns (a wood-fired generator spawns empty).</summary>
+    public float? Fuel { get; init; }
 }
 
 public enum StageBuildState

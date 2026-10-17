@@ -111,7 +111,7 @@ public sealed partial class BrainComposition
         reviewer.HuntEstimates = _options.HuntEstimates;
         cfgRounds = reviewer;
         // Any toggle that declares production orders composes the admin family's work-ledger Need (#3304).
-        var workLedger = bills || gear || armory || sc.Art || sc.PopulationJoiner || foodStorageUpkeep || refrigeration || medical || sc.Mechs;
+        var workLedger = bills || gear || armory || sc.Art || sc.PopulationJoiner || foodStorageUpkeep || refrigeration || medical || sc.Mechs || resourceTargets;
         var biotech = new BiotechNeeds { Mechs = sc.Mechs, MechCharger = mechCharger, GeneBank = geneBank, Pollution = pollution };
         if (medical)
         {

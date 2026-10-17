@@ -76,24 +76,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
             },
             cancellationToken);
 
-    public Task<JsonObject> ProductionLadderAsync(CancellationToken cancellationToken) =>
-        ReadAsync(
-            "production ladder",
-            ct =>
-            {
-                var review = _store.LoadRounds(ct);
-                var ladder = review.Revision == 0 ? null : _store.LoadProductionLadder(WorldOf(review), ct);
-                return new JsonObject
-                {
-                    ["recorded"] = ladder is not null,
-                    ["resource"] = ladder?.Resource.Value ?? "",
-                    ["bench"] = ladder?.Bench ?? "",
-                    ["recipe"] = ladder?.Recipe ?? "",
-                    ["research"] = new JsonArray([.. (ladder?.Research ?? []).Select(r => (JsonNode?)r)]),
-                };
-            },
-            cancellationToken);
-
     public Task<IReadOnlyList<JsonObject>> PlanHistoryAsync(int limit, IReadOnlyList<string> methodPatterns, CancellationToken cancellationToken) =>
         ReadAsync(
             "plan history " + string.Join(',', methodPatterns),
@@ -191,8 +173,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
             throw new AcceptanceException($"journal {what}: {e.Message}", e);
         }
     }
-
-    private static World WorldOf(ReviewRecord review) => new(review.Snapshot.Colony, review.Snapshot.Load, review.Snapshot.Map);
 
     private JsonObject SampleNeed(ConcernId need, CancellationToken ct)
     {

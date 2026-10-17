@@ -3045,24 +3045,6 @@ public sealed record Researcher
     public bool? Active { get; init; }
 }
 
-public sealed record ResearchFacility
-{
-    public DefinitionRef? Definition { get; init; }
-
-    public bool? Active { get; init; }
-}
-
-public sealed record ResearchBench
-{
-    public Common.Ref? Building { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ResearchFacility>))]
-    public EquatableArray<ResearchFacility> Facilities { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
-}
-
 public sealed record ResearchSlot
 {
     public string? Category { get; init; }
@@ -3084,9 +3066,6 @@ public sealed record ResearchSnapshot
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResearchProject>))]
     public EquatableArray<ResearchProject> Projects { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ResearchBench>))]
-    public EquatableArray<ResearchBench> Benches { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Researcher>))]
     public EquatableArray<Researcher> Researchers { get; init; }

@@ -115,13 +115,6 @@ public interface IWatchStore
     /// are newest first, as the Go store lists them. Throws <see cref="AcceptanceException"/> on a read failure.
     /// </summary>
     Task<IReadOnlyList<JsonObject>> PlanHistoryAsync(int limit, string methodGlob, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// The production ladder the journal recorded for the review's world (Go <c>LoadProductionLadder</c>):
-    /// <c>{recorded, resource, bench, recipe, research}</c>; <c>recorded</c> is false (the rest empty) when none was
-    /// recorded. Throws <see cref="AcceptanceException"/> on a read failure.
-    /// </summary>
-    Task<JsonObject> ProductionLadderAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>

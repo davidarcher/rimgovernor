@@ -23,7 +23,7 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
    4 (`ColonistsPerExtraBench`, `MaxBenchesPerKind`); a further bench that
    cannot be staged leaves the existing bench in use. Each further bench is
    its own `workshop-<def>-<n>` method. The case needs a colony whose demand
-   outruns one bench, so it is proven by the nightly tier, not by a dedicated `production/ladder` fixture.
+   outruns one bench, so it is proven by the nightly tier, not by the `production/ladder` case.
 2. **Research**: when the first bench that could produce a `economy/resource`
    deficit is gated only by unfinished research, the workshop planner records
    the projects on the `production_ladder` journal record and steps aside. The
@@ -1196,16 +1196,12 @@ planner sells the products from stock. No depot or room is sited for them; see
 
 ## Acceptance
 
-The `production/ladder` case (`acceptance run production/ladder`, `brain/src/RimGovernor.Brain.Acceptance.Cases/Production`) opens the
-Core tribal baseline; `test/production_ladder_prepare` stages a roofed
-starter hut with a sleeping spot per colonist (the room the workshop rung
-furnishes, `scripts/fixtures/FixtureKit.cs`), a simple research bench inside
-it with a fueled generator, steel, wood and the bench's 12 components loose
-beside its door and Fabrication at 97%; the default component floor (10)
-drives the ladder, and the case requires live native evidence for every rung:
-Fabrication finished, a fabrication bench in a Workshop-hosting room carrying
-the component bill, an allow-list stockpile for steel in that room, and the
-stored component count above the pre-service baseline.
+The nightly `production/ladder` case (`brain/src/RimGovernor.Brain.Acceptance.Cases/Production`) proves the
+bill rung only. Its stage spec finishes Fabrication and stands a fabrication bench powered by a fuelled
+wood-fired generator, a steel stockpile, one colonist on Crafting and a wood-fired generator blueprint that
+owes two components. With only the `resource` family served, the case reads the colony's
+ComponentIndustrial count (`observations_list_supplies`) rising above its staged zero within the staged
+tick cap. The research, power, bench and stockpile rungs are staged, not played, and remain uncertified natively.
 
 
 ### Door ownership and passage

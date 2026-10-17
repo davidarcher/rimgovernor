@@ -184,18 +184,6 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.ResearchSnapshot Capability(Obs.ResearchSnapshot snapshot, Map map)
         {
-            var benches = map.listerBuildings.allBuildingsColonist.OfType<Building_ResearchBench>().ToList(); 
-            foreach (var bench in benches)
-            {
-                var row = new Obs.ResearchBench { Building = NativeBuildingObservationTools.Ref(bench) };
-                var affected = bench.GetComp<CompAffectedByFacilities>();
-                if (affected != null)
-                {
-                    var facilities = affected.LinkedFacilitiesListForReading; 
-                    foreach (var facility in facilities) row = row with { Facilities = [.. row.Facilities, new Obs.ResearchFacility { Definition = Definition(facility.def), Active = affected.IsFacilityActive(facility) }] };
-                }
-                snapshot = snapshot with { Benches = [.. snapshot.Benches, row] };
-            }
             var pawns = map.mapPawns.FreeColonistsSpawned; 
             if (WorkTypeDefOf.Research == null || SkillDefOf.Intellectual == null) throw new InvalidOperationException();
             foreach (var pawn in pawns)
