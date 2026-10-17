@@ -24,6 +24,11 @@ public static class LabCases
             registry.Register(c);
         }
 
+        foreach (var c in LabCaptureProfile.Cases())
+        {
+            registry.Register(c);
+        }
+
         registry.Register(LabSparring.Case());
         registry.Register(LabSparringWatch.Case());
         foreach (var c in LabSparringMeasure.Cases())

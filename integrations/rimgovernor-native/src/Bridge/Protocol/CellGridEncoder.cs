@@ -196,7 +196,7 @@ namespace HomeBridge.BridgeTools
         // the item stacks on the cell; capacity is the stacks it can hold: a
         // storage building's maxItemsInCell (3 on a shelf), 0 under any other
         // edifice, 1 on open ground.
-        private static void CellThingFacts(Map map, IntVec3 cell, out bool doorway, out int stacks, out int capacity)
+        internal static void CellThingFacts(Map map, IntVec3 cell, out bool doorway, out int stacks, out int capacity)
         {
             doorway = cell.GetDoor(map) != null; stacks = 0;
             var list = cell.GetThingList(map);

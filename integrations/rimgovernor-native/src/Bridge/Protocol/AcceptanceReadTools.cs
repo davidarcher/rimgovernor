@@ -45,6 +45,23 @@ namespace HomeBridge.BridgeTools
         public Task<object> ReadImpressiveness(IRimBridgeContext ctx, CancellationToken cancellationToken)
             => Payload(reads => reads.ImpressivenessAsync(cancellationToken));
 
+        [Tool("rimgovernor/acceptance_read_capture_profile", Title = "Acceptance: snapshot frame capture profile",
+            Description = "Acceptance harness read. JSON payload: the current map's size and, per span (capture.total, capture.section.*, grid.read.cached/uncached, column.* game API passes, encode.attachWhole, brain.* decode), the sample count, min/median/max ms and median allocated bytes. Read-only; publishes nothing.")]
+        public async Task<object> ReadCaptureProfile(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Measured iterations per span after one warm-up capture (1-20).")] int iterations = 5)
+        {
+            var n = Math.Clamp(iterations, 1, 20);
+            var rec = new CaptureProfile.Recorder();
+            var side = await ProtoBoundary.OnGameThread("rimgovernor/acceptance_read_capture_profile", () => CaptureProfile.Capture(rec, n), cancellationToken).ConfigureAwait(false);
+            await Task.Run(() =>
+            {
+                CaptureProfile.Encode(rec, side, n);
+                if (side.Frame != null)
+                    foreach (var (span, ms, bytes) in AcceptanceReads.FrameDecodeProfile(side.Frame, n)) rec.Add(span, ms, bytes);
+            }, cancellationToken).ConfigureAwait(false);
+            return new Dictionary<string, object?> { ["payload"] = CaptureProfile.Summary(rec, side) };
+        }
+
         [Tool("rimgovernor/acceptance_read_animal_races", Title = "Acceptance: animal race catalog",
             Description = "Acceptance harness read. JSON payload: one row per animal race of the definition catalog (def, wildness, bodySize, minimumHandlingSkill, milk amount and intervalDays); a fact the catalog did not read is absent. Read-only.")]
         public Task<object> ReadAnimalRaces(IRimBridgeContext ctx, CancellationToken cancellationToken)

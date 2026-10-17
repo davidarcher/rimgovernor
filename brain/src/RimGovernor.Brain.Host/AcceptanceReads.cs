@@ -115,6 +115,38 @@ public sealed class AcceptanceReads
         });
     }
 
+    /// <summary>
+    /// Measures the brain's decode of one captured frame for the capture profile probe: the cell grid decode, the
+    /// held tables and the whole-map planning window, each <paramref name="iterations"/> times on the calling thread.
+    /// Returns (span, ms, allocated bytes) samples; nothing is kept.
+    /// </summary>
+    public static IReadOnlyList<(string Span, double Ms, long Bytes)> FrameDecodeProfile(RimGovernor.Contracts.Wire.Observations.BundleSnapshot frame, int iterations)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        var samples = new List<(string, double, long)>();
+        T Time<T>(string span, Func<T> body)
+        {
+            var bytes = GC.GetAllocatedBytesForCurrentThread();
+            var started = System.Diagnostics.Stopwatch.GetTimestamp();
+            var result = body();
+            samples.Add((span, System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - bytes));
+            return result;
+        }
+        for (var i = 0; i < iterations; i++)
+        {
+            var view = Time("brain.gridDecode", () => FrameGridView.Of(frame));
+            if (frame.Context is { } context)
+            {
+                Time("brain.heldTables", () => FrameHeld.Of(frame, context));
+            }
+            if (view.Grid is { } grid)
+            {
+                Time("brain.windowWholeMap", () => grid.Window(grid.Rect));
+            }
+        }
+        return samples;
+    }
+
     /// <summary>The Impressiveness room stat's score stages of the loaded game.</summary>
     public async Task<string> ImpressivenessAsync(CancellationToken cancellationToken)
     {
