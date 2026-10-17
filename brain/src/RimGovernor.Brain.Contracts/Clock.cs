@@ -1099,8 +1099,6 @@ public sealed record EventsPage
     [JsonConverter(typeof(EquatableArrayJsonConverter<ClockEvent>))]
     public EquatableArray<ClockEvent> Events { get; init; }
 
-    public long? OldestCursor { get; init; }
-
     public long? NewestCursor { get; init; }
 
     public long? NextCursor { get; init; }

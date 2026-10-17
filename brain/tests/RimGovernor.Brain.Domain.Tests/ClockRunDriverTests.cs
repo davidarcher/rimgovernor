@@ -284,7 +284,6 @@ public sealed class ClockRunDriverTests
                 {
                     Context = Context(),
                     Events = EquatableArray.From(rows),
-                    OldestCursor = _events.Count == 0 ? null : 1,
                     NewestCursor = _events.Count,
                     NextCursor = next,
                     Gap = false,

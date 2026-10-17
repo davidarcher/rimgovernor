@@ -81,8 +81,7 @@ namespace HomeBridge.BridgeTools
                 {
                     EnsurePatched(); LetterPauseHook.EnsurePatched();
                     if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Exact native clock hooks are unavailable.");
-                    EnsureJournal();
-                    if (_cursor == long.MaxValue) return ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Native clock cursor is exhausted.");
+                    if (Journal.Newest == long.MaxValue) return ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Native clock cursor is exhausted.");
                     var map = ProtoBoundary.ResolveMap(request.Identity ?? throw new InvalidOperationException("Missing identity")) ?? throw new InvalidOperationException("The requested map is not loaded.");
                     foreach (var ids in PolicyIds(request.Policy)) ResolveIds(map, ids);
                 }
@@ -107,7 +106,6 @@ namespace HomeBridge.BridgeTools
 
         private static Common.Failure? RunClock(TypedEpoch typed, TimeSpeed speed)
         {
-            EnsureJournal();
             if (Current.Game == null || Find.TickManager == null || Find.CurrentMap == null)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No playable map is loaded.");
             var existing = _state;
@@ -291,7 +289,6 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
-                EnsureJournal();
                 var kind = HoldKind(request.Reason.GetValueOrDefault());
                 var detail = Text(string.IsNullOrWhiteSpace(request.Detail) ? "Held by the brain: " + kind + "." : request.Detail);
                 var s = _state;
@@ -371,8 +368,8 @@ namespace HomeBridge.BridgeTools
                 var result = new Clock.Status { Context = context, ActualPaused = Find.TickManager.Paused,
                     ObservedSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed), NativeTickBoundary = TypedHooksReady(),
                     TestAccelerationAvailable = TestAccelerationAvailable,
-                    DurableEvents = Journal != null && _state?.StopReason != "event_journal_error" && _state?.PendingKind != "event_journal_error" };
-                if (Journal != null) result = result with { NewestCursor = Journal.Newest };
+                    DurableEvents = _state?.StopReason != "event_journal_error" && _state?.PendingKind != "event_journal_error",
+                    NewestCursor = Journal.Newest };
                 var s = _state;
                 if (s == null || !ReferenceEquals(s.Session, Current.Game))
                     result = result with { State = Clock.ClockState.Held, Reason = Clock.HoldReason.NeverRun };
@@ -419,49 +416,19 @@ namespace HomeBridge.BridgeTools
             {
                 try
                 {
-                    var journal = EnsureJournal();
-                    if (request.AfterCursor.GetValueOrDefault() > journal.Newest) return new Clock.EventsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cursor exceeds the retained native journal.") };
+                    if (request.AfterCursor.GetValueOrDefault() > Journal.Newest) return new Clock.EventsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cursor exceeds the retained native journal.") };
                     var began = System.Diagnostics.Stopwatch.GetTimestamp();
-                    var window = journal.ReadWindow(request.AfterCursor.GetValueOrDefault(), (int)request.Limit.GetValueOrDefault());
-                    ObservationWork.Captured("clockEventsJournal", System.Diagnostics.Stopwatch.GetTimestamp() - began, window.Rows.Count, window.Rows.Count);
-                    began = System.Diagnostics.Stopwatch.GetTimestamp();
-                    var page = new Clock.EventsPage { Context = context, NewestCursor = journal.Newest,
-                        NextCursor = window.Next, Gap = window.Lost != 0, LostCount = window.Lost };
-                    var events = new List<Clock.ClockEvent>();
-                    long previous = request.AfterCursor.GetValueOrDefault();
-                    foreach (var row in window.Rows)
-                    {
-                        // A row whose canonical event does not parse reads as
-                        // cursor loss: the page reports the gap and advances
-                        // past it, so a controller holds once instead of every
-                        // read across the row refusing.
-                        if (!row.TryGetValue("canonicalClockEvent", out var encoded) || !(encoded is string canonical)
-                            || !TryParseStoredEvent(canonical, out var observed))
-                        {
-                            page = page with { Gap = true };
-                            page = page with { LostCount = checked(page.LostCount.GetValueOrDefault() + 1) };
-                            previous = Convert.ToInt64(row["cursor"]);
-                            continue;
-                        }
-                        var cursor = observed.Cursor.GetValueOrDefault();
-                        if (!ValidStoredEvent(observed) || cursor <= previous
-                            || cursor != Convert.ToInt64(row["cursor"])) throw new InvalidOperationException("Event identity mismatch");
-                        // Native's own clock on both sides: the unobserved age of
-                        // the row when this page was composed.
-                        if (observed.ObservedAtUnixMs is not null) observed = observed with { AgeAtReplyMs = (ulong)Math.Max(0, NowMs() - observed.ObservedAtUnixMs.GetValueOrDefault()) };
-                        events.Add(observed); previous = cursor;
-                    }
-                    ObservationWork.Captured("clockEventsParse", System.Diagnostics.Stopwatch.GetTimestamp() - began, events.Count, window.Rows.Count);
-                    page = page with { Events = EquatableArray.From(events), OldestCursor = journal.Base + 1 };
-                    return new Clock.EventsReply { Outcome = page };
+                    var window = Journal.ReadWindow(request.AfterCursor.GetValueOrDefault(), (int)request.Limit.GetValueOrDefault());
+                    // Native's own clock on both sides: the unobserved age of
+                    // each event when this page was composed.
+                    var now = NowMs();
+                    var events = window.Events.Select(observed => observed with { AgeAtReplyMs = (ulong)Math.Max(0, now - observed.ObservedAtUnixMs.GetValueOrDefault()) }).ToList();
+                    ObservationWork.Captured("clockEventsJournal", System.Diagnostics.Stopwatch.GetTimestamp() - began, events.Count, events.Count);
+                    return new Clock.EventsReply { Outcome = new Clock.EventsPage { Context = context, Events = EquatableArray.From(events),
+                        NewestCursor = Journal.Newest, NextCursor = window.Next, Gap = window.Lost != 0, LostCount = window.Lost } };
                 }
                 catch (Exception error) { ModLog.Error("clock", "Clock event journal read failed: " + error); return new Clock.EventsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Clock event journal could not establish complete cursor continuity.") }; }
             }
-        }
-        private static bool TryParseStoredEvent(string canonical, out Clock.ClockEvent observed)
-        {
-            try { observed = WireJson.Deserialize<Clock.ClockEvent>(canonical); return true; }
-            catch (System.Text.Json.JsonException) { observed = new Clock.ClockEvent(); return false; } // a stored row that is not valid wire JSON is the caller's reported cursor gap
         }
         private static ulong _publishedGeneration;
         private static void OnAuthorityChanged(NativeControlAuthority authority, NativeControlSnapshot snapshot, ulong previous)
@@ -476,22 +443,25 @@ namespace HomeBridge.BridgeTools
                         { "reason", snapshot.Reason.ToString() }, { "active", snapshot.Active } });
             }
         }
-        // Rows published outside a run segment take their context from the
-        // current map. False means no complete context exists to publish under.
-        private static bool AttachOwnerlessEvent(Dictionary<string, object?> row, string kind, string? detail, Dictionary<string, object?>? payload)
+        // The only journal writer. An event takes its cursor after its context
+        // read, so a publication that read causes (a revoke through the
+        // authority seam) lands first and this event takes the next cursor.
+        private static void Append(Clock.ClockEvent value)
         {
-            if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var observed, out _)) return false;
-            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, checked(_cursor + 1), NowMs(),
-                number => throw new InvalidOperationException("Context-only clock events carry no pawn evidence"));
-            if (!ValidStoredEvent(result)) throw new InvalidOperationException("Context-only clock event is incomplete");
-            var encoded = WireJson.Serialize(result);
-            row["canonicalClockEvent"] = encoded;
-            return true;
+            if (!ValidStoredEvent(value)) throw new InvalidOperationException("Clock event is incomplete");
+            Journal.Append(value);
         }
-        private static void AttachTypedEvent(Dictionary<string, object?> row, string kind, string? detail, State s, Dictionary<string, object?>? payload)
+        // Events published outside a run segment take their context from the
+        // current map. Null means no complete context exists to publish under.
+        private static Clock.ClockEvent? OwnerlessEvent(string kind, string? detail, Dictionary<string, object?>? payload)
         {
-            var typed = s.Typed;
-            if (typed == null) return;
+            if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var observed, out _)) return null;
+            return NativeClockEventProjection.Event(kind, detail, payload, observed, checked(Journal.Newest + 1), NowMs(),
+                number => throw new InvalidOperationException("Context-only clock events carry no pawn evidence"));
+        }
+        private static Clock.ClockEvent TypedEvent(string kind, string? detail, State s, Dictionary<string, object?>? payload)
+        {
+            var typed = TypedOf(s);
             var observed = typed.LastObservation;
             // The old segment's last observed tick stays attached to its old identity during replacement.
             if (ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map))
@@ -500,7 +470,7 @@ namespace HomeBridge.BridgeTools
                 observed = current;
             }
             typed.LastObservation = observed;
-            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, checked(_cursor + 1), NowMs(),
+            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, checked(Journal.Newest + 1), NowMs(),
                 number => s.Map.mapPawns.AllPawns.Single(p => p.thingIDNumber == number).GetUniqueLoadID());
             if (kind == "pause_failed" && result.Event?.PauseFailed?.Pending is { } pending)
                 result = result with { Event = new Clock.PauseFailed { Pending = pending with { Reason = HoldReasonOf(s.PendingKind) } } };
@@ -535,8 +505,7 @@ namespace HomeBridge.BridgeTools
                 }
                 result = result with { Event = entered with { Evidence = new Clock.HoldEvidence.PauseCase(pause) } };
             }
-            var encoded = WireJson.Serialize(result);
-            row["canonicalClockEvent"] = encoded;
+            return result;
         }
         private static bool ValidStoredEvent(Clock.ClockEvent value)
         {

@@ -47,24 +47,20 @@ about the clock is persisted: a restart finds native held (`NEVER_RUN` or the la
 
 ## Process event cursors
 
-The native clock journal is an in-memory buffer of the game process (the durable
-copy is the brain's clock inbox). Its cursors start past the process's start time in Unix
-milliseconds, so a relaunched game's cursors exceed every cursor an older store
-holds. A page's observation context matches the requested current world; each event
-retains its original world. A load or map change does not reset the cursor
-or rewrite old event contexts. Event reads initialize the journal before any
-`Run`; status reads initialize the tick watchers. Neither advances time or acquires
-authority.
+The native clock journal is an in-memory ring of typed `ClockEvent` records in the
+game process (the durable copy is the brain's clock inbox, one database per launch).
+Its cursors are a plain sequence from 1: the brain is hosted in the same process, so
+no cursor it holds predates the journal. A page's observation context matches the
+requested current world; each event retains its original world. A load or map change
+does not reset the cursor or rewrite old event contexts. Status reads initialize the
+tick watchers. Neither read advances time or acquires authority.
 
-`ValidateClockEventsPage` checks the typed request and page together.
-`oldest_cursor` is the process's first cursor: a read from below it starts at
-`oldest_cursor - 1` with no loss. From that start the native reader scans at most
-the requested limit of cursor positions, counting rows evicted from the buffer as
-loss. Therefore `next_cursor - start` equals returned events plus `lost_count`;
-`gap` is true exactly when loss is reported. Returned events are strictly ordered
-within the scanned window. An empty journal can report `oldest_cursor = 0` and
-`newest_cursor = 0`; an absent oldest cursor is also valid; a positive oldest cursor
-requires a nonempty journal, and zero is invalid for a nonempty one.
+`ValidateClockEventsPage` checks the typed request and page together. The native
+reader scans at most the requested limit of cursor positions after `after_cursor`,
+counting events overwritten in the ring as loss. Therefore
+`next_cursor - after_cursor` equals returned events plus `lost_count`; `gap` is true
+exactly when loss is reported. Returned events are strictly ordered within the
+scanned window. An empty journal reports `newest_cursor = 0`.
 
 Reads are never held: `EventsRequest` has no wait field.
 The poll loop reads the page after its cursor unheld at `ClockRunConfig.PollInterval`. Gap and loss evidence is the
