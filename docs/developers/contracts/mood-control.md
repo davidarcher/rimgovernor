@@ -231,7 +231,8 @@ work facts and its hediff def names from the medical read's `CareConditions`; an
 so the pawn gets `effect_source_offset_unknown` and no candidate). After the review, `GearFilterChoices` reads the
 comparator's outcome per pawn: the disallow candidate selected keeps tainted disallowed; held by an assessed portfolio
 the comparator rejected allows it; absent or never assessed keeps the default (disallowed). The Rounder keeps that set
-in derived memory for the review's world and the military read stamps it onto `GearPawn.AllowTainted`, which drives
+in derived memory for the review's world (a review with no coupled selection leaves it standing) and the rounds census
+read stamps it onto `GearPawn.AllowTainted` for every gear reader, which drives
 the outfit filter ([tainted apparel](equipment-upkeep.md#tainted-apparel)). Nothing else decides tainted apparel: the
 gear planner's hand mood curve, its constraint-mode mood tier, the `TaintFree` trait flag and the always-exclude rule
 are deleted. What came from the card: the stage offsets, the count predicate (`Apparel.WornByCorpse`) and the

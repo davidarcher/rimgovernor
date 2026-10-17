@@ -170,6 +170,31 @@ public sealed class EffectSourceCandidatesTests
         Assert.Contains(PlanColonyGear([pawn with { AllowTainted = true }]).Loadouts[0].Target, o => o.ID == "parka");
     }
 
+    // #3325: the one stamp on the rounds census reaches every gear reader. A pawn the comparator left allowed, in a tainted
+    // parka a bill could replace, is owed no replacement: no bench demand and no gear bill is wanted for it.
+    [Fact]
+    public void AnAllowedPawnInATaintedParkaGetsNoReplacementBillDemandAndNoOrder()
+    {
+        var model = Pawn().Gear with { Options = [Garment("new-parka", GearSlot.Outer, "Shell", "Torso", 30, source: GearSource.Bill)] };
+        var gear = new GearObservation
+        {
+            Stored = Known<EquatableArray<GearStock>>([]),
+            Pawns = [new GearPawn { Pawn = new("pawn"), Loadout = "worker", LoadoutModel = Known(model), Candidates = Known<EquatableArray<GearCandidate>>([]) }],
+        };
+        var facts = new RoundsFacts { Gear = Known(gear) };
+
+        var standing = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearFilters(facts, []).Gear;
+        Assert.NotEmpty(GearReplacementNeeds(standing));
+
+        var allowed = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearFilters(facts, ["pawn"]).Gear;
+        Assert.True(Assert.Single(allowed.Value.Pawns).AllowTainted);
+        Assert.Equal(Known(true), ReviewGear(allowed).Recovered);
+        Assert.Empty(GearReplacementNeeds(allowed));
+        var (wanted, known) = GearBillsWanted(allowed);
+        Assert.True(known);
+        Assert.Empty(wanted!);
+    }
+
     private static string Signature(EffectSourceResult result) => string.Join("\n",
         result.Roots.Select(r => r.Id + "|" + r.ExclusiveOutcome + "|" + string.Join(",", r.SituationalChanges) + "|" + string.Join(",", r.ComfortShifts))
             .Concat(result.Findings));

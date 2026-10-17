@@ -360,6 +360,47 @@ public sealed class ForecastCoupledSelectionTests
     {
         // #3284: the generated "tainted not allowed" candidate (+5 mood, 20 less cold insulation). #3285 parity: near the break
         // the candidate is selected and the pawn's filter keeps tainted disallowed; the content pawn's is rejected, so allowed.
+        var (facts, result, root) = TaintedParkaReview(nearBreak);
+        var allowed = GearFilterChoices(facts.CoupledAlternatives, result);
+        if (nearBreak)
+        {
+            Assert.Equal([root.Id], result.Selection.Selected);
+            Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+            Assert.Empty(allowed);
+            return;
+        }
+        Assert.NotEmpty(result.Selection.Selected);
+        Assert.DoesNotContain(root.Id, result.Selection.Selected);
+        Assert.Equal(["pawn"], allowed);
+        // The content pawn's break risk does not move, and with the selected outdoor work the thinner parka adds cold exposure.
+        Assert.Equal(result.BaselineVector.BreakRisk, result.Rejected.First(r => r.Commitments.SequenceEqual([root.Id])).Consequences!.BreakRisk);
+        var work = facts.CoupledAlternatives!.Alternatives.Where(c => result.Selection.Selected.Contains(c.Id)).ToArray();
+        double Cold(params ForecastCommitment[] add) => ForecastColony(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay,
+                facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }))
+            .Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).ThermalExposure.Single().AssessedColdDegreeTicks;
+        Assert.True(Cold([.. work, root]) > Cold(work));
+    }
+
+    [Fact]
+    public void AReviewWithNoCoupledSelectionKeepsTheLastGearFilterOutcome()
+    {
+        // #3325: allowed in review 1; review 2 compared nothing, so the pawn stays allowed until a review with a selection
+        // replaces it. Another world (or a restart's empty memory) still reads the default.
+        var (facts, result, _) = TaintedParkaReview(false);
+        var world = new GenerationSnapshot(new("colony"), new(0), new("load"), new("plan"), new(1), new(1));
+        var memory = new RimGovernor.Brain.BuildingRuntime.ReviewMemory<EquatableArray<string>>([]);
+        RimGovernor.Brain.BuildingRuntime.Rounder.NoteGearFilters(memory, world, facts.CoupledAlternatives, result);
+        Assert.Equal(["pawn"], memory.Get(world));
+        RimGovernor.Brain.BuildingRuntime.Rounder.NoteGearFilters(memory, world, facts.CoupledAlternatives, null);
+        Assert.Equal(["pawn"], memory.Get(world));
+        Assert.Empty(memory.Get(world with { Native = new(2) }));
+        var (nearFacts, nearResult, _) = TaintedParkaReview(true);
+        RimGovernor.Brain.BuildingRuntime.Rounder.NoteGearFilters(memory, world, nearFacts.CoupledAlternatives, nearResult);
+        Assert.Empty(memory.Get(world));
+    }
+
+    private static (RoundsFacts Facts, ForecastCoupledSelection Result, ForecastCommitment Root) TaintedParkaReview(bool nearBreak)
+    {
         var root = Assert.Single(GenerateEffectSources(EffectSourceCandidatesTests.Facts(),
             new Dictionary<string, MechanicCard> { ["DeadMansApparel"] = MechanicCards.ByDef["DeadMansApparel"] with { Status = MechanicCardStatus.Verified } }).Roots);
         // Near the break the pawn is fed; the content pawn is hungry, so it takes the outdoor harvest work.
@@ -386,25 +427,7 @@ public sealed class ForecastCoupledSelectionTests
                 },
             }
         } };
-        var result = Select(facts);
-        var allowed = GearFilterChoices(facts.CoupledAlternatives, result);
-        if (nearBreak)
-        {
-            Assert.Equal([root.Id], result.Selection.Selected);
-            Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
-            Assert.Empty(allowed);
-            return;
-        }
-        Assert.NotEmpty(result.Selection.Selected);
-        Assert.DoesNotContain(root.Id, result.Selection.Selected);
-        Assert.Equal(["pawn"], allowed);
-        // The content pawn's break risk does not move, and with the selected outdoor work the thinner parka adds cold exposure.
-        Assert.Equal(result.BaselineVector.BreakRisk, result.Rejected.First(r => r.Commitments.SequenceEqual([root.Id])).Consequences!.BreakRisk);
-        var work = facts.CoupledAlternatives!.Alternatives.Where(c => result.Selection.Selected.Contains(c.Id)).ToArray();
-        double Cold(params ForecastCommitment[] add) => ForecastColony(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay,
-                facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }))
-            .Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).ThermalExposure.Single().AssessedColdDegreeTicks;
-        Assert.True(Cold([.. work, root]) > Cold(work));
+        return (facts, Select(facts), root);
     }
 
     [Fact]

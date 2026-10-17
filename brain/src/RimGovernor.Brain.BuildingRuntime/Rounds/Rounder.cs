@@ -44,7 +44,7 @@ public sealed partial class Rounder
     /// <summary>The latest review's derived resource demand (derived state, empty until the first review after a restart).</summary>
     internal ReviewMemory<DerivedDemand> Demand = new(new());
 
-    /// <summary>The pawns whose outfit filter the latest review left allowing tainted apparel (GearFilterChoices; derived state, none until the first review after a restart).</summary>
+    /// <summary>The pawns whose outfit filter the latest review with a coupled selection left allowing tainted apparel (GearFilterChoices; derived state, none until the first such review after a restart).</summary>
     internal ReviewMemory<EquatableArray<string>> GearFilters = new([]);
 
     /// <summary>
@@ -379,9 +379,7 @@ public sealed partial class Rounder
         }
         var claims = await p.Journal.ConstructionClaimsAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
         using var window = ClockPlanning.StandaloneWindow(Native);
-        var reading = RoomsEnabled()
-            ? await ObservationApi.ObserveRoundsRooms(Native, Clock, expected, MaxAge, claims, readDefinitions, ct).ConfigureAwait(false)
-            : await ObservationApi.ObserveRoundsOwned(Native, Clock, expected, MaxAge, claims, readDefinitions, ct).ConfigureAwait(false);
+        var reading = await ObserveRoundsAsync(Native, expected, RoomsEnabled(), claims, readDefinitions, ct).ConfigureAwait(false);
         PublishFrame(expected, reading.Frame);
         if (await p.ExpeditionHandoffAsync(state, reading, ct, epoch).ConfigureAwait(false))
         {
@@ -668,7 +666,7 @@ public sealed partial class Rounder
         Demand.Set(result.Review.Snapshot, result.Needs.ResourceDemand);
         TradeMemory.Set(result.Review.Snapshot, result.Needs.Trade);
         WorkAssignments.Set(result.Review.Snapshot, result.Needs.WorkAssignments);
-        GearFilters.Set(result.Review.Snapshot, PolicyApi.GearFilterChoices(reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection));
+        NoteGearFilters(GearFilters, result.Review.Snapshot, reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection);
         RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Projection, result.Needs.CoupledSelection));
         AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value), ("concerns", result.Standards.Count) };

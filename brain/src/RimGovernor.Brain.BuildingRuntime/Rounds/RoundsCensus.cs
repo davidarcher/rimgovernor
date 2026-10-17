@@ -292,9 +292,30 @@ public sealed partial class Rounder
         {
             return cached;
         }
-        var reading = await ObservationApi.ObserveRoundsOwned(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false);
+        var reading = await ObserveRoundsAsync(source, expected, false, claims, definitions, ct).ConfigureAwait(false);
         return reading.WithProjection(ServeAndReview(reading.Projection));
     }
+
+    /// <summary>
+    /// The rounds census the review and a planner's own read take, with each pawn's outfit filter as the latest review's
+    /// comparator left it (#3285: allowed only where it rejected disallowing tainted apparel). This is the one place
+    /// GearPawn.AllowTainted is stamped (#3325), so the review's facts, the ledger's gear declarers, the census the
+    /// planners share and a planner's fresh read all plan inside the same filter.
+    /// </summary>
+    internal async Task<RoundsReading> ObserveRoundsAsync(IRoundsSource source, Identity expected, bool rooms, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken ct)
+    {
+        var reading = rooms
+            ? await ObservationApi.ObserveRoundsRooms(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false)
+            : await ObservationApi.ObserveRoundsOwned(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false);
+        var allowed = GearFilters.Get(Player.Session.State().Snapshot);
+        return reading.WithFacts(f => WithGearFilters(f, allowed));
+    }
+
+    /// <summary>The facts with each census pawn's AllowTainted set from <paramref name="allowed"/>; an unread census stays unread.</summary>
+    internal static RoundsFacts WithGearFilters(RoundsFacts f, EquatableArray<string> allowed) =>
+        f.Gear.TryGetValue(out var gear)
+            ? f with { Gear = Known(gear with { Pawns = [.. gear.Pawns.Select(p => p with { AllowTainted = allowed.Contains(p.Pawn.Value) })] }) }
+            : f;
 
     /// <summary>The remembered layout and royalty served into a fresh projection, then the food plan, meals, reserve and baby feeding reviews (Go ran them in place on <c>&amp;reading.Projection</c>).</summary>
     private ColonyProjection ServeAndReview(ColonyProjection fresh)
@@ -331,7 +352,7 @@ public sealed partial class Rounder
         {
             return cached;
         }
-        var reading = await ObservationApi.ObserveRoundsRooms(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false);
+        var reading = await ObserveRoundsAsync(source, expected, true, claims, definitions, ct).ConfigureAwait(false);
         return reading.WithProjection(ServeAndReview(reading.Projection));
     }
 

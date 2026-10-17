@@ -206,10 +206,14 @@ the gear planner's predicted insulation change
 disallowed; one an assessed portfolio held and the comparator rejected allows it;
 no candidate, or one never assessed, keeps the default (disallowed). The Rounder
 keeps that per-pawn set in derived memory for the review's world (`ReviewMemory`,
-empty after a restart), the military read stamps it onto `GearPawn.AllowTainted`,
-and the bit drives `DesiredApparelPolicy` (`ApparelPolicyIntent.allowTainted`),
-`ApparelQualityFloor`, `OutfitKeep` and the planner's filter in `PlanColonyGear`.
-Other gear readers (bill demand, the gear search log) plan with the default.
+empty after a restart). A review with no coupled selection compared nothing and
+leaves the last set standing. The rounds census read (`ObserveRoundsAsync`, taken
+by the review and by a planner's own read) is the one place that stamps it onto
+`GearPawn.AllowTainted`, so every gear reader plans inside the same filter:
+`DesiredApparelPolicy` (`ApparelPolicyIntent.allowTainted`),
+`ApparelQualityFloor`, `OutfitKeep`, the planner's filter in `PlanColonyGear`,
+and through it the replacement bill demand, the gear declarers and the gear
+search log.
 
 ## Dispatch, completion and interruption
 
