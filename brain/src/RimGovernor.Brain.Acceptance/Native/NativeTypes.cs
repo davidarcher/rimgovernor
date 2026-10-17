@@ -47,6 +47,19 @@ public class NativeTransportException : AcceptanceException
     }
 }
 
+/// <summary>
+/// The run cannot succeed any more: the game process exited, or the channel stopped answering twice in a row. It is
+/// deliberately not a <see cref="NativeTransportException"/>, so nothing that tolerates one transport failure retries
+/// past it; the run's error is this message.
+/// </summary>
+public sealed class RunLostException : AcceptanceException
+{
+    public RunLostException(string message)
+        : base(message)
+    {
+    }
+}
+
 /// <summary>The game was reachable and refused or failed the call (Go <c>ErrRefused</c> / <c>bridge.Refusal</c>).</summary>
 public sealed class NativeRefusedException : AcceptanceException
 {

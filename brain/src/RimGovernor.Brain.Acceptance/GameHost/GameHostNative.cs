@@ -11,7 +11,9 @@ internal static partial class GameHostNative
     internal const uint CreateUnicodeEnvironment = 0x00000400;
     internal const uint CreateBreakawayFromJob = 0x01000000;
     internal const uint CreateNoWindow = 0x08000000;
+    internal const uint ExtendedStartupInfoPresent = 0x00080000;
     internal const int StartfUseStdHandles = 0x00000100;
+    internal const nint ProcThreadAttributeHandleList = 0x00020002;
     internal const uint Infinite = 0xFFFFFFFF;
     internal const uint StillActive = 259;
 
@@ -36,6 +38,14 @@ internal static partial class GameHostNative
         public IntPtr StdInput;
         public IntPtr StdOutput;
         public IntPtr StdError;
+    }
+
+    /// <summary>STARTUPINFOEXW: the startup info plus the attribute list naming the only handles the child inherits.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct StartupInfoEx
+    {
+        public StartupInfo StartupInfo;
+        public IntPtr AttributeList;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -75,6 +85,17 @@ internal static partial class GameHostNative
         uint creationFlags,
         string? environment,
         string? currentDirectory,
-        in StartupInfo startupInfo,
+        in StartupInfoEx startupInfo,
         out ProcessInformation processInformation);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool InitializeProcThreadAttributeList(IntPtr attributeList, int attributeCount, int flags, ref nuint size);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool UpdateProcThreadAttribute(IntPtr attributeList, uint flags, nint attribute, IntPtr value, nuint size, IntPtr previousValue, IntPtr returnSize);
+
+    [LibraryImport("kernel32.dll")]
+    internal static partial void DeleteProcThreadAttributeList(IntPtr attributeList);
 }

@@ -25,6 +25,7 @@ public sealed class HttpNativeTransport : INativeTransport
     private readonly TimeSpan _timeout;
     private readonly HttpClient _client;
     private readonly bool _ownsClient;
+    private int _failures;
 
     /// <param name="endpointDirectory">The directory holding <c>http-endpoint.json</c> (beside the OTLP rings).</param>
     /// <param name="timeout">The default deadline of one call, including the wait for the endpoint file.</param>
@@ -40,7 +41,61 @@ public sealed class HttpNativeTransport : INativeTransport
     /// <summary>The directory the endpoint file is read from.</summary>
     public string EndpointDirectory => _endpointDirectory;
 
+    /// <summary>
+    /// How many transport failures in a row mean the game is not coming back (a call's own deadline is a minute, so the
+    /// second failure is a bounded two minutes into a lost run, not the run's wall budget).
+    /// </summary>
+    public const int LostAfterFailures = 2;
+
+    /// <summary>
+    /// Returns why the game process is gone (its exit code and log tail), null while it runs or when nothing records
+    /// it. Consulted before every call and after every transport failure, so a dead game ends the run at its next call.
+    /// </summary>
+    public Func<string?>? Gone { get; init; }
+
     public async Task<NativeResult> CallAsync(string tool, JsonObject arguments, NativeCallOptions options, CancellationToken cancellationToken)
+    {
+        if (Gone?.Invoke() is { } gone)
+        {
+            throw new RunLostException(gone);
+        }
+
+        try
+        {
+            var result = await SendAsync(tool, arguments, options, cancellationToken).ConfigureAwait(false);
+            Interlocked.Exchange(ref _failures, 0);
+            return result;
+        }
+        catch (NativeRefusedException)
+        {
+            // The game answered.
+            Interlocked.Exchange(ref _failures, 0);
+            throw;
+        }
+        catch (NativeToolNotRoutedException)
+        {
+            // The game answered, without this tool.
+            Interlocked.Exchange(ref _failures, 0);
+            throw;
+        }
+        catch (NativeTransportException e)
+        {
+            if (Gone?.Invoke() is { } gone2)
+            {
+                throw new RunLostException(gone2);
+            }
+
+            var failures = Interlocked.Increment(ref _failures);
+            if (failures >= LostAfterFailures)
+            {
+                throw new RunLostException($"native unreachable: {failures} consecutive transport failures, the last: {e.Message}");
+            }
+
+            throw;
+        }
+    }
+
+    private async Task<NativeResult> SendAsync(string tool, JsonObject arguments, NativeCallOptions options, CancellationToken cancellationToken)
     {
         var path = RoutePath(tool);
         var requestForm = arguments.Count == 1 && arguments.TryGetPropertyValue(RequestArgument, out var request) && request is JsonValue value && value.TryGetValue<string>(out _);

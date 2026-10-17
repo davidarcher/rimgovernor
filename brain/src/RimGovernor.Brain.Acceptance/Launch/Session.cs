@@ -64,8 +64,11 @@ public static class GameSessions
     public static string EndpointDirectory(string configDir, string gameId) => GameProcess.GameDir(HeadlessProfile.MustAbs(configDir), gameId);
 
     /// <summary>A transport to the game's channel, waiting up to <paramref name="timeout"/> per call for the endpoint file.</summary>
-    public static HttpNativeTransport CreateTransport(string configDir, string gameId, TimeSpan timeout) =>
-        new(EndpointDirectory(configDir, gameId), timeout);
+    public static HttpNativeTransport CreateTransport(string configDir, string gameId, TimeSpan timeout)
+    {
+        var stateDir = HeadlessProfile.MustAbs(configDir);
+        return new(EndpointDirectory(configDir, gameId), timeout) { Gone = () => GoneReason(stateDir, gameId) };
+    }
 
     /// <summary>
     /// Runs right before a launch (not an attach): the prepared ModsConfig.xml and the installed package's hashes are
@@ -217,7 +220,7 @@ public static class GameSessions
         {
             if (!game.Alive)
             {
-                throw new AcceptanceException(ExitedMessage(stateDir, gameId, game.Pid));
+                throw new AcceptanceException(ExitedMessage(stateDir, gameId, string.Create(CultureInfo.InvariantCulture, $"connect: the game (pid {game.Pid}) exited before its channel came up")));
             }
 
             if (EndpointFile.Read(directory) is { } endpoint && endpoint.Address.Length > 0 && endpoint.Pid == game.Pid)
@@ -274,15 +277,28 @@ public static class GameSessions
             // The game answered, which is all a connect asks.
             return null;
         }
-        catch (NativeTransportException e)
+        catch (Exception e) when (e is NativeTransportException or RunLostException)
         {
+            // A booting game answers nothing for a while; connect's own budget and process check bound the wait.
             return e.Message;
         }
     }
 
-    private static string ExitedMessage(string stateDir, string gameId, int pid)
+    /// <summary>
+    /// Why the game recorded for <paramref name="gameId"/> is gone, null while it runs or when no record names it (a
+    /// stopped game removes its record, so a deliberate stop is not a loss). Reads the record without removing it.
+    /// </summary>
+    internal static string? GoneReason(string stateDir, string gameId)
     {
-        var message = new StringBuilder(string.Create(CultureInfo.InvariantCulture, $"connect: the game (pid {pid}) exited before its channel came up"));
+        var record = GameProcess.PeekRecord(stateDir, gameId);
+        return record is null || GameProcess.IsRunning(record)
+            ? null
+            : ExitedMessage(stateDir, gameId, string.Create(CultureInfo.InvariantCulture, $"the game (pid {record.Pid}) exited"));
+    }
+
+    private static string ExitedMessage(string stateDir, string gameId, string headline)
+    {
+        var message = new StringBuilder(headline);
         if (GameProcess.LastExit(stateDir, gameId) is { } code)
         {
             message.Append(CultureInfo.InvariantCulture, $" (exit code {code})");

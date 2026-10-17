@@ -288,6 +288,12 @@ public sealed partial class CheckpointRing
         catch (Exception e) when (IsCaptureFailure(e))
         {
             RecordError(label, e.Message);
+            if (e is NativeTransportException or RunLostException)
+            {
+                // The game did not answer the checkpoint's reads: nothing later in the run can succeed, so the run ends
+                // here instead of retrying every cadence until its budget.
+                throw;
+            }
         }
         finally
         {
@@ -586,7 +592,7 @@ public sealed partial class CheckpointRing
             var reply = await h.WireAsync($"checkpoint-{label}-save", "lifecycle_save", request, cancellationToken).ConfigureAwait(false);
             Harness.Outcome(reply, "completed");
         }
-        catch (AcceptanceException e)
+        catch (AcceptanceException e) when (e is not RunLostException)
         {
             throw new AcceptanceException($"lifecycle_save: {e.Message}", e);
         }

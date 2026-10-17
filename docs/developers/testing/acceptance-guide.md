@@ -190,6 +190,12 @@ The runner keeps a fixture-enabled game by default. Declare `NoKeep` for a case
 that terminates/replaces the process; an `Owned` start must do so. A kept game
 retains its loaded mod configuration: stop it before changing expansions or
 installing a new mod build. A fixture-less production build requires fresh boot.
+The game starts detached and inherits only its own `game.log` handle, so a redirected
+`acceptance run` returns when the case ends while the kept game stays up.
+
+A run that cannot succeed fails at once with its cause as the `error`: the game process
+exited (exit code and `game.log` tail), or two consecutive native calls got no reply
+(`native unreachable`). A checkpoint whose native reads fail ends the run the same way.
 
 `acceptance warm -root <root>` prepares the menu before a run.
 Use the suite runner for worker isolation and parallel cases rather than

@@ -70,7 +70,28 @@ public sealed class GameProcess
     public long Generation => Record.Generation;
 
     /// <summary>Whether the recorded process is still running with the recorded start time.</summary>
-    public bool Alive => TryProcessStartTime(Record.Pid, out var start) && start == Record.PidStartTime;
+    public bool Alive => IsRunning(Record);
+
+    /// <summary>Whether <paramref name="record"/>'s process is still running with the recorded start time.</summary>
+    public static bool IsRunning(GameHostRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        return TryProcessStartTime(record.Pid, out var start) && start == record.PidStartTime;
+    }
+
+    /// <summary>The record under <paramref name="stateDir"/> for <paramref name="gameId"/> as it stands, without removing a stale one; null when absent or unreadable.</summary>
+    public static GameHostRecord? PeekRecord(string stateDir, string gameId)
+    {
+        try
+        {
+            var record = GameHostRecord.Parse(File.ReadAllText(EndpointPath(stateDir, gameId)));
+            return record is not null && string.Equals(record.GameId, gameId, StringComparison.Ordinal) ? record : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>The directory holding a game's records and log.</summary>
     public static string GameDir(string stateDir, string gameId) => Path.Combine(stateDir, gameId);
@@ -376,30 +397,66 @@ public sealed class GameProcess
     /// <summary>
     /// Creates the process with the log as stdout and stderr, no console window, in its own process group and broken
     /// away from the caller's job. Breakaway is refused when the enclosing job forbids it; the start is then retried
-    /// without it.
+    /// without it. The child inherits only the log handle (an explicit handle list): inheriting every inheritable
+    /// handle would hand it the caller's redirected stdout/stderr pipes, and a caller waiting for those pipes to close
+    /// would wait for the game to quit.
     /// </summary>
-    private static GameHostNative.ProcessInformation CreateDetached(string commandLine, string environment, string workingDir, IntPtr log)
+    private static unsafe GameHostNative.ProcessInformation CreateDetached(string commandLine, string environment, string workingDir, IntPtr log)
     {
-        var startup = new GameHostNative.StartupInfo
+        nuint size = 0;
+        _ = GameHostNative.InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref size);
+        var attributes = (IntPtr)NativeMemory.Alloc(size);
+        var inherited = (IntPtr*)NativeMemory.Alloc((nuint)IntPtr.Size);
+        var initialized = false;
+        try
         {
-            Flags = GameHostNative.StartfUseStdHandles,
-            StdOutput = log,
-            StdError = log,
-        };
-        startup.Cb = Marshal.SizeOf<GameHostNative.StartupInfo>();
-        var flags = GameHostNative.CreateNoWindow | GameHostNative.CreateNewProcessGroup | GameHostNative.CreateUnicodeEnvironment;
-        var cwd = workingDir.Length == 0 ? null : workingDir;
-        if (GameHostNative.CreateProcess(null, commandLine, IntPtr.Zero, IntPtr.Zero, 1, flags | GameHostNative.CreateBreakawayFromJob, environment, cwd, in startup, out var info) != 0)
-        {
-            return info;
-        }
+            inherited[0] = log;
+            if (!GameHostNative.InitializeProcThreadAttributeList(attributes, 1, 0, ref size))
+            {
+                throw new AcceptanceException("gamehost: restrict inherited handles for " + commandLine, new Win32Exception(Marshal.GetLastPInvokeError()));
+            }
 
-        if (GameHostNative.CreateProcess(null, commandLine, IntPtr.Zero, IntPtr.Zero, 1, flags, environment, cwd, in startup, out info) != 0)
-        {
-            return info;
-        }
+            initialized = true;
+            if (!GameHostNative.UpdateProcThreadAttribute(attributes, 0, GameHostNative.ProcThreadAttributeHandleList, (IntPtr)inherited, (nuint)IntPtr.Size, IntPtr.Zero, IntPtr.Zero))
+            {
+                throw new AcceptanceException("gamehost: restrict inherited handles for " + commandLine, new Win32Exception(Marshal.GetLastPInvokeError()));
+            }
 
-        throw new AcceptanceException("gamehost: start " + commandLine, new Win32Exception(Marshal.GetLastPInvokeError()));
+            var startup = new GameHostNative.StartupInfoEx
+            {
+                StartupInfo = new GameHostNative.StartupInfo
+                {
+                    Flags = GameHostNative.StartfUseStdHandles,
+                    StdOutput = log,
+                    StdError = log,
+                },
+                AttributeList = attributes,
+            };
+            startup.StartupInfo.Cb = Marshal.SizeOf<GameHostNative.StartupInfoEx>();
+            var flags = GameHostNative.CreateNoWindow | GameHostNative.CreateNewProcessGroup | GameHostNative.CreateUnicodeEnvironment | GameHostNative.ExtendedStartupInfoPresent;
+            var cwd = workingDir.Length == 0 ? null : workingDir;
+            if (GameHostNative.CreateProcess(null, commandLine, IntPtr.Zero, IntPtr.Zero, 1, flags | GameHostNative.CreateBreakawayFromJob, environment, cwd, in startup, out var info) != 0)
+            {
+                return info;
+            }
+
+            if (GameHostNative.CreateProcess(null, commandLine, IntPtr.Zero, IntPtr.Zero, 1, flags, environment, cwd, in startup, out info) != 0)
+            {
+                return info;
+            }
+
+            throw new AcceptanceException("gamehost: start " + commandLine, new Win32Exception(Marshal.GetLastPInvokeError()));
+        }
+        finally
+        {
+            if (initialized)
+            {
+                GameHostNative.DeleteProcThreadAttributeList(attributes);
+            }
+
+            NativeMemory.Free((void*)attributes);
+            NativeMemory.Free(inherited);
+        }
     }
 
     /// <summary>Bumps the per-game launch counter kept beside the endpoint (the endpoint itself is removed on stop, so it cannot carry the count).</summary>
