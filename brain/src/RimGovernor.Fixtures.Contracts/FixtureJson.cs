@@ -50,6 +50,8 @@ public static class FixtureJson
 [JsonSerializable(typeof(QuestShuttlePrepared))]
 [JsonSerializable(typeof(ChoiceDialogRead))]
 [JsonSerializable(typeof(LetterDelivered))]
+[JsonSerializable(typeof(DismissLetterArgs))]
+[JsonSerializable(typeof(LetterDismissed))]
 [JsonSerializable(typeof(HazardInjected))]
 [JsonSerializable(typeof(LetterPauseMode))]
 [JsonSerializable(typeof(CombatLabWipe))]

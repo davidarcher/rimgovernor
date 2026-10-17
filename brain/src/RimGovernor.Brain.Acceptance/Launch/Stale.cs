@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -37,11 +36,10 @@ public static class StalePackage
     /// (<see cref="Config.FixtureOps"/>): the rebuild hint names their fixtures beside the installed build's, so following
     /// it cannot leave the case's own fixture out. The summary is also the report's installed_package.
     /// </summary>
-    public static JsonObject RequireCurrent(string pkg, IReadOnlyList<string> fixtureOps)
+    public static InstalledPackageSummary RequireCurrent(string pkg, IReadOnlyList<string> fixtureOps)
     {
         ArgumentNullException.ThrowIfNull(fixtureOps);
-        var summary = new JsonObject { ["path"] = pkg, ["checked"] = false };
-        RunState.InstalledPackage = summary;
+        var summary = Publish(new InstalledPackageSummary { Path = pkg });
         SetupPackageManifest manifest;
         try
         {
@@ -49,29 +47,29 @@ public static class StalePackage
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
         {
-            summary["skipped"] = "no manifest: " + e.Message;
-            return summary;
+            return Publish(summary with { Skipped = "no manifest: " + e.Message });
         }
 
-        summary["role"] = manifest.Role;
-        summary["fixtures"] = new JsonArray([.. manifest.Fixtures.Select(f => (JsonNode?)JsonValue.Create(f))]);
-        summary["source_revision"] = manifest.SourceRevision;
-        summary["source_dirty"] = manifest.SourceDirty;
+        summary = summary with
+        {
+            Role = manifest.Role,
+            Fixtures = manifest.Fixtures,
+            SourceRevision = manifest.SourceRevision,
+            SourceDirty = manifest.SourceDirty,
+        };
         if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(AllowStaleModEnv)))
         {
-            summary["skipped"] = AllowStaleModEnv + " set";
-            return summary;
+            return Publish(summary with { Skipped = AllowStaleModEnv + " set" });
         }
 
         var cwd = Directory.GetCurrentDirectory();
         var repo = NativeSourceInputs.FindRepo(cwd);
         if (repo is null)
         {
-            summary["skipped"] = "no enclosing checkout under " + cwd;
-            return summary;
+            return Publish(summary with { Skipped = "no enclosing checkout under " + cwd });
         }
 
-        summary["worktree"] = repo;
+        summary = summary with { Worktree = repo };
         if (manifest.SourceTree.Length > 0)
         {
             string current;
@@ -81,49 +79,44 @@ public static class StalePackage
             }
             catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException)
             {
-                summary["skipped"] = e.Message;
-                return summary;
+                return Publish(summary with { Skipped = e.Message });
             }
 
-            summary["checked"] = true;
-            summary["method"] = "source_tree";
-            summary["source_tree"] = manifest.SourceTree;
-            summary["worktree_source_tree"] = current;
-            if (!string.Equals(current, manifest.SourceTree, StringComparison.Ordinal))
-            {
-                throw StaleError(pkg, manifest, repo, fixtureOps, "its native sources differ from this worktree's");
-            }
-
-            return summary;
+            summary = Publish(summary with { Checked = true, Method = "source_tree", SourceTree = manifest.SourceTree, WorktreeSourceTree = current });
+            return string.Equals(current, manifest.SourceTree, StringComparison.Ordinal)
+                ? summary
+                : throw StaleError(pkg, manifest, repo, fixtureOps, "its native sources differ from this worktree's");
         }
 
         // An older build: ask git whether the inputs changed since its revision.
         if (manifest.SourceRevision.Length == 0)
         {
-            summary["skipped"] = "manifest records neither sourceTree nor sourceRevision";
-            return summary;
+            return Publish(summary with { Skipped = "manifest records neither sourceTree nor sourceRevision" });
         }
 
         var (exit, output) = GitDiffQuiet(repo, manifest.SourceRevision);
         switch (exit)
         {
             case 0:
-                summary["checked"] = true;
-                summary["method"] = "git_diff";
-                if (manifest.SourceDirty)
+                return Publish(summary with
                 {
-                    summary["note"] = "built from a dirty tree; uncommitted changes at build time are not compared";
-                }
-
-                return summary;
+                    Checked = true,
+                    Method = "git_diff",
+                    Note = manifest.SourceDirty ? "built from a dirty tree; uncommitted changes at build time are not compared" : null,
+                });
             case 1:
-                summary["checked"] = true;
-                summary["method"] = "git_diff";
+                _ = Publish(summary with { Checked = true, Method = "git_diff" });
                 throw StaleError(pkg, manifest, repo, fixtureOps, "native sources changed since revision " + Short(manifest.SourceRevision));
             default:
-                summary["skipped"] = "git diff: " + output.Trim() + (exit < 0 ? "" : string.Create(CultureInfo.InvariantCulture, $" exit status {exit}"));
-                return summary;
+                return Publish(summary with { Skipped = "git diff: " + output.Trim() + (exit < 0 ? "" : string.Create(CultureInfo.InvariantCulture, $" exit status {exit}")) });
         }
+    }
+
+    /// <summary>Records <paramref name="summary"/> as the run's installed_package and returns it.</summary>
+    private static InstalledPackageSummary Publish(InstalledPackageSummary summary)
+    {
+        RunState.InstalledPackage = LaunchJson.Node(summary);
+        return summary;
     }
 
     /// <summary>

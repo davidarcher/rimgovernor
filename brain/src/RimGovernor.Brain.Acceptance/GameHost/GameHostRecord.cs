@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -15,45 +13,28 @@ public sealed record GameHostRecord(string GameId, int Pid, long PidStartTime, D
     public const int SchemaVersion = 1;
 
     /// <summary>The record's JSON text (the layout <see cref="Parse"/> reads).</summary>
-    public string ToJson()
+    public string ToJson() => LaunchJson.Endpoint(new GameEndpointFile
     {
-        var node = new JsonObject
-        {
-            ["schemaVersion"] = SchemaVersion,
-            ["gameId"] = GameId,
-            ["pid"] = Pid,
-            ["pidStartTime"] = PidStartTime,
-            ["launchedAt"] = LaunchedAt.UtcDateTime.ToString("O", CultureInfo.InvariantCulture),
-            ["generation"] = Generation,
-        };
-        return node.ToJsonString(Indented) + "\n";
-    }
+        SchemaVersion = SchemaVersion,
+        GameId = GameId,
+        Pid = Pid,
+        PidStartTime = PidStartTime,
+        LaunchedAt = LaunchedAt.UtcDateTime.ToString("O", CultureInfo.InvariantCulture),
+        Generation = Generation,
+    }) + "\n";
 
     /// <summary>Parses an endpoint.json body; a record with another schema version is null (stale).</summary>
     public static GameHostRecord? Parse(string text)
     {
-        if (JsonNode.Parse(text) is not JsonObject obj)
-        {
-            throw new JsonException("endpoint record is not a JSON object");
-        }
-
-        if (Int(obj["schemaVersion"]) != SchemaVersion)
+        var file = LaunchJson.ParseEndpoint(text);
+        if (file.SchemaVersion != SchemaVersion)
         {
             return null;
         }
 
-        var launched = DateTimeOffset.TryParse((string?)obj["launchedAt"] ?? "", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var t)
+        var launched = DateTimeOffset.TryParse(file.LaunchedAt ?? "", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var t)
             ? t
             : DateTimeOffset.MinValue;
-        return new GameHostRecord(
-            (string?)obj["gameId"] ?? "",
-            (int)Int(obj["pid"]),
-            Int(obj["pidStartTime"]),
-            launched,
-            Int(obj["generation"]));
+        return new GameHostRecord(file.GameId ?? "", (int)file.Pid, file.PidStartTime, launched, file.Generation);
     }
-
-    internal static JsonSerializerOptions Indented { get; } = new() { WriteIndented = true };
-
-    private static long Int(JsonNode? node) => node is JsonValue v && v.TryGetValue<long>(out var n) ? n : 0;
 }

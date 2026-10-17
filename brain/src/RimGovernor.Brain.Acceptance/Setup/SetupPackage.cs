@@ -1,18 +1,26 @@
 using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Xml.Linq;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>The part of native-manifest.json the setup reads: what the installed build was made from (Go <c>nativeaccept.PackageManifest</c>).</summary>
+/// <summary>
+/// native-manifest.json, the build record <see cref="NativeModBuild"/> writes at the package root: what the installed build
+/// was made from (Go <c>nativeaccept.PackageManifest</c>).
+/// </summary>
 public sealed class SetupPackageManifest
 {
+    public int FormatVersion { get; init; }
+
     public string PackageId { get; init; } = "";
 
     public string Role { get; init; } = "";
 
     public IReadOnlyList<string> Fixtures { get; init; } = [];
+
+    public IReadOnlyList<ManifestDependency> RuntimeDependencies { get; init; } = [];
+
+    public IReadOnlyList<ManifestDependency> HostDependencies { get; init; } = [];
 
     public string SourceRevision { get; init; } = "";
 
@@ -20,6 +28,14 @@ public sealed class SetupPackageManifest
 
     /// <summary>The source-tree hash over the inputs the build copied; builds from before it was recorded leave it empty.</summary>
     public string SourceTree { get; init; } = "";
+
+    public string DotnetSdk { get; init; } = "";
+
+    /// <summary>The game files the build compiled against (full paths) and their hashes.</summary>
+    public IReadOnlyList<ManifestFile> Inputs { get; init; } = [];
+
+    /// <summary>Every file of the package (paths relative to it, forward slashes) and its hash.</summary>
+    public IReadOnlyList<ManifestFile> Files { get; init; } = [];
 }
 
 /// <summary>
@@ -45,34 +61,8 @@ public static class SetupPackage
     };
 
     /// <summary>Reads <paramref name="pkg"/>'s native-manifest.json. Throws <see cref="IOException"/> when absent and <see cref="JsonException"/> when malformed.</summary>
-    public static SetupPackageManifest ReadPackageManifest(string pkg)
-    {
-        var text = File.ReadAllText(Path.Combine(pkg, PackageManifestName));
-        var root = JsonNode.Parse(text) as JsonObject ?? throw new JsonException(PackageManifestName + ": not an object");
-        var fixtures = new List<string>();
-        if (root["fixtures"] is JsonArray array)
-        {
-            foreach (var item in array)
-            {
-                if (item is JsonValue v && v.TryGetValue<string>(out var s))
-                {
-                    fixtures.Add(s);
-                }
-            }
-        }
-
-        return new SetupPackageManifest
-        {
-            PackageId = Str(root, "packageId"),
-            Role = Str(root, "role"),
-            Fixtures = fixtures,
-            SourceRevision = Str(root, "sourceRevision"),
-            SourceDirty = root["sourceDirty"] is JsonValue d && d.TryGetValue<bool>(out var dirty) && dirty,
-            SourceTree = Str(root, "sourceTree"),
-        };
-    }
-
-    private static string Str(JsonObject o, string key) => o[key] is JsonValue v && v.TryGetValue<string>(out var s) ? s : "";
+    public static SetupPackageManifest ReadPackageManifest(string pkg) =>
+        LaunchJson.ParseManifest(File.ReadAllText(Path.Combine(pkg, PackageManifestName)));
 
     /// <summary>The sourceTree hash of the build inputs under <paramref name="repo"/> (<see cref="NativeSourceInputs.SourceTreeHash(string)"/>), a missing input reported as a <see cref="SetupException"/>.</summary>
     public static string SourceTreeHash(string repo)

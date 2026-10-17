@@ -1,4 +1,3 @@
-using System.Text.Json.Nodes;
 using RimGovernor.Brain.Acceptance;
 using Xunit;
 
@@ -74,11 +73,11 @@ public sealed class StartCacheTests : IDisposable
     {
         var source = Path.Combine(_dir, "source");
         Directory.CreateDirectory(Path.Combine(source, "config"));
-        var config = new JsonObject
+        var config = new HarnessConfig
         {
-            ["games"] = new JsonObject
+            Games = new()
             {
-                [HeadlessProfile.TrialGameId] = new JsonObject { ["launchMode"] = "DirectPath", ["workingDir"] = _dir },
+                [HeadlessProfile.TrialGameId] = new HarnessGame { LaunchMode = "DirectPath", WorkingDir = _dir },
             },
         };
         HeadlessProfile.WriteConfig(Path.Combine(source, "config", "config.json"), config);

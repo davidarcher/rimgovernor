@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Text.Json.Nodes;
 using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Contracts.Wire;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -161,18 +160,8 @@ public sealed class Game : IGameHold
     {
         if (report is not null)
         {
-            var reuse = new JsonObject
-            {
-                ["reused"] = Reused,
-                ["kept"] = Keep,
-                ["openMs"] = (long)Open.TotalMilliseconds,
-            };
-            if (Relaunched.Length > 0)
-            {
-                reuse["relaunched"] = Relaunched;
-            }
-
-            report["game_reuse"] = reuse;
+            report["game_reuse"] = OutputJson.Fields(("reused", Reused), ("kept", Keep), ("openMs", (long)Open.TotalMilliseconds))
+                .AddIfPresent("relaunched", Relaunched.Length > 0 ? Relaunched : null);
         }
 
         try

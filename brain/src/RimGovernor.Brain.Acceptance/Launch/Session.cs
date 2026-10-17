@@ -4,6 +4,9 @@ using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.HttpChannel;
+using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Contracts.Wire;
+using IdentityRequest = RimGovernor.Contracts.Wire.Lifecycle.IdentityRequest;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -22,7 +25,6 @@ public static class GameSessions
 
     private const string OtlpDirectoryVariable = "RIMGOVERNOR_OTLP_DIR";
     private const string RunIdVariable = "RIMGOVERNOR_RUN_ID";
-    private const string ReadinessTool = "rimgovernor/lifecycle_read_identity";
 
     /// <summary>
     /// The launch spec for <paramref name="gameId"/> from <c>games.&lt;gameId&gt;</c> of <paramref name="configDir"/>'s
@@ -33,29 +35,19 @@ public static class GameSessions
     {
         var stateDir = HeadlessProfile.MustAbs(configDir);
         var game = HeadlessProfile.GameSection(HeadlessProfile.LoadConfig(Path.Combine(stateDir, "config.json")), gameId);
-        var executable = game["target"].AsString();
+        var executable = game.Target ?? "";
         if (executable.Length == 0)
         {
             throw new AcceptanceException($"{Path.Combine(stateDir, "config.json")}: games.{gameId} has no target");
-        }
-
-        var args = game["args"].AsSlice().Select(a => a.AsString()).ToList();
-        var env = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (game["env"].AsMap() is { } entries)
-        {
-            foreach (var (name, value) in entries)
-            {
-                env[name] = value.AsString();
-            }
         }
 
         return new GameLaunchSpec
         {
             GameId = gameId,
             Executable = executable,
-            WorkingDir = game["workingDir"].AsString(),
-            Args = args,
-            Env = env,
+            WorkingDir = game.WorkingDir ?? "",
+            Args = [.. game.Args ?? []],
+            Env = game.Env is { } env ? new Dictionary<string, string>(env, StringComparer.Ordinal) : new Dictionary<string, string>(StringComparer.Ordinal),
             StateDir = stateDir,
         };
     }
@@ -267,8 +259,8 @@ public static class GameSessions
         try
         {
             _ = await transport.CallAsync(
-                ReadinessTool,
-                new JsonObject { ["request"] = "{}" },
+                NativeOps.ReadIdentity.Tool,
+                new JsonObject { { "request", WireJson.Serialize(new IdentityRequest()) } },
                 new NativeCallOptions { Timeout = TimeSpan.FromSeconds(60), Phase = "connect" },
                 cancellationToken).ConfigureAwait(false);
             return null;

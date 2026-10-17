@@ -1,4 +1,3 @@
-using System.Text.Json.Nodes;
 using RimGovernor.Brain.Acceptance;
 using Xunit;
 
@@ -39,15 +38,15 @@ public sealed class RenderedConfigTests : IDisposable
         Write(Path.Combine("profile", "Config", "ModsConfig.xml"),
             "<ModsConfigData><activeMods><li>ludeon.rimworld</li></activeMods></ModsConfigData>");
         Write(Path.Combine("profile", "Config", "Prefs.xml"), "<PrefsData>\n</PrefsData>\n");
-        var config = new JsonObject
+        var config = new HarnessConfig
         {
-            ["games"] = new JsonObject
+            Games = new()
             {
-                [HeadlessProfile.TrialGameId] = new JsonObject
+                [HeadlessProfile.TrialGameId] = new HarnessGame
                 {
-                    ["launchMode"] = "DirectPath",
-                    ["workingDir"] = game,
-                    ["args"] = new JsonArray("-savedatafolder=" + profile, "-rimgovernor-pause-on-load"),
+                    LaunchMode = "DirectPath",
+                    WorkingDir = game,
+                    Args = ["-savedatafolder=" + profile, "-rimgovernor-pause-on-load"],
                 },
             },
         };
@@ -60,8 +59,7 @@ public sealed class RenderedConfigTests : IDisposable
 
         Assert.Equal(Path.Combine(root, "config-rendered"), rendered);
         Assert.Equal(before, File.ReadAllBytes(playerConfig));
-        var args = HeadlessProfile.GameSection(HeadlessProfile.LoadConfig(Path.Combine(rendered, "config.json")))["args"]!
-            .AsArray().Select(a => a!.GetValue<string>()).ToList();
+        var args = HeadlessProfile.GameSection(HeadlessProfile.LoadConfig(Path.Combine(rendered, "config.json"))).Args!;
         Assert.Contains("-rimgovernor-test-acceleration", args);
         Assert.Contains(HeadlessProfile.IdleExitArg, args);
         Assert.Equal(profile, HeadlessProfile.SaveDataFolder(rendered));

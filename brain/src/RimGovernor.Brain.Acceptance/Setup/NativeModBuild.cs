@@ -42,8 +42,6 @@ public static class NativeModBuild
     /// <summary>What every fixture build carries: the acceptance harnesses quiet and start the debug colony through them.</summary>
     public static readonly IReadOnlyList<string> AlwaysFixtures = ["DebugStartFixture", "FreezeNeedsFixture", "LetterFixture", "QuietStorytellerFixture"];
 
-    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
-
     /// <summary>The game's assemblies, in the RimWorld install, the build compiles against.</summary>
     private static readonly string[] GameAssemblies = ["Assembly-CSharp.dll", "UnityStubs.dll", "Waylith.dll"];
 
@@ -75,18 +73,16 @@ public static class NativeModBuild
         }
         try
         {
-            using var doc = JsonDocument.Parse(File.ReadAllBytes(path));
-            var root = doc.RootElement;
-            var fixtures = root.GetProperty("fixtures").EnumerateArray().Select(f => f.GetString() ?? "").Order(StringComparer.Ordinal);
-            var inputs = root.GetProperty("inputs").EnumerateArray()
-                .ToDictionary(i => i.GetProperty("path").GetString() ?? "", i => i.GetProperty("sha256").GetString() ?? "", StringComparer.OrdinalIgnoreCase);
+            var manifest = SetupPackage.ReadPackageManifest(package);
+            var fixtures = manifest.Fixtures.Order(StringComparer.Ordinal);
+            var inputs = manifest.Inputs.ToDictionary(i => i.Path, i => i.Sha256, StringComparer.OrdinalIgnoreCase);
             var wantedInputs = GameInputs(o);
-            return root.GetProperty("sourceTree").GetString() == NativeSourceInputs.SourceTreeHash(o.Repo)
+            return manifest.SourceTree == NativeSourceInputs.SourceTreeHash(o.Repo)
                 && fixtures.SequenceEqual(RecordedFixtures(o.Fixtures), StringComparer.Ordinal)
                 && inputs.Count == wantedInputs.Count
                 && wantedInputs.All(f => inputs.TryGetValue(f, out var sha) && sha == Sha256(f));
         }
-        catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException or IOException)
+        catch (Exception e) when (e is JsonException or IOException)
         {
             return false;
         }
@@ -382,25 +378,24 @@ public static class NativeModBuild
         var revision = (await GitAsync(repo, ["rev-parse", "HEAD"], ct).ConfigureAwait(false)).Trim();
         var dirty = (await GitAsync(repo, ["status", "--porcelain"], ct).ConfigureAwait(false)).Trim().Length > 0;
         var files = Directory.EnumerateFiles(package, "*", SearchOption.AllDirectories).Order(StringComparer.OrdinalIgnoreCase).ToList();
-        var manifest = new
+        var manifest = new SetupPackageManifest
         {
-            formatVersion = 1,
-            packageId = SetupPackage.NativePackage,
-            role,
-            fixtures,
-            runtimeDependencies = runtimeDependencies.Select(d => new { package = d.Package, version = d.Version, file = d.File }),
-            hostDependencies = hostDependencies.Select(d => new { package = d.Package, version = d.Version, file = d.File }),
-            sourceRevision = revision,
-            sourceDirty = dirty,
-            sourceTree,
-            dotnetSdk = sdk,
-            inputs = GameInputs(o).Select(f => new { path = f, sha256 = Sha256(f) }),
-            files = files.Select(f => new { path = Path.GetRelativePath(package, f).Replace(Path.DirectorySeparatorChar, '/'), sha256 = Sha256(f) }),
+            FormatVersion = 1,
+            PackageId = SetupPackage.NativePackage,
+            Role = role,
+            Fixtures = fixtures,
+            RuntimeDependencies = [.. runtimeDependencies.Select(Row)],
+            HostDependencies = [.. hostDependencies.Select(Row)],
+            SourceRevision = revision,
+            SourceDirty = dirty,
+            SourceTree = sourceTree,
+            DotnetSdk = sdk,
+            Inputs = [.. GameInputs(o).Select(f => new ManifestFile { Path = f, Sha256 = Sha256(f) })],
+            Files = [.. files.Select(f => new ManifestFile { Path = Path.GetRelativePath(package, f).Replace(Path.DirectorySeparatorChar, '/'), Sha256 = Sha256(f) })],
         };
-        await File.WriteAllBytesAsync(
-            Path.Combine(package, SetupPackage.PackageManifestName),
-            JsonSerializer.SerializeToUtf8Bytes(manifest, Indented),
-            ct).ConfigureAwait(false);
+        await File.WriteAllBytesAsync(Path.Combine(package, SetupPackage.PackageManifestName), LaunchJson.Manifest(manifest), ct).ConfigureAwait(false);
+
+        static ManifestDependency Row(Dependency d) => new() { Package = d.Package, Version = d.Version, File = d.File };
     }
 
     /// <summary>The game files the build compiles against, as the manifest records them: full paths, sorted, distinct.</summary>

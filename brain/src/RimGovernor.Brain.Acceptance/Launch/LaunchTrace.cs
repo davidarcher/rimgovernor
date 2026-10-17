@@ -94,6 +94,7 @@ public sealed class LaunchTrace
         var uri = new Uri(baseUrl.TrimEnd('/') + Route);
         var deadline = DateTime.UtcNow + wait;
         string problem;
+        using var pace = Wait.Pace(RetryDelay);
         while (true)
         {
             try
@@ -126,7 +127,7 @@ public sealed class LaunchTrace
                 return $"launch spans dropped: {problem}";
             }
 
-            await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 

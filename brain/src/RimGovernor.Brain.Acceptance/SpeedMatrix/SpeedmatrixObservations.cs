@@ -114,8 +114,7 @@ internal sealed partial class SpeedmatrixRun
         try
         {
             // The launch arguments carry the resolution and window mode of a rendered run, and batch mode of a headless one.
-            var game = cfg.GameSection().Deserialize(RootConfigJsonContext.Default.RootConfigGame);
-            output.Add("launch_args", game?.Args);
+            output.Add("launch_args", cfg.GameSection().Args is { } args ? OutputJson.Array(args) : null);
         }
         catch (Exception e) when (e is AcceptanceException or IOException or JsonException)
         {

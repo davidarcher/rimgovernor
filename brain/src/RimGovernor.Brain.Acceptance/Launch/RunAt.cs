@@ -4,26 +4,37 @@ using System.Text.Json.Nodes;
 using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Contracts.Wire;
 using Common = RimGovernor.Contracts.Wire.Common;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Wl = RimGovernor.Contracts.Wire.Lifecycle;
 using Wp = RimGovernor.Contracts.Wire.Presentation;
 
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
+/// The game's pause state and its visible causes (<see cref="RunAt.ReadPauseStateAsync"/>): lifecycle_read_tick's
+/// paused, forcePaused, timeSpeed, tick (-1 when unknown) and force-pausing windows, and presentation_notifications'
+/// letter stack, newest first.
+/// </summary>
+public sealed record PauseState(
+    long Tick,
+    bool Paused,
+    bool ForcePaused,
+    string? TimeSpeed,
+    IReadOnlyList<Wl.PausingWindow> Windows,
+    IReadOnlyList<Wp.Letter> Letters);
+
+/// <summary>
 /// Why the game stopped ticking under <see cref="RunAt.RunUntilAsync(Harness, string, ulong, Wait, Probe, bool, Report?, CancellationToken)"/>:
 /// what <see cref="RunAt.ReadPauseStateAsync"/> showed when a probe found the game paused although the harness asked for
-/// <see cref="RunAt.RunSpeed"/>. <see cref="Letters"/> are the stack's rows (id, label, letterDef), <see cref="Windows"/> the
-/// open windows that force a pause (type, title). A wait fails with it at once instead of burning its stall budget.
+/// <see cref="RunAt.RunSpeed"/>. A wait fails with it at once instead of burning its stall budget.
 /// </summary>
 public sealed class PauseCause : AcceptanceException
 {
-    public PauseCause(string label, ulong tick, bool forcePaused, IReadOnlyList<JsonObject> letters, IReadOnlyList<JsonObject> windows, JsonObject status)
-        : base(Describe(label, tick, forcePaused, letters, windows))
+    public PauseCause(string label, ulong tick, PauseState status)
+        : base(Describe(label, tick, status))
     {
         Label = label;
         Tick = tick;
-        ForcePaused = forcePaused;
-        Letters = letters;
-        Windows = windows;
         Status = status;
     }
 
@@ -31,30 +42,25 @@ public sealed class PauseCause : AcceptanceException
 
     public ulong Tick { get; }
 
-    public bool ForcePaused { get; }
-
-    public IReadOnlyList<JsonObject> Letters { get; }
-
-    public IReadOnlyList<JsonObject> Windows { get; }
-
     /// <summary>The pause state read when the pause was found.</summary>
-    public JsonObject Status { get; }
+    public PauseState Status { get; }
 
-    private static string Describe(string label, ulong tick, bool forcePaused, IReadOnlyList<JsonObject> letters, IReadOnlyList<JsonObject> windows)
+    private static string Describe(string label, ulong tick, PauseState status)
     {
+        ArgumentNullException.ThrowIfNull(status);
         var parts = new List<string>();
-        foreach (var letter in letters)
+        foreach (var letter in status.Letters)
         {
-            parts.Add($"letter \"{letter["label"].AsString()}\" ({letter["letterDef"].AsString()})");
+            parts.Add($"letter \"{letter.Label}\" ({letter.DefName})");
         }
 
-        foreach (var window in windows)
+        foreach (var window in status.Windows)
         {
-            parts.Add($"window {window["type"].AsString()} \"{window["title"].AsString()}\"");
+            parts.Add($"window {window.NativeType} \"{window.Title}\"");
         }
 
         var cause = parts.Count == 0 ? "no letter or force-pausing window" : string.Join(", ", parts);
-        var forced = forcePaused ? "true" : "false";
+        var forced = status.ForcePaused ? "true" : "false";
         return string.Create(CultureInfo.InvariantCulture, $"{label}: game paused at tick {tick} while running (forcePaused={forced}): {cause}");
     }
 }
@@ -99,40 +105,23 @@ public static class RunAt
         "ChildBirthday",
     };
 
-    /// <summary>
-    /// The game's pause state and its visible causes: lifecycle_read_tick's paused, forcePaused, timeSpeed, tick and
-    /// force-pausing windows ({type, title}), and presentation_notifications' letter stack ({id, label, letterDef}).
-    /// </summary>
-    public static async Task<JsonObject> ReadPauseStateAsync(Harness h, string label, CancellationToken cancellationToken)
+    /// <summary>The game's pause state and its visible causes.</summary>
+    public static async Task<PauseState> ReadPauseStateAsync(Harness h, string label, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(h);
         var loaded = await h.LoadedTickAsync(label + "-tick", cancellationToken).ConfigureAwait(false);
-        var windows = new JsonArray();
-        foreach (var row in loaded.PausingWindows)
-        {
-            windows.Add(new JsonObject { ["type"] = row.NativeType, ["title"] = row.Title });
-        }
-
         var letters = await ReadLettersAsync(h, label, loaded.Context?.Identity, cancellationToken).ConfigureAwait(false);
-        var rows = new JsonArray();
-        foreach (var letter in letters)
-        {
-            rows.Add(letter);
-        }
-
-        return new JsonObject
-        {
-            ["tick"] = loaded.Context?.Tick ?? -1,
-            ["paused"] = loaded.Paused == true,
-            ["forcePaused"] = loaded.ForcePaused == true,
-            ["timeSpeed"] = loaded.TimeSpeed,
-            ["windows"] = windows,
-            ["letters"] = rows,
-        };
+        return new PauseState(
+            loaded.Context?.Tick ?? -1,
+            loaded.Paused == true,
+            loaded.ForcePaused == true,
+            loaded.TimeSpeed,
+            [.. loaded.PausingWindows],
+            letters);
     }
 
-    /// <summary>presentation_notifications' letter stack, newest first, as {id, label, letterDef} rows.</summary>
-    public static async Task<IReadOnlyList<JsonObject>> ReadLettersAsync(Harness h, string label, Common.Identity? identity, CancellationToken cancellationToken)
+    /// <summary>presentation_notifications' letter stack, newest first.</summary>
+    public static async Task<IReadOnlyList<Wp.Letter>> ReadLettersAsync(Harness h, string label, Common.Identity? identity, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(h);
         var reply = await h.CallAsync(
@@ -144,10 +133,7 @@ public static class RunAt
             ?? throw new AcceptanceException($"{label}: {NativeOps.ReadNotifications.Name}: {WireJson.Serialize(reply)}");
         var observed = snapshot.Letters?.Outcome?.Observed
             ?? throw new AcceptanceException($"{label}: letter section not observed: {WireJson.Serialize(snapshot)}");
-        return
-        [
-            .. observed.Items.Select(row => new JsonObject { ["id"] = row.Id, ["label"] = row.Label, ["letterDef"] = row.DefName }),
-        ];
+        return [.. observed.Items];
     }
 
     /// <summary>
@@ -158,34 +144,32 @@ public static class RunAt
     /// is map discovery, not an incident the quiet storyteller can suppress. A force-pausing window, any other letter, or
     /// a pause with no visible cause is the <see cref="PauseCause"/> that fails the wait.
     /// </summary>
-    public static (PauseCause? Cause, IReadOnlyList<JsonObject> Dismiss) ClassifyPause(JsonObject status, IReadOnlyList<string> tools, string label, ulong tick, bool quiet)
+    public static (PauseCause? Cause, IReadOnlyList<Wp.Letter> Dismiss) ClassifyPause(PauseState status, IReadOnlyList<string> tools, string label, ulong tick, bool quiet)
     {
         ArgumentNullException.ThrowIfNull(status);
         ArgumentNullException.ThrowIfNull(tools);
-        if (status["paused"].AsBool() != true)
+        if (!status.Paused)
         {
             return (null, []);
         }
 
-        var letters = status["letters"].AsSlice().OfType<JsonObject>().ToList();
-        var windows = status["windows"].AsSlice().OfType<JsonObject>().ToList();
-        var cause = new PauseCause(label, tick, status["forcePaused"].AsBool() == true, letters, windows, status);
-        if (windows.Count > 0 || letters.Count == 0 || !Session.HasTool(tools, DismissLetterTool))
+        var cause = new PauseCause(label, tick, status);
+        if (status.Windows.Count > 0 || status.Letters.Count == 0 || !Session.HasTool(tools, DismissLetterTool))
         {
             return (cause, []);
         }
 
-        foreach (var letter in letters)
+        foreach (var letter in status.Letters)
         {
-            var definition = letter["letterDef"].AsString();
-            var discovery = quiet && letter["label"].AsString() == "Ancient danger" && definition == "ThreatBig";
+            var definition = letter.DefName ?? "";
+            var discovery = quiet && letter.Label == "Ancient danger" && definition == "ThreatBig";
             if (!AcknowledgedLetterDefs.Contains(definition) && !discovery)
             {
                 return (cause, []);
             }
         }
 
-        return (null, letters);
+        return (null, status.Letters);
     }
 
     /// <summary>
@@ -314,28 +298,22 @@ public static class RunAt
 
         foreach (var letter in dismiss)
         {
-            var reply = await h.CallAsync(label + "-dismiss", DismissLetterTool, new JsonObject { ["letterId"] = letter["id"]?.DeepClone() }, cancellationToken).ConfigureAwait(false);
-            if (reply["removed"].AsBool() != true)
+            var arguments = FixtureRecordJson.Args(new Fx.DismissLetterArgs { LetterId = letter.Id });
+            var reply = await h.CallAsync(label + "-dismiss", DismissLetterTool, arguments, cancellationToken).ConfigureAwait(false);
+            if (!Harness.FixtureReply<Fx.LetterDismissed>(DismissLetterTool, reply).Removed)
             {
-                throw new AcceptanceException($"{label}: letter {letter["id"].ToJson()} was not on the stack: {reply.ToJson()}");
+                throw new AcceptanceException($"{label}: letter \"{letter.Id}\" was not on the stack: {reply.ToJsonString()}");
             }
 
             if (report is not null)
             {
-                if (report.Data["dismissed_letters"] is not JsonArray rows)
+                if (report["dismissed_letters"] is not JsonArray rows)
                 {
                     rows = [];
-                    report.Data["dismissed_letters"] = rows;
+                    report["dismissed_letters"] = rows;
                 }
 
-                rows.Add(new JsonObject
-                {
-                    ["phase"] = label,
-                    ["tick"] = (long)tick,
-                    ["id"] = letter["id"]?.DeepClone(),
-                    ["label"] = letter["label"]?.DeepClone(),
-                    ["letterDef"] = letter["letterDef"]?.DeepClone(),
-                });
+                rows.Add(OutputJson.Fields(("phase", label), ("tick", (long)tick), ("id", letter.Id), ("label", letter.Label), ("letterDef", letter.DefName)));
             }
         }
 

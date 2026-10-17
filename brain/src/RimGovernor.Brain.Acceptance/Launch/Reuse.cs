@@ -54,7 +54,7 @@ public sealed class ReuseCase
         Save = save;
         Output = output;
         Harness = harness;
-        Row = new JsonObject { ["case"] = name, ["save"] = save, ["output"] = output };
+        Row = OutputJson.Fields(("case", name), ("save", save), ("output", output));
     }
 
     public string Name { get; }
@@ -339,31 +339,31 @@ public sealed class GameReuse : IAsyncDisposable
         }
         catch (AcceptanceException e)
         {
-            c.Row["reset_violation"] = e.Message;
+            c.Row.Add("reset_violation", e.Message);
             throw await AbandonAsync(c, $"case \"{name}\" reset contract: {e.Message}", cancellationToken).ConfigureAwait(false);
         }
 
         if (baseline is null)
         {
             _baselines[save] = state;
-            _rows.Add(new JsonObject { ["baseline"] = save, ["colonyId"] = state.ColonyId, ["tick"] = state.Tick, ["stocks"] = state.Stock.Count });
+            _rows.Add(OutputJson.Fields(("baseline", save), ("colonyId", state.ColonyId), ("tick", state.Tick), ("stocks", state.Stock.Count)));
         }
 
         _tokens[state.LoadToken] = name;
         c.Identity = identity;
         c.Reset = state;
-        c.Row["loadToken"] = state.LoadToken;
-        c.Row["colonyId"] = state.ColonyId;
-        c.Row["tick"] = state.Tick;
-        c.Row["readiness_ms"] = (long)c.Began.Elapsed.TotalMilliseconds;
+        c.Row.Add("loadToken", state.LoadToken);
+        c.Row.Add("colonyId", state.ColonyId);
+        c.Row.Add("tick", state.Tick);
+        c.Row.Add("readiness_ms", (long)c.Began.Elapsed.TotalMilliseconds);
         return c;
     }
 
     /// <summary>Records a case that never got past BeginCase and retires the game; the result is the exception to throw.</summary>
     private async Task<ReuseRetiredException> AbandonAsync(ReuseCase c, string reason, CancellationToken cancellationToken)
     {
-        c.Row["failed"] = true;
-        c.Row["duration_ms"] = (long)c.Began.Elapsed.TotalMilliseconds;
+        c.Row.Add("failed", true);
+        c.Row.Add("duration_ms", (long)c.Began.Elapsed.TotalMilliseconds);
         _rows.Add(c.Row);
         _current = null;
         return await RetireCoreAsync(reason, cancellationToken).ConfigureAwait(false);
@@ -432,16 +432,16 @@ public sealed class GameReuse : IAsyncDisposable
             if (problems.Count > 0)
             {
                 var joined = string.Join("; ", problems);
-                c.Row["quiescence_violation"] = joined;
+                c.Row.Add("quiescence_violation", joined);
                 throw await RetireCoreAsync($"case \"{c.Name}\" left the game unclean: {joined}", cancellationToken).ConfigureAwait(false);
             }
 
-            c.Row["quiescent"] = true;
+            c.Row.Add("quiescent", true);
         }
         finally
         {
-            c.Row["duration_ms"] = (long)c.Began.Elapsed.TotalMilliseconds;
-            c.Row["failed"] = failed;
+            c.Row.Add("duration_ms", (long)c.Began.Elapsed.TotalMilliseconds);
+            c.Row.Add("failed", failed);
             _rows.Add(c.Row);
             _current = null;
         }
@@ -467,17 +467,17 @@ public sealed class GameReuse : IAsyncDisposable
 
         _retired = true;
         _reason = reason;
-        var row = new JsonObject { ["retired"] = reason };
+        var row = OutputJson.Fields(("retired", reason));
         using var bound = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         bound.CancelAfter(RetireBudget);
         try
         {
             var stopped = await GameProcess.StopAsync(HeadlessProfile.MustAbs(Config.Configuration), GameIdOf(Config), bound.Token).ConfigureAwait(false);
-            row["stop"] = stopped ? "stopped" : "not running";
+            row.Add("stop", stopped ? "stopped" : "not running");
         }
         catch (AcceptanceException e)
         {
-            row["stop_error"] = e.Message;
+            row.Add("stop_error", e.Message);
         }
 
         if (_harness is not null)
@@ -496,7 +496,7 @@ public sealed class GameReuse : IAsyncDisposable
     /// </summary>
     public IReadOnlyList<JsonObject> Rows()
     {
-        var rows = new List<JsonObject> { new() { ["startup_ms"] = (long)StartupDuration.TotalMilliseconds } };
+        var rows = new List<JsonObject> { OutputJson.Fields(("startup_ms", (long)StartupDuration.TotalMilliseconds)) };
         rows.AddRange(_rows);
         return rows;
     }

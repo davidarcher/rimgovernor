@@ -33,8 +33,7 @@ public sealed class FileDoctorSetup : IDoctorSetup
         string path = Path.Combine(root, "config", "config.json");
         try
         {
-            var config = JsonSerializer.Deserialize(File.ReadAllText(path), RootConfigJsonContext.Default.RootConfigFile)
-                ?? throw new AcceptanceException("configuration is not a JSON object");
+            var config = LaunchJson.ParseConfig(File.ReadAllBytes(path));
             if (config.Games is not { } games)
             {
                 throw new AcceptanceException("configuration is missing games");
@@ -70,12 +69,8 @@ public sealed class FileDoctorSetup : IDoctorSetup
     {
         try
         {
-            if (JsonSerializer.Deserialize(File.ReadAllText(Path.Combine(package, PackageManifestName)), RootConfigJsonContext.Default.NativeManifestFile) is not { } m)
-            {
-                return null;
-            }
-
-            IReadOnlyList<string> fixtures = [.. (m.Fixtures ?? []).Select(f => f ?? "").Where(f => f.Length > 0)];
+            var m = LaunchJson.ParseManifest(File.ReadAllText(Path.Combine(package, PackageManifestName)));
+            IReadOnlyList<string> fixtures = [.. m.Fixtures.Where(f => !string.IsNullOrEmpty(f))];
             return new DoctorPackageManifest(m.Role ?? "", fixtures, m.SourceRevision ?? "", m.SourceDirty);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)

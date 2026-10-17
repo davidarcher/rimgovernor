@@ -1745,12 +1745,6 @@ public sealed record PawnSnapshot
     /// (DefDatabase&lt;TimeAssignmentDef&gt;.GetNamedSilentFail("Meditate")); false on Core only.
     /// </summary>
     public bool? MeditateAssignmentAvailable { get; init; }
-
-    /// <summary>
-    /// Row ids removed since the base table, in a delta section.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Removed { get; init; }
 }
 
 public sealed record ListPawnsRequest
@@ -2254,12 +2248,6 @@ public sealed record BuildingsSnapshot
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<BuildingState>))]
     public EquatableArray<BuildingState> Buildings { get; init; }
-
-    /// <summary>
-    /// Row ids removed since the base table, in a delta section.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Removed { get; init; }
 }
 
 public sealed record ListBuildingsRequest
@@ -2619,12 +2607,6 @@ public sealed record ThingsSnapshot
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Thing>))]
     public EquatableArray<Thing> Things { get; init; }
-
-    /// <summary>
-    /// Row ids removed since the base table, in a delta section.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Removed { get; init; }
 }
 
 /// <summary>

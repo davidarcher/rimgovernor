@@ -1,8 +1,6 @@
 using System.Globalization;
 using System.Text;
-using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
@@ -74,12 +72,6 @@ public static partial class HeadlessProfile
     ];
 
     private static readonly string[] ExpansionOrder = ["royalty", "ideology", "biotech", "anomaly", "odyssey"];
-
-    private static readonly JsonSerializerOptions IndentedOptions = new()
-    {
-        WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
 
     [GeneratedRegex(@"<li>\s*([^<\s]+)\s*</li>", RegexOptions.CultureInvariant)]
     private static partial Regex SaveModItem();
@@ -283,24 +275,23 @@ public static partial class HeadlessProfile
     /// Enforces launchMode == DirectPath and strips stopProcessName so the launcher stops the process it recorded instead
     /// of matching any process by name.
     /// </summary>
-    public static void RequireOwnedLaunch(JsonObject game)
+    public static void RequireOwnedLaunch(HarnessGame game)
     {
         ArgumentNullException.ThrowIfNull(game);
-        if (game["launchMode"].AsString() != "DirectPath")
+        if (game.LaunchMode != "DirectPath")
         {
             throw new AcceptanceException("disposable profiles require DirectPath PID-owned launches");
         }
 
-        game.Remove("stopProcessName");
+        game.StopProcessName = null;
     }
 
-    /// <summary>Reads a config.json as an object.</summary>
-    public static JsonObject LoadConfig(string path)
+    /// <summary>Reads a config.json.</summary>
+    public static HarnessConfig LoadConfig(string path)
     {
         try
         {
-            return JsonNode.Parse(File.ReadAllBytes(path)) as JsonObject
-                ?? throw new AcceptanceException($"parse {path}: not an object");
+            return LaunchJson.ParseConfig(File.ReadAllBytes(path));
         }
         catch (JsonException e)
         {
@@ -313,18 +304,18 @@ public static partial class HeadlessProfile
     }
 
     /// <summary>Writes a config.json indented.</summary>
-    public static void WriteConfig(string path, JsonObject config)
+    public static void WriteConfig(string path, HarnessConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
-        File.WriteAllBytes(path, new UTF8Encoding(false).GetBytes(config.ToJsonString(IndentedOptions)));
+        File.WriteAllBytes(path, new UTF8Encoding(false).GetBytes(LaunchJson.Config(config)));
     }
 
     /// <summary>The <c>games.&lt;gameId&gt;</c> section of a config.json (the Go preparers hard-code <see cref="TrialGameId"/>).</summary>
-    public static JsonObject GameSection(JsonObject config, string gameId = TrialGameId)
+    public static HarnessGame GameSection(HarnessConfig config, string gameId = TrialGameId)
     {
         ArgumentNullException.ThrowIfNull(config);
-        var games = config["games"].AsMap() ?? throw new AcceptanceException("configuration is missing games");
-        return games[gameId].AsMap() ?? throw new AcceptanceException($"configuration is missing games.{gameId}");
+        var games = config.Games ?? throw new AcceptanceException("configuration is missing games");
+        return games.TryGetValue(gameId, out var game) && game is not null ? game : throw new AcceptanceException($"configuration is missing games.{gameId}");
     }
 
     /// <summary>
@@ -336,9 +327,8 @@ public static partial class HeadlessProfile
     {
         var path = Path.Combine(MustAbs(configDir), "config.json");
         var game = GameSection(LoadConfig(path));
-        foreach (var arg in game["args"].AsSlice())
+        foreach (var value in game.Args ?? [])
         {
-            var value = arg.AsString();
             if (value.StartsWith("-savedatafolder=", StringComparison.Ordinal))
             {
                 return value["-savedatafolder=".Length..];
@@ -419,21 +409,15 @@ public static partial class HeadlessProfile
             return;
         }
 
-        var snapshot = new JsonObject();
-        foreach (var (name, hash) in files.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-        {
-            snapshot[name] = hash;
-        }
-
-        File.WriteAllBytes(Path.Combine(profile, LaunchedPackageFile), new UTF8Encoding(false).GetBytes(snapshot.ToJsonString(IndentedOptions)));
+        var snapshot = files.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        File.WriteAllBytes(Path.Combine(profile, LaunchedPackageFile), new UTF8Encoding(false).GetBytes(LaunchJson.Snapshot(snapshot)));
     }
 
     /// <summary>Hashes every shipped file of the package installed under the game's working directory in <paramref name="configDir"/>'s config.json.</summary>
     private static IReadOnlyDictionary<string, string> LaunchedPackageFiles(string configDir)
     {
         var path = Path.Combine(MustAbs(configDir), "config.json");
-        var game = GameSection(LoadConfig(path));
-        var workingDir = game["workingDir"].AsString();
+        var workingDir = GameSection(LoadConfig(path)).WorkingDir ?? "";
         if (workingDir.Length == 0)
         {
             throw new AcceptanceException($"{Path.Combine(configDir, "config.json")}: the game has no workingDir");
@@ -455,14 +439,9 @@ public static partial class HeadlessProfile
             return;
         }
 
-        var snapshot = new JsonObject();
-        foreach (var (name, value) in env.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-        {
-            snapshot[name] = value;
-        }
-
+        var snapshot = env.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         Directory.CreateDirectory(profile);
-        File.WriteAllBytes(Path.Combine(profile, LaunchedEnvFile), new UTF8Encoding(false).GetBytes(snapshot.ToJsonString(IndentedOptions)));
+        File.WriteAllBytes(Path.Combine(profile, LaunchedEnvFile), new UTF8Encoding(false).GetBytes(LaunchJson.Snapshot(snapshot)));
     }
 
     /// <summary>The environment a process was launched with (<see cref="RecordLaunchedEnv"/>), or null when none was recorded.</summary>
@@ -471,12 +450,7 @@ public static partial class HeadlessProfile
         try
         {
             var path = Path.Combine(SaveDataFolder(configDir), LaunchedEnvFile);
-            if (!File.Exists(path) || JsonNode.Parse(File.ReadAllText(path, new UTF8Encoding(false))) is not JsonObject recorded)
-            {
-                return null;
-            }
-
-            return recorded.ToDictionary(pair => pair.Key, pair => pair.Value?.GetValue<string>() ?? "", StringComparer.Ordinal);
+            return File.Exists(path) ? LaunchJson.ParseSnapshot(File.ReadAllText(path, new UTF8Encoding(false))) : null;
         }
         catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
         {
@@ -551,10 +525,10 @@ public static partial class HeadlessProfile
             return "unrecorded";
         }
 
-        JsonObject launchedFiles;
+        Dictionary<string, string> launchedFiles;
         try
         {
-            launchedFiles = JsonNode.Parse(text) as JsonObject ?? throw new JsonException("not an object");
+            launchedFiles = LaunchJson.ParseSnapshot(text);
         }
         catch (JsonException e)
         {
@@ -569,7 +543,7 @@ public static partial class HeadlessProfile
 
         foreach (var (name, sum) in installed)
         {
-            if (launchedFiles[name].AsString() != sum)
+            if (!launchedFiles.TryGetValue(name, out var launchedSum) || launchedSum != sum)
             {
                 return "package";
             }
@@ -681,7 +655,7 @@ public static partial class HeadlessProfile
         var config = LoadConfig(Path.Combine(root, "config", "config.json"));
         var game = GameSection(config);
         RequireOwnedLaunch(game);
-        var workingDir = game["workingDir"].AsString();
+        var workingDir = game.WorkingDir ?? "";
         SetupPackage.RequireNativePackage(Path.Combine(workingDir, "Mods"));
         StalePackage.RequireCurrent(Path.Combine(workingDir, "Mods", "RimGovernor"), fixtureOps);
         var installed = InstalledExpansions(workingDir);
@@ -689,7 +663,8 @@ public static partial class HeadlessProfile
         var profile = Path.Combine(root, "profile");
         PrepareNativeModConfig(Path.Combine(profile, "Config", "ModsConfig.xml"), installed, [.. expansions]);
         ProfilePrefs.SetPrefs(Path.Combine(profile, "Config", "Prefs.xml"), ProfilePrefs.RenderedPrefs);
-        game["args"] = Args(
+        game.Args =
+        [
             "-savedatafolder=" + profile,
             "-NoFileLog",
             "-DisableLogStackTraces",
@@ -702,7 +677,8 @@ public static partial class HeadlessProfile
             "-rimgovernor-pause-on-load",
             "-rimgovernor-test-acceleration",
             InProcArg,
-            IdleExitArg);
+            IdleExitArg,
+        ];
         var destination = Path.Combine(root, "config-rendered");
         Directory.CreateDirectory(destination);
         WriteConfig(Path.Combine(destination, "config.json"), config);
@@ -721,7 +697,7 @@ public static partial class HeadlessProfile
         var config = LoadConfig(Path.Combine(root, "config", "config.json"));
         var game = GameSection(config);
         RequireOwnedLaunch(game);
-        var workingDir = game["workingDir"].AsString();
+        var workingDir = game.WorkingDir ?? "";
         SetupPackage.RequireNativePackage(Path.Combine(workingDir, "Mods"));
         StalePackage.RequireCurrent(Path.Combine(workingDir, "Mods", "RimGovernor"), fixtureOps);
         var profile = Path.Combine(root, "headless-profile");
@@ -771,22 +747,11 @@ public static partial class HeadlessProfile
             args.RemoveAll(a => a == "-Headless");
         }
 
-        game["args"] = Args([.. args]);
+        game.Args = args;
         var destination = Path.Combine(root, "config-headless");
         Directory.CreateDirectory(destination);
         WriteConfig(Path.Combine(destination, "config.json"), config);
         return destination;
-    }
-
-    private static JsonArray Args(params string[] values)
-    {
-        var array = new JsonArray();
-        foreach (var value in values)
-        {
-            array.Add(value);
-        }
-
-        return array;
     }
 
     /// <summary>

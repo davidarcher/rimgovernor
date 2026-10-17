@@ -44,11 +44,10 @@ public sealed class SessionHost : ISessionHost
     public JsonObject PackageFiles(Config config)
     {
         ArgumentNullException.ThrowIfNull(config);
-        var workingDir = config.GameSection()["workingDir"].AsString();
         var files = new JsonObject();
-        foreach (var (name, hash) in Harness.StampFiles(workingDir))
+        foreach (var (name, hash) in Harness.StampFiles(config.GameSection().WorkingDir ?? ""))
         {
-            files[name] = hash;
+            files.Add(name, hash);
         }
 
         return files;

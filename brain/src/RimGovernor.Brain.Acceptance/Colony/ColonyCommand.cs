@@ -274,7 +274,7 @@ public static class ColonyCommand
             throw new FileNotFoundException($"{config} does not exist", config);
         }
 
-        var game = ColonyJsonContext.WorkingDir(HeadlessProfile.GameSection(HeadlessProfile.LoadConfig(config)));
+        var game = HeadlessProfile.GameSection(HeadlessProfile.LoadConfig(config)).WorkingDir ?? "";
         if (game.Length == 0)
         {
             throw new AcceptanceException($"{config}: the game has no workingDir");

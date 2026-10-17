@@ -123,9 +123,9 @@ internal sealed class FrameHeld
     internal static FrameHeld Of(PbObservations.BundleSnapshot v, PbCommon.ObservationContext context) => new()
     {
         Pawns = v.Pawns is { } pawns ? new Pawns(Index(pawns.Pawns, row => row.Pawn.Id)) : default,
-        PawnMeta = v.Pawns is { } pawnMeta ? pawnMeta with { Context = context, Pawns = default, Removed = default } : null,
+        PawnMeta = v.Pawns is { } pawnMeta ? pawnMeta with { Context = context, Pawns = default } : null,
         Buildings = v.Buildings is { } buildings ? new Buildings(Index(buildings.Buildings, row => row.Building.Id)) : default,
-        BuildMeta = v.Buildings is { } buildMeta ? buildMeta with { Context = context, Buildings = default, Removed = default } : null,
+        BuildMeta = v.Buildings is { } buildMeta ? buildMeta with { Context = context, Buildings = default } : null,
         Things = v.Things is { } things ? new Things(Index(things.Things, row => row.Entity.Id)) : default,
         ThingsMeta = v.Things is not null ? new PbObservations.ThingsSnapshot { Context = context } : null,
     };

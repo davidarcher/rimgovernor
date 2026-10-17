@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -416,9 +415,10 @@ public static partial class SetupEnvironment
     {
         ArgumentNullException.ThrowIfNull(l);
         var profile = Path.Combine(l.Root, "profile");
-        var game = new JsonObject
+        var game = new HarnessGame
         {
-            ["args"] = new JsonArray(
+            Args =
+            [
                 "-savedatafolder=" + profile,
                 "-NoFileLog",
                 "-DisableLogStackTraces",
@@ -428,19 +428,20 @@ public static partial class SetupEnvironment
                 "1280",
                 "-screen-height",
                 "720",
-                "-rimgovernor-pause-on-load"),
-            ["id"] = GameId,
-            ["launchMode"] = "DirectPath",
-            ["name"] = "RimGovernor",
-            ["target"] = Path.Combine(l.GameCopy, SetupDiscovery.GameImage),
-            ["workingDir"] = l.GameCopy,
+                "-rimgovernor-pause-on-load",
+            ],
+            Id = GameId,
+            LaunchMode = "DirectPath",
+            Name = "RimGovernor",
+            Target = Path.Combine(l.GameCopy, SetupDiscovery.GameImage),
+            WorkingDir = l.GameCopy,
         };
-        var config = new JsonObject
+        var config = new HarnessConfig
         {
-            ["games"] = new JsonObject { [GameId] = game },
-            ["version"] = "1.0",
+            Games = new() { [GameId] = game },
+            Version = "1.0",
         };
-        return config.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }) + "\n";
+        return LaunchJson.Config(config) + "\n";
     }
 
     /// <summary>A ModsConfig.xml activating the core game, Harmony and the native package, in load order.</summary>

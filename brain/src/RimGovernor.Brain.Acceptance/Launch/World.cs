@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -23,6 +24,7 @@ public sealed record WorldRecord
     public string Save { get; init; } = "";
 
     /// <summary>The hash of the save's file as it was loaded.</summary>
+    [JsonPropertyName("save_sha256")]
     public string SaveSha256 { get; init; } = "";
 
     /// <summary>The start's fixture op.</summary>
@@ -32,29 +34,15 @@ public sealed record WorldRecord
     public string FixtureHash { get; init; } = "";
 
     /// <summary>The report block: snake_case members, empty ones omitted.</summary>
-    public JsonObject ToJson()
-    {
-        var block = new JsonObject();
-        Put(block, "seed", Seed);
-        if (Pinned)
-        {
-            block["pinned"] = true;
-        }
+    public JsonObject ToJson() => new JsonObject()
+        .AddIfPresent("seed", Present(Seed))
+        .AddIfPresent("pinned", Pinned ? JsonValue.Create(true) : null)
+        .AddIfPresent("save", Present(Save))
+        .AddIfPresent("save_sha256", Present(SaveSha256))
+        .AddIfPresent("fixture", Present(Fixture))
+        .AddIfPresent("fixture_hash", Present(FixtureHash));
 
-        Put(block, "save", Save);
-        Put(block, "save_sha256", SaveSha256);
-        Put(block, "fixture", Fixture);
-        Put(block, "fixture_hash", FixtureHash);
-        return block;
-    }
-
-    private static void Put(JsonObject block, string key, string value)
-    {
-        if (value.Length > 0)
-        {
-            block[key] = value;
-        }
-    }
+    private static JsonNode? Present(string value) => value.Length > 0 ? value : null;
 }
 
 /// <summary>Builds the report's world block (Go <c>RecordWorld</c>, <c>FixtureHash</c>, <c>WorldOf</c>).</summary>
@@ -135,19 +123,6 @@ public static class WorldRecords
     public static WorldRecord? WorldOf(Report report)
     {
         ArgumentNullException.ThrowIfNull(report);
-        if (report["world"] is not JsonObject block)
-        {
-            return null;
-        }
-
-        return new WorldRecord
-        {
-            Seed = block["seed"].AsString(),
-            Pinned = block["pinned"].AsBool() == true,
-            Save = block["save"].AsString(),
-            SaveSha256 = block["save_sha256"].AsString(),
-            Fixture = block["fixture"].AsString(),
-            FixtureHash = block["fixture_hash"].AsString(),
-        };
+        return report["world"] is JsonObject block ? LaunchJson.World(block) : null;
     }
 }

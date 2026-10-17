@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -199,8 +198,7 @@ public sealed class GameProcess
                 _ = GameHostNative.CloseHandle(processHandle);
                 try
                 {
-                    var rec = new JsonObject { ["generation"] = generation, ["code"] = code };
-                    WriteFileAtomic(ExitPath(spec.StateDir, spec.GameId), rec.ToJsonString(GameHostRecord.Indented) + "\n");
+                    WriteFileAtomic(ExitPath(spec.StateDir, spec.GameId), LaunchJson.Exit(new GameExitFile { Generation = generation, Code = code }) + "\n");
                 }
                 catch (IOException)
                 {
@@ -308,13 +306,8 @@ public sealed class GameProcess
         try
         {
             var latest = long.Parse(File.ReadAllText(Path.Combine(GameDir(stateDir, gameId), "generation")).Trim(), CultureInfo.InvariantCulture);
-            var rec = JsonNode.Parse(File.ReadAllText(ExitPath(stateDir, gameId))) as JsonObject;
-            if (rec is null || (long?)rec["generation"] != latest)
-            {
-                return null;
-            }
-
-            return (int?)rec["code"];
+            var rec = LaunchJson.ParseExit(File.ReadAllText(ExitPath(stateDir, gameId)));
+            return rec is null || rec.Generation != latest ? null : rec.Code;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or FormatException or OverflowException or System.Text.Json.JsonException or InvalidOperationException)
         {

@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace RimGovernor.Brain.Acceptance;
 
 public sealed partial class Config
@@ -33,7 +31,7 @@ public sealed partial class Config
     }
 
     /// <summary>Reads back <c>games.&lt;GameId&gt;</c> from the resolved configuration directory's config.json, e.g. to recover workingDir for the package files.</summary>
-    public JsonObject GameSection() => HeadlessProfile.GameSection(HeadlessProfile.LoadConfig(Path.Combine(Configuration, "config.json")), GameId);
+    public HarnessGame GameSection() => HeadlessProfile.GameSection(HeadlessProfile.LoadConfig(Path.Combine(Configuration, "config.json")), GameId);
 
     /// <summary>
     /// The game log of the instance under <see cref="Root"/>: the stdout the launcher captures into its state directory
