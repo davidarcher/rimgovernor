@@ -24,10 +24,36 @@ public sealed class HuntEstimateService : IHuntEstimates, IAsyncDisposable
         Channel.CreateBounded<(HuntActivityRead, HuntRoster, long)>(new BoundedChannelOptions(MaxPending) { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true });
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _loop;
+    private readonly IAsyncDisposable? _owned;
 
-    public HuntEstimateService(EncounterPredictionConsumer consumer)
+    /// <summary>The prediction worker assembly (RimGovernor.RealCombat.Host.dll) the launcher built; unset means no estimates.</summary>
+    public const string WorkerVariable = "RIMGOVERNOR_ENCOUNTER_WORKER";
+
+    /// <summary>The dotnet executable that runs the worker; default <c>dotnet</c> on the path.</summary>
+    public const string DotnetVariable = "RIMGOVERNOR_ENCOUNTER_DOTNET";
+
+    /// <summary>
+    /// Builds the service over a local worker process for the observed engine identity, or says why not: no worker
+    /// configured, or a configured path that is not a file. Without a service every hunt roster stays unestimated.
+    /// </summary>
+    public static HuntEstimateService? Create(Func<string, string?> get, string gameBuild, string mods, string predictorMods, string gameDirectory, string workingDirectory, out string reason)
+    {
+        var worker = get(WorkerVariable);
+        if (string.IsNullOrWhiteSpace(worker)) { reason = WorkerVariable + " is not set"; return null; }
+        worker = worker.Trim();
+        if (!Path.IsPathRooted(worker) || !File.Exists(worker)) { reason = WorkerVariable + " is not an existing absolute file path"; return null; }
+        var dotnet = get(DotnetVariable);
+        var options = new LocalEncounterOptions(string.IsNullOrWhiteSpace(dotnet) ? "dotnet" : dotnet.Trim(), worker, gameDirectory, workingDirectory, gameBuild, mods, predictorMods,
+            TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(2), HuntEncounterRequests.Samples, HuntEncounterRequests.Horizon, 128, 32, 1048576);
+        reason = "";
+        var predictor = new LocalEncounterPredictor(options);
+        return new HuntEstimateService(new EncounterPredictionConsumer(predictor, TimeSpan.FromSeconds(95)), predictor);
+    }
+
+    public HuntEstimateService(EncounterPredictionConsumer consumer, IAsyncDisposable? owned = null)
     {
         _consumer = consumer;
+        _owned = owned;
         _loop = Task.Run(RunAsync);
     }
 
@@ -96,5 +122,6 @@ public sealed class HuntEstimateService : IHuntEstimates, IAsyncDisposable
         await _stop.CancelAsync().ConfigureAwait(false);
         await _loop.ConfigureAwait(false);
         _stop.Dispose();
+        if (_owned is not null) await _owned.DisposeAsync().ConfigureAwait(false);
     }
 }

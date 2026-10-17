@@ -125,6 +125,9 @@ public sealed record SupplyCandidate
     /// <summary>A formation hunt's animals, sorted.</summary>
     public EquatableArray<string> Prey { get; init; }
 
+    /// <summary>A formation hunt's selected gunners, sorted: the only pawns the hunt may send.</summary>
+    public EquatableArray<string> Hunters { get; init; }
+
     /// <summary>
     /// Names the ledger counter group that counts the candidate's deliveries ("crop:&lt;zone&gt;",
     /// "fish:&lt;x,z&gt;", "forage:&lt;def&gt;", "animal_product:&lt;race&gt;"); empty for one the ledger does not count.

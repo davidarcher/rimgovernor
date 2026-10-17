@@ -33,7 +33,7 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static CombatStep? DecideCombatStep(BridgeCombat combat, IReadOnlyList<PawnId> orderable, CombatMemory memory, string key, PbCommon.Identity identity, Func<M.CombatGeometryRequest, M.CombatGeometry> read, Fact<CombatLayout> layout, CombatReads reads)
     {
-        var (inputs, _) = CombatFrameInputs(combat, []);
+        var (inputs, _) = CombatFrameInputs(combat, [], []);
         if (inputs is null)
         {
             return null;

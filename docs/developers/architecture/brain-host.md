@@ -156,6 +156,7 @@ Decided (user, 2026-10-13):
   | `RIMGOVERNOR_OBSERVE` | launcher Observe: no auto-resume, no layout overlay | off |
   | `RIMGOVERNOR_CONTINUE_STATE` | launcher Continue: reuse the default database | on |
   | `RIMGOVERNOR_LAYOUT_OVERLAY` | launcher Layout overlay | on |
+  | `RIMGOVERNOR_ENCOUNTER_WORKER`, `RIMGOVERNOR_ENCOUNTER_DOTNET` | the built prediction worker (`RimGovernor.RealCombat.Host.dll`) and the dotnet that runs it, for hunt roster estimates | unset (no estimates), `dotnet` |
 
   The launcher sets the last three from its saved settings. The default database is shared by every save, so an
   incompatible-schema reset affects them all. Launcher Telemetry is intentionally unmapped (not a bug, #3117): the

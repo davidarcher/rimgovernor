@@ -390,12 +390,13 @@ public sealed class RoundsIncidentConverter : ObjectCodec<RoundsIncident>
 public sealed class RoundsCombatConverter : ObjectCodec<RoundsCombat>
 {
     protected override RoundsCombat Read(JsonElement e, Codecs o) =>
-        new(e.Get<Situation>("Situation", o), e.Get<EquatableArray<PawnId>>("Prey", o));
+        new(e.Get<Situation>("Situation", o), e.Get<EquatableArray<PawnId>>("Prey", o), e.Get<EquatableArray<PawnId>>("Hunters", o));
 
     protected override void WriteFields(Utf8JsonWriter w, RoundsCombat v, Codecs o)
     {
         w.Put("Situation", v.Situation, o);
         w.Put("Prey", v.Prey, o);
+        w.Put("Hunters", v.Hunters, o);
     }
 }
 

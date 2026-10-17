@@ -185,6 +185,9 @@ public sealed partial record CombatView
     /// <summary>Marks a squad hunt: Threats are wild prey, not raiders.</summary>
     public bool Hunt { get; init; }
 
+    /// <summary>The selected roster of a hunt: the only defenders it may send, however many that is.</summary>
+    public EquatableArray<PawnId> HuntHunters { get; init; }
+
     /// <summary>The slow-refresh royalty read; unknown holds every permit call.</summary>
     public Fact<RoyaltyFacts> Royalty { get; init; }
 

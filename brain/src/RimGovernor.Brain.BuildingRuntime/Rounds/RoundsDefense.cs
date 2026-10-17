@@ -172,7 +172,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)");
         }
-        var (inputs, reason) = CombatFrameInputs(combat, [.. standing.Prey]);
+        var (inputs, reason) = CombatFrameInputs(combat, [.. standing.Prey], [.. standing.Hunters]);
         if (inputs is null || !reason.IsZero)
         {
             return new RoundsDefenseResult { Verdict = reason };
@@ -381,6 +381,9 @@ internal sealed class CombatInputs
     public List<EmergencyThreat> Buildings = [];
     public Dictionary<string, O.PawnState> Rows = new(StringComparer.Ordinal);
     public List<string> Prey = [];
+
+    /// <summary>The gunners of the chosen hunt roster: the only pawns a hunt may send.</summary>
+    public List<string> Hunters = [];
     public HashSet<PawnId> Needed = [];
     public Dictionary<string, WeaponDef> Weapons = new(StringComparer.Ordinal);
     public Dictionary<string, Fact<bool>> Ranged = new(StringComparer.Ordinal);
@@ -401,7 +404,7 @@ internal sealed class CombatInputs
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The inputs of the combat step; a null inputs value carries the wait verdict when the census is incomplete or there is no fight.</summary>
-    internal static (CombatInputs? Inputs, Verdict Reason) CombatFrameInputs(BridgeCombat combat, IReadOnlyList<Domain.PawnId> huntPrey)
+    internal static (CombatInputs? Inputs, Verdict Reason) CombatFrameInputs(BridgeCombat combat, IReadOnlyList<Domain.PawnId> huntPrey, IReadOnlyList<Domain.PawnId> huntHunters)
     {
         var facts = combat.Emergency.Facts;
         var catalog = combat.Catalog ?? throw new ControlException("combatFrameInputs: no definition catalog");
@@ -409,7 +412,7 @@ internal static partial class BuildingRuntimePackage
         {
             return (null, WaitFor(Cause.MethodUsed, "colonist_census_incomplete"));
         }
-        var inp = new CombatInputs();
+        var inp = new CombatInputs { Hunters = [.. huntHunters.Select(h => h.Value)] };
         (inp.HostileIds, inp.Hunting, inp.Buildings) = DefenseTargets(facts.Threats);
         inp.Buildings = [.. inp.Buildings.Select(building => building with { Mortar = catalog.IsMortar(building.Definition) })];
         if (inp.HostileIds.Count + inp.Buildings.Count == 0 && !RoundsDefensePlanner.HasAggressiveBreak(facts) && facts.PodsOpen.Value == 0)
@@ -554,6 +557,7 @@ internal static partial class BuildingRuntimePackage
         {
             SiteExit = ObservationApi.CombatSiteExitOf(combat.World, new MapId(combat.Context?.Identity?.MapId ?? 0)),
             Hunt = inp.Prey.Count > 0,
+            HuntHunters = [.. inp.Hunters.Select(h => new PawnId(h))],
             Tick = new Tick(combat.Context?.Tick ?? 0),
             Pawns = [.. PreyStates(CombatPawnStates(combat, inp.Rows, inp.Weapons), inp, catalog)],
             Defenders = [.. defenders],

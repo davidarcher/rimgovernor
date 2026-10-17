@@ -27,6 +27,9 @@ internal sealed class RoundsCensusStore
     internal double FoodMin;
     internal double FoodTarget;
     internal ulong FoodOffers;
+
+    /// <summary>The hunt estimate revision the cached food plan was built over.</summary>
+    internal string FoodHunt = "";
     internal ResourceSupplyState? Supply;
     internal ResourceSupplyKey SupplyKey;
     internal Fact<LayoutPlan> Layout;

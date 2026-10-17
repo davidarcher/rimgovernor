@@ -91,6 +91,9 @@ public sealed partial class Rounder
     /// <summary>The formation hunts the plan opened, in memory only.</summary>
     internal HuntAdmission HuntAdmission = new();
 
+    /// <summary>The asynchronous hunt roster estimates (#3130); null means no roster has an estimate.</summary>
+    internal IHuntEstimates? HuntEstimates;
+
     /// <summary>The tick of the last layout survey this process read; see reviewLayoutPlan.</summary>
     internal Tick PlanChecked;
 

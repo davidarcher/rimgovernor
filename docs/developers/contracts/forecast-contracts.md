@@ -229,6 +229,21 @@ roster is asked again. A busy, cancelled, timed-out or unavailable service is re
 time; an unsupported roster stays refused. Policy sees only the view (estimates, refusals, rosters pending), so
 a roster that is pending, refused or unanswered is never ranked as safe.
 
+In production the Bridge hashes the engine identity once at start (`NativeEncounterIdentity`: the game assembly, every
+running mod's xml/dll content, and the official mods the worker boots with — RealCombat's `EngineIdentity` algorithm),
+off the game thread; until it finishes the hunt scene is unobserved and every roster is refused. When
+`RIMGOVERNOR_ENCOUNTER_WORKER` names the built `RimGovernor.RealCombat.Host.dll` (`RIMGOVERNOR_ENCOUNTER_DOTNET`
+overrides `dotnet`), `BrainBootstrap` starts a `HuntEstimateService` over it and hands it to the Rounds
+(`BrainCompositionOptions.HuntEstimates`); unset, rosters stay unestimated and no formation hunt is offered.
+
+The food plan compares the alternatives (`PolicyFunctions.PlanHunt`, from the coupled read's hunt observation and routes)
+for the nutrition the colony still needs to reach its target runway. It asks for every unanswered roster and offers no
+formation hunt until each has an estimate or a refusal, so the first answer back never beats a better one still
+pending. The chosen roster becomes one formation channel (`HuntRosterChannel`) naming its gunners and prey, with the
+estimate's nutrition, labor and harm rate and the sample counts as terms; every other animal stays a lone channel. The
+plan's open formation channel files the prey and the selected gunners on the `military/combat` standing
+(`RoundsCombat.Prey`, `RoundsCombat.Hunters`), and `HuntFormation` sends exactly those defenders, however many.
+
 These are mechanics and current observations, not selected colony policy. Native
 does not spawn hypothetical food to estimate a future meal. Definition-based
 future ingestion facts do not claim ingredient-dependent memories or poisoning

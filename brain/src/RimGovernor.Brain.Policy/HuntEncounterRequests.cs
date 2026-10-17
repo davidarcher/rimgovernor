@@ -6,6 +6,9 @@ namespace RimGovernor.Brain.Policy;
 public sealed record HuntEstimateView(IReadOnlyDictionary<string, HuntEstimate> Estimates, IReadOnlyDictionary<string, string> Refusals, IReadOnlySet<string> Pending)
 {
     public static readonly HuntEstimateView None = new(new Dictionary<string, HuntEstimate>(), new Dictionary<string, string>(), new HashSet<string>());
+
+    /// <summary>Names which rosters are answered; a plan built over one revision is stale once another arrives.</summary>
+    public string Revision => string.Join(',', Estimates.Keys.Order(StringComparer.Ordinal)) + "|" + string.Join(',', Refusals.Keys.Order(StringComparer.Ordinal));
 }
 
 /// <summary>The runtime side of the hunt comparison: asks the prediction service asynchronously and remembers what it answered.</summary>

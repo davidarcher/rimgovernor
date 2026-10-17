@@ -36,13 +36,15 @@ public sealed partial class Rounder
         {
             var seasonal = Seasonal(p.Facts);
             var trade = FoodTradeOf(p);
+            var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
+            var huntView = huntRead is not null && HuntEstimates is { } known ? known.Current(huntRead, p.Identity.Tick.Value) : HuntEstimateView.None;
             if (s.FoodPlanFact.IsKnown && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
-                && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && SameObservedIdentity(s.FoodIdentity, p.Identity))
+                && s.FoodHunt == huntView.Revision && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && SameObservedIdentity(s.FoodIdentity, p.Identity))
             {
                 return s.FoodPlanFact;
             }
 
-            var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade);
+            var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade, HuntEstimates, huntView);
             if (plan.TryGetValue(out var v))
             {
                 HuntAdmission.Admit(PolicyFunctions.HuntRequest(Known(v)).Select(id => (Domain.PawnId)id));
@@ -62,6 +64,7 @@ public sealed partial class Rounder
                 s.FoodMin = seasonal.FoodMinDays;
                 s.FoodTarget = seasonal.FoodTargetDays;
                 s.FoodOffers = trade.Revision;
+                s.FoodHunt = huntView.Revision;
             }
 
             return plan;
@@ -120,7 +123,7 @@ public sealed partial class Rounder
 
 internal static partial class BuildingRuntimePackage
 {
-    internal static Fact<FoodPlan> ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade)
+    internal static Fact<FoodPlan> ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, IHuntEstimates? estimates, HuntEstimateView huntView)
     {
         if (!p.CombinedFoodSupply.TryGetValue(out var supply) || !p.Acquisition.TryGetValue(out var sources))
         {
@@ -158,19 +161,22 @@ internal static partial class BuildingRuntimePackage
         if (p.WorkPawns.TryGetValue(out var pawns))
         {
             var profiles = PolicyFunctions.Profiles(pawns);
-            gunners = PolicyFunctions.SquadGunners(profiles);
+            gunners = PolicyFunctions.ArmedHunters(profiles);
             hunters = PolicyFunctions.Hunters(profiles);
-        }
-
-        var weatherAccuracy = Unknown<double>();
-        if (p.Environment.TryGetValue(out var env))
-        {
-            weatherAccuracy = env.WeatherAccuracy;
         }
 
         var channels = new List<SupplyCandidate>();
         channels.AddRange(PolicyFunctions.ForageChannels(sources));
-        channels.AddRange(PolicyFunctions.HuntCandidates(sources, gunners, weatherAccuracy));
+        // The hunt alternatives: nutrition the colony still needs to reach its target runway, compared over roster estimates.
+        var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
+        var needed = Math.Max(0, (forecast.Consumers.Sum(c => c.NutritionPerDay) * thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays) - forecast.UsableNutrition);
+        var huntPlan = PolicyFunctions.PlanHunt(huntRead, sources, p.Facts.ForecastObserved.Coupled?.Routes ?? [], huntView, needed);
+        if (huntRead is not null && huntPlan.Unestimated.Count > 0)
+        {
+            _ = estimates?.Request(huntRead, huntPlan.Unestimated, p.Identity.Tick.Value);
+        }
+
+        channels.AddRange(PolicyFunctions.HuntCandidates(sources, gunners, huntPlan.Channel(sources)));
         channels.AddRange(PolicyFunctions.HuntPrerequisiteCandidates(p.HuntHolds));
         var hunting = FoodHuntInput(p);
         channels = PolicyFunctions.HuntThroughput(channels, hunters, PolicyFunctions.HuntCadence(hunting.Kills, hunters, p.Identity.Tick.Value)).ToList();

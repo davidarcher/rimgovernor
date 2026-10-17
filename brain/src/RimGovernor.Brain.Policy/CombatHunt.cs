@@ -2,8 +2,8 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: combat_hunt.go
 //
-// CombatTactic.Hunt is a squad hunt: the view's threats are wild prey the threat census does not call hostile,
-// and the squad stages in a half circle at weapon range and focus-fires them down. Once the prey are all
+// CombatTactic.Hunt is a roster hunt: the view's threats are wild prey the threat census does not call hostile,
+// and the selected roster stages in a half circle at weapon range and focus-fires them down. Once the prey are all
 // manhunter the fight is the manhunter tactic's.
 
 public static partial class PolicyFunctions
@@ -12,7 +12,7 @@ public static partial class PolicyFunctions
     internal const int HuntDefaultRange = 20;
 
     /// <summary>
-    /// Puts every armed ranged defender on a half circle around the prey's centre, at the shortest gunner's
+    /// Puts the selected roster's armed ranged defenders on a half circle around the prey's centre, at the shortest gunner's
     /// weapon range so each can reach the group, on the squad's side of it so no one shoots across a friend.
     /// Targets are focus fire's. Melee defenders take no part.
     /// </summary>
@@ -34,6 +34,7 @@ public static partial class PolicyFunctions
             preyRange = Math.Max(preyRange, p.WeaponRange);
         }
 
+        var roster = new HashSet<PawnId>(view.HuntHunters.Items);
         var gunners = new List<SquadDefenderFacts>();
         foreach (var d in view.Defenders.Items)
         {
@@ -43,13 +44,13 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            if (SquadDefenderEligible(d) && S(d.Id).WeaponFacts.Hunts())
+            if (roster.Contains(d.Id) && SquadDefenderEligible(d) && S(d.Id).WeaponFacts.Hunts())
             {
                 gunners.Add(d);
             }
         }
 
-        if (gunners.Count < SquadHuntMinGunners || prey.Count == 0)
+        if (gunners.Count == 0 || prey.Count == 0)
         {
             return [];
         }

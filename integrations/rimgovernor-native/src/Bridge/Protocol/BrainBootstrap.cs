@@ -33,6 +33,7 @@ namespace HomeBridge.BridgeTools
         private static readonly TimeSpan NativeTimeout = TimeSpan.FromSeconds(15);
 
         private static BrainHost? host;
+        private static HuntEstimateService? huntEstimates;
 
 #pragma warning disable CA2255 // See NativeFacadeBootstrap: the host has no startup hook for a plugin assembly.
         [ModuleInitializer]
@@ -70,6 +71,8 @@ namespace HomeBridge.BridgeTools
                 if (routes == null)
                     Log.Warning($"[RimGovernor] The in-process brain runs without the player API: the HTTP channel is not running ({HttpChannelBootstrap.DirectoryVariable} is unset or the channel did not start).");
 
+                var estimates = await StartHuntEstimatesAsync(inputs).ConfigureAwait(false);
+                huntEstimates = estimates;
                 var timings = BrainTimings.Standard(NativeTimeout);
                 timings = timings with { ShutdownAttempts = 1, ShutdownAttemptTimeout = TimeSpan.FromSeconds(8) };
                 var composition = new BrainComposition(new BrainCompositionOptions
@@ -80,6 +83,7 @@ namespace HomeBridge.BridgeTools
                     // The acceptance launch flag the clock runtime also reads; read here too so no game-touching static initialises off the game thread.
                     ClockTestAcceleration = Array.IndexOf(Environment.GetCommandLineArgs(), "-rimgovernor-test-acceleration") >= 0,
                     CatalogFactory = NativeCatalogFactory.Create,
+                    HuntEstimates = estimates,
                     StartingIdeoligion = NativeCatalogFactory.StartingIdeoligion,
                 });
                 var hostStart = LaunchPhases.UtcNow;
@@ -110,6 +114,27 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>
+        /// Hashes the engine identity off the game thread and, when a prediction worker is configured, starts the hunt estimate
+        /// service for it. Any failure leaves the brain without estimates: a hunt roster is then unestimated, never zero risk.
+        /// </summary>
+        private static async Task<HuntEstimateService?> StartHuntEstimatesAsync(InProcInputs inputs)
+        {
+            try
+            {
+                var roots = await ProtoBoundary.OnGameThread("brain/engine_identity", NativeEncounterIdentity.Snapshot, CancellationToken.None, MainThreadAdmission.Observation).ConfigureAwait(false);
+                var identity = await NativeEncounterIdentity.ComputeAsync(roots, CancellationToken.None).ConfigureAwait(false);
+                var service = HuntEstimateService.Create(Environment.GetEnvironmentVariable, identity.GameBuild, identity.Mods, identity.PredictorMods, identity.GameDirectory, inputs.OtlpDirectory, out var reason);
+                if (service is null) Log.Message($"[RimGovernor] Hunt rosters have no outcome estimates: {reason}.");
+                return service;
+            }
+            catch (Exception e)
+            {
+                Log.Warning($"[RimGovernor] Hunt rosters have no outcome estimates: {e.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Writes the launch waterfall the host and this bootstrap buffered (#3286) now that the brain's span listener
         /// exists. Diagnostics only: a failure is logged and the brain keeps running.
         /// </summary>
@@ -133,6 +158,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (!started.StopAsync().Wait(ExitWait)) Log.Warning("[RimGovernor] The in-process brain did not stop within the exit budget.");
+                if (huntEstimates is { } estimates && !estimates.DisposeAsync().AsTask().Wait(ExitWait)) Log.Warning("[RimGovernor] The hunt estimate service did not stop within the exit budget.");
             }
             catch (Exception e)
             {

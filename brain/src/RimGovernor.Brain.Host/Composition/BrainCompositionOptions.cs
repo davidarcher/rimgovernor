@@ -43,6 +43,12 @@ public sealed record BrainCompositionOptions
     /// </summary>
     public Func<string, CancellationToken, Task<RimGovernor.Contracts.Wire.Common.IdeoligionDesign>>? StartingIdeoligion { get; init; }
 
+    /// <summary>
+    /// The prediction-backed hunt roster estimates the food plan compares (#3130). Null composes a brain whose hunt rosters have
+    /// no estimate, so a formation hunt is refused as unknown rather than priced as safe.
+    /// </summary>
+    public RimGovernor.Brain.Policy.IHuntEstimates? HuntEstimates { get; init; }
+
     internal void Validate()
     {
         if (string.IsNullOrWhiteSpace(Profile) || !Path.IsPathRooted(Profile))

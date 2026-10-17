@@ -15,10 +15,11 @@ public sealed record ReserveSupply(string Thing, string Definition, bool Forbid)
 /// <summary>
 /// The review's combat standing (#3311): what the <c>military/combat</c> Need's fight runner (the defense entry) answers.
 /// <see cref="Situation"/> is <see cref="PolicyFunctions.CombatSituation"/> over the review's hostiles and hunt
-/// request; <see cref="Prey"/> is the food plan's squad prey while no hostile stands. A review files one while the
+/// request; <see cref="Prey"/> is the food plan's hunt prey while no hostile stands and <see cref="Hunters"/> the gunners of the
+/// roster the plan chose for it (the only pawns the hunt may send). A review files one while the
 /// situation is active or the Need still holds open work (a fight's drafts), and none otherwise.
 /// </summary>
-public sealed record RoundsCombat(Situation Situation, EquatableArray<PawnId> Prey);
+public sealed record RoundsCombat(Situation Situation, EquatableArray<PawnId> Prey, EquatableArray<PawnId> Hunters);
 
 /// <summary>
 /// The durable review cursor and hysteresis history (Go <c>Rounds</c>). Standard bindings retain semantic needs

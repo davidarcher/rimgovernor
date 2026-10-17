@@ -116,4 +116,24 @@ public sealed class HuntEstimateServiceTests
         await Settle(service, unarmed, 100 + HuntEstimateService.RetryTicks + 1);
         Assert.Equal("hunter_unarmed", service.Current(unarmed, 100 + HuntEstimateService.RetryTicks + 1).Refusals[Roster.Key]);
     }
+
+    [Fact]
+    public async Task TheWorkerIsConfiguredByAnExistingAbsoluteFileOrTheServiceSaysWhyNot()
+    {
+        Assert.Null(HuntEstimateService.Create(_ => null, "b", "m", "m", "/game", "/work", out var reason));
+        Assert.Contains(HuntEstimateService.WorkerVariable, reason);
+        Assert.Null(HuntEstimateService.Create(name => name == HuntEstimateService.WorkerVariable ? "relative/worker.dll" : null, "b", "m", "m", "/game", "/work", out reason));
+        Assert.Contains("existing absolute file", reason);
+        var worker = Path.GetTempFileName();
+        try
+        {
+            await using var service = HuntEstimateService.Create(name => name == HuntEstimateService.WorkerVariable ? worker : null, "b", "m", "m", "/game", "/work", out reason)!;
+            Assert.Equal("", reason);
+            Assert.Equal(HuntEstimateView.None.Revision, service.Current(Read(), 1).Revision);
+        }
+        finally
+        {
+            File.Delete(worker);
+        }
+    }
 }

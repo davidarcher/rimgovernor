@@ -1,10 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
@@ -19,7 +16,6 @@ namespace HomeBridge.BridgeTools;
 internal static class NativeHuntActivity
 {
     const int MaxHunters = 16, MaxPrey = 16, Margin = 12, MaxSide = 128, MaxGround = 512, MaxObstacles = 512;
-    static string? _mods;
 
     internal static Obs.HuntActivityRead Read(Map map)
     {
@@ -36,9 +32,11 @@ internal static class NativeHuntActivity
         var prey = preyAll.Take(MaxPrey).ToList();
         var hunterReads = hunters.Select(h => Actor(h, true, prey)).ToArray();
         var preyReads = prey.Select(p => Actor(p, false, prey)).ToArray();
-        var scene = hunterReads.Length == 0 || preyReads.Length == 0 ? null : Scene(map, hunters.Concat(prey).ToArray(), ref truncated);
+        // Until the content identity is hashed the scene is unobserved; a roster is then refused, never predicted against a guess.
+        var identity = NativeEncounterIdentity.Current;
+        var scene = hunterReads.Length == 0 || preyReads.Length == 0 || identity is null ? null : Scene(map, identity, hunters.Concat(prey).ToArray(), ref truncated);
         return new() { Known = true, Hunters = EquatableArray.From(hunterReads), Prey = EquatableArray.From(preyReads), Scene = scene, Truncated = truncated,
-            Findings = ["mods_identity_is_a_file_manifest_not_content_hashes", "needs_genes_and_effects_are_not_observed_here"] };
+            Findings = identity is null ? ["engine_identity_pending", "needs_genes_and_effects_are_not_observed_here"] : ["needs_genes_and_effects_are_not_observed_here"] };
     }
 
     static Obs.HuntActorRead Actor(Pawn p, bool hunter, List<Pawn> prey)
@@ -79,7 +77,7 @@ internal static class NativeHuntActivity
         return new(thing.def.defName, thing.Stuff?.defName ?? "", quality.ToString(), thing.HitPoints);
     }
 
-    static Obs.HuntSceneRead Scene(Map map, Pawn[] actors, ref bool truncated)
+    static Obs.HuntSceneRead Scene(Map map, NativeEncounterIdentity.Identity identity, Pawn[] actors, ref bool truncated)
     {
         var minX = Math.Max(0, actors.Min(a => a.Position.x) - Margin); var maxX = Math.Min(map.Size.x - 1, actors.Max(a => a.Position.x) + Margin);
         var minZ = Math.Max(0, actors.Min(a => a.Position.z) - Margin); var maxZ = Math.Min(map.Size.z - 1, actors.Max(a => a.Position.z) + Margin);
@@ -109,19 +107,9 @@ internal static class NativeHuntActivity
             if (obstacles.Count >= MaxObstacles) { truncated = true; break; }
             obstacles.Add(new(thing.def.defName, thing.Stuff?.defName ?? "", thing.Position.x, thing.Position.z));
         }
-        return new(Find.World.info.name + "/" + Find.World.info.seedString, typeof(Pawn).Assembly.ManifestModule.ModuleVersionId.ToString("N"), Mods(), map.weatherManager.curWeather.defName,
+        return new(Find.World.info.name + "/" + Find.World.info.seedString, identity.GameBuild, identity.Mods, map.weatherManager.curWeather.defName,
             terrain, minX, minZ, maxX - minX + 1, maxZ - minZ + 1, map.mapTemperature.OutdoorTemp, map.skyManager.CurSkyGlow)
         { Ground = EquatableArray.From(ground), Obstacles = EquatableArray.From(obstacles) };
     }
 
-    // A manifest of the running mods' package ids and xml/dll names and sizes: stat calls only, computed once per session.
-    static string Mods() => _mods ??= Hash(LoadedModManager.RunningModsListForReading.OrderBy(m => m.PackageId, StringComparer.Ordinal).SelectMany(m =>
-        new[] { m.PackageId }.Concat(Directory.EnumerateFiles(m.RootDir, "*", SearchOption.AllDirectories)
-            .Where(f => f.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(f => f, StringComparer.Ordinal).Select(f => Path.GetRelativePath(m.RootDir, f).Replace('\\', '/') + ":" + new FileInfo(f).Length))));
-    static string Hash(IEnumerable<string> lines)
-    {
-        using var sha = SHA256.Create();
-        return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(string.Join("\n", lines)))).Replace("-", "");
-    }
 }

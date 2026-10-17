@@ -53,7 +53,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var c = HuntChannel(h.Source.Id, [h.Source], false, 1, 0);
+            var c = HuntChannel(h.Source.Id, [h.Source], 0);
             // The craft's lead is a term, not the candidate's lead: a starving
             // colony has no runway, and any positive lead exceeds it, so the one
             // step that lets it hunt could never open.

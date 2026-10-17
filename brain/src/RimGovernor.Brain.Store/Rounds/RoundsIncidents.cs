@@ -114,7 +114,10 @@ public sealed partial class Store
         var prey = situation == Situation.Active && request.Facts.Hostiles.TryGetValue(out var hostiles) && hostiles == 0
             ? EquatableArray.From(hunt.Select(p => (PawnId)p))
             : default;
-        return new RoundsCombat(situation, prey);
+        var hunters = situation == Situation.Active && request.Facts.Hostiles.TryGetValue(out hostiles) && hostiles == 0
+            ? EquatableArray.From(PolicyFunctions.HuntRequestHunters(request.Facts.FoodPlan).Select(p => (PawnId)p))
+            : default;
+        return new RoundsCombat(situation, prey, hunters);
     }
 
     /// <summary>

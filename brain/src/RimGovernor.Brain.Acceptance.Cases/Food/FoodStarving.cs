@@ -206,7 +206,7 @@ internal static class FoodStarving
 
     /// <summary>
     /// Names which hunt gates hold in one observe read: the native Eligible rule's inputs (butcher bill, Cooking worker,
-    /// ordinary ranged weapon, Hunting enabled), the squad's three-gunner floor and the two-hunt pending cap. Route
+    /// ordinary ranged weapon, Hunting enabled) and the two-hunt pending cap. Route
     /// safety shows in each animal's own reason.
     /// </summary>
     private static JsonObject HuntBlockers(JsonObject observed)
@@ -237,10 +237,8 @@ internal static class FoodStarving
             ["noCookingWorker"] = cooks == 0,
             ["noHuntingWorker"] = hunters == 0,
             ["noRangedWeapon"] = gunners == 0,
-            ["underSquadFloor"] = gunners < PolicyConstants.SquadHuntMinGunners,
             ["pendingHuntCapHit"] = observed["pendingHunts"].AsNumber() >= 2,
             ["rangedPawns"] = gunners,
-            ["squadHuntMinGunner"] = PolicyConstants.SquadHuntMinGunners,
         };
     }
 }
