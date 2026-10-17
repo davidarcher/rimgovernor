@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -65,25 +67,28 @@ public sealed class ObservationReaders : IAsyncDisposable
         }
 
         Array.Sort(latencies);
-        return new JsonObject
-        {
-            ["readers"] = _count,
-            ["reads"] = reads,
-            ["errors"] = errors,
-            ["duration_s"] = _clock.Elapsed.TotalSeconds,
-            ["read_p50_ms"] = Rank(latencies, 0.50),
-            ["read_p95_ms"] = Rank(latencies, 0.95),
-            ["read_max_ms"] = Rank(latencies, 1),
-        };
+        return (JsonObject)OutputJson.Node(
+            new ReadersSummary
+            {
+                Readers = _count,
+                Reads = reads,
+                Errors = errors,
+                DurationS = _clock.Elapsed.TotalSeconds,
+                ReadP50Ms = Rank(latencies, 0.50),
+                ReadP95Ms = Rank(latencies, 0.95),
+                ReadMaxMs = Rank(latencies, 1),
+            },
+            HarnessRowJsonContext.Default.ReadersSummary);
     }
 
     /// <summary>Refuses a readers summary that shows no load was applied: a row claiming observation load must have read successfully.</summary>
     public static IReadOnlyList<string> ReaderProblems(JsonObject summary)
     {
         ArgumentNullException.ThrowIfNull(summary);
-        return summary["reads"].AsUInt64() is > 0
+        var read = summary.Deserialize(HarnessRowJsonContext.Default.ReadersSummary)!;
+        return read.Reads > 0
             ? []
-            : [$"observation readers made no successful read ({summary["errors"].ToJson()} errors)"];
+            : [string.Create(CultureInfo.InvariantCulture, $"observation readers made no successful read ({read.Errors} errors)")];
     }
 
     public async ValueTask DisposeAsync()
@@ -105,11 +110,12 @@ public sealed class ObservationReaders : IAsyncDisposable
 
     private async Task ReadLoopAsync(IServiceStateSource service, TimeSpan interval, CancellationToken cancellationToken)
     {
-        using var ticker = new PeriodicTimer(interval);
+        using var pace = Wait.Pace(interval);
         try
         {
-            while (await ticker.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            while (true)
             {
+                await pace.NextAsync(cancellationToken).ConfigureAwait(false);
                 var began = Stopwatch.StartNew();
                 var ok = false;
                 try

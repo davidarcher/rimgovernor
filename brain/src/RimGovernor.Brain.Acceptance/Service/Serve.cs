@@ -42,8 +42,7 @@ public sealed record ServiceLaunch
 
 /// <summary>
 /// One handle on the brain's player API, obtained by <see cref="ServeAsync"/> (or <see cref="LaunchServiceAsync"/>)
-/// against the game the harness prepared. Its waits (<see cref="WaitReviewAsync"/>, <see cref="WaitPlanAsync"/>,
-/// <see cref="WaitMethodAsync"/>, <see cref="WaitPlanTerminalAsync"/>, <see cref="WaitStepAsync"/>) end as soon as
+/// against the game the harness prepared. Its waits (<see cref="WaitAttachedAsync"/>, <see cref="WaitStepAsync"/>) end as soon as
 /// the brain's process, the game, exits on its own. It is also the running service a checkpoint capture saves
 /// through (<see cref="ICheckpointService"/>).
 /// </summary>
@@ -205,7 +204,7 @@ public sealed partial class ServiceProcess : ICheckpointService
         var next = await ServeCoreAsync(_output, _harness, Identity, spec, Launch + 1, _report, cancellationToken, _configDir).ConfigureAwait(false);
         lock (next._gate)
         {
-            next._entry["restart"] = "re-attached to the in-mod brain; it was not restarted";
+            next._entry.Set("restart", "re-attached to the in-mod brain; it was not restarted");
         }
 
         return next;
@@ -228,7 +227,7 @@ public sealed partial class ServiceProcess : ICheckpointService
         var endpointDir = harness?.Transport is HttpNativeTransport http
             ? http.EndpointDirectory
             : configDir.Length > 0 && gameId.Length > 0 ? GameSessions.EndpointDirectory(configDir, gameId) : otlpDir;
-        var entry = new JsonObject { ["state"] = "starting", ["launch"] = launch, ["endpoint"] = endpointDir };
+        var entry = new JsonObject { { "state", "starting" }, { "launch", launch }, { "endpoint", endpointDir } };
         if (report is not null)
         {
             report[key] = entry;
@@ -236,7 +235,7 @@ public sealed partial class ServiceProcess : ICheckpointService
 
         if (spec.Families is { } families)
         {
-            entry["families"] = string.Join(',', families);
+            entry.Set("families", string.Join(',', families));
         }
 
         if (spec.Env.Count > 0)
@@ -255,12 +254,12 @@ public sealed partial class ServiceProcess : ICheckpointService
 
             if (applied.Count > 0)
             {
-                entry["env_applied"] = applied;
+                entry.Set("env_applied", applied);
             }
 
             if (unapplied.Count > 0)
             {
-                entry["env_unapplied"] = unapplied;
+                entry.Set("env_unapplied", unapplied);
             }
         }
 
@@ -281,9 +280,9 @@ public sealed partial class ServiceProcess : ICheckpointService
             _lifetime = cancellationToken,
         };
         GameProcess.TryProcessStartTime(pid, out p._pidStartTime);
-        entry["pid"] = pid;
-        entry["url"] = url;
-        entry["state"] = "running";
+        entry.Set("pid", pid);
+        entry.Set("url", url);
+        entry.Set("state", "running");
         Volatile.Write(ref s_latest, p);
         await p.SetClockSpeedAsync(spec.ClockSpeed, cancellationToken).ConfigureAwait(false);
         return p;
@@ -303,7 +302,7 @@ public sealed partial class ServiceProcess : ICheckpointService
 
             if (DateTime.UtcNow > deadline)
             {
-                entry["state"] = "start failed: no endpoint file";
+                entry.Set("state", "start failed: no endpoint file");
                 throw new AcceptanceException($"start player API: no {RimGovernor.Brain.HttpChannel.EndpointFile.FileName} appeared in {endpointDir}: the game has not started its channel");
             }
 
@@ -321,7 +320,7 @@ public sealed partial class ServiceProcess : ICheckpointService
         await VerifyFamiliesAsync(cancellationToken).ConfigureAwait(false);
         lock (_gate)
         {
-            _entry["attached"] = state.DeepClone();
+            _entry.Set("attached", state.DeepClone());
         }
     }
 
@@ -339,17 +338,17 @@ public sealed partial class ServiceProcess : ICheckpointService
         }
 
         var reply = await ApiAsync("GET", "/api/routines", null, "", cancellationToken).ConfigureAwait(false);
-        if (reply.Status != 200 || reply.Body?["activeFamilies"] is not JsonArray active)
+        if (reply.Status != 200 || ServiceJson.Routines(reply.Body)?.ActiveFamilies is not { } active)
         {
             lock (_gate)
             {
-                _entry["families_check"] = "unavailable";
+                _entry.Set("families_check", "unavailable");
             }
 
             return;
         }
 
-        var have = active.Select(n => n.AsString()).Order(StringComparer.Ordinal).ToList();
+        var have = active.Order(StringComparer.Ordinal).ToList();
         var want = wanted.Order(StringComparer.Ordinal).ToList();
         if (!have.SequenceEqual(want, StringComparer.Ordinal))
         {
@@ -358,7 +357,7 @@ public sealed partial class ServiceProcess : ICheckpointService
 
         lock (_gate)
         {
-            _entry["families_check"] = "matched";
+            _entry.Set("families_check", "matched");
         }
     }
 
@@ -458,10 +457,10 @@ public sealed partial class ServiceProcess : ICheckpointService
         {
             if (keep is not null)
             {
-                _entry["keepalive"] = keep.DeepClone();
+                _entry.Set("keepalive", keep.DeepClone());
             }
 
-            _entry["state"] = "stopped";
+            _entry.Set("state", "stopped");
             RecordClock();
         }
 
@@ -479,14 +478,14 @@ public sealed partial class ServiceProcess : ICheckpointService
             return;
         }
 
-        _entry["clock"] = new JsonObject
+        _entry.Set("clock", new JsonObject
         {
-            ["first_tick"] = _firstTick,
-            ["last_tick"] = _lastTick,
-            ["ticks_advanced"] = _lastTick >= _firstTick ? _lastTick - _firstTick : 0,
-            ["wall_seconds"] = (_lastTickAt - _firstTickAt).TotalSeconds,
-            ["clock_samples"] = _tickSamples,
-        };
+            { "first_tick", _firstTick },
+            { "last_tick", _lastTick },
+            { "ticks_advanced", _lastTick >= _firstTick ? _lastTick - _firstTick : 0 },
+            { "wall_seconds", (_lastTickAt - _firstTickAt).TotalSeconds },
+            { "clock_samples", _tickSamples },
+        });
     }
 
     /// <summary>
@@ -506,7 +505,7 @@ public sealed partial class ServiceProcess : ICheckpointService
                 }
 
                 _exit = new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"service {Pid} exited: the game process that hosts the brain is gone"));
-                _entry["state"] = "exited: " + _exit.Message;
+                _entry.Set("state", "exited: " + _exit.Message);
             }
 
             return _exit;
@@ -571,45 +570,6 @@ public sealed partial class ServiceProcess : ICheckpointService
         }
     }
 
-    // Fills w's defaults for this service: the stall budget and the service's exit as the terminal.
-    private Wait Defaults(Wait w)
-    {
-        if (w.Stall <= TimeSpan.Zero)
-        {
-            w = w with { Stall = Wait.StallBudget() };
-        }
-
-        if (w.Terminal is null)
-        {
-            w = w with { Terminal = Exited };
-        }
-
-        return w;
-    }
-
-    /// <summary><see cref="ServiceWaits.WaitReviewAsync"/> on this service's routines, ended by its exit.</summary>
-    public Task<JsonObject> WaitReviewAsync(Wait w, Func<JsonObject, bool> ready, CancellationToken cancellationToken) =>
-        ServiceWaits.WaitReviewAsync(ApiAsync, Defaults(w), ready, cancellationToken);
-
-    /// <summary><see cref="ServiceWaits.WaitPlanAsync"/> on this service's plans, ended by its exit.</summary>
-    public Task<JsonObject> WaitPlanAsync(Wait w, string planId, Func<JsonObject, (string Signature, bool Done)> check, CancellationToken cancellationToken) =>
-        ServiceWaits.WaitPlanAsync(ApiAsync, Defaults(w), planId, check, cancellationToken);
-
-    /// <summary><see cref="ServiceWaits.WaitMethodAsync"/> on this service, ended by its exit.</summary>
-    public Task<ServiceMethod> WaitMethodAsync(string need, string? previousPlan, CancellationToken cancellationToken)
-    {
-        IReadOnlySet<string>? seen = previousPlan is null ? null : new HashSet<string>([previousPlan], StringComparer.Ordinal);
-        return WaitMethodExcludingAsync(need, seen, cancellationToken);
-    }
-
-    /// <summary><see cref="ServiceWaits.WaitMethodExcludingAsync"/> on this service, ended by its exit.</summary>
-    public Task<ServiceMethod> WaitMethodExcludingAsync(string need, IReadOnlySet<string>? seen, CancellationToken cancellationToken) =>
-        ServiceWaits.WaitMethodCoreAsync(ApiAsync, Defaults(new Wait { Interval = TimeSpan.FromSeconds(1) }), need, seen, cancellationToken);
-
-    /// <summary><see cref="ServiceWaits.WaitPlanTerminalAsync"/> on this service's plans, ended by its exit.</summary>
-    public Task<(JsonObject State, bool Incidental)> WaitPlanTerminalAsync(string planId, CancellationToken cancellationToken) =>
-        ServiceWaits.WaitPlanTerminalCoreAsync(ApiAsync, Defaults(new Wait { Interval = TimeSpan.FromSeconds(1) }), planId, cancellationToken);
-
     /// <summary>
     /// Reports whether the scheduler has run a clock step since the service started, recording when the first
     /// one was seen. The journaled clock attempts the Go version counted are not on the player API, so a window is
@@ -629,18 +589,19 @@ public sealed partial class ServiceProcess : ICheckpointService
         }
 
         var reply = await ApiAsync("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
-        if (reply.Status == 200 && reply.Body is { } state && state["mode"].AsString() == "automate")
+        if (reply.Status == 200 && ServiceJson.State(reply.Body) is { Mode: "automate" } state)
         {
-            var tick = state["game"].AsMap()?["tick"].AsUInt64();
+            var tick = state.Game?.Tick;
             lock (_gate)
             {
-                if (tick is { } now)
+                if (tick is long t && t >= 0)
                 {
+                    var now = (ulong)t;
                     _stepBaseline ??= now;
                     if (now > _stepBaseline)
                     {
                         _stepped = true;
-                        _entry["first_clock_attempt_after"] = WaitError.FormatDuration(DateTimeOffset.UtcNow - since);
+                        _entry.Set("first_clock_attempt_after", WaitError.FormatDuration(DateTimeOffset.UtcNow - since));
                         return true;
                     }
                 }

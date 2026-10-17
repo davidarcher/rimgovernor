@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -27,9 +28,9 @@ public static class Needs
         var reply = await harness.CallAsync(
             "freeze-needs",
             FreezeNeedsTool,
-            new JsonObject { ["action"] = "apply", ["keep"] = string.Join(',', keep) },
+            new JsonObject { { "action", "apply" }, { "keep", string.Join(',', keep) } },
             cancellationToken).ConfigureAwait(false);
-        return reply["success"].AsBool() == true
+        return Harness.FixtureReply<Fx.FixtureDone>(FreezeNeedsTool, reply).Success
             ? reply
             : throw new AcceptanceException($"{FreezeNeedsTool} refused: {reply.ToJson()}");
     }

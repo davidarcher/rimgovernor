@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -91,30 +92,30 @@ public static class DebugGame
     {
         ArgumentNullException.ThrowIfNull(harness);
         ArgumentNullException.ThrowIfNull(thing);
-        var args = new JsonObject { ["def"] = thing.Def, ["x"] = thing.X, ["z"] = thing.Z, ["rotation"] = thing.Rotation };
+        var args = new JsonObject { { "def", thing.Def }, { "x", thing.X }, { "z", thing.Z }, { "rotation", thing.Rotation } };
         if (thing.Stuff.Length > 0)
         {
-            args["stuff"] = thing.Stuff;
+            args.Set("stuff", thing.Stuff);
         }
 
         if (thing.Count > 0)
         {
-            args["count"] = thing.Count;
+            args.Set("count", thing.Count);
         }
 
         if (thing.Unowned)
         {
-            args["faction"] = "none";
+            args.Set("faction", "none");
         }
 
         if (thing.Gender.Length > 0)
         {
-            args["gender"] = thing.Gender;
+            args.Set("gender", thing.Gender);
         }
 
         if (thing.Age > 0)
         {
-            args["age"] = thing.Age;
+            args.Set("age", thing.Age);
         }
 
         JsonObject reply;
@@ -127,13 +128,12 @@ public static class DebugGame
             throw new AcceptanceException($"{LabSpawnTool} {thing.Def}: {e.Message}", e);
         }
 
-        var id = reply["id"].AsString();
-        if (reply["success"].AsBool() != true || id.Length == 0)
+        if (Harness.FixtureReply<Fx.LabSpawned>(LabSpawnTool, reply) is not { Success: true, Id.Length: > 0 } spawned)
         {
             throw new AcceptanceException($"{LabSpawnTool} {thing.Def} refused: {reply.ToJson()}");
         }
 
-        return (id, reply);
+        return (spawned.Id, reply);
     }
 
     /// <summary>
@@ -221,14 +221,14 @@ public static class DebugGame
         JsonObject reply;
         try
         {
-            reply = await harness.CallAsync("quiet-world", QuietWorldTool, new JsonObject { ["action"] = "apply" }, cancellationToken).ConfigureAwait(false);
+            reply = await harness.CallAsync("quiet-world", QuietWorldTool, new JsonObject { { "action", "apply" } }, cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {
             throw new AcceptanceException($"{QuietWorldTool}: {e.Message}", e);
         }
 
-        return reply["success"].AsBool() == true
+        return Harness.FixtureReply<Fx.FixtureDone>(QuietWorldTool, reply).Success
             ? reply
             : throw new AcceptanceException($"{QuietWorldTool} refused: {reply.ToJson()}");
     }
@@ -249,14 +249,14 @@ public static class DebugGame
         JsonObject quiet;
         try
         {
-            quiet = await harness.CallAsync("quiet-storyteller", QuietStorytellerTool, new JsonObject { ["action"] = "apply" }, cancellationToken).ConfigureAwait(false);
+            quiet = await harness.CallAsync("quiet-storyteller", QuietStorytellerTool, new JsonObject { { "action", "apply" } }, cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {
             throw new AcceptanceException($"{QuietStorytellerTool}: {e.Message}", e);
         }
 
-        if (quiet["success"].AsBool() != true)
+        if (!Harness.FixtureReply<Fx.FixtureDone>(QuietStorytellerTool, quiet).Success)
         {
             throw new AcceptanceException($"{QuietStorytellerTool} refused: {quiet.ToJson()}");
         }
@@ -280,7 +280,7 @@ public static class DebugGame
             reply = await harness.CallAsync(
                 "lab-crew",
                 LabCrewTool,
-                new JsonObject { ["size"] = size, ["level"] = CrewSkillLevel, ["traits"] = SuperTraits },
+                new JsonObject { { "size", size }, { "level", CrewSkillLevel }, { "traits", SuperTraits } },
                 cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
@@ -288,8 +288,8 @@ public static class DebugGame
             throw new AcceptanceException($"{LabCrewTool}: {e.Message}", e);
         }
 
-        return reply["success"].AsBool() == true
-            ? ((int)reply["colonists"].AsNumber(), (int)reply["added"].AsNumber())
+        return Harness.FixtureReply<Fx.LabCrewed>(LabCrewTool, reply) is { Success: true } crewed
+            ? (crewed.Colonists, crewed.Added)
             : throw new AcceptanceException($"{LabCrewTool} refused: {reply.ToJson()}");
     }
 

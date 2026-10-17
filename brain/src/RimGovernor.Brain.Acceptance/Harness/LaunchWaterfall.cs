@@ -124,21 +124,21 @@ public sealed class LaunchWaterfall
         {
             spans.Add(new JsonObject
             {
-                ["name"] = s.Name,
-                ["source"] = s.Source,
-                ["depth"] = s.Depth,
-                ["offset_ms"] = Ms(s.OffsetMs),
-                ["duration_ms"] = Ms(s.DurationMs),
+                { "name", s.Name },
+                { "source", s.Source },
+                { "depth", s.Depth },
+                { "offset_ms", Ms(s.OffsetMs) },
+                { "duration_ms", Ms(s.DurationMs) },
             });
         }
 
         var largest = new JsonArray();
         foreach (var s in Largest())
         {
-            largest.Add(new JsonObject { ["name"] = s.Name, ["duration_ms"] = Ms(s.DurationMs) });
+            largest.Add(new JsonObject { { "name", s.Name }, { "duration_ms", Ms(s.DurationMs) } });
         }
 
-        return new JsonObject { ["run_id"] = RunId, ["total_ms"] = Ms(TotalMs), ["spans"] = spans, ["largest"] = largest };
+        return new JsonObject { { "run_id", RunId }, { "total_ms", Ms(TotalMs) }, { "spans", spans }, { "largest", largest } };
     }
 
     /// <summary>The per-phase delta of <paramref name="after"/> against <paramref name="before"/>: the total first, then each phase by largest change.</summary>
@@ -175,10 +175,10 @@ public sealed class LaunchWaterfall
         var phases = new JsonArray();
         foreach (var (name, beforeMs, afterMs) in Delta(before, after))
         {
-            phases.Add(new JsonObject { ["name"] = name, ["before_ms"] = beforeMs, ["after_ms"] = afterMs, ["delta_ms"] = afterMs - beforeMs });
+            phases.Add(new JsonObject { { "name", name }, { "before_ms", beforeMs }, { "after_ms", afterMs }, { "delta_ms", afterMs - beforeMs } });
         }
 
-        return new JsonObject { ["before"] = before.ToJson(), ["after"] = after.ToJson(), ["phases"] = phases };
+        return new JsonObject { { "before", before.ToJson() }, { "after", after.ToJson() }, { "phases", phases } };
     }
 
     private static IEnumerable<OtlpSpan> Roots(IEnumerable<OtlpSpan> spans) =>

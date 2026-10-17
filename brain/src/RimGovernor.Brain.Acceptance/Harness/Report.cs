@@ -37,8 +37,8 @@ public sealed partial class Report
     /// <summary>A field; setting one moves a node that already has a parent by copying it.</summary>
     public JsonNode? this[string key]
     {
-        get => Data[key];
-        set => Data[key] = value?.Parent is null ? value : value.DeepClone();
+        get => Data.Member(key);
+        set => Data.Set(key, value?.Parent is null ? value : value.DeepClone());
     }
 
     /// <summary>A new report for <paramref name="scope"/>: not passed, started now.</summary>
@@ -56,7 +56,7 @@ public sealed partial class Report
     public bool Has(string key) => Data.ContainsKey(key);
 
     /// <summary>Whether the run passed (the <c>passed</c> field is the boolean true).</summary>
-    public bool Passed => Data["passed"].AsBool() == true;
+    public bool Passed => Data.Member("passed").AsBool() == true;
 
     /// <summary>
     /// Fills the timing fields and applies the budget (a passing run over its budget fails), computes the artifact
@@ -71,7 +71,7 @@ public sealed partial class Report
             var manifest = new JsonObject();
             foreach (var (path, hash) in hashes)
             {
-                manifest[path] = hash;
+                manifest.Set(path, hash);
             }
 
             this["artifacts"] = manifest;
@@ -105,13 +105,13 @@ public sealed partial class Report
             return true;
         }
 
-        if (Data[SoftFailuresKey] is not JsonArray failures)
+        if (Data.Member(SoftFailuresKey) is not JsonArray failures)
         {
             failures = [];
-            Data[SoftFailuresKey] = failures;
+            Data.Set(SoftFailuresKey, failures);
         }
 
-        failures.Add(new JsonObject { ["check"] = check, ["error"] = error.Message });
+        failures.Add(new JsonObject { { "check", check }, { "error", error.Message } });
         return false;
     }
 
@@ -119,7 +119,7 @@ public sealed partial class Report
     public Exception? SoftFailure()
     {
         var errors = new List<Exception>();
-        foreach (var failure in Data[SoftFailuresKey].AsSlice())
+        foreach (var failure in Data.Member(SoftFailuresKey).AsSlice())
         {
             errors.Add(new AcceptanceException($"{failure.Member("check").AsString()}: {failure.Member("error").AsString()}"));
         }
@@ -157,12 +157,12 @@ public sealed partial class Report
         var ordered = new JsonObject();
         if (Data.TryGetPropertyValue("diagnosis", out var diagnosis))
         {
-            ordered["diagnosis"] = diagnosis?.DeepClone();
+            ordered.Add("diagnosis", diagnosis?.DeepClone());
         }
 
         foreach (var key in Data.Select(pair => pair.Key).Where(key => key != "diagnosis").Order(StringComparer.Ordinal))
         {
-            ordered[key] = Data[key]?.DeepClone();
+            ordered.Add(key, Data.Member(key)?.DeepClone());
         }
 
         return ordered.ToJsonString(WriteOptions);

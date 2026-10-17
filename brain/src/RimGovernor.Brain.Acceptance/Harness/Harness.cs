@@ -53,8 +53,8 @@ public sealed partial class Harness : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(op);
         ArgumentNullException.ThrowIfNull(request);
-        var envelope = await CallAsync(label, op.Tool, new JsonObject { ["request"] = WireJson.Serialize(request) }, cancellationToken).ConfigureAwait(false);
-        if (envelope["payload"] is not JsonValue value || !value.TryGetValue<string>(out var payload))
+        var envelope = await CallAsync(label, op.Tool, new JsonObject { { "request", WireJson.Serialize(request) } }, cancellationToken).ConfigureAwait(false);
+        if (envelope.Member("payload") is not JsonValue value || !value.TryGetValue<string>(out var payload))
         {
             throw new AcceptanceException($"{label}: {op.Name}: reply did not preserve the JSON string envelope");
         }
@@ -104,7 +104,7 @@ public sealed partial class Harness : IAsyncDisposable
     /// the one that decides the outcome, this only stops the transport from ending the call first.
     /// </summary>
     internal static TimeSpan? CoverNativeWait(JsonObject arguments) =>
-        arguments["timeoutMs"].AsUInt64() is { } ms and > 0 ? TimeSpan.FromMilliseconds(ms) + NativeWaitMargin : null;
+        HarnessJson.TryRead(arguments, HarnessJsonContext.Default.NativeWaitArguments)?.TimeoutMs is { } ms and > 0 ? TimeSpan.FromMilliseconds(ms) + NativeWaitMargin : null;
 
     private async Task<JsonObject> CallCoreAsync(string label, string tool, JsonObject arguments, bool retry, CancellationToken cancellationToken)
     {
@@ -143,7 +143,7 @@ public sealed partial class Harness : IAsyncDisposable
             if (callError is not null)
             {
                 callError = Refine(tool, callError, result);
-                row["error"] = callError.Message;
+                row.Set("error", callError.Message);
                 throw callError is NativeRefusedException or NativeTransportException ? callError : new AcceptanceException(callError.Message, callError);
             }
 
@@ -151,7 +151,7 @@ public sealed partial class Harness : IAsyncDisposable
             var tick = TickStats.ReplyTick(tool, structured);
             if (tick is { } observed)
             {
-                row["tick"] = (long)observed;
+                row.Set("tick", (long)observed);
             }
 
             TickStats.ObserveReply(tool, tick);

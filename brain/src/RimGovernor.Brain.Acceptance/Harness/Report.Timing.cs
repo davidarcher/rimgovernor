@@ -34,14 +34,14 @@ public sealed partial class Report
     internal void FinalizeTiming(DateTimeOffset finished)
     {
         this[FinishedAtKey] = finished.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
-        if (ParseReportTime(Data[StartedAtKey]) is not { } started)
+        if (ParseReportTime(Data.Member(StartedAtKey)) is not { } started)
         {
             return;
         }
 
         var wall = finished - started;
         this[WallMsKey] = (long)wall.TotalMilliseconds;
-        if (!Has(BootMsKey) && Data["game_reuse"].AsMap() is { } reuse && reuse["openMs"].AsUInt64() is { } openMs)
+        if (!Has(BootMsKey) && Data.Member("game_reuse").Member("openMs").AsUInt64() is { } openMs)
         {
             this[BootMsKey] = (long)openMs;
         }
@@ -59,7 +59,7 @@ public sealed partial class Report
             }
         }
 
-        var advanced = Data[TicksAdvancedKey].AsUInt64();
+        var advanced = Data.Member(TicksAdvancedKey).AsUInt64();
         if (advanced is null)
         {
             advanced = TickStats.Advanced;
@@ -181,14 +181,15 @@ public static class TickStats
             return null;
         }
 
-        var encoded = payload["payload"];
+        var encoded = payload.Member("payload");
         if (encoded is not JsonValue value || !value.TryGetValue<string>(out var text))
         {
             return null;
         }
 
-        return RecordedOutcome.Of(text) is ("loaded" or "observed", var body) && body["context"] is JsonObject context
-            ? context["tick"].AsUInt64()
+        return RecordedOutcome.Of(text) is ("loaded" or "observed", var body)
+            && HarnessJson.TryRead(body, HarnessJsonContext.Default.ContextBody)?.Context?.Tick is long tick && tick >= 0
+            ? (ulong)tick
             : null;
     }
 }

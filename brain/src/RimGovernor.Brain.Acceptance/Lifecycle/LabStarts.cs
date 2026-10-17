@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -67,9 +68,9 @@ public static class LabStarts
     {
         ArgumentNullException.ThrowIfNull(files);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (var key in files.Select(pair => pair.Key).Order(StringComparer.Ordinal))
+        foreach (var (key, value) in files.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
-            hash.AppendData(Encoding.UTF8.GetBytes(key.Replace('\\', '/') + "=" + files[key].AsString() + "\n"));
+            hash.AppendData(Encoding.UTF8.GetBytes(key.Replace('\\', '/') + "=" + value.AsString() + "\n"));
         }
 
         return Convert.ToHexStringLower(hash.GetHashAndReset())[..16];
@@ -98,7 +99,7 @@ public static class LabStarts
         var stamp = LabStamp(files);
         var cached = cache.Enabled;
         cache.Seed = "";
-        var row = new JsonObject { ["kind"] = "lab", ["mapSize"] = LabWorld.LabMapSize, ["colonists"] = colonists, ["save"] = name };
+        var row = new JsonObject { { "kind", "lab" }, { "mapSize", LabWorld.LabMapSize }, { "colonists", colonists }, { "save", name } };
         var fresh = cached && LabCacheFresh(cache, name, stamp);
         if (fresh)
         {
@@ -113,8 +114,8 @@ public static class LabStarts
                 throw new AcceptanceException($"lab cache {name}: {e.Message}", e);
             }
 
-            row["lab"] = lab;
-            row["cached"] = true;
+            row.Set("lab", lab);
+            row.Set("cached", true);
         }
         else
         {
@@ -122,27 +123,26 @@ public static class LabStarts
             JsonObject lab;
             try
             {
-                lab = await harness.CallAsync("lab-start", DebugGame.LabStartTool, new JsonObject { ["colonists"] = colonists }, cancellationToken).ConfigureAwait(false);
+                lab = await harness.CallAsync("lab-start", DebugGame.LabStartTool, new JsonObject { { "colonists", colonists } }, cancellationToken).ConfigureAwait(false);
             }
             catch (AcceptanceException e)
             {
                 throw new AcceptanceException($"{DebugGame.LabStartTool}: {e.Message}", e);
             }
 
-            if (lab["success"].AsBool() != true)
+            if (Harness.FixtureReply<Fx.LabStarted>(DebugGame.LabStartTool, lab) is not { Success: true } started)
             {
                 throw new AcceptanceException($"{DebugGame.LabStartTool} refused: {lab.ToJson()}");
             }
 
-            var size = (int)lab["mapSize"].AsNumber();
-            if (size != LabWorld.LabMapSize)
+            if (started.MapSize != LabWorld.LabMapSize)
             {
-                throw new AcceptanceException($"{DebugGame.LabStartTool} made a {size} map, want {LabWorld.LabMapSize}");
+                throw new AcceptanceException($"{DebugGame.LabStartTool} made a {started.MapSize} map, want {LabWorld.LabMapSize}");
             }
 
-            row["digest"] = lab["digest"]?.DeepClone();
-            row["lab"] = lab;
-            row["cached"] = false;
+            row.Set("digest", started.Digest);
+            row.Set("lab", lab);
+            row.Set("cached", false);
             if (cached)
             {
                 await cache.SaveAsync(harness, name, cancellationToken).ConfigureAwait(false);
@@ -169,8 +169,9 @@ public static class LabStarts
         var report = new Report();
         report["package_files"] = files;
         var session = await Session.AdoptAsync(config, host, harness, report, cancellationToken).ConfigureAwait(false);
-        var row = await LoadAsync(new LabStart(), session, QuietMode.Required, cancellationToken).ConfigureAwait(false);
-        return row["save"].AsString();
+        var start = new LabStart();
+        await LoadAsync(start, session, QuietMode.Required, cancellationToken).ConfigureAwait(false);
+        return LabCacheName(host.StartCache, Colonists(start));
     }
 
     private static string SavesDir(IStartCache cache) => Path.Combine(cache.Root, "profile", "Saves");

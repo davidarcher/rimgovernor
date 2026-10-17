@@ -30,30 +30,30 @@ public sealed class HoldLatency
     /// <summary>The hold as its report row (json tags reason, hold_tick, then the optional legs).</summary>
     public JsonObject ToJson()
     {
-        var row = new JsonObject { ["reason"] = Reason, ["hold_tick"] = HoldTick };
+        var row = new JsonObject { { "reason", Reason }, { "hold_tick", HoldTick } };
         if (DetectedTick is { } detected)
         {
-            row["detected_tick"] = detected;
+            row.Set("detected_tick", detected);
         }
 
         if (OccurrenceTick is { } occurrence)
         {
-            row["occurrence_tick"] = occurrence;
+            row.Set("occurrence_tick", occurrence);
         }
 
         if (DetectTicks is { } detectTicks)
         {
-            row["detect_ticks"] = detectTicks;
+            row.Set("detect_ticks", detectTicks);
         }
 
         if (HoldTicks is { } holdTicks)
         {
-            row["hold_ticks"] = holdTicks;
+            row.Set("hold_ticks", holdTicks);
         }
 
         if (ResumeMs is { } resume)
         {
-            row["resume_ms"] = resume;
+            row.Set("resume_ms", resume);
         }
 
         return row;
@@ -84,21 +84,21 @@ public sealed class HoldSummary
     /// <summary>The summary as its report row (json tags holds, reasons, resume_*, ...).</summary>
     public JsonObject ToJson()
     {
-        var row = new JsonObject { ["holds"] = Holds };
+        var row = new JsonObject { { "holds", Holds } };
         if (Reasons.Count > 0)
         {
             var reasons = new JsonObject();
             foreach (var (reason, count) in Reasons.OrderBy(pair => pair.Key, StringComparer.Ordinal))
             {
-                reasons[reason] = count;
+                reasons.Set(reason, count);
             }
 
-            row["reasons"] = reasons;
+            row.Set("reasons", reasons);
         }
 
-        row["resume_samples"] = ResumeCount;
-        row["mean_resume_ms"] = MeanResumeMs;
-        row["max_resume_ms"] = MaxResumeMs;
+        row.Set("resume_samples", ResumeCount);
+        row.Set("mean_resume_ms", MeanResumeMs);
+        row.Set("max_resume_ms", MaxResumeMs);
         if (Latencies.Count > 0)
         {
             var latencies = new JsonArray();
@@ -107,7 +107,7 @@ public sealed class HoldSummary
                 latencies.Add(latency.ToJson());
             }
 
-            row["latencies"] = latencies;
+            row.Set("latencies", latencies);
         }
 
         return row;

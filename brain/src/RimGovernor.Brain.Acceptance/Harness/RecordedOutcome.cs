@@ -15,12 +15,9 @@ internal static class RecordedOutcome
     {
         try
         {
-            return JsonNode.Parse(payload) is JsonObject { } reply
-                && reply["outcome"] is JsonObject outcome
-                && outcome["type"] is JsonValue type && type.TryGetValue<string>(out var name)
-                && outcome["value"] is JsonObject value
-                    ? (name, value)
-                    : null;
+            return HarnessJson.TryRead(JsonNode.Parse(payload), HarnessJsonContext.Default.RecordedReply)?.Outcome is { Type: { } name, Value: { } value }
+                ? (name, value)
+                : null;
         }
         catch (JsonException)
         {

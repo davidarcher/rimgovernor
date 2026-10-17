@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.NativeFacade;
+using Fx = RimGovernor.Fixtures.Contracts;
 using Wl = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -131,7 +132,7 @@ public interface ISessionHost
 /// </summary>
 public sealed record LoadedStart : Start
 {
-    public override JsonObject Describe() => new() { ["kind"] = "loaded" };
+    public override JsonObject Describe() => new() { { "kind", "loaded" } };
 }
 
 /// <summary>
@@ -193,15 +194,15 @@ public static class StartOps
         var size = debug.Size.WithDefaults();
         var quietReply = await DebugGame.StartDebugGameSizedAsync(session.Harness, session.Host.StartCache, session.Names, quiet, size, cancellationToken).ConfigureAwait(false);
         session.Report["quiet"] = quietReply is not null;
-        var row = new JsonObject { ["kind"] = "debug", ["mapSize"] = size.MapSize, ["planetCoverage"] = size.PlanetCoverage };
+        var row = new JsonObject { { "kind", "debug" }, { "mapSize", size.MapSize }, { "planetCoverage", size.PlanetCoverage } };
         if (size.Biomes.Length > 0)
         {
-            row["biomes"] = size.Biomes;
+            row.Set("biomes", size.Biomes);
         }
 
         if (size.Flat)
         {
-            row["flat"] = true;
+            row.Set("flat", true);
         }
 
         return row;
@@ -218,7 +219,7 @@ public static class StartOps
         var apply = QuietDecision(session.Names, quiet);
         var quietReply = await DebugGame.ApplyQuietAsync(session.Harness, apply, cancellationToken).ConfigureAwait(false);
         session.Report["quiet"] = quietReply is not null;
-        return new JsonObject { ["kind"] = "save", ["save"] = save.Name };
+        return new JsonObject { { "kind", "save" }, { "save", save.Name } };
     }
 
     /// <summary>
@@ -270,7 +271,7 @@ public static class StartOps
     private static async Task<JsonObject> LoadFixtureAsync(FixtureStart fixture, Session session, QuietMode quiet, CancellationToken cancellationToken)
     {
         var row = await LoadAsync(fixture.On ?? new DebugStart(), session, quiet, cancellationToken).ConfigureAwait(false);
-        row["fixture"] = fixture.Op;
+        row.Set("fixture", fixture.Op);
         return row;
     }
 
@@ -295,12 +296,13 @@ public static class StartOps
 
         var args = (fixture.Args ?? []).DeepClone().AsMap() ?? [];
         var prepared = await session.Harness.CallAsync("prepare", fixture.Op, args, cancellationToken).ConfigureAwait(false);
-        if (prepared["success"].AsBool() != true)
+        var read = Harness.FixtureReply<Fx.FixturePrepared>(fixture.Op, prepared);
+        if (!read.Success)
         {
             throw new AcceptanceException($"{fixture.Op} refused: {prepared.ToJson()}");
         }
 
-        if (prepared.ContainsKey("loadToken") && !Session.MatchesIdentity(prepared, identity))
+        if (read.LoadToken is not null && !Session.MatchesIdentity(read, identity))
         {
             throw new AcceptanceException($"{fixture.Op} identity does not match the loaded game: {prepared.ToJson()}");
         }
@@ -316,7 +318,7 @@ public static class StartOps
             throw new AcceptanceException("no game is loaded in the kept process; start from a save instead");
         }
 
-        return new JsonObject { ["kind"] = "loaded" };
+        return new JsonObject { { "kind", "loaded" } };
     }
 }
 
@@ -369,11 +371,12 @@ public sealed class Session
         return names.Count == 0 || Dyn.Contains(names, tool);
     }
 
-    /// <summary>Whether two identity objects name the same colony, load and map.</summary>
-    internal static bool MatchesIdentity(JsonObject value, JsonObject want) =>
-        value["colonyId"].AsString() == want["colonyId"].AsString()
-        && value["loadToken"].AsString() == want["loadToken"].AsString()
-        && value["mapId"].AsNumber() == want["mapId"].AsNumber();
+    /// <summary>Whether a prepare op's reported identity names the same colony, load and map as <paramref name="want"/>.</summary>
+    internal static bool MatchesIdentity(Fx.FixturePrepared value, JsonObject want)
+    {
+        var identity = Harness.IdentityOf(want);
+        return value.ColonyId == identity.ColonyId && value.LoadToken == identity.LoadToken && value.MapId == identity.MapId;
+    }
 
     /// <summary>
     /// Runs the native-only preamble: the stale-package check and profile preparation (a Save start's expansions
@@ -514,7 +517,7 @@ public sealed class Session
         if (start is LabStart)
         {
             // A bare lab start replies the lab itself (centre, colonist ids).
-            Prepared = row["lab"].AsMap();
+            Prepared = row.Member("lab").AsMap();
         }
 
         Report["world"] = Host.RecordWorld(Config, start, StartOps.World(start, Host.StartCache));

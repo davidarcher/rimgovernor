@@ -1,8 +1,10 @@
 using System.Globalization;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
 using RimGovernor.Contracts.Wire.Clock;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -51,20 +53,20 @@ public sealed record SpeedCase
     /// <summary>The case as its report row (json tags name, speed, test_acceleration, governor_off, player, observation_load).</summary>
     public JsonObject ToJson()
     {
-        var row = new JsonObject { ["name"] = Name, ["speed"] = Speed, ["test_acceleration"] = TestAcceleration };
+        var row = new JsonObject { { "name", Name }, { "speed", Speed }, { "test_acceleration", TestAcceleration } };
         if (GovernorOff)
         {
-            row["governor_off"] = true;
+            row.Set("governor_off", true);
         }
 
         if (Player)
         {
-            row["player"] = true;
+            row.Set("player", true);
         }
 
         if (ObservationLoad)
         {
-            row["observation_load"] = true;
+            row.Set("observation_load", true);
         }
 
         return row;
@@ -129,13 +131,13 @@ public sealed record SpeedOutcome
     /// <summary>The outcome as its report row (json tags case, stored_stacks, ...).</summary>
     public JsonObject ToJson() => new()
     {
-        ["case"] = Case,
-        ["stored_stacks"] = StoredStacks,
-        ["stored_units"] = StoredUnits,
-        ["loose_units"] = LooseUnits,
-        ["walls_built"] = WallsBuilt,
-        ["healthy_colonists"] = HealthyColonists,
-        ["unsuccessful_stages"] = UnsuccessfulStages,
+        { "case", Case },
+        { "stored_stacks", StoredStacks },
+        { "stored_units", StoredUnits },
+        { "loose_units", LooseUnits },
+        { "walls_built", WallsBuilt },
+        { "healthy_colonists", HealthyColonists },
+        { "unsuccessful_stages", UnsuccessfulStages },
     };
 }
 
@@ -315,13 +317,14 @@ public static class SpeedMatrix
     public static SpeedOutcome OutcomeFromControl(string name, JsonObject control)
     {
         ArgumentNullException.ThrowIfNull(control);
+        var counters = Fx.FixtureJson.Deserialize<Fx.ThroughputControlCounters>(control.ToJsonString());
         return new SpeedOutcome
         {
             Case = name,
-            StoredStacks = (int)control["storedStacks"].AsNumber(),
-            StoredUnits = (int)control["storedUnits"].AsNumber(),
-            LooseUnits = (int)control["looseUnits"].AsNumber(),
-            WallsBuilt = (int)control["wallsBuilt"].AsNumber(),
+            StoredStacks = counters.StoredStacks,
+            StoredUnits = counters.StoredUnits,
+            LooseUnits = counters.LooseUnits,
+            WallsBuilt = counters.WallsBuilt,
         };
     }
 
@@ -513,11 +516,11 @@ public sealed record CeilingRatio
     /// <summary>The ratio as its report row (json tags case, achieved_tps, ceiling_tps, ratio, paused_fraction_native).</summary>
     public JsonObject ToJson() => new()
     {
-        ["case"] = Case,
-        ["achieved_tps"] = AchievedTps,
-        ["ceiling_tps"] = CeilingTps,
-        ["ratio"] = Ratio,
-        ["paused_fraction_native"] = PausedFractionNative,
+        { "case", Case },
+        { "achieved_tps", AchievedTps },
+        { "ceiling_tps", CeilingTps },
+        { "ratio", Ratio },
+        { "paused_fraction_native", PausedFractionNative },
     };
 }
 
@@ -561,18 +564,18 @@ public sealed record SpeedMetrics
     public static IReadOnlyList<SpeedMetrics> FromRows(IEnumerable<JsonObject> rows)
     {
         ArgumentNullException.ThrowIfNull(rows);
-        return [.. rows.Select(row => new SpeedMetrics
+        return [.. rows.Select(node => node.Deserialize(HarnessRowJsonContext.Default.SpeedMetricsRow)!).Select(row => new SpeedMetrics
         {
-            Case = row["case"].AsString(),
-            Speed = row["speed"].AsString(),
-            WallTps = row["wall_tps"].AsNumber(),
-            TicksAdvanced = row["ticks_advanced"].AsNumber(),
-            PausedFraction = row["paused_fraction"].AsNumber(),
-            PausedFractionNative = row["paused_fraction_native"].AsNumber(),
-            NativePauseSamples = row["native_pause_samples"].AsNumber(),
-            Holds = row["holds"].AsNumber(),
-            MeanResumeMs = row["resume_latency_ms_mean"].AsNumber(),
-            EffectiveSpeed = row["effective_speed"].AsNumber(),
+            Case = row.Case,
+            Speed = row.Speed,
+            WallTps = row.WallTps,
+            TicksAdvanced = row.TicksAdvanced,
+            PausedFraction = row.PausedFraction,
+            PausedFractionNative = row.PausedFractionNative,
+            NativePauseSamples = row.NativePauseSamples,
+            Holds = row.Holds,
+            MeanResumeMs = row.ResumeLatencyMsMean,
+            EffectiveSpeed = row.EffectiveSpeed,
         })];
     }
 }

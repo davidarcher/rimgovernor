@@ -5,16 +5,9 @@ using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
-// The service's HTTP surface and the polls over it (Go serviceproc.go). The Go waits read the serve child's SQLite
-// journal through store.Store; the in-mod brain's journal belongs to the game, so they read the same facts from the
-// player API instead: /api/routines for the review, /api/plan for one plan, /api/state for the controller.
-
-/// <summary>A method a goal committed, as the player API shows it (the Go <c>domain.Method</c> with its standard).</summary>
-/// <param name="Concern">The concern the goal serves.</param>
-/// <param name="Method">The goal's current method or ladder rung ("hunt", "cook").</param>
-/// <param name="Expected">The observable the method is expected to move.</param>
-/// <param name="Plan">The controller's active plan when the method was seen; the player API does not expose a method's own plan.</param>
-public sealed record ServiceMethod(string Concern, string Method, string Expected, string Plan);
+// The service's HTTP surface and the polls over it (Go serviceproc.go). The in-mod brain's journal belongs to the
+// game, so the harness reads the controller through the player API: /api/state, /api/routines and the control routes,
+// each into its ServiceReplies record.
 
 public sealed partial class ServiceProcess
 {
@@ -83,14 +76,14 @@ public sealed partial class ServiceProcess
         var n = Evidence.NextSequence(Path.GetDirectoryName(_dir) ?? _dir);
         EvidenceBudget.WriteEvidence(Path.Combine(_dir, string.Create(CultureInfo.InvariantCulture, $"http-{n:0000}.json")), new JsonObject
         {
-            ["sequence"] = n,
-            ["observed_at"] = sent.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
-            ["elapsed_ms"] = clock.ElapsedMilliseconds,
-            ["method"] = method,
-            ["path"] = path,
-            ["request"] = body?.DeepClone(),
-            ["status"] = status,
-            ["response"] = decodeError is null ? parsed?.DeepClone() : JsonValue.Create(text),
+            { "sequence", n },
+            { "observed_at", sent.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture) },
+            { "elapsed_ms", clock.ElapsedMilliseconds },
+            { "method", method },
+            { "path", path },
+            { "request", body?.DeepClone() },
+            { "status", status },
+            { "response", decodeError is null ? parsed?.DeepClone() : JsonValue.Create(text) },
         });
         if (decodeError is not null || (parsed is not null && parsed is not JsonObject))
         {
@@ -98,9 +91,9 @@ public sealed partial class ServiceProcess
         }
 
         var reply = parsed as JsonObject;
-        if (path == "/api/state" && reply?["game"].AsMap()?["tick"].AsUInt64() is { } tick)
+        if (path == "/api/state" && status == 200 && ServiceJson.State(reply)?.Game?.Tick is long tick && tick >= 0)
         {
-            ObserveTick(tick);
+            ObserveTick((ulong)tick);
         }
 
         return new ServiceApiReply(reply, status);
@@ -153,6 +146,7 @@ public sealed partial class ServiceProcess
     /// </summary>
     public async Task<JsonObject> WaitAttachedAsync(JsonObject identity, TimeSpan timeout, CancellationToken cancellationToken)
     {
+        var want = Harness.IdentityOf(identity);
         var deadline = DateTimeOffset.UtcNow + timeout;
         using var pace = Wait.Pace(TimeSpan.FromMilliseconds(500));
         while (true)
@@ -163,8 +157,8 @@ public sealed partial class ServiceProcess
                 throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"unexpected /api/state status={reply.Status} body={reply.Body.ToJson()}"));
             }
 
-            if (reply.Status == 200 && reply.Body is { } state && state["connected"].AsBool() == true
-                && state["identity"].AsMap() is { } served && MatchesIdentity(served, identity))
+            if (reply.Status == 200 && reply.Body is { } state
+                && ServiceJson.State(state) is { Connected: true, Identity: { } served } && Matches(served, want))
             {
                 return state;
             }
@@ -178,15 +172,9 @@ public sealed partial class ServiceProcess
         }
     }
 
-    /// <summary>Reports whether <paramref name="value"/> names the same colony/load/map as <paramref name="want"/>.</summary>
-    public static bool MatchesIdentity(JsonObject value, JsonObject want)
-    {
-        ArgumentNullException.ThrowIfNull(value);
-        ArgumentNullException.ThrowIfNull(want);
-        return value["colonyId"].AsString() == want["colonyId"].AsString()
-            && value["loadToken"].AsString() == want["loadToken"].AsString()
-            && value["mapId"].AsNumber() == want["mapId"].AsNumber();
-    }
+    // Whether the identity the service attached to names the same colony/load/map as the harness's.
+    private static bool Matches(ServiceIdentity served, RimGovernor.Contracts.Wire.Common.Identity want) =>
+        served.ColonyId == want.ColonyId && served.LoadToken == want.LoadToken && served.MapId == want.MapId;
 
     /// <summary>
     /// Enters automate mode without an anchor plan: authority is the world's own root plan, created on first resume.
@@ -198,8 +186,8 @@ public sealed partial class ServiceProcess
         ArgumentNullException.ThrowIfNull(report);
         var body = new JsonObject
         {
-            ["requestId"] = string.Create(CultureInfo.InvariantCulture, $"{prefix}-resume-{UniqueStamp()}"),
-            ["expected"] = identity.DeepClone(),
+            { "requestId", string.Create(CultureInfo.InvariantCulture, $"{prefix}-resume-{UniqueStamp()}") },
+            { "expected", identity.DeepClone() },
         };
         var reply = await ApiAsync("POST", "/api/player/control/resume", body, token, cancellationToken).ConfigureAwait(false);
         if (reply.Status != 200)
@@ -208,13 +196,14 @@ public sealed partial class ServiceProcess
         }
 
         var resumed = reply.Body ?? [];
-        if (resumed["record"].AsMap()?["phase"].AsString() != "running")
+        var control = ServiceJson.Control(resumed);
+        if (control?.Record?.Phase != "running")
         {
             throw new AcceptanceException($"resume was not running: {resumed.ToJson()}");
         }
 
         report["resumed"] = resumed.DeepClone();
-        var rootPlanId = resumed["state"].AsMap()?["generation"].AsMap()?["plan"].AsString() ?? "";
+        var rootPlanId = control.State?.Generation?.Plan ?? "";
         if (rootPlanId.Length == 0)
         {
             throw new AcceptanceException($"resume reported no root plan: {resumed.ToJson()}");
@@ -232,8 +221,8 @@ public sealed partial class ServiceProcess
         ArgumentNullException.ThrowIfNull(identity);
         var body = new JsonObject
         {
-            ["requestId"] = string.Create(CultureInfo.InvariantCulture, $"{prefix}-park-{UniqueStamp()}"),
-            ["expected"] = identity.DeepClone(),
+            { "requestId", string.Create(CultureInfo.InvariantCulture, $"{prefix}-park-{UniqueStamp()}") },
+            { "expected", identity.DeepClone() },
         };
         var reply = await ApiAsync("POST", "/api/player/control/pause", body, token, cancellationToken).ConfigureAwait(false);
         return reply.Status;
@@ -244,65 +233,6 @@ public sealed partial class ServiceProcess
         (DateTimeOffset.UtcNow.Ticks * 100 + Interlocked.Increment(ref s_stampSerial) % 100).ToString(CultureInfo.InvariantCulture);
 
     private static long s_stampSerial;
-
-    /// <summary>
-    /// Polls until the service reaches automate mode and a rounds pass has been persisted (the routines read shows a
-    /// last review tick), returning the routines body and the diagnostics it gathered. Besides the timeout the wait
-    /// stalls (<see cref="Wait.StallBudget"/>) when neither the service mode nor the last review tick changes.
-    /// </summary>
-    public async Task<(JsonObject Review, IReadOnlyList<JsonObject> Diagnostics)> WaitRoundsAsync(TimeSpan timeout, CancellationToken cancellationToken)
-    {
-        var diagnostics = new List<JsonObject>();
-        var sawAutomate = false;
-        var review = new JsonObject();
-        var wait = new Wait { Ceiling = timeout, Stall = Wait.StallBudget(), Terminal = Exited };
-        try
-        {
-            await wait.WaitProgressAsync(async ct =>
-            {
-                var entry = new JsonObject();
-                JsonObject? state = null;
-                try
-                {
-                    state = (await ApiAsync("GET", "/api/state", null, "", ct).ConfigureAwait(false)).Body;
-                    entry["state"] = state?.DeepClone();
-                }
-                catch (NativeTransportException e)
-                {
-                    entry["state_error"] = e.Message;
-                }
-
-                diagnostics.Add(entry);
-                var mode = state.Member("mode").AsString();
-                if (mode == "automate")
-                {
-                    sawAutomate = true;
-                }
-
-                var routines = await ReadRoutinesAsync(ApiAsync, ct).ConfigureAwait(false);
-                if (routines is not null)
-                {
-                    review = routines;
-                    if (routines["lastReviewTick"] is not null && sawAutomate)
-                    {
-                        return ("", true);
-                    }
-                }
-
-                return (Wait.Signature(mode, review["lastReviewTick"].ToJson()), false);
-            }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (WaitError e) when (!sawAutomate)
-        {
-            throw new AcceptanceException($"service never reached automate mode after acquire: {e.Message}", e);
-        }
-        catch (WaitError e)
-        {
-            throw new AcceptanceException($"service reached automate mode but the Rounds pass was never persisted (no last review tick): {e.Message}", e);
-        }
-
-        return (review, diagnostics);
-    }
 
     /// <summary>
     /// Reads lifecycle_read_identity and returns the loaded game's identity (colonyId, loadToken, mapId); the main
@@ -331,12 +261,12 @@ public sealed partial class ServiceProcess
         using var pace = Wait.Pace(TimeSpan.FromMilliseconds(500));
         while (true)
         {
-            var reply = await ApiAsync("POST", "/api/player/clock-speed", new JsonObject { ["speed"] = name }, "", cancellationToken).ConfigureAwait(false);
+            var reply = await ApiAsync("POST", "/api/player/clock-speed", new JsonObject { { "speed", name } }, "", cancellationToken).ConfigureAwait(false);
             if (reply.Status == 200)
             {
                 lock (_gate)
                 {
-                    _entry["clock_speed"] = name;
+                    _entry.Set("clock_speed", name);
                 }
 
                 return;
@@ -349,18 +279,6 @@ public sealed partial class ServiceProcess
 
             await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
-    }
-
-    /// <summary>Reads GET /api/routines; null while the brain reports it unavailable (503), any other non-200 throws.</summary>
-    internal static async Task<JsonObject?> ReadRoutinesAsync(ServiceApiCall api, CancellationToken cancellationToken)
-    {
-        var reply = await api("GET", "/api/routines", null, "", cancellationToken).ConfigureAwait(false);
-        return reply.Status switch
-        {
-            200 => reply.Body ?? [],
-            503 => null,
-            _ => throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"GET /api/routines: status {reply.Status} body={reply.Body.ToJson()}")),
-        };
     }
 }
 
@@ -439,14 +357,14 @@ public sealed class AuthorityKeepAlive : IDisposable
         {
             var result = new JsonObject
             {
-                ["attempts"] = _attempts,
-                ["reacquired"] = _reacquired,
-                ["generation_advance"] = _generationAdvance,
-                ["generations_over_one"] = _generationsOverOne,
+                { "attempts", _attempts },
+                { "reacquired", _reacquired },
+                { "generation_advance", _generationAdvance },
+                { "generations_over_one", _generationsOverOne },
             };
             if (_lastError.Length > 0)
             {
-                result["last_error"] = _lastError;
+                result.Set("last_error", _lastError);
             }
 
             return result;
@@ -532,19 +450,19 @@ public sealed class AuthorityKeepAlive : IDisposable
             return;
         }
 
-        if (stateReply.Status != 200 || stateReply.Body is not { } state)
+        if (stateReply.Status != 200 || ServiceJson.State(stateReply.Body) is not { } state)
         {
             return;
         }
 
-        if (state["mode"].AsString() == "automate")
+        if (state.Mode == "automate")
         {
             _waitingSince = null;
             _wasAutomate = true;
             return;
         }
 
-        if (_wasAutomate && state["status"].AsMap()?["label"].AsString() == "Player control is waiting for current observations")
+        if (_wasAutomate && state.Status?.Label == "Player control is waiting for current observations")
         {
             _waitingSince ??= DateTimeOffset.UtcNow;
             if (DateTimeOffset.UtcNow - _waitingSince < KeepAliveStaleGrace)
@@ -557,7 +475,8 @@ public sealed class AuthorityKeepAlive : IDisposable
             _waitingSince = null;
         }
 
-        var beforeKnown = TryGeneration(state["generation"], out var before);
+        var beforeKnown = state.Generation is not null;
+        var before = state.Generation?.Native ?? 0;
         lock (_gate)
         {
             _attempts++;
@@ -565,8 +484,8 @@ public sealed class AuthorityKeepAlive : IDisposable
 
         var body = new JsonObject
         {
-            ["requestId"] = string.Create(CultureInfo.InvariantCulture, $"{_prefix}-resume-{ServiceProcess.UniqueStamp()}"),
-            ["expected"] = _identity.DeepClone(),
+            { "requestId", string.Create(CultureInfo.InvariantCulture, $"{_prefix}-resume-{ServiceProcess.UniqueStamp()}") },
+            { "expected", _identity.DeepClone() },
         };
         var resumed = await _service.ApiAsync("POST", "/api/player/control/resume", body, _token, CancellationToken.None).ConfigureAwait(false);
         if (resumed.Status != 200)
@@ -575,8 +494,8 @@ public sealed class AuthorityKeepAlive : IDisposable
             return;
         }
 
-        var record = resumed.Body.Member("record").AsMap();
-        if (record?["phase"].AsString() != "running")
+        var record = ServiceJson.Control(resumed.Body)?.Record;
+        if (record?.Phase != "running")
         {
             Fail($"resume not running: {resumed.Body.ToJson()}");
             return;
@@ -586,7 +505,8 @@ public sealed class AuthorityKeepAlive : IDisposable
         {
             _reacquired++;
             _lastError = "";
-            if (record["nativeGeneration"].AsUInt64() is { } after && beforeKnown && after > before)
+            var after = record.NativeGeneration;
+            if (beforeKnown && after > before)
             {
                 _generationAdvance += after - before;
                 if (after - before > 1)
@@ -596,241 +516,5 @@ public sealed class AuthorityKeepAlive : IDisposable
             }
         }
     }
-
-    // Reads the native generation out of /api/state's generation object, if it carries one.
-    private static bool TryGeneration(JsonNode? value, out ulong native)
-    {
-        native = 0;
-        if (value.AsMap()?["native"].AsUInt64() is { } found)
-        {
-            native = found;
-            return true;
-        }
-
-        return false;
-    }
 }
 
-/// <summary>
-/// The shared polls over the player API (Go package-level waits of <c>serviceproc.go</c>): the durable rounds, a
-/// plan and the methods a goal commits, each read through one <see cref="ServiceApiCall"/> and bounded by a
-/// <see cref="Wait"/>.
-/// </summary>
-public static class ServiceWaits
-{
-    private const string UnavailableSignature = "unavailable";
-
-    /// <summary>
-    /// Polls the rounds under <paramref name="w"/> until <paramref name="ready"/> accepts the routines body. The
-    /// progress signature is the review's latches and the concern-method bindings, so a review that keeps revising
-    /// without moving either stalls.
-    /// </summary>
-    public static async Task<JsonObject> WaitReviewAsync(ServiceApiCall api, Wait w, Func<JsonObject, bool> ready, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(w);
-        ArgumentNullException.ThrowIfNull(ready);
-        var review = new JsonObject();
-        if (w.Interval <= TimeSpan.Zero)
-        {
-            w = w with { Interval = TimeSpan.FromSeconds(1) };
-        }
-
-        await w.WaitProgressAsync(async ct =>
-        {
-            if (await ServiceProcess.ReadRoutinesAsync(api, ct).ConfigureAwait(false) is not { } routines)
-            {
-                return (UnavailableSignature, false);
-            }
-
-            review = routines;
-            if (ready(routines))
-            {
-                return ("", true);
-            }
-
-            var needs = routines["progress"].AsSlice()
-                .Select(row => row.AsMap())
-                .Select(row => row?["concern"].AsString() + "=" + row?["method"].AsString())
-                .Order(StringComparer.Ordinal);
-            var latches = Wait.Signature(routines["reviewsEnabled"].ToJson(), routines["methodsEnabled"].ToJson());
-            return (Wait.Signature(latches, string.Join(';', needs)), false);
-        }, cancellationToken).ConfigureAwait(false);
-        return review;
-    }
-
-    /// <summary>
-    /// Polls plan <paramref name="planId"/> under <paramref name="w"/> until <paramref name="check"/> accepts its
-    /// body; check's signature is whatever of the plan must move (usually its action stages and attempts, see
-    /// <see cref="PlanSignature"/>).
-    /// </summary>
-    public static async Task<JsonObject> WaitPlanAsync(ServiceApiCall api, Wait w, string planId, Func<JsonObject, (string Signature, bool Done)> check, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(w);
-        ArgumentNullException.ThrowIfNull(check);
-        var state = new JsonObject();
-        if (w.Interval <= TimeSpan.Zero)
-        {
-            w = w with { Interval = TimeSpan.FromSeconds(1) };
-        }
-
-        await w.WaitProgressAsync(async ct =>
-        {
-            if (await LoadPlanAsync(api, planId, ct).ConfigureAwait(false) is not { } plan)
-            {
-                return (UnavailableSignature, false);
-            }
-
-            state = plan;
-            return check(plan);
-        }, cancellationToken).ConfigureAwait(false);
-        return state;
-    }
-
-    // GET /api/plan?id=...; null while unavailable (503), an unknown plan (404) and any other failure throw.
-    private static async Task<JsonObject?> LoadPlanAsync(ServiceApiCall api, string planId, CancellationToken cancellationToken)
-    {
-        var reply = await api("GET", "/api/plan?id=" + Uri.EscapeDataString(planId), null, "", cancellationToken).ConfigureAwait(false);
-        return reply.Status switch
-        {
-            200 => reply.Body ?? [],
-            503 => null,
-            _ => throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"load plan {planId}: status {reply.Status} body={reply.Body.ToJson()}")),
-        };
-    }
-
-    /// <summary>Each action's stage, attempt and receipt.</summary>
-    public static string PlanSignature(JsonObject state)
-    {
-        ArgumentNullException.ThrowIfNull(state);
-        var parts = new List<object?>();
-        foreach (var action in state["actions"].AsSlice())
-        {
-            var progress = action.AsMap()?["progress"].AsMap();
-            parts.Add(progress?["stage"].AsString());
-            parts.Add(progress?["attempt"].AsString());
-            parts.Add(progress?["receipt"].AsString());
-        }
-
-        return Wait.Signature([.. parts]);
-    }
-
-    /// <summary>
-    /// Polls the routines for <paramref name="need"/>'s goal binding and a committed method on it other than the one
-    /// following <paramref name="previousPlan"/>. The player API shows a goal's current method name and the
-    /// controller's active plan, not the goal's method history, so a method counts as new when the active plan is not
-    /// one already followed. The wait stalls (<see cref="Wait.StallBudget"/>) when the binding and its method stop
-    /// changing.
-    /// </summary>
-    public static Task<ServiceMethod> WaitMethodAsync(ServiceApiCall api, string need, string? previousPlan, CancellationToken cancellationToken)
-    {
-        IReadOnlySet<string>? seen = previousPlan is null ? null : new HashSet<string>([previousPlan], StringComparer.Ordinal);
-        return WaitMethodExcludingAsync(api, need, seen, cancellationToken);
-    }
-
-    /// <summary>
-    /// <see cref="WaitMethodAsync"/> over a set of already-followed plans: a goal whose history holds several
-    /// settled methods would otherwise hand the same old plan back on every call that names only the last one.
-    /// </summary>
-    public static Task<ServiceMethod> WaitMethodExcludingAsync(ServiceApiCall api, string need, IReadOnlySet<string>? seen, CancellationToken cancellationToken) =>
-        WaitMethodCoreAsync(api, new Wait { Stall = Wait.StallBudget(), Interval = TimeSpan.FromSeconds(1) }, need, seen, cancellationToken);
-
-    /// <summary>The wait of <see cref="WaitMethodExcludingAsync"/> under an explicit <see cref="Wait"/> (Go <c>waitMethod</c>).</summary>
-    internal static async Task<ServiceMethod> WaitMethodCoreAsync(ServiceApiCall api, Wait w, string need, IReadOnlySet<string>? seen, CancellationToken cancellationToken)
-    {
-        ServiceMethod? found = null;
-        try
-        {
-            await w.WaitProgressAsync(async ct =>
-            {
-                if (await ServiceProcess.ReadRoutinesAsync(api, ct).ConfigureAwait(false) is not { } routines)
-                {
-                    return (UnavailableSignature, false);
-                }
-
-                var row = routines["progress"].AsSlice().Select(r => r.AsMap()).FirstOrDefault(r => r?["concern"].AsString() == need);
-                if (row is null)
-                {
-                    return (Wait.Signature("unbound", routines["lastReviewTick"] is not null), false);
-                }
-
-                var method = row["method"].AsString();
-                var state = await api("GET", "/api/state", null, "", ct).ConfigureAwait(false);
-                var plan = state.Body?["activePlanId"].AsString() ?? "";
-                if (method.Length > 0 && plan.Length > 0 && seen?.Contains(plan) != true)
-                {
-                    found = new ServiceMethod(need, method, row["expected"].AsString(), plan);
-                    return ("", true);
-                }
-
-                return (Wait.Signature(need, method, plan), false);
-            }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (WaitError e)
-        {
-            throw new AcceptanceException($"standard method for {need}: {e.Message}", e);
-        }
-
-        return found!;
-    }
-
-    /// <summary>
-    /// Polls plan <paramref name="planId"/> until every action reaches a terminal stage. The incidental flag reports
-    /// the executor's own authority-discontinuity cancellation (Cancelled with Effect Absent), which the caller
-    /// should follow with a fresh <see cref="WaitMethodAsync"/> rather than fail on. The wait stalls
-    /// (<see cref="Wait.StallBudget"/>) when no action's stage or attempt changes.
-    /// </summary>
-    public static Task<(JsonObject State, bool Incidental)> WaitPlanTerminalAsync(ServiceApiCall api, string planId, CancellationToken cancellationToken) =>
-        WaitPlanTerminalCoreAsync(api, new Wait { Stall = Wait.StallBudget(), Interval = TimeSpan.FromSeconds(1) }, planId, cancellationToken);
-
-    /// <summary>The wait of <see cref="WaitPlanTerminalAsync"/> under an explicit <see cref="Wait"/> (Go <c>waitPlanTerminal</c>).</summary>
-    internal static async Task<(JsonObject State, bool Incidental)> WaitPlanTerminalCoreAsync(ServiceApiCall api, Wait w, string planId, CancellationToken cancellationToken)
-    {
-        var state = new JsonObject();
-        var incidental = false;
-        await w.WaitProgressAsync(async ct =>
-        {
-            if (await LoadPlanAsync(api, planId, ct).ConfigureAwait(false) is not { } plan)
-            {
-                return (UnavailableSignature, false);
-            }
-
-            state = plan;
-            var actions = plan["actions"].AsSlice();
-            var terminal = actions.Count > 0;
-            var signature = new List<object?>();
-            foreach (var action in actions)
-            {
-                var progress = action.AsMap()?["progress"].AsMap();
-                var stage = progress?["stage"].AsString();
-                var attempt = progress?["attempt"].AsUInt64() ?? 0;
-                var unresolved = progress?["unresolved"].AsBool() ?? false;
-                signature.Add(stage);
-                signature.Add(attempt);
-                signature.Add(unresolved);
-                switch (stage)
-                {
-                    case "completed":
-                        break;
-                    case "unsuccessful":
-                        throw new AcceptanceException($"plan {planId} reached unsuccessful instead of completed");
-                    case "cancelled":
-                        // Never dispatched, or dispatched with a known absent effect: the executor's own no-effect rule.
-                        if (!unresolved && (attempt == 0 || progress?["effect"].AsString() == "absent"))
-                        {
-                            // Incidental, but a sibling action may still be running.
-                            incidental = true;
-                            break;
-                        }
-
-                        throw new AcceptanceException($"plan {planId} reached cancelled instead of completed");
-                    default:
-                        terminal = false;
-                        break;
-                }
-            }
-
-            return (Wait.Signature([.. signature]), terminal);
-        }, cancellationToken).ConfigureAwait(false);
-        return (state, incidental);
-    }
-}

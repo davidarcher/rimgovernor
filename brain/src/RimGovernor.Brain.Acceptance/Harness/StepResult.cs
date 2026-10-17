@@ -25,7 +25,7 @@ public static class StepResult
             return null;
         }
 
-        var structured = result["structuredContent"] as JsonObject;
+        var structured = result.Member("structuredContent") as JsonObject;
         var exception = structured.Member("exception").AsString();
         var attentionId = structured.Member("attentionId").AsString();
         var summary = structured.Member("summary").AsString();
@@ -33,7 +33,7 @@ public static class StepResult
         var message = structured.Member("message").AsString();
         var success = structured.Member("success").AsBool();
         var refused = structured.Member("refused").AsBool() ?? false;
-        var isError = result["isError"].AsBool() ?? false;
+        var isError = result.Member("isError").AsBool() ?? false;
 
         // An exception alone is not a failure: a successful reply may report one it handled. The refusal flags are
         // what the bridge itself refuses on.
@@ -44,7 +44,7 @@ public static class StepResult
         }
 
         var texts = new List<string>();
-        foreach (var block in result["content"].AsSlice())
+        foreach (var block in result.Member("content").AsSlice())
         {
             var text = block.Member("text").AsString();
             if (text.Trim().Length > 0)

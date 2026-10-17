@@ -28,24 +28,24 @@ public static class Evidence
     {
         var row = new JsonObject
         {
-            ["sequence"] = sequence,
-            ["observed_at"] = sent.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
-            ["elapsed_ms"] = (long)elapsed.TotalMilliseconds,
-            ["request"] = new JsonObject { ["tool"] = tool, ["arguments"] = arguments.DeepClone() },
+            { "sequence", sequence },
+            { "observed_at", sent.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture) },
+            { "elapsed_ms", (long)elapsed.TotalMilliseconds },
+            { "request", new JsonObject { { "tool", tool }, { "arguments", arguments.DeepClone() } } },
         };
         if (error is not null)
         {
-            row["error"] = error.Message;
+            row.Set("error", error.Message);
         }
 
         if (envelope is not null)
         {
-            row["result"] = envelope.DeepClone();
+            row.Set("result", envelope.DeepClone());
         }
 
         if (tick is { } observed)
         {
-            row["tick"] = (long)observed;
+            row.Set("tick", (long)observed);
         }
 
         return row;

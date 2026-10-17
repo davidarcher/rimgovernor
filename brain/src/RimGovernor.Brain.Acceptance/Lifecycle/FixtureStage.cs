@@ -30,7 +30,7 @@ public static class FixtureStage
     public static Fx.StageReply Prepared(JsonObject? prepared) => Read(Tool, prepared);
 
     /// <summary>The op arguments that stage <paramref name="spec"/>.</summary>
-    public static JsonObject Args(Fx.StageSpec spec) => new() { ["spec"] = Fx.FixtureJson.Serialize(spec) };
+    public static JsonObject Args(Fx.StageSpec spec) => new() { { "spec", Fx.FixtureJson.Serialize(spec) } };
 
     private static Fx.StageReply Read(string label, JsonObject? reply)
     {

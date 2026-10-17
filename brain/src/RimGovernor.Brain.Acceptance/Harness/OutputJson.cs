@@ -65,6 +65,26 @@ public static class OutputJson
         return o;
     }
 
+    /// <summary>
+    /// Sets <paramref name="key"/> to <paramref name="value"/>: replaced in place when the object has the field, else
+    /// appended, so a field updated while a run goes on (a launch entry's state) keeps its position.
+    /// </summary>
+    public static JsonObject Set(this JsonObject o, string key, JsonNode? value)
+    {
+        ArgumentNullException.ThrowIfNull(o);
+        var index = o.IndexOf(key);
+        if (index >= 0)
+        {
+            o.SetAt(index, value);
+        }
+        else
+        {
+            o.Add(key, value);
+        }
+
+        return o;
+    }
+
     /// <summary>A typed output record as its JSON node, through the record's source-generated <paramref name="info"/>.</summary>
     public static JsonNode Node<T>(T value, JsonTypeInfo<T> info) =>
         JsonSerializer.SerializeToNode(value, info) ?? throw new JsonException($"{typeof(T).Name} serialized to JSON null");

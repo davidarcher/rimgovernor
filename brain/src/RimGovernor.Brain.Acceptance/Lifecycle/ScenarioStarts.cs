@@ -83,20 +83,20 @@ public static class ScenarioStarts
         session.Report["quiet"] = quiet != QuietMode.Loud;
         session.Report["new_colony"] = new JsonObject
         {
-            ["phases"] = new JsonArray([.. run.Phases.Select(p => (JsonNode?)JsonValue.Create(p.ToString()))]),
-            ["rerolls"] = run.Rerolls,
-            ["seed"] = run.Completed.Seed,
-            ["saveName"] = run.Completed.SaveName,
+            { "phases", new JsonArray([.. run.Phases.Select(p => (JsonNode?)JsonValue.Create(p.ToString()))]) },
+            { "rerolls", run.Rerolls },
+            { "seed", run.Completed.Seed },
+            { "saveName", run.Completed.SaveName },
         };
         return new JsonObject
         {
-            ["kind"] = "scenario",
-            ["scenario"] = spec.Scenario,
-            ["seed"] = spec.Seed,
-            ["count"] = spec.Count,
-            ["biome"] = spec.Biome,
-            ["mapSize"] = spec.Size.MapSize,
-            ["planetCoverage"] = spec.Size.PlanetCoverage,
+            { "kind", "scenario" },
+            { "scenario", spec.Scenario },
+            { "seed", spec.Seed },
+            { "count", spec.Count },
+            { "biome", spec.Biome },
+            { "mapSize", spec.Size.MapSize },
+            { "planetCoverage", spec.Size.PlanetCoverage },
         };
     }
 

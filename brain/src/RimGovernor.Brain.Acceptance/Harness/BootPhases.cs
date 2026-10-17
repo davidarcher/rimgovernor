@@ -21,7 +21,7 @@ public static class BootPhases
         var map = new JsonObject();
         foreach (var (name, ms) in phases)
         {
-            map[name] = (long)Math.Round(ms);
+            map.Set(name, (long)Math.Round(ms));
         }
 
         return map;

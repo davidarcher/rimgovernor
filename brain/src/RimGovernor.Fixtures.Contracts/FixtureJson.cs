@@ -108,4 +108,9 @@ public static class FixtureJson
 [JsonSerializable(typeof(RemotePickupReply))]
 [JsonSerializable(typeof(ConstructionSkillReply))]
 [JsonSerializable(typeof(TierGateReply))]
+[JsonSerializable(typeof(LabStarted))]
+[JsonSerializable(typeof(LabSpawned))]
+[JsonSerializable(typeof(LabCrewed))]
+[JsonSerializable(typeof(FixturePrepared))]
+[JsonSerializable(typeof(ThroughputControlCounters))]
 internal sealed partial class FixtureJsonContext : JsonSerializerContext;
