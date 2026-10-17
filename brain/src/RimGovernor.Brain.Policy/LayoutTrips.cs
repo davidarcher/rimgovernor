@@ -6,7 +6,6 @@ public readonly record struct RoomTrip(int A, int B, double Weight);
 /// <summary>The pawn traffic between a room and the outside (the graph's PurposeOutside node, which the tiler maps to the plan's Entrances, not to a room): Weight is the trips a day, one way. Only exteriorDoorMovements counts the way back.</summary>
 public readonly record struct OutsideTrip(int Room, double Weight);
 
-/// <summary>Ports <c>layout_trips.go</c>, <c>layout_succession.go</c>, <c>layout_suite_role.go</c>, <c>layout_switch.go</c>, <c>layout_search_rand.go</c>, <c>layout_seed_rooms.go</c> and <c>layout_room_sizes.go</c>.</summary>
 public static partial class LayoutTripsRules
 {
     /// <summary>A suite's plan role.</summary>
@@ -148,7 +147,7 @@ public sealed class SearchRand
 
     private SearchRand(ulong raw) => state = raw;
 
-    /// <summary>A stream whose state starts at raw, as Go searchRand(uint64) does for the interior search.</summary>
+    /// <summary>A stream whose state starts at raw, for the interior search.</summary>
     public static SearchRand FromState(ulong raw) => new(raw);
 
     /// <summary>The stream's current state: the siting seed a search derives its own from before any draw.</summary>

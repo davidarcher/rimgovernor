@@ -3,14 +3,13 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go world_progression_snapshot.go, world_progression.go (worldProgressionSelected), world_sites.go, quest_workers.go,
-// quest_monument.go and quest_hack_gift.go: the projection of a frame's world progression census.
+// The projection of a frame's world progression census.
 public static class WorldProgressionDecode
 {
     private static bool MonumentCellKnown([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Cell? cell) => cell is not null;
 
     /// <summary>
-    /// Go's <c>validatedQuestMonument</c>: a marker that is neither packed nor installed (and not an offered unpacked
+    /// A marker that is neither packed nor installed (and not an offered unpacked
     /// one), or an installed marker without a cell, is no executable construction target, so it is dropped.
     /// </summary>
     internal static QuestMonument? QuestMonumentTarget(QuestMonument? m)
@@ -33,7 +32,7 @@ public static class WorldProgressionDecode
 partial record WorldProgressionRead
 {
 
-    /// <summary>Go's <c>DecodeWorldProgressionSnapshot</c>: projects the world census a frame carries.</summary>
+    /// <summary>Projects the world census a frame carries.</summary>
     public static WorldProgressionRead DecodeWorldProgressionSnapshot(WorldProgressionSnapshot v)
     {
         var maps = new List<WorldMap>(v.Maps.Count);

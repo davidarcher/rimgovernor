@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The acceptance case registry (Go <c>cases.Register/All/Lookup</c>). Cases live in the Acceptance.Cases project and
+/// The acceptance case registry. Cases live in the Acceptance.Cases project and
 /// register through an explicit call on a <see cref="CaseRegistry"/> (no <c>init()</c> in C#): the project's
 /// <c>CaseCatalog.Register(CaseRegistry)</c> is the entry point the <c>acceptance</c> command calls.
 /// </summary>

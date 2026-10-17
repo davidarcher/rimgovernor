@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_stations.go and catalog_station_flows.go: the catalog of buildable stations. For every building that adds to
+// The catalog of buildable stations. For every building that adds to
 // a native room role, has a capacity or has environment needs: its shape (the same as PieceShapes), access, role
 // contributions, capacity, needs and content. Shapes, membership, capacity and needs come from the defs and the stat parts
 // and constants of the game; only the role weights, which are literals in RoomRoleWorker code, come from policy.
@@ -125,7 +125,7 @@ public sealed partial class DefinitionCatalog
 
     private static bool IsClass(ThingDef row, Type type) => type.IsAssignableFrom(row.thingClass);
 
-    // The game has no isAltar flag on a def (the Go mirror's field was derived): an altar is a building whose ritual
+    // The game has no isAltar flag on a def: an altar is a building whose ritual
     // focus the worship room is built around. Unverified against the live game; recorded in the commit body.
     private static bool IsAltar(ThingDef row) => row.ritualFocus is not null;
 

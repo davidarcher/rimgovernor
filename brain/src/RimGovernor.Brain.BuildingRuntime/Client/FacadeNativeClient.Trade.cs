@@ -5,11 +5,10 @@ using PbDefs = RimGovernor.Contracts.Wire.Defs;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go trade_acquisition.go, trade_session.go, trade_sheet.go and traders.go.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
-    /// Go <c>Client.ReadTradeAcquisition</c>: the comms-console, passing-ship and trade-request census. Optional native
+    /// The comms-console, passing-ship and trade-request census. Optional native
     /// facts stay absent: an absent cost, relation, eligibility or sampled timing is never a zero or permission to
     /// dispatch. <paramref name="pack"/> is the existing formation intent, used solely as a calculation input.
     /// </summary>
@@ -33,7 +32,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadTradeSession</c>: which negotiator is walking to or trading with which trader. The read issues no
+    /// Which negotiator is walking to or trading with which trader. The read issues no
     /// order: a walk the game ended simply reads as absent.
     /// </summary>
     internal async Task<TradeSessionRead> ReadTradeSessionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
@@ -57,7 +56,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadTradeSheet</c>: the whole trade sheet of the live session (always with untradeable rows and no name
+    /// The whole trade sheet of the live session (always with untradeable rows and no name
     /// filter).
     /// </summary>
     internal async Task<TradeSheetRead> ReadTradeSheetAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
@@ -83,7 +82,7 @@ public sealed partial class FacadeNativeClient
         return sheet;
     }
 
-    /// <summary>Go <c>tradeSheetPage</c>: decodes the sheet's header and rows.</summary>
+    /// <summary>Decodes the sheet's header and rows.</summary>
     private static TradeSheetRead TradeSheetPage(PbObservations.TradeSheet v)
     {
         return new TradeSheetRead
@@ -105,7 +104,7 @@ public sealed partial class FacadeNativeClient
         };
     }
 
-    /// <summary>Go <c>tradeSheetRow</c>: one trade sheet line.</summary>
+    /// <summary>One trade sheet line.</summary>
     private static TradeSheetRow TradeSheetRowOf(PbObservations.TradeLine v)
     {
         return new TradeSheetRow
@@ -140,7 +139,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ListTraders</c>: the map's trader caravans and eligible negotiators, one complete unfiltered census.
+    /// The map's trader caravans and eligible negotiators, one complete unfiltered census.
     /// </summary>
     internal async Task<TradersRead> ListTradersAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
@@ -162,7 +161,7 @@ public sealed partial class FacadeNativeClient
         return decoded;
     }
 
-    /// <summary>Go <c>decodeTraders</c>: decodes a complete trader census.</summary>
+    /// <summary>Decodes a complete trader census.</summary>
     internal static TradersRead TradeDecodeTraders(PbObservations.TradersSnapshot snapshot)
     {
         var traders = new List<TraderRead>();

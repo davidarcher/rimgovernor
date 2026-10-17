@@ -9,7 +9,6 @@ public sealed record IngredientReservation
     public IReadOnlyList<Amount> Items { get; init; } = [];
 }
 
-/// <summary>Ports <c>material_budget.go</c>.</summary>
 public static partial class MaterialBudgetRules
 {
     /// <summary>

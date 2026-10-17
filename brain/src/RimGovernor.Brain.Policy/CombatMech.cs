@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_mech.go, combat_mech_centipede.go
 
 public static partial class CombatMechRules
 {

@@ -22,7 +22,7 @@ public sealed record CheckpointResult(GenerationSnapshot Snapshot, Tick Tick, st
 
 public sealed partial class Control
 {
-    /// <summary>The fixed player_direction the controller sends on lifecycle requests (Go <c>bridge.LifecycleDirection</c>, lifecycle_save.go).</summary>
+    /// <summary>The fixed player_direction the controller sends on lifecycle requests.</summary>
     private const ulong LifecycleDirection = 1;
 
     /// <summary>

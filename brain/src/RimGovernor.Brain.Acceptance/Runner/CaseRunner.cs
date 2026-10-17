@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// <param name="Drift">The metrics past their rule against the series' trailing median; advisory, never changes the verdict.</param>
 public sealed record CaseOutcome(Report Report, int Code, Digest? Diagnosis, IReadOnlyList<DriftFlag> Drift)
 {
-    /// <summary>Go's <c>(report, code)</c> pair.</summary>
+    /// <summary>The <c>(report, code)</c> pair.</summary>
     public void Deconstruct(out Report report, out int code)
     {
         report = Report;
@@ -19,7 +19,7 @@ public sealed record CaseOutcome(Report Report, int Code, Digest? Diagnosis, IRe
 }
 
 /// <summary>
-/// The shared runner over the case registry (Go <c>cases/run.go</c>): boot, keep/reuse, quiet and freeze defaults, crew
+/// The shared runner over the case registry: boot, keep/reuse, quiet and freeze defaults, crew
 /// staffing, timing, the report, service handling and the postmortem phase. A case declares what it needs and the runner
 /// owns everything around its Run body.
 /// </summary>

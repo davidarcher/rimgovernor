@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: blight.go
 
 /// <summary>
 /// One native census row: a blighted plant standing in a player growing zone or on home ground.

@@ -7,8 +7,8 @@ public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// The shared checks and request builders of the placement, zone, building-target, supply and site reads (#3113
-    /// group G4a): Go's <c>buildingContext</c>, <c>validCell</c> and <c>validRectangle</c>. A failed check throws what
-    /// Go's <c>contract</c> returned.
+    /// group G4a). A failed check throws a contract
+    /// exception.
     /// </summary>
     internal static class PlacementChecks
     {
@@ -26,7 +26,7 @@ public sealed partial class FacadeNativeClient
             }
         }
 
-        /// <summary>Go's <c>validCell</c>: a present cell with non-negative coordinates.</summary>
+        /// <summary>A present cell with non-negative coordinates.</summary>
         internal static void ValidCell(PbCommon.Cell? cell)
         {
             if (cell is null || cell.X < 0 || cell.Z < 0)
@@ -35,7 +35,6 @@ public sealed partial class FacadeNativeClient
             }
         }
 
-        /// <summary>Go's <c>validRectangle(rect, maxWidth) == nil</c>.</summary>
         internal static bool RectangleValid(PbObservations.Rectangle? rect, long maxWidth) =>
             rect is not null
             && Passes(() => ValidCell(rect.Minimum))
@@ -45,7 +44,7 @@ public sealed partial class FacadeNativeClient
             && (long)rect.Maximum.X - rect.Minimum.X < maxWidth
             && (long)rect.Maximum.Z - rect.Minimum.Z < maxWidth;
 
-        /// <summary>The exact-or-census building list request of Go's <c>constructionBuildingsRequest</c> (built, player).</summary>
+        /// <summary>The exact-or-census building list request (built, player).</summary>
         internal static PbObservations.ListBuildingsRequest ConstructionBuildingsRequest(PbCommon.Identity identity, IReadOnlyList<string> ids) =>
             new()
             {
@@ -54,7 +53,7 @@ public sealed partial class FacadeNativeClient
                 Statuses = [PbObservations.BuildingStatus.Built],
             };
 
-        /// <summary>Go's <c>zoneSectionRequest</c>: the zone census read.</summary>
+        /// <summary>The zone census read.</summary>
         internal static PbObservations.ListZonesRequest ZoneSectionRequest(PbCommon.Identity identity) =>
             new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
     }

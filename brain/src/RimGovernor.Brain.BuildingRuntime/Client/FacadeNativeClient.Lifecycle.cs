@@ -2,14 +2,13 @@ using RimGovernor.Brain.Bridge.Contracts;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go lifecycle_load.go (LifecycleLoad.Load, ReadLoad) and lifecycle_new.go (LifecycleNewColony.NewColony,
-// ReadNewColony). Save and ReadSave are in Writes.cs. Go returned a pending or superseded outcome as a typed error so
-// a nil reply could not pass for success; the player routes map those arms themselves (202 and 409), so the core
+// NewColony and ReadNewColony. Save and ReadSave are in Writes.cs. The player routes map the pending and superseded
+// arms themselves (202 and 409), so the core
 // methods here return the reply for them and throw only for a failure arm or a malformed reply.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
-    /// Resolves the ideoligion a <c>governor_ideoligion</c> new-colony spec asks the governor to choose (Go
+    /// Resolves the ideoligion a <c>governor_ideoligion</c> new-colony spec asks the governor to choose (via
     /// <c>CreationCatalog</c> then <c>StartingIdeoligion</c>) from the scenario named. The creation-scoped catalog is built
     /// over the game's Defs, which the mod host installs with the catalog factory (#3116); until it does, a spec that
     /// asks for it is refused as unavailable.
@@ -17,7 +16,7 @@ public sealed partial class FacadeNativeClient
     internal Func<string, CancellationToken, Task<PbCommon.IdeoligionDesign>>? StartingIdeoligion { get; set; }
 
     /// <summary>
-    /// Go <c>LifecycleLoad.Load</c>: starts a native load of the named save and returns at once, with a pending outcome
+    /// Starts a native load of the named save and returns at once, with a pending outcome
     /// the caller polls with <see cref="ReadLoadAsync"/> in the ordinary case. It never waits for the load to finish.
     /// </summary>
     internal async Task<PbLifecycle.LoadReply> LoadAsync(PbLifecycle.LoadRequest request, CancellationToken cancellationToken)
@@ -28,7 +27,7 @@ public sealed partial class FacadeNativeClient
         return reply;
     }
 
-    /// <summary>Go <c>LifecycleLoad.ReadLoad</c>: polls for the outcome of a request a prior load started.</summary>
+    /// <summary>Polls for the outcome of a request a prior load started.</summary>
     internal async Task<PbLifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken)
     {
         var reply = await Facade.PollLoadAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
@@ -37,7 +36,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>LifecycleNewColony.NewColony</c>: starts generating a colony from the request's spec and returns at once,
+    /// Starts generating a colony from the request's spec and returns at once,
     /// with a pending outcome the caller polls with <see cref="ReadNewColonyAsync"/> in the ordinary case.
     /// </summary>
     internal async Task<PbLifecycle.NewColonyReply> NewColonyAsync(PbLifecycle.NewColonyRequest request, CancellationToken cancellationToken)
@@ -57,7 +56,7 @@ public sealed partial class FacadeNativeClient
         return reply;
     }
 
-    /// <summary>Go <c>LifecycleNewColony.ReadNewColony</c>: polls the outcome of a request a prior new colony started.</summary>
+    /// <summary>Polls the outcome of a request a prior new colony started.</summary>
     internal async Task<PbLifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken)
     {
         var reply = await Facade.PollNewColonyAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
@@ -84,7 +83,6 @@ public sealed partial class FacadeNativeClient
         return reply;
     }
 
-    /// <summary>Go <c>validateLoadRequest</c>.</summary>
     private static void LifecycleLoadValidateRequest(PbLifecycle.LoadRequest? request)
     {
         if (request is null)

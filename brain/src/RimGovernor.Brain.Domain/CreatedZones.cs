@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Domain;
 
 /// <summary>
 /// The native identity and actual footprint of one component created by a stockpile rectangle. Existing player
-/// zones are never claims. Go <c>CreatedZone</c>.
+/// Zones are never claims.
 /// </summary>
 public sealed record CreatedZone(string Id, EquatableArray<Cell> Cells)
 {
@@ -12,7 +12,7 @@ public sealed record CreatedZone(string Id, EquatableArray<Cell> Cells)
 
 /// <summary>
 /// The stockpile zones a rectangle placement created, canonical (sorted by id, each footprint connected and
-/// inside the requested ground, no overlap). Go <c>CreatedZones</c> (<c>NewCreatedZones</c> is the constructor).
+/// Inside the requested ground, no overlap).
 /// </summary>
 public sealed record CreatedZones
 {

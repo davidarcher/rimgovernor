@@ -6,14 +6,13 @@ using RimGovernor.Brain.Bridge;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// Go <c>bridge.ActionsWriter</c> (actions.go): sends intent batches, one uniquely keyed action per intent. A batch
+/// Sends intent batches, one uniquely keyed action per intent. A batch
 /// failure throws <see cref="NativeFailureException"/>: nothing applied.
 /// </summary>
 internal sealed class FacadeActionsWriter(INativeFacade facade) : IActionsWriter
 {
     private readonly INativeFacade _facade = facade ?? throw new ArgumentNullException(nameof(facade));
 
-    /// <summary>Go <c>ActionsWriter.Apply</c>.</summary>
     public async Task<PbOperations.ApplyReply> ApplyAsync(PbCommon.Identity identity, IReadOnlyList<PbOperations.Action> actions, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(actions);
@@ -43,7 +42,7 @@ internal sealed class FacadeActionsWriter(INativeFacade facade) : IActionsWriter
         return reply;
     }
 
-    /// <summary>Go <c>stampPurpose</c>: the dispatch's intent text becomes the purpose of every action that has none.</summary>
+    /// <summary>The dispatch's intent text becomes the purpose of every action that has none.</summary>
     private static IReadOnlyList<PbOperations.Action> StampPurpose(IReadOnlyList<PbOperations.Action> actions)
     {
         var intent = OperationIntentScope.Current;

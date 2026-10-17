@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
 {
     // Closes the observations_read_world gap: WorldRequest/WorldReply and the
     // Settlement message (including its snapshot/faction_snapshot CAS tokens)
-    // were already fully defined with no native handler and no Go consumer
+    // were already fully defined with no native handler and no consumer
     // (confirmed by exhaustive search before writing this file) -- the same
     // "proto ahead of consumer" pattern NativeWorldProgressionObservation
     // already closed for its own request. This handler
@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
     //
     // Settlement/faction tokens are self-computed: no other observation
     // exposes a per-settlement CAS snapshot yet.
-    // Go's settlement-gift boundary is this handler's first consumer, reading
+    // The settlement-gift boundary is this handler's first consumer, reading
     // the settlement at an already-known caravan tile (from
     // ReadWorldProgression) to learn whether -- and to which faction -- that
     // caravan currently sits.

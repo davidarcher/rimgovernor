@@ -20,7 +20,7 @@ public enum TradeOperationKind
 
 /// <summary>
 /// Mirrors the native EndTradeKind enum's two supported values: cancel abandons the deal; close_dialog sweeps a
-/// stale/foreign dialog with no goodwill effect. <see cref="None"/> (the Go empty string) means not an end.
+/// stale/foreign dialog with no goodwill effect. <see cref="None"/> (the empty string) means not an end.
 /// </summary>
 public enum TradeEndKind
 {
@@ -112,25 +112,25 @@ public sealed record Trade : IActionPayload
         ReceiveQuest = receiveQuest;
     }
 
-    /// <summary>Go <c>NewTradeOpen</c>: opens the single global trade session with one already-selected trader pawn (the caravan's trader entity) and negotiator pawn.</summary>
+    /// <summary>Opens the single global trade session with one already-selected trader pawn (the caravan's trader entity) and negotiator pawn.</summary>
     public static Trade NewTradeOpen(string trader, PawnId negotiator, bool giftMode) =>
         new(TradeOperationKind.Open, MapTrader(trader), negotiator, giftMode, [], false, "", false, TradeEndKind.None, false);
 
-    /// <summary>Go <c>NewTradeSetLines</c>: stages an already-computed set of absolute line adjustments against the live session held by trader and negotiator.</summary>
+    /// <summary>Stages an already-computed set of absolute line adjustments against the live session held by trader and negotiator.</summary>
     public static Trade NewTradeSetLines(string trader, PawnId negotiator, IEnumerable<TradeLine> lines, bool allowPawns) =>
         new(TradeOperationKind.SetLines, MapTrader(trader), negotiator, false, lines, allowPawns, "", false, TradeEndKind.None, false);
 
-    /// <summary>Go <c>NewTradeAccept</c>: accepts the currently open session's deal, exactly matching an already-observed deal signature and with no other native check than the vanilla trade rules.</summary>
+    /// <summary>Accepts the currently open session's deal, exactly matching an already-observed deal signature and with no other native check than the vanilla trade rules.</summary>
     public static Trade NewTradeAccept(string trader, PawnId negotiator, string expectedDealSignature, bool allowEmpty, bool receiveQuest) =>
         new(TradeOperationKind.Accept, MapTrader(trader), negotiator, false, [], false, expectedDealSignature, allowEmpty, TradeEndKind.None, receiveQuest);
 
-    /// <summary>Go <c>NewTradeEnd</c>: ends the currently open session, either abandoning the deal (cancel) or sweeping a stale/foreign dialog with no goodwill effect (close_dialog).</summary>
+    /// <summary>Ends the currently open session, either abandoning the deal (cancel) or sweeping a stale/foreign dialog with no goodwill effect (close_dialog).</summary>
     public static Trade NewTradeEnd(string trader, PawnId negotiator, TradeEndKind kind, bool receiveQuest) =>
         new(TradeOperationKind.End, MapTrader(trader), negotiator, false, [], false, "", false, kind, receiveQuest);
 
     private static TradeParticipant MapTrader(string trader) => new(TradeParticipantKind.Map, trader);
 
-    /// <summary>Go <c>WithParticipant</c>: changes only the seller identity; the four existing trade steps, floors and signature checks remain the same lifecycle.</summary>
+    /// <summary>Changes only the seller identity; the four existing trade steps, floors and signature checks remain the same lifecycle.</summary>
     public Trade WithParticipant(TradeParticipant p)
     {
         p.Validate();
@@ -141,7 +141,7 @@ public sealed record Trade : IActionPayload
 
     public TradeParticipant Participant { get; }
 
-    /// <summary>The seller's identity (Go <c>Trader</c>).</summary>
+    /// <summary>The seller's identity.</summary>
     public string Trader => Participant.Id;
 
     public PawnId Negotiator { get; }

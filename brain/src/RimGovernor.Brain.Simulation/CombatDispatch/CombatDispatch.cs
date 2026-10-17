@@ -5,7 +5,7 @@ using System.Threading.Channels;
 
 namespace RimGovernor.Brain.Simulation.CombatDispatch;
 
-// Port of Go internal/combatdispatch: runs a combat lab sweep's seeds on at most two workers and reduces
+// Runs a combat lab sweep's seeds on at most two workers and reduces
 // the results in seed order (#2839).
 //
 // Seeds are independent, so two workers (each with its own game root, or its own remote job) may run them
@@ -50,7 +50,7 @@ public sealed record DispatchReport<T>
     public IReadOnlyList<DispatchRun<T>> Runs { get; init; } = [];
 }
 
-/// <summary>The dispatch failed; the full report is beside it (Go returns the report with the error).</summary>
+/// <summary>The dispatch failed; the full report is beside it.</summary>
 public sealed class DispatchException<T>(string message, DispatchReport<T> report) : Exception(message)
 {
     public DispatchReport<T> Report { get; } = report;

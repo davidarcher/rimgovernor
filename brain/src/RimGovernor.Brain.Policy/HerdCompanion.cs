@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 
 public static class HerdCompanionRules
 {
-    /// <summary>Go <c>CompanionMaster</c>: the colonist who masters a bonded animal: the first of its bond partners by id among people. False for an unbonded animal.</summary>
+    /// <summary>The colonist who masters a bonded animal: the first of its bond partners by id among people. False for an unbonded animal.</summary>
     public static (PawnId Master, bool Ok) CompanionMaster(UpkeepAnimal a, IReadOnlyList<SleepingPerson> people)
     {
         var onRoster = new HashSet<PawnId>(people.Select(p => p.Id));
@@ -25,7 +25,7 @@ public static class HerdCompanionRules
     }
 
     /// <summary>
-    /// Go <c>NextCompanionBed</c>: returns the first companion bed due, false when none. rooms are the furniture
+    /// Returns the first companion bed due, false when none. rooms are the furniture
     /// rooms (FurnitureRooms); spot is the animal sleeping spot's shape and available reports that it can be
     /// built now.
     /// </summary>

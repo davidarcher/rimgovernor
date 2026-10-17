@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 namespace RimGovernor.Brain.Domain;
 
 /// <summary>
-/// An immutable sequence with value (element-wise) equality, for slice fields of records that Go compares
+/// An immutable sequence with value (element-wise) equality, for slice fields of records that compare
 /// with <c>==</c>. Elements compare with <see cref="EqualityComparer{T}.Default"/>; the default value is empty.
 /// </summary>
 [CollectionBuilder(typeof(EquatableArray), nameof(EquatableArray.Create))]
@@ -49,7 +49,7 @@ public readonly struct EquatableArray<T>(ImmutableArray<T> items) : IEquatable<E
 
 public static class EquatableArray
 {
-    /// <summary>Copies <paramref name="items"/> (Go's <c>append([]T(nil), s...)</c>).</summary>
+    /// <summary>Copies <paramref name="items"/>.</summary>
     public static EquatableArray<T> From<T>(IEnumerable<T> items) => new([.. items]);
 
     /// <summary>The collection-expression builder: <c>EquatableArray&lt;T&gt; xs = [a, b];</c>.</summary>

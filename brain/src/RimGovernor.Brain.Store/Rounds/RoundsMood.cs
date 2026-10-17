@@ -7,8 +7,7 @@ namespace RimGovernor.Brain.Store;
 
 /// <summary>
 /// Optional persisted values distinguish unknown from observed zero/false: a <see cref="Fact{T}"/> persists as a
-/// nullable value. Domain Fact deliberately has no serialization contract (Go <c>moodValue</c>, <c>moodFact</c>,
-/// <c>runwayPointer</c> and <c>runwayFact</c>).
+/// nullable value. Domain Fact deliberately has no serialization contract.
 /// </summary>
 internal static class PersistedFact
 {
@@ -29,10 +28,10 @@ internal static class PersistedFact
         where T : class => value is null ? Unknown<T>() : Known(value);
 }
 
-/// <summary>One mood need's measured level in a persisted mood state (Go <c>RoundsMoodCause</c>).</summary>
+/// <summary>One mood need's measured level in a persisted mood state.</summary>
 public sealed record RoundsMoodCause(MoodNeed Need, double? Level);
 
-/// <summary>A persisted pawn's mood evidence; every observation is unknown or a value (Go <c>RoundsMoodPawn</c>).</summary>
+/// <summary>A persisted pawn's mood evidence; every observation is unknown or a value.</summary>
 public sealed record RoundsMoodPawn
 {
     public MentalState? Break { get; init; }
@@ -62,7 +61,7 @@ public sealed record RoundsMoodPawn
     public bool? PlayerForced { get; init; }
 }
 
-/// <summary>One pawn's persisted mood state (Go <c>RoundsMoodState</c>).</summary>
+/// <summary>One pawn's persisted mood state.</summary>
 public sealed record RoundsMoodState
 {
     public RoundsMoodPawn Pawn { get; init; } = new();
@@ -139,13 +138,13 @@ public sealed record RoundsMoodState
         };
 }
 
-/// <summary>The persisted mood review (Go <c>RoundsMood</c>).</summary>
+/// <summary>The persisted mood review.</summary>
 public sealed record RoundsMood
 {
     public EquatableArray<RoundsMoodState> States { get; init; }
 }
 
-/// <summary>One pawn's mood method proposal as the review filed it (Go <c>RoundsMoodMethod</c>).</summary>
+/// <summary>One pawn's mood method proposal as the review filed it.</summary>
 public sealed record RoundsMoodMethod
 {
     public PawnId Pawn { get; init; }
@@ -168,11 +167,11 @@ public sealed record RoundsMoodMethod
 
 public sealed partial class Store
 {
-    /// <summary>The persisted mood review of a mood history, or null when it holds no state (Go <c>moodRecord</c>).</summary>
+    /// <summary>The persisted mood review of a mood history, or null when it holds no state.</summary>
     internal static RoundsMood? MoodRecord(PolicyMoodHistory h) =>
         h.States.Count == 0 ? null : new RoundsMood { States = EquatableArray.From(h.States.Select(RoundsMoodState.From)) };
 
-    /// <summary>One proposal per mood state, selected without any used method (Go <c>moodProposals</c>).</summary>
+    /// <summary>One proposal per mood state, selected without any used method.</summary>
     internal static List<RoundsMoodMethod> MoodProposals(PolicyMoodHistory h)
     {
         var result = new List<RoundsMoodMethod>();

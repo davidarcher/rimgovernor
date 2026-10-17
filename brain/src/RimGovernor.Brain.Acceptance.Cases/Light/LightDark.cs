@@ -7,7 +7,7 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>light/dark</c> (Go <c>light/light.go</c>): the rooms/lighting Need vertical on the lab. An enclosed roofed room
+/// <c>light/dark</c>: the rooms/lighting Need vertical on the lab. An enclosed roofed room
 /// staged on the blank lab holds a fuelled stove whose interaction cell native measures dark, with no lamp in reach and
 /// wood outside. Under the served brain the colonists build one lamp, and the measured glow at the cell reads lit; an
 /// independent native read after the service lets go confirms exactly one lit TorchLamp (the colony has no power source)

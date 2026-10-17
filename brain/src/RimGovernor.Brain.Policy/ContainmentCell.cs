@@ -1,8 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // The containment cell: one planned room holding one holding platform, owed while an entity the game lets the
-// colony capture has no platform that can hold it. It is staged like the worship room (worship.go,
-// layout_child_rooms.go): the layout review grows a core room sized to the platform, shelter/sleeping
+// colony capture has no platform that can hold it. It is staged like the worship room: the layout review grows a core room sized to the platform, shelter/sleeping
 // reconciles it to its template (the platform and its lamp, NextChildRoomStep). The platform is the catalog's
 // own (a ThingDef with an entity-holder platform comp), never a name here. A cell is owed only when its
 // predicted containment strength (ContainmentDefs.Predict) reaches what the entity needs; how much margin to

@@ -3,12 +3,11 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go zones.go, zone_delete_target.go, storage_building.go, bed_use_target.go, claim_building_target.go,
-// grower_crop_target.go, construction_buildings.go, construction_deficit.go and wall_upgrade_sites.go: the zone census,
+// The zone census,
 // the single-target building reads, the construction census and the wall upgrade sites.
 public sealed partial class FacadeNativeClient
 {
-    /// <summary>Go's <c>ReadZoneSection</c>: reads the whole zone census. A failure never silently replaces a held census.</summary>
+    /// <summary>Reads the whole zone census. A failure never silently replaces a held census.</summary>
     internal async Task<ZonesRead> ReadZoneSectionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var reply = await Facade.ListZonesAsync(PlacementChecks.ZoneSectionRequest(identity), cancellationToken).ConfigureAwait(false);
@@ -24,7 +23,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go's <c>ReadZoneDeleteTarget</c>: observes one exact zone's presence via the zone listing; an absent zone reads
+    /// Observes one exact zone's presence via the zone listing; an absent zone reads
     /// back as not present rather than as an error, so a deletion's observer can tell success from a stale read.
     /// </summary>
     internal async Task<ZoneDeleteTarget> ReadZoneDeleteTargetAsync(PbCommon.Identity identity, string zone, CancellationToken cancellationToken)
@@ -55,7 +54,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go's <c>ReadConstructionBuildings</c>: requests built artificial player-faction buildings. Empty
+    /// Requests built artificial player-faction buildings. Empty
     /// <paramref name="ids"/> requests the complete bounded colony census; nonempty ids refresh exact targets.
     /// Native faction filtering supplies planning ownership, not lineage.
     /// </summary>
@@ -80,7 +79,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go's <c>ReadStorageBuildingTarget</c>: observes one exact storage building's presence via the building listing;
+    /// Observes one exact storage building's presence via the building listing;
     /// an absent building reads back as not present rather than as an error.
     /// </summary>
     internal async Task<StorageBuildingTarget> ReadStorageBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
@@ -96,7 +95,7 @@ public sealed partial class FacadeNativeClient
         return new StorageBuildingTarget { Context = v.Context, Thing = thing, Present = v.Buildings.Count != 0 };
     }
 
-    /// <summary>Go's <c>ReadBedUseTarget</c>: observes one exact bed's medical flag, owners and CAS token via the existing building lookup.</summary>
+    /// <summary>Observes one exact bed's medical flag, owners and CAS token via the existing building lookup.</summary>
     internal async Task<BedUseTarget> ReadBedUseTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
         var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
@@ -120,7 +119,7 @@ public sealed partial class FacadeNativeClient
         };
     }
 
-    /// <summary>Go's <c>ReadGrowerCropTarget</c>: observes one exact grower's crop via the existing building lookup; the crop is empty when the grower has none.</summary>
+    /// <summary>Observes one exact grower's crop via the existing building lookup; the crop is empty when the grower has none.</summary>
     internal async Task<GrowerCropTarget> ReadGrowerCropTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
         var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
@@ -138,7 +137,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go's <c>ReadConstructionDeficits</c>: reads every player blueprint and frame on the map and sums their
+    /// Reads every player blueprint and frame on the map and sums their
     /// outstanding material needs by definition. Completeness is a precondition: this read refuses a partially
     /// unreadable census rather than under-reporting a commitment.
     /// </summary>
@@ -165,7 +164,7 @@ public sealed partial class FacadeNativeClient
         return new ConstructionDeficitRead { Context = observed.Context, StillNeed = stillNeed, Structures = structures };
     }
 
-    /// <summary>Go's <c>ReadWallUpgradeSites</c>: lists current wall-upgrade candidate sites, optionally scoped to one original wall's identity.</summary>
+    /// <summary>Lists current wall-upgrade candidate sites, optionally scoped to one original wall's identity.</summary>
     internal async Task<WallUpgradeSites> ReadWallUpgradeSitesAsync(PbCommon.Identity identity, string targetId, CancellationToken cancellationToken)
     {
         var request = new PbObservations.WallUpgradeSitesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
@@ -188,7 +187,7 @@ public sealed partial class FacadeNativeClient
         return new WallUpgradeSites { Context = observed.Context, Sites = sites };
     }
 
-    // Go FrameBuildings, the no-stream path: the player building table read through the building list. The frame
+    // The no-stream path: the player building table read through the building list. The frame
     // stream's copy of the table is not consulted here; this is the same list the frames carry.
     private async Task<Buildings> PlacementFrameBuildingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
@@ -202,7 +201,7 @@ public sealed partial class FacadeNativeClient
 
     internal static class BuildingDecode
     {
-        /// <summary>Go's <c>decodeZones</c>: decodes a complete zone census, rows in id order.</summary>
+        /// <summary>Decodes a complete zone census, rows in id order.</summary>
         internal static ZonesRead DecodeZones(PbObservations.ZonesSnapshot value)
         {
             List<PbObservations.ZoneState> rows = [.. value.Zones];
@@ -227,7 +226,7 @@ public sealed partial class FacadeNativeClient
             return reply.Outcome.Observed!;
         }
 
-        /// <summary>Go's <c>validateWallUpgradeSites</c>: decodes the sites, each original wall's cell taken from its building row.</summary>
+        /// <summary>Decodes the sites, each original wall's cell taken from its building row.</summary>
         internal static IReadOnlyList<WallUpgradeSite> DecodeWallUpgradeSites(PbObservations.WallUpgradeSnapshot value, Buildings buildings)
         {
             var rows = new List<WallUpgradeSite>(value.Sites.Count);

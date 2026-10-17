@@ -36,7 +36,7 @@ public sealed record ReplanTileDiff
 }
 
 /// <summary>
-/// Ports <c>layout_replan_tiled.go</c>: the tiled replan (#3002 to #3005, J1 to J4 of #2965). At a replan the station
+/// The tiled replan (#3002 to #3005, J1 to J4 of #2965). At a replan the station
 /// chain reads the built rooms (Built, Pinned, the plan's RetiredGround); TileStations over ReplanTileFacts tiles them
 /// and ReplanLayout takes the tiled plan as the next plan. DiffReplanTile says, room by room, what the tiled plan did
 /// with the plan the colony held; it is the layout_replan_tiled row's telemetry.

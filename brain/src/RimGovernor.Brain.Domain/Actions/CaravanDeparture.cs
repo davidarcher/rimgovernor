@@ -15,7 +15,7 @@ public enum CaravanDepartureMode { Formation, ExistingRoute, SiteReform }
 
 public sealed record CaravanDeparture : IActionPayload
 {
-    /// <summary>Go <c>NewCaravanDeparture</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public CaravanDeparture(IEnumerable<PawnId> crew, IEnumerable<CargoItem> cargo, int destinationTile, CaravanDepartureMode mode = CaravanDepartureMode.Formation)
     {
         var error = Build(crew, cargo, destinationTile, out var crewRows, out var cargoRows);
@@ -40,7 +40,7 @@ public sealed record CaravanDeparture : IActionPayload
 
     public CaravanDepartureMode Mode { get; init; }
 
-    /// <summary>The non-throwing form of the constructor (Go's <c>err != nil</c> as a predicate).</summary>
+    /// <summary>The non-throwing form of the constructor.</summary>
     public static bool TryCreate(IEnumerable<PawnId> crew, IEnumerable<CargoItem> cargo, int destinationTile, [NotNullWhen(true)] out CaravanDeparture? departure)
     {
         if (Build(crew, cargo, destinationTile, out _, out _) is not null)

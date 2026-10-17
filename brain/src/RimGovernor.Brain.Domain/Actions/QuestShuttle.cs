@@ -11,7 +11,7 @@ public enum ShuttleLoading
 /// <summary>Requests loading orders or send, not completed boarding or departure.</summary>
 public sealed record QuestShuttle : IActionPayload
 {
-    /// <summary>Go <c>NewQuestShuttle</c>; throws <see cref="DomainException"/> when invalid. Pawns are stored sorted.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid. Pawns are stored sorted.</summary>
     public QuestShuttle(QuestId quest, ShuttleLoading loading, bool autoload, IEnumerable<PawnId> pawns, bool launch)
     {
         DomainException.Require(quest.IsValid, "invalid shuttle quest");

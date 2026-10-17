@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Store;
 
 /// <summary>
 /// Holds, per world, the newest tick of settled evidence a retired plan carried: stock observed before it was
-/// already spent by that plan, so it does not buy a second method (Go <c>retirementFloors</c>). It is
+/// already spent by that plan, so it does not buy a second method. It is
 /// session-only, shared by every handle on one database path, and resets on a goal rebuild and a process
 /// restart. The load is not part of the key.
 /// </summary>

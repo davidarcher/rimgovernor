@@ -6,7 +6,7 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Go's Known(v) / Unknown[T]() read the same in C#: Known(v), Unknown<T>(). -->
+    <!-- Known(v) and Unknown<T>() are used unqualified. -->
     <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
   </ItemGroup>
 </Project>

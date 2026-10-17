@@ -1,17 +1,16 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: work_assignment.go.
 
 /// <summary>
-/// A native WorkTypeDef defName as ListPawns reports it. Go's string type becomes an enum over the defs the
-/// vanilla game and the supported DLC define; None is Go's empty string.
+/// A native WorkTypeDef defName as ListPawns reports it. It is an enum over the defs the
+/// vanilla game and the supported DLC define; None is the empty string.
 /// </summary>
 public enum WorkType
 {
     [WireName("")]
     None,
 
-    // The routine goals' dispatch types (Go labor.go consts).
+    // The routine goals' dispatch types.
     [WireName("Construction")]
     Construction,
 
@@ -51,7 +50,6 @@ public enum WorkType
     [WireName("Smithing")]
     Smithing,
 
-    // work_assignment.go consts.
     [WireName("Doctor")]
     Doctor,
 
@@ -83,11 +81,11 @@ public enum WorkType
     [WireName("Childcare")]
     Childcare,
 
-    // The Anomaly study work type (Go entity_study.go WorkDarkStudy).
+    // The Anomaly study work type.
     [WireName("DarkStudy")]
     DarkStudy,
 
-    // Backstory-incapable "Violent" row (Go gear_loadout.go compares the wire name).
+    // Backstory-incapable "Violent" row.
     [WireName("Violent")]
     Violent,
 

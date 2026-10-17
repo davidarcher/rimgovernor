@@ -31,7 +31,7 @@ public static class PlanIds
 {
     /// <summary>
     /// Mints a fresh plan id at admission: a bare random version-4 UUID. Nothing re-derives it; a plan is
-    /// found again by its stored (goal, epoch, method) key. (Go <c>MintPlanID</c>.)
+    /// found again by its stored (goal, epoch, method) key.
     /// </summary>
     public static PlanId MintPlanId() => new(Guid.NewGuid().ToString("D"));
 }

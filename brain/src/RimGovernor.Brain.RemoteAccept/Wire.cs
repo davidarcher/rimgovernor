@@ -5,7 +5,7 @@ using RimGovernor.Brain.Acceptance;
 
 namespace RimGovernor.Brain.RemoteAccept;
 
-// The remote acceptance v1 evidence graph (Go internal/remoteaccept types.go). Property names are the Go JSON tags: the
+// The remote acceptance v1 evidence graph. Property names are the wire names: the
 // shell scripts, the workflow and previously written evidence use them. Reading is strict (StrictJson), writing is by hand.
 
 /// <summary>A digest-pinned reference to a file under the evidence root.</summary>
@@ -142,7 +142,7 @@ public sealed record Attempt(
     [property: JsonPropertyName("evidence")] Ref Evidence,
     [property: JsonPropertyName("log")] string? Log)
 {
-    /// <summary>Gets the raw JSON text of the optional <c>log</c> field (Go <c>json.RawMessage</c>), or null when it is absent.</summary>
+    /// <summary>Gets the raw JSON text of the optional <c>log</c> field, or null when it is absent.</summary>
     internal static Attempt Parse(JsonNode? n)
     {
         var o = n as JsonObject ?? throw new RemoteAcceptException("null or malformed attempt");
@@ -369,7 +369,7 @@ public sealed record Aggregate(
             StrictJson.NullableStr(o, "error"));
     }
 
-    /// <summary>Field-by-field equality (Go <c>reflect.DeepEqual</c>); lists compare by content.</summary>
+    /// <summary>Field-by-field equality; lists compare by content.</summary>
     internal bool SameAs(Aggregate other) =>
         Version == other.Version && Run == other.Run && Selection == other.Selection && Status == other.Status
         && Passed == other.Passed && Error == other.Error

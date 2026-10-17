@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// Go's <c>sort.Slice(s, less)</c> as a stable sort. The Go call is unstable; every ported call site orders
-/// by a total key, so a stable sort is at least as deterministic.
+/// A <c>less</c> function applied as a stable sort. Every call site orders
+/// by a total key, so a stable sort is deterministic.
 /// </summary>
 internal static class LessSorting
 {

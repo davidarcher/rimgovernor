@@ -5,11 +5,9 @@ using TradeTarget = RimGovernor.Contracts.Wire.Common.TradeTarget;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Read models of the dispatch verticals (Go equip_things.go, supply_allow.go, trade_session.go,
-// wall_upgrade_sites.go, spatial_access.go, world.go, building_preview.go, gear_bench_census.go,
-// combat_orders.go). The reads and frame decoders are wire plumbing and not ported.
+// Read models of the dispatch verticals. The reads and frame decoders are wire plumbing.
 
-/// <summary>Go's <c>EquipCandidate</c>: one weapon thing a pawn could equip, where it lies and its CAS token.</summary>
+/// <summary>One weapon thing a pawn could equip, where it lies and its CAS token.</summary>
 public sealed record EquipCandidate
 {
     public string Thing { get; init; } = "";
@@ -25,7 +23,7 @@ public sealed record EquipCandidate
     public string Token { get; init; } = "";
 }
 
-/// <summary>Go's <c>EquipRead</c>: the equip candidates over a region.</summary>
+/// <summary>The equip candidates over a region.</summary>
 public sealed record EquipRead
 {
     public ObservationContext? Context { get; init; }
@@ -33,13 +31,13 @@ public sealed record EquipRead
     public IReadOnlyList<EquipCandidate> Targets { get; init; } = [];
 }
 
-/// <summary>Go's <c>SupplyTarget</c>: one supply thing an allow order names.</summary>
+/// <summary>One supply thing an allow order names.</summary>
 public sealed record SupplyTarget
 {
     public required Domain.SupplyAllow Supply { get; init; }
 }
 
-/// <summary>Go's <c>SupplyRead</c>: the supply things over a cell or the food reserve.</summary>
+/// <summary>The supply things over a cell or the food reserve.</summary>
 public sealed record SupplyRead
 {
     public ObservationContext? Context { get; init; }
@@ -47,7 +45,7 @@ public sealed record SupplyRead
     public IReadOnlyList<SupplyTarget> Targets { get; init; } = [];
 }
 
-/// <summary>Go's <c>TradeSessionRead</c>: the open trade session, its parties and its CAS target.</summary>
+/// <summary>The open trade session, its parties and its CAS target.</summary>
 public sealed record TradeSessionRead
 {
     public TradeTarget? Target { get; init; }
@@ -61,7 +59,7 @@ public sealed record TradeSessionRead
     public bool Open { get; init; }
 }
 
-/// <summary>Go's <c>WallUpgradeSite</c>: one wall segment a stone upgrade would replace.</summary>
+/// <summary>One wall segment a stone upgrade would replace.</summary>
 public sealed record WallUpgradeSite
 {
     public string TargetId { get; init; } = "";
@@ -84,7 +82,7 @@ public sealed record WallUpgradeSite
     public bool Eligible() => TargetId.Length != 0 && TargetPresent && Blocker.Length == 0;
 }
 
-/// <summary>Go's <c>WallUpgradeSites</c>: the wall upgrade sites over one wall.</summary>
+/// <summary>The wall upgrade sites over one wall.</summary>
 public sealed record WallUpgradeSites
 {
     public ObservationContext? Context { get; init; }
@@ -92,7 +90,7 @@ public sealed record WallUpgradeSites
     public IReadOnlyList<WallUpgradeSite> Sites { get; init; } = [];
 }
 
-/// <summary>Go's <c>AccessTarget</c>: whether one target cell is reachable natively and in the projected layout.</summary>
+/// <summary>Whether one target cell is reachable natively and in the projected layout.</summary>
 public sealed record AccessTarget
 {
     public DomainCell Cell { get; init; }
@@ -104,7 +102,7 @@ public sealed record AccessTarget
     public uint ProjectedSteps { get; init; }
 }
 
-/// <summary>Go's <c>PawnAccess</c>: one audited pawn's access before and after a projected layout.</summary>
+/// <summary>One audited pawn's access before and after a projected layout.</summary>
 public sealed record PawnAccess
 {
     public bool Skipped { get; init; }
@@ -128,7 +126,7 @@ public sealed record PawnAccess
     public IReadOnlyList<AccessTarget> Targets { get; init; } = [];
 }
 
-/// <summary>Go's <c>SpatialAccess</c>: the access audit of a projected layout.</summary>
+/// <summary>The access audit of a projected layout.</summary>
 public sealed record SpatialAccess
 {
     public ObservationContext? Context { get; init; }
@@ -195,11 +193,11 @@ public sealed record SpatialAccess
         return "";
     }
 
-    // Go prints a cell with %v: {X Z}.
+    // A cell prints as {X Z}.
     private static string Show(DomainCell c) => $"{{{c.X} {c.Z}}}";
 }
 
-/// <summary>Go's <c>SettlementFact</c>: one world settlement and the faction that holds it.</summary>
+/// <summary>One world settlement and the faction that holds it.</summary>
 public sealed record SettlementFact
 {
     public string Id { get; init; } = "";
@@ -229,7 +227,7 @@ public sealed record SettlementFact
     public string FactionSnapshotToken { get; init; } = "";
 }
 
-/// <summary>Go's <c>WorldRead</c>: the world's settlements around a tile and the home tile's longitude.</summary>
+/// <summary>The world's settlements around a tile and the home tile's longitude.</summary>
 public sealed record WorldRead
 {
     public ObservationContext? Context { get; init; }
@@ -240,7 +238,7 @@ public sealed record WorldRead
 }
 
 /// <summary>
-/// Go's <c>BuildingPreview</c>: the native placement preview of one building action, the stock it implies, whether
+/// The native placement preview of one building action, the stock it implies, whether
 /// native work (a blueprint or frame) already stands on the cells and the native reason when it was refused.
 /// </summary>
 public sealed record BuildingPreview
@@ -254,7 +252,7 @@ public sealed record BuildingPreview
     public string Reason { get; init; } = "";
 }
 
-/// <summary>Go's <c>GearBenchRead</c>: one workbench's CAS token and its gear bench facts.</summary>
+/// <summary>One workbench's CAS token and its gear bench facts.</summary>
 public sealed record GearBenchRead
 {
     public string Token { get; init; } = "";
@@ -262,7 +260,7 @@ public sealed record GearBenchRead
     public required GearBench Bench { get; init; }
 }
 
-/// <summary>Go's <c>CombatOrderResult</c>: the native answer to one combat order.</summary>
+/// <summary>The native answer to one combat order.</summary>
 public sealed record CombatOrderResult
 {
     public int Index { get; init; }

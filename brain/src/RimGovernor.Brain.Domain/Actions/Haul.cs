@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record Haul : IActionPayload
 {
-    /// <summary>Go <c>NewHaul</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public Haul(PawnId pawn, string thing, string definition, Cell cell)
     {
         DomainException.Require(
@@ -34,6 +34,6 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewHaulAction(ActionId id, Haul haul) => Create(id, ActionKind.Haul, haul);
 
-    /// <summary>Go <c>Action.Haul() (Haul, bool)</c>: the payload when this is a haul action, otherwise null.</summary>
+    /// <summary>The payload when this is a haul action, otherwise null.</summary>
     public Haul? Haul => PayloadOf<Haul>(ActionKind.Haul);
 }

@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Acceptance;
 // each family's p90 to the median p90 of the last -window successful runs' records, and opens or comments on one
 // regression issue naming the families and the commit range.
 
-/// <summary>One nightly run's artifact (Go <c>perfRecord</c>); its JSON form is commit, run_id (omitted when 0), at and profile.</summary>
+/// <summary>One nightly run's artifact; its JSON form is commit, run_id (omitted when 0), at and profile.</summary>
 public sealed class PerfRecord
 {
     public string Commit { get; set; } = "";
@@ -25,13 +25,13 @@ public sealed class PerfRecord
     public ProfileSummary Profile { get; set; } = new();
 }
 
-/// <summary>One span whose p90 exceeds its baseline (Go <c>perfRegression</c>).</summary>
+/// <summary>One span whose p90 exceeds its baseline.</summary>
 public sealed record PerfRegression(string Name, double P90, double Baseline, int Samples)
 {
     public double Ratio => (P90 / Baseline) - 1;
 }
 
-/// <summary>The <c>acceptance profile-compare</c> subcommand (Go <c>profileCompare</c>).</summary>
+/// <summary>The <c>acceptance profile-compare</c> subcommand.</summary>
 public static class ProfileCompareCommand
 {
     public const string Usage = """

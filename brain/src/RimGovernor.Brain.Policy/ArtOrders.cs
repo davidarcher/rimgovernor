@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: art_orders.go
 // The rooms/art Need declares its pinned sculpture batches to the work ledger (OrderDeclarer): the ledger places a
 // missing one, keeps a standing one and removes the rest, so a sculpture pinned to someone who is no longer an
 // artist is simply no longer declared. Sculptures to sell are the economy/trade Need's.

@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_haul.go, catalog_roof.go, catalog_conditions.go and catalog_clearance_rows.go: the goods a colonist works
+// The goods a colonist works
 // out of the map, the roof rules, the weather and game condition facts and the work of clearing a thing.
 
 public sealed partial class DefinitionCatalog

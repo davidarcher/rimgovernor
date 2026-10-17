@@ -4,8 +4,7 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Store;
 
 /// <summary>
-/// One resource's persisted runway forecast. Unknown observations persist as null, not as a known zero or false
-/// (Go <c>ResourceRunwayRecord</c>).
+/// One resource's persisted runway forecast. Unknown observations persist as null, not as a known zero or false.
 /// </summary>
 public sealed record ResourceRunwayRecord
 {
@@ -34,7 +33,7 @@ public sealed record ResourceRunwayRecord
 
 public sealed partial class Store
 {
-    /// <summary>The persisted form of the review's runway forecasts (Go <c>resourceRunwayRecords</c>).</summary>
+    /// <summary>The persisted form of the review's runway forecasts.</summary>
     internal static EquatableArray<ResourceRunwayRecord> ResourceRunwayRecords(IReadOnlyList<ResourceRunway> rows) =>
         EquatableArray.From(
             rows.Select(r => new ResourceRunwayRecord

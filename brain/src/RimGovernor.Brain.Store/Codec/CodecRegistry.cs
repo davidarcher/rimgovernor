@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Store.Codec;
 
-/// <summary>Every record codec, registered explicitly (the Go <c>init()</c> registration becomes this one list).</summary>
+/// <summary>Every record codec, registered explicitly in this one list.</summary>
 internal static class CodecRegistry
 {
     internal static Codecs Build()

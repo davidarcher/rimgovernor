@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: trade_admit.go.
 
 /// <summary>
 /// Anchors one trade intent's dispatch to a fresh native read (the trade-session read's context). Trade is an

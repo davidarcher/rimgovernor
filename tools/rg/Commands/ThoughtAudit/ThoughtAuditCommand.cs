@@ -6,7 +6,7 @@ using RimGovernor.Tools.Common;
 namespace RimGovernor.Tools.Commands.ThoughtAudit;
 
 /// <summary>
-/// Regenerates the thought-to-trigger table (Go: <c>cmd/thoughtaudit</c>): one row per vanilla ThoughtDef with the game
+/// Regenerates the thought-to-trigger table: one row per vanilla ThoughtDef with the game
 /// state it depends on and how the game grants it, read from the installed game's code.
 /// <code>RimGovernor.cmd thoughtaudit [-rimworld dir] [-out table] [-decompiled dir]</code>
 /// Needs ilspycmd, a global dotnet tool nothing in the repository pins (<c>dotnet tool install -g ilspycmd</c>). It

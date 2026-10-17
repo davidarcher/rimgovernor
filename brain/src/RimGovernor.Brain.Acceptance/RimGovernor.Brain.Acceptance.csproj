@@ -33,7 +33,7 @@
     <PackageReference Include="SourceGear.sqlite3" />
   </ItemGroup>
   <ItemGroup>
-    <!-- The suite data the Go build embedded: the committed suites and the shard planner's measured case times. -->
+    <!-- The embedded suite data: the committed suites and the shard planner's measured case times. -->
     <EmbeddedResource Include="Suites\Data\*.json" LogicalName="RimGovernor.Brain.Acceptance.Suites.%(Filename)%(Extension)" />
     <ProjectReference Include="..\RimGovernor.Brain.Simulation\RimGovernor.Brain.Simulation.csproj" />
   </ItemGroup>

@@ -5,7 +5,7 @@ using System.Globalization;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// One row of the harness's process listing (Go <c>setup.Process</c>): enough to tell whose game it is (Path,
+/// One row of the harness's process listing: enough to tell whose game it is (Path,
 /// CommandLine) and whether it is doing anything (WorkingSet, Cpu against Started).
 /// </summary>
 public sealed record HarnessProcess(int Pid, string Name, string Path, string CommandLine, ulong WorkingSet, TimeSpan Cpu, DateTimeOffset? Started)
@@ -24,13 +24,13 @@ public sealed record HarnessProcess(int Pid, string Name, string Path, string Co
     private static string Slashed(string path) => path.Replace('\\', '/');
 }
 
-/// <summary>The harness's process queries (Go <c>setup/process.go</c>): list by image, narrow to a game copy, stop by pid.</summary>
+/// <summary>The harness's process queries: list by image, narrow to a game copy, stop by pid.</summary>
 public static class HarnessProcesses
 {
     /// <summary>The game's executable and the install marker.</summary>
     public const string GameImage = "RimWorld.exe";
 
-    /// <summary>The images a root launches: the game (the serve binary of the Go harness no longer exists).</summary>
+    /// <summary>The images a root launches: the game.</summary>
     public static IReadOnlyList<string> HarnessImages { get; } = [GameImage];
 
     /// <summary>Lists the running processes of the named images (every one on the machine, peers' included; callers narrow by path).</summary>

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Domain;
 
-/// <summary>A grid cell. Go <c>Cell</c>.</summary>
+/// <summary>A grid cell.</summary>
 public readonly record struct Cell(int X, int Z);
 
 public enum Rotation
@@ -19,7 +19,7 @@ public interface IActionPayload;
 
 /// <summary>
 /// One resolved placement. Native discovery owns definition existence, footprint, map bounds, costs and
-/// placement legality; these are not inferred here. (Go <c>NewBuilding</c> is the constructor.)
+/// placement legality; these are not inferred here.
 /// </summary>
 public sealed record Building
 {
@@ -60,7 +60,7 @@ public enum ConstructionTier
 
 /// <summary>
 /// The payload of a <see cref="ActionKind.Building"/> action: the placement plus the construction settings
-/// Go kept as extra fields on <c>Action</c> (finishing skill, tier, replace-wall, construction target).
+/// carried as extra fields (finishing skill, tier, replace-wall, construction target).
 /// </summary>
 public sealed record BuildingOrder(
     Building Building,
@@ -73,7 +73,7 @@ public sealed record BuildingOrder(
 /// <summary>
 /// An action is a closed variant: a kind plus the payload record of that kind's family. It can only be built
 /// through the validated <c>New...Action</c> factories (one per family, declared beside the payload), so it is
-/// always canonical; there is no zero value. (Go <c>Action</c>; renamed to avoid <see cref="System.Action"/>.)
+/// always canonical; there is no zero value.
 /// </summary>
 public sealed partial record DomainAction
 {

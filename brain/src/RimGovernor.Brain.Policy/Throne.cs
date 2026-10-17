@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Staging the throne room. A colonist who holds an Empire title, or has the favor to claim the next one, is owed
 // the throne room of the next title that asks for one (RoyalRung.Throne*): the plan grows a ThroneRoomSizes room
-// (GrowThroneRoom, layout_throne.go), the sleeping planner raises its shell, places one of the title's throne
+// (GrowThroneRoom), the sleeping planner raises its shell, places one of the title's throne
 // definitions at the template slot, and furnishes the room to the title's minimum impressiveness through the room
 // quality levers (ThroneRoomTargets). The throne's footprint is the native catalog's, never a constant here.
 //

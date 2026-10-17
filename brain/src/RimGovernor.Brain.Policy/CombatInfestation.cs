@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_infestation.go
 //
 // CombatTactic.Infestation is an infestation's own formation: a fight with a live hive, or whose live hostile
 // pawns are all insects, picks it. Every fighter commits at once, brawlers block the tunnel or door with

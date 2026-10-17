@@ -7,13 +7,13 @@ using DomainCell = RimGovernor.Brain.Domain.Cell;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>EmergencyObservation</c>: contains actual native context, not controller authority. The runtime binds
+/// Contains actual native context, not controller authority. The runtime binds
 /// these facts to its captured direction and plan after validation.
 /// </summary>
 public sealed record EmergencyObservation(ObservationContext? Context, EmergencyFacts Facts);
 
 /// <summary>
-/// Go's <c>RoundsFrame</c>: the routine census of one frame, each section decoded. Every row has the frame's tick,
+/// The routine census of one frame, each section decoded. Every row has the frame's tick,
 /// so no section is checked against another. A null section is one the frame does not carry.
 /// </summary>
 public sealed record RoundsFrame
@@ -63,10 +63,10 @@ public sealed record RoundsFrame
     public BillsSnapshot? Bills { get; init; }
 }
 
-// Go frames.go. The frame stream, its seeding and the combat frame validators are wire plumbing and not ported.
+// The frame stream, its seeding and the combat frame validators are wire plumbing and not ported.
 public static class RoundsFrameRules
 {
-    /// <summary>Go's <c>CombatBefore</c>: whether watermark <paramref name="a"/> is strictly before <paramref name="b"/>.</summary>
+    /// <summary>Whether watermark <paramref name="a"/> is strictly before <paramref name="b"/>.</summary>
     public static bool CombatBefore(Watermark? a, Watermark? b)
     {
         var aTick = a?.Tick ?? 0;

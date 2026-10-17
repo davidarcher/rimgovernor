@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.RemoteAccept;
 
 /// <summary>
-/// The JSON boundary (Go <c>remoteaccept.Decode</c>): duplicate keys (also case aliases), missing required fields, null
+/// The JSON boundary: duplicate keys (also case aliases), missing required fields, null
 /// non-nullable fields, wrong types and trailing values fail closed. Hand-written over <see cref="JsonNode"/>; no
 /// reflection-based serialization.
 /// </summary>
@@ -44,7 +44,7 @@ internal static class StrictJson
         return node as JsonArray ?? throw new RemoteAcceptException($"{what}: expected a JSON array");
     }
 
-    /// <summary>Throws on a duplicate key (compared case-insensitively, like Go's decoder folds), malformed JSON or, unless <paramref name="allowMultiple"/>, trailing values.</summary>
+    /// <summary>Throws on a duplicate key (compared case-insensitively), malformed JSON or, unless <paramref name="allowMultiple"/>, trailing values.</summary>
     public static void CheckUnique(ReadOnlySpan<byte> data, bool allowMultiple)
     {
         var options = new JsonReaderOptions { MaxDepth = MaxDepth, AllowMultipleValues = allowMultiple };
@@ -101,7 +101,7 @@ internal static class StrictJson
     /// <summary>Required array field.</summary>
     public static JsonArray Arr(JsonObject o, string key) => Required(o, key) as JsonArray ?? throw new RemoteAcceptException($"{key}: expected an array");
 
-    /// <summary>Required but nullable integer (Go <c>*int</c> without omitempty): the key must exist, null is allowed.</summary>
+    /// <summary>Required but nullable integer: the key must exist, null is allowed.</summary>
     public static int? NullableInt(JsonObject o, string key)
     {
         var n = Present(o, key);
@@ -115,7 +115,7 @@ internal static class StrictJson
         return n is null ? null : ReadString(n, key);
     }
 
-    /// <summary>Required but nullable object (Go pointer to struct).</summary>
+    /// <summary>Required but nullable object.</summary>
     public static JsonObject? NullableObj(JsonObject o, string key)
     {
         var n = Present(o, key);
@@ -165,7 +165,7 @@ internal static class StrictJson
     /// <summary>An array element that must be a string.</summary>
     public static string ElementStr(JsonNode? n) => ReadString(n ?? throw new RemoteAcceptException("null string"), "element");
 
-    /// <summary>Lenient string read (Go <c>json.Unmarshal</c> into a string field): absent or null gives "", a non-string throws.</summary>
+    /// <summary>Lenient string read: absent or null gives "", a non-string throws.</summary>
     public static string LooseStr(JsonObject o, string key) =>
         o.TryGetPropertyValue(key, out var n) && n is not null ? ReadString(n, key) : "";
 
@@ -185,7 +185,7 @@ internal static class StrictJson
     public static List<JsonNode?> LooseArr(JsonObject o, string key) =>
         o.TryGetPropertyValue(key, out var n) && n is not null ? [.. (n as JsonArray ?? throw new RemoteAcceptException($"{key}: expected an array"))] : [];
 
-    /// <summary>Lenient parse (Go <c>json.Unmarshal</c>): well-formed JSON object, duplicates tolerated.</summary>
+    /// <summary>Lenient parse: well-formed JSON object, duplicates tolerated.</summary>
     public static JsonObject ParseLoose(ReadOnlySpan<byte> data)
     {
         try
@@ -198,7 +198,7 @@ internal static class StrictJson
         }
     }
 
-    /// <summary>Writes compact JSON (Go <c>json.Marshal</c>).</summary>
+    /// <summary>Writes compact JSON.</summary>
     public static byte[] Compact(Action<Utf8JsonWriter> write)
     {
         using var stream = new MemoryStream();
@@ -210,7 +210,7 @@ internal static class StrictJson
         return stream.ToArray();
     }
 
-    /// <summary>Writes two-space indented JSON with a trailing newline (Go <c>json.MarshalIndent</c> plus the newline <c>WriteJSON</c> appends).</summary>
+    /// <summary>Writes two-space indented JSON with a trailing newline.</summary>
     public static byte[] Indented(Action<Utf8JsonWriter> write)
     {
         using var stream = new MemoryStream();
@@ -223,7 +223,7 @@ internal static class StrictJson
         return stream.ToArray();
     }
 
-    /// <summary>A copy of <paramref name="source"/> with its top-level keys in ordinal order (what Go's map marshalling produces).</summary>
+    /// <summary>A copy of <paramref name="source"/> with its top-level keys in ordinal order.</summary>
     public static JsonObject SortedCopy(JsonObject source)
     {
         var copy = new JsonObject();
@@ -235,7 +235,7 @@ internal static class StrictJson
         return copy;
     }
 
-    /// <summary>Writes <paramref name="node"/> with every object's keys sorted (Go decodes to maps and the encoder sorts them).</summary>
+    /// <summary>Writes <paramref name="node"/> with every object's keys sorted.</summary>
     public static void WriteSorted(Utf8JsonWriter w, JsonNode? node)
     {
         switch (node)
@@ -268,7 +268,7 @@ internal static class StrictJson
         }
     }
 
-    /// <summary>Writes <paramref name="n"/> (a raw JSON text, "null" included) or nothing when null; used for Go <c>json.RawMessage</c> fields.</summary>
+    /// <summary>Writes <paramref name="n"/> (a raw JSON text, "null" included) or nothing when null; used for raw JSON fields.</summary>
     public static void WriteRaw(Utf8JsonWriter w, string raw)
     {
         var node = JsonNode.Parse(raw, null, DocumentOptions);

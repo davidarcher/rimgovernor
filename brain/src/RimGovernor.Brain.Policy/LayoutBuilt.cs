@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 // The built world in the embedding (#2877). A room that stands is a fixed block: the group MatchGroupRooms
 // gives it keeps its interior, and the embedding places the other groups around it. The only way a built room
 // moves is the relocation pass (Embedder.Relocate), which prices the move the way the replan always did
-// (layout_switch.go) and so adds no constant:
+// and so adds no constant:
 //
 //   - score gain: the room's best other position, of the same shape, must beat staying by switchThreshold:
 //     ReplanGain plus BuiltSwitch and BuiltSwitchCell per floor cell (the walls, floor and furniture built

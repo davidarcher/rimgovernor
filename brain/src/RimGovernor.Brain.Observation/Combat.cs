@@ -8,7 +8,7 @@ using P = RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 /// <summary>
-/// Go's <c>Combat</c> (bridge frames.go): the combat state of the newest frame, the emergency census with its combat
+/// The combat state of the newest frame, the emergency census with its combat
 /// detail, the lines of fire, the standing rooms, doors and mortars, the frame's temperatures, and the load's
 /// catalog with the mortar shells and the weapons' things read off it. The frame decoder (<c>DecodeCombat</c>) and
 /// the stream read (<c>ReadCombat</c>) are wire plumbing and not ported.

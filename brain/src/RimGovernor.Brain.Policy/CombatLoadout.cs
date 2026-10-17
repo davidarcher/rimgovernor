@@ -1,9 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_loadout.go
 //
 // Types awaiting later slices: EquipCandidatePawn, EquipCandidateWeapon (equip scoring), WeaponRole, WeaponClass,
-// ScoreWeapon. Property names on them are the Go field names in PascalCase.
+// ScoreWeapon. Property names on them are the field names in PascalCase.
 
 /// <summary>The threat a fight's loadout answers.</summary>
 public enum LoadoutThreat

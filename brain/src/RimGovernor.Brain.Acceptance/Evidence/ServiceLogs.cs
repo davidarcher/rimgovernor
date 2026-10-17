@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// <summary>
 /// A service's evidence is its OTLP/JSON file sink (docs/developers/contracts/otel-core.md): traces.jsonl, logs.jsonl
 /// and metrics.jsonl under an otlp directory. Decisions, events and the native rows are the log records; the case
-/// oracles read them as <see cref="LogRow"/>s (Go <c>logs.go</c>).
+/// oracles read them as <see cref="LogRow"/>s.
 /// </summary>
 public static class ServiceLogs
 {

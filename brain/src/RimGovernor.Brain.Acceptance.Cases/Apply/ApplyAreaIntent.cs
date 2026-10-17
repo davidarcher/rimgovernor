@@ -4,7 +4,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>apply/area-intent</c> (Go <c>area_intent.go</c>): AreaIntent on Actions/Apply (#1321). A bot area is created with
+/// <c>apply/area-intent</c>: AreaIntent on Actions/Apply (#1321). A bot area is created with
 /// a cell, gains and loses cells, a resent create applies again on the same area, it is deleted (twice), and the home
 /// area gains and loses one cell; every receipt carries the area load id and cell count after the edit.
 /// </summary>

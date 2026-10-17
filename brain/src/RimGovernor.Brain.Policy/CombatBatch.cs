@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_batch.go
 
 public static partial class CombatBatchRules
 {

@@ -1,8 +1,7 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// The <c>mood/*</c> acceptance cases: arrest and subdue custody and the native gathering. <see cref="Register"/> replaces
-/// the Go package's <c>init()</c>.
+/// The <c>mood/*</c> acceptance cases: arrest and subdue custody and the native gathering. <see cref="Register"/> registers them.
 /// </summary>
 public static class MoodCases
 {

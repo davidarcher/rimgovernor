@@ -6,8 +6,8 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// Starts a programmatic scenario from the main menu through the production new-colony op
-/// (<c>rimgovernor/lifecycle_new_colony</c>), the behaviour Go declared on <c>ScenarioStart</c> (the value type is
-/// <see cref="ScenarioSpec"/>). It is how a save variant is generated rather than hand-played. The seed is required
+/// (<c>rimgovernor/lifecycle_new_colony</c>); the value type is
+/// <see cref="ScenarioSpec"/>. It is how a save variant is generated rather than hand-played. The seed is required
 /// and pins the world; the team policy's rerolls make a colony differ from one a different build generated.
 /// </summary>
 public static class ScenarioStarts

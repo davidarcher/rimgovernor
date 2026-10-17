@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_items.go, catalog_fuel.go and the plant and light rules of plant_rules.go: item facts the defs state. A
+// Item facts the defs state. A
 // frame carries what varies; what a def says about itself is read here from its ThingDef. A def without a row is a
 // contract error, never a default.
 

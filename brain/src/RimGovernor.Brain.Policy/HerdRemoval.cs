@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 public static class HerdRemovalRules
 {
     /// <summary>
-    /// Go <c>ReconcileHerdRemoval</c>: compares durable native flags with today's objectives. It has no
+    /// Compares durable native flags with today's objectives. It has no
     /// controller-history dependency, so Manual edits and save/load use the same rule. Existing valid removals
     /// consume the budget before new work.
     /// </summary>

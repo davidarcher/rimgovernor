@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record GearReplace : IActionPayload
 {
-    /// <summary>Go <c>NewGearReplace</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public GearReplace(PawnId pawn, string thing, string definition)
     {
         DomainException.Require(

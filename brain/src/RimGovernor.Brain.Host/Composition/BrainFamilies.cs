@@ -1,13 +1,13 @@
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// The routine planner families a composition wires (Go <c>serveConfig.rounds*Plans</c> and
-/// <c>routinefamily</c>). Every family is on by default, exactly as an autonomous Go serve composed them;
+/// The routine planner families a composition wires.
+/// Every family is on by default, exactly as an autonomous serve composes them;
 /// <see cref="FromEnvironment"/> narrows them the way <c>RIMGOVERNOR_ROUTINE_FAMILIES</c> did.
 /// </summary>
 public sealed record BrainFamilies
 {
-    /// <summary>The environment variable that narrows the families (Go <c>roundsFamiliesEnv</c>).</summary>
+    /// <summary>The environment variable that narrows the families.</summary>
     public const string EnvironmentVariable = "RIMGOVERNOR_ROUTINE_FAMILIES";
 
     /// <summary>The <c>sleeping</c> family.</summary>
@@ -263,7 +263,7 @@ public sealed record BrainFamilies
 
     /// <summary>
     /// The families <paramref name="selection"/> names, a comma-separated list of the family names; every family when
-    /// it is null, empty or blank (Go <c>selectRoundsFamilies</c>). A name no family has throws
+    /// it is null, empty or blank. A name no family has throws
     /// <see cref="FormatException"/>.
     /// </summary>
     public static BrainFamilies FromEnvironment(string? selection)
@@ -291,16 +291,16 @@ public sealed record BrainFamilies
         return result;
     }
 
-    /// <summary>The name of every enabled family, in composition order (Go <c>activeRoundsFamilies</c>).</summary>
+    /// <summary>The name of every enabled family, in composition order.</summary>
     public IReadOnlyList<string> Active() => [.. Entries.Where(e => e.Get(this)).Select(e => e.Name)];
 
-    /// <summary>Whether the economy family's research Need is composed (Go <c>researchPlans</c>).</summary>
+    /// <summary>Whether the economy family's research Need is composed.</summary>
     public bool ResearchPlans => Research;
 
-    /// <summary>Whether the economy/resource Need runs (Go <c>resourceTargetsConfigured</c>).</summary>
+    /// <summary>Whether the economy/resource Need runs.</summary>
     public bool ResourceTargetsConfigured => Resource;
 
-    /// <summary>Whether the workshop planner is composed: it needs a resource target or the gear family (Go <c>workshopPlans</c>).</summary>
+    /// <summary>Whether the workshop planner is composed: it needs a resource target or the gear family.</summary>
     public bool WorkshopPlans => Workshop && (ResourceTargetsConfigured || Gear);
 
     private sealed record Entry(string Name, Func<BrainFamilies, bool> Get, Func<BrainFamilies, bool, BrainFamilies> With);

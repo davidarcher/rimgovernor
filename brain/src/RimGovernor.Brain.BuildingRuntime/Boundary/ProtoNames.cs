@@ -2,7 +2,7 @@ using System.Reflection;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Go's <c>enum.String()</c> for a wire enum: the member's original schema name (<c>FAILURE_CODE_REFUSED</c>), carried by its <c>[WireName]</c>.</summary>
+/// <summary>The original schema name of a wire enum member (<c>FAILURE_CODE_REFUSED</c>), carried by its <c>[WireName]</c>.</summary>
 internal static class ProtoNames
 {
     public static string Of<T>(T value)

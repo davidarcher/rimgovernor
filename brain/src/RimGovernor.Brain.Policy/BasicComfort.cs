@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: basic_comfort.go
 
 /// <summary>
 /// The foothold half of the comfort need: every colonist can reach a seat at an indoor eating surface and a

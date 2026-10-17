@@ -2,12 +2,11 @@ using RimGovernor.Brain.Bridge.Contracts;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go presentation_reads.go (ReadCamera, ReadSelection, ReadColonistRoster, ReadRenderState), presentation_media.go
-// (PresentationMedia.DemandRendering) and notifications.go (ReadNotifications). A failure arm throws what Failure
-// builds, as Go returned it as an error alongside the reply.
+// (PresentationMedia.DemandRendering) and ReadNotifications. A failure arm throws what Failure
+// builds.
 public sealed partial class FacadeNativeClient
 {
-    /// <summary>Go <c>Client.ReadCamera</c>: the camera, observation only.</summary>
+    /// <summary>The camera, observation only.</summary>
     internal async Task<PbPresentation.CameraReply> ReadCameraAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -20,7 +19,7 @@ public sealed partial class FacadeNativeClient
         return reply;
     }
 
-    /// <summary>Go <c>Client.ReadSelection</c>: the selection, observation only.</summary>
+    /// <summary>The selection, observation only.</summary>
     internal async Task<PbPresentation.SelectionReply> ReadSelectionAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -33,7 +32,7 @@ public sealed partial class FacadeNativeClient
         return reply;
     }
 
-    /// <summary>Go <c>Client.ReadColonistRoster</c>: the colonist roster.</summary>
+    /// <summary>The colonist roster.</summary>
     internal async Task<PbPresentation.ColonistRosterReply> ReadColonistRosterAsync(PbPresentation.ColonistRosterRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -52,7 +51,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadRenderState</c>: a zero-side-effect observation that never extends or shortens the native rendering
+    /// A zero-side-effect observation that never extends or shortens the native rendering
     /// lease. <see cref="DemandRenderingAsync"/> is the only call that changes lease state.
     /// </summary>
     internal async Task<PbPresentation.RenderReply> ReadRenderStateAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
@@ -63,7 +62,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>PresentationMedia.DemandRendering</c>: asks the native mod to keep rendering for the lease seconds of real
+    /// Asks the native mod to keep rendering for the lease seconds of real
     /// time; zero only reads status. The viewer carries no authority of its own.
     /// </summary>
     internal async Task<PbPresentation.RenderReply> DemandRenderingAsync(PbPresentation.RenderDemand request, CancellationToken cancellationToken)
@@ -93,7 +92,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadNotifications</c>: only observes. Partial listings and unknown optional facts remain partial or
+    /// Only observes. Partial listings and unknown optional facts remain partial or
     /// unknown; this read never acknowledges or dismisses anything.
     /// </summary>
     internal async Task<PbPresentation.NotificationsReply> ReadNotificationsAsync(PbPresentation.NotificationsRequest request, CancellationToken cancellationToken)

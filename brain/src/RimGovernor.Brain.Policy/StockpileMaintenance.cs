@@ -46,7 +46,7 @@ public enum StockpileEditKind
     /// <summary>Removes the cells a zone's room gave up, or furniture stands on; stock on them drains by vanilla hauling.</summary>
     Shrink,
 
-    /// <summary>Configures a shelf like its zone: Zone names the shelf building, Role is shelf:&lt;buildingID&gt;. (Go <c>StockpileShelfPatch</c>.)</summary>
+    /// <summary>Configures a shelf like its zone: Zone names the shelf building, Role is shelf:&lt;buildingID&gt;.</summary>
     [WireName("shelf")]
     ShelfPatch,
 }

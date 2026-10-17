@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // Native work types routine goals dispatch pawn work through. Names are RimWorld WorkTypeDef defNames as
-// ListPawns reports them. The WorkType members this file's Go consts name (Construction, Research, Mining,
+// ListPawns reports them. The WorkType members (Construction, Research, Mining,
 // PlantCutting, Crafting, Hauling, Cleaning, Basic = BasicWorker, Handling, Cooking, Firefighter, Tailoring,
 // Smithing) belong to the WorkType enum.
 public static class LaborRules

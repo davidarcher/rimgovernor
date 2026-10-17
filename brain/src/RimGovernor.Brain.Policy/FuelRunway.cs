@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Policy;
 /// that also burns in rain. WhenPowered and Flickable gate the continuous burn: native ticks it only while the
 /// building is powered (WhenPowered) and switched on (Flickable). Difficulty scales UnitsPerItem for a comp with
 /// factorByDifficulty (the storyteller's maintenance cost factor, which no observation carries): UnitsPerItem is
-/// then the def's own multiplier. (Go <c>FuelBurn</c>.)
+/// then the def's own multiplier.
 /// </summary>
 public sealed record FuelBurn
 {
@@ -34,7 +34,7 @@ public sealed record FuelBurn
 
 /// <summary>
 /// One refuelable building the power census shows: the fuel units it holds against its target, the facts its
-/// def's burn is gated on and the fuel definitions it accepts, in the census's order. (Go <c>FuelConsumer</c>.)
+/// def's burn is gated on and the fuel definitions it accepts, in the census's order.
 /// </summary>
 public sealed record FuelConsumer
 {
@@ -57,7 +57,7 @@ public sealed record FuelConsumer
     public IReadOnlyList<Resource> Fuels { get; init; } = [];
 
     /// <summary>
-    /// Go <c>FuelConsumer.perDay</c>: the fuel units a day the building burns now, unknown for a comp that burns
+    /// The fuel units a day the building burns now, unknown for a comp that burns
     /// per use or in rain and when its burn is unknown.
     /// </summary>
     internal Fact<double> PerDay()
@@ -73,7 +73,7 @@ public sealed record FuelConsumer
         return Known(burn.PerDay);
     }
 
-    /// <summary>Go <c>FuelConsumer.fuelItem</c>: the fuel definition the consumer's demand is named for: the first it accepts that is in stock, else its first (the rearm's choice).</summary>
+    /// <summary>The fuel definition the consumer's demand is named for: the first it accepts that is in stock, else its first (the rearm's choice).</summary>
     internal (Resource Item, bool Ok) FuelItem(StockReader stock)
     {
         foreach (var r in Fuels)
@@ -87,7 +87,7 @@ public sealed record FuelConsumer
     }
 }
 
-/// <summary>What the fuel runway is computed from. (Go <c>FuelInputs</c>.)</summary>
+/// <summary>What the fuel runway is computed from.</summary>
 public sealed record FuelInputs
 {
     public Fact<EquatableArray<FuelConsumer>> Consumers { get; init; }
@@ -98,7 +98,7 @@ public sealed record FuelInputs
 /// <summary>
 /// One fuel item's runway. Burn is the fuel units a day the continuous consumers burn, Need the items to hold
 /// ahead of them (the horizon's burn less what their tanks hold, plus the refill of the barrels already empty)
-/// and MissingItems the items missing from stock. (Go <c>FuelResourceRunway</c>.)
+/// and MissingItems the items missing from stock.
 /// </summary>
 public sealed record FuelResourceRunway
 {
@@ -115,7 +115,7 @@ public sealed record FuelResourceRunway
     public double ShortfallDays { get; init; }
 }
 
-/// <summary>The fuel domain of the forward projection. ShortfallDays is the largest per-resource shortfall. (Go <c>FuelProjection</c>.)</summary>
+/// <summary>The fuel domain of the forward projection. ShortfallDays is the largest per-resource shortfall.</summary>
 public sealed record FuelProjection
 {
     public IReadOnlyList<FuelResourceRunway> Resources { get; init; } = [];
@@ -126,7 +126,7 @@ public sealed record FuelProjection
     public IReadOnlyList<string> Gaps { get; init; } = [];
 }
 
-/// <summary>The review's fuel runway: Needs the stock levels the economy/resource Need must reach, the projection beside them. (Go <c>FuelRunway</c>.)</summary>
+/// <summary>The review's fuel runway: Needs the stock levels the economy/resource Need must reach, the projection beside them.</summary>
 public sealed record FuelRunway
 {
     public IReadOnlyDictionary<Resource, long> Needs { get; init; } = new Dictionary<Resource, long>();
@@ -136,7 +136,7 @@ public sealed record FuelRunway
 
 public static class RoundsFactsFuelExtensions
 {
-    /// <summary>Go <c>RoundsFacts.FuelRunway</c>: <see cref="FuelRunwayRules.PlanFuelRunway"/> of the review's facts.</summary>
+    /// <summary><see cref="FuelRunwayRules.PlanFuelRunway"/> of the review's facts.</summary>
     public static FuelRunway FuelRunway(this RoundsFacts f) =>
         FuelRunwayRules.PlanFuelRunway(new FuelInputs { Consumers = f.Fuel, Stock = new StockReader { Resources = f.Resources, Wood = f.Wood } });
 }
@@ -154,7 +154,7 @@ public static class FuelRunwayRules
     }
 
     /// <summary>
-    /// Go <c>PlanFuelRunway</c>: rolls every refuelable building forward over MaintenanceHorizonDays. A building
+    /// Rolls every refuelable building forward over MaintenanceHorizonDays. A building
     /// that burns at a known daily rate needs the horizon's burn less its tank; one already empty needs its refill
     /// (runway zero, whatever its rate). A building that burns per use and still holds fuel has no runway and is
     /// listed in Gaps. An unread census or stock, or a building whose fuel, rate gate, fuel item or unit

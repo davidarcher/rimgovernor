@@ -7,12 +7,12 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// Wraps an observed <see cref="FoodStock"/> (reused as-is from FoodForecast.cs). Whether the stock counts as
 /// adequately stored is derived per review from its Roofed/TemperatureC/RotTicks facts by <see cref="Stored"/>,
-/// so the storage and refrigeration policies share one definition. (Go <c>FoodStorageStock</c>.)
+/// so the storage and refrigeration policies share one definition.
 /// </summary>
 public sealed record FoodStorageStock(FoodStock Stock)
 {
     /// <summary>
-    /// Go <c>FoodStorageStock.stored</c>: whether a perishable stock sits in adequate storage: roofed, and either
+    /// Whether a perishable stock sits in adequate storage: roofed, and either
     /// chilled to chilledMaxC or with at least SafeRotDays of runway left at its current temperature. A
     /// roofed-but-warm stockpile is adequate for food that will be eaten long before it rots; only warm food
     /// close to spoiling is at risk. Unknown when any needed fact is unknown.
@@ -39,7 +39,7 @@ public sealed record FoodStorageStock(FoodStock Stock)
 
 /// <summary>
 /// The complete per-cycle census the food stores family's storage Need reviews. An unknown Stocks fact leaves the
-/// Need unknown, never met. (Go <c>FoodStorageObservation</c>.)
+/// Need unknown, never met.
 /// </summary>
 public sealed record FoodStorageObservation
 {
@@ -53,7 +53,7 @@ public sealed record FoodStorageObservation
     /// </summary>
     public double ChilledMaxC { get; init; }
 
-    /// <summary>Go <c>FoodStorageObservation.Validate</c>: rejects malformed or duplicate stock rows; an unknown census is valid. Throws <see cref="DomainException"/>.</summary>
+    /// <summary>Rejects malformed or duplicate stock rows; an unknown census is valid. Throws <see cref="DomainException"/>.</summary>
     public void Validate()
     {
         if (!Stocks.TryGetValue(out var stocks))
@@ -76,7 +76,7 @@ public sealed record FoodStorageObservation
 /// <summary>
 /// Names the fraction of at-risk perishable nutrition ReviewFoodStorage wants adequately stored (a plain
 /// threshold, #3251), plus a floor below which a tiny at-risk amount never counts as a deficit (avoiding thrash
-/// over a single dropped ration). (Go <c>FoodStoragePolicy</c>.)
+/// over a single dropped ration).
 /// </summary>
 public sealed record FoodStoragePolicy
 {
@@ -103,7 +103,7 @@ public sealed record FoodStoragePolicy
 /// <summary>
 /// The storage review over what stands now, with no latch (#3251): Active while the stored share is under
 /// TargetStoredFraction or a larder corpse change is due; an unknown census leaves the nutrition facts unknown
-/// and Active false, which the Need reads as unknown. (Go <c>FoodStorageReview</c>.)
+/// and Active false, which the Need reads as unknown.
 /// </summary>
 public sealed record FoodStorageReview
 {
@@ -148,7 +148,6 @@ public enum FoodStorageMethodKind
 /// <summary>
 /// A candidate covered/enclosed stockpile SelectFoodStorageMethod may relocate at-risk stock into. Capacity is
 /// the site's remaining nutrition-equivalent room; it is a plain observed fact, not a reservation.
-/// (Go <c>FoodStorageSite</c>.)
 /// </summary>
 public sealed record FoodStorageSite
 {
@@ -161,7 +160,7 @@ public sealed record FoodStorageSite
 /// The outcome SelectFoodStorageMethod proposes: Stuck when a covered/enclosed site already has room (no order
 /// is planned; vanilla hauling owns the move), or, when no site has room, a StockTarget-style production bill
 /// request for more preserved/non-perishable food (Resource/Target only; bench and recipe selection is the
-/// routine planner's job, the same deferral GearProduce/the economy/resource Need already use). (Go <c>FoodStorageMethod</c>.)
+/// routine planner's job, the same deferral GearProduce/the economy/resource Need already use).
 /// </summary>
 public sealed record FoodStorageMethod
 {
@@ -178,7 +177,7 @@ public sealed record FoodStorageMethod
 /// Carries everything SelectFoodStorageMethod needs: the latched Review, the observed candidate Sites census, the
 /// one Resource name to fall back to producing (an operator-declared preserved/non-perishable food definition, a
 /// config-only choice), and Seen method IDs already dispatched this cycle so a resolved relocation or bill is
-/// never proposed twice. (Go <c>FoodStoragePlanningRequest</c>.)
+/// never proposed twice.
 /// </summary>
 public sealed record FoodStoragePlanningRequest
 {
@@ -193,7 +192,7 @@ public sealed record FoodStoragePlanningRequest
 
 public static class FoodStorageUpkeepRules
 {
-    /// <summary>Go <c>FoodStorageStocks</c>: lifts a food-supply census into the storage-upkeep census. chilledMaxC is the catalog's full-rot-rate temperature.</summary>
+    /// <summary>Lifts a food-supply census into the storage-upkeep census. chilledMaxC is the catalog's full-rot-rate temperature.</summary>
     public static FoodStorageObservation FoodStorageStocks(FoodSupply supply, double chilledMaxC) =>
         new()
         {
@@ -205,7 +204,7 @@ public static class FoodStorageUpkeepRules
     /// <summary>Accepts any finite temperature, below zero included.</summary>
     internal static bool Celsius(double n) => !double.IsNaN(n) && !double.IsInfinity(n);
 
-    /// <summary>Go <c>FoodStorageUnstored</c>: whether a stock is known perishable, not yet rotted and known not adequately stored under p and the census's chilledMaxC.</summary>
+    /// <summary>Whether a stock is known perishable, not yet rotted and known not adequately stored under p and the census's chilledMaxC.</summary>
     public static bool FoodStorageUnstored(FoodStorageStock s, double chilledMaxC, FoodStoragePolicy p)
     {
         var pk = s.Stock.Perishable.TryGetValue(out var perishable);
@@ -228,12 +227,12 @@ public static class FoodStorageUpkeepRules
         };
 
     /// <summary>
-    /// Go <c>ReviewFoodStorage</c>: tallies perishable, not-yet-rotted nutrition across every observed stock,
+    /// Tallies perishable, not-yet-rotted nutrition across every observed stock,
     /// splitting it into stored and unstored piles. It is active while the unstored pile clears
     /// AtRiskNutritionThreshold and the stored share of total perishable nutrition is under TargetStoredFraction,
     /// with no latch (#3251). Non-perishable and already-rotted stock never contributes: it is not at risk of being
     /// lost to inadequate storage. An unknown fact anywhere in the census leaves the review unmeasured (inactive,
-    /// nutrition unknown). Throws <see cref="DomainException"/> where Go returned an error.
+    /// Nutrition unknown). Throws <see cref="DomainException"/>.
     /// </summary>
     public static FoodStorageReview ReviewFoodStorage(FoodStorageObservation v, FoodStoragePolicy p)
     {
@@ -298,18 +297,18 @@ public static class FoodStorageUpkeepRules
 
     private static MethodId FoodStorageMethodId(string kind, string resource, long target)
     {
-        // Mirrors Go's json.Marshal of struct{Resource Resource; Target int64}.
+        // The JSON of struct{Resource Resource; Target int64}.
         var json = $"{{\"Resource\":{JsonSerializer.Serialize(resource)},\"Target\":{target}}}";
         var sum = SHA256.HashData(Encoding.UTF8.GetBytes(kind + ":" + json));
         return new MethodId($"food-storage-{kind}-{Convert.ToHexStringLower(sum.AsSpan(0, 16))}");
     }
 
     /// <summary>
-    /// Go <c>SelectFoodStorageMethod</c>: issues no game orders and reserves nothing; the shared method
+    /// Issues no game orders and reserves nothing; the shared method
     /// admission must recheck site capacity and production costs against concurrent plans before committing.
     /// With the deficit active, the first candidate site (by deterministic sort) with known spare capacity makes
     /// the outcome Stuck. Only once every site is exhausted does it fall back to Produce. Throws
-    /// <see cref="DomainException"/> where Go returned an error.
+    /// <see cref="DomainException"/>.
     /// </summary>
     public static FoodStorageMethod SelectFoodStorageMethod(FoodStoragePlanningRequest r)
     {

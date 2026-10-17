@@ -4,16 +4,16 @@ using RimGovernor.Brain.Store.Codec;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>A persisted pawn's area restriction; an unknown area persists as null (Go <c>RoundsRecoveryRestriction</c>).</summary>
+/// <summary>A persisted pawn's area restriction; an unknown area persists as null.</summary>
 public sealed record RoundsRecoveryRestriction(PawnId Pawn, string? Area);
 
-/// <summary>The persisted recovery safety evidence (Go <c>RoundsRecoverySafety</c>).</summary>
+/// <summary>The persisted recovery safety evidence.</summary>
 public sealed record RoundsRecoverySafety
 {
     public EquatableArray<RoundsRecoveryRestriction> Restrictions { get; init; }
 }
 
-/// <summary>A persisted worker's observed state; every observation is unknown (null) or a value (Go <c>RoundsRecoveryWorker</c>).</summary>
+/// <summary>A persisted worker's observed state; every observation is unknown (null) or a value.</summary>
 public sealed record RoundsRecoveryWorker
 {
     public PawnId Pawn { get; init; }
@@ -29,7 +29,7 @@ public sealed record RoundsRecoveryWorker
     public bool? PlayerForced { get; init; }
 }
 
-/// <summary>A persisted building's observed state; every observation is unknown (null) or a value (Go <c>RoundsRecoveryBuilding</c>).</summary>
+/// <summary>A persisted building's observed state; every observation is unknown (null) or a value.</summary>
 public sealed record RoundsRecoveryBuilding
 {
     public string Id { get; init; } = "";
@@ -55,7 +55,7 @@ public sealed record RoundsRecoveryBuilding
 
 /// <summary>
 /// Retains the exact inputs for reproducible proposal readback. Nullable values are storage boundaries, not known
-/// zero/false domain observations (Go <c>RoundsRecovery</c>). It is keyed by the Need it serves and that Need's
+/// zero/false domain observations. It is keyed by the Need it serves and that Need's
 /// world (#3304); a record an older journal keyed by its incident is dropped on load.
 /// </summary>
 public sealed record RoundsRecovery
@@ -80,7 +80,7 @@ public sealed record RoundsRecovery
 
     public RecoverySelection Selection { get; init; } = new();
 
-    /// <summary>The planning facts this record retains, lifted back into policy terms (Go <c>planning</c>).</summary>
+    /// <summary>The planning facts this record retains, lifted back into policy terms.</summary>
     internal RecoveryPlanning Planning()
     {
         var planning = new RecoveryPlanning();
@@ -141,7 +141,7 @@ public sealed record RoundsRecovery
 
 public sealed partial class Store
 {
-    /// <summary>The retained planning inputs, with no Need, used methods or selection yet (Go <c>recoveryRecord</c>).</summary>
+    /// <summary>The retained planning inputs, with no Need, used methods or selection yet.</summary>
     internal static RoundsRecovery RecoveryRecord(RecoveryPlanning p)
     {
         var r = new RoundsRecovery();
@@ -198,7 +198,7 @@ public sealed partial class Store
 
     /// <summary>
     /// Re-derives the stored recovery selection from its retained inputs and refuses a review whose selection is
-    /// unowned, from the future, invalid or not what those inputs select (Go <c>validateRoundsRecovery</c>).
+    /// unowned, from the future, invalid or not what those inputs select.
     /// </summary>
     internal static void ValidateRoundsRecovery(Rounds r)
     {
@@ -224,7 +224,7 @@ public sealed partial class Store
 
     /// <summary>
     /// The recovery selection of this review for the <see cref="DisasterFamily.Services"/> Need in its world: null
-    /// without a disaster history or while a Safeguard vetoes routine work (Go <c>roundsRecovery</c>).
+    /// without a disaster history or while a Safeguard vetoes routine work.
     /// </summary>
     internal static RoundsRecovery? RoundsRecoveryFor(StoreTransaction tx, RoundsFacts f, DisasterHistory? h, Rounds review, Tick tick)
     {

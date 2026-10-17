@@ -2,8 +2,6 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Port of internal/buildingruntime/clock_combat_stops.go.
-
 /// <summary>
 /// The combat hold list, the resume-latency gate and the per-combat stop metrics. The decision events a combat
 /// watch arms: native holds the clock on the tick one of these happens. Only decision-class events are armed (a
@@ -40,8 +38,8 @@ internal static class ClockCombatStops
         tripped && fallback < target ? fallback : target;
 
     /// <summary>
-    /// Names a stop for the metrics: the armed combat event, or the stop reason (<c>tick_budget</c> is the backstop)
-    /// (Go <c>combatStopKind</c>). The wire enum's C# name, lower snake case, is Go's lowercased name without its prefix.
+    /// Names a stop for the metrics: the armed combat event, or the stop reason (<c>tick_budget</c> is the backstop).
+    /// The name is the wire enum's C# name in lower snake case.
     /// </summary>
     public static string Kind(PbClock.Status held) =>
         held.CombatEvent is not null && held.CombatEvent.GetValueOrDefault() != PbClock.CombatEvent.Unspecified
@@ -63,7 +61,7 @@ internal static class ClockCombatStops
         return builder.ToString();
     }
 
-    /// <summary>The nearest-rank percentile of <paramref name="values"/>, default when empty (Go <c>percentile</c>).</summary>
+    /// <summary>The nearest-rank percentile of <paramref name="values"/>, default when empty.</summary>
     public static T Percentile<T>(IReadOnlyList<T> values, int p)
         where T : IComparable<T>
     {
@@ -82,7 +80,7 @@ internal static class ClockCombatStops
 /// Measures one combat's stops for the OTLP log ring: stops by event kind (the tick budget is the backstop), the
 /// wall latency from a stop to the next Run, and the ticks between stops. A combat is the run of
 /// consecutive combat runs; its summary is logged when a colony run follows. Touched only under the player
-/// gate (Go <c>combatStopMetrics</c>).
+/// gate.
 /// </summary>
 internal sealed class CombatStopMetrics(TimeSpan resumeBudget)
 {

@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_explosives.go
 //
 // Heavy explosives raids: once any live hostile carries an explosive weapon (threat tier 0) the line spreads
 // two tiles apart (firingGap), takes its cells for room to move rather than cover, and posts outside the

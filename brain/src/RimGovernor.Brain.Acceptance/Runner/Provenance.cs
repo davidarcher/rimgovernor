@@ -2,7 +2,7 @@ using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>The process a case got (Go <c>cases.Isolation</c>).</summary>
+/// <summary>The process a case got.</summary>
 public static class Isolation
 {
     /// <summary>The process ends with the case: nothing after it inherits native static state it touched.</summary>
@@ -15,7 +15,7 @@ public static class Isolation
     public const string Shared = "shared-process";
 }
 
-/// <summary>The "what does this result prove?" block (Go <c>cases/provenance.go</c>).</summary>
+/// <summary>The "what does this result prove?" block.</summary>
 public static class Provenance
 {
     /// <summary>The report block <see cref="Stamp"/> fills.</summary>

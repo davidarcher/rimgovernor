@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
             }
             else
             {
-                // A bounded set of legal observations; Go chooses among them.
+                // A bounded set of legal observations; the brain chooses among them.
                 foreach (var cell in map.AllCells.OrderBy(c => c.DistanceToSquared(map.Center)))
                 {
                     if (cell.Fogged(map) || !GenConstruct.CanPlaceBlueprintAt(marker.def, cell, Rot4.North, map, false, pack, marker).Accepted) continue;

@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// One harness's hold on the RimWorld process: a fresh launch, or an attach to a process an earlier harness left at the
-/// main menu (Go <c>Game</c>, <c>OpenGame</c>, <c>StopGame</c> and <c>WarmGame</c> of <c>warm.go</c>).
+/// main menu.
 /// <para>
 /// By default (<see cref="KeepGameEnv"/> unset, or anything but 0/false/no) <see cref="Close"/> returns the game to the
 /// main menu instead of stopping it, and the next <see cref="OpenGameAsync"/> under the same root attaches to the running

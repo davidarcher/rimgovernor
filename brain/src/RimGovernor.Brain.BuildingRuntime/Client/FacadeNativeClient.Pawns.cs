@@ -4,35 +4,33 @@ using PolicyMechInput = RimGovernor.Brain.Policy.MechInput;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go combat_pawns.go, pawns.go, work_pawns.go, tend_pawns.go, home_colonists.go and biotech_mechs.go: the pawn-list
-// reads. Each differs only in which PawnDetails families it asks for.
+// The pawn-list reads. Each differs only in which PawnDetails families it asks for.
 public sealed partial class FacadeNativeClient
 {
-    /// <summary>The main-thread milliseconds the tend pair reachability may spend (Go <c>TendReachBudgetMS</c>).</summary>
+    /// <summary>The main-thread milliseconds the tend pair reachability may spend.</summary>
     internal const uint PawnsTendReachBudgetMs = 50;
 
     /// <summary>
-    /// Go <c>ReadPawns</c>: observes exact ids including dead pawns. Missing rows, CAS tokens and drafted state never
+    /// Observes exact ids including dead pawns. Missing rows, CAS tokens and drafted state never
     /// imply death, write permission or controller ownership.
     /// </summary>
     internal Task<PbObservations.ListPawnsReply> ReadPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(), cancellationToken);
 
     /// <summary>
-    /// Go <c>ReadCombatPawns</c>: retains optional detailed facts and issues for exact ids. A complete query is not
+    /// Retains optional detailed facts and issues for exact ids. A complete query is not
     /// proof that absent health, gear or capability is known.
     /// </summary>
     internal Task<PbObservations.ListPawnsReply> ReadCombatPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(Combat: true), cancellationToken);
 
     /// <summary>
-    /// Go <c>ReadTendPawns</c>: combat facts, work settings and care policy for exact doctor and patient ids, plus the
+    /// Combat facts, work settings and care policy for exact doctor and patient ids, plus the
     /// tend detail: the doctor-side native gates and reachability between the requested pawns.
     /// </summary>
     internal Task<PbObservations.ListPawnsReply> ReadTendPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(Combat: true, Work: true, Care: true, Tend: true), cancellationToken);
 
-    /// <summary>Go <c>readPawnDetails</c>.</summary>
     internal async Task<PbObservations.ListPawnsReply> ReadPawnDetailsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, PawnDetailSelection want, CancellationToken cancellationToken)
     {
         if (ids.Count < 1 || ids.Count > 256)
@@ -55,7 +53,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>pawnDetailsRequest</c>: the exact request <see cref="ReadPawnDetailsAsync"/> issues for
+    /// The exact request <see cref="ReadPawnDetailsAsync"/> issues for
     /// <paramref name="ids"/> (validated, in the caller's order); the bundle seeds its pawn table's colonist rows under
     /// the routine form of it.
     /// </summary>
@@ -87,7 +85,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>ReadHomeColonists</c>: lists every current-map living colonist's identity and Doctor work-type
+    /// Lists every current-map living colonist's identity and Doctor work-type
     /// enablement: who is home. Unlike the id-scoped reads this one is not: the family must first learn who stays home
     /// before it can ask about their facts.
     /// </summary>
@@ -126,7 +124,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>ReadMechs</c>: reads the mechs the ids name (a mechanitor's controlled mechs) as the mech planners' input
+    /// Reads the mechs the ids name (a mechanitor's controlled mechs) as the mech planners' input
     /// rows. No ids reads nothing. A row that is no mech, or carries no kind or mech block, is a contract failure,
     /// never skipped.
     /// </summary>
@@ -140,7 +138,7 @@ public sealed partial class FacadeNativeClient
         return MechInputs(reply.Outcome.Observed);
     }
 
-    /// <summary>Go <c>MechInputs</c>: lifts mech pawn rows into planner input.</summary>
+    /// <summary>Lifts mech pawn rows into planner input.</summary>
     internal static IReadOnlyList<PolicyMechInput> MechInputs(PbObservations.PawnSnapshot? snapshot)
     {
         var result = new List<PolicyMechInput>();

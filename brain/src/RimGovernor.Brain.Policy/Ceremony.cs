@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: ceremony.go
 // The bestowing ceremony. Accepting the Empire's bestowing-ceremony quest sends a bestower, who waits at the
 // throne spot until the player starts the ritual; the ceremony then fails if the bestower or the colonist is
 // lost, drafted out of it or in a mental state. While one is pending the colony keeps the throne room of the

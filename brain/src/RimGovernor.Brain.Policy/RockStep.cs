@@ -54,7 +54,7 @@ public readonly record struct RoofRule(bool Thick, bool Natural)
 }
 
 /// <summary>
-/// Go's <c>ErrUnknownRoof</c>: a needs-sky cell whose roof def is not in the rules. <see cref="Result"/> is
+/// A needs-sky cell whose roof def is not in the rules. <see cref="Result"/> is
 /// still complete for the other cells.
 /// </summary>
 public sealed class UnknownRoofException(RockStepResult result, string roofs) : DomainException("unknown roof def: " + roofs)

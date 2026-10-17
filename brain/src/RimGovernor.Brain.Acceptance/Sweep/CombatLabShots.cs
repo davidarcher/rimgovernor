@@ -8,7 +8,7 @@ using Fx = RimGovernor.Fixtures.Contracts;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The shot tap rows a combat run records (Go <c>shots.go</c>): one JSON object per line, in game order, each tagged by
+/// The shot tap rows a combat run records: one JSON object per line, in game order, each tagged by
 /// "k". test/lab_stage action shots replies the rows; the dataset under calibration/shots stamps each with its run seed.
 /// </summary>
 internal static class CombatLabShots

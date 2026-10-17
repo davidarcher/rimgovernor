@@ -4,11 +4,11 @@ namespace RimGovernor.Brain.Store;
 
 /// <summary>
 /// The explicit worker/target footprint already persisted with an action. It carries no prediction of the native
-/// route to that target. (Go <c>DispatchSite</c>.)
+/// route to that target.
 /// </summary>
 public readonly record struct DispatchSite(PawnId Worker, string Target, Fact<Cell> Cell);
 
-/// <summary>The dispatch footprint of an action, read from its payload (Go <c>action_rows</c> columns <c>pawn,target,x,z</c>).</summary>
+/// <summary>The dispatch footprint of an action, read from its payload.</summary>
 internal static class ActionSites
 {
     public static DispatchSite Of(DomainAction a)

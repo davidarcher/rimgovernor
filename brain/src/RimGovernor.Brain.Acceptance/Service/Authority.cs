@@ -6,7 +6,7 @@ using Wa = RimGovernor.Contracts.Wire.Authority;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The authority release a native-driven harness makes after killing its service (Go <c>authority.go</c>): authority
+/// The authority release a native-driven harness makes after killing its service: authority
 /// uses SetMode(Auto|Manual) and Revoke with native-generation continuity and has no acquire/renew lease.
 /// </summary>
 public static class Authority

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The <c>refrigeration/*</c> acceptance cases (Go <c>cases/refrigeration</c>): the food-stores/refrigeration vertical.</summary>
+/// <summary>The <c>refrigeration/*</c> acceptance cases: the food-stores/refrigeration vertical.</summary>
 public static class RefrigerationCases
 {
     /// <summary>Registers every <c>refrigeration/*</c> case.</summary>

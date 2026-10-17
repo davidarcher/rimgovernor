@@ -39,7 +39,7 @@ public sealed class StepStallException : AcceptanceException
     }
 }
 
-/// <summary>Step-stall helpers (Go <c>stepstall.go</c>).</summary>
+/// <summary>Step-stall helpers.</summary>
 public static class StepStall
 {
     /// <summary>The service's most recent failed step from its OTLP log ring at <paramref name="path"/>, or "" when it has none or cannot be read.</summary>

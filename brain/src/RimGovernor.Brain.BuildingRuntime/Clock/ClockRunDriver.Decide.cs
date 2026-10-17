@@ -3,7 +3,7 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// The hold state machine, run after the planning step (Go clock_scheduler.go's admission tail, reduced to the
+// The hold state machine, run after the planning step (the admission tail, reduced to the
 // continuous clock). Native is Running at the target speed or Held for a named reason, and only a Run ends a hold.
 //
 //   Running  the watch policy the facts imply is diffed against the last one sent and resent when it differs (Run is
@@ -12,12 +12,12 @@ namespace RimGovernor.Brain.BuildingRuntime;
 //   Held     the autosave runs when one is due, and Run resumes the clock when the decision allows it. The Run quotes
 //            the hold serial the step read, so native refuses it when a hold entered after that read.
 //
-// Differences from Go, all consequences of the C# step planning only: the status and the emergency census are read
+// Because the step only plans, the status and the emergency census are read
 // again here, and the step publishes its own clock_step row while this driver files its own "clock_run" row.
 
 public sealed partial class ClockRunDriver
 {
-    // What one pass found, for the row it files (Go StepWithReason's locals).
+    // What one pass found, for the row it files.
     private sealed class RunNote
     {
         public string Action { get; set; } = "";
@@ -113,7 +113,7 @@ public sealed partial class ClockRunDriver
         Tel.Decide(decision);
     }
 
-    // Drops authority and joins the failure with the drop's own (Go errors.Join(err, s.session.Disable())).
+    // Drops authority and joins the failure with the drop's own.
     private Exception Failed(Exception cause)
     {
         try
@@ -127,7 +127,7 @@ public sealed partial class ClockRunDriver
         }
     }
 
-    // One bundle read with the clock status, validated as a step read is (Go ReadStep and ValidateContext).
+    // One bundle read with the clock status, validated as a step read is.
     private async Task<PbObservations.BundleSnapshot> ReadBundleAsync(CancellationToken call)
     {
         try
@@ -254,7 +254,7 @@ public sealed partial class ClockRunDriver
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
-                    // A failed autosave never keeps the clock from running (Go ignored the result).
+                    // A failed autosave never keeps the clock from running.
                     ClockEvents.Event("clock-scheduler", "autosave", "autosave before the run failed", ("err", e.Message));
                 }
             }

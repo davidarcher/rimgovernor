@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_lure.go
 
 public static partial class CombatLureRules
 {

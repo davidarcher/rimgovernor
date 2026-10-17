@@ -119,7 +119,7 @@ internal sealed class FloodGrid
 }
 
 /// <summary>
-/// Ports <c>layout_perimeter.go</c>: the perimeter is a three-cell-thick ring around the core and its yard; rock and
+/// The perimeter is a three-cell-thick ring around the core and its yard; rock and
 /// deep water already close their cells, so only the open cells of a stretch are walled. Soft ground a raider wades
 /// through (marsh, mud, shallow and moving water) is closed too: the wall follows the shore inside the ring when that
 /// costs at most PerimeterDetour times the straight stretch, and otherwise crosses it, a wooden wall on light footing,

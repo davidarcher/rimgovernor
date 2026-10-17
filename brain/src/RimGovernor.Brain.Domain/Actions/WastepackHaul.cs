@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record WastepackHaul : IActionPayload
 {
-    /// <summary>Go <c>NewWastepackHaul</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public WastepackHaul(string thing, string definition, Cell cell)
     {
         DomainException.Require(
@@ -32,6 +32,6 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewWastepackHaulAction(ActionId id, WastepackHaul haul) => Create(id, ActionKind.WastepackHaul, haul);
 
-    /// <summary>Go <c>Action.WastepackHaul() (WastepackHaul, bool)</c>: the payload when this is a wastepack haul action, otherwise null.</summary>
+    /// <summary>The payload when this is a wastepack haul action, otherwise null.</summary>
     public WastepackHaul? WastepackHaul => PayloadOf<WastepackHaul>(ActionKind.WastepackHaul);
 }

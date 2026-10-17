@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_traits.go, catalog_trait_balance.go and catalog_thought_facts.go: what a trait degree does, what it is
+// What a trait degree does, what it is
 // worth, and the thought facts of the mood ledger. A float the XML wrote as 0.2 is read as 0.2, not 0.20000000298
 // (Decimal32).
 

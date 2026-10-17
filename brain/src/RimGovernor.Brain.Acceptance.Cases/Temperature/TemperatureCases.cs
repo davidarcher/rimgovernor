@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The <c>temperature/*</c> acceptance cases (Go <c>cases/temperature</c>).</summary>
+/// <summary>The <c>temperature/*</c> acceptance cases.</summary>
 public static class TemperatureCases
 {
     /// <summary>Registers every <c>temperature/*</c> case.</summary>

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// Proposes stock IDs for the shared supply-action planner. A proposal is not a forbid write or evidence that
-/// food has been produced. (Go <c>FoodReserveReview</c>.)
+/// food has been produced.
 /// </summary>
 public sealed record FoodReserveReview
 {
@@ -27,7 +27,7 @@ public sealed record FoodReserveReview
 /// <summary>
 /// What one standing target-count food bill wants: the products of its family, the product count that
 /// satisfies it (native counts the product's stock toward the bill), and optionally one product ranked ahead of
-/// the rest. (Go <c>targetBillSpec</c>.)
+/// the rest.
 /// </summary>
 internal sealed record TargetBillSpec
 {
@@ -44,11 +44,11 @@ public static class FoodReserveRules
 
     public static bool ReserveFoodDefinition(Resource def) => FoodPolicyRules.TravelReserve.Contains(def);
 
-    /// <summary>Go <c>ReserveFoodDefinitions</c>: the travel reserve's definition names.</summary>
+    /// <summary>The travel reserve's definition names.</summary>
     public static IReadOnlyList<string> ReserveFoodDefinitions() => [.. FoodPolicyRules.TravelReserve.Select(d => d.Value)];
 
     /// <summary>
-    /// Go <c>DropReserveHeld</c>: removes supply rows the food reserve owns, so the admin/supply-safety Need never
+    /// Removes supply rows the food reserve owns, so the admin/supply-safety Need never
     /// re-allows reserve food the food-stores/storage Need forbade: a stack the reserve is about to hold, or a forbidden
     /// reserve-food stack it keeps (anything outside Release). Without it both planners flipped the same
     /// Pemmican stack forever, each ending "no longer has the requested forbid state".
@@ -65,10 +65,9 @@ public static class FoodReserveRules
     }
 
     /// <summary>
-    /// Go <c>ReviewFoodReserve</c>: counts shared reserve foods, roofed or not, at observed nutrition.
+    /// Counts shared reserve foods, roofed or not, at observed nutrition.
     /// deliveryDays contains confirmed channel delivery times; unknown channel facts cannot authorize releasing
-    /// stock. The caller supplies the selected home census. Throws <see cref="FoodFactsException"/> where Go
-    /// returned ErrFoodFacts.
+    /// stock. The caller supplies the selected home census. Throws <see cref="FoodFactsException"/>.
     /// </summary>
     public static FoodReserveReview ReviewFoodReserve(FoodSupply supply, IReadOnlyList<PawnId>? selected, double reserveDays, double minimumDays, Fact<EquatableArray<double>> deliveryDays)
     {
@@ -187,7 +186,7 @@ public static class FoodReserveRules
     }
 
     /// <summary>
-    /// Go <c>SelectReserveBill</c>: selects a standing native target-count bill. Its target includes existing
+    /// Selects a standing native target-count bill. Its target includes existing
     /// stock of the selected product because native counts that stock toward satisfaction; only other reserve
     /// products reduce the target. The target never exceeds the product's observed storable count. No reserve
     /// bill is selected while the runway is short (the food is to be eaten, not cooked ahead). Matching bills are

@@ -12,7 +12,7 @@ public static class SustainedFoodCase
     /// <summary>The sample window: wall-clock minutes at the serve clock speed, not ticks; the regression-gate length.</summary>
     public static readonly TimeSpan DefaultWindow = TimeSpan.FromMinutes(8);
 
-    /// <summary>The environment variable that overrides <see cref="DefaultWindow"/> with a Go duration (e.g. 20m).</summary>
+    /// <summary>The environment variable that overrides <see cref="DefaultWindow"/> with a duration (e.g. 20m).</summary>
     public const string WindowEnv = "RIMGOVERNOR_ACCEPT_WINDOW";
 
     /// <summary><see cref="WindowEnv"/> when set and valid, else <see cref="DefaultWindow"/>.</summary>
@@ -27,7 +27,7 @@ public static class SustainedFoodCase
         return DefaultWindow;
     }
 
-    /// <summary>The Go <c>errors.Join</c> of the failures that are not null; null when none failed.</summary>
+    /// <summary>The failures that are not null joined into one; null when none failed.</summary>
     public static AcceptanceException? Join(IEnumerable<Exception?> failures)
     {
         ArgumentNullException.ThrowIfNull(failures);

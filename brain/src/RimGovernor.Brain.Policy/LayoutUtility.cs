@@ -129,7 +129,7 @@ internal sealed partial class UtilityGrid
 }
 
 /// <summary>
-/// Ports <c>layout_utility.go</c>: utility reservations. The plan holds a battery room (a room like any other), wind
+/// Utility reservations. The plan holds a battery room (a room like any other), wind
 /// turbines and solar plots as stored site nodes, a stone enclosure around each geyser's generator and an exhaust cell
 /// (or dug shaft) behind each room that needs cooling. The generator never builds over a reservation.
 /// </summary>

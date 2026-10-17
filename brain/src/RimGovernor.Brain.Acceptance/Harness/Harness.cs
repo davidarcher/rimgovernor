@@ -25,7 +25,7 @@ public sealed partial class Harness : IAsyncDisposable
         Output = output;
     }
 
-    /// <summary>How the harness reaches the game (Go <c>Harness.Client</c>).</summary>
+    /// <summary>How the harness reaches the game.</summary>
     public HttpNativeTransport Transport { get; }
 
     public string Output { get; }
@@ -167,7 +167,7 @@ public sealed partial class Harness : IAsyncDisposable
     private static HarnessClosedException Closed(string tool, Exception? cause) => new(
         $"harness closed: {tool}: this harness session was released to a service; Reattach after the service stops, and take the Harness the case's Reattach returns{(cause is null ? "" : ": " + cause.Message)}");
 
-    /// <summary>Adds the refusal's own cause to its message, as the Go harness does for a named native refusal.</summary>
+    /// <summary>Adds the refusal's own cause to its message.</summary>
     private static Exception Refine(string tool, Exception error, NativeResult? result)
     {
         if (error is NativeRefusedException refused && StepResult.Parse(result?.Envelope) is { } failure)

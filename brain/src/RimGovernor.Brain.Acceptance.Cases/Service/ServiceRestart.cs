@@ -5,7 +5,7 @@ using RimGovernor.Brain.Domain;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>service/restart</c> (Go <c>restart.go</c>): the kill-and-restart acceptance for SIMP06. A controller started with
+/// <c>service/restart</c>: the kill-and-restart acceptance for SIMP06. A controller started with
 /// resume runs the bot for the observed world with no HTTP write at all, is stopped mid-play, and a second controller on
 /// the same state resumes autonomous play for the same world again without a launcher step, continuing the rounds past
 /// the review the stopped one left. Nothing here backs up or restores the state: the plan is re-derived from observation.

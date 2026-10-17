@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// One shared population, regardless of how many zones or shallow cells offer access to it. Catch rates come
-/// from native definitions and the available fishers; they must not be inferred from zone area. (Go <c>FishingRegion</c>.)
+/// from native definitions and the available fishers; they must not be inferred from zone area.
 /// </summary>
 public sealed record FishingRegion
 {
@@ -52,7 +52,7 @@ public static class FishingRules
     public const double FishingRegenerationPerDay = 0.025;
 
     /// <summary>
-    /// Go <c>FishingChannels</c>: estimates sustainable raw nutrition. Cooking conversion is a separate ledger
+    /// Estimates sustainable raw nutrition. Cooking conversion is a separate ledger
     /// contribution. Unknown facts never certify a delivery rate; malformed known facts throw the same
     /// <see cref="FoodPlanFactsException"/> as SupplyFoodPlan. An empty region set (including Core without
     /// Odyssey) produces no fishing channel.
@@ -154,7 +154,7 @@ public static class FishingRules
         return channels;
     }
 
-    /// <summary>Sets the first yield's per-day rate and the channel's daily labor (Go: <c>channel.Yields[0].PerDay, channel.LaborPerDay = ...</c>).</summary>
+    /// <summary>Sets the first yield's per-day rate and the channel's daily labor.</summary>
     private static SupplyCandidate WithFirstYield(SupplyCandidate channel, Fact<double> perDay, Fact<double> laborPerDay) =>
         channel with { Yields = [channel.Yields[0] with { PerDay = perDay }, .. channel.Yields.Skip(1)], LaborPerDay = laborPerDay };
 
@@ -162,7 +162,7 @@ public static class FishingRules
     private static Fact<bool> NotDelivering(Fact<bool> designated) => designated.IsKnown ? Known(false) : designated;
 
     /// <summary>
-    /// Go <c>FishingResearchRequest</c>: asks the existing research goal to open a selected source. A deferred,
+    /// Asks the existing research goal to open a selected source. A deferred,
     /// closed or unknown channel cannot change research intent. Empty when nothing is asked.
     /// </summary>
     public static string FishingResearchRequest(FoodPlan plan, Fact<bool> researched)
@@ -175,7 +175,7 @@ public static class FishingRules
     }
 
     /// <summary>
-    /// Go <c>FishingRegionID</c>: independent of zone identity: multiple zones in the same body must be
+    /// Independent of zone identity: multiple zones in the same body must be
     /// deduplicated before they reach the nutrition ledger.
     /// </summary>
     public static string FishingRegionId(Cell root) => string.Create(CultureInfo.InvariantCulture, $"water-{root.X}-{root.Z}");

@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 
 namespace RimGovernor.Brain.Acceptance;
 
-// The shot tap's row kinds (#3410; Go shots.go), one record each with its fields in the order the Go structs encoded
-// them (the dataset under calibration/shots keeps that order): seed and k first. A field a row does not carry reads as
+// The shot tap's row kinds (#3410), one record each with its fields in the order the rows were encoded
+// (the dataset under calibration/shots keeps that order): seed and k first. A field a row does not carry reads as
 // its zero, a null string as "", and a field a kind does not declare is an error, so a schema change fails the dataset
 // build rather than reading as zeros. The properties are settable, not init: the source generator assigns every init
 // property, so an absent field would read as null rather than its zero.

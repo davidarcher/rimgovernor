@@ -4,7 +4,7 @@ using System.Text;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// Ports <c>lighting.go</c>. The rooms/lighting Need keeps the cells colonists stand on while working lit. It reasons from
+/// The rooms/lighting Need keeps the cells colonists stand on while working lit. It reasons from
 /// the measured native glow at each bench's interaction cell rather than from fixture counts: a roofed work cell
 /// whose ground glow is below LitGlow is dark whatever lamps sit nearby. The method first looks for an existing lamp
 /// that should cover the cell and defers to power/refuel/repair work when that lamp is merely unserviced; otherwise

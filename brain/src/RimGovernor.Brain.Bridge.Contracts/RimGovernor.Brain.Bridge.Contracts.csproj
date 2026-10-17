@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Value types and validators of Go internal/bridge that observation, snapshot, store and facts consume.
+  <!-- Value types and validators that observation, snapshot, store and facts consume.
        Deliberately free of the game assemblies: the catalog derivations (#3056) live in RimGovernor.Brain.Bridge. -->
   <PropertyGroup>
     <RootNamespace>RimGovernor.Brain.Bridge.Contracts</RootNamespace>
@@ -14,7 +14,6 @@
     <ProjectReference Include="../RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Go's domain.Known / domain.Unknown. -->
     <Using Include="RimGovernor.Brain.Domain" />
     <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
     <!-- The wire messages share these names with domain values; this project names the wire message. -->

@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Executor;
 
 /// <summary>
 /// A batch-level failure of <see cref="Executor.RunBatchAsync"/> (stopped, cancelled, plan load): <see cref="Cause"/>
-/// is the error and <see cref="Items"/> what the batch had already settled, in input order (Go returned both).
+/// is the error and <see cref="Items"/> what the batch had already settled, in input order.
 /// </summary>
 public sealed class BatchFailureException(IReadOnlyList<BatchItem> items, Exception cause)
     : DomainException("building batch failed: " + cause.Message)

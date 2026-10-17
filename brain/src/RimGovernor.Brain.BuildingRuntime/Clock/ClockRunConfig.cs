@@ -2,15 +2,14 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
 /// What the run driver needs beyond the scheduler's own configuration: the speed it asks the clock to run at, the
-/// base watch policy every Run carries, the autosave and the call bounds (Go <c>ClockSchedulerConfig</c> fields the
-/// planning step does not use, and <c>ClockWorkerConfig</c>).
+/// base watch policy every Run carries, the autosave and the call bounds.
 /// </summary>
 public sealed record ClockRunConfig
 {
     /// <summary>The speed the clock runs at; a change reaches the clock as a Run at the new speed (player acceleration only while it is Ultrafast).</summary>
     public required ClockTargetSpeed TargetSpeed { get; init; }
 
-    /// <summary>The colony watch policy with the Go-authored hazard thresholds; each Run adds the acknowledgements the watch decision names.</summary>
+    /// <summary>The colony watch policy with the hazard thresholds; each Run adds the acknowledgements the watch decision names.</summary>
     public required PbClock.WatchPolicy Policy { get; init; }
 
     /// <summary>Saves the game while the clock is held for it; null saves nothing.</summary>

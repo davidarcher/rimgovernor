@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_door.go
 
 public static partial class CombatDoorRules
 {

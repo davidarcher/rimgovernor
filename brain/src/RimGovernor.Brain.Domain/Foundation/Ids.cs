@@ -1,8 +1,7 @@
 namespace RimGovernor.Brain.Domain;
 
-// Identifier value types. String ids compare and order by ordinal bytes (Go's `==` and `<` on a defined
-// string type); the default value is the empty id, as Go's zero value. Numeric ids order by value.
-// Naming: Go's two-letter initialism `ID` becomes `Id` (ColonyID -> ColonyId).
+// Identifier value types. String ids compare and order by ordinal bytes (`==` and `<` on a defined
+// string type); the default value is the empty id, as the zero value. Numeric ids order by value.
 
 /// <summary>Names the colony (save).</summary>
 public readonly record struct ColonyId(string Value) : IComparable<ColonyId>
@@ -11,7 +10,6 @@ public readonly record struct ColonyId(string Value) : IComparable<ColonyId>
 
     public bool IsEmpty => Value.Length == 0;
 
-    /// <summary>Go's <c>validID(string(id))</c>.</summary>
     public bool IsValid => IdText.IsValidText(Value);
 
     public bool Equals(ColonyId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
@@ -38,7 +36,6 @@ public readonly record struct LoadId(string Value) : IComparable<LoadId>
 
     public bool IsEmpty => Value.Length == 0;
 
-    /// <summary>Go's <c>validID(string(id))</c>.</summary>
     public bool IsValid => IdText.IsValidText(Value);
 
     public bool Equals(LoadId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
@@ -65,7 +62,6 @@ public readonly record struct ActionId(string Value) : IComparable<ActionId>
 
     public bool IsEmpty => Value.Length == 0;
 
-    /// <summary>Go's <c>validID(string(id))</c>.</summary>
     public bool IsValid => IdText.IsValidText(Value);
 
     public bool Equals(ActionId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
@@ -92,7 +88,6 @@ public readonly record struct PlanId(string Value) : IComparable<PlanId>
 
     public bool IsEmpty => Value.Length == 0;
 
-    /// <summary>Go's <c>validID(string(id))</c>.</summary>
     public bool IsValid => IdText.IsValidText(Value);
 
     public bool Equals(PlanId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
@@ -119,7 +114,6 @@ public readonly record struct PawnId(string Value) : IComparable<PawnId>
 
     public bool IsEmpty => Value.Length == 0;
 
-    /// <summary>Go's <c>validID(string(id))</c>.</summary>
     public bool IsValid => IdText.IsValidText(Value);
 
     public bool Equals(PawnId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
@@ -146,7 +140,6 @@ public readonly record struct ControllerSessionId(string Value) : IComparable<Co
 
     public bool IsEmpty => Value.Length == 0;
 
-    /// <summary>Go's <c>validID(string(id))</c>.</summary>
     public bool IsValid => IdText.IsValidText(Value);
 
     public bool Equals(ControllerSessionId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
@@ -173,7 +166,6 @@ public readonly record struct QuestId(string Value) : IComparable<QuestId>
 
     public bool IsEmpty => Value.Length == 0;
 
-    /// <summary>Go's <c>validID(string(id))</c>.</summary>
     public bool IsValid => IdText.IsValidText(Value);
 
     public bool Equals(QuestId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
@@ -200,7 +192,6 @@ public readonly record struct ConcernId(string Value) : IComparable<ConcernId>
 
     public bool IsEmpty => Value.Length == 0;
 
-    /// <summary>Go's <c>validID(string(id))</c>.</summary>
     public bool IsValid => IdText.IsValidText(Value);
 
     public bool Equals(ConcernId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
@@ -227,7 +218,6 @@ public readonly record struct MethodId(string Value) : IComparable<MethodId>
 
     public bool IsEmpty => Value.Length == 0;
 
-    /// <summary>Go's <c>validID(string(id))</c>.</summary>
     public bool IsValid => IdText.IsValidText(Value);
 
     public bool Equals(MethodId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
@@ -329,11 +319,11 @@ public readonly record struct Tick(long Value) : IComparable<Tick>
 
 public static class IdText
 {
-    /// <summary>Go's <c>nativeText</c>: valid id text, or empty when <paramref name="allowEmpty"/>.</summary>
+    /// <summary>Valid id text, or empty when <paramref name="allowEmpty"/>.</summary>
     public static bool IsNativeText(string s, bool allowEmpty) => (s.Length == 0 && allowEmpty) || IsValidText(s);
 
     /// <summary>
-    /// Go's <c>validID</c>: well-formed text that is not blank, at most 256 UTF-8 bytes and free of NUL.
+    /// Well-formed text that is not blank, at most 256 UTF-8 bytes and free of NUL.
     /// </summary>
     public static bool IsValidText(string? s)
     {

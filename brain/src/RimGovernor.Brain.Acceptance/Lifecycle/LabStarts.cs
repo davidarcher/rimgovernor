@@ -7,7 +7,7 @@ using Fx = RimGovernor.Fixtures.Contracts;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The blank lab start (Go <c>labstart.go</c>; the value type is <see cref="LabStart"/>): a fixed-seed
+/// The blank lab start: a fixed-seed
 /// <see cref="LabWorld.LabMapSize"/> map wiped to Soil with fixture-made colonists, clear weather, a pinned
 /// temperature and a quiet storyteller. It caches as <c>RimGovernor-lab-&lt;size&gt;[-&lt;expansions&gt;][-c&lt;n&gt;]</c>
 /// beside a .stamp file holding the installed mod's hash, so a mod or fixture rebuild regenerates it; a later start

@@ -8,7 +8,7 @@ public sealed partial class Store
 {
     /// <summary>
     /// Forecasts every medicine, social drug and resource the recurring spend native observed
-    /// (<c>Facts.ResourceConsumption</c>) names, in resource order (Go <c>resourceRunways</c>).
+    /// (<c>Facts.ResourceConsumption</c>) names, in resource order.
     /// </summary>
     internal static EquatableArray<ResourceRunway> ResourceRunways(RoundsRequest r)
     {
@@ -51,7 +51,7 @@ public sealed partial class Store
     }
 }
 
-/// <summary>The persisted review read back in policy terms (Go <c>Rounds.ResourceRunwayState</c>).</summary>
+/// <summary>The persisted review read back in policy terms.</summary>
 public static class RoundsRunwayMembers
 {
     /// <summary>The review's runway forecasts lifted back into policy terms.</summary>

@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// <c>acceptance suite</c> (Go <c>cmd/acceptance/suite.go</c>): runs a set of cases across N private game copies at once.
+/// <c>acceptance suite</c>: runs a set of cases across N private game copies at once.
 /// Each worker is its own disposable root (<see cref="HeadlessProfile.IsolatedRoot"/> off <c>-root</c>, so its own config
 /// and profile) launching the same game binary, chains its cases on one kept process (<see cref="Game.KeepGameEnv"/>
 /// forced on) and stops it when its queue is empty. Every case keeps its own output directory and result.json; the suite's

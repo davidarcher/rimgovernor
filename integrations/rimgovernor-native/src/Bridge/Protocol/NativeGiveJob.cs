@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
     }
 
     // The GiveJobIntent arm of Actions/Apply: one pawn, one vanilla
-    // job, its targets in job target order. Go chose the pawn and the
+    // job, its targets in job target order. The brain chose the pawn and the
     // targets; native checks the game rules live and builds the game's job.
     internal static class NativeGiveJob
     {

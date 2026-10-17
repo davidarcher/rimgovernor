@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// One declared stockpile: its site (role, planned room or clean rectangle inside it, filter, priority) and what
 /// the department does when it is gone. Whole-footprint stores fill cleared site ground; fixed-size
-/// stores keep their requested rectangle. (Go embeds <c>StoreSite</c>; here it is the <see cref="Site"/> member.)
+/// stores keep their requested rectangle.
 /// </summary>
 public sealed record Store
 {

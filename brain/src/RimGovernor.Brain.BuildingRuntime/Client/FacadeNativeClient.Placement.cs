@@ -4,12 +4,11 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go building_preview.go, zone.go (PreviewZone), overlay.go and the placement_preview call with its request check
-// (placement.go validatePlacementRequest).
+// PreviewZone, the overlay reads and the placement_preview call with its request check.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
-    /// Go's <c>PreviewBuilding</c>: binds a single native evaluation to the exact immutable action and authority
+    /// Binds a single native evaluation to the exact immutable action and authority
     /// generation. It neither acquires authority nor reserves resources.
     /// </summary>
     internal async Task<BridgeBuildingPreview> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken cancellationToken)
@@ -19,7 +18,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go's <c>PreviewBuildings</c>: evaluates every action in one native call per <see cref="CombatConstants.PlacementBatchLimit"/>
+    /// Evaluates every action in one native call per <see cref="CombatConstants.PlacementBatchLimit"/>
     /// placements. Previews come back in action order, each bound to its own action; a failed row fails the whole read.
     /// Later chunks of an oversized sweep are separate calls, and each must observe the same native generation.
     /// </summary>
@@ -27,7 +26,7 @@ public sealed partial class FacadeNativeClient
         PlacementPreviewBuildingsAsync(actions, snapshot, false, cancellationToken);
 
     /// <summary>
-    /// Go's <c>PreviewBuildingOverRock</c>: previews one action as though natural rock on its footprint were already
+    /// Previews one action as though natural rock on its footprint were already
     /// mined: a planned building whose excavation the same plan orders first. Dispatch never previews this way; the
     /// executor re-previews plainly once the rock is gone.
     /// </summary>
@@ -86,7 +85,7 @@ public sealed partial class FacadeNativeClient
         return output;
     }
 
-    // Go PlacementPreviews: validates the request, makes the call and returns the batch the reply carries.
+    // Validates the request, makes the call and returns the batch the reply carries.
     private async Task<PbPlacement.PlacementBatch> PlacementPreviewsAsync(PbPlacement.PlacementRequest request, CancellationToken cancellationToken)
     {
         PlacementRequests.ValidatePlacementRequest(request);
@@ -98,7 +97,7 @@ public sealed partial class FacadeNativeClient
         return reply.Outcome.Batch!;
     }
 
-    /// <summary>Go's <c>PreviewZone</c>: a planner's siting preview of one zone; native checks the ground live, so no map census token rides along.</summary>
+    /// <summary>A planner's siting preview of one zone; native checks the ground live, so no map census token rides along.</summary>
     internal async Task<PbOperations.ZonePreviewReply> PreviewZoneAsync(PbCommon.Identity identity, ZoneCreate zone, CancellationToken cancellationToken)
     {
         var request = new PbOperations.ZonePreviewRequest { Identity = identity, Zone = Zones.ZoneConfiguration(zone) };
@@ -113,7 +112,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go's <c>DrawOverlay</c>: replaces the named overlay layer. The native drops the layer's shapes and labels and
+    /// Replaces the named overlay layer. The native drops the layer's shapes and labels and
     /// draws the overlay's; <paramref name="enabled"/> false only removes the layer. Output only, never read back or persisted.
     /// </summary>
     internal async Task<PbPresentation.OverlayApplied> DrawOverlayAsync(PbCommon.Identity identity, string layerId, LayoutOverlay overlay, bool enabled, CancellationToken cancellationToken)
@@ -134,7 +133,7 @@ public sealed partial class FacadeNativeClient
 
     internal static class PlacementRequests
     {
-        /// <summary>Go's rotation table of <c>previewBuildings</c>: the cardinal rotations; anything else is unspecified and refused by the request check.</summary>
+        /// <summary>The cardinal rotations; anything else is unspecified and refused by the request check.</summary>
         internal static PbPlacement.Rotation WireRotation(Rotation rotation) =>
             rotation switch
             {
@@ -145,7 +144,6 @@ public sealed partial class FacadeNativeClient
                 _ => PbPlacement.Rotation.Unspecified,
             };
 
-        /// <summary>Go's <c>validatePlacementRequest</c>.</summary>
         internal static void ValidatePlacementRequest(PbPlacement.PlacementRequest? request)
         {
             if (request is null || request.Placements.Count < 1 || request.Placements.Count > CombatConstants.PlacementBatchLimit)
@@ -169,7 +167,7 @@ public sealed partial class FacadeNativeClient
             }
         }
 
-        /// <summary>Go's <c>buildingPreviewRow</c>: binds one evaluated placement row to its action.</summary>
+        /// <summary>Binds one evaluated placement row to its action.</summary>
         internal static BridgeBuildingPreview BuildingPreviewRow(DomainAction action, GenerationSnapshot snapshot, Tick tick, PbPlacement.PlacementEvaluated evaluation)
         {
             var b = action.Building!;
@@ -270,7 +268,7 @@ public sealed partial class FacadeNativeClient
             };
         }
 
-        /// <summary>Go's <c>overlayRequest</c>: the wire shapes and labels of a layout overlay.</summary>
+        /// <summary>The wire shapes and labels of a layout overlay.</summary>
         internal static (List<PbPresentation.OverlayShape> Shapes, List<PbPresentation.OverlayLabel> Labels) OverlayRequest(LayoutOverlay overlay)
         {
             var shapes = new List<PbPresentation.OverlayShape>(overlay.Layers.Count);

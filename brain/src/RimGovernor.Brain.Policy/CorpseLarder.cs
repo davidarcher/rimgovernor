@@ -27,7 +27,7 @@ public sealed record FoodLarder
     public EquatableArray<CorpseHandling> Corpses { get; init; }
 }
 
-/// <summary>The one corpse change a review makes. An empty <see cref="Kind"/> means no change (Go's zero value).</summary>
+/// <summary>The one corpse change a review makes. An empty <see cref="Kind"/> means no change.</summary>
 public sealed record CorpseLarderMethod
 {
     /// <summary>"allow", "forbid", "haul" or empty for none.</summary>

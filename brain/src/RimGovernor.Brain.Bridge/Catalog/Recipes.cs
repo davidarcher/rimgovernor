@@ -6,11 +6,9 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_recipes.go, catalog_recipe_facts.go, catalog_recipe_bulk.go, catalog_install.go and catalog_gear_bill.go.
 // What a recipe does is read from its RecipeDef, never from its defName: the butcher recipe is the one whose worker
 // counter is the game's butcher counter, a sculpture makes an art building, an ordinary meal makes a perishable
-// meal. A recipe the catalog has no row for is a named error. The ThingFilter is the game's resolved filter, so
-// the Go refusal of filters with fields the evaluator does not model (unmodelledFilterField) has no counterpart.
+// meal. A recipe the catalog has no row for is a named error. The ThingFilter is the game's resolved filter.
 
 public sealed partial class DefinitionCatalog
 {

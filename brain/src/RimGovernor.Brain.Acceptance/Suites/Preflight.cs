@@ -3,7 +3,7 @@ using System.Globalization;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The run's first step (Go <c>cmd/acceptance/heal.go</c>): the doctor's checks, only the failing ones printed. A Fail
+/// The run's first step: the doctor's checks, only the failing ones printed. A Fail
 /// refuses the run before any game opens, except a stale or fixture-less install (<see cref="DoctorCheck.Code"/>), which
 /// the run heals unless <see cref="RunOptions.NoHeal"/>; the checks then run again.
 /// </summary>
@@ -13,9 +13,8 @@ public static class PreflightPass
     public const string Relaunched = "relaunched";
 
     /// <summary>
-    /// Runs the doctor against <paramref name="selected"/>'s names and fixture ops and heals what it may. The Go version
-    /// took the Rimgovernor binary path as a check input; the brain is in-process in the mod now, so the doctor's
-    /// run-binary check needs no input here.
+    /// Runs the doctor against <paramref name="selected"/>'s names and fixture ops and heals what it may. The brain is in-process in the mod, so the doctor's
+    /// run-binary check needs no input.
     /// </summary>
     public static async Task<PreflightResult> RunAsync(
         IReadOnlyList<AcceptanceCase> selected,

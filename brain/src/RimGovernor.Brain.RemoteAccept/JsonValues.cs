@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.RemoteAccept;
 
 /// <summary>
 /// Streams the top-level JSON values of a file (one document, or JSON lines, or any whitespace-separated run) without
-/// holding the file in memory: Go's <c>json.Decoder</c> loop. Each value is checked for duplicate keys (case-folded) as
+/// holding the file in memory. Each value is checked for duplicate keys (case-folded) as
 /// <see cref="StrictJson.CheckUnique"/> does; malformed JSON anywhere throws.
 /// </summary>
 internal static class JsonValues

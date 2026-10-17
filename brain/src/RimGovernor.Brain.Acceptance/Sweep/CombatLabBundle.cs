@@ -10,7 +10,7 @@ using Fx = RimGovernor.Fixtures.Contracts;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The bundle files a combat-fixture run records and the scoring of its raw reads (Go <c>metrics.go</c>).
+/// The bundle files a combat-fixture run records and the scoring of its raw reads.
 /// <see cref="ReadsFile"/> holds every raw test/lab_stage read reply, one JSON object per line, in tick order;
 /// <see cref="MetricsFile"/> is the aggregate; <see cref="CombatRowsFile"/>, when a run served the planner, carries its
 /// clock_stop, combat_order and dispatch rows.
@@ -185,7 +185,7 @@ internal static class CombatLabBundle
         return ScanLogs(m, Path.Combine(dir, CombatRowsFile));
     }
 
-    /// <summary>The metrics as the Go JSON encoding held them (indented, damageDropped omitted at zero).</summary>
+    /// <summary>The metrics as JSON (indented, damageDropped omitted at zero).</summary>
     internal static JsonNode MetricsJson(FightMetrics m) => OutputJson.Node(m, SweepJsonContext.Default.SimMetrics);
 
     /// <summary>The indented text of <see cref="MetricsJson"/>.</summary>

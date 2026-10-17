@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record DropEquipment : IActionPayload
 {
-    /// <summary>Go <c>NewDropEquipment</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public DropEquipment(PawnId pawn, string thing)
     {
         DomainException.Require(

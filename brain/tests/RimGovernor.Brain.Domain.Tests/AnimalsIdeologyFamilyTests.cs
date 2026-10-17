@@ -264,7 +264,7 @@ public sealed class AnimalsIdeologyFamilyTests
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
         var key = Journal.LegacyStandardKeyPrefix + "std-reform";
 
-        // The ImproveIdeoligion row an older save holds, its Record the Go-named intent.
+        // The ImproveIdeoligion row an older save holds, its Record the legacy-named intent.
         var blob = LegacyStandardBlob.Of("std-reform", "ImproveIdeoligion", World);
         blob["standard"]!["Record"] = new JsonObject
         {

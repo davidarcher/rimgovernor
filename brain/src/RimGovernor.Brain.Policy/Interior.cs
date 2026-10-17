@@ -126,7 +126,6 @@ public sealed record InteriorPiece
 /// <summary>A room's derived layout. Pieces are the planned footprints, in world cells.</summary>
 public sealed record InteriorPlan(IReadOnlyList<InteriorPiece> Pieces)
 {
-    /// <summary>The zero value Go's struct literal starts from.</summary>
     public InteriorPlan() : this([])
     {
     }

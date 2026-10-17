@@ -5,7 +5,7 @@ using System.Text;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// One row of the harness's process listing (Win32_Process; Go <c>setup.Process</c>): enough to tell whose game it is
+/// One row of the harness's process listing (Win32_Process): enough to tell whose game it is
 /// (Path, CommandLine) and whether it is doing anything (WorkingSet, CPU against Started).
 /// </summary>
 public sealed class SetupProcess
@@ -45,12 +45,12 @@ public sealed class SetupProcess
 }
 
 /// <summary>
-/// Lists and stops the games running from a private copy (Go <c>setup/process.go</c>). The brain runs inside the mod,
+/// Lists and stops the games running from a private copy. The brain runs inside the mod,
 /// so the only harness image left is the game itself; there is no <c>rimgovernor.exe</c> child to find.
 /// </summary>
 public static class SetupProcesses
 {
-    /// <summary>The images a root launches (Go <c>HarnessImages</c>): only the game now.</summary>
+    /// <summary>The images a root launches: only the game now.</summary>
     public static readonly IReadOnlyList<string> HarnessImages = [SetupDiscovery.GameImage];
 
     /// <summary>

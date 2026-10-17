@@ -3,11 +3,11 @@ using RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>ColonyRow</c>: one colony facts row, a message part or a keyed list's element keys in native order.
+/// One colony facts row, a message part or a keyed list's element keys in native order.
 /// </summary>
 public sealed record ColonyRow(object? Part, IReadOnlyList<string> Order) : IEquatable<ColonyRow>
 {
-    /// <summary>Go's <c>Equal</c>: compares two rows' facts.</summary>
+    /// <summary>Compares two rows' facts.</summary>
     public bool Equals(ColonyRow? other)
     {
         if (other is null || (Part is null) != (other.Part is null))
@@ -20,7 +20,7 @@ public sealed record ColonyRow(object? Part, IReadOnlyList<string> Order) : IEqu
     public override int GetHashCode() => Part?.GetHashCode() ?? Order.Count;
 
 
-    /// <summary>Go's <c>partial</c>: <paramref name="parent"/> with only <paramref name="field"/> set. The records are immutable, so the value is shared.</summary>
+    /// <summary><paramref name="parent"/> with only <paramref name="field"/> set. The records are immutable, so the value is shared.</summary>
     internal static ColonyRow Partial(object parent, WireField field)
     {
         var result = WireMessage.Of(parent).New();
@@ -29,13 +29,13 @@ public sealed record ColonyRow(object? Part, IReadOnlyList<string> Order) : IEqu
     }
 }
 
-// Go colony_rows.go: a ColonyFactsSnapshot splits into sections of native rows, one section per sub-section that
+// A ColonyFactsSnapshot splits into sections of native rows, one section per sub-section that
 // holds keyed rows, and "colony" for the rest. SplitColonyFacts and JoinColonyFacts are ported; ParseColonyRow and
 // ColonyRow.MarshalJSON are the mirror's JSON (de)serialisation and are not ported. The walk is by wire field name
 // (snake_case) through WireMessage, so it reads like the descriptor walk it replaced.
 public static class ColonyRows
 {
-    /// <summary>Go's <c>ColonySection</c>: the root colony facts section.</summary>
+    /// <summary>The root colony facts section.</summary>
     public const string ColonySection = "colony";
 
     private static readonly string[] ColonyFallbackKeys = ["def_name"];
@@ -68,7 +68,7 @@ public static class ColonyRows
         return new ColonyLayoutValue([ColonySection, .. names], fields, observed);
     });
 
-    /// <summary>Go's <c>ColonySections</c>: names every colony facts section, the root first.</summary>
+    /// <summary>Names every colony facts section, the root first.</summary>
     public static IReadOnlyList<string> ColonySections() => [.. ColonyLayout.Value.Sections];
 
     /// <summary>Whether a list of <paramref name="message"/> can carry element keys.</summary>
@@ -119,7 +119,7 @@ public static class ColonyRows
 
     // ---- row keys ----------------------------------------------------------------------------------------------
 
-    /// <summary>Go's <c>elementKey</c>: a repeated element's string id, else the id of its first singular message field whose type has one.</summary>
+    /// <summary>A repeated element's string id, else the id of its first singular message field whose type has one.</summary>
     private static string ElementKey(object element)
     {
         var type = element.GetType();
@@ -142,7 +142,7 @@ public static class ColonyRows
         return "";
     }
 
-    /// <summary>Go's <c>rowKey</c>: an element's key, empty when it has none.</summary>
+    /// <summary>An element's key, empty when it has none.</summary>
     private static string RowKey(object element)
     {
         var key = ElementKey(element);
@@ -160,7 +160,7 @@ public static class ColonyRows
         return "";
     }
 
-    /// <summary>Go's <c>listKeys</c>: the list's element keys, null unless every element has a distinct one a key path can carry.</summary>
+    /// <summary>The list's element keys, null unless every element has a distinct one a key path can carry.</summary>
     private static List<string>? ListKeys(List<object?> list)
     {
         var keys = new List<string>(list.Count);
@@ -179,11 +179,11 @@ public static class ColonyRows
 
     // ---- split -------------------------------------------------------------------------------------------------
 
-    /// <summary>Go's protoreflect <c>Range</c>: the populated fields of a message with their values, in declaration order.</summary>
+    /// <summary>The populated fields of a message with their values, in declaration order.</summary>
     private static IEnumerable<(WireField Field, object Value)> PopulatedFields(object message) => WireMessage.PopulatedFields(message);
 
     /// <summary>
-    /// Go's <c>SplitColonyFacts</c>: <paramref name="v"/>'s rows by section; every section is present, empty when
+    /// <paramref name="v"/>'s rows by section; every section is present, empty when
     /// <paramref name="v"/> holds none of it. <paramref name="v"/> is not modified.
     /// </summary>
     public static Dictionary<string, Dictionary<string, ColonyRow>> SplitColonyFacts(ColonyFactsSnapshot v)
@@ -271,10 +271,9 @@ public static class ColonyRows
 
     // ---- join --------------------------------------------------------------------------------------------------
 
-    /// <summary>Go's <c>keySegment</c>: one step of a row key.</summary>
+    /// <summary>One step of a row key.</summary>
     private readonly record struct KeySegment(string Name, string Key, bool Keyed);
 
-    /// <summary>Go's <c>parseRowKey</c>.</summary>
     private static List<KeySegment> ParseRowKey(string key)
     {
         var result = new List<KeySegment>();
@@ -333,7 +332,7 @@ public static class ColonyRows
         return result;
     }
 
-    /// <summary>Go's <c>siteOf</c>: the steps of a row key and whether they sit within the sub-section's observed outcome.</summary>
+    /// <summary>The steps of a row key and whether they sit within the sub-section's observed outcome.</summary>
     private static (List<KeySegment> Segments, bool Observed) SiteOf(string section, string key)
     {
         var layout = ColonyLayout.Value;
@@ -357,7 +356,6 @@ public static class ColonyRows
         return (segments, false);
     }
 
-    /// <summary>Go's <c>pendingList</c>.</summary>
     private sealed class PendingList(object parent, WireField field)
     {
         public object Parent { get; } = parent;
@@ -384,7 +382,7 @@ public static class ColonyRows
     }
 
     /// <summary>
-    /// Go's <c>JoinColonyFacts</c>: the snapshot the sections' rows describe (<see cref="SplitColonyFacts"/> reversed);
+    /// The snapshot the sections' rows describe (<see cref="SplitColonyFacts"/> reversed);
     /// a missing section contributes nothing.
     /// </summary>
     /// <exception cref="DomainException">The rows do not describe a snapshot.</exception>
@@ -499,7 +497,7 @@ partial class WireField
         field.Kind == WireKind.Message || (field.Kind == WireKind.Repeated && WireMessage.IsRecord(field.ValueType));
 
     /// <summary>
-    /// Go's <c>observedOutcome</c>: a sub-section's oneof "observed" field, when no field of the observed message
+    /// A sub-section's oneof "observed" field, when no field of the observed message
     /// shares a name with the sub-section's own.
     /// </summary>
     internal static WireField? ObservedOutcome(WireField field)

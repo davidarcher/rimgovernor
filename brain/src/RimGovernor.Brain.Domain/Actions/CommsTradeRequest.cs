@@ -12,7 +12,7 @@ public enum TradeRequestKind
 /// </summary>
 public sealed record CommsTradeRequest : IActionPayload
 {
-    /// <summary>Go <c>CommsTradeRequest.Validate</c> as the constructor; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>The validating constructor; throws <see cref="DomainException"/> when invalid.</summary>
     public CommsTradeRequest(TradeRequestKind kind, string faction, string traderKind, string console, string negotiator, long expectedLastRequestTick)
     {
         DomainException.Require(

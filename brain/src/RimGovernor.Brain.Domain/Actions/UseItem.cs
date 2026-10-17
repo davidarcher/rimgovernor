@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record UseItem : IActionPayload
 {
-    /// <summary>Go <c>NewUseItem</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public UseItem(PawnId pawn, string item, PawnId target)
     {
         DomainException.Require(

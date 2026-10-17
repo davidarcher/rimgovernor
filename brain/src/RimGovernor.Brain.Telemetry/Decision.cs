@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Telemetry;
 
-/// <summary>Severity of a telemetry row. There is no Debug level: Info is the floor (Go's slog levels Info, Warn, Error).</summary>
+/// <summary>Severity of a telemetry row. There is no Debug level: Info is the floor.</summary>
 public enum TelemetryLevel
 {
     Info,

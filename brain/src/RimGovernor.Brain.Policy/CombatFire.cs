@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_fire.go
 //
 // Spacing and friendly fire: firing cells a tile apart, no attack along a line a colonist stands on, and hold
 // fire on a hostile locked in melee with one of our blockers.

@@ -519,7 +519,7 @@ partial class RoundsDefensePlanner
                 d = d with { DraftOwned = Known(false) };
             }
             defenders.Add(d);
-            // Go assigns the warden capability to its local copy after the append, so it never reaches the defender row; ported as is.
+            // The warden capability is assigned to a local copy after the append, so it never reaches the defender row.
             var profile = inp.Profiles[pawn.Id];
             profiles.Add(profile);
         }

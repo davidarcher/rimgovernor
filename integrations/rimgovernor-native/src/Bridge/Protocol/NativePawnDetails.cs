@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
                 .Select(d => d.Worker as WorkGiver_Tend).FirstOrDefault(w => w!=null)
                 ?? throw new InvalidOperationException("WorkGiver_Tend is missing from the game's work givers.");
             // Pairwise reachability is quadratic in the page (about 0.3 us a pair), so
-            // it runs under Go's budget: a doctor reached after it is spent reports
+            // it runs under the brain's budget: a doctor reached after it is spent reports
             // reach_skipped (list unknown), never a partial list.
             var budgetTicks=reachBudgetMs.HasValue ? reachBudgetMs.Value*System.Diagnostics.Stopwatch.Frequency/1000 : long.MaxValue;
             var began=System.Diagnostics.Stopwatch.GetTimestamp();
@@ -473,7 +473,7 @@ namespace HomeBridge.BridgeTools
 
         // Projects the pawn's 24-hour timetable as one TimetableSlot per hour
         // (hour 0 first), the exact list RimWorld's Pawn_TimetableTracker
-        // resolves CurrentAssignment from, so the Go side can mirror the
+        // resolves CurrentAssignment from, so the brain can mirror the
         // schedule observation used by independent timetable-aware consumers
         // (boundary.ExpectedScheduleDef). Pawns without a timetable tracker
         // (animals, other factions) or with an unreadable/odd-length one

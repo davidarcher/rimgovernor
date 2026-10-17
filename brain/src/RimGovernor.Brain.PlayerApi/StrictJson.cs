@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.PlayerApi;
 internal sealed class StrictJsonException(string message) : Exception(message);
 
 /// <summary>
-/// The strict decoder of player mutation bodies (Go <c>buildingRequest</c>). It establishes syntax and typed
+/// The strict decoder of player mutation bodies. It establishes syntax and typed
 /// intent only: at most <see cref="Limit"/> bytes, valid UTF-8, no lone surrogate escape, no duplicate key at any
 /// depth, nesting of at most 8, nothing after the value, exactly the named keys and none of them null.
 /// </summary>

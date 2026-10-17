@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record DoorControl : IActionPayload
 {
-    /// <summary>Go <c>NewDoorControl</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public DoorControl(Cell cell, bool holdOpen)
     {
         DomainException.Require(cell.X >= 0 && cell.Z >= 0, "door control requires a valid cell");
@@ -24,6 +24,6 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewDoorControlAction(ActionId id, DoorControl door) => Create(id, ActionKind.DoorControl, door);
 
-    /// <summary>Go <c>Action.DoorControl() (DoorControl, bool)</c>: the payload when this is a door control action, otherwise null.</summary>
+    /// <summary>The payload when this is a door control action, otherwise null.</summary>
     public DoorControl? DoorControl => PayloadOf<DoorControl>(ActionKind.DoorControl);
 }

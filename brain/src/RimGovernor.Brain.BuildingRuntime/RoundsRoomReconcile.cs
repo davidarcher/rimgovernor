@@ -84,7 +84,7 @@ internal sealed record RoomBuild
 
 partial class RoundsBuildingPlanner
 {
-    /// <summary>The first <paramref name="count"/> bytes of the SHA-256 of <paramref name="text"/>, as lowercase hex (Go's %x of digest[:n]).</summary>
+    /// <summary>The first <paramref name="count"/> bytes of the SHA-256 of <paramref name="text"/>, as lowercase hex.</summary>
     internal static string DigestHex(string text, int count) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)), 0, count).ToLowerInvariant();
 
@@ -570,7 +570,7 @@ public sealed partial class RoundsBuildingPlanner
         var roof = new BuildRoof(cells);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewBuildRoofAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-0")), roof);
-        // Go prints the cell slice with fmt.Sprint: [{x z} {x z}].
+        // The cell list prints as [{x z} {x z}].
         var printed = "[" + string.Join(" ", roof.Cells.Select(c => string.Create(CultureInfo.InvariantCulture, $"{{{c.X} {c.Z}}}"))) + "]";
         var method = new MethodId($"{w.Rr.Name}-roof-{DigestHex(printed, 8)}");
         if (!MethodOnce(goal, method, call))

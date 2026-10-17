@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// How the runner brings the game to a case's starting state (Go <c>cases.Start</c>). Exactly one of
+/// How the runner brings the game to a case's starting state. Exactly one of
 /// <see cref="DebugStart"/>, <see cref="LabStart"/>, <see cref="SaveStart"/>, <see cref="ScenarioStart"/>,
 /// <see cref="FixtureStart"/> and <see cref="OwnedStart"/>; the set is sealed because the runner switches over it.
 /// </summary>

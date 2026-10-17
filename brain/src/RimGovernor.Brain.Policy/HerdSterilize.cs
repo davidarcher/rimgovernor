@@ -83,7 +83,7 @@ public static class HerdSterilizeRules
     }
 
     /// <summary>
-    /// Go <c>SterilizeChoice</c>: sequences the sterilize surgery through the hospital ward, one write per cycle,
+    /// Sequences the sterilize surgery through the hospital ward, one write per cycle,
     /// from the animals' current allowed area and sterilize facts alone: let an animal wanted sterilized into the
     /// hospital (allowed_area), queue its bill (sterilize), and let it out once it is sterilized (allowed_area
     /// cleared). One animal is in the room at a time, and an animal with a bill queued is waited on. An animal in

@@ -28,7 +28,7 @@ internal sealed class FrameView
     /// <summary>The reader over the frame's whole-map grid, null for a frame without one.</summary>
     internal FrameCellGrid? Grid => _grid.Value;
 
-    /// <summary>The order the feed took the frame in (Go <c>snapshotshm.Frame.Number</c>).</summary>
+    /// <summary>The order the feed took the frame in.</summary>
     internal long Number { get; }
 
     internal NativeFrame Frame { get; }
@@ -42,7 +42,7 @@ internal sealed class FrameView
 }
 
 /// <summary>
-/// What Go's <c>frameStream.frameTable</c> derived from one frame before any read looked in it: a failure frame's
+/// What is derived from one frame before any read looked in it: a failure frame's
 /// refusal, a frame that cannot be served at all (it is skipped until a newer one arrives), the world it describes,
 /// the held keyed tables and the emergency census.
 /// </summary>
@@ -58,7 +58,7 @@ internal sealed class FramePrepared
     /// <summary>Why the frame is skipped (an invalid pawn row under an emergency census, an undecodable census).</summary>
     internal Exception? Problem { get; private init; }
 
-    /// <summary>A refusal the emergency decoder raised: surfaced to the reader, like Go's refused frame.</summary>
+    /// <summary>A refusal the emergency decoder raised: surfaced to the reader.</summary>
     internal Bridge.Contracts.ReadRefusedException? DecodeRefusal { get; private init; }
 
     internal PbCommon.Identity? World { get; private init; }
@@ -100,7 +100,7 @@ internal sealed class FramePrepared
 }
 
 /// <summary>
-/// Go's <c>heldTables</c> without the hold: because every handed-over frame is whole, the keyed tables are
+/// Because every handed-over frame is whole, the keyed tables are
 /// indexed straight from the frame's lists and the envelopes are the frame's sections without their rows.
 /// </summary>
 internal sealed class FrameHeld
@@ -272,22 +272,19 @@ public sealed partial class FacadeNativeClient : IDisposable
         _frameFeed?.Dispose();
     }
 
-    /// <summary>Go <c>RoutePathBudgetMS</c>: the main-thread time one frame may spend pathing facility x colonist pairs.</summary>
+    /// <summary>The main-thread time one frame may spend pathing facility x colonist pairs.</summary>
     internal const uint RoutePathBudgetMs = 100;
 
-    /// <summary>Go <c>HuntRouteBudgetMS</c>.</summary>
     internal const uint HuntRouteBudgetMs = 50;
 
-    /// <summary>Go <c>HerdRadius</c>.</summary>
     internal const uint HerdRadius = 25;
 
-    /// <summary>Go <c>LinesOfFireBudgetMS</c>.</summary>
     internal const uint LinesOfFireBudgetMs = 15;
 
-    /// <summary>Go <c>frameWriteWait</c>: one wait for the next frame.</summary>
+    /// <summary>One wait for the next frame.</summary>
     private static readonly TimeSpan FrameWriteWait = TimeSpan.FromSeconds(1);
 
-    /// <summary>Go <c>frameRetry</c>: the space between attempts to open the stream.</summary>
+    /// <summary>The space between attempts to open the stream.</summary>
     private static readonly TimeSpan FrameRetry = TimeSpan.FromSeconds(5);
 
     private readonly object _frameGate = new();
@@ -299,7 +296,7 @@ public sealed partial class FacadeNativeClient : IDisposable
     private string _frameOpenError = "";
 
     /// <summary>
-    /// Go's <c>caller.timeout</c> for one frame read: how long a read waits for a frame that answers it before it is
+    /// How long a frame read waits for a frame that answers it before it is
     /// unavailable.
     /// </summary>
     internal TimeSpan FrameReadTimeout { get; init; } = TimeSpan.FromSeconds(30);
@@ -308,7 +305,7 @@ public sealed partial class FacadeNativeClient : IDisposable
     internal TelemetryEmitter? Telemetry { get; set; }
 
     /// <summary>
-    /// Go's <c>caller.frames != nil</c>: whether reads are served from the snapshot stream. Off, the routine, combat,
+    /// Whether reads are served from the snapshot stream. Off, the routine, combat,
     /// planning-window and table reads are unavailable and the colony facts, status and entity lists are read live.
     /// </summary>
     internal bool UseFrames { get; init; } = true;
@@ -316,7 +313,7 @@ public sealed partial class FacadeNativeClient : IDisposable
     private FrameFeed Feed => LazyInitializer.EnsureInitialized(ref _frameFeed, () => new FrameFeed(Facade.Frames))!;
 
     /// <summary>
-    /// Go's <c>caller.openFrames</c> with the subscription it grows: subscribes in process to the native snapshot
+    /// Subscribes in process to the native snapshot
     /// stream. <c>PlannerParts.OpenFrames</c> calls it once at start; a frame read calls it again by itself when the
     /// stream is not open or the subscription grew. The frames captured before it are dropped.
     /// </summary>
@@ -363,7 +360,7 @@ public sealed partial class FacadeNativeClient : IDisposable
     }
 
     /// <summary>
-    /// Go <c>Client.FlushSnapshot</c> (<c>snapshot_flush.go</c>): asks native to capture the writes deferred so far.
+    /// Asks native to capture the writes deferred so far.
     /// The reply does not wait for the capture.
     /// </summary>
     internal async Task FlushSnapshotAsync(CancellationToken cancellationToken)
@@ -372,7 +369,7 @@ public sealed partial class FacadeNativeClient : IDisposable
     }
 
     /// <summary>
-    /// Go's <c>frameReader</c>: opens (or resubscribes) the stream when it is not open or the subscription grew,
+    /// Opens (or resubscribes) the stream when it is not open or the subscription grew,
     /// spacing failed attempts by <see cref="FrameRetry"/>. A failed attempt is not an error of the read: the read
     /// waits for a frame and reports the last open failure if none arrives.
     /// </summary>
@@ -408,7 +405,7 @@ public sealed partial class FacadeNativeClient : IDisposable
     internal readonly record struct FrameServed<T>(bool Served, T? Value);
 
     /// <summary>
-    /// Go <c>frameReadView</c>: waits for the newest frame that answers the read
+    /// Waits for the newest frame that answers the read
     /// (<paramref name="lookup"/>) and returns the answer. A frame carrying a Failure is a
     /// <see cref="Bridge.Contracts.ReadRefusedException"/> naming the section; a frame of another world is <see cref="BridgeRefusedException"/>;
     /// no frame within <see cref="FrameReadTimeout"/> is <see cref="BridgeUnavailableException"/>. With
@@ -501,7 +498,7 @@ public sealed partial class FacadeNativeClient : IDisposable
 
     /// <summary>
     /// A frame read of one whole section: found when <paramref name="section"/> returns it, and a frame without it
-    /// is waited past (Go: the frame then carries no key of the method, so the read waits for the next frame).
+    /// is waited past.
     /// </summary>
     internal async Task<T> FrameSectionAsync<T>(
         string name,

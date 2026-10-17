@@ -2,7 +2,6 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// The cell census a site kind picks from (the square search is gone; every kind uses the rectangle picker).
-/// (Go <c>FarmSiteRequest</c>.)
 /// </summary>
 public sealed record FarmSiteRequest
 {
@@ -19,7 +18,7 @@ public sealed record FarmSiteRequest
 
 public sealed record FarmSiteTerm(string Name, double Value);
 
-/// <summary>Records why a patch scored as it did: its Terms. (Go <c>FarmSiteCandidate</c>.)</summary>
+/// <summary>Records why a patch scored as it did: its Terms.</summary>
 public sealed record FarmSiteCandidate
 {
     public IReadOnlyList<FarmSiteTerm> Terms { get; init; } = [];

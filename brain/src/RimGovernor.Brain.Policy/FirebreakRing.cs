@@ -3,11 +3,11 @@ namespace RimGovernor.Brain.Policy;
 public static class FirebreakRingRules
 {
     /// <summary>
-    /// Go <c>FirebreakRing</c>: the firebreak band's geometry alone: every in-bounds cell within
+    /// The firebreak band's geometry alone: every in-bounds cell within
     /// <see cref="FirebreakRules.FirebreakWidth"/> of the base footprint (the home base of the colony extent with no margin,
     /// plus GrowingZones) and outside it, whatever its ground or treatment. It reads only Bounds, Construction,
     /// Claims, Home and GrowingZones; field siting protects these cells so new fields never take the ring.
-    /// Throws where Go returned an error.
+    /// Throws.
     /// </summary>
     public static Fact<EquatableArray<Cell>> FirebreakRing(FirebreakRequest r)
     {

@@ -2,11 +2,11 @@ using System.Security.Cryptography;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>One classification of a failed attempt and whether a retry may follow it (Go <c>retryDecision</c>).</summary>
+/// <summary>One classification of a failed attempt and whether a retry may follow it.</summary>
 internal readonly record struct RetryDecision(string Classification, bool Eligible);
 
 /// <summary>
-/// The suite's retry wrapper (Go <c>cmd/acceptance/retry.go</c>): it keeps the original row shape as the final projection
+/// The suite's retry wrapper: it keeps the original row shape as the final projection
 /// while retaining immutable evidence references for every attempt. Cleanup failure or cancellation cannot launch a
 /// retry. Both attempts share the suite deadline.
 /// <para>

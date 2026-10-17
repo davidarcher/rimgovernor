@@ -105,7 +105,7 @@ public static partial class PlannedRules
         return result;
     }
 
-    /// <summary>A total-order comparer from a Go-style less function.</summary>
+    /// <summary>A total-order comparer from a less function.</summary>
     internal static Comparer<T> LessComparer<T>(Func<T, T, bool> less) =>
         Comparer<T>.Create((a, b) => less(a, b) ? -1 : less(b, a) ? 1 : 0);
 

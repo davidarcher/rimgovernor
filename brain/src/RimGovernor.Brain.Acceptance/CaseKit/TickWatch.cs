@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// Reports a game whose live tick has stopped advancing (or was never read) for longer than the limit: the game died,
-/// or it was relaunched to the main menu with no map loaded (Go <c>sustainedfood.tickStall</c>).
+/// or it was relaunched to the main menu with no map loaded.
 /// </summary>
 internal sealed class TickStall
 {

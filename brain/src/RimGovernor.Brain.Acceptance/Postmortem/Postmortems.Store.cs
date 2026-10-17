@@ -7,7 +7,7 @@ using RimGovernor.Brain.Telemetry;
 
 namespace RimGovernor.Brain.Acceptance;
 
-// The raw-store sections of the digest (Go postmortem.go parts 3, 4 and 6).
+// The raw-store sections of the digest.
 public static class PostmortemStore
 {
     private static readonly Lock ProviderGate = new();
@@ -95,7 +95,7 @@ public static class PostmortemStore
         }
     }
 
-    /// <summary>A member by name, ignoring case (the stored payloads are decoded the way Go's decoder matches field names).</summary>
+    /// <summary>A member by name, ignoring case.</summary>
     private static JsonNode? Field(JsonNode? node, string name)
     {
         if (node is JsonObject map)
@@ -218,9 +218,9 @@ public static class PostmortemStore
             return s;
         }
 
-        // The C# store keeps every table the Go postmortem read (rounds, plans, transitions,
+        // The C# store keeps every table the postmortem reads (rounds, plans, transitions,
         // actions), so no table is added for the digest. Its actions carry kind and a JSON body but no definition/pawn
-        // columns (the Go store's), so the action line names the kind only; a journal predating the actions table still
+        // columns, so the action line names the kind only; a journal predating the actions table still
         // has the transitions, and the kind is then blank.
         string[] queries =
         [
@@ -476,7 +476,7 @@ public static class PostmortemStore
         return s;
     }
 
-    /// <summary>A decoded-JSON value as Go's <c>%v</c> prints it: strings bare, integral numbers without a fraction, none as &lt;nil&gt;.</summary>
+    /// <summary>A decoded-JSON value as plain text: strings bare, integral numbers without a fraction, none as &lt;nil&gt;.</summary>
     private static string Plain(JsonNode? value)
     {
         if (value is null)

@@ -41,7 +41,7 @@ public sealed record LogRow
     /// <summary>The row as the timeline reader holds it, for the kind helpers (<see cref="RowKinds"/>).</summary>
     public TimelineRecord Record() => new() { Kind = Kind, Sequence = (long)Sequence, Context = Context, Payload = Payload };
 
-    /// <summary>The row's data as one flat map (Go <c>bridge.RowFields</c>): a decision row's attrs with its verdict, reason, target and dur_ms.</summary>
+    /// <summary>The row's data as one flat map: a decision row's attrs with its verdict, reason, target and dur_ms.</summary>
     public IReadOnlyDictionary<string, object?> Fields()
     {
         if (!Payload.ContainsKey(Decision.VerdictKey))
@@ -73,7 +73,7 @@ public sealed record LogRow
     public string ContextString(string key) => RowValue.Text(Context.GetValueOrDefault(key));
 }
 
-/// <summary>Loose reads of the decoded values a <see cref="LogRow"/> holds (Go <c>AsString</c>/<c>AsNumber</c> over <c>any</c>).</summary>
+/// <summary>Loose reads of the decoded values a <see cref="LogRow"/> holds.</summary>
 internal static class RowValue
 {
     /// <summary>The string a value holds; empty when it is not a string.</summary>
@@ -90,7 +90,7 @@ internal static class RowValue
     };
 }
 
-/// <summary>The row-kind predicates of Go <c>bridge/rows.go</c> that the evidence readers use.</summary>
+/// <summary>The row-kind predicates the evidence readers use.</summary>
 public static class RowKinds
 {
     /// <summary>The target of the clock worker's per-step planner_step row.</summary>

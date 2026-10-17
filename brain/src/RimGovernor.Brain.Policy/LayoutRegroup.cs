@@ -358,7 +358,7 @@ internal sealed class Regrouper(RegroupInput input)
 }
 
 /// <summary>
-/// Ports <c>layout_regroup.go</c>: regrouping. ClusterStations is the conservative seed: it merges the stations that
+/// Regrouping. ClusterStations is the conservative seed: it merges the stations that
 /// flow together unless the merged room loses an effect, and splits nothing it can keep. The embedding moves blocks of
 /// a fixed group set and cannot change the groups, so the search over the groups is an outer loop around it: a move
 /// is proposed, the stations are clustered again with a per-pair rule, the groups are embedded, and the move is kept

@@ -125,8 +125,7 @@ namespace HomeBridge.BridgeTools
             result = result with { Threats = threats }; return result;
         }
 
-        // The cheap facts the threat filter branches on and its rows carry
-        //; Go classifies them.
+        // The cheap facts the threat filter branches on and its rows carry; the brain classifies them.
         private static ThreatFacts ThreatFactsOf(Pawn pawn, Faction player)
         {
             var ours = pawn.Faction == player; var hunt = pawn.CurJobDef?.defName == "PredatorHunt"; var held = pawn.HostFaction == player;

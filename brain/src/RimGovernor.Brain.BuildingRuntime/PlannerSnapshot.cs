@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Port of planner_snapshot.go: snapshot recording hooks for replay, active only when the snapshot directory is set.</summary>
+/// <summary>Snapshot recording hooks for replay, active only when the snapshot directory is set.</summary>
 internal static class PlannerSnapshot
 {
     /// <summary>Records the store's tables into the serve's snapshot stream when recording is on.</summary>
@@ -51,7 +51,7 @@ internal static class PlannerSnapshot
     }
 }
 
-/// <summary>One planner step's recording (Go returned the derived context and a finish func).</summary>
+/// <summary>One planner step's recording.</summary>
 internal sealed class PlannerRecording(IDisposable recording, GenerationSnapshot current, Tick tick) : IDisposable
 {
     public void Finish()

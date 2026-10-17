@@ -6,7 +6,7 @@ public sealed partial record LayoutPlan
     public List<PlannedRoom> RingRooms() => RoomsOf(LayoutRingRules.PlannedSparringRing);
 }
 
-/// <summary>Ports <c>layout_ring.go</c>: the sparring ring, a clear square beside the training range where colonists spar.</summary>
+/// <summary>The sparring ring, a clear square beside the training range where colonists spar.</summary>
 public static partial class LayoutRingRules
 {
     /// <summary>The sparring ring's plan role.</summary>

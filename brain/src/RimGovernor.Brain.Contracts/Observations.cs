@@ -513,7 +513,7 @@ public sealed record ClearanceTargetsRequest
     public EquatableArray<Rectangle> PlannedGround { get; init; }
 
     /// <summary>
-    /// Salvage evidence tunables, Go-supplied: a cached row older than
+    /// Salvage evidence tunables, brain-supplied: a cached row older than
     /// salvage_max_age_ticks is recomputed; the frame refresher spends at most
     /// salvage_frame_budget_ms per update; a read computes rows with no cache
     /// entry up to salvage_inline_budget_ms, or salvage_census_budget_ms when its
@@ -1130,7 +1130,7 @@ public sealed record PawnSettings
 /// <summary>
 /// The pawn's body stats the outdoor dash planner and nearby hazard planners
 /// read: native values at the read tick (the game's own stat and hediff
-/// evaluation, never derived in Go). A scalar is absent when native could not
+/// evaluation, never derived in the brain). A scalar is absent when native could not
 /// read it (unknown, not zero). comfortable_min_c and comfortable_max_c are
 /// StatDefOf.ComfyTemperatureMin/Max (degrees C, apparel included);
 /// move_speed is StatDefOf.MoveSpeed in cells per second, with the current
@@ -2002,7 +2002,7 @@ public sealed record BillState
     /// <summary>
     /// Live bill jobs' promised ingredients: one row per spawned pawn
     /// whose current job works this bill, the spawned things it has queued or
-    /// placed. Go's material budget subtracts them from free stock.
+    /// placed. The brain's material budget subtracts them from free stock.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<IngredientReservation>))]
     public EquatableArray<IngredientReservation> Reservations { get; init; }
@@ -3440,7 +3440,7 @@ public abstract record ResourceSourcesReplyOutcome
 /// <summary>
 /// Realized consumption. Native keeps a saved hourly ring (2500-tick
 /// hours, 60 days) of what colony stock was spent, per (definition, reason). A
-/// read names the last hour Go already holds; the reply carries every
+/// read names the last hour the brain already holds; the reply carries every
 /// completed hour after it (since_hour absent or negative: the whole window),
 /// sparse: an hour or row not listed spent nothing. count is signed: an
 /// ejected refuel or removed shell subtracts. current_hour is still filling and
@@ -4817,8 +4817,7 @@ public sealed record ResolveTargetReply
 /// <summary>
 /// EvaluateStat is the game's own stat evaluation for one subject: a definition
 /// (with optional stuff and quality category), a thing, or a pawn. A definition
-/// subject without quality is the live parity oracle of the Go evaluator. The oracle and
-/// scaffolding of the Go stat evaluator (epic #2621); it carries no new action.
+/// subject without quality is the live parity oracle of the stat evaluator (epic #2621); it carries no new action.
 /// </summary>
 public sealed record StatDefSubject
 {
@@ -4944,7 +4943,7 @@ public sealed record GearCandidate
 /// <summary>
 /// candidates are every eligible loose item, best gain first (then thing id).
 /// The pawn's wear inputs (gender, developmental_stage, body_part_groups) are
-/// what the definition catalog's apparel rows cannot say: Go applies the wear
+/// what the definition catalog's apparel rows cannot say: the brain applies the wear
 /// filter (gender, stage, body part groups) from those rows. developmental_stage
 /// is the pawn's single DevelopmentalStage (the apparel filter's flag bit);
 /// body_part_groups are the BodyPartGroupDef names for which the pawn has a
@@ -4980,12 +4979,12 @@ public sealed record GearLoadout
 }
 
 /// <summary>
-/// One apparel option the Go loadout model may choose. Layers, body part
+/// One apparel option the loadout model may choose. Layers, body part
 /// groups and the def x stuff stats come from the catalog (def rows and stat
 /// table); the option carries the instance: id is the thing id for
 /// worn/loose/stored items, bill:&lt;def&gt;/&lt;stuff&gt; for a producible definition.
 /// source is worn, loose, stored or bill. A bill option's recipe research and
-/// ingredients and the def's smoke-pop verb are Go rules over the catalog rows.
+/// ingredients and the def's smoke-pop verb are brain rules over the catalog rows.
 /// </summary>
 public sealed record GearLoadoutOption
 {
@@ -5559,7 +5558,7 @@ public sealed record FoodConsumer
 /// A food stock references its thing's row in the bundle's things table
 /// and adds what is relative to its eaters: holder when only
 /// that pawn eats it, the nutrition the stack gives them and who can eat it
-/// (the row's forbidden flag is the stack's; Go decides which forbidden food
+/// (the row's forbidden flag is the stack's; the brain decides which forbidden food
 /// is the travel reserve).
 /// </summary>
 public sealed record FoodStock
@@ -6291,14 +6290,14 @@ public sealed record AcquisitionFacts
 
     /// <summary>
     /// meat_amount is the live animal's MeatAmount stat (wounds, missing parts and malnutrition scale it);
-    /// Go prices the meat off the race and meat rows and derives food, revenge chance, predator, melee-only and tree.
+    /// The brain prices the meat off the race and meat rows and derives food, revenge chance, predator, melee-only and tree.
     /// </summary>
     public double? MeatAmount { get; init; }
 
     /// <summary>
     /// Plant rows: growth is the plant's growth fraction (0..1) on every plant row.
     /// plantation marks a sown tree of a harvest-destroys crop standing in a growing zone
-    /// (RimWorld's growers fell it only at maturity; Go may fell it earlier); wild trees and
+    /// (RimWorld's growers fell it only at maturity; the brain may fell it earlier); wild trees and
     /// crops in a zone never carry it.
     /// </summary>
     public double? Growth { get; init; }
@@ -6307,11 +6306,11 @@ public sealed record AcquisitionFacts
 }
 
 /// <summary>
-/// Raw hunt census: what Go needs to decide whether a hunt row is offered. Native states
+/// Raw hunt census: what the brain needs to decide whether a hunt row is offered. Native states
 /// facts and keeps only physical validity; weapon rules, hunter eligibility and
-/// the pending-hunt cap are Go policy (policy.HuntGate).
+/// the pending-hunt cap are brain policy (policy.HuntGate).
 /// One free colonist. hunting_active is
-/// WorkIsActive. weapon_def is the primary weapon def (absent for an unarmed pawn); Go reads its verbs and projectile off the ThingDef rows.
+/// WorkIsActive. weapon_def is the primary weapon def (absent for an unarmed pawn); the brain reads its verbs and projectile off the ThingDef rows.
 /// ranged_blocking_shield mirrors WorkGiver_HunterHunt.HasShieldAndRangedWeapon. routes carries one HuntRoute per (hunt row, colonist) pair native
 /// evaluated: every unfogged hunt row, pests first then nearest first, for a colonist with
 /// Hunting active who is neither downed nor in a mental state, until the request's
@@ -6381,7 +6380,7 @@ public sealed record ButcheringFacts
 }
 
 /// <summary>
-/// The MeatAmount of the fresh humanlike corpses near a bench, summed per race; Go prices it off the race's meat def.
+/// The MeatAmount of the fresh humanlike corpses near a bench, summed per race; the brain prices it off the race's meat def.
 /// </summary>
 public sealed record HumanCorpseMeat
 {
@@ -6593,7 +6592,7 @@ public sealed record HomeCoverageSection
 /// &gt;= 0.3 as lit). A lamp is lit only when native currently emits light. A work
 /// cell lists plant_defs: the defs of the plants standing in its proper room,
 /// and of the plants its growing zones are set to. A lamp's radius is its
-/// def's CompProperties_Glower row. Go reads PlantProperties.diesToLight off
+/// def's CompProperties_Glower row. The brain reads PlantProperties.diesToLight off
 /// each def (cave fungus): lighting such a room would kill the crop, so the cell
 /// is never a lighting deficit.
 /// </summary>
@@ -7353,7 +7352,7 @@ public sealed record KillRecord
 /// A butcher recipe made its products from one corpse, counted where the
 /// products are made (any bill, any butcher). meat_units and meat_nutrition are
 /// the produced meat (meat_def) stack and its nutrition, leather_units the
-/// produced leather; Go links it to its KillRecord by corpse_id.
+/// produced leather; the brain links it to its KillRecord by corpse_id.
 /// </summary>
 public sealed record ButcherRecord
 {
@@ -7952,7 +7951,7 @@ public sealed record BiotechColonyFacts
 /// Gene-building rows. A pawn or thing reference is a thing id. gene
 /// lists are GeneDef defNames, sorted; complexity, metabolism and archites are
 /// the game's own GeneSet totals (ComplexityTotal, MetabolismTotal,
-/// ArchitesTotal), never summed in Go.
+/// ArchitesTotal), never summed by the brain.
 /// GeneBankState: a building with CompGenepackContainer. capacity is
 /// CompProperties_GenepackContainer.maxCapacity, pack_ids the contained
 /// packs, auto_load the container's own flag.
@@ -8362,7 +8361,7 @@ public abstract record ColonyFactsReplyOutcome
 /// <summary>
 /// Simulation status excludes notifications/UI/clock, exposed by their typed owners.
 /// ThreatPawn is one living non-colonist pawn's threat facts: the
-/// native emits facts, Go classifies them (bridge.ClassifyThreat). A row is
+/// native emits facts, the brain classifies them (bridge.ClassifyThreat). A row is
 /// emitted for a pawn in a mental state, of a faction hostile to the
 /// player, breaking out of prison or on a PredatorHunt job, and for
 /// an unowned downed pawn or predator within the requested predator radius

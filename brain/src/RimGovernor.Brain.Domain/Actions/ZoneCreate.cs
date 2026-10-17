@@ -51,7 +51,6 @@ public static class ZoneCreateConstants
     public const int TreeCellsPerTree = TreeLatticePitch * TreeLatticePitch;
 }
 
-/// <summary>Go <c>GroundRect.Cells</c> (the type itself is declared with deconstruction).</summary>
 public static class ZoneGroundRectExtensions
 {
     public static EquatableArray<Cell> Cells(this GroundRect r)
@@ -72,8 +71,8 @@ public static class ZoneGroundRectExtensions
 /// An exact growing/fishing footprint or a stockpile rectangle drag. RimWorld resolves the stockpile's usable
 /// cells and connected zones. Role is the stable key a stockpile planner claims the zone by (e.g. "general",
 /// "ingredients:&lt;benchID&gt;", "dump:worn"); it travels with the zone_create receipt into store.OwnedZone.
-/// Empty is a legacy role-less claim. Instances are always canonical: the constructors validate, so Go's
-/// <c>ReconstructZone</c> re-check has no counterpart.
+/// Empty is a legacy role-less claim. Instances are always canonical: the constructors validate, so no re-check
+/// is needed.
 /// </summary>
 public sealed record ZoneCreate : IActionPayload
 {
@@ -90,7 +89,7 @@ public sealed record ZoneCreate : IActionPayload
         Rectangle = rectangle;
     }
 
-    /// <summary>Go <c>NewZoneCreate</c>: a growing zone over an exact connected footprint.</summary>
+    /// <summary>A growing zone over an exact connected footprint.</summary>
     public ZoneCreate(ZoneKind kind, string crop, IEnumerable<Cell> cells)
     {
         DomainException.Require(kind == ZoneKind.Growing && IdText.IsValidText(crop), "invalid zone configuration");
@@ -118,11 +117,11 @@ public sealed record ZoneCreate : IActionPayload
     /// <summary>A stockpile's planner role key; empty when untagged.</summary>
     public string Role { get; private init; } = "";
 
-    /// <summary>Go <c>ExtendZoneID()</c>: the existing fishing zone this request extends; empty otherwise.</summary>
+    /// <summary>The existing fishing zone this request extends; empty otherwise.</summary>
     public string ExtendId { get; private init; } = "";
 
     /// <summary>
-    /// Go <c>canonicalConnectedCells</c>: sorts by (X, Z), rejects empty, negative or duplicate cells and
+    /// Sorts by (X, Z), rejects empty, negative or duplicate cells and
     /// disconnected footprints.
     /// </summary>
     internal static EquatableArray<Cell> CanonicalConnectedCells(IEnumerable<Cell> cells)
@@ -169,7 +168,6 @@ public sealed record ZoneCreate : IActionPayload
         return NewFishingZone(cells) with { ExtendId = zoneId };
     }
 
-    /// <summary>Go <c>validStockpilePriority</c>.</summary>
     internal static bool ValidStockpilePriority(StockpilePriority p) => Wire.IsDefined(p);
 
     /// <summary>A rectangle drag with a canonical filter.</summary>
@@ -285,6 +283,6 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewZoneCreateAction(ActionId id, ZoneCreate z) => Create(id, ActionKind.ZoneCreate, z);
 
-    /// <summary>Go <c>Action.ZoneCreate() (ZoneCreate, bool)</c>: the payload when this is a zone_create action, otherwise null.</summary>
+    /// <summary>The payload when this is a zone_create action, otherwise null.</summary>
     public ZoneCreate? ZoneCreate => PayloadOf<ZoneCreate>(ActionKind.ZoneCreate);
 }

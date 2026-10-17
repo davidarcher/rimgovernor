@@ -1,9 +1,9 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// The <c>lab/*</c> acceptance cases (Go <c>cases/lab</c>): lab contract cases that open on the blank Soil lab, spawn what
+/// The <c>lab/*</c> acceptance cases: lab contract cases that open on the blank Soil lab, spawn what
 /// they need with <see cref="DebugGame.LabSpawnAsync"/> and make one op or read assertion in 10-30 s.
-/// <see cref="Register"/> replaces the Go package's <c>init()</c>.
+/// <see cref="Register"/> registers them.
 /// </summary>
 public static class LabCases
 {

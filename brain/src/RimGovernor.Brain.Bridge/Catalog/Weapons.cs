@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_weapons.go: what the def rows say of a weapon. The primary-weapon lookup of an observed pawn's
+// What the def rows say of a weapon. The primary-weapon lookup of an observed pawn's
 // equipment (PrimaryWeapon) reads a frame, which is wire plumbing; the executor port (#3055) calls WeaponOf with
 // the def name the frame resolves.
 

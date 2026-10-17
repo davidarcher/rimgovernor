@@ -7,7 +7,7 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>The combat sections of one snapshot frame (Go <c>bridge.Combat</c> as the family reads it).</summary>
+/// <summary>The combat sections of one snapshot frame.</summary>
 public sealed record CombatState(Obs.BundleSnapshot Frame)
 {
     /// <summary>The frame's <c>combatEvents</c> rows.</summary>
@@ -19,7 +19,7 @@ public sealed record CombatState(Obs.BundleSnapshot Frame)
 
 /// <summary>
 /// Reads the combat sections of the snapshot stream's frames over the tool channel: the case maps the frames the way
-/// the controller's bridge does (Go <c>combatFrames</c>).
+/// the controller's bridge does.
 /// </summary>
 public sealed class CombatFrames
 {

@@ -4,7 +4,7 @@ using RimGovernor.Brain.Store.Codec;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>The kinds of progress transition the journal records (Go <c>transition.Kind</c>).</summary>
+/// <summary>The kinds of progress transition the journal records.</summary>
 internal enum TransitionKind
 {
     Prepare,
@@ -17,8 +17,7 @@ internal enum TransitionKind
 }
 
 /// <summary>
-/// One journaled step of an action's progress: a private persistence boundary, not a second progress model
-/// (Go <c>transition</c>). Replaying an action's transitions through <see cref="Apply"/> rebuilds its
+/// One journaled step of an action's progress: a private persistence boundary, not a second progress model. Replaying an action's transitions through <see cref="Apply"/> rebuilds its
 /// <see cref="Progress"/>. Only the fields a kind uses are written.
 /// </summary>
 internal sealed record Transition(TransitionKind Kind)

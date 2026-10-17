@@ -4,7 +4,7 @@ using System.Globalization;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// <c>acceptance run</c> (Go <c>run</c>/<c>parseRun</c>/<c>runCases</c>/<c>printCase</c> of <c>cmd/acceptance/main.go</c>):
+/// <c>acceptance run</c>:
 /// the shared runner over the case registry. Resolves the flags and case names, runs the doctor preflight, then executes
 /// the cases in order on one game (each Repeat times, with its repeat summary after the attempts).
 /// </summary>

@@ -62,7 +62,7 @@ namespace HomeBridge.BridgeTools
         // entity's targetHolder and gives the carrier CarryToEntityHolder, the
         // job WorkGiver_TakeEntityToHoldingPlatform builds. The platform is the
         // available one with the highest containment strength the carrier can
-        // reserve and reach, ties by thing id; Go decided the rule's margin
+        // reserve and reach, ties by thing id; the brain decided the rule's margin
         // against these same native strengths.
         private static CompHoldingPlatformTarget? EntityTarget(Pawn patient) => patient.GetComp<CompHoldingPlatformTarget>();
 

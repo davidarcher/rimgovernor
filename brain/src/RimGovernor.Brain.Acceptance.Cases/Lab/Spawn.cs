@@ -4,7 +4,7 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>lab/spawn</c> (Go <c>spawn.go</c>): what the fixture layer stages on the lab, the production reads see.</summary>
+/// <summary><c>lab/spawn</c>: what the fixture layer stages on the lab, the production reads see.</summary>
 internal static class LabSpawn
 {
     // A wall and an unowned muffalo on a clear 6x6 site beside the lab centre.

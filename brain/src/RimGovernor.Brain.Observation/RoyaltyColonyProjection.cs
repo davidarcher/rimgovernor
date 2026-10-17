@@ -10,7 +10,7 @@ public static class RoyaltyColonyProjectionReads
     }
 
     /// <summary>
-    /// Go's <c>DecodeRoyaltyColony</c>: validates the Royalty colony section's facts (the neuroformer stock, pending
+    /// Validates the Royalty colony section's facts (the neuroformer stock, pending
     /// bestowing ceremonies and standing thrones) and projects them; a malformed row breaks the contract.
     /// </summary>
     internal static RoyaltyColony DecodeRoyaltyColony(O.RoyaltyColonyFacts? v)

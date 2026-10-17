@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Observation;
 public static class RoundsWorkReads
 {
     /// <summary>
-    /// Go's <c>DefinitionCatalog.PrimaryWeapon</c>: the def facts of the primary weapon a pawn's equipment names. A gear
+    /// The def facts of the primary weapon a pawn's equipment names. A gear
     /// reference carries no def name, so the weapon resolves through the frame's things table; false while the
     /// equipment does not say (no armed flag, no primary id), the primary is not among the equipped items, or the
     /// table does not hold its row yet. An unarmed pawn is known with the empty weapon.

@@ -8,7 +8,7 @@ using RimGovernor.Brain.HttpChannel;
 namespace RimGovernor.Launcher;
 
 /// <summary>
-/// The launcher's state and actions behind the page (Go <c>app</c>). It keeps the game files and the production mod
+/// The launcher's state and actions behind the page. It keeps the game files and the production mod
 /// current, starts RimWorld with the in-process brain (<c>-rimgovernor-inproc</c>) and talks to the brain's local HTTP
 /// channel through the endpoint file the game writes. There is no controller process: Play starts the game, Stop and
 /// Close game end it.

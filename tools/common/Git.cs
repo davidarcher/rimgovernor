@@ -10,7 +10,7 @@ public static class Git
     /// <summary>Runs git and returns stdout exactly; a non-zero exit throws.</summary>
     public static Task<string> OutputAsync(string dir, CancellationToken ct, params string[] args) => Proc.OutputAsync(dir, "git", args, ct);
 
-    /// <summary>True when git exits 0 (the Go <c>err == nil</c> predicate form, for example <c>diff --quiet</c>).</summary>
+    /// <summary>True when git exits 0 (the predicate form, for example <c>diff --quiet</c>).</summary>
     public static async Task<bool> SucceedsAsync(string dir, CancellationToken ct, params string[] args) =>
         (await Proc.CaptureAsync(dir, "git", args, ct).ConfigureAwait(false)).ExitCode == 0;
 

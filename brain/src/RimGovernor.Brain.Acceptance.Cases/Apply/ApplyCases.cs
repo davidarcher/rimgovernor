@@ -4,7 +4,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// The <c>apply/*</c> lab contract cases (Go <c>cases/apply</c>): Actions/Apply behaviours a unit test cannot see because
+/// The <c>apply/*</c> lab contract cases: Actions/Apply behaviours a unit test cannot see because
 /// they live in the native handlers.
 /// </summary>
 internal static class ApplyCases

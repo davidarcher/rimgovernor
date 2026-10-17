@@ -3,7 +3,7 @@ using System.Text;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Go <c>ErrFoodPlanFacts</c>: the food plan inputs are unavailable or invalid.</summary>
+/// <summary>The food plan inputs are unavailable or invalid.</summary>
 public sealed class FoodPlanFactsException() : DomainException("food plan inputs unavailable or invalid");
 
 public sealed record FoodPlanRequest
@@ -50,7 +50,7 @@ public sealed record FoodPlanEntry
     public double DeliveredPerDay { get; init; }
 
     /// <summary>
-    /// Go <c>FoodPlanEntry.Selected</c>: whether the plan relies on the channel: it credits it, or opens it (an
+    /// Whether the plan relies on the channel: it credits it, or opens it (an
     /// uncredited channel opened under an emergency until it delivers).
     /// </summary>
     public bool Selected => DeliveredPerDay > 0 || Decision == FoodPlanDecision.Open;
@@ -98,7 +98,7 @@ public sealed record FoodPlan
 /// <summary>
 /// FoodField supplies the observations a FieldPlan does not own. ID identifies the field across reviews;
 /// remaining growth and work must not be guessed from the crop name. A newly planned field uses the full
-/// GrowDays as its remaining growth. Unknown inputs remain unknown in the resulting row. (Go <c>FoodField</c>.)
+/// GrowDays as its remaining growth. Unknown inputs remain unknown in the resulting row.
 /// </summary>
 public sealed record FoodField
 {
@@ -114,7 +114,7 @@ public sealed record FoodField
     public FieldExposure Exposure { get; init; } = new();
 }
 
-/// <summary>The cooking a harvest can use: the benches and the number of cooks who can work them. Unknown benches or cooks leave a crop raw. (Go <c>CropKitchen</c>.)</summary>
+/// <summary>The cooking a harvest can use: the benches and the number of cooks who can work them. Unknown benches or cooks leave a crop raw.</summary>
 public sealed record CropKitchen
 {
     public Fact<EquatableArray<ProductionBench>> Benches { get; init; }
@@ -122,7 +122,7 @@ public sealed record CropKitchen
     public Fact<double> Cooks { get; init; }
 
     /// <summary>
-    /// Go <c>CropKitchen.Cooking</c>: reads the best meal made of vegetables. It is Unknown while the benches,
+    /// Reads the best meal made of vegetables. It is Unknown while the benches,
     /// the cooks or any usable meal recipe's facts are unknown, and known "none" (empty recipe, Known) is never
     /// confused with it: a kitchen with no usable bench or no vegetable meal leaves the crop raw.
     /// </summary>
@@ -185,7 +185,6 @@ public sealed record CropKitchen
 /// <summary>
 /// The best vegetable meal at the kitchen's usable benches. NutrientEfficiency is cooked nutrition per raw
 /// nutrition, WorkPerNutrition the bench work per cooked nutrition and CapacityTicks the cook work a day.
-/// (Go <c>CropCooking</c>.)
 /// </summary>
 public sealed record CropCooking
 {
@@ -201,10 +200,10 @@ public sealed record CropCooking
 public static class FoodPlanRules
 {
     /// <summary>
-    /// Go <c>SupplyFoodPlan</c>: the food view of PlanSupply: the request's forecast becomes the Nutrition
+    /// The food view of PlanSupply: the request's forecast becomes the Nutrition
     /// demand, its channels become candidates, and the supply plan reads back as a FoodPlan. PlanSupply owns the
     /// ranking, labor budget and credit; GapPerDay is the covered demand minus admitted, risk-adjusted delivery.
-    /// Throws <see cref="FoodPlanFactsException"/> where Go returned ErrFoodPlanFacts.
+    /// Throws <see cref="FoodPlanFactsException"/>.
     /// </summary>
     public static FoodPlan SupplyFoodPlan(FoodPlanRequest r)
     {
@@ -291,7 +290,7 @@ public static class FoodPlanRules
     public const double FoodHuntWorkTicks = 7500.0;
 
     /// <summary>
-    /// Go <c>FoodSupportCandidate</c>: a zero-contribution Hold row: a supporting method (cooking capacity,
+    /// A zero-contribution Hold row: a supporting method (cooking capacity,
     /// stock protection) that creates no nutrition by itself and leaves the method to its own observed
     /// preconditions.
     /// </summary>
@@ -332,7 +331,7 @@ public static class FoodPlanRules
     public const double CookTicksPerDay = 20000.0;
 
     /// <summary>
-    /// Go <c>CropChannels</c>: prices each field as the better of raw and cooked nutrition. Cooked nutrition is
+    /// Prices each field as the better of raw and cooked nutrition. Cooked nutrition is
     /// the raw harvest times the best meal's efficiency, adds the cook labor to WorkPerDay and needs the
     /// kitchen's capacity; it is chosen only when it beats raw (raw wins ties unless raw is known not preferred).
     /// A perishable harvest bounds the stock it holds to what survives its rot days (StockCap); an unknown recipe
@@ -420,7 +419,7 @@ public static class FoodPlanRules
     public const double FieldSowTicksPerCell = 170.0;
 
     /// <summary>
-    /// Go <c>NewFieldLeadDays</c>: the days from sowing now to a new field's first harvest: the full grow days
+    /// The days from sowing now to a new field's first harvest: the full grow days
     /// across the calendar, so growth that outlasts the growing days left waits out the non-growing stretch. A
     /// crop is sown only while it grows, so the walk starts at the current temperature factor 1.
     /// </summary>
@@ -440,7 +439,7 @@ public static class FoodPlanRules
     }
 
     /// <summary>
-    /// Go <c>NewFieldChannels</c>: offers one closed candidate per viable crop of the field request: the cells
+    /// Offers one closed candidate per viable crop of the field request: the cells
     /// the crop still needs, priced like a planted field, with the sowing as upfront labor and the full grow days
     /// across the calendar as lead. Nothing is offered while crops cannot be sown outdoors. Site choice stays with
     /// the field executor, which acts on a candidate the plan opened.

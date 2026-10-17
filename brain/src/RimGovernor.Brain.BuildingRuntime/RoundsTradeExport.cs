@@ -309,7 +309,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            // An unread packed count leaves the fact unknown, as Go ignores the error.
+            // An unread packed count leaves the fact unknown.
         }
         var plan = ExportOrdersRules.DeclareExportOrders(request);
         rd.Exports.SetView(snapshot, Pol.WorkRules.NewExportView(plan, gap));

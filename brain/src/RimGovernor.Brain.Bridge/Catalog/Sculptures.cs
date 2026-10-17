@@ -5,7 +5,6 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_sculptures.go.
 
 public sealed partial class DefinitionCatalog
 {

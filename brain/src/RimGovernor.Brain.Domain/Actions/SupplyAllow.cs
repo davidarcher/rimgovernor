@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record SupplyAllow : IActionPayload
 {
-    /// <summary>Go <c>NewSupplyAllow</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public SupplyAllow(string thing, string definition, Cell cell)
         : this(thing, definition, cell, false) { }
 
@@ -22,7 +22,7 @@ public sealed record SupplyAllow : IActionPayload
         Forbidden = forbid;
     }
 
-    /// <summary>Go <c>NewSupplyForbid</c>: the same value, marked forbid.</summary>
+    /// <summary>The same value, marked forbid.</summary>
     public static SupplyAllow NewSupplyForbid(string thing, string definition, Cell cell) => new(thing, definition, cell, true);
 
     public bool Forbidden { get; }
@@ -38,11 +38,11 @@ public sealed record SupplyAllow : IActionPayload
 
 public sealed partial record DomainAction
 {
-    /// <summary>Go <c>NewSupplyAllowAction</c>: the kind is supply forbid when the payload is forbidden, supply allow otherwise.</summary>
+    /// <summary>The kind is supply forbid when the payload is forbidden, supply allow otherwise.</summary>
     public static DomainAction NewSupplyAllowAction(ActionId id, SupplyAllow supply) =>
         Create(id, supply.Forbidden ? ActionKind.SupplyForbid : ActionKind.SupplyAllow, supply);
 
-    /// <summary>Go <c>Action.SupplyAllow() (SupplyAllow, bool)</c>: the payload when this is a supply allow or forbid action, otherwise null.</summary>
+    /// <summary>The payload when this is a supply allow or forbid action, otherwise null.</summary>
     public SupplyAllow? SupplyAllow =>
         Kind is ActionKind.SupplyAllow or ActionKind.SupplyForbid ? Payload as SupplyAllow : null;
 }

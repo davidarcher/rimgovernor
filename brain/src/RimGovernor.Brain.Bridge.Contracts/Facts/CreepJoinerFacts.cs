@@ -4,11 +4,10 @@ using PolicyCreepJoinerPawn = RimGovernor.Brain.Policy.CreepJoinerPawn;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go creepjoiner_pawn.go.
 public static class CreepJoinerFacts
 {
     /// <summary>
-    /// Go's <c>CreepJoinerPawn</c>: lifts a combat-detail pawn row into the downside check's facts. A row with no
+    /// Lifts a combat-detail pawn row into the downside check's facts. A row with no
     /// Anomaly block is a game without Anomaly: no creepjoiner. A failed creepjoiner read stays unknown. The
     /// hediffs are the visible ones, known only from a complete hediff read.
     /// </summary>
@@ -22,7 +21,7 @@ public static class CreepJoinerFacts
         };
         if (row.Anomaly is { } anomaly)
         {
-            // Go discards the fact's known flag: an unknown anomaly reads as the zero value, no creepjoiner fact.
+            // The fact's known flag is discarded: an unknown anomaly reads as the zero value, no creepjoiner fact.
             if (AnomalyFactsRules.PawnAnomaly(anomaly).TryGetValue(out var lifted))
             {
                 result = result with { CreepJoiner = lifted.CreepJoiner };

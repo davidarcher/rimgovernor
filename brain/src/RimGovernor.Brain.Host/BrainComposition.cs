@@ -9,18 +9,17 @@ using RimGovernor.Brain.Telemetry;
 namespace RimGovernor.Brain.Host;
 
 // The seam between the host (lifecycle, thread, authority, fault isolation) and the parts of the brain that need a
-// native client over the facade. Go composed those in serve_building.go and serve_clock.go over one bridge.Client
-// that implemented some forty Native/Source interfaces at once; the C# port has no such client yet and no child owns
-// it, so the host asks for the finished parts instead of building them. Each member names what it hands back and
+// native client over the facade. The host asks for the finished parts instead of building them. Each member
+// names what it hands back and
 // who builds it.
 
-/// <summary>What the session, the executor and the optional action families call natively (Go <c>buildingServiceBridge</c>).</summary>
+/// <summary>What the session, the executor and the optional action families call natively.</summary>
 public sealed record SessionParts
 {
-    /// <summary>The building boundary's native reads (Go <c>buildingServiceBridge.native</c>).</summary>
+    /// <summary>The building boundary's native reads.</summary>
     public required IBoundaryNative Native { get; init; }
 
-    /// <summary>The Actions/Apply writer every dispatch goes through (Go <c>buildingServiceBridge.writes</c>).</summary>
+    /// <summary>The Actions/Apply writer every dispatch goes through.</summary>
     public required IActionsWriter Writer { get; init; }
 
     /// <summary>The clock capability (#3108); null composes a session that refuses to start while a clock command is owed.</summary>
@@ -36,19 +35,19 @@ public sealed record SessionParts
     public TradeCapabilities? Trade { get; init; }
 
     /// <summary>
-    /// Cancels native effects whose methods the per-world rebuild discarded (Go <c>orphanSweep</c>: today an open
+    /// Cancels native effects whose methods the per-world rebuild discarded (today an open
     /// trade session). Null sweeps nothing.
     /// </summary>
     public Action<IReadOnlyList<PlanState>, CancellationToken>? Orphans { get; init; }
 }
 
 /// <summary>
-/// The native capabilities the player routes (#3083) call, which Go's <c>httpapi.Config</c> took from the bridge client.
+/// The native capabilities the player routes (#3083) call.
 /// The host registers a route family for each one given.
 /// </summary>
 public sealed record PlayerNatives
 {
-    /// <summary>The tick and status reads behind the cached controller snapshot (Go <c>readState</c>).</summary>
+    /// <summary>The tick and status reads behind the cached controller snapshot.</summary>
     public RimGovernor.Brain.Observation.ISource? Source { get; init; }
 
     public IPresentationReader? Presentation { get; init; }
@@ -57,7 +56,7 @@ public sealed record PlayerNatives
 
     public INotificationReader? Notifications { get; init; }
 
-    /// <summary>Save, load and new colony. The host wraps it so every save flushes the governor state first (Go <c>flushedSave</c>).</summary>
+    /// <summary>Save, load and new colony. The host wraps it so every save flushes the governor state first.</summary>
     public ILifecycleWriter? Lifecycle { get; init; }
 
     /// <summary>The colony census reads behind the colony route.</summary>
@@ -83,15 +82,15 @@ public sealed class PlannerContext
     /// <summary>The decoded state store the scheduler's reviews file their census sections into.</summary>
     public required FactStore Sections { get; init; }
 
-    /// <summary>Rebuilds the store once per loaded world; the scheduler runs it first on each step (Go <c>worldRebuild.workerGate</c>).</summary>
+    /// <summary>Rebuilds the store once per loaded world; the scheduler runs it first on each step.</summary>
     public required Func<RimGovernor.Contracts.Wire.Common.ObservationContext, CancellationToken, Task<bool>> WorldReady { get; init; }
 
     /// <summary>Asks the scheduler loop to step now (the Worker's <c>Advanced</c>).</summary>
     public required Action Nudge { get; init; }
 
     /// <summary>
-    /// The autosave a run start at a paused tick calls with the loaded world's identity and tick (Go
-    /// <c>goAutosaver.AtStop</c>); it flushes the governor state before it saves. Null saves nothing.
+    /// The autosave a run start at a paused tick calls with the loaded world's identity and tick.
+    /// It flushes the governor state before it saves. Null saves nothing.
     /// </summary>
     public Func<RimGovernor.Contracts.Wire.Common.Identity, long, CancellationToken, Task>? Autosave { get; init; }
 }
@@ -102,7 +101,7 @@ public sealed class PlannerParts
     /// <summary>The scheduler over the composed planners; the host steps it on its thread.</summary>
     public required ClockScheduler Scheduler { get; init; }
 
-    /// <summary>The Worker's native reads for break responses and the arrival hold (Go <c>natives.breaks</c>).</summary>
+    /// <summary>The Worker's native reads for break responses and the arrival hold.</summary>
     public FacadeNativeClient? BreakSource { get; init; }
 
     public IArrivalPawns? Pawns { get; init; }
@@ -110,7 +109,7 @@ public sealed class PlannerParts
     /// <summary>The Worker's movement writer, which resends an idle drafted mover's order.</summary>
     public IActionsWriter? Moves { get; init; }
 
-    /// <summary>Asks native to capture the frame a step's deferred writes need (Go <c>natives.flush.FlushSnapshot</c>).</summary>
+    /// <summary>Asks native to capture the frame a step's deferred writes need.</summary>
     public Func<CancellationToken, Task>? Flush { get; init; }
 
     /// <summary>Told each dispatched action's progress (the Rounder's placement index).</summary>
@@ -132,6 +131,6 @@ public sealed class PlannerParts
     /// <summary>The live target speed behind <c>POST /api/player/clock-speed</c>; null registers no such route.</summary>
     public ClockTargetSpeed? TargetSpeed { get; init; }
 
-    /// <summary>The routine diagnostics behind <c>/api/routines</c> (Go <c>serviceRoundsDiagnostics</c>); null registers no such route.</summary>
+    /// <summary>The routine diagnostics behind <c>/api/routines</c>; null registers no such route.</summary>
     public IRoundsProvider? Rounds { get; init; }
 }

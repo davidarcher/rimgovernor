@@ -8,17 +8,16 @@ using O = RimGovernor.Contracts.Wire.Observations;
 using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Executor;
 
-// Port of Go internal/snapshot (#3052). The package records the colony facts a Rounds pass planned against so a
+// The snapshot package (#3052). It records the colony facts a Rounds pass planned against so a
 // test can replay them. Recording is evidence for replay, never part of a decision.
 //
 // What is ported: the recorded value types, the planner-step recorder and its Note* hooks, the review
 // detection replay (SnapshotRounds.Detect / Assessment, SnapshotFirebreak.Replay), and the background queue.
 //
-// What is deliberately NOT ported: the persistence layer (Go codec.go, mirror.go, stream.go, sync.go, grid.go,
-// recordings.go and the *.json / .gz file formats). Go wrote and read those through a reflection codec over the
+// There is no file persistence layer: recordings through a reflection codec over the
 // whole policy value graph (about 400 types); the port conventions forbid reflection-based JSON, and a
 // source-generated context over that graph is a separate decision. Writing goes through ISnapshotSink, which the
-// host supplies; with none set every Record* call is a no-op, which is what Go did with RIMGOVERNOR_SNAPSHOT_DIR unset.
+// host supplies; with none set every Record* call is a no-op.
 
 /// <summary>Where recorded evidence goes. The host implements it with a source-generated codec; none is set by default.</summary>
 public interface ISnapshotSink

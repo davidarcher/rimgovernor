@@ -2,11 +2,10 @@ using RimGovernor.Brain.Bridge.Contracts;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go pawn_table.go (FrameTables, FramePawns, framePawnSnapshot, frameHeld), thing_table.go (ThingTable, ValidThing,
-// FrameThings) and entities.go (ReadBuildings, ReadBillStacks).
+// ThingTable, ValidThing, FrameThings, ReadBuildings and ReadBillStacks.
 public sealed partial class FacadeNativeClient
 {
-    /// <summary>Go <c>framePawnsMethod</c>, <c>frameThingsMethod</c>, <c>frameBuildingsMethod</c>: the keyed tables a frame read waits for.</summary>
+    /// <summary>The methods naming the keyed tables a frame read waits for.</summary>
     private const string FramePawnsMethod = "rimgovernor/snapshot_frame_pawns";
 
     private const string FrameThingsMethod = "rimgovernor/snapshot_frame_things";
@@ -18,8 +17,8 @@ public sealed partial class FacadeNativeClient
     private const string ReadBillsMethod = "rimgovernor/observations_read_bills";
 
     /// <summary>
-    /// Go <c>Client.FrameTables</c>: the keyed tables of the newest frame (buildings, pawns, things). They are served
-    /// only by the snapshot stream; Go's list-read fallback for a client without one is not ported.
+    /// The keyed tables of the newest frame (buildings, pawns, things). They are served
+    /// only by the snapshot stream.
     /// </summary>
     internal async Task<Tables> FrameTablesAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
@@ -28,7 +27,7 @@ public sealed partial class FacadeNativeClient
         return new Tables(held.Buildings, held.Pawns, held.Things);
     }
 
-    /// <summary>Go <c>Client.FramePawns</c>: the pawn table of the newest frame.</summary>
+    /// <summary>The pawn table of the newest frame.</summary>
     internal async Task<Pawns> FramePawnsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         RequireFrames("the pawn table");
@@ -37,7 +36,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.FrameThings</c>: the things table of the newest frame. There is no live read behind it: without a
+    /// The things table of the newest frame. There is no live read behind it: without a
     /// stream the table is empty and every food stock reference waits.
     /// </summary>
     internal async Task<Things> FrameThingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
@@ -51,7 +50,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadBuildings</c>: every built, pending or blueprint player building (artificial) in one complete
+    /// Every built, pending or blueprint player building (artificial) in one complete
     /// reply. With a stream the frame's held building table is the list, with no encode round trip.
     /// </summary>
     internal async Task<EntityRows<PbObservations.BuildingState>> ReadBuildingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
@@ -67,7 +66,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadBillStacks</c>: every player bench's bill stack, keyed by bench id. With a stream the frame's
+    /// Every player bench's bill stack, keyed by bench id. With a stream the frame's
     /// bills section answers it (it is seeded under exactly this request).
     /// </summary>
     internal async Task<EntityRows<PbObservations.BillStackRow>> ReadBillStacksAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
@@ -100,16 +99,14 @@ public sealed partial class FacadeNativeClient
         return EntityRowsOf(snapshot.Context, snapshot.Benches, ids);
     }
 
-    /// <summary>Go <c>buildingsListRequest</c>.</summary>
     internal static PbObservations.ListBuildingsRequest BuildingsListRequest(PbCommon.Identity identity) =>
         new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
 
-    /// <summary>Go <c>billsListRequest</c>.</summary>
     internal static PbObservations.BillsRequest BillsListRequest(PbCommon.Identity identity) =>
         new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
 
     /// <summary>
-    /// Go <c>Client.frameHeld</c>: the held keyed tables as of the newest frame past this client's last write that
+    /// The held keyed tables as of the newest frame past this client's last write that
     /// carries the table (<paramref name="carries"/>).
     /// </summary>
     internal async Task<FrameHeld> FrameHeldAsync(string method, PbCommon.Identity identity, Func<FrameView, bool> carries, CancellationToken cancellationToken)
@@ -147,7 +144,7 @@ public sealed partial class FacadeNativeClient
         return outcome.Observed!;
     }
 
-    /// <summary>Go <c>readEntities</c>' fold: the rows keyed by their ids.</summary>
+    /// <summary>Folds the rows keyed by their ids.</summary>
     private static EntityRows<TRow> EntityRowsOf<TRow>(PbCommon.ObservationContext? context, IReadOnlyList<TRow> rows, List<string> ids)
     {
         var table = default(Table<TRow>);

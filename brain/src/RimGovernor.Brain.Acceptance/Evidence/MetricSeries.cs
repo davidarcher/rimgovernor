@@ -29,7 +29,7 @@ public sealed record SeriesRow
 
     public Metrics Metrics { get; init; } = new();
 
-    /// <summary>The row as one JSON object, with the Go field names (empty source_revision and seed omitted).</summary>
+    /// <summary>The row as one JSON object (empty source_revision and seed omitted).</summary>
     public JsonObject ToJson()
     {
         var row = new JsonObject { { "case", Case }, { "run_id", RunId } };
@@ -130,7 +130,7 @@ public sealed record DriftFlag(
     public JsonNode ToJson() => OutputJson.Node(this, SuiteJsonContext.Default.DriftFlag);
 }
 
-/// <summary>The per-run metrics series, drift and flake bookkeeping (Go <c>metrics.go</c>, second half).</summary>
+/// <summary>The per-run metrics series, drift and flake bookkeeping.</summary>
 public static class MetricSeries
 {
     /// <summary>How many prior rows of a case its flake rate spans.</summary>

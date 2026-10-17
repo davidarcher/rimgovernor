@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Store.Codec;
 public sealed class StoreCorruptException(string message) : Exception(message);
 
 /// <summary>
-/// One record type's JSON shape, written and read by hand with fixed Go-style field names, so renaming a C#
+/// One record type's JSON shape, written and read by hand with fixed field names, so renaming a C#
 /// property never changes the saved shape. The brain is reloadable, so nothing here goes through the
 /// reflection-based <c>JsonSerializer</c> (its static caches pin a collectible load context): only the raw
 /// <see cref="Utf8JsonWriter"/> and <see cref="JsonElement"/> are used.
@@ -116,7 +116,7 @@ public sealed class Codecs
     }
 }
 
-/// <summary>The journal's JSON entry points (Go's <c>json.Marshal</c> and <c>decode</c> of a store record).</summary>
+/// <summary>The journal's JSON entry points.</summary>
 public static class StoreJson
 {
     public static string Serialize<T>(T value) => Codecs.Default.Serialize(value);
@@ -213,7 +213,7 @@ public static class JsonFields
     public static T Get<T>(this JsonElement e, string name, Codecs o) =>
         e.TryGetProperty(name, out var field) ? o.Read<T>(field) : throw new StoreCorruptException($"missing field {name}");
 
-    /// <summary>The field, or <paramref name="fallback"/> when it is absent (a field Go left out when empty).</summary>
+    /// <summary>The field, or <paramref name="fallback"/> when it is absent (a field left out when empty).</summary>
     public static T GetOr<T>(this JsonElement e, string name, T fallback, Codecs o) =>
         e.TryGetProperty(name, out var field) && field.ValueKind != JsonValueKind.Null ? o.Read<T>(field) : fallback;
 
@@ -324,7 +324,7 @@ public sealed class ArrayCodec<T> : ICodec<EquatableArray<T>>
     }
 }
 
-/// <summary>A closed-string enum persists as its Go wire name (<see cref="Wire"/>).</summary>
+/// <summary>A closed-string enum persists as its wire name (<see cref="Wire"/>).</summary>
 public sealed class WireEnumCodec<TEnum> : ICodec<TEnum>
     where TEnum : struct, Enum
 {

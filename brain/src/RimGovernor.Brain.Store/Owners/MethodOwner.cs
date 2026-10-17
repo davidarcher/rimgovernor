@@ -9,7 +9,7 @@ public sealed partial class Store
     internal static void InsertPlanOwner(StoreTransaction tx, PlanId plan) =>
         tx.ExecuteOrConflict("INSERT INTO plan_owner(plan_id,kind) VALUES($plan,'need')", ("$plan", plan));
 
-    /// <summary>Whether any plan of the owner is still open work, or a fight of one holds (Go <c>standardOpenWork</c>).</summary>
+    /// <summary>Whether any plan of the owner is still open work, or a fight of one holds.</summary>
     internal static bool CombatOpenWork(StoreTransaction tx, NeedOwner owner)
     {
         foreach (var plan in owner.OwnerPlans)
@@ -25,7 +25,7 @@ public sealed partial class Store
 
     /// <summary>
     /// The guard every prepare and dispatch runs: the plan is live, its world is not retired, and its owning
-    /// Need still admits current work (Go <c>guardStandardWork</c>).
+    /// Need still admits current work.
     /// </summary>
     internal static void GuardPlanWork(StoreTransaction tx, PlanId plan, GenerationSnapshot current, Tick tick)
     {

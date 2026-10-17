@@ -2,9 +2,9 @@ using System.Text.Json.Serialization;
 
 namespace RimGovernor.Brain.Simulation.CombatMetrics;
 
-// Port of Go internal/combatmetrics (metrics.go): scores a combat fight from plain per-tick rows, so the
+// Scores a combat fight from plain per-tick rows, so the
 // real-game combat lab and the simulator report fights with one definition. It knows nothing of the
-// bridge read format or the logs. The JSON names are the Go field names: the committed combat lab
+// bridge read format or the logs. The JSON names are fixed: the committed combat lab
 // baselines are Sweep files, the one persisted text in this package.
 
 /// <summary>Sides a staged pawn fights on.</summary>
@@ -89,7 +89,7 @@ public sealed record Metrics
     [JsonPropertyName("stepLatencyP95Ms")]
     public long StepLatencyP95Ms { get; init; } = -1;
 
-    /// <summary>The metrics of a run that has no reads yet (Go <c>New</c>).</summary>
+    /// <summary>The metrics of a run that has no reads yet.</summary>
     public static Metrics New(string fixture) => new() { Fixture = fixture };
 
     /// <summary>
@@ -275,11 +275,11 @@ public sealed record Metrics
     }
 }
 
-/// <summary>One pawn's state in a read (Go <c>combatmetrics.Pawn</c>).</summary>
+/// <summary>One pawn's state in a read.</summary>
 public readonly record struct MetricsPawn(string Id, bool Dead = false, bool Downed = false, bool Fleeing = false);
 
 /// <summary>
-/// One damage ledger row of a read (Go <c>combatmetrics.Hit</c>). Downed and Dead say the hit left the victim
+/// One damage ledger row of a read. Downed and Dead say the hit left the victim
 /// down or dead.
 /// </summary>
 public readonly record struct MetricsHit(
@@ -294,7 +294,7 @@ public readonly record struct MetricsHit(
 
 /// <summary>
 /// One read of the fight: the pawns on the map, the damage ledger cumulative since the staging, and the
-/// ledger rows dropped for size (Go <c>combatmetrics.Read</c>).
+/// ledger rows dropped for size.
 /// </summary>
 public sealed record MetricsRead(int Tick)
 {

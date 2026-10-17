@@ -3,7 +3,7 @@ using System.Text;
 
 namespace RimGovernor.Tools.Common;
 
-/// <summary>Child processes: captured, or streamed with a heartbeat (Go: <c>os/exec</c> plus <c>internal/childproc</c>).</summary>
+/// <summary>Child processes: captured, or streamed with a heartbeat.</summary>
 public static class Proc
 {
     /// <summary>How often a running command reports that it is alive.</summary>
@@ -107,7 +107,7 @@ public static class Proc
             UseShellExecute = false,
             RedirectStandardOutput = redirectOut,
             RedirectStandardError = redirectErr,
-            // A captured console child never opens a terminal window of its own (Go: childproc.HideConsole).
+            // A captured console child never opens a terminal window of its own.
             CreateNoWindow = redirectOut || redirectErr,
         };
         if (redirectOut)

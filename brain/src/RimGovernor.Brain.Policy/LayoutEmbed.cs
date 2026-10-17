@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
-// Topology embedding places the room groups (layout_cluster.go) on the site as area-sized rectangular blocks,
+// Topology embedding places the room groups on the site as area-sized rectangular blocks,
 // coarsely: no regions, doors or walls yet (tiling is the next stage). It reuses the siting machinery rather
-// than a parallel one: the obstacle levels (layout_build_ground.go) and candidate seeds (layout_site_ground.go),
+// than a parallel one: the obstacle levels and candidate seeds,
 // the PlanScore terms per cell (soil and rock, edge, centre), planWeights for every weight and the seeded
 // searchRand. No constant is new.
 //
@@ -47,12 +47,12 @@ public sealed record EmbedInput
     /// <summary>The game's roof support distance (as for ClusterInput): it bounds a block's depth.</summary>
     public double RoofDistance { get; init; }
 
-    /// <summary>The field nodes placed with the groups (layout_field_place.go). With any, rooms may stand on field soil: the zone obstacle is dropped.</summary>
+    /// <summary>The field nodes placed with the groups. With any, rooms may stand on field soil: the zone obstacle is dropped.</summary>
     public IReadOnlyList<EmbedField> Fields { get; init; } = [];
 
     /// <summary>
     /// The standing rooms (BuiltRegions): each is the fixed block of the group MatchGroupRooms gives it, and
-    /// moves only by the relocation pass (layout_built.go). Unbuilt rooms are free.
+    /// Moves only by the relocation pass. Unbuilt rooms are free.
     /// </summary>
     public IReadOnlyList<BuiltRegion> Built { get; init; } = [];
 
@@ -102,7 +102,7 @@ public sealed record EmbedDecision
     /// <summary>Names the field of a field decision (Group is -1 then).</summary>
     public string Field { get; init; } = string.Empty;
 
-    /// <summary>The standing room of a built-room decision (layout_built.go).</summary>
+    /// <summary>The standing room of a built-room decision.</summary>
     public int Room { get; init; }
 }
 
@@ -301,7 +301,7 @@ internal sealed partial class Embedder : EmbedFixed
     private readonly List<Cell> _core;
     private readonly IReadOnlyList<Cell> _seeds = [];
 
-    // The built world (layout_built.go): per group the standing room that is its block (zero Width for none)
+    // The built world: per group the standing room that is its block (zero Width for none)
     // and its id, whether it must not move, the retired ground under the map (rich soil is Rich).
     private List<Rectangle> _home;
     private List<int> _homeRoom;
@@ -620,7 +620,7 @@ internal sealed partial class Embedder : EmbedFixed
             }
         }
         Search(blocks, seed, iters);
-        // The relocation pass (layout_built.go) is the one place a built room moves; the unbuilt rooms are
+        // The relocation pass is the one place a built room moves; the unbuilt rooms are
         // searched again around the result.
         var built = Relocate(blocks);
         if (built.Moved >= 0)
@@ -818,7 +818,7 @@ internal sealed partial class EmbedRun
 
     public int Unplaced { get; set; }
 
-    /// <summary>The relocation pass's verdict (layout_built.go).</summary>
+    /// <summary>The relocation pass's verdict.</summary>
     public BuiltRun Built { get; init; } = new();
 
     /// <summary>Counts the required links between placed blocks that are not adjacent.</summary>

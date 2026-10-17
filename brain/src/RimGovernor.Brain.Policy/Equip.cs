@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// Describes an observed colonist and optional combat facts. Selection is a proposal; native admission
-/// rechecks the exact pair. (Go <c>EquipCandidatePawn</c>.)
+/// rechecks the exact pair.
 /// </summary>
 public sealed record EquipCandidatePawn
 {
@@ -43,7 +43,7 @@ public sealed record EquipCandidatePawn
     public string NoArms { get; init; } = "";
 }
 
-/// <summary>Describes one already-observed loose weapon. (Go <c>EquipCandidateWeapon</c>.)</summary>
+/// <summary>Describes one already-observed loose weapon.</summary>
 public sealed record EquipCandidateWeapon
 {
     public string Thing { get; init; } = "";
@@ -80,7 +80,7 @@ public enum WeaponClass
 
 public static class EquipRules
 {
-    /// <summary>Go <c>ClassifyWeapon</c>: maps the observed definition flags onto a class.</summary>
+    /// <summary>Maps the observed definition flags onto a class.</summary>
     public static WeaponClass ClassifyWeapon(bool byTrade, bool ranged, bool melee)
     {
         if (ranged)
@@ -95,7 +95,7 @@ public static class EquipRules
     }
 
     /// <summary>
-    /// Go <c>SelectEquip</c>: returns the first pair from the colony-wide assignment, or null when none. Call
+    /// Returns the first pair from the colony-wide assignment, or null when none. Call
     /// <c>AssignEquip</c> to dispatch the whole wave. Admission remains native.
     /// </summary>
     public static (Domain.PawnId Pawn, EquipCandidateWeapon Weapon)? SelectEquip(

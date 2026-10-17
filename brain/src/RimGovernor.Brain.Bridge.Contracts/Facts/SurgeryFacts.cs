@@ -22,7 +22,6 @@ public interface IPartCatalog
     double PartTier(string recipe);
 }
 
-// Go surgery_facts.go.
 public static class SurgeryFactsRules
 {
     private static PolicySurgeryKind SurgeryKindOf(WireSurgeryKind kind) => kind switch
@@ -37,7 +36,7 @@ public static class SurgeryFactsRules
     };
 
     /// <summary>
-    /// Go's <c>SurgeryFacts</c>: maps the native surgery facts as observed, for a colonist's care read and a
+    /// Maps the native surgery facts as observed, for a colonist's care read and a
     /// prisoner's population row; both are unknown without a surgery block (a dead or map-less pawn). Values are never recomputed here. Each
     /// operation carries the part item its recipe installs, read from the catalog's recipe rows; a recipe the
     /// catalog has no row for throws. Without a catalog (<paramref name="catalog"/> null) the weapon drop and
@@ -113,7 +112,7 @@ public static class SurgeryFactsRules
     }
 
     /// <summary>
-    /// Go's <c>QueuedSurgeryItems</c>: lists the part item each queued medical bill installs, by the catalog's
+    /// Lists the part item each queued medical bill installs, by the catalog's
     /// recipe rows; a bill that installs no item adds none.
     /// </summary>
     public static IReadOnlyList<Resource> QueuedSurgeryItems(IEnumerable<string> recipes, IPartCatalog catalog)
@@ -130,11 +129,11 @@ public static class SurgeryFactsRules
         return items;
     }
 
-    /// <summary>Go's <c>QueuedSurgeries</c>: counts the medical bills on the patient; unknown without a surgery block.</summary>
+    /// <summary>Counts the medical bills on the patient; unknown without a surgery block.</summary>
     public static Fact<int> QueuedSurgeries(PawnSurgery? health) =>
         health is null ? Unknown<int>() : Known(health.SurgeryBills.Count);
 
-    /// <summary>Go's <c>QueuedSurgeryRecipes</c>: each medical bill's recipe on the patient; null without a surgery block.</summary>
+    /// <summary>Each medical bill's recipe on the patient; null without a surgery block.</summary>
     public static IReadOnlyList<string>? QueuedSurgeryRecipes(PawnSurgery? health) =>
         health is null
             ? null

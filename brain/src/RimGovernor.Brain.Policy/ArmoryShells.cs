@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: armory_shells.go
 
 public static class ArmoryShellsRules
 {

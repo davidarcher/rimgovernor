@@ -30,7 +30,7 @@ public sealed partial record PlannedRoom
     }
 }
 
-/// <summary>Ports <c>layout_porch.go</c>: a cold-map shelter's open lean-to child room.</summary>
+/// <summary>A cold-map shelter's open lean-to child room.</summary>
 public static partial class LayoutPorchRules
 {
     /// <summary>The porch's long side in cells: two batteries end to end.</summary>

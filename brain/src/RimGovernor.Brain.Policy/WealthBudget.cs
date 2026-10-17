@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: wealth_budget.go.
 
 public static partial class WealthBudgetRules
 {

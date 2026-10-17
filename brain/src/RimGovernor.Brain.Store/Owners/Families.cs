@@ -5,7 +5,7 @@ using RimGovernor.Brain.Store.Codec;
 namespace RimGovernor.Brain.Store;
 
 /// <summary>
-/// One serialisable placement of a stored layout tier (Go <c>DefenseBuilding</c>); <see cref="Building"/> would do,
+/// One serialisable placement of a stored layout tier; <see cref="Building"/> would do,
 /// but a tier is edited in place by the runtime, so the record carries plain fields.
 /// </summary>
 public sealed record DefenseBuilding
@@ -106,7 +106,7 @@ public sealed record DefenseLayoutRecord
 
     private static bool ValidIdentity(string s) => s.Length is > 0 and <= MaxIdentity;
 
-    /// <summary>Rejects a record that could not have come from a policy layout (Go <c>Validate</c>).</summary>
+    /// <summary>Rejects a record that could not have come from a policy layout.</summary>
     public void Validate()
     {
         DomainException.Require(ValidIdentity(World.Colony.Value) && ValidIdentity(World.Load.Value) && World.Map.Value >= 0, "defense layout world identity invalid");
@@ -243,7 +243,7 @@ public sealed record DefenseLayoutRecord
 
 /// <summary>
 /// The workshop planner's last observed rung for a resource or equipment deficit: which bench and recipe it settled
-/// on and the research projects still gating them (Go <c>ProductionLadderRecord</c>).
+/// on and the research projects still gating them.
 /// </summary>
 public sealed record ProductionLadderRecord
 {

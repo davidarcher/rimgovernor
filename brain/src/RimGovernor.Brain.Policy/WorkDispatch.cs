@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: work_dispatch.go. The bench dispatcher is the decision half of the work ledger: how many benches should carry
+// The bench dispatcher is the decision half of the work ledger: how many benches should carry
 // each stock-target order (the rate model, BenchesWanted), whether production keeps up with that prediction (a
 // rolling one-day window of measured stock gain) and, when it does not, whether one more bench would help or what
 // stops it. buildingruntime only feeds it observations and keeps the memory it returns.

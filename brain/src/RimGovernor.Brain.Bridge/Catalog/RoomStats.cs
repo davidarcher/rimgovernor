@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_room_stats.go: the room stats the planners aim at and the price of a butchering to a room.
+// The room stats the planners aim at and the price of a butchering to a room.
 
 public sealed partial class DefinitionCatalog
 {

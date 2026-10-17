@@ -54,7 +54,7 @@ public sealed class WaitError : AcceptanceException
     /// <summary>How far the game advanced during the wait, when the wait had a Tick reader.</summary>
     public ulong TicksElapsed { get; }
 
-    /// <summary>A duration rounded to whole seconds and written as Go prints it ("1m30s", "0s").</summary>
+    /// <summary>A duration rounded to whole seconds and written as duration text ("1m30s", "0s").</summary>
     internal static string FormatDuration(TimeSpan duration)
     {
         var seconds = (long)Math.Round(duration.TotalSeconds, MidpointRounding.AwayFromZero);
@@ -273,7 +273,7 @@ public sealed record Wait
         }
     }
 
-    // Go duration text ("90s", "1m30s", "250ms", "1h") or a bare number of seconds.
+    // Duration text ("90s", "1m30s", "250ms", "1h") or a bare number of seconds.
     private static bool TryParseDuration(string text, out TimeSpan duration)
     {
         duration = TimeSpan.Zero;

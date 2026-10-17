@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Reads live pawn positions and jobs for the arrival hold (Go <c>ArrivalPawns</c>).</summary>
+/// <summary>Reads live pawn positions and jobs for the arrival hold.</summary>
 public interface IArrivalPawns
 {
     Task<PbObservations.ListPawnsReply> ReadCombatPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct);

@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: weapon_assignment.go.
 
 /// <summary>Optional: an absent role falls back to skills and traits.</summary>
 public enum WeaponRole

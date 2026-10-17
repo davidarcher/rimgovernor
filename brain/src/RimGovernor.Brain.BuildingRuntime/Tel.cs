@@ -3,8 +3,8 @@ using System.Diagnostics;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// Go's package-level <c>telemetry.Decide/Event/StartSpan/...</c> over the Telemetry project's redesigned facade.
-/// Go's telemetry package kept one process-wide sink; the C# facade takes its <see cref="TelemetryEmitter"/> by
+/// Package-level Decide/Event/StartSpan/... helpers over the Telemetry project's facade.
+/// The facade takes its <see cref="TelemetryEmitter"/> by
 /// instance, so the controller session installs its emitter here once and the planners' static helpers, which
 /// have no session in reach, emit through it. Until one is installed every row is dropped (the null sink).
 /// </summary>

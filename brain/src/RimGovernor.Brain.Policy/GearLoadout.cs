@@ -169,7 +169,7 @@ public sealed record GearLoadoutInput
     /// <summary>Options have passed outfit/body/stage and resource-policy eligibility. Loose/stored IDs identify physical items; bill IDs identify products.</summary>
     public EquatableArray<GearOption> Options { get; init; }
 
-    /// <summary>Throws <see cref="DomainException"/> where Go returned an error.</summary>
+    /// <summary>Throws <see cref="DomainException"/>.</summary>
     public void Validate()
     {
         Climate.Validate();

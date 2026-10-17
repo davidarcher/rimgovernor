@@ -57,7 +57,7 @@ public static class Tiers
         return registry.All().Where(c => c.Tier != CaseTier.Off).ToList();
     }
 
-    /// <summary>Whether the case hosts the brain service itself (Go <c>serveDriven</c>).</summary>
+    /// <summary>Whether the case hosts the brain service itself.</summary>
     public static bool ServeDriven(AcceptanceCase c)
     {
         ArgumentNullException.ThrowIfNull(c);

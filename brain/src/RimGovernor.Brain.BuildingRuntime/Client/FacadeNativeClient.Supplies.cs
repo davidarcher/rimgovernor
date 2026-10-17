@@ -2,10 +2,10 @@ using RimGovernor.Brain.Bridge.Contracts;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go packed_install.go and neuroformer_items.go: the supply-census reads of one definition's loose items.
+// The supply-census reads of one definition's loose items.
 public sealed partial class FacadeNativeClient
 {
-    /// <summary>Go's <c>ReadPackedItems</c>: lists the colony's spawned, unheld packed items of one packed definition.</summary>
+    /// <summary>Lists the colony's spawned, unheld packed items of one packed definition.</summary>
     internal async Task<IReadOnlyList<PackedItem>> ReadPackedItemsAsync(PbCommon.Identity identity, string packedDef, CancellationToken cancellationToken)
     {
         var reply = await Facade.ListSuppliesAsync(SupplyRequests.OursUnheldSuppliesRequest(identity, packedDef), cancellationToken).ConfigureAwait(false);
@@ -38,7 +38,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go's <c>ReadNeuroformerItems</c>: lists the exact ids of the player's unforbidden stacks of
+    /// Lists the exact ids of the player's unforbidden stacks of
     /// <paramref name="def"/> lying on the map, sorted: the item a colonist uses on itself (UseItem). The royalty read
     /// carries only the count and lags this read. A stack with any forbidden unit is left out, since the supplies row
     /// counts forbidden units without naming them.

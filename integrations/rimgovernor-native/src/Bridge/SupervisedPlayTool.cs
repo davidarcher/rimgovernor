@@ -1166,7 +1166,7 @@ namespace HomeBridge.BridgeTools
         private sealed class State
         {
             public TypedEpoch? Typed;
-            /// The Go-authored policy this epoch runs under; every hazard threshold reads from it.
+            /// The brain-authored policy this epoch runs under; every hazard threshold reads from it.
             public RimGovernor.Contracts.Wire.Clock.WatchPolicy? Policy => Typed?.Policy;
             public State(object session, Map map) { Session = session; Map = map; }
             public bool Active; public readonly object Session; public readonly Map Map; public TimeSpeed RequestedSpeed;

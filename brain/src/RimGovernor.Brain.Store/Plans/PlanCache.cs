@@ -4,12 +4,12 @@ using RimGovernor.Brain.Domain;
 namespace RimGovernor.Brain.Store;
 
 /// <summary>
-/// Keeps the decoded state of each non-retired plan between reads (Go <c>planCache</c>).
+/// Keeps the decoded state of each non-retired plan between reads.
 /// </summary>
 /// <remarks>
 /// Decoding a plan (its action rows, dependencies, every transition replayed into a progress, its admissions) is
-/// the store's dominant allocation, and the planners read the whole catalog many times per scheduler step. Go
-/// watched the connection with a pre-update hook; this port cannot hook the native library, so the cache is told
+/// the store's dominant allocation, and the planners read the whole catalog many times per scheduler step.
+/// The store cannot hook the native library's pre-update callback, so the cache is told
 /// instead. <see cref="StoreTransaction.Execute"/> flushes it for any statement that writes one of the five tables
 /// a plan is decoded from, <see cref="StoreTransaction.ExecuteForPlan"/> drops only the named plan, and a rollback
 /// or a savepoint rollback flushes it when the transaction wrote. A write by another connection or process changes

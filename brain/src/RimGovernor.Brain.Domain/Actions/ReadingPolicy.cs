@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record ReadingPolicy : IActionPayload
 {
-    /// <summary>Go <c>NewReadingPolicy</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public ReadingPolicy(string name, IEnumerable<string> definitions)
     {
         DomainException.Require(IdText.IsValidText(name) && Encoding.UTF8.GetByteCount(name) <= 80, "a reading policy needs a name");

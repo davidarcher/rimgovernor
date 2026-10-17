@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// The <see cref="StoreSnapshotter"/> of a run: copies a case's <c>service.sqlite</c> into a checkpoint bundle through
-/// SQLite's online backup (Go <c>store.Open</c> + <c>Snapshot</c>). The source is opened read-only on a connection of
+/// SQLite's online backup. The source is opened read-only on a connection of
 /// its own, so the service that holds the file open (the game process) keeps writing and the copy is one consistent
 /// point; the journal's schema is not checked, a bundle keeps whatever the service wrote.
 /// </summary>

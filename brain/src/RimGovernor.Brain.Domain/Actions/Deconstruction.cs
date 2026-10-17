@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Domain;
 
-/// <summary>One rectangle of cleared ground: Width x Height cells from Origin. Go <c>GroundRect</c>.</summary>
+/// <summary>One rectangle of cleared ground: Width x Height cells from Origin.</summary>
 public readonly partial record struct GroundRect(Cell Origin, int Width, int Height);
 
 /// <summary>
@@ -9,7 +9,7 @@ public readonly partial record struct GroundRect(Cell Origin, int Width, int Hei
 /// </summary>
 public sealed record Deconstruction : IActionPayload
 {
-    /// <summary>Go <c>NewDeconstruction</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public Deconstruction(string target, string definition, Cell cell)
     {
         DomainException.Require(
@@ -27,7 +27,7 @@ public sealed record Deconstruction : IActionPayload
 
     public Cell Cell { get; }
 
-    /// <summary>Reports a door-to-wall swap (Go <c>ReplacesWithWall</c>).</summary>
+    /// <summary>Reports a door-to-wall swap.</summary>
     public bool ReplacesWithWall { get; private init; }
 
     /// <summary>
@@ -42,6 +42,6 @@ public sealed partial record DomainAction
     public static DomainAction NewDeconstructionAction(ActionId id, Deconstruction deconstruction) =>
         Create(id, ActionKind.Deconstruction, deconstruction);
 
-    /// <summary>Go <c>Action.Deconstruction() (Deconstruction, bool)</c>: the payload when this is a deconstruction action, otherwise null.</summary>
+    /// <summary>The payload when this is a deconstruction action, otherwise null.</summary>
     public Deconstruction? Deconstruction => PayloadOf<Deconstruction>(ActionKind.Deconstruction);
 }

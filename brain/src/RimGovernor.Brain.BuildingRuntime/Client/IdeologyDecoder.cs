@@ -7,12 +7,11 @@ using P = RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// Go <c>DecodeIdeology</c> (ideology.go): decodes the frame's ideology section over the catalog's Ideology defs. A
+/// Decodes the frame's ideology section over the catalog's Ideology defs. A
 /// section whose catalog has no Ideology defs is a contract failure.
 /// </summary>
 internal static class IdeologyDecoder
 {
-    /// <summary>Go <c>DecodeIdeology</c>.</summary>
     internal static P.Ideoligion Decode(PbObservations.IdeologySnapshot v, BridgeCatalog catalog)
     {
         ArgumentNullException.ThrowIfNull(catalog);

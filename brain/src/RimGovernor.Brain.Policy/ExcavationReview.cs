@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 /// The per-cell answer the review walks over, projected from a native site read. Cleared is open walkable
 /// ground; Blocked is a visible cell that is neither cleared nor natively eligible (a structure the fog hid,
 /// deep water, faction-owned rock, a native refusal) and stays standing as part of the room's walls; Rock is the
-/// visible mineable definition. (Go <c>ExcavationCellState</c>.)
+/// visible mineable definition.
 /// </summary>
 public sealed record ExcavationCellState
 {
@@ -28,7 +28,7 @@ public sealed record ExcavationCellState
 /// around. Remaining counts the uncleared cells that are neither kept nor stageable yet. Unknown means part of
 /// the remainder is still fogged, so the caller re-observes instead of deciding. Corridor reports whether every
 /// corridor cell is cleared or still diggable. Complete is a target with nothing left to stage, nothing unknown
-/// and an open corridor. (Go <c>ExcavationReview</c>.)
+/// and an open corridor.
 /// </summary>
 public sealed record ExcavationReview
 {
@@ -49,7 +49,7 @@ public static class ExcavationReviewRules
 {
     internal static readonly Cell[] OrthogonalSteps = [new(0, 1), new(1, 0), new(0, -1), new(-1, 0)];
 
-    /// <summary>Go <c>ReviewExcavation</c>: walks the target once and classifies every cell.</summary>
+    /// <summary>Walks the target once and classifies every cell.</summary>
     public static ExcavationReview ReviewExcavation(ExcavationTarget target, IReadOnlyList<ExcavationCellState> states, int stageLimit)
     {
         var order = target.Cells();

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Go <c>ErrControl</c>: a planner read went stale or control is unavailable.</summary>
+/// <summary>A planner read went stale or control is unavailable.</summary>
 public sealed class ControlException : Exception
 {
     public ControlException()
@@ -13,7 +13,7 @@ public sealed class ControlException : Exception
         : base($"planner read stale or control unavailable: {detail}", inner) { }
 }
 
-/// <summary>Go <c>errors.Join</c>: null when nothing failed, the error itself when one did, else an aggregate.</summary>
+/// <summary>Null when nothing failed, the error itself when one did, else an aggregate.</summary>
 internal static class ErrorJoin
 {
     public static Exception? Of(params Exception?[] errors)
@@ -30,7 +30,7 @@ internal static class ErrorJoin
 
 /// <summary>
 /// The separately held read client and trusted authority capability. Neither a model nor the read-only HTTP
-/// service receives this owner (Go <c>NativeAuthority</c>).
+/// service receives this owner.
 /// </summary>
 public interface INativeAuthority
 {
@@ -70,7 +70,7 @@ public sealed record ControlConfig
 /// Local-player authority over the native game. Auto means the bot holds authority outright; there is no
 /// negotiated lease to renew or expire. A local-player interruption (detected natively) or an explicit call to
 /// <see cref="ManualAsync"/> is what ends authority, and either bumps the generation the next write must match.
-/// The profile lock (Go <c>ProfileOwner</c>) is dropped: the brain runs in the mod process, which is the only
+/// The profile lock is dropped: the brain runs in the mod process, which is the only
 /// owner of the profile.
 /// </summary>
 public sealed partial class Control : IDisposable

@@ -17,7 +17,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
 /// Counts every native call into the read tally a scheduler step or a dispatch attached
-/// (<see cref="ReadTallyRules.CountNativeRead"/>; Go <c>readTallyFrom(ctx).add</c> in <c>Client.call</c>), under the
+/// (<see cref="ReadTallyRules.CountNativeRead"/>), under the
 /// <see cref="INativeFacade"/> method called, errors and cancellations included. It wraps the facade
 /// the client calls, so every core method is counted once per round trip with no per-method bookkeeping.
 /// </summary>

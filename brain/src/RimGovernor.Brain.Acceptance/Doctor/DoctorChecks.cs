@@ -5,10 +5,9 @@ using System.Reflection;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The acceptance preflight (Go <c>doctor</c> package): every environment pitfall that has cost a run ten minutes
+/// The acceptance preflight: every environment pitfall that has cost a run ten minutes
 /// before it surfaced, checked in a few seconds against a worker root. Each check names its fix rather than refusing;
 /// only a check that would certainly fail a run is Fail, the rest Warn (a relaunch, a slow first poll, a stale binary).
-/// The Go build-cache check and the serve-binary check are gone with the Go toolchain and the serve child process.
 /// </summary>
 public static class DoctorChecks
 {

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // The sleeping layout of a starter shell before its ring goes up: beds are the first construction on the
 // site and the sleeping spots the interim, so the ring is raised around colonists who already have somewhere
-// to lie down. The packing is the shelter interior template's (interior_shelter.go): one bunk slot per
+// to lie down. The packing is the shelter interior template's: one bunk slot per
 // colonist, shared by the spot rung and the bed rung (a bed replaces the spot on the same cells), each a 1x2
 // footprint at the slot's rotation, off the cell inside the door, the starter storage patch and the cells the
 // plan digs. Fewer bunks than asked for is not an error: the shell is small, and whatever fits is placed.

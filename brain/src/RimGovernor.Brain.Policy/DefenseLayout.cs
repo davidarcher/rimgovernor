@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>A defense layout or request the site cannot honour; the Go port returned these as errors.</summary>
+/// <summary>A defense layout or request the site cannot honour.</summary>
 public sealed class DefenseException(string message) : Exception(message);
 
 /// <summary>One census row of observations_read_defense_site. Unknown facts never become free space, cover or a route. Policy's view of the bridge's <c>DefenseCensusCell</c>: facts rather than plain values, plus the terrain affordances derived from them.</summary>

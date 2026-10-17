@@ -5,7 +5,7 @@ using RimGovernor.Brain.Telemetry.Otlp;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The sum, over every process of the run, of the instruments the series block reads (Go <c>metrics_otel.go</c>).
+/// The sum, over every process of the run, of the instruments the series block reads.
 /// The run's native-call and pause costs come from the service's exported OTEL metrics
 /// (docs/developers/contracts/otel-metrics.md), not from the log ring: every metrics.jsonl ring beside a service's
 /// logs.jsonl holds cumulative instruments, so the last export of each process is its total and the run's value is

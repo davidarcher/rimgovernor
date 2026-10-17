@@ -6,8 +6,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// What <see cref="Config.PrepareConfig"/> knows and the debug start needs to find and persist the cached start (Go
-/// <c>startCache</c> and the cached-start functions of <c>startcache.go</c>): one per harness process, so the shared
+/// What <see cref="Config.PrepareConfig"/> knows and the debug start needs to find and persist the cached start: one per harness process, so the shared
 /// <see cref="Current"/> rather than a field on every Harness.
 /// <para>
 /// A debug start normally loads a saved copy of itself instead of generating a world and map every time (a load is about

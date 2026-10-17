@@ -31,7 +31,7 @@ public sealed record LabThing
     public double Age { get; init; }
 }
 
-/// <summary>Whether the harness's storyteller is quiet (Go <c>Harness.quiet</c>, set by the quiet op and read by the lab start).</summary>
+/// <summary>Whether the harness's storyteller is quiet.</summary>
 public static class HarnessQuiet
 {
     private static readonly ConditionalWeakTable<Harness, StrongBox<bool>> States = new();
@@ -51,7 +51,7 @@ public static class HarnessQuiet
     }
 }
 
-/// <summary>The debug quick start, the quiet storyteller and the lab fixture tools (Go <c>debuggame.go</c>).</summary>
+/// <summary>The debug quick start, the quiet storyteller and the lab fixture tools.</summary>
 public static class DebugGame
 {
     /// <summary>The test fixture op that silences the storyteller (every fixture build carries it).</summary>

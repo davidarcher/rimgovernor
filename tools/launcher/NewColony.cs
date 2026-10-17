@@ -69,7 +69,7 @@ public sealed record NeedLevelPart
 }
 
 /// <summary>
-/// The New colony form (Go <c>NewColonySpec</c>): the wire spec with the seed optional (empty asks for a random one,
+/// The New colony form: the wire spec with the seed optional (empty asks for a random one,
 /// drawn at Generate) and the temperature band optional, plus the scenario parts. The settings file, the page and the
 /// game's HTTP call share this one JSON shape; lists are absent when empty.
 /// </summary>
@@ -135,7 +135,7 @@ public sealed record NewColonySpec
 /// <summary>A named, complete form: selecting it fills every row.</summary>
 public sealed record NewColonyPreset(string Name, string Label, NewColonySpec Spec);
 
-/// <summary>The curated lists, in display order (Go <c>NewColonyOptions</c>).</summary>
+/// <summary>The curated lists, in display order.</summary>
 public sealed record NewColonyOptions(
     IReadOnlyList<Choice> Scenarios,
     IReadOnlyList<Choice> Biomes,
@@ -224,7 +224,7 @@ public sealed record NewColonyView(
     public string? Unavailable { get; init; }
 }
 
-/// <summary>The form's lists and validation (Go <c>newcolony.go</c>, <c>newcolony_parts.go</c>).</summary>
+/// <summary>The form's lists and validation.</summary>
 public static partial class NewColony
 {
     public const string SavePrefix = "RimGovernor-";
@@ -387,7 +387,7 @@ public static partial class NewColony
     public static IReadOnlyList<NewColonyPreset> Presets { get; } = [new("rhadamant", "Rhadamant's Sea Ice challenge", Rhadamant())];
 
     /// <summary>
-    /// Rhadamant's Sea Ice Community Challenge on Crashlanded (Go <c>RhadamantParts</c>; the same parts as the
+    /// Rhadamant's Sea Ice Community Challenge on Crashlanded (the same parts as the
     /// brain's <c>ScenarioParts.ApplyRhadamant</c>). The seed is a pinned default the player may edit; "Losing is fun"
     /// is Extreme.
     /// </summary>
@@ -574,7 +574,7 @@ public static partial class NewColony
     private static WireLifecycle.ScenarioPawnContext PawnContext(string name) =>
         EnumByName<WireLifecycle.ScenarioPawnContext>(name, "SCENARIO_PAWN_CONTEXT_", "context");
 
-    /// <summary>A lower-case wire name maps to the enum value of that prefixed upper-case name, never the zero value (Go <c>enumByName</c>).</summary>
+    /// <summary>A lower-case wire name maps to the enum value of that prefixed upper-case name, never the zero value.</summary>
     private static T EnumByName<T>(string name, string prefix, string part)
         where T : struct, Enum
     {

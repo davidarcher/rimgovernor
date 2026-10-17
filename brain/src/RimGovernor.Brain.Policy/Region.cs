@@ -111,7 +111,7 @@ public sealed record Region
     /// <summary>Whether the cell is in the region.</summary>
     public bool Contains(Cell c)
     {
-        // First run at or after the cell in (Z, X+Length) order, as Go's sort.Search.
+        // First run at or after the cell in (Z, X+Length) order.
         int lo = 0, hi = Runs.Count;
         while (lo < hi)
         {

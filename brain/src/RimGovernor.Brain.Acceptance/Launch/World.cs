@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// A report's "world" block (Go <c>WorldRecord</c>): what decided the world a case ran on, so a failure can be read
+/// A report's "world" block: what decided the world a case ran on, so a failure can be read
 /// against the roll that produced it and a run reproduced (-seed). The installed build's hashes stay under package_files.
 /// </summary>
 public sealed record WorldRecord
@@ -45,7 +45,7 @@ public sealed record WorldRecord
     private static JsonNode? Present(string value) => value.Length > 0 ? value : null;
 }
 
-/// <summary>Builds the report's world block (Go <c>RecordWorld</c>, <c>FixtureHash</c>, <c>WorldOf</c>).</summary>
+/// <summary>Builds the report's world block.</summary>
 public static class WorldRecords
 {
     /// <summary>

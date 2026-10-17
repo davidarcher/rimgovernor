@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_climate.go: the heat the climate options move (P.ClimateModel), read from the defs and the game's constants:
+// The heat the climate options move (P.ClimateModel), read from the defs and the game's constants:
 // the vent's equalize interval (GenTicks.TickRareInterval, Building_Vent.TickRare) and rate
 // (TemperatureTuning.Vent_TempEqualizeRate), the door's intervals and rate from its BuildingProperties, the cheapest
 // heater's and the most efficient cooler's heat per second and power draw from their temperature control and power comps,

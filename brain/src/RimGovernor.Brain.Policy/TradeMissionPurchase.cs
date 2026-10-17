@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: trade_mission_purchase.go.
 
 /// <summary>Holds a food mission until its owning review measures demand. It is not a known empty purchase plan or a return decision.</summary>
 public sealed class TradeMissionFoodDemandUnknownException() : DomainException("trade mission food demand unknown");

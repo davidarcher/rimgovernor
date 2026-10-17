@@ -5,12 +5,12 @@ using RimGovernor.Brain.Store;
 namespace RimGovernor.Brain.Executor;
 
 // Port of internal/executor (executor.go, haul_types.go, movement_types.go, trade_types.go).
-// Dropped: the HaulJournal, MovementJournal and TradeJournal marker interfaces. They existed only to make Go
+// Dropped: the HaulJournal, MovementJournal and TradeJournal marker interfaces. They existed only to let callers
 // type-assert a journal that also had the untyped Prepare; IJournal.Prepare is part of the one journal here.
 // Awaiting (#3053): PlanState, BatchAttempt, BatchResult and BatchReceipt in RimGovernor.Brain.Store, and the
 // store's IJournal implementation. They are named, never redefined, here.
 
-/// <summary>Building authority changed or is disabled (Go <c>ErrAuthority</c>).</summary>
+/// <summary>Building authority changed or is disabled.</summary>
 public sealed class AuthorityException : DomainException
 {
     public AuthorityException()
@@ -26,7 +26,7 @@ public sealed class AuthorityException : DomainException
     public Exception? Inner { get; }
 }
 
-/// <summary>Building execution is held (Go <c>ErrHeld</c>).</summary>
+/// <summary>Building execution is held.</summary>
 public sealed class HeldException : DomainException
 {
     public HeldException()
@@ -39,7 +39,7 @@ public sealed class HeldException : DomainException
         : base("building execution held: " + inner.Message) { }
 }
 
-/// <summary>Invalid building evidence (Go <c>ErrEvidence</c>).</summary>
+/// <summary>Invalid building evidence.</summary>
 public sealed class EvidenceException : DomainException
 {
     public EvidenceException()
@@ -52,14 +52,14 @@ public sealed class EvidenceException : DomainException
         : base("invalid building evidence: " + inner.Message) { }
 }
 
-/// <summary>The executor was stopped and takes no more work (Go <c>ErrStopped</c>).</summary>
+/// <summary>The executor was stopped and takes no more work.</summary>
 public sealed class StoppedException : DomainException
 {
     public StoppedException()
         : base("building executor stopped") { }
 }
 
-/// <summary>Decides whether a non-root plan may dispatch under the root plan's authority (Go <c>RoundsScope</c>).</summary>
+/// <summary>Decides whether a non-root plan may dispatch under the root plan's authority.</summary>
 public interface IRoundsScope
 {
     /// <summary>Throws when <paramref name="target"/> is not authorized under <paramref name="root"/>.</summary>
@@ -67,7 +67,7 @@ public interface IRoundsScope
 }
 
 /// <summary>
-/// The durable journal the executor writes through (Go <c>Journal</c>). The store implements it (awaiting #3053);
+/// The durable journal the executor writes through. The store implements it (awaiting #3053);
 /// every method throws on a store failure.
 /// </summary>
 public interface IJournal
@@ -103,7 +103,7 @@ public interface IJournal
     Task<IReadOnlyList<BatchResult>> RecordReceiptsAsync(IReadOnlyList<BatchReceipt> receipts, CancellationToken ct);
 }
 
-/// <summary>The executor's time bounds (Go <c>Limits</c>). The run and journal timeouts must be positive.</summary>
+/// <summary>The executor's time bounds. The run and journal timeouts must be positive.</summary>
 public sealed record Limits
 {
     public TimeSpan MaxAge { get; init; }
@@ -176,7 +176,7 @@ public interface IBoundary
     Task<IReadOnlyList<Receipt>> WriteIntentsAsync(IReadOnlyList<Placement> placements, CancellationToken ct);
 }
 
-/// <summary>The outcome of one action's dispatch (Go <c>Result</c>).</summary>
+/// <summary>The outcome of one action's dispatch.</summary>
 public sealed record ExecutorResult
 {
     public Progress? Progress { get; init; }

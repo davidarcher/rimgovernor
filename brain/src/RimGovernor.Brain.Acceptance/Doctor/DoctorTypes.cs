@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>A check's verdict (Go <c>doctor.Status</c>).</summary>
+/// <summary>A check's verdict.</summary>
 public enum DoctorStatus
 {
     /// <summary>Nothing to do.</summary>
@@ -15,7 +15,7 @@ public enum DoctorStatus
     Fail,
 }
 
-/// <summary>Heal codes a run's heal step acts on (Go <c>doctor.Heal*</c>).</summary>
+/// <summary>Heal codes a run's heal step acts on.</summary>
 public static class DoctorHealCodes
 {
     /// <summary>The installed mod's sources differ from the worktree.</summary>
@@ -28,7 +28,7 @@ public static class DoctorHealCodes
     public const string Orphans = "orphans";
 }
 
-/// <summary>One line of the doctor's report (Go <c>doctor.Check</c>).</summary>
+/// <summary>One line of the doctor's report.</summary>
 public sealed class DoctorCheck
 {
     public DoctorCheck(string name)
@@ -55,7 +55,7 @@ public sealed class DoctorCheck
     public IList<int> Pids { get; } = [];
 }
 
-/// <summary>What a run would use (Go <c>doctor.Options</c>). The serve binary of the Go options is gone: the brain lives in the mod.</summary>
+/// <summary>What a run would use.</summary>
 public sealed class DoctorOptions
 {
     /// <summary>The worker root (<c>-root</c>), absolute.</summary>

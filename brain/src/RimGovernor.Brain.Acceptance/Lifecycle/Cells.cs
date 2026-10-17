@@ -8,7 +8,7 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// One held cell of a cell grid (Go <c>policy.SiteCell</c> as <c>cellgrid.Grid.Cells()</c> returns it, without the
+/// One held cell of a cell grid (without the
 /// per-cell thing list). A roof, zone or room the cell lacks is null.
 /// </summary>
 public sealed record GridCell
@@ -55,7 +55,7 @@ public sealed record GridCell
 }
 
 /// <summary>
-/// The harness's view of a cell grid an <c>observations_get_cells</c> read answers (Go <c>cellgrid.Grid</c>): the
+/// The harness's view of a cell grid an <c>observations_get_cells</c> read answers: the
 /// held cells, the cells by room or zone, and the per-cell things straight from the grid's arrays.
 /// </summary>
 public sealed class MapCellGrid
@@ -134,10 +134,10 @@ public sealed class MapCellGrid
         return dx < 0 || dz < 0 || dx >= Width || dz >= Height ? null : (dz * Width) + dx;
     }
 
-    /// <summary>The held cells by room key (a room row's gridRoom), row-major (Go <c>RoomCells</c>).</summary>
+    /// <summary>The held cells by room key (a room row's gridRoom), row-major.</summary>
     public IReadOnlyDictionary<int, IReadOnlyList<Cell>> RoomCells() => GroupBy(j => (_grid.Room[j] is not null, _grid.Room[j].GetValueOrDefault()));
 
-    /// <summary>The held cells by zone id, row-major (Go <c>ZoneCells</c>).</summary>
+    /// <summary>The held cells by zone id, row-major.</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<Cell>> ZoneCells() => GroupBy(j => (_grid.ZoneId[j] is not null, _grid.ZoneId[j] ?? ""));
 
     private Dictionary<TKey, IReadOnlyList<Cell>> GroupBy<TKey>(Func<int, (bool Has, TKey Key)> keyOf)
@@ -190,7 +190,7 @@ public sealed class MapCellGrid
         StorageCapacity = _grid.StorageCapacity[j],
     };
 }
-/// <summary>The whole-map cell read (Go <c>cells.go</c>).</summary>
+/// <summary>The whole-map cell read.</summary>
 public static class CellReads
 {
     /// <summary>The whole map's cell grid, read through <c>observations_get_cells</c>: an anchor read for the map's size, then the map.</summary>

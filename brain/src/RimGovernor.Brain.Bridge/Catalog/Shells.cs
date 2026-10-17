@@ -4,7 +4,6 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_shells.go and catalog_ledger_kind.go.
 
 public sealed partial class DefinitionCatalog
 {

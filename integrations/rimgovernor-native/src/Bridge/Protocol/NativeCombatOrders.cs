@@ -340,9 +340,9 @@ namespace HomeBridge.BridgeTools
         // The label of the allowed area an animal_area order owns.
         internal const string CombatAreaPrefix = "Combat ";
 
-        // Combat drug: the carried drug Go chose by def name, by the
+        // Combat drug: the carried drug the brain chose by def name, by the
         // vanilla Ingest job from inventory; the def must be a drug.
-        // Go owns who may dose; vanilla's refusal is native_refused.
+        // The brain owns who may dose; vanilla's refusal is native_refused.
         private static string CombatDrug(Pawn pawn, string defName, out string? job)
         {
             job = null;

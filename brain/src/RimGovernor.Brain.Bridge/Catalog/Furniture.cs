@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_furniture.go: the furniture the room planners place, chosen by rules over the catalog rows
+// The furniture the room planners place, chosen by rules over the catalog rows
 // (P.RoomFurniture states them); the shapes are the rows' plannable shapes (PieceShapes), which name the room role
 // family of each bench. A catalog with no bed, sarcophagus, animal bed, bench or facility the rules need is an error.
 

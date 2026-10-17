@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record Excavation : IActionPayload
 {
-    /// <summary>Go <c>NewExcavation</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public Excavation(Cell cell, string definition)
     {
         DomainException.Require(IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0, "invalid excavation definition or cell");
@@ -26,6 +26,6 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewExcavationAction(ActionId id, Excavation excavation) => Create(id, ActionKind.Excavation, excavation);
 
-    /// <summary>Go <c>Action.Excavation() (Excavation, bool)</c>: the payload when this is an excavation action, otherwise null.</summary>
+    /// <summary>The payload when this is an excavation action, otherwise null.</summary>
     public Excavation? Excavation => PayloadOf<Excavation>(ActionKind.Excavation);
 }

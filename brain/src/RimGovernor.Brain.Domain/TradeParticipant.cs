@@ -15,7 +15,7 @@ public enum TradeParticipantKind
 /// </summary>
 public sealed record TradeParticipant(TradeParticipantKind Kind, string Id, string Caravan = "")
 {
-    /// <summary>Go <c>Validate</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public void Validate()
     {
         var problem = Problem();
@@ -25,7 +25,6 @@ public sealed record TradeParticipant(TradeParticipantKind Kind, string Id, stri
         }
     }
 
-    /// <summary>Go's <c>Validate() == nil</c>.</summary>
     public bool IsValid => Problem() is null;
 
     private string? Problem()

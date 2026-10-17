@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go: internal/bridge/trade_target.go (TradeParticipantOf). The Bridge port has no counterpart yet, so the
+// TradeParticipantOf. The Bridge has no counterpart yet, so the
 // building runtime carries it next to its only callers.
 internal static class TradeTarget
 {

@@ -5,8 +5,7 @@ namespace RimGovernor.Brain.Host;
 
 /// <summary>
 /// Holds the one pre_save wait: on a signal it flushes within the budget, then acks whether or not the flush failed
-/// (native must not wait out its timeout). It re-arms after every return, a quiet timeout and a failed wait alike
-/// (Go <c>runSaveFlusher</c>). Native's SaveGame prefix never cancels a save; it parks the vanilla save for about 3 s
+/// (native must not wait out its timeout). It re-arms after every return, a quiet timeout and a failed wait alike. Native's SaveGame prefix never cancels a save; it parks the vanilla save for about 3 s
 /// while the signal is held.
 /// </summary>
 internal sealed class SaveSignalLoop(INativeFacade facade, StateFlusher flusher, HostLog log)

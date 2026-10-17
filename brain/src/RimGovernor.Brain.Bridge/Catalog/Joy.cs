@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_joy.go: the joy buildings and the joy model.
+// The joy buildings and the joy model.
 
 public sealed partial class DefinitionCatalog
 {

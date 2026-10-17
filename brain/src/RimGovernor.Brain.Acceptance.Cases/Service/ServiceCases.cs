@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The cases about the controller process itself (Go <c>cases/service</c>); <see cref="Register"/> replaces the Go package's <c>init()</c>.</summary>
+/// <summary>The cases about the controller process itself; <see cref="Register"/> registers them.</summary>
 public static class ServiceCases
 {
     /// <summary>Registers every <c>service/*</c> case.</summary>

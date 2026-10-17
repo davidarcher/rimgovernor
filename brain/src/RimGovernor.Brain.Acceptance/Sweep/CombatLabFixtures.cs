@@ -2,7 +2,7 @@ using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>One structure or item: a Def (ThingDef) with optional Stuff (Go <c>combatlab.Thing</c>).</summary>
+/// <summary>One structure or item: a Def (ThingDef) with optional Stuff.</summary>
 public sealed class FixtureThing
 {
     public string Def { get; set; } = "";
@@ -45,7 +45,7 @@ public sealed class FixtureThing
     }
 }
 
-/// <summary>One staged combatant (Go <c>combatlab.Pawn</c>).</summary>
+/// <summary>One staged combatant.</summary>
 public sealed class LabPawn
 {
     public string Side { get; set; } = "";
@@ -155,7 +155,7 @@ public sealed class LabLayout
     public LabCell? Choke { get; set; }
 }
 
-/// <summary>One staged combat. Colonists is the lab wipe's colonist count (Go <c>combatlab.Fixture</c>).</summary>
+/// <summary>One staged combat. Colonists is the lab wipe's colonist count.</summary>
 public sealed class LabFixture
 {
     public string Name { get; set; } = "";
@@ -224,7 +224,7 @@ public sealed class LabFixture
 }
 
 /// <summary>
-/// The standard combat fixtures (Go <c>combatlab/fixtures.go</c>): fixed layouts on the blank lab that every combat
+/// The standard combat fixtures: fixed layouts on the blank lab that every combat
 /// tactic case and recording stages instead of playing a colony into a raid.
 /// </summary>
 public static class CombatFixtures

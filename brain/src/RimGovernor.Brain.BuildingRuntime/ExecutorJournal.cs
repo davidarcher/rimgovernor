@@ -1,8 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// The executor's <see cref="IJournal"/> over the session's store. Go's <c>store.Store</c> satisfied the executor's
-/// Journal interface directly; the Executor project cannot be a dependency of Store, so the session binds them here
+/// The executor's <see cref="IJournal"/> over the session's store. The Executor project cannot be a dependency of Store, so the session binds them here
 /// by delegation. Every method is the store's own.
 /// </summary>
 internal sealed class ExecutorJournal(StoreJournal store) : IJournal

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Go <c>MentalState</c>: an observed active native break, never an inferred mood risk.</summary>
+/// <summary>An observed active native break, never an inferred mood risk.</summary>
 public sealed record MentalState
 {
     public string DefName { get; init; } = "";
@@ -39,7 +39,7 @@ public sealed record EmergencyPawn
 }
 
 /// <summary>
-/// Go <c>ThreatKind</c>. HostileBuilding is a hostile-faction building the census lists as a combat target in
+/// HostileBuilding is a hostile-faction building the census lists as a combat target in
 /// its own right (an insect hive, a crashed ship part): a squad target once no hostile pawn remains and, within
 /// <see cref="EmergencyThreat.DistantThreatCells"/> of a colonist, a deficit for the military/combat Need and an
 /// unsafe-threat hold like a hostile pawn, so the fight is planned under a stopped clock and run under watched
@@ -56,7 +56,7 @@ public enum ThreatKind : byte
 }
 
 /// <summary>
-/// Go <c>EmergencyThreat</c>: one native threat row. Animal and Distance (Chebyshev cells from the nearest
+/// One native threat row. Animal and Distance (Chebyshev cells from the nearest
 /// living colonist) decide whether a hostile or hunting animal is close enough to be an emergency; either unknown
 /// keeps the hold. A HostileBuilding row is dead when destroyed and never downed; it carries its own native CAS
 /// token (SnapshotToken) for the attack order and its definition name.
@@ -141,7 +141,7 @@ public sealed record EmergencyThreat
     public bool Undiscovered => Fogged.TryGetValue(out var fogged) && fogged;
 
     /// <summary>
-    /// Go <c>ThreatHolds</c>: whether one census row is an emergency the colony must answer before anything else:
+    /// Whether one census row is an emergency the colony must answer before anything else:
     /// a live, standing hostile, hunting predator or hostile building it has discovered, that is not distant and
     /// that is not a passive insect or hive.
     /// </summary>
@@ -180,7 +180,7 @@ public sealed record EmergencyFacts
     public Tick PodsOpen { get; init; }
 }
 
-/// <summary>Go <c>EmergencyReason</c>. Members are declared in the order of their wire strings so the enum order is Go's string order.</summary>
+/// <summary>Members are declared in the order of their wire strings so the enum order is the string order.</summary>
 public enum EmergencyReason
 {
     CriticalMedical,
@@ -193,16 +193,15 @@ public readonly record struct EmergencyHold(EmergencyReason Reason, PawnId Pawn)
 
 public sealed record EmergencyDecision(bool Clear, IReadOnlyList<EmergencyHold> Holds)
 {
-    /// <summary>The zero value Go's struct literal starts from.</summary>
     public EmergencyDecision() : this(false, [])
     {
     }
 }
 
-/// <summary>Go <c>EmergencySnapshot</c>: owns its inputs and carries no mutation or authority API.</summary>
+/// <summary>Owns its inputs and carries no mutation or authority API.</summary>
 public sealed record EmergencySnapshot
 {
-    /// <summary>Go's zero value: invalid, so every evaluation of it holds as stale.</summary>
+    /// <summary>The zero value: invalid, so every evaluation of it holds as stale.</summary>
     public static readonly EmergencySnapshot Empty = new();
 
     private EmergencySnapshot()
@@ -227,7 +226,7 @@ public sealed record EmergencySnapshot
 
     internal bool IsValid { get; }
 
-    /// <summary>Go <c>NewEmergencySnapshot</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public static EmergencySnapshot New(GenerationSnapshot current, Tick tick, EmergencyFacts facts)
     {
         current.Validate();
@@ -269,7 +268,7 @@ public sealed record EmergencySnapshot
     private static bool ValidId(PawnId id) => IdText.IsValidText(id.Value);
 
     /// <summary>
-    /// Go <c>PodsPending</c>: a drop-pod raid on its way down: an arrival whose pods have not opened by the
+    /// A drop-pod raid on its way down: an arrival whose pods have not opened by the
     /// census tick. It is a threat for the military/combat Need and a combat run with nothing to acknowledge
     /// until the open, so the fight forms on the arrival.
     /// </summary>
@@ -279,7 +278,7 @@ public sealed record EmergencySnapshot
 public static class EmergencyRules
 {
     /// <summary>
-    /// Go <c>EvaluateEmergency</c>: clears only known complete, current facts. It does not decide how to treat,
+    /// Clears only known complete, current facts. It does not decide how to treat,
     /// fight or advance time, and never grants execution authority.
     /// </summary>
     public static EmergencyDecision EvaluateEmergency(EmergencySnapshot snapshot, GenerationSnapshot current, Tick minimumTick)
@@ -375,7 +374,7 @@ public static class EmergencyRules
     internal static bool AllKnown(params Fact<bool>[] facts) => facts.All(f => f.IsKnown);
 
     /// <summary>
-    /// Go <c>urgentPatient</c>, the CriticalMedical test: a bleeding colonist, or one downed with a tend
+    /// The CriticalMedical test: a bleeding colonist, or one downed with a tend
     /// outstanding. A bleeding colonist who is up and not in a bed is excluded: no doctor can tend them, and on a
     /// colony without a bed the hold suspended the very goal that would build one. An unknown InBed keeps the
     /// hold. Callers have established that every health fact is known.
@@ -397,7 +396,7 @@ public static class EmergencyRules
     }
 
     /// <summary>
-    /// Go <c>LosingImmunityRace</c>: projects an immunizable condition at its current rates: losing when
+    /// Projects an immunizable condition at its current rates: losing when
     /// severity reaches 1 no later than immunity does. Ties leave no safety margin; nonpositive immunity gain
     /// loses against progressing severity, and nonprogressing severity has no deadline. Known is false when any
     /// value is missing or not finite.
@@ -430,7 +429,7 @@ public static class EmergencyRules
     internal const string WoundInfection = "WoundInfection";
 
     /// <summary>
-    /// Go <c>LifeSavingAmputations</c>: lists, for a living colonist, the amputation of the part carrying each
+    /// Lists, for a living colonist, the amputation of the part carrying each
     /// wound infection that is losing its immunity race. A projected loss is a projected death, so the operation
     /// needs no failure cap beyond a failure chance below certain death: vanilla's success chance must be known
     /// and positive, with an eligible doctor, no violation and no lethal outcome. Rows are ordered by part index.

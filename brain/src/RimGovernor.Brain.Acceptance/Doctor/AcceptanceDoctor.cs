@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// <c>acceptance doctor</c> (Go <c>cmd/acceptance/doctor.go</c> and the orphan half of <c>heal.go</c>): the preflight on
+/// <c>acceptance doctor</c>: the preflight on
 /// its own, every check with its fix, exit 1 only when one would certainly fail a run. <c>-heal</c> stops the game
 /// processes the orphans check finds running from removed worktrees and reports again.
 /// </summary>
@@ -69,8 +69,8 @@ public static class AcceptanceDoctor
 }
 
 /// <summary>
-/// The heal helpers a preflight shares with <c>doctor -heal</c> (Go <c>cmd/acceptance/heal.go</c>). The stale-mod
-/// rebuild itself (Go <c>heal</c>, which drove <c>FileDoctorSetup.Run</c>) belongs to the Setup layer; <see cref="Healable"/> says
+/// The heal helpers a preflight shares with <c>doctor -heal</c>. The stale-mod
+/// rebuild itself belongs to the Setup layer; <see cref="Healable"/> says
 /// which failures it may act on.
 /// </summary>
 public static class DoctorHeal

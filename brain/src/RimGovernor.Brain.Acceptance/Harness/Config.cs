@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>The resolved acceptance-run configuration common to every acceptance command (Go <c>nativeaccept.Config</c>).</summary>
+/// <summary>The resolved acceptance-run configuration common to every acceptance command.</summary>
 public sealed partial class Config
 {
     /// <summary>The absolute disposable worker root.</summary>

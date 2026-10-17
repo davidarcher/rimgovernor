@@ -80,7 +80,7 @@ public sealed record RoundsPawns
 
 public static class RoundsMoodReads
 {
-    // rounds_sections.go: the reading's sections, every one has the frame's tick, except the room census read beside it.
+    // The reading's sections, every one has the frame's tick, except the room census read beside it.
     internal static RoundsSections BuildRoundsSections(RoundsFrame frame, ColonyProjection projection, O.RoomsSnapshot? rooms)
     {
         var tick = frame.Context?.Tick ?? 0;
@@ -139,7 +139,6 @@ public static class RoundsMoodReads
         return output;
     }
 
-    // rounds_mood.go
 
     internal static Fact<EquatableArray<MoodPawn>> RoundsMood(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot)
     {
@@ -252,7 +251,6 @@ public static class RoundsMoodReads
         return Known(EquatableArray.From(result));
     }
 
-    // rounds_mood_ledger.go
 
     /// <summary>
     /// Builds the colony mood ledger from the review's mood census, each pawn's traits and precepts, and the
@@ -305,7 +303,6 @@ public static class RoundsMoodReads
         return Known(MoodRules.BuildMoodLedger(pawns, facts));
     }
 
-    // rounds_pawns.go
 
     /// <summary>
     /// Compares independent same-tick censuses before deriving available armed capacity. Missing or contradictory

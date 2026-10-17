@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Policy;
 // The shell planners take wall and door stuff from the def stats (ColonyProjection.BulkBuildStuff, not a tier
 // rule); the flooring planner prefers FloorDef's floor for a deficient room's role and the lighting planner
 // PlannedLighting's fixture. The shape-family rules (double-module hall, paired wings, courtyard) are
-// shape_family.go's.
+// their own.
 
 /// <summary>The resource census the rules read: available count per resource. Zero or absent means the colony holds none.</summary>
 public sealed class TierStyleStock(IReadOnlyDictionary<Resource, long> counts)

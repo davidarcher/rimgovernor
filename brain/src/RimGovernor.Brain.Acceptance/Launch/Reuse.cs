@@ -8,7 +8,7 @@ using Wo = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>Raised once a <see cref="GameReuse"/> has stopped its game: the RimWorld process is gone and the caller must not attempt another case (Go <c>ErrReuseRetired</c>).</summary>
+/// <summary>Raised once a <see cref="GameReuse"/> has stopped its game: the RimWorld process is gone and the caller must not attempt another case.</summary>
 public sealed class ReuseRetiredException : AcceptanceException
 {
     public ReuseRetiredException(string reason)
@@ -75,7 +75,7 @@ public sealed class ReuseCase
 }
 
 /// <summary>
-/// Keeps one owned RimWorld process alive across several acceptance cases (Go <c>GameReuse</c>). Every case begins with a
+/// Keeps one owned RimWorld process alive across several acceptance cases. Every case begins with a
 /// reload of its save into the same process and a reset check (<see cref="ObserveResetAsync"/>/<see cref="CheckReset"/>)
 /// that the reload actually gave the case a clean baseline; a case that fails, or that leaves ownership behind, retires
 /// the whole game rather than letting the next case inherit its state. Fresh-process mode (one session per binary) stays

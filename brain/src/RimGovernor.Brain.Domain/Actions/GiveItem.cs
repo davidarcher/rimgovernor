@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record GiveItem : IActionPayload
 {
-    /// <summary>Go <c>NewGiveItem</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public GiveItem(PawnId hauler, PawnId recipient, string definition, long expectedRemaining)
     {
         DomainException.Require(

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>One installed building inside a room: its thing id, its definition, its North size, rotation and world footprint. (Go <c>FurniturePiece</c>.)</summary>
+/// <summary>One installed building inside a room: its thing id, its definition, its North size, rotation and world footprint.</summary>
 public sealed record FurniturePiece
 {
     public string Thing { get; init; } = "";
@@ -14,7 +14,7 @@ public sealed record FurniturePiece
     public Rectangle Rect { get; init; }
 }
 
-/// <summary>A room the furniture levers measure: its census id, its plan input and every building standing on its floor. (Go <c>FurnitureRoom</c>.)</summary>
+/// <summary>A room the furniture levers measure: its census id, its plan input and every building standing on its floor.</summary>
 public sealed record FurnitureRoom
 {
     public string Id { get; init; } = "";
@@ -24,7 +24,7 @@ public sealed record FurnitureRoom
     public IReadOnlyList<FurniturePiece> Pieces { get; init; } = [];
 
     /// <summary>
-    /// Go <c>FurnitureRoom.Planning</c>: the room as the closers plan it: the plan input with the buildings that
+    /// The room as the closers plan it: the plan input with the buildings that
     /// stand on it built, so a plan places only what is missing and never on top of what stands.
     /// </summary>
     public InteriorRoom Planning()
@@ -47,7 +47,7 @@ public sealed record FurnitureRoom
 public static class FurnitureRoomsRules
 {
     /// <summary>
-    /// Go <c>FurnitureRooms</c>: reads the rectangular census rooms that have a derived interior plan as
+    /// Reads the rectangular census rooms that have a derived interior plan as
     /// furniture items: the doors are the observed doorways and the pieces every census building whose footprint
     /// lies on the floor.
     /// </summary>

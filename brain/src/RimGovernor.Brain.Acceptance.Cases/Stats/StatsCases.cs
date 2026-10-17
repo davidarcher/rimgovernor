@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The <c>stats/*</c> cases (Go <c>cases/stats</c>); <see cref="Register"/> replaces the Go package's <c>init()</c>.</summary>
+/// <summary>The <c>stats/*</c> cases; <see cref="Register"/> registers them.</summary>
 public static class StatsCases
 {
     /// <summary>Registers every <c>stats/*</c> case.</summary>

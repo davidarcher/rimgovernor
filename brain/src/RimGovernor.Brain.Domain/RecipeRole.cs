@@ -2,11 +2,11 @@ namespace RimGovernor.Brain.Domain;
 
 /// <summary>
 /// What a recipe does, read from its RecipeDef row rather than its defName: the catalog derives it, facts and
-/// bills carry it. Go <c>RecipeRole</c>; the <c>Role</c> prefix of the members is dropped.
+/// bills carry it. The <c>Role</c> prefix of the members is dropped.
 /// </summary>
 public enum RecipeRole
 {
-    /// <summary>A recipe with no role the planners single out (Go <c>RoleNone</c>).</summary>
+    /// <summary>A recipe with no role the planners single out.</summary>
     [WireName("")]
     None = 0,
 
@@ -27,6 +27,6 @@ public enum RecipeRole
 
 public static class RecipeRoleExtensions
 {
-    /// <summary>Go <c>RecipeRole.Valid</c>: whether the role is one the catalog derives or none.</summary>
+    /// <summary>Whether the role is one the catalog derives or none.</summary>
     public static bool IsValid(this RecipeRole role) => Wire.IsDefined(role);
 }

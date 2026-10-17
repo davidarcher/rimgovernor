@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: animal_acquire.go
 // Acquiring animals for food: a wild tameable animal and a trader's live animal are one-animal candidates beside
 // slaughter. Both yield what the animal would give once it is the colony's, net of its feed: milk or eggs per day
 // after the lead (the race's first milkable or reproductive stage), else its meat as a one-shot stock once

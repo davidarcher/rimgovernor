@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace RimGovernor.Launcher;
 
 /// <summary>
-/// The launcher's persisted choices (<c>.rimgovernor/launcher.json</c>; Go <c>Settings</c>). The page edits them and
+/// The launcher's persisted choices (<c>.rimgovernor/launcher.json</c>). The page edits them and
 /// the file keeps the page's camelCase names. <see cref="ExtraArgs"/> and <see cref="LoadSave"/> act on the launcher's
 /// start; <see cref="Observe"/>, <see cref="ContinueState"/> and <see cref="LayoutOverlay"/> reach the in-process host as
 /// environment variables (<see cref="HostEnvironment"/>, #3115).
@@ -94,7 +94,7 @@ public sealed record Settings
         new("RIMGOVERNOR_LAYOUT_OVERLAY", LayoutOverlay ? "1" : "0"),
     ];
 
-    /// <summary>Splits free text on whitespace; double quotes group (Go <c>SplitArgs</c>).</summary>
+    /// <summary>Splits free text on whitespace; double quotes group.</summary>
     public static IReadOnlyList<string> SplitArgs(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -138,7 +138,7 @@ public sealed record Settings
         return parts;
     }
 
-    /// <summary>The names (no .rws) of the saves in <paramref name="savesDir"/>, newest first (Go <c>ListSaves</c>).</summary>
+    /// <summary>The names (no .rws) of the saves in <paramref name="savesDir"/>, newest first.</summary>
     public static IReadOnlyList<string> ListSaves(string savesDir)
     {
         ArgumentNullException.ThrowIfNull(savesDir);
@@ -152,7 +152,7 @@ public sealed record Settings
             .Select(f => Path.GetFileNameWithoutExtension(f.Name))];
     }
 
-    /// <summary>The one game id config.json lists (<c>games.&lt;id&gt;</c>, the launch spec the harness reads; Go <c>ConfiguredGame</c>).</summary>
+    /// <summary>The one game id config.json lists (<c>games.&lt;id&gt;</c>, the launch spec the harness reads).</summary>
     public static string ConfiguredGame(string configJson)
     {
         ArgumentNullException.ThrowIfNull(configJson);

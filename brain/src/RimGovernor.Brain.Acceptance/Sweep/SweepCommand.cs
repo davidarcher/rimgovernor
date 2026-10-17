@@ -374,7 +374,7 @@ public static class SweepCommand
             ? Path.Combine(repo, BaselinesDir, fixture + ".json")
             : Path.Combine(repo, CalibrationDir, "variants", fixture, variant + ".json");
 
-    /// <summary>The tuning as the JSON object the service reads (the Go field names; every field, so the game does not depend on the default).</summary>
+    /// <summary>The tuning as the JSON object the service reads (every field, so the game does not depend on the default).</summary>
     internal static JsonObject TuningJson(CombatTuning t) => new()
     {
         { "DoorCloseRange", t.DoorCloseRange },

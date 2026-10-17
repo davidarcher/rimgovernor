@@ -48,10 +48,10 @@ public sealed record PlannedSite
     /// <summary>Set on a defense tier node only (PlanDefenseTiers).</summary>
     public TierFacts? Tier { get; init; }
 
-    /// <summary>The embedded placement (Go's embedded <c>SitePlacement</c>).</summary>
+    /// <summary>The embedded placement.</summary>
     public SitePlacement Placement => new() { Node = Node, Origin = Origin, Footprint = Footprint, Lanes = Lanes, Rotation = Rotation, Anchored = Anchored, Replaces = Replaces };
 
-    /// <summary>A site node holding the placement (Go <c>PlannedSite{SitePlacement: p, ...}</c>).</summary>
+    /// <summary>A site node holding the placement.</summary>
     public static PlannedSite Of(SitePlacement p, NodeKind kind) => new()
     {
         Node = p.Node,
@@ -134,7 +134,7 @@ public sealed partial record LayoutPlan
     internal LayoutPlan WithoutSites(params NodeKind[] kinds) => this with { Sites = [.. Sites.Where(s => !kinds.Contains(s.Kind))] };
 }
 
-/// <summary>Ports <c>layout_perimeter_sites.go</c> and <c>layout_perimeter_tiers.go</c>: the defense ground as site nodes.</summary>
+/// <summary>The defense ground as site nodes.</summary>
 public static partial class LayoutPerimeterSitesRules
 {
     public static NodeKind NodeRing => NodeKind.Ring;

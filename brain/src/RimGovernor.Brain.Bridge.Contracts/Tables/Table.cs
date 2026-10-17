@@ -4,7 +4,7 @@ using System.Text;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>Table[TValue]</c>: a persistent map from row id to row, a hash-array mapped trie with structural sharing.
+/// A persistent map from row id to row, a hash-array mapped trie with structural sharing.
 /// <see cref="Set"/> and <see cref="Delete"/> return a new version in O(log n) that shares every untouched node with
 /// the old one, and a version is never modified, so a consumer may keep one across frames and read it from any
 /// thread. The default value is an empty table. Ids compare ordinally.
@@ -22,10 +22,10 @@ public readonly struct Table<TValue>
         Count = count;
     }
 
-    /// <summary>The number of rows (Go's <c>Len</c>).</summary>
+    /// <summary>The number of rows.</summary>
     public int Count { get; }
 
-    /// <summary>The row of <paramref name="id"/> (Go's <c>Get</c>).</summary>
+    /// <summary>The row of <paramref name="id"/>.</summary>
     public bool TryGetValue(string id, out TValue value)
     {
         var node = _root;
@@ -71,7 +71,7 @@ public readonly struct Table<TValue>
         }
     }
 
-    /// <summary>The row of <paramref name="id"/>, the type's default (Go's zero value) when absent (Go's <c>At</c>).</summary>
+    /// <summary>The row of <paramref name="id"/>, the type's default when absent.</summary>
     public TValue? At(string id) => TryGetValue(id, out var v) ? v : default;
 
     /// <summary>Whether the table holds <paramref name="id"/>.</summary>
@@ -372,7 +372,7 @@ public readonly struct Table<TValue>
         }
     }
 
-    // Go compares the rows as interface values: pointer rows by identity, value rows by value.
+    // Rows compare by identity for reference types and by value for value types.
     private static bool SameRow(TValue a, TValue b) =>
         typeof(TValue).IsValueType ? EqualityComparer<TValue>.Default.Equals(a, b) : ReferenceEquals(a, b);
 

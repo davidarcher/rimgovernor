@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: traffic_overlay.go.
 
 public static partial class TrafficRules
 {

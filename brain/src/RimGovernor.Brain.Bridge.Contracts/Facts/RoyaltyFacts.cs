@@ -7,11 +7,10 @@ using PolicyRoyaltyFacts = RimGovernor.Brain.Policy.RoyaltyFacts;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go royalty.go.
 public static class RoyaltyFactsRules
 {
     /// <summary>
-    /// Go's <c>PawnRoyaltyFacts</c>: reads each colonist's own royalty facts (the pawn row's royalty block; the
+    /// Reads each colonist's own royalty facts (the pawn row's royalty block; the
     /// ladder and permits are def rows, the neuroformers, ceremonies and thrones the colony section). A colonist
     /// with neither a holding nor a psycast is not listed. A row whose royalty read failed (ReadIssue "royalty")
     /// throws: royalty stays unknown rather than read as empty. <paramref name="psycast"/> is the catalog's psycast

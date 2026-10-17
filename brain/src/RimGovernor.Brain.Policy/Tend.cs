@@ -51,7 +51,7 @@ public sealed class TendReachability
 
     private TendReachability(Dictionary<PawnId, HashSet<PawnId>> reach) => _reach = reach;
 
-    /// <summary>The nothing-observed value (Go's zero <c>TendReachability</c>).</summary>
+    /// <summary>The nothing-observed value.</summary>
     public static TendReachability None { get; } = new([]);
 
     /// <summary>Records, per doctor, the candidate patients native reported as reachable. A doctor absent from reachable has no fact at all.</summary>

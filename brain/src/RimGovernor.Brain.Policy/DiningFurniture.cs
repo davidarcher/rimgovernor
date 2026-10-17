@@ -43,7 +43,7 @@ public sealed record DiningFurniture
     /// <summary>The table, the chair and the foothold, in that order.</summary>
     public IReadOnlyList<string> Definitions() => [Table.Def, Chair.Def, Pin.Def];
 
-    /// <summary>Reports whether Validate passes (Go: Validate() == nil).</summary>
+    /// <summary>Reports whether Validate passes.</summary>
     internal bool IsValid()
     {
         try

@@ -910,7 +910,7 @@ public static partial class PowerRules
         return new MethodId($"{prefix}-{Convert.ToHexString(digest, 0, 12).ToLowerInvariant()}");
     }
 
-    // Go's fmt.Sprint of a Rectangle and a []Cell, kept so the method keys stay the ones the Go planner minted.
+    // The text form of a Rectangle and a []Cell, kept so the method keys stay stable.
     private static string GoFormat(Rectangle r) => $"{{{r.X} {r.Z} {r.Width} {r.Height}}}";
 
     private static string GoFormat(IReadOnlyList<Cell> cells) => "[" + string.Join(" ", cells.Select(c => $"{{{c.X} {c.Z}}}")) + "]";

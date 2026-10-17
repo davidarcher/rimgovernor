@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_manhunter.go
 //
 // CombatTactic.Manhunter is a manhunter pack's own formation: a fight whose live hostiles are all manhunter
 // animals picks it instead of the generic squad fallback.

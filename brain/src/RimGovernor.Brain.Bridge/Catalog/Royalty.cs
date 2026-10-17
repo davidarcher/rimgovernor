@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_royalty.go, catalog_royalty_pawn.go and catalog_throne.go: the royalty static defs (the title ladder from
+// The royalty static defs (the title ladder from
 // every RoyalTitleDef and the permit catalog from every RoyalTitlePermitDef), the AbilityDef, ThingDef, BiomeDef and
 // IncidentDef rows behind the royalty facts of a pawn or colony, and the throne room requirements.
 

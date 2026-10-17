@@ -2,7 +2,7 @@ using Receipt = RimGovernor.Brain.Executor.Receipt;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Port of internal/buildingruntime/haul (boundary.go). Dropped: the LeaseSource dependency (no native epoch lease in-process).
+// There is no LeaseSource dependency (no native epoch lease in-process).
 
 public sealed record HaulCapabilities(FacadeNativeClient Native, IActionsWriter Writer);
 

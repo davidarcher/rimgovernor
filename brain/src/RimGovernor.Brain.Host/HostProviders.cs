@@ -9,7 +9,7 @@ using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Host;
 
-/// <summary>The live colony census the colony route fronts (Go <c>buildingruntime.ColonyStatus</c> as <c>httpapi.ColonyStatus</c>).</summary>
+/// <summary>The live colony census the colony route fronts.</summary>
 internal sealed class HostColonyStatus(ColonyStatus status) : IColonyStatusReader
 {
     public Task<ColonyStatusReport> ReadAsync(CancellationToken cancellationToken) => status.ReadAsync(cancellationToken);
@@ -17,7 +17,7 @@ internal sealed class HostColonyStatus(ColonyStatus status) : IColonyStatusReade
 
 /// <summary>
 /// A read-only, runtime-queryable view of which composed routine planner families this process wired up at startup
-/// and the durable review cursor's progress (Go <c>serviceRoundsDiagnostics</c>). It makes no native call and mutates
+/// and the durable review cursor's progress. It makes no native call and mutates
 /// nothing.
 /// </summary>
 public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled, bool methodsEnabled, IReadOnlyList<string> families, FactStore sections) : IRoundsProvider

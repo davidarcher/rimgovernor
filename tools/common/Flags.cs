@@ -3,7 +3,7 @@ using System.Globalization;
 namespace RimGovernor.Tools.Common;
 
 /// <summary>
-/// Go-flag-style parsing: <c>-name</c> or <c>--name</c>, <c>-name value</c> or <c>-name=value</c>; flags stop at the
+/// Flag parsing: <c>-name</c> or <c>--name</c>, <c>-name value</c> or <c>-name=value</c>; flags stop at the
 /// first non-flag argument or <c>--</c>. Booleans are bare (or <c>-name=false</c>).
 /// </summary>
 public sealed class Flags

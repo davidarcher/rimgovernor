@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// Budgets a complete growth cycle plus stored-food reserve. Growing cells describe production capacity, never
-/// food available for consumption. (Go <c>FieldCrop</c>.)
+/// food available for consumption.
 /// </summary>
 public sealed record FieldCrop
 {
@@ -19,7 +19,6 @@ public sealed record FieldCrop
 
 public static class FieldCapacityRules
 {
-    /// <summary>Go <c>FieldCoverage</c>.</summary>
     public static Fact<double> FieldCoverage(Fact<long> colonists, Fact<EquatableArray<FieldCrop>> crops, double reserveDays)
     {
         if (!crops.TryGetValue(out var rows) || !FieldPositive(reserveDays))
@@ -66,7 +65,7 @@ public static class FieldCapacityRules
         Math.Max(count * 10.0, Math.Ceiling(demand * ((days * 2.5) + reserveDays) / yield));
 
     /// <summary>
-    /// Go <c>FieldCapacityTarget</c>: the cell count at which <see cref="FieldCoverage"/> reads 1 for the crop:
+    /// The cell count at which <see cref="FieldCoverage"/> reads 1 for the crop:
     /// growth stops there, so a shrink target below it would trim cells the planner keeps adding.
     /// </summary>
     public static Fact<int> FieldCapacityTarget(Fact<long> colonists, CropChoice crop, double reserve)

@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: child_rooms.go
 // Staging the Biotech child rooms: the nursery, playroom and classroom. A room role is the game's own score
 // over the room's contents (Rooms wiki, Roles): a Nursery needs at least two baby beds (a crib or a baby
 // sleeping spot) and no other bed, a Playroom scores each toy box and baby decoration and a Classroom each

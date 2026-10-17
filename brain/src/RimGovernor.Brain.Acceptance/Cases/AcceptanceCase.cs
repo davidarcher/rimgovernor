@@ -78,7 +78,7 @@ public sealed record AcceptanceCase
     /// <summary>Whether the runner staffs the case's game with its crew.</summary>
     public bool Staffed => Start is not OwnedStart && !Crew.Ordinary;
 
-    /// <summary><see cref="Keep"/> as the lifecycle's need names (Go <c>keepNeeds</c>).</summary>
+    /// <summary><see cref="Keep"/> as the lifecycle's need names.</summary>
     public IReadOnlyList<NeedDef> KeepNeeds() => [.. Keep.Select(need => new NeedDef(need))];
 
     /// <summary>

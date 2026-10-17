@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_mech_emp.go
 
 /// <summary>A mech EMP no longer stuns until <paramref name="Until"/>.</summary>
 public readonly record struct EmpAdaptation(PawnId Pawn, Tick Until);

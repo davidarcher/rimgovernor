@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record GrowerCrop : IActionPayload
 {
-    /// <summary>Go <c>NewGrowerCrop</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public GrowerCrop(string thing, string crop)
     {
         DomainException.Require(IdText.IsValidText(thing) && IdText.IsValidText(crop), "invalid grower crop identity");

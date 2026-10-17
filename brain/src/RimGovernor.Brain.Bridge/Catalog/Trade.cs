@@ -5,9 +5,9 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_trade.go and catalog_trade_buy.go: trader compatibility, read from the StockGenerator forms of a
-// TraderKindDef. An unset countRange of the game is the zero range (generates nothing), where the Go mirror could tell
-// it was unset; the answer for such a generator is "no", not unknown. A generator form the catalog cannot classify
+// Trader compatibility, read from the StockGenerator forms of a
+// TraderKindDef. An unset countRange of the game is the zero range (generates nothing), so it cannot be told apart
+// from an explicit one; the answer for such a generator is "no", not unknown. A generator form the catalog cannot classify
 // keeps a negative answer unknown.
 
 public sealed partial class DefinitionCatalog

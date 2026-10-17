@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_mech_pikemen.go
 
 public static partial class CombatMechRules
 {

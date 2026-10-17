@@ -13,8 +13,8 @@ namespace RimGovernor.Brain.Telemetry.Otlp;
 /// request (ExportTraceServiceRequest, ExportMetricsServiceRequest or ExportLogsServiceRequest) carrying exactly one
 /// span, one metric or one log record, and a newline, so a file is one request per line. The field names, int64 as
 /// string and hex id rules follow the OTLP/JSON mapping
-/// (https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding); field order and omissions match what the Go
-/// writer produced. One instance is used from one task.
+/// (https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding).
+/// One instance is used from one task.
 /// </summary>
 internal sealed class OtlpEncoder : IDisposable
 {

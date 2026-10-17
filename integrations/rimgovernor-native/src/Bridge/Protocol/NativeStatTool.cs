@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
     // One generic stat query: the game's own evaluation of a StatDef for a
     // definition (with optional stuff and quality), a thing or a pawn. The
     // definition path is GetStatValueAbstract and ShouldShowFor, so it is the
-    // live oracle for the Go stat evaluator. Read-only; an unknown stat or subject is a typed failure.
+    // live oracle for the stat evaluator. Read-only; an unknown stat or subject is a typed failure.
     internal static class NativeStatTool
     {
 

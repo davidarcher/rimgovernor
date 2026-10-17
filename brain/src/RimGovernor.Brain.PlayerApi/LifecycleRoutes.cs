@@ -9,7 +9,7 @@ using RimGovernor.Contracts.Wire.Lifecycle;
 namespace RimGovernor.Brain.PlayerApi;
 
 /// <summary>
-/// The explicit session lifecycle routes (Go <c>httpapi</c> <c>lifecycle.go</c> and <c>lifecycle_new.go</c>): save,
+/// The explicit session lifecycle routes: save,
 /// load, new colony and the return to the main menu (#3298), each a POST that starts the operation and a GET by request id that recovers its outcome.
 /// The routes carry no token; the channel's request guard is the only access check (issue #3083). The
 /// <see cref="ILifecycleWriter"/> returns the native reply as it is and owns the retry after a blocking-attention
@@ -44,7 +44,7 @@ public static class LifecycleRoutes
         routes.Map("GET", MenuPath, (request, ct) => ReadAsync(request, id => ReadMenuAsync(lifecycle, id, ct), ct), Bounded),
     ]);
 
-    // Go handleLifecycleRead: exactly one parameter, requestId, with a valid id.
+    // Exactly one parameter, requestId, with a valid id.
     private static async Task<ChannelResponse> ReadAsync(ChannelRequest request, Func<string, Task<ChannelResponse>> read, CancellationToken ct)
     {
         var parts = request.Query.Split('&', StringSplitOptions.RemoveEmptyEntries);
@@ -306,7 +306,7 @@ public static class LifecycleRoutes
     }
 
     /// <summary>
-    /// Go <c>currentLifecycleIdentity</c>: the fresh, connected world identity and control mode the controller observes,
+    /// The fresh, connected world identity and control mode the controller observes,
     /// or null when it has none (disconnected, stale, or identity or generation unknown). It never reaches native.
     /// </summary>
     private static async Task<(WireIdentity Wire, string Mode)?> CurrentIdentityAsync(ISnapshotProvider snapshots, CancellationToken ct)
@@ -427,7 +427,7 @@ public static class LifecycleRoutes
         _ => 502,
     };
 
-    // Go lower-cases the enum name after FAILURE_CODE_.
+    // The wire name is the enum name after FAILURE_CODE_, lower-cased.
     private static string CodeName(FailureCode code) =>
         Domain.Wire.Name(code)
         .Replace("FAILURE_CODE_", "", StringComparison.Ordinal)

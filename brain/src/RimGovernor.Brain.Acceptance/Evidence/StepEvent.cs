@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>Reads the service's worker-step rows (Go <c>stepevent.go</c>).</summary>
+/// <summary>Reads the service's worker-step rows.</summary>
 public static class StepEvents
 {
     /// <summary>The row's planner_failures list rendered as "[a; b]" ("[]" when empty).</summary>

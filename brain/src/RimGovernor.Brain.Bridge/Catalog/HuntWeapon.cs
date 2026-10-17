@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go hunt_weapon.go: what the def rows say of a hunter's primary weapon (the rule the native hunt census used to
+// What the def rows say of a hunter's primary weapon (the rule the native hunt census used to
 // state over ThingDef.verbs).
 
 public sealed partial class DefinitionCatalog

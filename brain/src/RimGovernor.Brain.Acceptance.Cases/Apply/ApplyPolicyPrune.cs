@@ -7,7 +7,7 @@ using Operations = RimGovernor.Contracts.Wire.Operations;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>apply/policy-prune</c> (Go <c>policy_prune.go</c>): PolicyPruneIntent on Actions/Apply (#1298). An extra outfit
+/// <c>apply/policy-prune</c>: PolicyPruneIntent on Actions/Apply (#1298). An extra outfit
 /// and an extra allowed area, a colonist assigned to both (test/gear_fixture, which the primitives cannot express), are
 /// deleted; the colonist first moves onto its own outfit labelled with its short name and becomes unrestricted; a resent
 /// prune applies again with nothing deleted. The colony read's policy facts show each result.

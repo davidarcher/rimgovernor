@@ -3,16 +3,16 @@ using RimGovernor.Brain.Bridge;
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// What <see cref="BrainComposition"/> needs beyond the facade: the parts of Go's <c>serveConfig</c> the composition
-/// reads. Every default is the Go flag's default, so <c>new BrainCompositionOptions()</c> composes what
+/// What <see cref="BrainComposition"/> needs beyond the facade: the serve settings the composition
+/// reads. Every default is the serve flag's default, so <c>new BrainCompositionOptions()</c> composes what
 /// an autonomous <c>rimgovernor serve</c> composed.
 /// </summary>
 public sealed record BrainCompositionOptions
 {
-    /// <summary>The routine planner families (Go <c>RIMGOVERNOR_ROUTINE_FAMILIES</c>, every family on by default).</summary>
+    /// <summary>The routine planner families.</summary>
     public BrainFamilies Families { get; init; } = BrainFamilies.All;
 
-    /// <summary>Acceptance only: asks native for its dev tick boost and runs every run at Ultrafast (Go <c>--clock-test-acceleration</c>, default off).</summary>
+    /// <summary>Acceptance only: asks native for its dev tick boost and runs every run at Ultrafast.</summary>
     public bool ClockTestAcceleration { get; init; }
 
     /// <summary>
@@ -21,10 +21,10 @@ public sealed record BrainCompositionOptions
     /// </summary>
     public PbClock.Speed TargetSpeed { get; init; } = PbClock.Speed.Ultrafast;
 
-    /// <summary>Draws the colony layout plan as a native overlay (Go <c>--layout-overlay</c>, default on).</summary>
+    /// <summary>Draws the colony layout plan as a native overlay.</summary>
     public bool LayoutOverlay { get; init; } = true;
 
-    /// <summary>The native call bound (Go <c>--timeout</c>, default 15 s, 1 s to 1 min); the clock poll runs under <c>min(min(this, 10 s), 7 s)</c>.</summary>
+    /// <summary>The native call bound; the clock poll runs under <c>min(min(this, 10 s), 7 s)</c>.</summary>
     public TimeSpan NativeTimeout { get; init; } = TimeSpan.FromSeconds(15);
 
     /// <summary>
@@ -34,7 +34,7 @@ public sealed record BrainCompositionOptions
     public Func<RimGovernor.Contracts.Wire.Observations.DefinitionCatalog, RimGovernor.Contracts.Wire.Common.Identity, DefinitionCatalog>? CatalogFactory { get; init; }
 
     /// <summary>
-    /// Resolves the ideoligion the governor chooses for a new colony's scenario (Go <c>CreationCatalog</c> then
+    /// Resolves the ideoligion the governor chooses for a new colony's scenario (<c>CreationCatalog</c> then
     /// <c>StartingIdeoligion</c>), from the creation catalog over the game's Defs. Null refuses a new colony that asks for
     /// <c>governor_ideoligion</c> as unavailable; the mod host installs it with <see cref="CatalogFactory"/> (NativeCatalogFactory, #3116; #3115 wires both).
     /// </summary>

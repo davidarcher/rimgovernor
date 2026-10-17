@@ -4,7 +4,7 @@ using RimGovernor.Tools.Common;
 
 namespace RimGovernor.Tools.Commands.ColonyReview;
 
-/// <summary>Writes a run report directory and the site that indexes them (Go: <c>Report</c> and <c>Site</c>).</summary>
+/// <summary>Writes a run report directory and the site that indexes them.</summary>
 internal static class ReviewReport
 {
     private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };

@@ -185,5 +185,5 @@ public sealed partial class RoundsSurgeryPlanner
 
 partial class RoundsSurgeryPlanner
 {
-    /// <summary>The first 16 bytes of the SHA-256 of the text as lowercase hex (Go's "%x" of hash.Sum(nil)[:16]).</summary>
+    /// <summary>The first 16 bytes of the SHA-256 of the text as lowercase hex.</summary>
 }

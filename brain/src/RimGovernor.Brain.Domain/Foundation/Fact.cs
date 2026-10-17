@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Domain;
 
 /// <summary>
 /// An observation that may be unknown. The default value is unknown, including for boolean and
-/// numeric observations (Go <c>Fact[T]</c>).
+/// numeric observations.
 /// </summary>
 public readonly record struct Fact<T>
 {
@@ -18,14 +18,13 @@ public readonly record struct Fact<T>
 
     public bool IsKnown { get; }
 
-    /// <summary>Go's <c>v, ok := f.Value()</c>.</summary>
     public bool TryGetValue([MaybeNullWhen(false)] out T value)
     {
         value = _value;
         return IsKnown;
     }
 
-    /// <summary>The value when known, otherwise the type's default (Go's zero value).</summary>
+    /// <summary>The value when known, otherwise the type's default.</summary>
     public T? ValueOrDefault => _value;
 
     /// <summary>The value; throws when unknown. For code that has already checked <see cref="IsKnown"/>.</summary>
@@ -34,7 +33,7 @@ public readonly record struct Fact<T>
     public override string ToString() => IsKnown ? $"Known({_value})" : "Unknown";
 }
 
-/// <summary>Constructors for <see cref="Fact{T}"/>; the project-wide <c>using static</c> makes them read as Go's <c>Known(v)</c> and <c>Unknown[T]()</c>.</summary>
+/// <summary>Constructors for <see cref="Fact{T}"/>; the project-wide <c>using static</c> makes them read as <c>Known(v)</c> and <c>Unknown[T]()</c>.</summary>
 public static class Fact
 {
     public static Fact<T> Known<T>(T value) => new(value);

@@ -6,8 +6,7 @@ using System.Text.RegularExpressions;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// Knows which checked-in files an acceptance harness run and the native mod build depend on, and hashes them (Go
-/// <c>inputs/sources.go</c>). It has no game or transport dependency so the tools that only need the hashes (the
+/// Knows which checked-in files an acceptance harness run and the native mod build depend on, and hashes them. It has no game or transport dependency so the tools that only need the hashes (the
 /// verified, land and affected commands) stay cheap.
 /// </summary>
 public static partial class NativeSourceInputs

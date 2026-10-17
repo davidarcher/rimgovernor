@@ -107,7 +107,7 @@ public sealed record SiteGround
     public int WalkDist(Cell c) => c.X < 0 || c.X >= W || c.Z < 0 || c.Z >= H ? -1 : Walk[(c.Z * W) + c.X];
 }
 
-/// <summary>Ports <c>layout_site_ground.go</c>: siting seeds and the survey's shared ground state.</summary>
+/// <summary>Siting seeds and the survey's shared ground state.</summary>
 public static partial class LayoutSiteGroundRules
 {
     /// <summary>Search the best SiteSearchTop candidates for at most SiteSearchIters moves each. Iteration counts keep results deterministic; hourly replans use a separate, smaller budget.</summary>

@@ -3,7 +3,7 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Store.Codec;
 
-// Hand-written converters for the action payload records (A to H). Field names are the Go field names.
+// Hand-written converters for the action payload records (A to H). Field names are fixed wire names.
 
 public sealed class AbilitySourceConverter() : StringCodec<AbilitySource>(AbilitySource.ParseAbilitySource, s => s.Key);
 

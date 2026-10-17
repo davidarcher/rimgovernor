@@ -3,7 +3,6 @@ using System.Text.Json;
 
 namespace RimGovernor.Brain.Acceptance;
 
-// Go extent.go.
 public static class PostmortemExtent
 {
     /// <summary>
@@ -66,6 +65,6 @@ public static class PostmortemExtent
         return s;
     }
 
-    /// <summary>A list as Go's <c>%v</c> prints a slice: "[a b]", "[]" for none.</summary>
+    /// <summary>A list as plain text: "[a b]", "[]" for none.</summary>
     private static string FormatList(IReadOnlyList<string> values) => "[" + string.Join(' ', values) + "]";
 }

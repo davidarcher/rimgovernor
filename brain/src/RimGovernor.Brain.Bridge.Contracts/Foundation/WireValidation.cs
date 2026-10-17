@@ -3,13 +3,13 @@ using RimGovernor.Contracts.Wire.Common;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's package-level functions of <c>internal/bridge</c> with no owner type. Imported everywhere in this project
-/// with a project-wide <c>using static</c>. Each ported Go file adds a part for what that file declared.
+/// Package-level functions with no owner type. Imported everywhere in this project
+/// with a project-wide <c>using static</c>.
 /// </summary>
 public static class WireValidation
 {
 
-    /// <summary>Go's <c>validID</c>: a native identifier is non-blank text.</summary>
+    /// <summary>A native identifier is non-blank text.</summary>
     internal static void ValidId(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -24,7 +24,6 @@ public static class WireValidation
         return !string.IsNullOrWhiteSpace(value);
     }
 
-    /// <summary>Go's <c>ValidateIdentity</c>.</summary>
     public static void ValidateIdentity(Identity? value)
     {
         if (value is null || value.MapId < 0)
@@ -35,13 +34,12 @@ public static class WireValidation
         ValidId(value.LoadToken);
     }
 
-    /// <summary>Go's <c>sameIdentity</c>: the colony, load token and map match; absent fields read as their defaults.</summary>
+    /// <summary>The colony, load token and map match; absent fields read as their defaults.</summary>
     internal static bool SameIdentity(Identity? a, Identity? b) =>
         string.Equals(a?.ColonyId ?? "", b?.ColonyId ?? "", StringComparison.Ordinal)
         && string.Equals(a?.LoadToken ?? "", b?.LoadToken ?? "", StringComparison.Ordinal)
         && (a?.MapId ?? 0) == (b?.MapId ?? 0);
 
-    /// <summary>Go's <c>authorityIdentity</c>.</summary>
     internal static void AuthorityIdentity(Identity? value)
     {
         ValidateIdentity(value);
@@ -50,6 +48,6 @@ public static class WireValidation
 
 partial class BridgeContractException
 {
-    /// <summary>Go's <c>contract(format, ...)</c>: the error every validator returns, thrown here.</summary>
+    /// <summary>The error every validator returns, thrown here.</summary>
     internal static BridgeContractException Contract(string message) => new(message);
 }

@@ -11,8 +11,8 @@ using RimGovernor.Contracts.Wire.Presentation;
 namespace RimGovernor.Brain.PlayerApi;
 
 /// <summary>
-/// The presentation routes (Go <c>httpapi</c> <c>presentation.go</c>, <c>presentation_media.go</c>,
-/// <c>notifications.go</c>): fixed native reads of camera, selection, colonists, render state and notifications,
+/// The presentation routes:
+/// fixed native reads of camera, selection, colonists, render state and notifications,
 /// and the one active render-demand lease. Every reply is checked against the fresh controller identity before it
 /// is shown, so a world that changed during the read is never presented as the current one. The render-demand lease
 /// is not token-gated here; the channel's request guard is the only access check (issue #3083).
@@ -210,7 +210,7 @@ public static class PresentationRoutes
         }
     }
 
-    /// <summary>Go <c>presentationIdentity</c>: the connected, fresh, known and valid world identity.</summary>
+    /// <summary>The connected, fresh, known and valid world identity.</summary>
     private static async Task<ObservedIdentity> FreshIdentityAsync(ISnapshotProvider snapshots, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -232,7 +232,7 @@ public static class PresentationRoutes
         MapId = identity.Map.Value,
     };
 
-    /// <summary>Go <c>presentationWire</c>: no non-finite float anywhere in the reply. (Unknown fields cannot exist on a record.)</summary>
+    /// <summary>No non-finite float anywhere in the reply. (Unknown fields cannot exist on a record.)</summary>
     private static bool Representable(object? value)
     {
         switch (value)

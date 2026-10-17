@@ -71,7 +71,7 @@ public sealed partial class Store
     public Task<PlanState> LoadPlanAsync(PlanId id, CancellationToken cancellationToken) => RunAsync(tx => LoadIn(tx, id), cancellationToken);
 
     /// <summary>
-    /// The plan with the id, from the cache when it holds it (Go <c>load</c>). The state is immutable, so the
+    /// The plan with the id, from the cache when it holds it. The state is immutable, so the
     /// cached instance is handed to every reader. A retired plan is read-only and never cached.
     /// </summary>
     internal static PlanState LoadIn(StoreTransaction tx, PlanId id)
@@ -234,8 +234,7 @@ public sealed partial class Store
         RunAsync(tx => AdvanceIn(tx, plan, action, ev), cancellationToken);
 
     /// <summary>
-    /// Replays one transition onto the stored progress of an action and journals it, in the caller's transaction
-    /// (Go <c>advanceInTransaction</c>). Nothing is written when any check or the domain's own transition refuses.
+    /// Replays one transition onto the stored progress of an action and journals it, in the caller's transaction. Nothing is written when any check or the domain's own transition refuses.
     /// </summary>
     internal static Progress AdvanceIn(StoreTransaction tx, PlanId plan, ActionId action, Transition ev)
     {

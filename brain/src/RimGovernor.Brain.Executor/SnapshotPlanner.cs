@@ -92,7 +92,7 @@ public sealed class PlannerRecorder : IDisposable
 
 public static class SnapshotPlannerReplay
 {
-    // The recorder rides the async flow, as Go's context value did.
+    // The recorder rides the async flow.
     private static readonly AsyncLocal<PlannerRecorder?> Current = new();
 
     internal static void Restore(PlannerRecorder? previous) => Current.Value = previous;

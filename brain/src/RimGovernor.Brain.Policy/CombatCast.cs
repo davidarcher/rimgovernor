@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_cast.go
 //
 // Psycasts in the fight: a psycaster that holds a known combat psycast casts it at the fight's hostiles or
 // wounded defenders. A cast is a psycast_cast order, not a pawn job: the defense planner sends it as the

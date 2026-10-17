@@ -8,9 +8,7 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 // facts and its nearest-colonist distance are written out here case by case
 // and the production filter runs against them with counted projectors, so
 // the expected results never come from the filter itself. The call counts,
-// not wall time, prove that discarded wildlife is never projected. The
-// classification of these rows is Go's (bridge.ClassifyThreat, whose tests
-// port the verdicts these cases used to assert).
+// not wall time, prove that discarded wildlife is never projected.
 internal static class NativeThreatClassifierProbe
 {
     private static int checks;

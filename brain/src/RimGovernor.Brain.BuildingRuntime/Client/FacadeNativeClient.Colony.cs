@@ -4,11 +4,9 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go protobuf.go (Identity, Tick, Status), colony.go (ReadColonyFacts, ColonyFactsRequest) and step.go (ReadStep).
 //
 // Identity, Tick, Status and ReadColonyFacts hand back the whole reply and leave a failure or unavailable arm in it:
-// the consumers (the clock coordinator's cleanup, the Decode* helpers) read the arm themselves, as they did from Go's
-// (reply, error) pair where the error only carried the arm.
+// the consumers (the clock coordinator's cleanup, the Decode* helpers) read the arm themselves.
 public sealed partial class FacadeNativeClient
 {
     private const string ReadColonyFactsMethod = "rimgovernor/observations_read_colony_facts";
@@ -28,18 +26,18 @@ public sealed partial class FacadeNativeClient
         HuntPredatorMarginCells = HazardThresholdsRules.HuntPredatorMarginCells,
     };
 
-    /// <summary>Go <c>Client.Identity</c>: the loaded identity.</summary>
+    /// <summary>The loaded identity.</summary>
     internal Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken cancellationToken) =>
         Facade.ReadIdentityAsync(new PbLifecycle.IdentityRequest(), cancellationToken);
 
     /// <summary>
-    /// Go <c>Client.Tick</c>: the bare observation scope, the identity's context and pause state.
+    /// The bare observation scope, the identity's context and pause state.
     /// </summary>
     internal Task<PbLifecycle.TickReply> TickAsync(CancellationToken cancellationToken) =>
         Facade.ReadTickAsync(new PbLifecycle.TickRequest(), cancellationToken);
 
     /// <summary>
-    /// Go <c>Client.Status</c>: a status read that requests the context only (no colonists, no threats). With frames
+    /// A status read that requests the context only (no colonists, no threats). With frames
     /// the read first waits for a frame past this client's last write, then reads live: the frame's status section is
     /// the emergency census, a different shape.
     /// </summary>
@@ -64,7 +62,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadColonyFacts</c>: the colony census, from the newest frame when it carries the planning form
+    /// The colony census, from the newest frame when it carries the planning form
     /// (the form the stream seeds the section under), else read live.
     /// </summary>
     internal async Task<PbObservations.ColonyFactsReply> ReadColonyFactsAsync(PbCommon.Identity identity, bool planning, CancellationToken cancellationToken)
@@ -93,7 +91,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>ColonyFactsRequest</c>: the exact request <see cref="ReadColonyFactsAsync"/> issues; the stream seeds
+    /// The exact request <see cref="ReadColonyFactsAsync"/> issues; the stream seeds
     /// its colony_facts section under the planning form of it.
     /// </summary>
     internal static PbObservations.ColonyFactsRequest ColonyFactsRequest(PbCommon.Identity identity, bool planning) =>
@@ -104,9 +102,8 @@ public sealed partial class FacadeNativeClient
         };
 
     /// <summary>
-    /// Go <c>Client.ReadStep</c>: composes the step's snapshot, the live tick (scope and pause state), then the clock
-    /// status the controller owns. A clock status that is unavailable leaves the snapshot's <c>ClockStatus</c> unset
-    /// (Go returned the snapshot with the unavailable error).
+    /// Composes the step's snapshot, the live tick (scope and pause state), then the clock
+    /// status the controller owns. A clock status that is unavailable leaves the snapshot's <c>ClockStatus</c> unset.
     /// </summary>
     internal async Task<PbObservations.BundleSnapshot?> ReadStepAsync(StepRequest request, CancellationToken cancellationToken)
     {

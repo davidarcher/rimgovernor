@@ -7,7 +7,7 @@ using System.Text;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// Describes one game launch (Go <c>gamehost.Spec</c>). Env entries override the inherited environment.
+/// Describes one game launch. Env entries override the inherited environment.
 /// </summary>
 public sealed class GameLaunchSpec
 {
@@ -40,7 +40,7 @@ public sealed class GameAlreadyRunningException : AcceptanceException
 }
 
 /// <summary>
-/// A launched or attached game process (Go <c>gamehost.Game</c>). The game is spawned detached, so it outlives the
+/// A launched or attached game process. The game is spawned detached, so it outlives the
 /// controller that started it, and the endpoint record lets a later controller find the same process.
 /// </summary>
 public sealed class GameProcess
@@ -107,7 +107,7 @@ public sealed class GameProcess
 
     /// <summary>
     /// Reattaches to the game recorded under <paramref name="stateDir"/>. Returns null, and removes the stale record,
-    /// when no endpoint exists or its pid is gone or now names a different process (Go <c>ErrNotRunning</c>).
+    /// when no endpoint exists or its pid is gone or now names a different process.
     /// </summary>
     public static GameProcess? Attach(string stateDir, string gameId)
     {
@@ -234,10 +234,10 @@ public sealed class GameProcess
 
     /// <summary>
     /// Stops whatever game is recorded under <paramref name="stateDir"/> by killing its process tree and removing the
-    /// record (Go <c>nativeaccept.StopGame</c>/<c>StopRenderedGame</c> without the bridge: there is no games_stop to ask
+    /// record (there is no games_stop to ask
     /// for a graceful exit and no windowed-profile launch record to clean here). Nothing running is not an error; the
-    /// result says whether a live process was stopped. Discarding the root's paused breakpoints (the Go
-    /// <c>acceptance stop</c> command did that first) belongs to the checkpoint code, not here.
+    /// result says whether a live process was stopped. Discarding the root's paused breakpoints
+    /// belongs to the checkpoint code, not here.
     /// </summary>
     public static async Task<bool> StopAsync(string stateDir, string gameId, CancellationToken ct = default)
     {

@@ -12,8 +12,8 @@ public sealed partial class JoinersRounds
     /// Declares the production batches of the open produce-item decrees (OrderDeclarer) and notes whether one is
     /// declared, for the clock's game time (decreeLending); the batches are joiners/decrees' orders. Harvest and hunt
     /// decrees are the Need's own Methods (AdmitDecreeAsync).
-    /// Go reads the definition catalog lazily from inside the policy's recipes callback; the callback is
-    /// synchronous here, so a first pass finds out whether the policy asks for recipes at all and the catalog is
+    /// The policy's recipes callback is
+    /// synchronous, so a first pass finds out whether the policy asks for recipes at all and the catalog is
     /// read (once) only then, before the declaration runs again with it.
     /// </summary>
     private async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)

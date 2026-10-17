@@ -96,7 +96,7 @@ public sealed record GearObservation
         return all.Where(id => !keep.ContainsKey(id)).ToList();
     }
 
-    /// <summary>Throws <see cref="DomainException"/> where Go returned an error.</summary>
+    /// <summary>Throws <see cref="DomainException"/>.</summary>
     public void Validate()
     {
         if (Stored.TryGetValue(out var stored))
@@ -390,7 +390,7 @@ public static class GearRules
         return @out.OrderBy(r => r.Value, StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>Encodes a string as Go's encoding/json does: short escapes for quote, backslash and common controls, \u00XX for other controls, HTML-safe escapes for &lt;, &gt;, &amp;, and U+2028/2029.</summary>
+    /// <summary>Encodes a string as encoding/json does: short escapes for quote, backslash and common controls, \u00XX for other controls, HTML-safe escapes for &lt;, &gt;, &amp;, and U+2028/2029.</summary>
     internal static string GoJsonString(string s)
     {
         var sb = new StringBuilder("\"");
@@ -439,8 +439,8 @@ public static class GearRules
 
     /// <summary>
     /// The bench census sorted by id and, per definition and stuff, how many items the needs still lack after
-    /// netting the stored stock. Known is false while the bench census is unread. (Go <c>gearProductionDemand</c>;
-    /// the exported <c>GearProductionDemand</c> is the loadout-gap aggregate.)
+    /// netting the stored stock. Known is false while the bench census is unread. (The exported
+    /// <c>GearProductionDemand</c> is the loadout-gap aggregate.)
     /// </summary>
     internal static (IReadOnlyList<GearBench> Benches, Dictionary<GearStockKey, int> Demand, bool Known) GearBenchDemand(
         IReadOnlyList<GearNeed> needs,

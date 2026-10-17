@@ -7,7 +7,7 @@ using RimGovernor.Contracts.Wire;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The saves the harness generates itself on first use and regenerates when their spec changes (Go <c>baseline.go</c>):
+/// The saves the harness generates itself on first use and regenerates when their spec changes:
 /// the tribal-8 baseline most save-driven harnesses begin from, and any part-bearing start a case registers.
 /// </summary>
 public static class Baselines

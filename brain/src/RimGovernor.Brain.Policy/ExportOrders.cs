@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>What one Round's export declaration reads. (Go <c>ExportRequest</c>.)</summary>
+/// <summary>What one Round's export declaration reads.</summary>
 public sealed record ExportRequest
 {
     public IReadOnlyList<GearBench> Benches { get; init; } = [];
@@ -55,7 +55,7 @@ public sealed record ExportRequest
     public Func<Resource, Resource, (double Work, bool Ok)>? WorkFor { get; init; }
 }
 
-/// <summary>A Round's export declaration with the ranking behind it. (Go <c>ExportPlan</c>.)</summary>
+/// <summary>A Round's export declaration with the ranking behind it.</summary>
 public sealed record ExportPlan
 {
     public Declared Declared { get; init; } = new();
@@ -81,7 +81,7 @@ public sealed record ExportPlan
     public IReadOnlyDictionary<ExportDrop, int> Dropped { get; init; } = new Dictionary<ExportDrop, int>();
 }
 
-/// <summary>Why a candidate sale good was dropped before it was ordered. (Go <c>ExportDrop</c>.)</summary>
+/// <summary>Why a candidate sale good was dropped before it was ordered.</summary>
 public enum ExportDrop
 {
     /// <summary>No reachable trader buys the product.</summary>
@@ -102,7 +102,7 @@ public enum ExportDrop
 /// One ranked sale good: a recipe at a bench kind made from one stuff or filter by a worker, with the silver it
 /// nets per work tick. Value is the expected market value of one piece, Net its sale value beyond what its
 /// ingredients fetch raw, Ticks the crafting ticks plus the ingredients' acquisition ticks and Score = Net /
-/// Ticks. Draw is one piece's ingredient units. (Go <c>ExportCandidate</c>.)
+/// Ticks. Draw is one piece's ingredient units.
 /// </summary>
 public sealed record ExportCandidate
 {
@@ -133,8 +133,7 @@ public sealed record ExportCandidate
 /// Decides how much of a draw on the colony's stock an export may take. Admit grants up to want pieces of unit,
 /// counting every draw it has granted before (the orders declared this Round, placed or not) and the standing
 /// bills'. The level-1 guard: every resource is treated as finite, so an export keeps the reserve and
-/// <see cref="ExportOrdersRules.ExportRunwayHorizonDays"/> of the colony's own observed use. (Go <c>ExportRunwayGuard</c>
-/// and <c>horizonGuard</c>.)
+/// <see cref="ExportOrdersRules.ExportRunwayHorizonDays"/> of the colony's own observed use.
 /// </summary>
 internal sealed class HorizonGuard
 {
@@ -204,7 +203,7 @@ internal sealed class HorizonGuard
     }
 }
 
-/// <summary>A recipe of a usable bench that the economy/trade Need may rank. (Go <c>exportRecipe</c>.)</summary>
+/// <summary>A recipe of a usable bench that the economy/trade Need may rank.</summary>
 internal sealed record ExportRecipe(
     GearBench Bench,
     GearRecipe Recipe,
@@ -243,7 +242,7 @@ public static class ExportOrdersRules
     /// </summary>
     public const double ExportSellRatio = 0.5;
 
-    /// <summary>Go <c>AllExportDrops</c>: every ExportDrop, in the order the view lists them.</summary>
+    /// <summary>Every ExportDrop, in the order the view lists them.</summary>
     public static readonly IReadOnlyList<ExportDrop> AllExportDrops = [ExportDrop.NoBuyer, ExportDrop.NoIngredient, ExportDrop.NoMargin, ExportDrop.Runway];
 
     /// <summary>Bounds the scored candidates an ExportPlan keeps for the ledger view.</summary>
@@ -307,7 +306,7 @@ public static class ExportOrdersRules
     private static bool ExportQualityBearing(ItemFacts i, GearRecipe recipe, Resource product) => recipe.Role == RecipeRole.Sculpture || ExportGear(i, product);
 
     /// <summary>
-    /// Go <c>ExportSaleSurplus</c>: adds the held stock of the export products to the trade need's surplus,
+    /// Adds the held stock of the export products to the trade need's surplus,
     /// retaining none of it, while the colony is short of silver (the OrganSaleSurplus rule). Gear and art sell
     /// by their own paths, so products holds only the generic goods.
     /// </summary>
@@ -344,7 +343,7 @@ public static class ExportOrdersRules
     }
 
     /// <summary>
-    /// Go <c>ExportSaleProducts</c>: the products of an ExportPlan the generic stock surplus sells: its products
+    /// The products of an ExportPlan the generic stock surplus sells: its products
     /// less gear (SaleGearSurplus) and sculptures (the packed art sale).
     /// </summary>
     public static IReadOnlyList<Resource> ExportSaleProducts(ItemFacts items, IReadOnlyList<Resource> products) =>
@@ -483,7 +482,7 @@ public static class ExportOrdersRules
     }
 
     /// <summary>
-    /// Go <c>AcquisitionTicksPerUnit</c>: the pawn ticks one unit of a resource costs by the cheapest of its hand
+    /// The pawn ticks one unit of a resource costs by the cheapest of its hand
     /// sources: the source's labor plus the haul (distance by the trip and its return, plus a tick a trip) over
     /// what it yields. Null when no source prices it.
     /// </summary>
@@ -687,7 +686,7 @@ public static class ExportOrdersRules
     }
 
     /// <summary>
-    /// Go <c>DeclareExportOrders</c>: the economy/trade Need's wanted orders. While the silver gap is open every standing
+    /// The economy/trade Need's wanted orders. While the silver gap is open every standing
     /// export batch is declared as it stands and, for what the goods held and in progress leave of the gap, one
     /// finite batch per free worker is added in descending score order, sized by the gap, the trader cash cap and
     /// the runway guard. A gap known closed declares nothing, so the ledger removes the batches. Abstain while
@@ -889,7 +888,7 @@ public static class ExportOrdersRules
     }
 
     /// <summary>
-    /// Go <c>ExportIngredients</c>: the ingredients the ranked goods' cheapest picks draw on (every variant of
+    /// The ingredients the ranked goods' cheapest picks draw on (every variant of
     /// every rankable recipe): the stock and the hand sources the declaring planner reads to price them. Sorted.
     /// </summary>
     public static IReadOnlyList<Resource> ExportIngredients(ExportRequest r)
@@ -910,7 +909,7 @@ public static class ExportOrdersRules
     }
 
     /// <summary>
-    /// Go <c>RankExports</c>: the candidates the economy/trade Need would order against an open gap, best first, for the
+    /// The candidates the economy/trade Need would order against an open gap, best first, for the
     /// reader: <see cref="DeclareExportOrders"/>' ranking without the gap's sizing.
     /// </summary>
     public static IReadOnlyList<ExportCandidate> RankExports(ExportRequest r)

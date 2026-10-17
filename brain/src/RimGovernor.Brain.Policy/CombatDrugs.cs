@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_drugs.go
 //
 // Combat drugs on draft: a drafted defender takes the combat drug it carries (go-juice, or yayo) once per
 // fight, when a hostile comes within its weapon range plus the dose margin and the fight is worth the drug:

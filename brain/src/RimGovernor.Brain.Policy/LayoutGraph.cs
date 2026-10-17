@@ -298,13 +298,13 @@ public sealed partial class StationGraph
     /// <summary>The nodes with no walls and no door (#2884).</summary>
     public List<SiteNode> Sites { get; set; } = [];
 
-    /// <summary>The outdoor field nodes (layout_field_nodes.go); edges name them by Id, and clustering ignores them until fields are placed.</summary>
+    /// <summary>The outdoor field nodes; edges name them by Id, and clustering ignores them until fields are placed.</summary>
     public List<FieldNode> Fields { get; set; } = [];
 
-    /// <summary>The outdoor pen nodes of the herds (layout_pen_nodes.go); their edges count as trips to the outside node.</summary>
+    /// <summary>The outdoor pen nodes of the herds; their edges count as trips to the outside node.</summary>
     public List<PenNode> Pens { get; set; } = [];
 
-    /// <summary>The joy demand (layout_joy_nodes.go); unknown without a joy model. Its outdoor sessions are edges to the outside node.</summary>
+    /// <summary>The joy demand; unknown without a joy model. Its outdoor sessions are edges to the outside node.</summary>
     public Fact<RecreationNode> Recreation { get; set; }
 
     public List<StationEdge> Edges { get; set; } = [];

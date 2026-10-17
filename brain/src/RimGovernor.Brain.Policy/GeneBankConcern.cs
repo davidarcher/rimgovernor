@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>One standing bank: its capacity as the game reports it and how many packs it already holds. (Go <c>GeneBankSlot</c>.)</summary>
+/// <summary>One standing bank: its capacity as the game reports it and how many packs it already holds.</summary>
 public sealed record GeneBankSlot
 {
     public Fact<int> Capacity { get; init; }
@@ -10,7 +10,7 @@ public sealed record GeneBankSlot
 
 /// <summary>
 /// The gene-building rows the need reads: the standing banks and, per pack, whether it lies loose on the map (a
-/// pack held by a bank is not loose; unknown when the pack reported neither). (Go <c>GeneBankFacts</c>.)
+/// pack held by a bank is not loose; unknown when the pack reported neither).
 /// </summary>
 public sealed record GeneBankFacts
 {
@@ -26,7 +26,7 @@ public static class GeneBankConcernRules
     // CompProperties_GenepackContainer.
 
     /// <summary>
-    /// Go <c>GeneBankNeed</c>: RoundsFacts.GeneBankOwed's value: whether more packs lie loose than the banks'
+    /// RoundsFacts.GeneBankOwed's value: whether more packs lie loose than the banks'
     /// free slots hold. Unknown while the section is unread, a bank's capacity is unknown or a pack's
     /// whereabouts are.
     /// </summary>

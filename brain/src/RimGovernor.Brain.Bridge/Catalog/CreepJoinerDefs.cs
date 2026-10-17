@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go creepjoiner_defs.go: the creepjoiner planner's def lookups. They read the defs and name no def.
+// The creepjoiner planner's def lookups. They read the defs and name no def.
 
 public sealed partial class DefinitionCatalog
 {

@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: bench_rate.go
 
 /// <summary>
 /// Groups resources by how fast a shortfall must refill. The refill window is the horizon over which a deficit

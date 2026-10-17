@@ -9,8 +9,8 @@ using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// The controller snapshot the state route and the lifecycle and presentation routes read (Go <c>readState</c> and
-/// <c>buildingSnapshots</c>): the last good observation, refreshed serially on a cadence, with the player's control
+/// The controller snapshot the state route and the lifecycle and presentation routes read:
+/// the last good observation, refreshed serially on a cadence, with the player's control
 /// state laid over it. Reading it never triggers inference or a native refresh; it owns no native mutation capability.
 /// </summary>
 internal sealed class HostSnapshots(string sessionId, ISource source, IClock clock, TimeSpan maxAge, Player player, HostLog log) : ISnapshotProvider, IPlanReader, IDisposable
@@ -31,7 +31,7 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
 
     public Task<PlanState> LoadPlanAsync(PlanId id, CancellationToken cancellationToken) => Journal.LoadPlanAsync(id, cancellationToken);
 
-    /// <summary>Go <c>readState.Refresh</c>: one tick observation; a failure marks the snapshot disconnected and stale.</summary>
+    /// <summary>One tick observation; a failure marks the snapshot disconnected and stale.</summary>
     public async Task RefreshAsync(CancellationToken cancellationToken)
     {
         await _refresh.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -96,7 +96,7 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
         }
     }
 
-    /// <summary>Go <c>readState.Poll</c>: runs after the initial refresh until the token ends.</summary>
+    /// <summary>Runs after the initial refresh until the token ends.</summary>
     public async Task PollAsync(TimeSpan interval, CancellationToken cancellationToken)
     {
         try
@@ -128,7 +128,7 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
         }
     }
 
-    /// <summary>Go <c>buildingSnapshots.Snapshot</c> over <c>readState.Snapshot</c>: the cached observation with the control mode and generation overlaid.</summary>
+    /// <summary>The cached observation with the control mode and generation overlaid.</summary>
     public Task<ControllerSnapshot> SnapshotAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

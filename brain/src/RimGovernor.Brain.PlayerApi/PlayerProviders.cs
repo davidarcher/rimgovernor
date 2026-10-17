@@ -96,7 +96,7 @@ public interface IPlanReader
 }
 
 /// <summary>
-/// A runtime snapshot of the composed routine runtime, for read-only diagnostics (Go <c>RoundsStatus</c>).
+/// A runtime snapshot of the composed routine runtime, for read-only diagnostics.
 /// <see cref="ActiveFamilies"/> names every routine planner family this process enabled, whether or not it has
 /// pending work; <see cref="LastReviewTick"/> is the durable review cursor's most recent reviewed tick, known once
 /// a review has run.

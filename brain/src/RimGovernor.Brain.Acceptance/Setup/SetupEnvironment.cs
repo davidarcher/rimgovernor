@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>Where a worktree's private environment lives, all under <c>&lt;repo&gt;/.rimgovernor</c> (git-ignored; Go <c>setup.Layout</c>).</summary>
+/// <summary>Where a worktree's private environment lives, all under <c>&lt;repo&gt;/.rimgovernor</c> (git-ignored).</summary>
 public sealed class SetupLayout
 {
     public SetupLayout(string repo, string gameCopy, string root, string builds)
@@ -44,7 +44,7 @@ public sealed class SetupLayout
         Path.Combine(layoutDir, "native-builds"));
 }
 
-/// <summary>Drives <see cref="SetupEnvironment.RunAsync"/> (Go <c>setup.Options</c>).</summary>
+/// <summary>Drives <see cref="SetupEnvironment.RunAsync"/>.</summary>
 public sealed class SetupOptions
 {
     public required SetupLayout Layout { get; init; }
@@ -67,7 +67,7 @@ public sealed class SetupOptions
     public TextWriter Log { get; init; } = TextWriter.Null;
 }
 
-/// <summary>What <see cref="SetupEnvironment.RunAsync"/> did, for the closing report (Go <c>setup.Summary</c>).</summary>
+/// <summary>What <see cref="SetupEnvironment.RunAsync"/> did, for the closing report.</summary>
 public sealed class SetupSummary
 {
     public required SetupLayout Layout { get; init; }
@@ -94,9 +94,9 @@ public sealed class SetupSummary
 }
 
 /// <summary>
-/// Builds a worktree's private native acceptance environment (Go <c>setup/setup.go</c>; <c>acceptance setup</c>): the
+/// Builds a worktree's private native acceptance environment: the
 /// game copy under .rimgovernor/native-rimworld, the root under .rimgovernor/bridge and the fixture mod build installed
-/// into the copy. The Go controller binaries step is gone: the harness and the brain are one C# process now.
+/// into the copy.
 /// </summary>
 public static class SetupEnvironment
 {

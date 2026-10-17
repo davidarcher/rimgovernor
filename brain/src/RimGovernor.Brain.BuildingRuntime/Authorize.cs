@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>
 /// Decides which non-root plans may dispatch under the root plan's authority: routine methods (when enabled)
 /// and player submissions for the same world. It satisfies the executor's rounds scope so the executor recheck
-/// before every write uses the same rule as the worker (Go <c>planAuthorizer</c>).
+/// before every write uses the same rule as the worker.
 /// </summary>
 internal sealed class PlanAuthorizer(JournalStore journal, bool routine) : IRoundsScope
 {
@@ -43,7 +43,7 @@ internal sealed class PlanAuthorizer(JournalStore journal, bool routine) : IRoun
 }
 
 /// <summary>
-/// Go <c>ErrUnauthorizedPlan</c>: the plan is not authorized under the root plan. It is a <see cref="ConflictException"/>,
+/// The plan is not authorized under the root plan. It is a <see cref="ConflictException"/>,
 /// the sentinel every authorization path reports, so callers keep matching it, and names the refusal instead of
 /// the sentinel's identity-collision text.
 /// </summary>

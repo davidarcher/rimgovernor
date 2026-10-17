@@ -4,8 +4,7 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// The review scope a planner wave runs in. Go carried these on the context (<c>immediateReviewKey</c>,
-/// <c>ordinaryInterruptKey</c>); here they are ambient to the wave's async flow and restored on dispose.
+/// The review scope a planner wave runs in. They are ambient to the wave's async flow and restored on dispose.
 /// </summary>
 internal static class ReviewScope
 {
@@ -175,7 +174,7 @@ partial class ClockScheduler
     /// </summary>
     internal static bool OrdinaryPlanner(PlannerEntry e) => !ImmediatePlanner(e) || e.Family is not null;
 
-    /// <summary>Whether the running wave is the immediate review (Go <c>immediateReview(ctx)</c>; the flag rides the wave's async scope).</summary>
+    /// <summary>Whether the running wave is the immediate review.</summary>
     internal static bool ImmediateReview() => ReviewScope.Immediate;
 
     internal static bool ProtectionNeedsTicks(ClockSchedulerResult result) =>

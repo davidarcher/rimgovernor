@@ -3,18 +3,18 @@ using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go work_assignment.go, bill.go, remove_production_bill.go and surgery.go: the intents that set a pawn's work and
+// The intents that set a pawn's work and
 // queue bills. Native checks the pawn, the bench, the recipe and the worker live when it applies.
 public static class Production
 {
-    /// <summary>Go's <c>BillSlotsFull</c>: the native refusal reason of a production bill whose bench already carries the vanilla 15 bills; the dispatcher reads it as a full bench.</summary>
+    /// <summary>The native refusal reason of a production bill whose bench already carries the vanilla 15 bills; the dispatcher reads it as a full bench.</summary>
     public const string BillSlotsFull = "bench_bill_slots_full";
 
-    /// <summary>Go's <c>RefusedBillSlotsFull</c>: whether a refused action result names a full bill stack.</summary>
+    /// <summary>Whether a refused action result names a full bill stack.</summary>
     public static bool RefusedBillSlotsFull(Op.Refusal? refusal) => refusal is not null && (refusal.Reason ?? "").Contains(BillSlotsFull, StringComparison.Ordinal);
 
     /// <summary>
-    /// Go's <c>workSettingsAction</c>: the WorkSettingsIntent of one pawn's settings write, any of work priorities,
+    /// The WorkSettingsIntent of one pawn's settings write, any of work priorities,
     /// allowed area, timetable and food additions together. Native checks the pawn and each field live when it
     /// applies; settings that already hold apply again.
     /// </summary>
@@ -42,7 +42,7 @@ public static class Production
         return intent;
     }
 
-    /// <summary>Go's <c>productionBillAction</c>: one production bill as a ProductionBillIntent; native checks the bench, recipe and a skilled worker when it applies.</summary>
+    /// <summary>One production bill as a ProductionBillIntent; native checks the bench, recipe and a skilled worker when it applies.</summary>
     internal static Op.Action ProductionBillAction(DomainAction action) =>
         new() { Intent = BillIntent(action.ProductionBill ?? throw BridgeContractException.Contract("not a production bill action")) };
 
@@ -100,7 +100,7 @@ public static class Production
     }
 
     /// <summary>
-    /// Go's <c>removeProductionBillAction</c>: the Actions/Apply remove_production_bill arm of one
+    /// The Actions/Apply remove_production_bill arm of one
     /// remove_production_bill action; native deletes the bill (and, when asked, cancels its unfinished item) or refuses.
     /// </summary>
     internal static Op.Action RemoveProductionBillAction(DomainAction action)
@@ -118,7 +118,7 @@ public static class Production
     }
 
     /// <summary>
-    /// Go's <c>surgeryAction</c>: the medical ProductionBillIntent of one patient, one recipe and one body part. Native
+    /// The medical ProductionBillIntent of one patient, one recipe and one body part. Native
     /// re-checks the patient, the recipe, the part and a violation's acknowledgment live, and queues the vanilla
     /// Bill_Medical; the same recipe and part already queued applies again (NativeSurgery.cs).
     /// </summary>

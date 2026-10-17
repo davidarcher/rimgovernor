@@ -4,12 +4,12 @@ using WireRectangle = RimGovernor.Contracts.Wire.Observations.Rectangle;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go cells.go. cellsRead, readCells and validateCells (the observations_get_cells read and its reply check) are
+// cellsRead, readCells and validateCells (the observations_get_cells read and its reply check) are
 // wire plumbing and not ported.
 public static class CellsRules
 {
     /// <summary>
-    /// Go's <c>RectCells</c>: an inclusive wire rectangle's cells, row-major; empty for a rectangle missing a
+    /// An inclusive wire rectangle's cells, row-major; empty for a rectangle missing a
     /// corner coordinate or inverted.
     /// </summary>
     public static IReadOnlyList<DomainCell> RectCells(WireRectangle? rectangle)
@@ -31,7 +31,7 @@ public static class CellsRules
         return cells;
     }
 
-    /// <summary>Go's <c>WireRect</c>: the inclusive wire rectangle bounding <paramref name="cells"/>; null for none.</summary>
+    /// <summary>The inclusive wire rectangle bounding <paramref name="cells"/>; null for none.</summary>
     public static WireRectangle? WireRect(IReadOnlyList<DomainCell> cells)
     {
         if (cells.Count == 0)

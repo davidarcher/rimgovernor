@@ -40,7 +40,7 @@ public static class PlanWeights
 /// <summary>The per-survey state every candidate's score shares.</summary>
 internal sealed record PlanScorer(BuildGround G, MapSurvey S, SiteGround Ground)
 {
-    /// <summary>Go <c>newPlanScorer</c>: the scorer over a survey, its zones and the ground already reserved.</summary>
+    /// <summary>The scorer over a survey, its zones and the ground already reserved.</summary>
     public PlanScorer(IReadOnlyList<LayoutZone> zones, IReadOnlyList<LayoutReservation> reserved, MapSurvey s)
         : this(BuildGround.Create(zones, reserved).WithSoil(s), s, LayoutSiteGroundRules.NewSiteGround(s))
     {
@@ -74,7 +74,7 @@ internal sealed record PlanScorer(BuildGround G, MapSurvey S, SiteGround Ground)
     }
 }
 
-/// <summary>Ports <c>layout_score.go</c>: plan scoring, one generator-independent score for a core plan, read by every siting search.</summary>
+/// <summary>Plan scoring, one generator-independent score for a core plan, read by every siting search.</summary>
 public static partial class LayoutScoreRules
 {
     internal static PlanScorer NewPlanScorer(IReadOnlyList<LayoutZone> zones, IReadOnlyList<LayoutReservation> reserved, MapSurvey s) =>

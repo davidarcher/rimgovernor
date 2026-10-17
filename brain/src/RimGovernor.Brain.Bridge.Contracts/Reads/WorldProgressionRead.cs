@@ -4,13 +4,13 @@ using RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>WorldRouteFact</c>: one native player-home route row from a caravan's home_routes census.
+/// One native player-home route row from a caravan's home_routes census.
 /// <see cref="EstimatedTicksKnown"/> is false when native reports no travel-time estimate for that route.
 /// </summary>
 public sealed record WorldRouteFact(string SettlementId, int DestinationTile, bool Reachable, long EstimatedTicks, bool EstimatedTicksKnown);
 
 /// <summary>
-/// Go's <c>CaravanJourney</c>: the validated subset of one player caravan's world-progression census row that
+/// The validated subset of one player caravan's world-progression census row that
 /// travel/arrival tracking and the world-evaluation advisory need. <see cref="Inventory"/> is the full per-caravan
 /// cargo census (defName to units); an absent row is a known zero.
 /// </summary>
@@ -44,7 +44,7 @@ public sealed record CaravanJourney
 }
 
 /// <summary>
-/// Go's <c>QuestOffer</c>: the validated subset of one world-progression quest row the quest-accept boundary
+/// The validated subset of one world-progression quest row the quest-accept boundary
 /// needs. Absent optional fields stay null.
 /// </summary>
 public sealed partial record QuestOffer
@@ -100,7 +100,6 @@ public sealed partial record QuestOffer
     public bool? ViolentQuestsAllowed { get; init; }
 }
 
-/// <summary>Go's <c>QuestRewardFact</c>.</summary>
 public sealed record QuestRewardFact
 {
     public int Choice { get; init; }
@@ -120,10 +119,9 @@ public sealed record QuestRewardFact
     public string FactionId { get; init; } = "";
 }
 
-/// <summary>Go's <c>QuestTradeItemFact</c>.</summary>
 public sealed record QuestTradeItemFact(string Def, long Count);
 
-/// <summary>Go's <c>QuestObjectiveFact</c>: typed native progress; absent fields stay absent.</summary>
+/// <summary>Typed native progress; absent fields stay absent.</summary>
 public sealed partial record QuestObjectiveFact
 {
     public QuestMonument? Monument { get; init; }
@@ -165,10 +163,8 @@ public sealed partial record QuestObjectiveFact
     public IReadOnlyList<QuestLodgerMoodFact> LodgerMoods { get; init; } = [];
 }
 
-/// <summary>Go's <c>QuestLodgerMoodFact</c>.</summary>
 public sealed record QuestLodgerMoodFact(double? Mood);
 
-/// <summary>Go's <c>QuestShuttleFact</c>.</summary>
 public sealed record QuestShuttleFact
 {
     public string Id { get; init; } = "";
@@ -192,20 +188,20 @@ public sealed record QuestShuttleFact
     public int? RequiredColonistCount { get; init; }
 }
 
-/// <summary>Go's <c>QuestFavorFact</c>: the royal favor one reward choice grants in total.</summary>
+/// <summary>The royal favor one reward choice grants in total.</summary>
 public sealed record QuestFavorFact(int Choice, int Favor);
 
-/// <summary>Go's <c>FactionFact</c>: the validated subset of one factions row the quest planners join to a quest's faction id.</summary>
+/// <summary>The validated subset of one factions row the quest planners join to a quest's faction id.</summary>
 public sealed record FactionFact(string Id, bool Player, bool Hostile);
 
 /// <summary>
-/// Go's <c>QuestTradeRequestFact</c>: one native settlement trade objective row, the required resource def name
+/// One native settlement trade objective row, the required resource def name
 /// and count and the settlement's destination tile.
 /// </summary>
 public sealed record QuestTradeRequestFact(string Resource, long Count, int DestinationTile);
 
 /// <summary>
-/// Go's <c>WorldMap</c>: the validated subset of one maps row that failure-recovery classification needs. Tile is
+/// The validated subset of one maps row that failure-recovery classification needs. Tile is
 /// the codebase's only home-tile source: the row with <see cref="Home"/> true.
 /// </summary>
 public sealed record WorldMap
@@ -221,11 +217,10 @@ public sealed record WorldMap
     public IReadOnlyList<QuestWorker> QuestWorkers { get; init; } = [];
 }
 
-/// <summary>Go's <c>CaravanAssemblyFact</c>.</summary>
 public sealed record CaravanAssemblyFact(string Id, int MapId, IReadOnlyList<string> PawnIds);
 
 /// <summary>
-/// Go's <c>WorldProgressionRead</c>: the validated subset of one world progression census the world-site and
+/// The validated subset of one world progression census the world-site and
 /// quest boundaries need. The read and its decoders are wire plumbing and not ported.
 /// </summary>
 public sealed partial record WorldProgressionRead

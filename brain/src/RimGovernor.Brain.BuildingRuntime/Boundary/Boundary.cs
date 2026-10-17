@@ -3,12 +3,11 @@ using Receipt = RimGovernor.Brain.Executor.Receipt;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Port of internal/buildingruntime/boundary (boundary.go, intent.go, facts.go, schedule.go): the native-facing
-// building-placement primitives and pawn/receipt fact helpers shared by every action-family boundary.
-// Dropped: LeaseSource and its Lease call before every write (the native epoch lease is gone in-process, #3074),
-// and fixture.go (a test fake; tests are not ported).
+// The native-facing building-placement primitives and pawn/receipt fact helpers shared by every action-family
+// boundary. There is no LeaseSource or Lease call before every write (the native epoch lease is gone in-process,
+// #3074).
 
-/// <summary>The native reads a building boundary makes (Go <c>boundary.Native</c>).</summary>
+/// <summary>The native reads a building boundary makes.</summary>
 public interface IBoundaryNative
 {
     Task<EmergencyObservation> ReadEmergencyAsync(PbCommon.Identity identity, CancellationToken ct);
@@ -18,13 +17,13 @@ public interface IBoundaryNative
     Task<MapBounds> ReadMapBoundsAsync(PbCommon.Identity identity, Cell anchor, CancellationToken ct);
 }
 
-/// <summary>Sends intents through Actions/Apply (Go <c>boundary.ActionsWriter</c>, narrowing the bridge writer).</summary>
+/// <summary>Sends intents through Actions/Apply.</summary>
 public interface IActionsWriter
 {
     Task<PbOperations.ApplyReply> ApplyAsync(PbCommon.Identity identity, IReadOnlyList<PbOperations.Action> actions, CancellationToken ct);
 }
 
-/// <summary>The building boundary of the executor (Go <c>boundary.Boundary</c>).</summary>
+/// <summary>The building boundary of the executor.</summary>
 public sealed class BuildingBoundary : IBoundary
 {
     private readonly IBoundaryNative _native;
@@ -77,7 +76,7 @@ public sealed class BuildingBoundary : IBoundary
     }
 }
 
-/// <summary>Shared helpers of the action-family boundaries (Go package-level functions of <c>boundary</c>).</summary>
+/// <summary>Shared helpers of the action-family boundaries.</summary>
 public static class Boundary
 {
     /// <summary>
@@ -88,7 +87,7 @@ public static class Boundary
         s is not null && !string.IsNullOrWhiteSpace(s) && Encoding.UTF8.GetByteCount(s) <= 256 && !s.Contains('\0', StringComparison.Ordinal);
 
     /// <summary>
-    /// Writes one combat_order decision row per order result (Go <c>bridge.RecordCombatOrder</c>): applied (reason empty,
+    /// Writes one combat_order decision row per order result: applied (reason empty,
     /// attrs job) or refused (reason the refusal).
     /// </summary>
     private static void RecordCombatOrder(CombatOrderResult res) =>
@@ -169,7 +168,7 @@ public static class Boundary
         }
     }
 
-    // ---- facts.go: decode typed native pawn/receipt evidence into domain facts. ----
+    // ---- Decode typed native pawn/receipt evidence into domain facts. ----
 
     public static Fact<bool> FactBool(bool has, bool value) => has ? Known(value) : Unknown<bool>();
 
@@ -218,7 +217,7 @@ public static class Boundary
         return true;
     }
 
-    // ---- intent.go: dispatch an intent-mode action through Actions/Apply. ----
+    // ---- Dispatch an intent-mode action through Actions/Apply. ----
 
     /// <summary>
     /// An intent-mode attempt's key: the action and attempt (a plan's building actions each start at attempt 1,

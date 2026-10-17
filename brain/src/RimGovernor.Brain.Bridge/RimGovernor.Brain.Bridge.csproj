@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The catalog derivations (Go internal/bridge catalog*.go, #3056) over the game's own Def types, and the typed boundary
+  <!-- The catalog derivations (#3056) over the game's own Def types, and the typed boundary
        between the in-process brain and the native mod (#3080): INativeFacade, the frame handoff and the facade registry.
        Game references and the `unavailable` empty build come from Game.props. -->
   <PropertyGroup>

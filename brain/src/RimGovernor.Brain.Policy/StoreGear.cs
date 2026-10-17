@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// The catalog names no armor def: without the armor split the gear stores have no filters, so gear storage
-/// cannot be planned. (Go <c>ErrNoArmorDefs</c>.)
+/// cannot be planned.
 /// </summary>
 public sealed class NoArmorDefsException()
     : DomainException(

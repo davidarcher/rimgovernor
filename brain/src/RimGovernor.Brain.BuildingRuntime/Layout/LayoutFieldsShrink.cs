@@ -110,7 +110,7 @@ internal static class LayoutFieldShrink
             }
             long n = cells.Count;
             var centre = new Cell((int)(sx / n), (int)(sz / n));
-            // OrderByDescending is stable, like Go's SliceStable over the row-major order.
+            // OrderByDescending is stable over the row-major order.
             var order = LayoutFieldPlanning.SortedCells(cells).OrderByDescending(c => LayoutFieldPlanning.CellDist(c, centre)).ToList();
             return new FieldShrink(id, crop, cells, order, remove);
         }

@@ -5,30 +5,30 @@ using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.RemoteAccept;
 
-/// <summary>Identity predicates, path validity and digests shared by the evidence graph (Go json.go helpers).</summary>
+/// <summary>Identity predicates, path validity and digests shared by the evidence graph.</summary>
 internal static class EvidenceRules
 {
-    /// <summary>A lower-case 40 hex git object id (Go <c>oid</c> regexp).</summary>
+    /// <summary>A lower-case 40 hex git object id.</summary>
     public static bool IsOid(string s) => IsLowerHex(s, 40);
 
-    /// <summary>A lower-case 64 hex SHA-256 digest (Go <c>digest</c> regexp).</summary>
+    /// <summary>A lower-case 64 hex SHA-256 digest.</summary>
     public static bool IsDigest(string s) => IsLowerHex(s, 64);
 
-    /// <summary>The <c>owner/name</c> repository shape (Go <c>repository</c> regexp).</summary>
+    /// <summary>The <c>owner/name</c> repository shape.</summary>
     public static bool IsRepository(string s)
     {
         var slash = s.IndexOf('/', StringComparison.Ordinal);
         return slash > 0 && slash < s.Length - 1 && IsRepoPart(s.AsSpan(0, slash)) && IsRepoPart(s.AsSpan(slash + 1));
     }
 
-    /// <summary>A positive decimal without sign or leading zero (Go <c>^[1-9][0-9]*$</c>).</summary>
+    /// <summary>A positive decimal without sign or leading zero.</summary>
     public static bool IsPositiveDecimal(string s) =>
         s.Length > 0 && s[0] is >= '1' and <= '9' && s.All(static c => c is >= '0' and <= '9');
 
-    /// <summary>A shard id <c>s&lt;n&gt;</c> (Go <c>^s[1-9][0-9]*$</c>).</summary>
+    /// <summary>A shard id <c>s&lt;n&gt;</c>.</summary>
     public static bool IsShardId(string s) => s.Length > 1 && s[0] == 's' && IsPositiveDecimal(s[1..]);
 
-    /// <summary>Whether <paramref name="p"/> is a safe slash-separated relative evidence path (Go <c>validPath</c>).</summary>
+    /// <summary>Whether <paramref name="p"/> is a safe slash-separated relative evidence path.</summary>
     public static bool ValidPath(string p)
     {
         if (p.Length == 0 || p == "." || p.StartsWith('/') || p.IndexOfAny(['\\', ':', '\0', '<', '>', '"', '|', '?', '*']) >= 0)
@@ -134,7 +134,7 @@ internal static class EvidenceRules
 }
 
 /// <summary>
-/// An opened evidence root (Go <c>tree</c>): every entry is a regular, unlinked, safely named, case-unique file or
+/// An opened evidence root: every entry is a regular, unlinked, safely named, case-unique file or
 /// directory, and every read is digest-pinned.
 /// </summary>
 internal sealed class EvidenceTree
@@ -168,7 +168,7 @@ internal sealed class EvidenceTree
         return tree;
     }
 
-    /// <summary>Whether <paramref name="p"/> names an entry of the tree with exactly this spelling (Go <c>t.files[lower(p)] == p</c>).</summary>
+    /// <summary>Whether <paramref name="p"/> names an entry of the tree with exactly this spelling.</summary>
     public bool Has(string p) => _files.TryGetValue(p.ToLowerInvariant(), out var spelled) && spelled == p;
 
     /// <summary>Reads the file <paramref name="reference"/> names after the path, case and digest checks, and marks it used.</summary>

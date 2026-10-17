@@ -5,7 +5,7 @@ using RimGovernor.Brain.Telemetry;
 
 namespace RimGovernor.Brain.Host;
 
-/// <summary>Writes the host's own rows (Go's <c>slog</c> calls of the serve command) through the telemetry emitter the session installed.</summary>
+/// <summary>Writes the host's own rows through the telemetry emitter the session installed.</summary>
 internal sealed class HostLog(TelemetryEmitter emitter, string component)
 {
     public void Info(string kind, string message, params (string Key, object? Value)[] attrs) => Write(TelemetryLevel.Info, kind, message, attrs);
@@ -18,7 +18,7 @@ internal sealed class HostLog(TelemetryEmitter emitter, string component)
         emitter.Event(level, component, kind, message, attrs.Select(a => new KeyValuePair<string, object?>(a.Key, a.Value)));
 }
 
-/// <summary>One loaded world and native generation: the same-world fields plus the generation, never the plan (Go <c>governorWorld</c>).</summary>
+/// <summary>One loaded world and native generation: the same-world fields plus the generation, never the plan.</summary>
 internal readonly record struct GovernorWorld(ColonyId Colony, MapId Map, LoadId Load, NativeGeneration Generation)
 {
     public bool SameWorld(GovernorWorld other) => Colony == other.Colony && Map == other.Map && Load == other.Load;
@@ -29,7 +29,7 @@ internal readonly record struct GovernorWorld(ColonyId Colony, MapId Map, LoadId
 
 /// <summary>
 /// Restores save-owned intent into the session store and clears derived Round state once per loaded world, before
-/// review or save flushing (Go <c>worldRebuild</c>).
+/// review or save flushing.
 /// </summary>
 internal sealed class WorldRebuild(StoreJournal database, FacadeGovernorState native, Action<IReadOnlyList<PlanState>, CancellationToken>? orphans, HostLog log) : IDisposable
 {
@@ -111,7 +111,7 @@ internal sealed class WorldRebuild(StoreJournal database, FacadeGovernorState na
     }
 
     /// <summary>
-    /// The scheduler's <c>WorldReady</c> hook (Go <c>workerGate</c>): it ensures the step's world is rebuilt and
+    /// The scheduler's <c>WorldReady</c> hook: it ensures the step's world is rebuilt and
     /// reports whether any rebuild ran since the scheduler's last step, so the step reviews again from the reset cache.
     /// </summary>
     public Func<RimGovernor.Contracts.Wire.Common.ObservationContext, CancellationToken, Task<bool>> SchedulerGate()
@@ -138,7 +138,7 @@ internal sealed class WorldRebuild(StoreJournal database, FacadeGovernorState na
 /// <summary>
 /// Writes the store's governor state into the save's component: every blob in one batched put, no diffing. The
 /// world is rebuilt from the save first when it is new, so a flush never replaces the save's blobs with a store
-/// that has not read them yet (Go <c>stateFlusher</c>).
+/// that has not read them yet.
 /// </summary>
 internal sealed class StateFlusher(FacadeGovernorState native, FacadeWorldSource worlds, StoreJournal database, WorldRebuild rebuild)
 {

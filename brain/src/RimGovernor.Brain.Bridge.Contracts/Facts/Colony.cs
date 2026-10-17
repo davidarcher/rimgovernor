@@ -4,7 +4,7 @@ using RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>ColonyThreat</c>: the threat section of one colony census as facts, the wealth split and the raid
+/// The threat section of one colony census as facts, the wealth split and the raid
 /// points the storyteller would draw now. A section native did not observe (absent, unavailable, or a field it
 /// withheld) leaves the fact unknown, never zero.
 /// </summary>
@@ -29,7 +29,7 @@ public sealed record ColonyThreat
     /// <summary>The hostile lords seen on the map since load.</summary>
     public IReadOnlyList<RaidTrack> Raids { get; init; } = [];
 
-    /// <summary>Go's <c>ProjectColonyThreat</c>: reads the threat section of a census.</summary>
+    /// <summary>Reads the threat section of a census.</summary>
     public static ColonyThreat ProjectColonyThreat(ColonyFactsSnapshot census)
     {
         var facts = census.Threat?.Outcome?.Observed;
@@ -55,13 +55,13 @@ public sealed record ColonyThreat
     }
 }
 
-// Go colony.go. The colony facts read is wire plumbing and not ported; the threat projection and the
+// The colony facts read is wire plumbing and not ported; the threat projection and the
 // not-requested planning answer are.
 public static class Colony
 {
 
     /// <summary>
-    /// Go's <c>NotRequestedPlanning</c>: the planning section of a colony facts read that did not ask for planning,
+    /// The planning section of a colony facts read that did not ask for planning,
     /// as the native answers it.
     /// </summary>
     public static PlanningSection NotRequestedPlanning() =>

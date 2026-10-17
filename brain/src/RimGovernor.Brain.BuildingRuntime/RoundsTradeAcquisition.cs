@@ -75,7 +75,7 @@ public sealed partial class Rounder
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                // A demand the forecast cannot price is left out, as an error leaves it out in Go.
+                // A demand the forecast cannot price is left out.
             }
         }
         await PlanTradeAcquisitionAsync(world, "food", p, demands, null, ct).ConfigureAwait(false);

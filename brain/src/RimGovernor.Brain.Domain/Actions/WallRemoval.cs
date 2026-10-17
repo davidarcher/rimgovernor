@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record WallRemoval : IActionPayload
 {
-    /// <summary>Go <c>NewWallRemoval</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public WallRemoval(string original, ActionId backupOf, Cell cell)
     {
         DomainException.Require(
@@ -42,6 +42,6 @@ public sealed partial record DomainAction
         return Create(id, ActionKind.WallRemoval, removal);
     }
 
-    /// <summary>Go <c>Action.WallRemoval() (WallRemoval, bool)</c>: the payload when this is a wall removal action, otherwise null.</summary>
+    /// <summary>The payload when this is a wall removal action, otherwise null.</summary>
     public WallRemoval? WallRemoval => PayloadOf<WallRemoval>(ActionKind.WallRemoval);
 }

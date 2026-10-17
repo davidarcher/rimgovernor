@@ -2,7 +2,7 @@ using System.Runtime.ExceptionServices;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Reads the actual native identity of the loaded world (Go <c>WorldSource</c>).</summary>
+/// <summary>Reads the actual native identity of the loaded world.</summary>
 public interface IWorldSource
 {
     Task<World> ReadWorldAsync(CancellationToken ct);
@@ -10,12 +10,12 @@ public interface IWorldSource
 
 public sealed record PlayerConfig(TimeSpan CallTimeout, TimeSpan JournalTimeout);
 
-/// <summary>What the player coordinator needs of the session that owns the control (Go <c>playerSession</c>).</summary>
+/// <summary>What the player coordinator needs of the session that owns the control.</summary>
 public interface IPlayerSession
 {
     /// <summary>
     /// Acquires Auto authority. <paramref name="handoff"/> is the native generation a map-focus handoff already
-    /// produced (Go carried it in the context): the status read must show exactly that generation.
+    /// produced: the status read must show exactly that generation.
     /// </summary>
     Task<GenerationSnapshot> AcquireAsync(GenerationSnapshot requested, CancellationToken ct, NativeGeneration? handoff = null);
 
@@ -34,7 +34,7 @@ public interface IPlayerSession
     Task CloseAsync(CancellationToken ct);
 }
 
-/// <summary>How long one caller waited for the player gate and who held it when the wait began (Go <c>gateWait</c>).</summary>
+/// <summary>How long one caller waited for the player gate and who held it when the wait began.</summary>
 internal readonly record struct GateWait(TimeSpan Wait, string Holder, TimeSpan HolderHeld);
 
 /// <summary>
@@ -285,7 +285,7 @@ public sealed partial class Player : IDisposable
         }
     }
 
-    /// <summary>Records the request uncertain and throws; always throws, as the Go helper always returned an error.</summary>
+    /// <summary>Records the request uncertain and throws; always throws.</summary>
     private Task<ControlRecord> UncertainAsync(ControlRecord record, Exception cause) =>
         FinishAsync(record, ControlPhase.Uncertain, new NativeGeneration(0), ErrorJoin.Of(cause, DisableCaptured()));
 

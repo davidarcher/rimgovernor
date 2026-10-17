@@ -5,7 +5,7 @@ using RimGovernor.Brain.Telemetry;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>explain/every-concern</c> (Go <c>explain/explainable.go</c>): the nightly check that the bot can explain itself
+/// <c>explain/every-concern</c>: the nightly check that the bot can explain itself
 /// (#2702, epic #2690): every refusal or wait a planner reports on a running colony has a plain-language
 /// need_transitions row in the session store.
 /// </summary>

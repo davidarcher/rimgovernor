@@ -121,7 +121,7 @@ public sealed record MonolithAdvance
 }
 
 /// <summary>
-/// Ports <c>monolith.go</c>. The colony advances the void monolith through its activation levels. The rules are
+/// The colony advances the void monolith through its activation levels. The rules are
 /// the game's, from the decompile: the Inactive monolith (level 0) is investigated; every later level is
 /// ActivateMonolith directly; both run only while the game's own CanActivate holds. Activating into VoidAwakened
 /// is the awakening: it cannot be undone and starts the EndGame_VoidAwakening quest. Ambient Horror mode has no

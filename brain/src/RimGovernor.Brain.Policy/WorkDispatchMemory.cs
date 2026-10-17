@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: work_dispatch_memory.go.
 
 /// <summary>One Round's reading for the dispatcher.</summary>
 public sealed record DispatchInputs
@@ -90,7 +89,7 @@ public sealed class DispatchMemory
         IReadOnlyList<GearBench> benches)
     {
         var items = new List<UnmetThroughput>();
-        // Summed in key order: float addition is not associative, and Go's map order is random.
+        // Summed in key order: float addition is not associative, and a map's order is not fixed.
         foreach (var k in Shortfalls.Keys.Order(StringComparer.Ordinal))
         {
             items.Add(Shortfalls[k]);

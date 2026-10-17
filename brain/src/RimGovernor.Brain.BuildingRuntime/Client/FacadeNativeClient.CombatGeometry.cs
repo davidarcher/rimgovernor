@@ -3,11 +3,10 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go combat_geometry.go (CombatGeometry and its request validator) and pawn_cargo.go (ReadPawnCargo).
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
-    /// Go <c>CombatGeometry</c>: DecideCombat's one geometry read per stop. For candidate cells and hostiles: cover,
+    /// DecideCombat's one geometry read per stop. For candidate cells and hostiles: cover,
     /// line of fire and colonist-in-path by the game's own rules, and the pawn's path ticks to each cell when a pawn
     /// is named. The reply's cells and lines are in request order; with a propose block its proposed cells follow,
     /// ranked, scored alike.
@@ -27,7 +26,7 @@ public sealed partial class FacadeNativeClient
     internal static class CombatGeometryChecks
     {
         /// <summary>
-        /// Go <c>ValidateCombatGeometryRequest</c>: checks the caps and shape. An identity, 1..max distinct cells (0..max-1
+        /// Checks the caps and shape. An identity, 1..max distinct cells (0..max-1
         /// with propose), 1..max distinct hostile ids (0 for named cells with no propose and no pawn), a valid pawn id
         /// when one is named, and a propose block's role and anchor.
         /// </summary>
@@ -77,7 +76,7 @@ public sealed partial class FacadeNativeClient
             }
         }
 
-        /// <summary>Go <c>geometryCells</c>: min..cap distinct, valid cells.</summary>
+        /// <summary>min..cap distinct, valid cells.</summary>
         private static void GeometryCells(EquatableArray<PbCommon.Cell> cells, int min)
         {
             var n = cells.Count;
@@ -102,7 +101,7 @@ public sealed partial class FacadeNativeClient
         private static bool GeometryCell(PbCommon.Cell? cell) =>
             cell is not null && cell.X >= 0 && cell.Z >= 0;
 
-        /// <summary>Go <c>validatePropose</c>: one role and its anchor.</summary>
+        /// <summary>One role and its anchor.</summary>
         private static void ValidatePropose(PbMirror.CombatGeometryPropose p)
         {
             switch (p.Role)
@@ -145,7 +144,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>ReadPawnCargo</c>: reuses the complete held-stock census. Only the named pawns' inventory and carry slots
+    /// Reuses the complete held-stock census. Only the named pawns' inventory and carry slots
     /// count; loose home stock cannot prove delivery.
     /// </summary>
     internal async Task<IReadOnlyDictionary<string, long>> ReadPawnCargoAsync(PbCommon.Identity identity, IReadOnlyList<string> pawns, CancellationToken cancellationToken)

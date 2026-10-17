@@ -28,7 +28,7 @@ public interface IAcceptHost
 
 /// <summary>
 /// The Acceptance tab: the registered native acceptance cases, each runnable on demand in a visible game window for
-/// local playtesting (Go <c>acceptRunner</c>). The cases run in this process through the acceptance project; Stop
+/// local playtesting. The cases run in this process through the acceptance project; Stop
 /// cancels the run, and the game it opened stays up (Close game ends it).
 /// </summary>
 public sealed class AcceptRunner(IAcceptHost host, CaseRegistry registry)

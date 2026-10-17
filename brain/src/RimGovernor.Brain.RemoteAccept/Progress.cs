@@ -7,7 +7,7 @@ using RimGovernor.Brain.Acceptance;
 
 namespace RimGovernor.Brain.RemoteAccept;
 
-/// <summary>The trusted live-progress plan of one shard (Go <c>progressPlan</c>).</summary>
+/// <summary>The trusted live-progress plan of one shard.</summary>
 internal sealed record ProgressPlan(
     string Shard,
     string RunId,
@@ -98,7 +98,7 @@ internal sealed record CheckRun(long Id, string ExternalId, string Status, Check
 }
 
 /// <summary>
-/// Live progress as a GitHub check run (Go cmd/remoteaccept progress.go). Display only: API, startup and observation
+/// Live progress as a GitHub check run. Display only: API, startup and observation
 /// failures never change verdicts. Rendering uses only trusted names/identity and a fixed vocabulary; no native error,
 /// argv, log content or path can enter a public check run.
 /// </summary>

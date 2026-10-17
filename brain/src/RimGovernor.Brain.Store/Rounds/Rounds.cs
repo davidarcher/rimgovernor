@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Store;
 
 /// <summary>
 /// Binds identity and access direction. Its current position is resolved by the supply census and checked by
-/// Hands before a write (Go <c>ReserveSupply</c>).
+/// Hands before a write.
 /// </summary>
 public sealed record ReserveSupply(string Thing, string Definition, bool Forbid);
 
@@ -19,7 +19,7 @@ public sealed record ReserveSupply(string Thing, string Definition, bool Forbid)
 public sealed record RoundsCombat(Situation Situation, EquatableArray<PawnId> Prey, EquatableArray<PawnId> Hunters);
 
 /// <summary>
-/// The durable review cursor and hysteresis history (Go <c>Rounds</c>). A field Go omitted when empty is its empty value here.
+/// The durable review cursor and hysteresis history. A field omitted when empty is its empty value.
 /// </summary>
 public sealed record Rounds
 {
@@ -89,7 +89,7 @@ public sealed record Rounds
     public EquatableArray<WallCell> WallCells { get; init; }
 }
 
-/// <summary>One requested inspection (Go <c>RoundsRequest</c>).</summary>
+/// <summary>One requested inspection.</summary>
 public sealed record RoundsRequest
 {
     public bool Immediate { get; init; }
@@ -107,7 +107,7 @@ public sealed record RoundsRequest
     public RoundsFacts Facts { get; init; } = new();
 }
 
-/// <summary>What a review committed (Go <c>RoundsResult</c>).</summary>
+/// <summary>What a review committed.</summary>
 public sealed record RoundsResult
 {
     public Rounds Review { get; init; } = new();
@@ -118,5 +118,5 @@ public sealed record RoundsResult
     public RoundsDetection? Detection { get; init; }
 }
 
-/// <summary>One <c>InspectRounds</c> call's input (Go <c>RoundsDetection</c>).</summary>
+/// <summary>One <c>InspectRounds</c> call's input.</summary>
 public sealed record RoundsDetection(RoundsFacts Facts, RoundsLatches Latches, RoundsPolicy Policy);

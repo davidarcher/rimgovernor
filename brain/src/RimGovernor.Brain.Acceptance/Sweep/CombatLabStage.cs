@@ -5,8 +5,7 @@ using Fx = RimGovernor.Fixtures.Contracts;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// A fixture as test/stage read it back: each pawn in spec order and the name-free map digest
-/// (Go <c>combatlab.Staged</c>).
+/// A fixture as test/stage read it back: each pawn in spec order and the name-free map digest.
 /// </summary>
 public sealed class StagedFixture
 {
@@ -47,7 +46,7 @@ public sealed class StagedFixture
 }
 
 /// <summary>
-/// Staging (Go <c>combatlab/stage.go</c>): wipes the lab to a fixture's colonists, builds it around the wipe's centre
+/// Staging: wipes the lab to a fixture's colonists, builds it around the wipe's centre
 /// and stages it, then reads the lab back.
 /// </summary>
 public static class CombatStage

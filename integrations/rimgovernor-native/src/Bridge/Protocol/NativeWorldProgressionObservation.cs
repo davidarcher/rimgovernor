@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Per-caravan home routes: one
-        // route fact per player-home map, so Go can tell whether a caravan
+        // route fact per player-home map, so the brain can tell whether a caravan
         // could path home without depending on the caravan formation catalog
         // (which only ever evaluates one destination at a time).
         private static List<Obs.WorldRoute> HomeRoutes(Caravan caravan)

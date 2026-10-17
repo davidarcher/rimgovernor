@@ -5,8 +5,8 @@ using System.Text.Json.Serialization;
 
 namespace RimGovernor.Brain.Simulation.CombatMetrics;
 
-// Port of Go internal/combatmetrics (sweep.go). Sweep files are the committed combat lab baselines
-// (#2843), so they stay JSON with the Go field names.
+// Sweep files are the committed combat lab baselines
+// (#2843), so they stay JSON with fixed field names.
 
 /// <summary>One seed's run: its scored metrics and the evidence that the run started where its pair did.</summary>
 public sealed record SeedRow
@@ -66,7 +66,7 @@ public sealed record Stat
     [JsonPropertyName("hi")]
     public double Hi { get; init; }
 
-    /// <summary>The mean and 95% t interval of xs (Go <c>NewStat</c>).</summary>
+    /// <summary>The mean and 95% t interval of xs.</summary>
     public static Stat NewStat(IReadOnlyList<double> xs)
     {
         if (xs.Count == 0)
@@ -155,7 +155,7 @@ public sealed record Summary
 
     internal static double? MeasureOf(int index, Metrics m) => _measures[index].Get(m);
 
-    /// <summary>Derives a Sweep's summary from its rows; a row that failed has no metrics and counts in no measure (Go <c>Summarize</c>).</summary>
+    /// <summary>Derives a Sweep's summary from its rows; a row that failed has no metrics and counts in no measure.</summary>
     public static Summary Summarize(IReadOnlyList<SeedRow> rows)
     {
         int runs = 0, deaths = 0, downs = 0, unresolved = 0;
@@ -240,7 +240,7 @@ public sealed record Sweep
     [JsonPropertyName("summary")]
     public Summary Summary { get; init; } = new();
 
-    /// <summary>Assembles a Sweep from its rows, sorted by seed (Go <c>NewSweep</c>).</summary>
+    /// <summary>Assembles a Sweep from its rows, sorted by seed.</summary>
     public static Sweep NewSweep(string fixture, int workers, string load, long wallMs, IReadOnlyList<SeedRow> rows)
     {
         var sorted = rows.OrderBy(r => r.Seed).ToArray();
@@ -256,7 +256,7 @@ public sealed record Sweep
         };
     }
 
-    /// <summary>Reads a Sweep file, refusing another schema version (Go <c>ParseSweep</c>); invalid JSON throws <see cref="JsonException"/>.</summary>
+    /// <summary>Reads a Sweep file, refusing another schema version; invalid JSON throws <see cref="JsonException"/>.</summary>
     public static Sweep ParseSweep(string json)
     {
         var s = JsonSerializer.Deserialize<Sweep>(json, _readOptions) ?? throw new JsonException("sweep file is empty");
@@ -477,9 +477,9 @@ public sealed record Comparison
         return b.ToString();
     }
 
-    // Go's %+.2f.
+    // printf-style %+.2f.
     private static string Signed(double v) => v.ToString("+0.00;-0.00;+0.00", CultureInfo.InvariantCulture);
 
-    // Go's %v of a []int: "[1 2 3]".
+    // Space-separated in brackets, as the baselines print an int list: "[1 2 3]".
     private static string GoList(IReadOnlyList<int> values) => "[" + string.Join(' ', values) + "]";
 }

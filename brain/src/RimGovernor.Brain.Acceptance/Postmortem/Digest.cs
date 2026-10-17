@@ -4,14 +4,14 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// One finding of the digest (Go <c>postmortem.Line</c>): <see cref="Text"/> is the reading, <see cref="Evidence"/> the
+/// One finding of the digest: <see cref="Text"/> is the reading, <see cref="Evidence"/> the
 /// file (relative to the case directory) and row it came from ("otlp/logs.jsonl#1834", "service.sqlite transitions#412",
 /// "otlp/logs.jsonl.2#77"; a log row's number is its line in the segment).
 /// </summary>
 public sealed record DigestLine(string Text, string Evidence);
 
 /// <summary>
-/// One step of the diagnosis sequence (Go <c>postmortem.Section</c>); <see cref="Lines"/> are its findings, each with the
+/// One step of the diagnosis sequence; <see cref="Lines"/> are its findings, each with the
 /// evidence it was read from. An empty <see cref="Lines"/> means the step found nothing and says so in
 /// <see cref="Note"/>.
 /// </summary>
@@ -37,7 +37,7 @@ public sealed class DigestSection
 }
 
 /// <summary>
-/// The ordered postmortem of one case output directory (Go <c>postmortem.Digest</c>): the manual sequence every
+/// The ordered postmortem of one case output directory: the manual sequence every
 /// diagnosis started with, read from the case's own evidence in a fixed order. Each line names the file and row it came
 /// from so the digest is checkable, not a verdict. <see cref="ToJson"/> is what the report records as <c>diagnosis</c>.
 /// </summary>

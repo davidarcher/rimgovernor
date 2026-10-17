@@ -114,7 +114,7 @@ public sealed record RecoveryCandidate
 
     public string? PriorArea { get; init; }
 
-    /// <summary>The id as Go derived it: a hash of the candidate's JSON with the ID blanked.</summary>
+    /// <summary>The id: a hash of the candidate's JSON with the ID blanked.</summary>
     internal MethodId MethodIdOf()
     {
         var json = "{\"ID\":\"\",\"Kind\":" + GearRules.GoJsonString(Wire.Name(Kind))
@@ -176,7 +176,7 @@ public sealed record RecoverySelection
 
 public static partial class RecoveryRules
 {
-    /// <summary>Go's json.Marshal float64 text: shortest round-trip digits, exponent form outside [1e-6, 1e21).</summary>
+    /// <summary>The JSON float64 text: shortest round-trip digits, exponent form outside [1e-6, 1e21).</summary>
     internal static string GoJsonFloat(double d)
     {
         if (d == 0)

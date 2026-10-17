@@ -3,7 +3,7 @@ using System.Globalization;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The <c>acceptance setup</c> subcommand (Go <c>cmd/acceptance/setup.go</c> runSetup/parseSetup): discovers the inputs,
+/// The <c>acceptance setup</c> subcommand: discovers the inputs,
 /// builds the worktree's private environment and prints the summary with the run command a first case needs.
 /// </summary>
 public static class AcceptanceSetup

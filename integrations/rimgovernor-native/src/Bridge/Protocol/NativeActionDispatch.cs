@@ -150,7 +150,7 @@ namespace HomeBridge.BridgeTools
     // BuildingIntent: place one ordinary blueprint (or an instant building)
     // through NativeConstructionPlan, validated against the live map. A
     // matching blueprint, frame or building already on the cell is applied
-    // as it stands. Go matches what stands by geometry.
+    // as it stands. The brain matches what stands by geometry.
     internal sealed class BuildingActionHandler : IActionHandler
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)

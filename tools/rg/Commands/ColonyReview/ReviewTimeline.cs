@@ -9,7 +9,7 @@ namespace RimGovernor.Tools.Commands.ColonyReview;
 internal sealed record CaseResult(string Error, IReadOnlyDictionary<string, string> Review);
 
 /// <summary>
-/// Turns an acceptance colony-review output into report rows (Go: <c>Load</c> and <c>Derive</c>). The report reads what the
+/// Turns an acceptance colony-review output into report rows. The report reads what the
 /// run already records: result.json's timeline (the colony census from /api/player/colony and each sampled concern's
 /// state, every in-game hour) and the recorder's screenshots under review/ (colony-tick.jpg, map-tick.jpg).
 /// </summary>
@@ -92,7 +92,7 @@ internal static partial class ReviewTimeline
                 }
                 catch (JsonException)
                 {
-                    // Go ignored the decode error and kept what it had; a malformed block reads as no census.
+                    // A malformed block reads as no census.
                 }
             }
             census = census with { Pawns = census.Pawns?.Select(p => p with { Label = Plain(p.Label) }).ToList() };
@@ -206,7 +206,7 @@ internal static partial class ReviewTimeline
         return rows;
     }
 
-    // The first index whose tick is after the given one (Go sort.Search).
+    // The first index whose tick is after the given one.
     private static int UpperBound(List<Row> rows, int tick)
     {
         var lo = 0;
@@ -245,7 +245,7 @@ internal static partial class ReviewTimeline
                 var before = new Dictionary<string, string>(StringComparer.Ordinal);
                 foreach (var g in prev.Concerns)
                 {
-                    before[g.Id] = g.Need; // a duplicate id keeps the last, as a Go map does
+                    before[g.Id] = g.Need; // a duplicate id keeps the last
                 }
                 foreach (var g in r.Concerns)
                 {

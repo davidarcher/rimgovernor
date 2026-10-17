@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
         /// it under the running clock. Two in-game hours -- long enough for
         /// a controller running at Ultrafast to reach a doctor's order, short
         /// enough that a bleed-out is never left to a review cadence.
-        /// Go authors the floor (WatchPolicy.injury_severity_floor_ticks).
+        /// The brain authors the floor (WatchPolicy.injury_severity_floor_ticks).
         /// Ticks a pawn's demoted injury waits before it invalidates the
         /// medical facts again, so a brawl cannot replan the colony every
         /// probe.

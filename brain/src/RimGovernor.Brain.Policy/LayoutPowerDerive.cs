@@ -33,7 +33,7 @@ public sealed record PowerModel
 }
 
 /// <summary>
-/// Ports <c>layout_power_derive.go</c>: how many power sites a first plan owes. The count is not a number the planner
+/// How many power sites a first plan owes. The count is not a number the planner
 /// holds; it is what the planned demand needs, found by adding sites one at a time until the budget has no generation
 /// shortfall. Each step quotes the next turbine and the next solar plot at their cheapest sites and takes the one whose
 /// price (build, conduit, wall and ground, in watts) is least per watt it delivers. A catalog without the rows, or a

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>The pawn's current food policy: its load id and allowed definitions. It is observation, never an explicit controller preference. (Go <c>FoodRestriction</c>.)</summary>
+/// <summary>The pawn's current food policy: its load id and allowed definitions. It is observation, never an explicit controller preference.</summary>
 public sealed record FoodRestriction
 {
     public string PolicyId { get; init; } = "";
@@ -8,7 +8,7 @@ public sealed record FoodRestriction
     public IReadOnlyList<string> Allowed { get; init; } = [];
 }
 
-/// <summary>What a food definition is for diets: a meal tier, meat by source, a vegetable, fungus, an animal product or other. (Go <c>FoodKind</c>.)</summary>
+/// <summary>What a food definition is for diets: a meal tier, meat by source, a vegetable, fungus, an animal product or other.</summary>
 public enum FoodKind
 {
     [WireName("")]
@@ -54,7 +54,7 @@ public enum FoodKind
     Hay,
 }
 
-/// <summary>What a meal definition is made of: meat only, no meat, or either; <see cref="None"/> for a food that is no meal. (Go <c>MealIngredients</c>.)</summary>
+/// <summary>What a meal definition is made of: meat only, no meat, or either; <see cref="None"/> for a food that is no meal.</summary>
 public enum MealIngredients
 {
     [WireName("")]
@@ -70,10 +70,10 @@ public enum MealIngredients
     NonMeat,
 }
 
-/// <summary>One food ThingDef a food policy can allow. (Go <c>Food</c>.)</summary>
+/// <summary>One food ThingDef a food policy can allow.</summary>
 public sealed record Food(string Def, FoodKind Kind, MealIngredients Ingredients);
 
-/// <summary>One native food policy: its load id, label, holders and allowed food definitions. (Go <c>FoodPolicyEntry</c>.)</summary>
+/// <summary>One native food policy: its load id, label, holders and allowed food definitions.</summary>
 public sealed record FoodPolicyEntry
 {
     public string Id { get; init; } = "";
@@ -87,11 +87,11 @@ public sealed record FoodPolicyEntry
 
 /// <summary>
 /// What one pawn's food policy owes: the contents to write (null when the policy labelled with its short name
-/// already allows exactly them) and the assignment (null when it already holds it). (Go <c>FoodPolicyChange</c>.)
+/// already allows exactly them) and the assignment (null when it already holds it).
 /// </summary>
 public sealed record FoodPolicyChange(FoodPolicy? Write, PawnSettings? Assign);
 
-/// <summary>What a pawn's ideoligion precepts and traits make of food. (Go <c>Diet</c>.)</summary>
+/// <summary>What a pawn's ideoligion precepts and traits make of food.</summary>
 public sealed record Diet
 {
     /// <summary>The Cannibal trait or a cannibalism precept that accepts human meat.</summary>
@@ -125,7 +125,7 @@ public sealed record Diet
 
 /// <summary>
 /// A food policy holder outside the work census: a prisoner with its diet, or a tame animal with the food
-/// definitions its race can eat. (Go <c>FoodEater</c>.)
+/// definitions its race can eat.
 /// </summary>
 public sealed record FoodEater
 {
@@ -149,7 +149,7 @@ public static class FoodPolicyRules
 
     /// <summary>
     /// The foods kept for caravans: not eaten at home while the colony has other food; when it is short of food
-    /// (Diet.Reserve) they are the food. The one list Go decides it by; native only reports defs and forbidden
+    /// (Diet.Reserve) they are the food. The one list that decides it; native only reports defs and forbidden
     /// state.
     /// </summary>
     internal static readonly IReadOnlyList<Resource> TravelReserve = [new Resource("Pemmican"), new Resource("MealSurvivalPack")];
@@ -173,7 +173,7 @@ public static class FoodPolicyRules
     private static readonly string[] NonMeatEvents = ["AteNonMeat"];
     private static readonly string[] FungusEvents = ["AteFungus", "AteFungusAsIngredient"];
 
-    /// <summary>Go <c>PawnDiet</c>: reads the pawn's diet; unknown while its traits or policy inputs are, or, for a pawn with precepts, the ideoligion defs.</summary>
+    /// <summary>Reads the pawn's diet; unknown while its traits or policy inputs are, or, for a pawn with precepts, the ideoligion defs.</summary>
     public static (Diet Diet, bool Ok) PawnDiet(WorkPawn pawn, Fact<Ideoligion> ideology)
     {
         var ok = pawn.Traits.TryGetValue(out var traits);
@@ -191,7 +191,7 @@ public static class FoodPolicyRules
     }
 
     /// <summary>
-    /// Go <c>DietOf</c>: the diet of trait defNames and of the precepts of the pawn's own ideoligion, read
+    /// The diet of trait defNames and of the precepts of the pawn's own ideoligion, read
     /// through the shared precept rule. A pawn without precepts has no ideoligion and so no precept diet; one
     /// with precepts is unknown while the ideoligion defs are. Human meat is accepted when no precept costs mood
     /// for it; insect meat and fungus where a precept approves; vegetarian and carnivore are precepts that
@@ -246,7 +246,7 @@ public static class FoodPolicyRules
     }
 
     /// <summary>
-    /// Go <c>DietFoods</c>: the food definitions a diet allows. Everyone gets every meal tier and raw food as a
+    /// The food definitions a diet allows. Everyone gets every meal tier and raw food as a
     /// fallback, except: human meat only for a cannibal; insect meat only where it is loved; a vegetarian no
     /// meat and no meat-only meal; a carnivore no vegetable, no meat-free meal and no fungus unless fungus is
     /// preferred; fungus never where it is despised; fine and lavish meals only in the mood tier, and never for
@@ -297,15 +297,15 @@ public static class FoodPolicyRules
         FoodKind.Kibble, FoodKind.Hay, FoodKind.RawMeat, FoodKind.HumanMeat, FoodKind.InsectMeat, FoodKind.Vegetable, FoodKind.Fungus, FoodKind.AnimalProduct,
     ];
 
-    /// <summary>Go <c>CaptiveFoods</c>: a prisoner's or slave's foods: its diet's paste and raw food.</summary>
+    /// <summary>A prisoner's or slave's foods: its diet's paste and raw food.</summary>
     public static IReadOnlyList<string> CaptiveFoods(Diet d, IReadOnlyList<Food> foods) => DietFoods(d, [.. foods.Where(f => CaptiveKinds.Contains(f.Kind))]);
 
-    /// <summary>Go <c>AnimalFoods</c>: a tame animal's foods: the kibble, hay and raw food its race can eat. Corpses are never foods; native disallows them on every write.</summary>
+    /// <summary>A tame animal's foods: the kibble, hay and raw food its race can eat. Corpses are never foods; native disallows them on every write.</summary>
     public static IReadOnlyList<string> AnimalFoods(IReadOnlyList<string> edible, IReadOnlyList<Food> foods) =>
         [.. foods.Where(f => AnimalKinds.Contains(f.Kind) && edible.Contains(f.Def)).Select(f => f.Def).Order(StringComparer.Ordinal).Distinct(StringComparer.Ordinal)];
 
     /// <summary>
-    /// Go <c>DietPolicyChanges</c>: the per-pawn food policy writes owed: each owned pawn with a food policy holds
+    /// The per-pawn food policy writes owed: each owned pawn with a food policy holds
     /// the policy labelled with its short name, allowing DietFoods for a colonist, CaptiveFoods for a slave or
     /// prisoner and AnimalFoods for a tame animal. A pawn whose short name another owned pawn shares or that
     /// several policies carry waits.

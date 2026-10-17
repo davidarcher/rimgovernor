@@ -29,7 +29,7 @@ internal sealed class PlannerReasonLog
 {
     private readonly Dictionary<ConcernId, PlannerStanding> _last = [];
 
-    /// <summary>The standing note per goal (Go <c>plannerReasons.last</c>).</summary>
+    /// <summary>The standing note per goal.</summary>
     public IReadOnlyDictionary<ConcernId, PlannerStanding> Standing => _last;
 
     /// <summary>

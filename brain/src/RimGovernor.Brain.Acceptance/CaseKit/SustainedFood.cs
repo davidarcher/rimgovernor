@@ -6,12 +6,11 @@ namespace RimGovernor.Brain.Acceptance;
 // The watch mechanics behind the serve-driven registry cases and the colony generator (facility/*, farm/*, acceptance colony):
 // on a session the runner opened, start the in-mod player service with the routine families
 // under test, acquire player authority, and sample a goal's durable state over a tick-measured window (WatchAsync: a
-// tick cadence, woken early by the service's own journal), then stop the service and audit against live native facts
-// (Go package sustainedfood).
+// tick cadence, woken early by the service's own journal), then stop the service and audit against live native facts.
 
 /// <summary>
 /// The observation window <see cref="SustainedFood.WatchAsync"/> samples on a started service: the goal, how long and
-/// how often (Go <c>sustainedfood.WatchConfig</c>).
+/// how often.
 /// </summary>
 public sealed record WatchConfig
 {
@@ -61,7 +60,7 @@ public sealed record WatchConfig
 /// One serve-driven case's shape over the watch: Prepare runs against the loaded game before the service starts (the
 /// place to record a live baseline), the service declared on the case is started and watched, then stopped, and Audit
 /// runs against the reattached session so the durable journal can be compared with live native facts. Spec, when set,
-/// edits the case's declared serve spec before launch (Go <c>sustainedfood.Observation</c>).
+/// edits the case's declared serve spec before launch.
 /// </summary>
 public sealed record SustainedObservation
 {
@@ -76,7 +75,7 @@ public sealed record SustainedObservation
 
 public static class SustainedFood
 {
-    /// <summary>The probe interval of the live tick and the journal between two samples (Go <c>na.RunInterval</c>).</summary>
+    /// <summary>The probe interval of the live tick and the journal between two samples.</summary>
     public static readonly TimeSpan RunInterval = TimeSpan.FromMilliseconds(250);
 
     /// <summary>The sample cadence of an unset <see cref="WatchConfig.PollTicks"/>: 600 ticks (a quarter of an in-game hour; about 1.7 s at Superfast, 0.7 s at Ultrafast, the probe interval once boosted).</summary>
@@ -291,7 +290,7 @@ public static class SustainedFood
         }
     }
 
-    // Go's time.Duration.Round(time.Second).String(): "1m30s".
+    // Whole seconds as duration text: "1m30s".
     private static string FormatWall(TimeSpan elapsed)
     {
         var rounded = TimeSpan.FromSeconds(Math.Round(elapsed.TotalSeconds, MidpointRounding.AwayFromZero));

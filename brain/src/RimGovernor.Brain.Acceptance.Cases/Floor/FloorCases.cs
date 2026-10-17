@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The <c>floor/*</c> acceptance cases (Go <c>cases/floor</c>): the rooms/flooring Need vertical.</summary>
+/// <summary>The <c>floor/*</c> acceptance cases: the rooms/flooring Need vertical.</summary>
 public static class FloorCases
 {
     /// <summary>Registers every <c>floor/*</c> case.</summary>

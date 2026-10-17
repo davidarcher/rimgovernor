@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: colony_extent.go
 
 public enum ExtentOrigin
 {

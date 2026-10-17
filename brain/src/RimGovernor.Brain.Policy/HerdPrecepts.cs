@@ -19,7 +19,7 @@ public static class HerdPreceptsRules
     private const string EventAteVeneratedAnimalMeat = "AteVeneratedAnimalMeat";
 
     /// <summary>
-    /// Go <c>ApplyHerdPrecepts</c>: sets each animal's SlaughterBarred and EatingBarred from the ideoligion.
+    /// Sets each animal's SlaughterBarred and EatingBarred from the ideoligion.
     /// ideologyActive is whether the load has Ideology defs: a game without Ideology has no precepts and bars
     /// nothing; with Ideology, an unread ideoligion or veneration leaves both unknown (the herd plan then holds
     /// removal, sale and slaughter). A race is barred when any action it raises is not allowed or approved:

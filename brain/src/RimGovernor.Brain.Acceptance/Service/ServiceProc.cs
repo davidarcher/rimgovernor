@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
-// The service's HTTP surface and the polls over it (Go serviceproc.go). The in-mod brain's journal belongs to the
+// The service's HTTP surface and the polls over it. The in-mod brain's journal belongs to the
 // game, so the harness reads the controller through the player API: /api/state, /api/routines and the control routes,
 // each into its ServiceReplies record.
 
@@ -118,8 +118,8 @@ public sealed partial class ServiceProcess
 
     /// <summary>
     /// Checks /api/health and the explicit-player session against this process and returns the session token. The
-    /// health must name the rimgovernor service on the C# backend in the process the endpoint file named; the
-    /// session token of the Go service no longer exists (the channel's request guard is the only access check), so
+    /// health must name the rimgovernor service on the C# backend in the process the endpoint file named; there is no
+    /// session token (the channel's request guard is the only access check), so
     /// the token is empty.
     /// </summary>
     public async Task<string> SessionTokenAsync(CancellationToken cancellationToken)
@@ -228,7 +228,7 @@ public sealed partial class ServiceProcess
         return reply.Status;
     }
 
-    // A request-id suffix unique per call (Go time.Now().UnixNano()).
+    // A request-id suffix unique per call.
     internal static string UniqueStamp() =>
         (DateTimeOffset.UtcNow.Ticks * 100 + Interlocked.Increment(ref s_stampSerial) % 100).ToString(CultureInfo.InvariantCulture);
 
@@ -236,7 +236,7 @@ public sealed partial class ServiceProcess
 
     /// <summary>
     /// Reads lifecycle_read_identity and returns the loaded game's identity (colonyId, loadToken, mapId); the main
-    /// menu is an error (Go <c>ReadIdentity</c>).
+    /// menu is an error.
     /// </summary>
     private static Task<JsonObject> ReadIdentityAsync(Harness harness, string label, CancellationToken cancellationToken) =>
         Session.ReadIdentityAsync(harness, label, cancellationToken);
@@ -244,7 +244,7 @@ public sealed partial class ServiceProcess
     /// <summary>The environment variable naming the clock speed a serve-driven harness runs at; the default is Ultrafast.</summary>
     public const string ClockSpeedEnv = "RIMGOVERNOR_ACCEPT_CLOCK_SPEED";
 
-    // ClockSpeedEnv or Ultrafast (Go ClockSpeed).
+    // ClockSpeedEnv or Ultrafast.
     private static string ClockSpeed() =>
         Environment.GetEnvironmentVariable(ClockSpeedEnv) is { Length: > 0 } speed ? speed : "Ultrafast";
 
@@ -415,7 +415,7 @@ public sealed class AuthorityKeepAlive : IDisposable
     }
 
     // One pass of the loop, under the pass lock so Hold can wait for it. Its requests run to completion even when the
-    // loop is stopping, as the Go service context outlived the loop's: a resume is never abandoned half-way.
+    // loop is stopping: a resume is never abandoned half-way.
     private async Task OnceAsync()
     {
         await _pass.WaitAsync().ConfigureAwait(false);

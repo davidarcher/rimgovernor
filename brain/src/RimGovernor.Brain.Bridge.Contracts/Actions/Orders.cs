@@ -4,14 +4,11 @@ using WireDesign = RimGovernor.Contracts.Wire.Common.IdeoligionDesign;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go research_select.go, dialog.go (dialogAction), prisoner_interaction.go, quest_accept.go, quest_shuttle.go,
-// quest_ideology_actions.go, ritual.go, ideoligion_design.go, ability.go, ignite.go, gathering.go, close_door.go,
-// caravan_departure.go, assign.go, husbandry.go and apparel_policy.go: the intents that name a pawn and a colony
-// decision. validateChoiceDialog and validateJoinerLetters of dialog.go validate census replies and belong to the
-// census port.
+// The intents that name a pawn and a colony
+// decision.
 public static class Orders
 {
-    /// <summary>Go's <c>researchAction</c>: the ResearchIntent of one research selection. Native judges the project against live research state when it applies.</summary>
+    /// <summary>The ResearchIntent of one research selection. Native judges the project against live research state when it applies.</summary>
     internal static Op.Action ResearchAction(DomainAction action)
     {
         var v = action.ResearchSelect ?? throw BridgeContractException.Contract("not a research select action");
@@ -20,7 +17,7 @@ public static class Orders
     }
 
     /// <summary>
-    /// Go's <c>dialogAction</c>: the DialogIntent of one dialog answer, the exact observed window (or joiner letter) ID,
+    /// The DialogIntent of one dialog answer, the exact observed window (or joiner letter) ID,
     /// option position and label, and for a joiner letter its snapshot token.
     /// </summary>
     internal static Op.Action DialogAction(DomainAction action)
@@ -38,7 +35,7 @@ public static class Orders
         return new Op.Action { Intent = intent };
     }
 
-    // Go prisonerInteractionWire: each domain mode to the exclusive interaction native sets. Enslave and Convert exist
+    // Each domain mode to the exclusive interaction native sets. Enslave and Convert exist
     // only while Ideology is active, and native refuses them otherwise.
     private static Op.PrisonerInteraction? PrisonerInteractionWire(PrisonerInteractionMode mode) =>
         mode switch
@@ -53,7 +50,7 @@ public static class Orders
         };
 
     /// <summary>
-    /// Go's <c>prisonerInteractionAction</c>: the PrisonerInteractionIntent of one prisoner custody order. Native checks
+    /// The PrisonerInteractionIntent of one prisoner custody order. Native checks
     /// the prisoner and the mode's eligibility live when it applies; a prisoner already set to the mode applies again.
     /// </summary>
     internal static Op.Action PrisonerInteractionAction(DomainAction action)
@@ -67,7 +64,7 @@ public static class Orders
     }
 
     /// <summary>
-    /// Go's <c>questAcceptAction</c>: the AcceptQuestIntent of one quest acceptance, the quest, the accepter when the
+    /// The AcceptQuestIntent of one quest acceptance, the quest, the accepter when the
     /// quest requires one, and the reward option; native checks the game's own acceptance rules when it applies.
     /// </summary>
     internal static Op.Action QuestAcceptAction(DomainAction action)
@@ -123,7 +120,7 @@ public static class Orders
     }
 
     /// <summary>
-    /// Go's <c>ritualAction</c>: the RitualIntent of one ritual command. A start names the colonist the ritual is for, a
+    /// The RitualIntent of one ritual command. A start names the colonist the ritual is for, a
     /// begin the organizer, the ritual precept, the spot and the exact role and spectator assignments; native checks the
     /// ritual waits for the command, or may begin, when it applies.
     /// </summary>
@@ -149,7 +146,7 @@ public static class Orders
         return new Op.Action { Intent = intent };
     }
 
-    /// <summary>Go's <c>WireIdeoligionDesign</c>: the wire form of a domain ideoligion design.</summary>
+    /// <summary>The wire form of a domain ideoligion design.</summary>
     public static WireDesign WireIdeoligionDesign(IdeoligionDesign v) => new() { Memes = [.. v.Memes], Precepts = [.. v.Precepts], Fluid = v.Fluid };
 
     internal static Op.Action IdeoligionReformAction(DomainAction action)
@@ -168,7 +165,7 @@ public static class Orders
     }
 
     /// <summary>
-    /// Go's <c>ValidateIdeoligionDesign</c>: checks shape only. Native owns compatibility, faction restrictions,
+    /// Checks shape only. Native owns compatibility, faction restrictions,
     /// required issues and the game's selection limits.
     /// </summary>
     public static void ValidateIdeoligionDesign(WireDesign? design)
@@ -191,7 +188,7 @@ public static class Orders
     }
 
     /// <summary>
-    /// Go's <c>abilityAction</c>: the AbilityIntent of one ability use, the pawn, the source arm and the target arm.
+    /// The AbilityIntent of one ability use, the pawn, the source arm and the target arm.
     /// Native's guard for the source checks eligibility against live state when it applies.
     /// </summary>
     internal static Op.Action AbilityAction(DomainAction action)
@@ -231,14 +228,14 @@ public static class Orders
         return new Op.Action { Intent = intent };
     }
 
-    /// <summary>Go's <c>igniteAction</c>: the Actions/Apply ignite arm, the pawn throws a molotov at the cell. Room occupancy is policy (BurnOccupied).</summary>
+    /// <summary>The Actions/Apply ignite arm, the pawn throws a molotov at the cell. Room occupancy is policy (BurnOccupied).</summary>
     internal static Op.Action IgniteAction(DomainAction action)
     {
         var ignite = action.Ignite ?? throw BridgeContractException.Contract("not an ignite action");
         return new Op.Action { Intent = new Op.IgniteIntent { PawnId = ignite.Pawn.Value, Cell = IntentActionRules.WireCell(ignite.Cell) } };
     }
 
-    /// <summary>Go's <c>gatheringAction</c>: the Actions/Apply gathering arm, the organizer starts one vanilla GatheringDef. The intent names no spot; the game chooses it.</summary>
+    /// <summary>The Actions/Apply gathering arm, the organizer starts one vanilla GatheringDef. The intent names no spot; the game chooses it.</summary>
     internal static Op.Action GatheringAction(DomainAction action)
     {
         var gathering = action.Gathering ?? throw BridgeContractException.Contract("not a gathering action");
@@ -246,7 +243,7 @@ public static class Orders
     }
 
     /// <summary>
-    /// Go's <c>doorControlAction</c>: the arm of one door_control action, the existing combat_orders door order for the
+    /// The arm of one door_control action, the existing combat_orders door order for the
     /// cell, so no new native intent. Native refuses a cell that is no player door as a result in the CombatOrdersEffect
     /// (refusal not_a_door); the door facts the cell came from are read from that same door, so the next review sees a
     /// door still held open when an order did not take.
@@ -264,7 +261,7 @@ public static class Orders
     }
 
     /// <summary>
-    /// Go's <c>caravanDepartureAction</c>: the FormCaravanIntent of one caravan departure, the crew, the whole pack by
+    /// The FormCaravanIntent of one caravan departure, the crew, the whole pack by
     /// definition (journey food included) and the destination tile; native checks formation when it applies.
     /// </summary>
     internal static Op.Action CaravanDepartureAction(DomainAction action)
@@ -291,7 +288,7 @@ public static class Orders
     }
 
     /// <summary>
-    /// Go's <c>assignAction</c>: the AssignIntent of one ownership transfer, the pawn, the assignable thing (a bed, a
+    /// The AssignIntent of one ownership transfer, the pawn, the assignable thing (a bed, a
     /// throne) and the thing of that kind the pawn owned when the planner chose (or none). Native checks the pawn, the
     /// thing and that previous ownership live when it applies; a pawn that already owns the thing applies again.
     /// </summary>
@@ -307,7 +304,7 @@ public static class Orders
         return new Op.Action { Intent = intent };
     }
 
-    // Go husbandryOrders: each domain method to the order native applies (HusbandryActionHandler).
+    // Each domain method to the order native applies (HusbandryActionHandler).
     private static Op.HusbandryOrder? HusbandryOrderWire(HusbandryMethod method) =>
         method switch
         {
@@ -326,7 +323,7 @@ public static class Orders
         };
 
     /// <summary>
-    /// Go's <c>husbandryAction</c>: the HusbandryIntent of one animal order. Native checks the animal and the order's
+    /// The HusbandryIntent of one animal order. Native checks the animal and the order's
     /// eligibility live when it applies; an order that already holds applies again.
     /// </summary>
     internal static Op.Action HusbandryAction(DomainAction action)
@@ -357,7 +354,7 @@ public static class Orders
     }
 
     /// <summary>
-    /// Go's <c>apparelPolicyAction</c>: the ApparelPolicyIntent of a role apparel policy, the pawn and the complete
+    /// The ApparelPolicyIntent of a role apparel policy, the pawn and the complete
     /// filter. Native validates the pawn and the definitions live when it applies.
     /// </summary>
     internal static Op.Action ApparelPolicyAction(DomainAction action)

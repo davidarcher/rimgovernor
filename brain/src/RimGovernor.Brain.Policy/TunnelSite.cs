@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
 
-// Go: tunnel_site.go. Tunnel siting: a 1-wide corridor driven into a visible natural rock face from a walkable
+// Tunnel siting: a 1-wide corridor driven into a visible natural rock face from a walkable
 // access cell, ending beside a buried ore deposit that mining then opens. Dug rooms are the layout plan's; this only
 // reaches ore.
 //

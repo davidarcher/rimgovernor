@@ -151,7 +151,6 @@ public sealed partial class RoundsBuildingPlanner
             }
             resource = picked;
         }
-        // The Go source holds the read error until after the Beer branch; a failed census read surfaces there.
         var census = (await source.ReadGearBenchesAsync(identity, call).ConfigureAwait(false));
         if (resource.ToString() == "Beer")
         {

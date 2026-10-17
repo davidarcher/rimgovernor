@@ -9,10 +9,10 @@ public sealed record AutoHomeAreaOrder(bool Enabled) : IActionPayload;
 
 public sealed partial record DomainAction
 {
-    /// <summary>Go <c>NewAutoHomeAreaAction</c>: builds the action that leaves auto-expand enabled or disabled.</summary>
+    /// <summary>Builds the action that leaves auto-expand enabled or disabled.</summary>
     public static DomainAction NewAutoHomeAreaAction(ActionId id, bool enabled) =>
         Create(id, ActionKind.AutoHomeArea, new AutoHomeAreaOrder(enabled));
 
-    /// <summary>Go <c>Action.AutoHomeArea() (bool, bool)</c>: the auto-expand value when this is an auto home area action, otherwise null.</summary>
+    /// <summary>The auto-expand value when this is an auto home area action, otherwise null.</summary>
     public bool? AutoHomeArea => PayloadOf<AutoHomeAreaOrder>(ActionKind.AutoHomeArea)?.Enabled;
 }

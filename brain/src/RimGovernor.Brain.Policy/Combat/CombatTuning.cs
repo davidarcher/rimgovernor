@@ -110,7 +110,7 @@ public static partial class CombatTuningRules
     /// <summary>
     /// Decodes CombatTuningEnv's value over the default tuning. An empty value is no override (null); unknown
     /// fields, trailing data and out-of-range values throw <see cref="DomainException"/>. The JSON text is the
-    /// real external input here, so it keeps the Go field names (matched ignoring case, as Go's decoder does).
+    /// real external input here, so it keeps the wire field names (matched ignoring case).
     /// </summary>
     public static CombatTuning? ParseCombatTuning(string raw)
     {
@@ -210,7 +210,7 @@ public static partial class CombatTuningRules
 
 public sealed partial record CombatMemory
 {
-    /// <summary>The memory's tuning, the default when none is carried (Go's <c>m.tuning()</c>; renamed because the field is <c>Tuning</c>).</summary>
+    /// <summary>The memory's tuning, the default when none is carried.</summary>
     public CombatTuning EffectiveTuning() => Tuning ?? CombatTuningRules.DefaultCombatTuning();
 
     /// <summary>Returns the memory carrying <paramref name="t"/> for the rest of the fight.</summary>

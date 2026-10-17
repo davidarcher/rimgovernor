@@ -11,7 +11,7 @@ using RimGovernor.Brain.Telemetry.Otlp;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// Builds the digest <c>acceptance why</c> prints for a failed case (Go package <c>postmortem</c>): the manual
+/// Builds the digest <c>acceptance why</c> prints for a failed case: the manual
 /// sequence every diagnosis started with, read from the case's own evidence in a fixed order. Each line names the file
 /// and row it came from so the digest is checkable, not a verdict.
 /// The store is read raw (a run's service.sqlite may predate the current schema, which the store's own open refuses); a
@@ -456,7 +456,7 @@ public static class Postmortems
         return "";
     }
 
-    /// <summary>A number as Go's <c>%v</c> prints it: integral values without a fraction.</summary>
+    /// <summary>A number as plain text: integral values without a fraction.</summary>
     internal static string FormatNumber(double d) =>
         d == Math.Floor(d) && Math.Abs(d) < 1e15 ? ((long)d).ToString(CultureInfo.InvariantCulture) : d.ToString("R", CultureInfo.InvariantCulture);
 

@@ -232,7 +232,7 @@ public sealed record MechGestator : BuildingRow
     public Fact<double> FormingPercent { get; init; }
 }
 
-/// <summary>A mech charger row of the Biotech section (Go <c>observation.MechCharger</c>); <see cref="MechCharger"/> in the policy is the recharge policy's view of it.</summary>
+/// <summary>A mech charger row of the Biotech section; <see cref="MechCharger"/> in the policy is the recharge policy's view of it.</summary>
 public sealed record MechChargerRow : BuildingRow
 {
     public Fact<bool> Powered { get; init; }

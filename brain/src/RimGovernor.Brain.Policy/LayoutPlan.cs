@@ -20,7 +20,7 @@ public sealed partial record PlannedRoom
     /// <summary>The primary door: the one furniture frames and rock planning use.</summary>
     public Cell Door { get; init; }
 
-    /// <summary>The door's side; null where Go's empty rotation stood (an unfenced room has no door).</summary>
+    /// <summary>The door's side; null where there is no rotation (an unfenced room has no door).</summary>
     public Rotation? DoorRot { get; init; }
 
     /// <summary>What walking through the room costs, read from the station group that became it (RoomCrossing); null for a room that is not a station group, which keeps its role's noThroughfare rule.</summary>

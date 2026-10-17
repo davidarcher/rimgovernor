@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace RimGovernor.Brain.PlayerApi;
 
 /// <summary>
-/// The wire shapes of the read routes (Go <c>httpapi</c> DTOs). A record property is the camelCase JSON name; an
+/// The wire shapes of the read routes. A record property is the camelCase JSON name; an
 /// unknown fact is a null; a 64-bit counter the launcher must not round is a string.
 /// </summary>
 internal static class PlayerJson
@@ -235,7 +235,7 @@ internal sealed record FoodPlanEntryDto(
     double DeliveredPerDay,
     IReadOnlyList<CandidateTermDto> Terms);
 
-// Go serialized policy.CandidateTerm without tags, so its keys are the capitalized field names.
+// policy.CandidateTerm is serialized without tags, so its keys are the capitalized field names.
 internal sealed record CandidateTermDto(
     [property: JsonPropertyName("Name")] string Name,
     [property: JsonPropertyName("Value")] double Value);

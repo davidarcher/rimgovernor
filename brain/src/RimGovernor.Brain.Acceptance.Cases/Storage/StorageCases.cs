@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The storage hauling cases (Go <c>cases/storage</c>); <see cref="Register"/> replaces the Go package's <c>init()</c>.</summary>
+/// <summary>The storage hauling cases; <see cref="Register"/> registers them.</summary>
 public static class StorageCases
 {
     /// <summary>Registers every <c>storage/*</c> case.</summary>

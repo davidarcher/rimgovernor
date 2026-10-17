@@ -19,10 +19,10 @@ public sealed record PreviousAssignment
     /// <summary>The exact thing the pawn is asserted to own (empty when <see cref="Clear"/>).</summary>
     public string Id { get; }
 
-    /// <summary>Go <c>ClearPrevious</c>: asserts the pawn currently owns no thing of the kind.</summary>
+    /// <summary>Asserts the pawn currently owns no thing of the kind.</summary>
     public static PreviousAssignment ClearPrevious() => new("", true);
 
-    /// <summary>Go <c>KnownPrevious</c>: asserts the pawn currently owns the exact thing identified by <paramref name="id"/>.</summary>
+    /// <summary>Asserts the pawn currently owns the exact thing identified by <paramref name="id"/>.</summary>
     public static PreviousAssignment KnownPrevious(string id)
     {
         DomainException.Require(IdText.IsValidText(id), "invalid previous assignment identity");
@@ -38,7 +38,7 @@ public sealed record PreviousAssignment
 /// </summary>
 public sealed record Assign : IActionPayload
 {
-    /// <summary>Go <c>NewAssign</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public Assign(PawnId pawn, string thing, PreviousAssignment previous)
         : this(pawn, thing, previous, false) { }
 
@@ -64,7 +64,7 @@ public sealed record Assign : IActionPayload
     /// <summary>True when the assignment is a bedroom swap: native evicts the bed's current owner instead of refusing an owned bed.</summary>
     public bool Swap { get; }
 
-    /// <summary>Go <c>AsSwap</c>: flags the assignment as a bedroom swap.</summary>
+    /// <summary>Flags the assignment as a bedroom swap.</summary>
     public Assign AsSwap() => new(Pawn, Thing, Previous, true);
 }
 

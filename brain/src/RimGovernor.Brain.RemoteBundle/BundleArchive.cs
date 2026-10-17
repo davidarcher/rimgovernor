@@ -3,14 +3,14 @@ using System.Text;
 
 namespace RimGovernor.Brain.RemoteBundle;
 
-/// <summary>Staging, encrypting, verifying and extracting the bundle archive (Go <c>archive.go</c>).</summary>
+/// <summary>Staging, encrypting, verifying and extracting the bundle archive.</summary>
 public static class BundleArchive
 {
     private const string AgeHeader = "age-encryption.org/v1\n";
 
     /// <summary>
     /// Copies a selected dependency subtree, following source junctions, but creates only regular destination files.
-    /// Cycles and destination overlap fail (Go <c>Materialize</c>).
+    /// Cycles and destination overlap fail.
     /// </summary>
     public static void Materialize(string source, string dest)
     {
@@ -22,7 +22,7 @@ public static class BundleArchive
 
     /// <summary>
     /// Writes one encrypted 7z stream, then immutable digest-named parts. The caller owns a fresh output directory; no
-    /// existing file is replaced (Go <c>EncryptArchive</c>).
+    /// existing file is replaced.
     /// </summary>
     public static async Task<IReadOnlyList<Part>> EncryptArchiveAsync(Tools tools, string tree, string output, string recipient, long partBytes, CancellationToken cancellationToken)
     {
@@ -71,7 +71,7 @@ public static class BundleArchive
 
     /// <summary>
     /// Checks every part's size and digest and that the concatenation starts with the age v1 header, across part
-    /// boundaries: a mislabeled plaintext archive must never enter a public release or cache (Go <c>VerifyParts</c>).
+    /// boundaries: a mislabeled plaintext archive must never enter a public release or cache.
     /// </summary>
     public static void VerifyParts(string directory, Manifest manifest)
     {
@@ -110,7 +110,7 @@ public static class BundleArchive
 
     /// <summary>
     /// Checks 7-Zip's technical listing before any extraction. Unknown link metadata fails closed; file sizes and paths
-    /// must exactly match the inventory (Go <c>ValidateListing</c>).
+    /// must exactly match the inventory.
     /// </summary>
     public static void ValidateListing(string listing, Inventory inventory)
     {
@@ -170,7 +170,7 @@ public static class BundleArchive
 
     /// <summary>
     /// Verifies the parts, decrypts and lists the archive, validates the listing against the inventory, extracts and
-    /// verifies the tree, then moves it to <paramref name="dest"/>, which must not exist (Go <c>Extract</c>).
+    /// verifies the tree, then moves it to <paramref name="dest"/>, which must not exist.
     /// </summary>
     public static async Task ExtractAsync(Tools tools, string partsDirectory, string dest, string identity, Manifest manifest, Inventory inventory, CancellationToken cancellationToken)
     {

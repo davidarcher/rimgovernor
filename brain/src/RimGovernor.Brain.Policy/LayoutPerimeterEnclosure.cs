@@ -218,7 +218,7 @@ internal sealed class WallInterior
     }
 }
 
-/// <summary>Ports <c>layout_perimeter_enclosure.go</c>: the enclosure, its sides and the interior flood.</summary>
+/// <summary>The enclosure, its sides and the interior flood.</summary>
 public static partial class LayoutPerimeterEnclosureRules
 {
     /// <summary>Each cell's Chebyshev distance from src, -1 beyond limit.</summary>

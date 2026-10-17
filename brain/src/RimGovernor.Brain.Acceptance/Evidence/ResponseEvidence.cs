@@ -122,7 +122,7 @@ public sealed class ResponseEvidence
         }
     }
 
-    /// <summary>The evidence as the Go JSON encoding held it (camelCase tick names; null for an unestablished phase).</summary>
+    /// <summary>The evidence as JSON (camelCase tick names; null for an unestablished phase).</summary>
     public JsonObject ToJson() => new()
     {
         { "fixture", Fixture },

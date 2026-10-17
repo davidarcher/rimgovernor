@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: art.go
 // The rooms/art Need keeps a small sculpture on the way for every room that needs one: a bedroom below its quality
 // target whose weakest stat is beauty. Each qualifying artist gets their own fixed-count bill, pinned to them,
 // at an art bench; the finished sculpture is installed by the bedroom upkeep's sculpture step.
@@ -8,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// What an art bill sizes against: the impressiveness gap of the first owed room and the largest square side
 /// (1-3) free in it, the colony stock by definition, and each artist's Artistic level. Sculptures to sell are
-/// the economy/trade Need's (export_orders.go), not art demand.
+/// The economy/trade Need's, not art demand.
 /// </summary>
 public sealed record ArtDemand
 {

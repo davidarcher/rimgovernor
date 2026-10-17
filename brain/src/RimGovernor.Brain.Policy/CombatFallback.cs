@@ -3,7 +3,6 @@ using RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_fallback.go
 
 public static partial class CombatFallbackRules
 {

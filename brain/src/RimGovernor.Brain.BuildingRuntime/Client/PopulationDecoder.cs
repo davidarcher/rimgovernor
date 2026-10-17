@@ -8,13 +8,12 @@ using P = RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// Go <c>decodePopulation</c> (prisoner_interaction_read.go): a population snapshot's prisoner and custody census, each
+/// A population snapshot's prisoner and custody census, each
 /// person joined to its pawn table row. A person the table does not hold leaves the person facts (prisoners, custody,
 /// colony, guests) unknown until a later frame.
 /// </summary>
 internal static class PopulationDecoder
 {
-    /// <summary>Go <c>decodePopulation</c>.</summary>
     internal static PrisonerCensus Decode(PbObservations.PopulationSnapshot observed, Pawns pawns, BridgeCatalog? catalog)
     {
         var names = new List<P.OwnedName>(observed.OwnedNames.Count);
@@ -137,7 +136,7 @@ internal static class PopulationDecoder
         };
     }
 
-    /// <summary>One colony prisoner's census row (the body of Go's prisoner loop after the colony prisoner check).</summary>
+    /// <summary>One colony prisoner's census row (after the colony prisoner check).</summary>
     private static P.PrisonerFacts PrisonerRow(PbObservations.PopulationPerson person, PbObservations.PawnState pawn, string id, Fact<P.PrisonerProspect> prospect, BridgeCatalog? catalog)
     {
         var f = new P.PrisonerFacts { Pawn = new Domain.PawnId(id), Prisoner = Known(true) };
@@ -196,7 +195,7 @@ internal static class PopulationDecoder
     }
 
     /// <summary>
-    /// Go <c>prisonerProspect</c>: a person's biography and health; unknown when either is absent. Each trait's worth is
+    /// A person's biography and health; unknown when either is absent. Each trait's worth is
     /// derived from the catalog's rows; without a catalog it is zero.
     /// </summary>
     private static Fact<P.PrisonerProspect> Prospect(PbObservations.PopulationPerson person, BridgeCatalog? catalog)

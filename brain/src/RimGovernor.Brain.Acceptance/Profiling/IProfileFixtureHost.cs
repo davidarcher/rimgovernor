@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// What a fixture op call needs (Go <c>fixtureOptions</c> as profile-capture fills it): the disposable worker root,
+/// What a fixture op call needs: the disposable worker root,
 /// the evidence directory, the configured game, the profile, the safety-net timeout, the save to load, and the op with
 /// its arguments.
 /// </summary>
@@ -33,7 +33,7 @@ public sealed record ProfileFixtureCall
     public JsonObject Args { get; init; } = new();
 }
 
-/// <summary>What a fixture op call produced (Go <c>fixtureResult</c>): the host fills Success, Response and Error.</summary>
+/// <summary>What a fixture op call produced: the host fills Success, Response and Error.</summary>
 public sealed class ProfileFixtureResult
 {
     public string Op { get; init; } = "";

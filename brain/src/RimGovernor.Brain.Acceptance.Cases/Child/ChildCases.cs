@@ -1,8 +1,7 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// The <c>child/*</c> acceptance cases (Go <c>cases/child</c>); <see cref="Register"/> replaces the Go package's
-/// <c>init()</c>.
+/// The <c>child/*</c> acceptance cases; <see cref="Register"/> registers them.
 /// </summary>
 public static class ChildCases
 {

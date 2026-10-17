@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// The last layer and tick a safety, spot or stock layer was sent, and whether it was cleared. Go kept the
-/// layer's printed form as a key; the layer itself is compared by value instead.
+/// The last layer and tick a safety, spot or stock layer was sent, and whether it was cleared. The
+/// layer is compared by value.
 /// </summary>
 internal sealed record OverlayState
 {

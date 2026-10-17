@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// One place hauled stock is carried to: a bench, a hospital bed. Cells are the consumer's own footprint, which
 /// need not be walkable (a bench is an edifice); Weight is its expected traffic, the number of trips per unit of
-/// stock relative to the other consumers. (Go <c>HaulConsumer</c>.)
+/// stock relative to the other consumers.
 /// </summary>
 public sealed record HaulConsumer
 {
@@ -15,7 +15,7 @@ public sealed record HaulConsumer
 public static class HaulDistanceRules
 {
     /// <summary>
-    /// Go <c>HaulCosts</c>: the traffic-weighted walking distance from every census cell to the consumers: for
+    /// The traffic-weighted walking distance from every census cell to the consumers: for
     /// each consumer a breadth-first search over walkable cells (8-neighbour, RimWorld's pather) starting from the
     /// cells beside its footprint, summed as Weight x steps. A cell some consumer cannot reach from it is absent:
     /// stock stored there is unreachable to that consumer. Unknown walkability is never walked.
@@ -83,7 +83,7 @@ public static class HaulDistanceRules
     }
 
     /// <summary>
-    /// Go <c>RankSitesByHaul</c>: reorders candidate sites cheapest haul first: a site costs its cheapest cell,
+    /// Reorders candidate sites cheapest haul first: a site costs its cheapest cell,
     /// since haulers drop stock on the nearest free cell. A site no consumer path reaches keeps its incoming
     /// order after every reachable one; with no costs (no consumers) the order is unchanged.
     /// </summary>

@@ -53,7 +53,7 @@ public static class DrugPolicyConstants
 /// </summary>
 public sealed record DrugPolicy : IActionPayload
 {
-    /// <summary>Go <c>NewDrugPolicy</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public DrugPolicy(string name, IEnumerable<DrugPolicyEntry> entries)
     {
         DomainException.Require(IdText.IsValidText(name) && Encoding.UTF8.GetByteCount(name) <= 80, "a drug policy needs a name");

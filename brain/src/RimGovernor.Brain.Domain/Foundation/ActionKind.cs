@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Domain;
 
-/// <summary>The closed set of action families (Go <c>ActionKind</c>). Wire names are the Go strings.</summary>
+/// <summary>The closed set of action families. Wire names are the strings.</summary>
 public enum ActionKind
 {
     Ability,

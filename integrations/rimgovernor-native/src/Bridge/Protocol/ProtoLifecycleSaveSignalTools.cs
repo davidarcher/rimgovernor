@@ -9,10 +9,10 @@ using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace HomeBridge.BridgeTools
 {
-    // Save-time handshake. Go owns saves; a vanilla save (menu,
-    // permadeath save-and-quit) must first let Go flush its blobs. The
-    // SaveGame prefix never cancels: when Go holds a lifecycle_wait_save_signal
-    // call and the save is not Go-initiated, it hands that call a pre_save
+    // Save-time handshake. The brain owns saves; a vanilla save (menu,
+    // permadeath save-and-quit) must first let the brain flush its blobs. The
+    // SaveGame prefix never cancels: when the brain holds a lifecycle_wait_save_signal
+    // call and the save is not brain-initiated, it hands that call a pre_save
     // token, parks the game thread until lifecycle_flush_done acks the token or
     // AckWaitMs pass, then lets the save run. Signals are not durable: with no
     // held call nothing waits. The two tools run on the bridge worker thread

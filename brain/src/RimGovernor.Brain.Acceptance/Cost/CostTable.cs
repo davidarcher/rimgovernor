@@ -4,13 +4,13 @@ using System.Text.Json;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// One case's baseline price (Go <c>cost.Row</c>): the wall time of its run and the boot time inside it (zero when the
+/// One case's baseline price: the wall time of its run and the boot time inside it (zero when the
 /// run attached to a kept process).
 /// </summary>
 public readonly record struct CostRow(TimeSpan Wall, TimeSpan Boot);
 
 /// <summary>
-/// Totals a name set (Go <c>cost.Summary</c>): the timed cases' wall and boot and how many names the baseline does not
+/// Totals a name set: the timed cases' wall and boot and how many names the baseline does not
 /// time.
 /// </summary>
 public readonly record struct CostSummary(int Timed, int Untimed, TimeSpan Wall, TimeSpan Boot)
@@ -35,7 +35,7 @@ public readonly record struct CostSummary(int Timed, int Untimed, TimeSpan Wall,
 }
 
 /// <summary>
-/// Prices acceptance cases from an earlier run's timings (Go package <c>cost</c>) so an agent choosing between the
+/// Prices acceptance cases from an earlier run's timings so an agent choosing between the
 /// cases a change owes can see that one costs 4 minutes and another 18; <c>acceptance list -cost</c> uses it.
 /// A baseline is either a suite result.json (one wall_ms/boot_ms row per case, the file <c>acceptance suite
 /// -baseline</c> also takes) or a metrics series (metrics.jsonl, <see cref="SeriesRow"/> lines), where a case's price is

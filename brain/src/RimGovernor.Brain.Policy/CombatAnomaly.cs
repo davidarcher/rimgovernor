@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_anomaly.go
 //
 // Anomaly threats in defense tactics. Every fact here is a native def or object read on the pawn row
 // (PawnAnomaly); unknown is never one of the cases below, so a pawn the native read could not classify keeps

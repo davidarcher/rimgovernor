@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: wanted_floor.go.
 
 /// <summary>
 /// The flooring review's decision for one PlannedRoom, for the reconciler: the wanted floor per interior cell and

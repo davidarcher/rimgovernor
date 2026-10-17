@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_containment.go: the containment planner's one catalog lookup, every def input of P.ContainmentDefs,
+// The containment planner's one catalog lookup, every def input of P.ContainmentDefs,
 // read from the defs and the game's own stat values.
 
 public sealed partial class DefinitionCatalog

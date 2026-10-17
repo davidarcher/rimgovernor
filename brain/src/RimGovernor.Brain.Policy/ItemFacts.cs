@@ -108,10 +108,10 @@ public sealed record ItemFacts
         return v;
     }
 
-    /// <summary>The market value of def, false when the catalog has none (Go: the error return).</summary>
+    /// <summary>The market value of def, false when the catalog has none.</summary>
     public bool TryMarketValue(Resource def, out double value) => Market.TryGetValue(def, out value);
 
-    /// <summary>The stuff score, false when the catalog has no such stuff or no market value for it (Go: the error return).</summary>
+    /// <summary>The stuff score, false when the catalog has no such stuff or no market value for it.</summary>
     public bool TryStuffScore(Resource stuff, out double score)
     {
         if (StuffBeauty.TryGetValue(stuff, out var beauty) && Market.TryGetValue(stuff, out var value))
@@ -204,7 +204,6 @@ public sealed record ItemFacts
 /// <summary>One art recipe: the building it makes, the building's footprint, the stuff it takes and its work (the recipe's workAmount, else the product's WorkToMake).</summary>
 public sealed record Sculpture(string Recipe, string Def, Cell Size, long Cost, double Work)
 {
-    /// <summary>The zero value Go's struct literal starts from.</summary>
     public Sculpture() : this("", "", default, 0, 0)
     {
     }

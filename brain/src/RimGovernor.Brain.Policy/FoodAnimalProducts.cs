@@ -3,7 +3,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// One observed production comp, not harvested stock. Rates already incorporate the native interval, resource
 /// nutrition and growth speed. FeedPerDay is the animal's own daily feed, which the channel nets out.
-/// (Go <c>AnimalProduct</c>.)
 /// </summary>
 public sealed record AnimalProduct
 {
@@ -27,7 +26,7 @@ public sealed record AnimalProduct
 public static class FoodAnimalProductsRules
 {
     /// <summary>
-    /// Go <c>WithFeed</c>: sets each row's FeedPerDay from the upkeep census; an animal the census does not
+    /// Sets each row's FeedPerDay from the upkeep census; an animal the census does not
     /// list, or one with an unread feed rate, stays unknown.
     /// </summary>
     public static IReadOnlyList<AnimalProduct> WithFeed(IReadOnlyList<AnimalProduct> rows, Fact<EquatableArray<UpkeepAnimal>> animals)
@@ -52,7 +51,7 @@ public static class FoodAnimalProductsRules
     }
 
     /// <summary>
-    /// Go <c>AnimalProductChannels</c>: aggregates independent comps by race into the rate net of the herd's
+    /// Aggregates independent comps by race into the rate net of the herd's
     /// feed (product minus feed per day, never below zero). A missing rate or feed makes that race unknown
     /// rather than silently claiming a partial herd yield.
     /// </summary>
@@ -115,7 +114,7 @@ public static class FoodAnimalProductsRules
     }
 
     /// <summary>
-    /// Go <c>FoodHerdPolicy</c>: protects admitted productive animals when their nutrition per work exceeds the
+    /// Protects admitted productive animals when their nutrition per work exceeds the
     /// marginal crop channel. Operator floors are never lowered. An operator ceiling bounds a derived floor, but
     /// cannot erase an explicit floor.
     /// </summary>

@@ -5,7 +5,7 @@ using RimGovernor.Brain.Store;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>What <see cref="ExplainAudit.Audit"/> found, kept in the case report (Go <c>explain.Result</c>).</summary>
+/// <summary>What <see cref="ExplainAudit.Audit"/> found, kept in the case report.</summary>
 internal sealed class ExplainResult
 {
     internal int Active { get; init; }
@@ -33,7 +33,7 @@ internal sealed class ExplainResult
 }
 
 /// <summary>
-/// Holds a colony's rows to the explainability claim (Go <c>explain/audit.go</c>). Steps are the planner_step rows of the game's log ring and
+/// Holds a colony's rows to the explainability claim. Steps are the planner_step rows of the game's log ring and
 /// transitions the session store's need_transitions; active maps every concern that had a progress record during the
 /// window to the planner cause filed on it at its last non-clear poll (none when never filed).
 /// <para>

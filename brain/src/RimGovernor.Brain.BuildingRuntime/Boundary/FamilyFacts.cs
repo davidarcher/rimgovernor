@@ -1,9 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Ports of the pawn-order family boundaries that only decode pawn rows into policy facts:
-// internal/buildingruntime/rescue and tend (boundary.go each).
+// The pawn-order family boundaries (rescue and tend) that only decode pawn rows into policy facts.
 
-/// <summary>Go package <c>rescue</c>.</summary>
 public static class RescueFacts
 {
     public static RescuerFacts NewRescuerFacts(PawnId pawn, PbObservations.PawnState row, string token)
@@ -54,7 +52,6 @@ public static class RescueFacts
     }
 }
 
-/// <summary>Go package <c>tend</c>.</summary>
 public static class TendFacts
 {
     private static (Fact<int> Level, Fact<bool> Disabled) MedicineSkillLevel(IEnumerable<PbObservations.Skill> skills)

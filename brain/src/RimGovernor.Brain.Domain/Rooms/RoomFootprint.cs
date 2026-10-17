@@ -49,7 +49,7 @@ public readonly record struct RoomBounds(int X, int Z, int Width, int Height)
 public sealed record RoomFootprint
 {
     /// <summary>
-    /// Go <c>NewRoomFootprint</c>: validates one exact interior and its entrance. The interior must be nonempty,
+    /// Validates one exact interior and its entrance. The interior must be nonempty,
     /// duplicate free, clear of the map edge by one cell for its walls and orthogonally connected. Each door must
     /// be a wall cell whose inward neighbour (against the entrance side) is interior and whose outward neighbour
     /// is neither interior nor wall, and doors must be distinct. The wall ring must fit a committed plan: at most
@@ -168,7 +168,7 @@ public sealed record RoomFootprint
         return true;
     }
 
-    /// <summary>Go <c>SameRoomFootprint</c>: whether two footprints hold identical geometry.</summary>
+    /// <summary>Whether two footprints hold identical geometry.</summary>
     public static bool SameRoomFootprint(RoomFootprint a, RoomFootprint b) => a == b;
 
     /// <summary>
@@ -181,7 +181,7 @@ public sealed record RoomFootprint
 
     /// <summary>
     /// Placements with the style choosing the stuff: the door first with its own stuff, then every wall cell with
-    /// the wall stuff. Expands to nothing when a definition is invalid (Go returned nil).
+    /// the wall stuff. Expands to nothing when a definition is invalid.
     /// </summary>
     public IReadOnlyList<Building> StyledPlacements(ShellStyle style)
     {
@@ -210,7 +210,7 @@ public sealed record RoomFootprint
     }
 
     /// <summary>
-    /// Go <c>RectangleFootprint</c>: the rectangular shell RoomShell describes. Bounds cover walls and interior;
+    /// The rectangular shell RoomShell describes. Bounds cover walls and interior;
     /// the door sits at the midpoint of the entrance side exactly as RoomShell.Door reports.
     /// </summary>
     public static RoomFootprint RectangleFootprint(RoomBounds bounds, Rotation entrance)

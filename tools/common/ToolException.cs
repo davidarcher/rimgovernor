@@ -1,6 +1,6 @@
 namespace RimGovernor.Tools.Common;
 
-/// <summary>A failure to report as "tool: message" with exit code 1 (Go: a returned error).</summary>
+/// <summary>A failure to report as "tool: message" with exit code 1.</summary>
 public sealed class ToolException : Exception
 {
     public ToolException(string message)

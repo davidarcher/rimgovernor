@@ -63,11 +63,10 @@ public sealed record WorkAssignment : IActionPayload
         Schedule = EquatableArray.From(schedule);
     }
 
-    /// <summary>Go <c>NewWorkAssignment</c>.</summary>
     public static WorkAssignment NewWorkAssignment(PawnId pawn, IEnumerable<WorkSetting> settings) => new(pawn, settings, false, false, "", []);
 
     /// <summary>
-    /// Go <c>NewScheduleAssignment</c>: builds a timetable write, alone or beside work priorities (settings may
+    /// Builds a timetable write, alone or beside work priorities (settings may
     /// be empty); <paramref name="schedule"/> holds one TimeAssignmentDef name per hour, hour 0 first.
     /// </summary>
     public static WorkAssignment NewScheduleAssignment(PawnId pawn, IEnumerable<WorkSetting> settings, IReadOnlyList<string> schedule)
@@ -77,7 +76,7 @@ public sealed record WorkAssignment : IActionPayload
     }
 
     /// <summary>
-    /// Go <c>NewAreaAssignment</c>: builds a work-free allowed-area assignment. <paramref name="clear"/> requests
+    /// Builds a work-free allowed-area assignment. <paramref name="clear"/> requests
     /// removing any area restriction; otherwise <paramref name="area"/> names the target area's identity.
     /// </summary>
     public static WorkAssignment NewAreaAssignment(PawnId pawn, bool clear, string area) => new(pawn, [], true, clear, area, []);

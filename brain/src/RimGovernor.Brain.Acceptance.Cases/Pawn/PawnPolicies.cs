@@ -8,8 +8,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// The food, drug and reading policy writes (#1306, #1537, #1538, #1541, #1543): each row writes a named policy's
 /// contents through its policy intent, assigns it with the PawnSettingsIntent arm, and reads the policy's contents and
-/// holders back from the colony read's policy facts. The diets, drug schedules and book choices themselves are policy
-/// (policy/food_policy_test.go, reading_policy_test.go); these prove the native write, assignment and read.
+/// holders back from the colony read's policy facts. The diets, drug schedules and book choices themselves are policy;
+/// these prove the native write, assignment and read.
 /// </summary>
 internal static class PawnPolicies
 {

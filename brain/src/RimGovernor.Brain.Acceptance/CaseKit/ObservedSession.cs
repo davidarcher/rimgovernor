@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// The slice of a registry case's session <see cref="SustainedFood.ObserveAsync"/> drives: the loaded, paused, frozen
-/// game the shared runner opened (Go <c>sustainedfood.Observed</c>), here the view of a game a driver outside the case
+/// game the shared runner opened, here the view of a game a driver outside the case
 /// runner opened itself (the colony and colony-review subcommands). The service it serves is a
 /// <see cref="ServiceProcess"/> launched on that game.
 /// </summary>

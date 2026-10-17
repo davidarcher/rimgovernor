@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// One column of the speed matrix: the serve speed it runs at (the player's choice serve follows) and whether the test
-/// acceleration is on (Go <c>SpeedCase</c>). Every Run(Ultrafast) drives the 150x boost (9000 ticks/s) under the one
+/// acceleration is on. Every Run(Ultrafast) drives the 150x boost (9000 ticks/s) under the one
 /// ceiling; test acceleration only adds the acceptance-only world patches (both acceptance profiles admit it, a player
 /// launch does not). "uncapped" is Ultrafast with them. "governor-off" is uncapped native play with no controller attached, the simulation ceiling on the
 /// same save and renderer; it builds nothing, so it is outside the outcome comparison. "player" is Ultrafast without
@@ -73,7 +73,7 @@ public sealed record SpeedCase
     }
 }
 
-/// <summary>What the player row's checks read (Go <c>PlayerRow</c>).</summary>
+/// <summary>What the player row's checks read.</summary>
 public sealed record PlayerRow
 {
     public IReadOnlyList<HazardGap> HazardGaps { get; init; } = [];
@@ -86,7 +86,7 @@ public sealed record PlayerRow
     public string LastPacingReason { get; init; } = "";
 }
 
-/// <summary>What the pawns achieved in one case: the postconditions the matrix requires to agree within a tolerance across speeds (Go <c>SpeedOutcome</c>).</summary>
+/// <summary>What the pawns achieved in one case: the postconditions the matrix requires to agree within a tolerance across speeds.</summary>
 public sealed record SpeedOutcome
 {
     public string Case { get; init; } = "";
@@ -116,7 +116,7 @@ public sealed record SpeedOutcome
     };
 }
 
-/// <summary>The speed matrix's cases, bounds and cross-case comparisons (Go speedmatrix.go).</summary>
+/// <summary>The speed matrix's cases, bounds and cross-case comparisons.</summary>
 public static class SpeedMatrix
 {
     /// <summary>The -speeds default: every native speed plus uncapped and governor-off.</summary>
@@ -258,7 +258,7 @@ public static class SpeedMatrix
 
     /// <summary>
     /// A clock_step decision row's data flat, with the step wall as elapsed_ms (dur_ms) and the step's cause as reason
-    /// (target): the field names the step readers aggregate (Go <c>bridge.StepFields</c>).
+    /// (target): the field names the step readers aggregate.
     /// </summary>
     internal static Dictionary<string, object?> StepFields(TimelineRecord row)
     {
@@ -462,7 +462,7 @@ public static class SpeedMatrix
 
 /// <summary>
 /// One governed row's achieved wall TPS against the governor-off ceiling of the same fixture: the number that judges how
-/// close governed play runs to the simulation's own speed, reported beside paused_fraction_native (Go <c>CeilingRatio</c>).
+/// close governed play runs to the simulation's own speed, reported beside paused_fraction_native.
 /// </summary>
 public sealed record CeilingRatio
 {

@@ -45,7 +45,7 @@ public sealed record ResourceRunway
 public static partial class ResourceRules
 {
     /// <summary>
-    /// Reads the resource's recurring spend over the consumption window (resource_consumption.go). A window
+    /// Reads the resource's recurring spend over the consumption window. A window
     /// shorter than a day is read as a day, so a burst in the first hours is not a huge daily rate. Unknown
     /// consumption leaves the rate, and so the runway, unknown; unknown ore is no prospective supply.
     /// </summary>

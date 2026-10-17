@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A door order's mode.</summary>
 public enum DoorMode
 {
-    /// <summary>Go's empty mode: no door order.</summary>
+    /// <summary>The empty mode: no door order.</summary>
     [WireName("")]
     None = 0,
     Forbid,

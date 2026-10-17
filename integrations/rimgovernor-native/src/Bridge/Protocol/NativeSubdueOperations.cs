@@ -11,7 +11,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // The SUBDUE pawn order: a violence-capable colonist melee-attacks an
-    // exact spawned pawn with blunt melee. Which target to subdue is Go
+    // exact spawned pawn with blunt melee. Which target to subdue is brain
     // policy; native adds no target-state or weapon rule. Ordinary melee damage
     // applies. This is containment, never execution or custody. The subduer
     // is drafted when it is not; the plan's draft keeps it drafted.

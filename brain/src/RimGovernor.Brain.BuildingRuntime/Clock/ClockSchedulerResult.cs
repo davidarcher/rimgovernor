@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
 /// What one scheduler step did: the review, each planner's result (null when it did not run) and the proposals
-/// the coordinator decided. Go merged planner results by reflection; <see cref="MergeFrom"/> copies each typed
+/// the coordinator decided. <see cref="MergeFrom"/> copies each typed
 /// result explicitly.
 /// </summary>
 public sealed class ClockSchedulerResult

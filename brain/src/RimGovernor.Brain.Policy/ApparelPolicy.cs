@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: apparel_policy.go
 
 /// <summary>One apparel definition the pawn can wear; CoversBody marks one covering the torso or legs.</summary>
 public sealed record ApparelDefinition

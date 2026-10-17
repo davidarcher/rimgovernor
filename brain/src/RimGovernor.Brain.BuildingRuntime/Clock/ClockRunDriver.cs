@@ -1,7 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Port of the worker side of internal/buildingruntime/clock_worker.go (Stop). The Go scheduler planned and sent Run in
-// one step; the C# step only plans (ClockScheduler), and this driver runs after each step. The clock is Running at the
+// The scheduler step only plans (ClockScheduler), and this driver runs after each step. The clock is Running at the
 // target speed or Held; the driver is the hold state machine that keeps it so.
 
 /// <summary>What the run driver reads natively beyond the scheduler's own reads: the colony events and the emergency census.</summary>
@@ -63,8 +62,7 @@ public sealed partial class ClockRunDriver : IDisposable
 
     /// <summary>
     /// Builds the driver for <paramref name="scheduler"/>, attaches it to the session's clock worker slot and starts the
-    /// colony event consumer and the heartbeat loop (Go <c>NewClockScheduler</c>'s policy validation and
-    /// <c>NewClockWorker</c>). Each scheduler step then records the consumer's evidence count at its clock read.
+    /// colony event consumer and the heartbeat loop (with the policy validation). Each scheduler step then records the consumer's evidence count at its clock read.
     /// </summary>
     public static ClockRunDriver Create(
         Player player,
@@ -177,7 +175,7 @@ public sealed partial class ClockRunDriver : IDisposable
     }
 
     /// <summary>
-    /// Stops the event consumer and the heartbeat loop, drops authority and holds the clock (Go <c>ClockWorker.Stop</c>).
+    /// Stops the event consumer and the heartbeat loop, drops authority and holds the clock.
     /// It can be retried after a deadline or hold failure. It does not take the player gate or close the player.
     /// </summary>
     public async Task StopAsync(CancellationToken ct)

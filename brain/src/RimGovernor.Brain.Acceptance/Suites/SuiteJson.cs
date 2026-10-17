@@ -48,7 +48,7 @@ internal sealed record GhRunRow
     public string Conclusion { get; init; } = "";
 }
 
-/// <summary>The suite, series and result.json readers' records: source-generated, numbers also read from strings, as Go's decode accepted.</summary>
+/// <summary>The suite, series and result.json readers' records: source-generated, numbers also read from strings.</summary>
 [JsonSourceGenerationOptions(NumberHandling = JsonNumberHandling.AllowReadingFromString)]
 [JsonSerializable(typeof(CaseResult))]
 [JsonSerializable(typeof(ReportTiming))]

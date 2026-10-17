@@ -198,7 +198,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The game-condition census: every condition affecting the map, with
-        // the native remaining duration so Go can plan for the length of a
+        // the native remaining duration so the brain can plan for the length of a
         // fallout or volcanic winter. A permanent condition has no ticks_left;
         // its class and label are the GameConditionDef row's.
         internal static Obs.EnvironmentCondition EnvironmentCondition(GameCondition condition)
@@ -248,9 +248,9 @@ namespace HomeBridge.BridgeTools
         private static Obs.DevelopmentFacts ReadPower(Map map)
         {
             // Traders (consumers and generators) and batteries share one census so
-            // Go's power topology sees every network member that matters for
+            // The power topology sees every network member that matters for
             // coverage and reserve: batteries carry stored/capacity energy; the
-            // base wattage is the def's (Go reads it from the catalog); each member's service state is its building table row.
+            // base wattage is the def's; each member's service state is its building table row.
             var traders = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerTrader>())
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
             var batteries = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerBattery>())

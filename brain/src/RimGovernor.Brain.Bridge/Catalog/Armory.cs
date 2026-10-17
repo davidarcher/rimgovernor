@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_armory.go: the armory ladder.
+// The armory ladder.
 
 public sealed partial class DefinitionCatalog
 {

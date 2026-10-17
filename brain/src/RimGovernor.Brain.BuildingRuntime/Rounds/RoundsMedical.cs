@@ -122,7 +122,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         return new RoundsMedicalResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "medicine_bill") };
     }
 
-    /// <summary>The load's definition catalog (Go carried it on the frame tables); none when the native serves no definitions.</summary>
+    /// <summary>The load's definition catalog; none when the native serves no definitions.</summary>
     private async Task<DefinitionCatalog?> CatalogAsync(C.Identity identity, CancellationToken ct)
     {
         if (native is IDefinitionSource source)

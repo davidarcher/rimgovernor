@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>Registers the <c>defense</c> area's cases (Go: <c>cases/defense</c>'s <c>init()</c>s).</summary>
+/// <summary>Registers the <c>defense</c> area's cases.</summary>
 public static class DefenseCases
 {
     public static void Register(CaseRegistry registry)

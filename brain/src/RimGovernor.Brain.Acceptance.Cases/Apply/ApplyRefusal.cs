@@ -7,7 +7,7 @@ using Placement = RimGovernor.Contracts.Wire.Placement;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>apply/refusal</c> (Go <c>refusal.go</c>): executes one routine write per kind after the fixture has moved the world
+/// <c>apply/refusal</c>: executes one routine write per kind after the fixture has moved the world
 /// under the target it was read for, and asserts the refusal names the fact that moved (the reason strings in
 /// docs/developers/contracts/action-contracts.md). Every refusal is the action's refused result, never a receipt.
 /// test/apply_refusal_prepare stages the targets and test/apply_refusal_move moves the world under one (a wall on a cell,

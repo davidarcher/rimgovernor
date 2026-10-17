@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// A demand-driven field decision: sow the crop whose harvest is Resource so that Deficit units come in.
-/// Edibility is irrelevant; only Harvests and UnitsPerCell say what a crop is for. (Go <c>ResourceFieldRequest</c>.)
+/// Edibility is irrelevant; only Harvests and UnitsPerCell say what a crop is for.
 /// </summary>
 public sealed record ResourceFieldRequest
 {
@@ -32,7 +32,7 @@ public static class FieldResourceRules
     public const string ResourceFieldPrefix = "field:";
 
     /// <summary>
-    /// Go <c>PlanFieldByResource</c>: chooses among the available crops whose Harvests is the demanded resource
+    /// Chooses among the available crops whose Harvests is the demanded resource
     /// and sites patches for the best one. It shares the food planner's viability rules and patch picker, with
     /// cells needed = ceil(deficit / UnitsPerCell). Unlike food it never plants on a guess: unknown season,
     /// darkness or crop facts refuse. Candidates are ranked by yield per day over the needed cells. A tree
@@ -85,7 +85,7 @@ public static class FieldResourceRules
     }
 
     /// <summary>
-    /// Go <c>ResourceFieldCandidate</c>: prices a planned resource field as a harvest candidate: the plan's
+    /// Prices a planned resource field as a harvest candidate: the plan's
     /// cells, the crop's grow days and units per cell, the sowing as upfront labor (FieldSowTicksPerCell) and
     /// the harvest work over the grow time as daily labor. Null when the plan has no cells or a crop fact is
     /// unknown; a field is never priced on a guess.
@@ -148,7 +148,7 @@ public static class FieldResourceRules
     }
 
     /// <summary>
-    /// Go <c>StandingFieldYield</c>: the units one standing field of crop on cells usable cells delivers per
+    /// The units one standing field of crop on cells usable cells delivers per
     /// harvest toward resource: zero when the crop harvests something else or a fact is unknown. A tree zone
     /// counts its lattice trees at the wood each gives at the fell point.
     /// </summary>

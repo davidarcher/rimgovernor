@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// Bedroom migration. A bedroom a successor replaces (layout_succession.go) is retiring: its pawns move one at
+// Bedroom migration. A bedroom a successor replaces is retiring: its pawns move one at
 // a time into the other bedrooms. The move is not a bedroom deficit: the unhoused count, BedroomsOwed and the
 // bed research request ignore it.
 

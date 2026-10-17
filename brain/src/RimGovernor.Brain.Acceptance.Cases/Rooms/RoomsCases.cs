@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The <c>rooms/*</c> cases (Go <c>cases/rooms</c>).</summary>
+/// <summary>The <c>rooms/*</c> cases.</summary>
 public static class RoomsCases
 {
     /// <summary>Registers every <c>rooms/*</c> case.</summary>

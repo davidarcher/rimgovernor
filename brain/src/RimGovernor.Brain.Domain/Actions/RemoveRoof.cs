@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record RemoveRoof : IActionPayload
 {
-    /// <summary>Go <c>NewRemoveRoof</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public RemoveRoof(IReadOnlyCollection<Cell> cells)
     {
         DomainException.Require(cells.Count != 0, "remove roof needs cells");
@@ -21,6 +21,6 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewRemoveRoofAction(ActionId id, RemoveRoof roof) => Create(id, ActionKind.RemoveRoof, roof);
 
-    /// <summary>Go <c>Action.RemoveRoof() (RemoveRoof, bool)</c>: the payload when this is a remove roof action, otherwise null.</summary>
+    /// <summary>The payload when this is a remove roof action, otherwise null.</summary>
     public RemoveRoof? RemoveRoof => PayloadOf<RemoveRoof>(ActionKind.RemoveRoof);
 }

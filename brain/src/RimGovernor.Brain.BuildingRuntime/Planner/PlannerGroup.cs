@@ -18,7 +18,7 @@ internal enum CriticalWait
     /// <summary>Every critical planner returned.</summary>
     Done,
 
-    /// <summary>The cutoff came first (Go <c>errCutoff</c>).</summary>
+    /// <summary>The cutoff came first.</summary>
     Cutoff,
 }
 

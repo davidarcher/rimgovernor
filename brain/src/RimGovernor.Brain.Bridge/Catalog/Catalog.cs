@@ -4,20 +4,20 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// The definition catalog (Go internal/bridge/catalog*.go, #3056): the static planning facts of every buildable
+// The definition catalog: the static planning facts of every buildable
 // or sowable definition and every research project. They hold for the whole game process. The catalog is built
 // over the game's own Def objects (a bare host constructs them, see the conventions doc), so it needs no wire
 // rows, class-chain tables or fingerprints: a class test is typeof(X).IsAssignableFrom, a comp is
 // GetCompProperties<T>, the game's constants are the game's own members. Stat, stuff and cost values come from the
-// load's precomputed DefStatTable. One partial file per Go file.
+// load's precomputed DefStatTable.
 
-/// <summary>A catalog invariant failed: a def the catalog needs is absent or states something it must not (Go's <c>contract()</c> error).</summary>
+/// <summary>A catalog invariant failed: a def the catalog needs is absent or states something it must not.</summary>
 public sealed class CatalogException(string message) : DomainException(message);
 
-/// <summary>The three facts the game names or computes in code (Go <c>CatalogDerived</c>): the currency def, the wort def and the full rot rate.</summary>
+/// <summary>The three facts the game names or computes in code: the currency def, the wort def and the full rot rate.</summary>
 public sealed record CatalogDerived(string CurrencyDef, string WortDef, float FullRotRateC)
 {
-    /// <summary>Refuses an empty def name and a non-finite or non-positive rot rate (Go <c>validateDerived</c>).</summary>
+    /// <summary>Refuses an empty def name and a non-finite or non-positive rot rate.</summary>
     public void Validate()
     {
         if (CurrencyDef.Length == 0)
@@ -38,7 +38,7 @@ public sealed record CatalogDerived(string CurrencyDef, string WortDef, float Fu
 }
 
 /// <summary>
-/// What the game's own race code says about one race that its def fields do not (Go <c>RaceFacts</c>): the
+/// What the game's own race code says about one race that its def fields do not: the
 /// foods <c>RaceProperties.CanEverEat</c> accepts, the taming facts and the adult feed figure. They come from the
 /// game thread (#3080) with the definition catalog read.
 /// </summary>
@@ -117,7 +117,7 @@ public sealed partial class DefinitionCatalog
     /// <summary>Every TerrainDef by defName.</summary>
     public IReadOnlyDictionary<string, TerrainDef> TerrainDefs => _terrainDefs;
 
-    /// <summary>Every research project's static facts by name (Go <c>Research</c>).</summary>
+    /// <summary>Every research project's static facts by name.</summary>
     public IReadOnlyDictionary<string, P.ResearchProjectFacts> Research => _research.Value;
 
     private void Add(Def def)
@@ -173,7 +173,7 @@ public sealed partial class DefinitionCatalog
         }, this);
     }
 
-    /// <summary>name's row of Def class <typeparamref name="T"/>, null when the catalog has none (Go <c>DefRow</c>).</summary>
+    /// <summary>name's row of Def class <typeparamref name="T"/>, null when the catalog has none.</summary>
     public T? DefRow<T>(string name)
         where T : Def
     {
@@ -193,13 +193,13 @@ public sealed partial class DefinitionCatalog
         where T : Def =>
         DefRow<T>(name) ?? throw new CatalogException($"catalog has no {typeof(T).Name} {name}");
 
-    /// <summary>name's ThingDef, null when the catalog has none (Go <c>ThingDef</c> accessor).</summary>
+    /// <summary>name's ThingDef, null when the catalog has none.</summary>
     public ThingDef? FindThing(string name) => _thingDefs.GetValueOrDefault(name);
 
     /// <summary>name's TerrainDef, null when the catalog has none.</summary>
     public TerrainDef? FindTerrain(string name) => _terrainDefs.GetValueOrDefault(name);
 
-    /// <summary>name's ThingDef; a def without a row is a contract error, never a default (Go <c>thingRow</c>).</summary>
+    /// <summary>name's ThingDef; a def without a row is a contract error, never a default.</summary>
     public ThingDef ThingRow(string name) =>
         _thingDefs.GetValueOrDefault(name) ?? throw new CatalogException($"catalog has no def row for {name}");
 

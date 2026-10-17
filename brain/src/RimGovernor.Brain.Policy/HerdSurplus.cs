@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 /// food channels by animal ID; SlaughterBarred and EatingBarred merge in from the ideoligion
 /// (<see cref="HerdPreceptsRules.ApplyHerdPrecepts"/>). Unknown age or sickness ranks an animal as ordinary (not old,
 /// not sick, adult); an unknown SlaughterBarred leaves removal, sale and slaughter unplanned, an unknown
-/// EatingBarred food slaughter. (Go <c>HerdFacts</c>.)
+/// EatingBarred food slaughter.
 /// </summary>
 public sealed record HerdFacts
 {
@@ -49,14 +49,13 @@ public sealed record HerdFacts
 /// <summary>
 /// The breeding rule of one egg-laying race whose eggs can be fertilized, derived from the catalog:
 /// HensPerRooster is the hens one rooster keeps laying fertilized eggs. Unknown when any of the facts is.
-/// (Go <c>HerdLayer</c>.)
 /// </summary>
 public sealed record HerdLayer
 {
     public Fact<double> HensPerRooster { get; init; }
 }
 
-/// <summary>A removal the herd plan lists: the animal and how it leaves. (Go <c>herdRemoval</c>.)</summary>
+/// <summary>A removal the herd plan lists: the animal and how it leaves.</summary>
 internal sealed record HerdRemoval(UpkeepAnimal Animal, HusbandryMethod Method);
 
 public static class HerdSurplusRules

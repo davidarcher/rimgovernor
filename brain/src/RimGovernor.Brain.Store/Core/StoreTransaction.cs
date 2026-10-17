@@ -5,8 +5,8 @@ using RimGovernor.Brain.Domain;
 namespace RimGovernor.Brain.Store;
 
 /// <summary>
-/// An open <c>BEGIN IMMEDIATE</c> transaction holding the store's connection gate (Go <c>Tx</c>). Disposing without
-/// <see cref="Commit"/> rolls back (Go's <c>defer tx.Rollback()</c>). SQLite has no real asynchrony, so every
+/// An open <c>BEGIN IMMEDIATE</c> transaction holding the store's connection gate. Disposing without
+/// <see cref="Commit"/> rolls back. SQLite has no real asynchrony, so every
 /// statement here runs synchronously and observes the cancellation token of the call that opened it.
 /// </summary>
 public sealed class StoreTransaction : IDisposable, IAsyncDisposable
@@ -59,7 +59,7 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
 
     /// <summary>
     /// <see cref="ExecuteForPlan"/> for an insert that may collide with an existing identity: a constraint
-    /// violation surfaces as <see cref="ConflictException"/> (Go <c>conflict(err)</c>).
+    /// violation surfaces as <see cref="ConflictException"/>.
     /// </summary>
     internal int ExecuteConflict(PlanId plan, string sql, params (string Name, object? Value)[] parameters)
     {

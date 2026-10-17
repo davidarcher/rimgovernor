@@ -12,16 +12,16 @@ public interface IRoundsSource : IColonySource, IDefinitionSource
 
 public sealed record RoundsReading
 {
-    /// <summary>The colony reading the frame decoded to (Go embeds it).</summary>
+    /// <summary>The colony reading the frame decoded to.</summary>
     public ColonyReading Reading { get; init; } = new();
 
-    /// <summary>The embedded reading's projection (Go's promoted field).</summary>
+    /// <summary>The embedded reading's projection.</summary>
     public ColonyProjection Projection => Reading.Projection;
 
-    /// <summary>When the embedded reading began (Go's promoted field).</summary>
+    /// <summary>When the embedded reading began.</summary>
     public DateTimeOffset StartedAt => Reading.StartedAt;
 
-    /// <summary>When the embedded reading finished (Go's promoted field).</summary>
+    /// <summary>When the embedded reading finished.</summary>
     public DateTimeOffset ObservedAt => Reading.ObservedAt;
 
 

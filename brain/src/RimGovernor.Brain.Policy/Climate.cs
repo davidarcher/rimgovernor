@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: climate.go
 // Climate model (#2940, replacing #2880's vent count): the sustained extra heater or cooler power, in watts,
 // that holds a room in its temperature band given its openings (vent, door held open, door closed, airlock),
 // the outdoor curve and the heat the openings move. Every number is the game's: the equalize interval and rate
@@ -22,7 +21,7 @@ namespace RimGovernor.Brain.Policy;
 // is held where the openings and the heat inside would float it, clamped into the band, and the power is the
 // heat that holding it costs.
 
-/// <summary>A model, room or curve the model cannot price (Go <c>ErrClimate</c>).</summary>
+/// <summary>A model, room or curve the model cannot price.</summary>
 public sealed class ClimateException(string message) : DomainException("climate model: " + message);
 
 /// <summary>

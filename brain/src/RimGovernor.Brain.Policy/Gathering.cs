@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>What the gathering review reads. A fact left unknown never starts a party. (Go <c>GatheringInput</c>.)</summary>
+/// <summary>What the gathering review reads. A fact left unknown never starts a party.</summary>
 public sealed record GatheringInput
 {
     public Fact<MoodLedger> Ledger { get; init; }
@@ -18,7 +18,7 @@ public sealed record GatheringInput
     public Fact<CurrentConstruction> Census { get; init; }
 }
 
-/// <summary>One party ready to start: the organizer to name. (Go <c>GatheringPlan</c>.)</summary>
+/// <summary>One party ready to start: the organizer to name.</summary>
 public sealed record GatheringPlan
 {
     public string Def { get; init; } = "";
@@ -57,7 +57,7 @@ public static class GatheringRules
     public const double GatheringGuestShare = 0.65;
 
     /// <summary>
-    /// Go <c>PlanGathering</c>: returns the party to start now, or the zero plan (Organizer empty) when none is
+    /// Returns the party to start now, or the zero plan (Organizer empty) when none is
     /// due. Unknown while any gate's input is unknown and no known gate already says no.
     /// </summary>
     public static Fact<GatheringPlan> PlanGathering(GatheringInput input)
@@ -191,7 +191,7 @@ public static class GatheringRules
         return (best.Id, true);
     }
 
-    /// <summary>Go <c>GatheringOwed</c>: measures rooms/gatherings: known false when no party is due now, unknown while its inputs are.</summary>
+    /// <summary>Measures rooms/gatherings: known false when no party is due now, unknown while its inputs are.</summary>
     public static Fact<bool> GatheringOwed(Fact<GatheringPlan> plan) => plan.TryGetValue(out var p) ? Known(!p.Organizer.IsEmpty) : Unknown<bool>();
 
 }

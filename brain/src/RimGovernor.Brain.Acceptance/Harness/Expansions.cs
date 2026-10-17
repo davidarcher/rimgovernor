@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>Official-expansion package naming (Go <c>headless.go</c>): the base game is exactly <see cref="CorePackage"/>.</summary>
+/// <summary>Official-expansion package naming: the base game is exactly <see cref="CorePackage"/>.</summary>
 public static class Expansions
 {
     public const string CorePackage = "ludeon.rimworld";

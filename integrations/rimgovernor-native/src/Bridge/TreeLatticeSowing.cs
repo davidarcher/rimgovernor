@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
     // keeps a free ring, none is blocked by another lattice tree, and the zone
     // fills completely (ceil(w/2) * ceil(h/2) trees on a w x h rectangle).
     // Other crops are untouched. The pitch is mirrored by
-    // domain.TreeLatticePitch (a Go test reads this constant).
+    // domain.TreeLatticePitch.
     internal static class TreeLatticeSowing
     {
         internal const int Pitch = 2;

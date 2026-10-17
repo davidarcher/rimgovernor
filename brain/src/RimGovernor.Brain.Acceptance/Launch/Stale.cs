@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// RequireCurrentPackage found the installed build's sources differ from the worktree's (Go <c>ErrStalePackage</c>):
+/// RequireCurrentPackage found the installed build's sources differ from the worktree's:
 /// rebuild it or set <see cref="StalePackage.AllowStaleModEnv"/>.
 /// </summary>
 public sealed class StalePackageException : AcceptanceException
@@ -16,7 +16,7 @@ public sealed class StalePackageException : AcceptanceException
     }
 }
 
-/// <summary>The stale-package check run before any game is launched (Go <c>stale.go</c>).</summary>
+/// <summary>The stale-package check run before any game is launched.</summary>
 public static class StalePackage
 {
     /// <summary>

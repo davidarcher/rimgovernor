@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Host;
 /// <summary>What a reply that is neither the loaded arm nor a sentinel turns into: the exceptions the bridge reads throw.</summary>
 internal static class FacadeReplies
 {
-    /// <summary>The refusal a reply's failure arm is (Go <c>NativeFailure</c>).</summary>
+    /// <summary>The refusal a reply's failure arm is.</summary>
     public static BridgeRefusedException Refused(string call, PbCommon.Failure? failure) =>
         new(failure is null
             ? $"{call}: native reply carried no outcome"
@@ -17,7 +17,7 @@ internal static class FacadeReplies
                 ? $"{call}: native read refused: {failure.Code.GetValueOrDefault()}: {(failure.Detail ?? "")}"
                 : $"{call}: native read refused: {failure.Code.GetValueOrDefault()}");
 
-    /// <summary>The unavailability a reply's unavailable arm is (Go <c>NativeUnavailable</c>).</summary>
+    /// <summary>The unavailability a reply's unavailable arm is.</summary>
     public static BridgeUnavailableException Unavailable(string call, PbCommon.Unavailable? unavailable)
     {
         var message = unavailable is null
@@ -30,7 +30,7 @@ internal static class FacadeReplies
 }
 
 /// <summary>
-/// The control's native authority over the facade (Go <c>bridge.AuthorityControl</c> plus the status read). The
+/// The control's native authority over the facade. The
 /// facade's replies are the wire replies, so this only wraps the two calls into the requests they take.
 /// </summary>
 internal sealed class FacadeAuthority(INativeFacade facade) : INativeAuthority
@@ -46,7 +46,7 @@ internal sealed class FacadeAuthority(INativeFacade facade) : INativeAuthority
 }
 
 /// <summary>
-/// The actual native identity of the loaded world (Go <c>buildingWorldSource</c>): the bare tick read, so it
+/// The actual native identity of the loaded world: the bare tick read, so it
 /// neither enters the control gate nor waits for capture work.
 /// </summary>
 internal sealed class FacadeWorldSource(INativeFacade facade) : IWorldSource
@@ -79,7 +79,7 @@ internal sealed class FacadeWorldSource(INativeFacade facade) : IWorldSource
 }
 
 /// <summary>
-/// The save's governor state component (Go <c>governorStateNative</c>): read when a world changes, written whole
+/// The save's governor state component: read when a world changes, written whole
 /// at save time.
 /// </summary>
 internal sealed class FacadeGovernorState(INativeFacade facade)

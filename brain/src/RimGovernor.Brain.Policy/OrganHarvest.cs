@@ -44,7 +44,6 @@ public sealed record OrganHarvest(
     PegCycleStep Step,
     Domain.PawnId Surgeon)
 {
-    /// <summary>The zero value Go's struct literal starts from.</summary>
     public OrganHarvest() : this(default, "", 0, "", default, 0, 0, false, default, default)
     {
     }

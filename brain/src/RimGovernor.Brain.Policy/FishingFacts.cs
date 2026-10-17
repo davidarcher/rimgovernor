@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>A fishable water cell with whether any available fisher can reach it, and its squared distance to the colony centre. (Go <c>FishingCell</c>.)</summary>
+/// <summary>A fishable water cell with whether any available fisher can reach it, and its squared distance to the colony centre.</summary>
 public sealed record FishingCell
 {
     public Cell Cell { get; init; }
@@ -10,10 +10,10 @@ public sealed record FishingCell
     public double DistanceSquared { get; init; }
 }
 
-/// <summary>A fishing zone touching a water body. (Go <c>FishingZoneState</c>.)</summary>
+/// <summary>A fishing zone touching a water body.</summary>
 public sealed record FishingZoneState(bool Allowed, bool DoForever, bool HasFishableCells);
 
-/// <summary>The raw native facts of the Fishing project. (Go <c>FishingResearchInputs</c>.)</summary>
+/// <summary>The raw native facts of the Fishing project.</summary>
 public sealed record FishingResearchInputs
 {
     public Fact<bool> Researched { get; init; }
@@ -31,7 +31,7 @@ public sealed record FishingResearchInputs
     public Fact<double> Difficulty { get; init; }
 }
 
-/// <summary>One available fisher's native rates. (Go <c>Fisher</c>.)</summary>
+/// <summary>One available fisher's native rates.</summary>
 public sealed record Fisher(double Yield, double Speed);
 
 public static class FishingFactsRules
@@ -40,7 +40,7 @@ public static class FishingFactsRules
     public const int FishingWorkTicksPerDay = 8 * 2500;
 
     /// <summary>
-    /// Go <c>FishingFootprint</c>: proposes the zone footprint: the reachable fishable cells grown by cardinal
+    /// Proposes the zone footprint: the reachable fishable cells grown by cardinal
     /// flood fill from the cell nearest the colony centre (ties by x then z), at most one cell per available
     /// fisher. It is access capacity, never a population or yield multiplier.
     /// </summary>
@@ -75,17 +75,17 @@ public static class FishingFactsRules
     }
 
     /// <summary>
-    /// Go <c>FishingReachable</c>: the region verdict: some fisher reaches the water, and an unzoned body also
+    /// The region verdict: some fisher reaches the water, and an unzoned body also
     /// offers a footprint of one cell per fisher.
     /// </summary>
     public static Fact<bool> FishingReachable(Fact<bool> reaches, Fact<bool> zoned, int footprint, int fishers) =>
         zoned.TryGetValue(out var z) && !z && footprint < fishers ? Known(false) : reaches;
 
-    /// <summary>Go <c>FishingDelivering</c>: the observed zone state: some zone is allowed, fishes forever and has fishable cells.</summary>
+    /// <summary>The observed zone state: some zone is allowed, fishes forever and has fishable cells.</summary>
     public static bool FishingDelivering(IReadOnlyList<FishingZoneState> zones) => zones.Any(z => z.Allowed && z.DoForever && z.HasFishableCells);
 
     /// <summary>
-    /// Go <c>FishingResearchLeadDays</c>: zero once researched; otherwise the remaining project cost over the
+    /// Zero once researched; otherwise the remaining project cost over the
     /// fastest researcher's daily points. It is unknown without a researcher or an unread input.
     /// </summary>
     public static Fact<double> FishingResearchLeadDays(FishingResearchInputs input)
@@ -117,7 +117,7 @@ public static class FishingFactsRules
     }
 
     /// <summary>
-    /// Go <c>FishingWorkCapacity</c>: the raw nutrition per day the fishers can draw from a body: per fisher, a
+    /// The raw nutrition per day the fishers can draw from a body: per fisher, a
     /// day of batches at the population's yield. It is unknown without a known nutrition per fish, yield curve
     /// value or batch duration.
     /// </summary>

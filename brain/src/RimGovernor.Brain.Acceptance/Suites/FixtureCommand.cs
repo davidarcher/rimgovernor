@@ -5,7 +5,7 @@ using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>The fixture subcommand's parsed flags: the op, its arguments and the world it runs on (Go <c>fixtureOptions</c>).</summary>
+/// <summary>The fixture subcommand's parsed flags: the op, its arguments and the world it runs on.</summary>
 public sealed record FixtureOptions
 {
     public string Op { get; init; } = "";
@@ -35,7 +35,7 @@ public sealed record FixtureOptions
 }
 
 /// <summary>
-/// <c>acceptance fixture</c> (Go <c>cmd/acceptance/fixture.go</c>): opens the root's game (a kept process is attached, else
+/// <c>acceptance fixture</c>: opens the root's game (a kept process is attached, else
 /// one launches), loads the save (or keeps the loaded world under <c>-loaded</c>), calls the op through the same harness
 /// the cases use and prints its reply with a census of the world after it. The game stays loaded and paused with the
 /// process kept, so the next call (<c>-loaded</c>) continues on it; the next <c>acceptance run</c> unloads it as it would

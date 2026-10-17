@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace RimGovernor.Brain.Analyzers;
 
 /// <summary>
-/// Construction tier completeness (RGARCH008, Go archgate.BuildingActionTiers, #2525; contract
+/// Construction tier completeness (RGARCH008, #2525; contract
 /// docs/developers/contracts/construction-tiers.md). Every call of DomainAction.NewBuildingAction states its tier as a
 /// ConstructionTier ladder member or through a Policy mapping function (RoomTier, PlannerTier, AdoptedTier,
 /// DefenseBuildTier). There is no baseline.
@@ -62,7 +62,7 @@ public sealed class BuildingActionTiersAnalyzer : DiagnosticAnalyzer
 
     /// <summary>
     /// The one place that rebuilds an action whose tier was already stated: the store codec reading a stored row (a row
-    /// without a tier does not load). Go also listed NewPlan; DomainAction is built only by its factories here, so no plan
+    /// without a tier does not load). DomainAction is built only by its factories, so no plan
     /// re-canonicalizes actions.
     /// </summary>
     private static bool PassThrough(SyntaxNodeAnalysisContext context, SyntaxNode call) =>

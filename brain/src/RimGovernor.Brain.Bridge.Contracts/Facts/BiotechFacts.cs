@@ -7,13 +7,13 @@ using PolicyPawnMechanitor = RimGovernor.Brain.Policy.PawnMechanitor;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go biotech.go: the lift of a pawn's Biotech block. The block validator (validatePawnBiotech) belongs to the pawn
+// The lift of a pawn's Biotech block. The block validator (validatePawnBiotech) belongs to the pawn
 // row decoder and is not ported. The gene effects and work minimum ages the lift leaves unknown are resolved
 // against the catalog by the caller.
 public static class BiotechFactsRules
 {
     /// <summary>
-    /// Go's <c>PawnBiotech</c>: lifts a pawn row's Biotech block; unknown when the row carries none (no Biotech).
+    /// Lifts a pawn row's Biotech block; unknown when the row carries none (no Biotech).
     /// A field a read issue names stays unknown.
     /// </summary>
     public static Fact<PolicyPawnBiotech> PawnBiotech(RimGovernor.Contracts.Wire.Observations.PawnBiotech? biotech)

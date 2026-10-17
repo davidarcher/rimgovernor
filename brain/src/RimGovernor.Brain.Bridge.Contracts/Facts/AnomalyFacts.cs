@@ -10,7 +10,7 @@ using PolicyStudyState = RimGovernor.Brain.Policy.StudyState;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go anomaly.go: the lifts of a pawn's and a building's Anomaly block. The block validators (validatePawnAnomaly,
+// The lifts of a pawn's and a building's Anomaly block. The block validators (validatePawnAnomaly,
 // validateBuildingAnomaly, validateStudyState) belong to the pawn and building row decoders and are not ported.
 public static class AnomalyFactsRules
 {
@@ -22,7 +22,7 @@ public static class AnomalyFactsRules
                 CurrentlyStudiable = FactHelpers.OptionalFact(study.CurrentlyStudiable is not null, study.CurrentlyStudiable.GetValueOrDefault()),
             };
 
-    /// <summary>Go's <c>containmentMode</c>: an unmapped mode reads as the strictest, Execute.</summary>
+    /// <summary>An unmapped mode reads as the strictest, Execute.</summary>
     private static PolicyContainmentMode ContainmentModeOf(EntityContainmentModeKind mode) => mode switch
     {
         EntityContainmentModeKind.MaintainOnly => PolicyContainmentMode.MaintainOnly,
@@ -32,7 +32,7 @@ public static class AnomalyFactsRules
     };
 
     /// <summary>
-    /// Go's <c>PawnAnomaly</c>: lifts a pawn row's Anomaly block; unknown when the row carries none (no Anomaly).
+    /// Lifts a pawn row's Anomaly block; unknown when the row carries none (no Anomaly).
     /// A block a read issue names stays unknown.
     /// </summary>
     public static Fact<PolicyPawnAnomaly> PawnAnomaly(RimGovernor.Contracts.Wire.Observations.PawnAnomaly? anomaly)
@@ -92,7 +92,7 @@ public static class AnomalyFactsRules
     }
 
     /// <summary>
-    /// Go's <c>BuildingAnomaly</c>: lifts a building row's Anomaly block; unknown when the row carries none (no
+    /// Lifts a building row's Anomaly block; unknown when the row carries none (no
     /// Anomaly). A block a read issue names stays unknown.
     /// </summary>
     public static Fact<PolicyBuildingAnomaly> BuildingAnomaly(BuildingState row)

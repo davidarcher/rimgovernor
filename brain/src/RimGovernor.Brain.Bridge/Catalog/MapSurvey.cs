@@ -6,7 +6,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go map_survey.go: the whole-map survey the layout plan is derived from.
+// The whole-map survey the layout plan is derived from.
 
 public sealed partial class DefinitionCatalog
 {

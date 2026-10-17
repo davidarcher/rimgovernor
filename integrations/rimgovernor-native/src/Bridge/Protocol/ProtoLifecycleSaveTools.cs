@@ -13,7 +13,7 @@ using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 namespace HomeBridge.BridgeTools
 {
     // Trusted single-shot checkpoint save only. Native must already be paused;
-    // Go's boundary owns pausing/draining writers before calling this tool.
+    // The boundary owns pausing/draining writers before calling this tool.
     // Save itself is synchronous (completes or fails within one call); ReadSave
     // exists only so a caller who lost the original reply (a dropped
     // connection, a client restart) can re-read that request's exact outcome
@@ -105,7 +105,7 @@ namespace HomeBridge.BridgeTools
         {
             var path = GenFilePaths.FilePathForSavedGame(saveName);
             var before = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
-            // Go-initiated: the SaveGame prefix raises no pre_save signal.
+            // Brain-initiated: the SaveGame prefix raises no pre_save signal.
             SaveHandshake.BeginGoSave();
             try { GameDataSaveLoader.SaveGame(saveName); }
             finally { SaveHandshake.EndGoSave(); }

@@ -539,7 +539,7 @@ partial class RoundsAcquisitionPlanner
         return "acquisition_sources";
     }
 
-    /// <summary>The first 16 bytes of the SHA-256 of the text, in lowercase hex (Go <c>%x</c> of <c>hash.Sum(nil)[:16]</c>).</summary>
+    /// <summary>The first 16 bytes of the SHA-256 of the text, in lowercase hex.</summary>
     internal static string HashHex16(string text) =>
         Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text))[..16]);
 }

@@ -378,8 +378,7 @@ public static partial class RoomRoleRules
                     continue;
                 }
                 adults.Add(o);
-                // Go tested cluster == nil; an empty cluster slice is not nil there only when set non-nil, and
-                // the census builds every adult's cluster with the pawn in it, so an empty one reads as unset.
+                // The census builds every adult's cluster with the pawn in it, so an empty one reads as unset.
                 if (cluster is null)
                 {
                     cluster = o.Cluster;

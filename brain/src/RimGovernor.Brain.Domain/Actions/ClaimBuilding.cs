@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record ClaimBuilding : IActionPayload
 {
-    /// <summary>Go <c>NewClaimBuilding</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public ClaimBuilding(string thing)
     {
         DomainException.Require(IdText.IsValidText(thing), "invalid claim building identity");
@@ -20,6 +20,6 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewClaimBuildingAction(ActionId id, ClaimBuilding claim) => Create(id, ActionKind.ClaimBuilding, claim);
 
-    /// <summary>Go <c>Action.ClaimBuilding() (ClaimBuilding, bool)</c>: the payload when this is a claim building action, otherwise null.</summary>
+    /// <summary>The payload when this is a claim building action, otherwise null.</summary>
     public ClaimBuilding? ClaimBuilding => PayloadOf<ClaimBuilding>(ActionKind.ClaimBuilding);
 }

@@ -2,14 +2,14 @@ namespace RimGovernor.Brain.Policy;
 
 public static class RoundsFactsSaleExtensions
 {
-    /// <summary>Go <c>RoundsFacts.SaleAnimals</c>: <see cref="HerdSaleRules.HerdSaleAnimals"/> over the herd plan of f.</summary>
+    /// <summary><see cref="HerdSaleRules.HerdSaleAnimals"/> over the herd plan of f.</summary>
     public static IReadOnlySet<PawnId> SaleAnimals(this RoundsFacts f) => HerdSaleRules.HerdSaleAnimals(f.AnimalUpkeep.Animals, f.HerdPolicy());
 }
 
 public static class HerdSaleRules
 {
     /// <summary>
-    /// Go <c>HerdSaleAnimals</c>: the colony animals the herd plan lets a trader take: the animals
+    /// The colony animals the herd plan lets a trader take: the animals
     /// HerdSurplusCandidates lists over each race's ceiling (every animal of a retired race, young ones
     /// included), less any that is bonded (any living Bond relation, whether or not HerdMasterChoice found the
     /// partner on the roster to master it) or, outside a retired race, has a master (HerdMasterChoice gives the
@@ -43,7 +43,7 @@ public static class HerdSaleRules
     }
 
     /// <summary>
-    /// Go <c>AnimalSaleNeed</c>: adds the animal-sale reason to the need: sale animals and a known silver
+    /// Adds the animal-sale reason to the need: sale animals and a known silver
     /// shortfall (SilverShort). Anything unknown adds nothing.
     /// </summary>
     public static Fact<TradeNeed> AnimalSaleNeed(ItemFacts items, Fact<TradeNeed> need, IReadOnlySet<PawnId> sale, Fact<long> silver, Fact<long> colonists)

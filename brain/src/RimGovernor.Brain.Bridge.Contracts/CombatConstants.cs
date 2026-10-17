@@ -1,18 +1,15 @@
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go combat_orders.go, combat_geometry.go and placement.go consts.
 public static class CombatConstants
 {
-    /// <summary>Go's <c>PlacementBatchLimit</c>: the most placements one placement_preview request may carry.</summary>
+    /// <summary>The most placements one placement_preview request may carry.</summary>
     public const int PlacementBatchLimit = 64;
 
-    /// <summary>Go's <c>CombatGeometryMaxCells</c>.</summary>
     public const int CombatGeometryMaxCells = 64;
 
-    /// <summary>Go's <c>CombatGeometryMaxHostiles</c>.</summary>
     public const int CombatGeometryMaxHostiles = 16;
 
-    /// <summary>Go's <c>CombatGeometryMaxRadius</c>: bounds a firing_cells proposal's search.</summary>
+    /// <summary>Bounds a firing_cells proposal's search.</summary>
     public const int CombatGeometryMaxRadius = 12;
 
     /// <summary>A pawn order for a pawn that is not drafted.</summary>

@@ -26,7 +26,7 @@ public enum SiteKind
     [WireName("dark-room")]
     DarkRoom,
 
-    /// <summary>Nutrient-paste dispenser site (paste_site.go).</summary>
+    /// <summary>Nutrient-paste dispenser site.</summary>
     [WireName("nutrient-paste")]
     Paste,
 }

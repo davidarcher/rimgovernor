@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>The closing check every run ends on (Go <c>cases/startuplog.go</c>).</summary>
+/// <summary>The closing check every run ends on.</summary>
 public static class StartupRows
 {
     /// <summary>

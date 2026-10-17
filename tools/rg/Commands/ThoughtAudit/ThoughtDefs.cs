@@ -11,7 +11,7 @@ namespace RimGovernor.Tools.Commands.ThoughtAudit;
 /// </summary>
 internal sealed record ThoughtDef(string Name, string Worker, string Hediff, IReadOnlyDictionary<string, XElement> Fields);
 
-/// <summary>Reads the game's ThoughtDef XML (Go: <c>loadThoughtDefs</c>).</summary>
+/// <summary>Reads the game's ThoughtDef XML.</summary>
 internal static partial class ThoughtDefs
 {
     private sealed record Raw(string Name, string Parent, string Abstract, string DefName, string Worker, string Hediff, XElement Element);
@@ -86,7 +86,7 @@ internal static partial class ThoughtDefs
         return (output, files);
     }
 
-    /// <summary>Immediate subdirectories in ordinal name order (Go <c>os.ReadDir</c>).</summary>
+    /// <summary>Immediate subdirectories in ordinal name order.</summary>
     internal static IEnumerable<string> SortedDirectories(string dir) =>
         Directory.EnumerateDirectories(dir).OrderBy(Path.GetFileName, StringComparer.Ordinal);
 

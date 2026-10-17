@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record Clean : IActionPayload
 {
-    /// <summary>Go <c>NewClean</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public Clean(PawnId pawn, string filth, Cell cell)
     {
         DomainException.Require(

@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: trade_select.go.
 
 /// <summary>
 /// One live trade sheet row as SelectTrade reads it. Each optional native field carries its own Known flag:
@@ -138,7 +137,6 @@ public sealed record TradeSelectionFacts
 /// </summary>
 public sealed record TradeSelectionLine(string LineID, long Count)
 {
-    /// <summary>The zero value Go's struct literal starts from.</summary>
     public TradeSelectionLine() : this("", 0)
     {
     }

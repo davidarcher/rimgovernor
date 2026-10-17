@@ -5,8 +5,8 @@ using Microsoft.Data.Sqlite;
 namespace RimGovernor.Brain.Store;
 
 /// <summary>
-/// The controller's SQLite journal file (Go <c>store.Store</c>): WAL, foreign keys, one connection serialised by
-/// a gate (Go <c>SetMaxOpenConns(1)</c>), and every transaction opened <c>BEGIN IMMEDIATE</c> and retried while
+/// The controller's SQLite journal file: WAL, foreign keys, one connection serialised by
+/// a gate, and every transaction opened <c>BEGIN IMMEDIATE</c> and retried while
 /// SQLite reports busy or locked. The behaviour lives in partial files beside this one, one per concern.
 /// </summary>
 public sealed partial class Store : IAsyncDisposable, IDisposable
@@ -197,7 +197,6 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// <summary><see cref="Identity"/> as a task.</summary>
     public Task<ControllerSessionId> IdentityAsync(CancellationToken cancellationToken) => RunAsync(IdentityIn, cancellationToken);
 
-    /// <summary>Go <c>core.Identity</c>.</summary>
     internal static ControllerSessionId IdentityIn(StoreTransaction tx)
     {
         var rows = tx.Query("SELECT singleton,controller_session_id FROM metadata", [], r => (r.GetInt64(0), r.GetString(1)));
@@ -225,7 +224,7 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
         return valid ? new ControllerSessionId(id) : throw new InvalidOperationException("corrupt controller identity metadata");
     }
 
-    /// <summary>Opens a transaction: waits for the connection gate, then <c>BEGIN IMMEDIATE</c>, retried while busy (Go <c>begin</c>).</summary>
+    /// <summary>Opens a transaction: waits for the connection gate, then <c>BEGIN IMMEDIATE</c>, retried while busy.</summary>
     internal StoreTransaction Begin(CancellationToken cancellationToken)
     {
         _gate.Wait(cancellationToken);
@@ -273,11 +272,11 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
         Run(work, cancellationToken);
     }
 
-    /// <summary>Maps a SQLite constraint violation to <see cref="ConflictException"/> (Go <c>core.Conflict</c>).</summary>
+    /// <summary>Maps a SQLite constraint violation to <see cref="ConflictException"/>.</summary>
     public static Exception Conflict(Exception error) =>
         error is SqliteException sqlite && (sqlite.SqliteErrorCode & 255) == SqliteConstraint ? new ConflictException(error) : error;
 
-    /// <summary>Repeats <paramref name="operation"/> while it fails with SQLITE_BUSY or SQLITE_LOCKED (Go <c>retryBusy</c>).</summary>
+    /// <summary>Repeats <paramref name="operation"/> while it fails with SQLITE_BUSY or SQLITE_LOCKED.</summary>
     internal static T RetryBusy<T>(Func<T> operation, CancellationToken cancellationToken)
     {
         while (true)

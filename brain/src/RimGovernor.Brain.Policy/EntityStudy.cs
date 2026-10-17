@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 public static class EntityStudyRules
 {
     /// <summary>
-    /// Go <c>StudyWork</c>: the DarkStudy requirement the held entities owe the work planner: one owner while
+    /// The DarkStudy requirement the held entities owe the work planner: one owner while
     /// any held entity is currently studiable, none otherwise. A held entity whose held or currently-studiable
     /// fact is unread makes the whole answer unknown, so the planner waits instead of guessing; Reason says
     /// which entity and fact. Without Anomaly (entities unknown) no entity is held and nothing is owed.

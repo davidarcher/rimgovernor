@@ -6,7 +6,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace RimGovernor.Brain.RemoteBundle;
 
-/// <summary>Paths, digests and tree checks shared by every bundle operation (Go <c>manifest.go</c>, <c>origin.go</c> helpers and the Windows source files).</summary>
+/// <summary>Paths, digests and tree checks shared by every bundle operation.</summary>
 public static partial class BundleFiles
 {
     private static readonly System.Buffers.SearchValues<char> UnsafeCharacters = System.Buffers.SearchValues.Create("\\:\0\r\n\t*?\"<>|");
@@ -22,14 +22,14 @@ public static partial class BundleFiles
     /// <summary>The <c>owner/repository</c> form.</summary>
     public static bool IsRepository(string text) => RepositoryPattern().IsMatch(text);
 
-    /// <summary>The lowercase hex SHA-256 of <paramref name="bytes"/> (Go <c>Digest</c>).</summary>
+    /// <summary>The lowercase hex SHA-256 of <paramref name="bytes"/>.</summary>
     public static string Digest(ReadOnlySpan<byte> bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
     /// <summary>The lowercase hex SHA-256 of the UTF-8 text.</summary>
     public static string Digest(string text) => Digest(Encoding.UTF8.GetBytes(text));
 
     /// <summary>
-    /// Rejects Windows aliases as well as traversal, even on non-Windows hosts (Go <c>SafePath</c>). The path is a
+    /// Rejects Windows aliases as well as traversal, even on non-Windows hosts. The path is a
     /// forward-slash relative path.
     /// </summary>
     public static void SafePath(string path)
@@ -69,7 +69,7 @@ public static partial class BundleFiles
         }
     }
 
-    /// <summary>Whether <paramref name="child"/> is <paramref name="parent"/> or below it, compared without case (Go <c>within</c>).</summary>
+    /// <summary>Whether <paramref name="child"/> is <paramref name="parent"/> or below it, compared without case.</summary>
     public static bool Within(string parent, string child)
     {
         var relative = Path.GetRelativePath(parent.ToLowerInvariant(), child.ToLowerInvariant());
@@ -83,7 +83,7 @@ public static partial class BundleFiles
 
     /// <summary>
     /// Resolves by the opened handle: the final path follows NTFS junction chains and exposes cycles reached through
-    /// different junction names (Go <c>resolveSource</c>).
+    /// different junction names.
     /// </summary>
     public static string ResolveSource(string name)
     {
@@ -128,7 +128,7 @@ public static partial class BundleFiles
 
     /// <summary>
     /// Resolves a destination that may not exist yet: the deepest existing ancestor is resolved and the missing tail is
-    /// appended (Go <c>resolveDestination</c>).
+    /// appended.
     /// </summary>
     public static string ResolveDestination(string dest)
     {
@@ -158,14 +158,14 @@ public static partial class BundleFiles
         }
     }
 
-    /// <summary>The SHA-256 and length of a file (Go <c>HashFile</c>).</summary>
+    /// <summary>The SHA-256 and length of a file.</summary>
     public static (string Sha256, long Bytes) HashFile(string fileName)
     {
         using var stream = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 20);
         return (Convert.ToHexStringLower(SHA256.HashData(stream)), stream.Length);
     }
 
-    /// <summary>Refuses anything but a regular file of the expected size and digest (Go <c>VerifyFile</c>).</summary>
+    /// <summary>Refuses anything but a regular file of the expected size and digest.</summary>
     public static void VerifyFile(string fileName, long size, string digest)
     {
         var info = new FileInfo(fileName);
@@ -180,7 +180,7 @@ public static partial class BundleFiles
         }
     }
 
-    /// <summary>Refuses links and extra files, including a profile accidentally archived (Go <c>VerifyTree</c>).</summary>
+    /// <summary>Refuses links and extra files, including a profile accidentally archived.</summary>
     public static void VerifyTree(string root, Inventory inventory)
     {
         var want = inventory.Files.ToDictionary(f => f.Path, StringComparer.Ordinal);
@@ -203,7 +203,7 @@ public static partial class BundleFiles
         BundleException.Require(want.Count == 0, $"archive missing {want.Count} inventory files");
     }
 
-    /// <summary>Lists the regular files under <paramref name="root"/> with their hashes, sorted by path; links fail (Go <c>InventoryTree</c>).</summary>
+    /// <summary>Lists the regular files under <paramref name="root"/> with their hashes, sorted by path; links fail.</summary>
     public static Inventory InventoryTree(string root)
     {
         var files = new List<BundleFile>();
@@ -271,7 +271,7 @@ public static partial class BundleFiles
         }
     }
 
-    /// <summary>The bytes free to the caller on the volume holding <paramref name="directory"/> (Go <c>freeDisk</c>).</summary>
+    /// <summary>The bytes free to the caller on the volume holding <paramref name="directory"/>.</summary>
     internal static ulong FreeDisk(string directory)
     {
         if (!OperatingSystem.IsWindows())
@@ -301,7 +301,7 @@ public static partial class BundleFiles
         }
     }
 
-    /// <summary>Go <c>path.Clean</c> for a slash path.</summary>
+    /// <summary>Cleans a slash path.</summary>
     private static string CleanSlashPath(string path)
     {
         var rooted = path.StartsWith('/');

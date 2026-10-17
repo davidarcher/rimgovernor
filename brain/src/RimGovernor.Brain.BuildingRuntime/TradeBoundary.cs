@@ -12,7 +12,7 @@ public sealed class TradeCapabilities
 }
 
 /// <summary>
-/// The trade inspections and writes of the executor. Go embedded the building boundary pointer and used only its
+/// The trade inspections and writes of the executor. It needs only the building boundary's
 /// clock and its intent dispatch, so this takes the clock directly. The natives it reads are asynchronous
 /// bridge reads.
 /// </summary>

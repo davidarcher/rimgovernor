@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// A contiguous span of samples where the food/supply Need has a committed method but all its Progress rows remain
-/// pending: Attempt is zero and Snapshot is unstamped (Go <c>sustainedfood.StallWindow</c>).
+/// pending: Attempt is zero and Snapshot is unstamped.
 /// </summary>
 public sealed record StallWindow(DateTimeOffset StartedAt, DateTimeOffset EndedAt, int Samples)
 {
@@ -19,8 +19,7 @@ public sealed record StallWindow(DateTimeOffset StartedAt, DateTimeOffset EndedA
 }
 
 /// <summary>
-/// Summarizes stock trends, interruptions, blockers and recovery from each variant's collected goal-state samples
-/// (Go <c>sustainedfood.Metrics</c>).
+/// Summarizes stock trends, interruptions, blockers and recovery from each variant's collected goal-state samples.
 /// </summary>
 public sealed record SustainedMetrics
 {
@@ -39,7 +38,7 @@ public sealed record SustainedMetrics
     public bool RecoveredAllStalls { get; init; }
 
     /// <summary>
-    /// The metrics in the report's JSON shape (the Go struct's tags; stalls omitted when empty). need_counts and
+    /// The metrics in the report's JSON shape (stalls omitted when empty). need_counts and
     /// status_counts stay empty objects: no sample has carried a need or status state since #3253.
     /// </summary>
     public JsonObject ToJson()

@@ -15,7 +15,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// </summary>
 public sealed class HttpNativeTransport : IAsyncDisposable
 {
-    /// <summary>The longest a call may be asked to wait (Go <c>bridge.MaxCallTimeout</c>).</summary>
+    /// <summary>The longest a call may be asked to wait.</summary>
     public static readonly TimeSpan MaxCallTimeout = TimeSpan.FromMinutes(10);
 
     private const string ToolPrefix = "rimgovernor/";
@@ -279,7 +279,7 @@ public sealed class HttpNativeTransport : IAsyncDisposable
     }
 }
 
-/// <summary>Lifts a refusal's own account out of a structured result (Go <c>refusalCause</c>).</summary>
+/// <summary>Lifts a refusal's own account out of a structured result.</summary>
 internal static class Refusals
 {
     /// <summary>The longest a lifted cause is: a native exception carries its whole stack, and the first line names the failure.</summary>

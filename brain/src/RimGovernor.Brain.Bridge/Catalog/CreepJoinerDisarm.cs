@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go creepjoiner_disarm.go: the creepjoiner disarming's def lookups (see P.CreepJoinerDisarm for the game rules). They read
+// The creepjoiner disarming's def lookups (see P.CreepJoinerDisarm for the game rules). They read
 // the defs and name no def.
 
 public sealed partial class DefinitionCatalog

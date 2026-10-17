@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: cause.go
 
 /// <summary>
 /// The closed set of reasons the bot explains itself with: why a concern did not advance, what it waits on,
@@ -28,7 +27,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
 
     public static bool operator >=(Cause left, Cause right) => left.CompareTo(right) >= 0;
 
-    /// <summary>The zero Cause: no cause recorded (Go's empty string).</summary>
+    /// <summary>The zero Cause: no cause recorded.</summary>
     public static readonly Cause None = new("");
 
     /// <summary>Reports whether this is a Cause in the closed set.</summary>

@@ -8,8 +8,8 @@ using System.Text.Json.Serialization;
 namespace RimGovernor.Tools.Commands.ColonyReview;
 
 /// <summary>
-/// The static HTML of a run report and of the site index (Go: <c>html.go</c>). The run page is a player (player.js,
-/// embedded) over the frames embedded as JSON; text is HTML-encoded as Go's html/template did.
+/// The static HTML of a run report and of the site index. The run page is a player (player.js,
+/// embedded) over the frames embedded as JSON; text is HTML-encoded.
 /// </summary>
 internal static class ReviewPages
 {
@@ -227,7 +227,7 @@ internal static class ReviewPages
 
     private static string F(double v, int digits) => v.ToString("F" + digits.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
 
-    // Go "%+.1f": always signed; "unknown" for a missing value.
+    // Always signed; "unknown" for a missing value.
     private static string Signed(double? v, int digits) =>
         v is { } x ? (x < 0 || double.IsNegative(x) ? "-" : "+") + F(Math.Abs(x), digits) : "unknown";
 

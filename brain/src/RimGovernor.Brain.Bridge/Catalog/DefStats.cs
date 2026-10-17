@@ -5,9 +5,9 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_def_stats.go: per-def stat facts the planners read.
+// Per-def stat facts the planners read.
 
-/// <summary>One candidate stone stuff and its per-wall cost (Go <c>WallMaterial</c>).</summary>
+/// <summary>One candidate stone stuff and its per-wall cost.</summary>
 public sealed record WallMaterial(string Stuff, IReadOnlyList<P.Amount> Costs);
 
 public sealed partial class DefinitionCatalog

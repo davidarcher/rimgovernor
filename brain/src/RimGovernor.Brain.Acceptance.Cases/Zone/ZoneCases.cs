@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The zone case family (Go <c>cases/zone</c>).</summary>
+/// <summary>The zone case family.</summary>
 public static class ZoneCases
 {
     public static void Register(CaseRegistry registry)

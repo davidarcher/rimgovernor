@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: candidate.go
 
 /// <summary>How a candidate obtains its yields.</summary>
 public enum CandidateKind

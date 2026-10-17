@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 namespace RimGovernor.Brain.Domain;
 
-/// <summary>The edit an <see cref="Area"/> applies. Go <c>AreaOperation</c>.</summary>
+/// <summary>The edit an <see cref="Area"/> applies.</summary>
 public enum AreaOperation
 {
     Create,
@@ -11,10 +11,10 @@ public enum AreaOperation
     Delete,
 }
 
-/// <summary>One inclusive rectangle of cells. Go <c>AreaRect</c>.</summary>
+/// <summary>One inclusive rectangle of cells.</summary>
 public readonly record struct AreaRect(int MinX, int MinZ, int MaxX, int MaxZ);
 
-/// <summary>Canonicalisation shared by the cell-set payloads (Go repeated it per file).</summary>
+/// <summary>Canonicalisation shared by the cell-set payloads.</summary>
 internal static class CanonicalCells
 {
     /// <summary>Cells sorted by X then Z; throws <paramref name="invalidMessage"/> on a negative or duplicate cell.</summary>
@@ -39,7 +39,7 @@ internal static class CanonicalCells
 /// </summary>
 public sealed record Area : IActionPayload
 {
-    /// <summary>Go <c>NewArea</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public Area(AreaOperation operation, string key, IReadOnlyCollection<Cell> cells)
         : this(operation, key, false, cells) { }
 
@@ -67,7 +67,7 @@ public sealed record Area : IActionPayload
     }
 
     /// <summary>
-    /// Go <c>NewPollutionClearArea</c>: edits the game's pollution-clear area, the cells the cleanup crew
+    /// Edits the game's pollution-clear area, the cells the cleanup crew
     /// cleans: set_cells and clear_cells only, like home.
     /// </summary>
     public static Area NewPollutionClearArea(AreaOperation operation, IReadOnlyCollection<Cell> cells)
@@ -95,7 +95,7 @@ public sealed record Area : IActionPayload
     public IReadOnlyList<Cell> Cells => ExpandAreaRects(Rects);
 
     /// <summary>
-    /// Go <c>AreaRects</c>: covers cells (no duplicates) with the fewest row-run rectangles a greedy vertical
+    /// Covers cells (no duplicates) with the fewest row-run rectangles a greedy vertical
     /// merge finds.
     /// </summary>
     public static EquatableArray<AreaRect> AreaRects(IEnumerable<Cell> cells)
@@ -148,7 +148,7 @@ public sealed record Area : IActionPayload
         return new EquatableArray<AreaRect>([.. output]);
     }
 
-    /// <summary>Go <c>ExpandAreaRects</c>: lists the cells of rects row by row.</summary>
+    /// <summary>Lists the cells of rects row by row.</summary>
     public static List<Cell> ExpandAreaRects(IEnumerable<AreaRect> rects)
     {
         var cells = new List<Cell>();
@@ -170,6 +170,6 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewAreaAction(ActionId id, Area area) => Create(id, ActionKind.Area, area);
 
-    /// <summary>Go <c>Action.Area() (Area, bool)</c>: the payload when this is an area action, otherwise null.</summary>
+    /// <summary>The payload when this is an area action, otherwise null.</summary>
     public Area? Area => PayloadOf<Area>(ActionKind.Area);
 }

@@ -3,7 +3,7 @@ using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>Freezing colonist needs for a harness whose assertion is not about them (Go <c>needs.go</c>).</summary>
+/// <summary>Freezing colonist needs for a harness whose assertion is not about them.</summary>
 public static class Needs
 {
     /// <summary>Pins colonist needs at maximum (FreezeNeedsFixture); every fixture build carries it.</summary>

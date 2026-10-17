@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
             var requirements = Requirements(p).ToList();
             var precepts = new HashSet<string>(ModsConfig.IdeologyActive && p.Ideo != null
                 ? p.Ideo.PreceptsListForReading.OfType<Precept_Apparel>().Where(v => v.apparelDef != null).Select(v => v.apparelDef.defName) : Enumerable.Empty<string>());
-            // What the pawn's title, role and precepts require, by def; Go keeps
+            // What the pawn's title, role and precepts require, by def; the brain keeps
             // those it can wear (the apparel rows and its wear inputs).
             foreach (var d in CensusMemo.Of(("apparelDefs", (object?)null), () => DefDatabase<ThingDef>.AllDefs.Where(d => d.IsApparel).OrderBy(d => d.defName).ToList()))
                 if (precepts.Contains(d.defName) || requirements.Any(r => r.ApparelMeetsRequirement(d, false))) row = row with { RequiredDefs = [.. row.RequiredDefs, d.defName] };

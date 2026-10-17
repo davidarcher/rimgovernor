@@ -5,13 +5,13 @@ namespace RimGovernor.Brain.Observation;
 // Package observation maps native wire observations into explicit domain facts. It does not infer player
 // authority or manufacture runtime generations.
 
-/// <summary>Go's <c>ErrContract</c>: the native observation breaks its contract.</summary>
+/// <summary>The native observation breaks its contract.</summary>
 public class ObservationContractException(string message) : DomainException("invalid native observation: " + message);
 
-/// <summary>Go's <c>ErrChanged</c>: the native observation context changed between two reads.</summary>
+/// <summary>The native observation context changed between two reads.</summary>
 public sealed class ObservationChangedException() : DomainException("native observation context changed");
 
-/// <summary>Go's <c>ErrStale</c>: the native observation is older than the caller allows.</summary>
+/// <summary>The native observation is older than the caller allows.</summary>
 public sealed class ObservationStaleException() : DomainException("native observation is stale");
 
 /// <summary>The domain identity of one observation: typed ids, tick, native generation and pause. The wire <c>Common.Identity</c> is the same context as raw strings and is decoded into this.</summary>

@@ -127,7 +127,7 @@ public sealed class WakeSignal
     }
 }
 
-/// <summary>What one batch of colony events says that should wake the step loop (Go's five return values of clockPageWakeStopped).</summary>
+/// <summary>What one batch of colony events says that should wake the step loop.</summary>
 internal sealed record ColonyEventWake(IReadOnlyList<FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt);
 
 partial class ColonyEventConsumer
@@ -228,7 +228,7 @@ partial class ColonyEventConsumer
         return true;
     }
 
-    /// <summary>Go <c>OtherWorld</c>: whether the event was observed in another world (colony, load or map) than <paramref name="current"/>, the world loaded now.</summary>
+    /// <summary>Whether the event was observed in another world (colony, load or map) than <paramref name="current"/>, the world loaded now.</summary>
     internal static bool OtherWorld(NativeEvents.ColonyEvent @event, CommonPb.Identity? current)
     {
         if (current is null)

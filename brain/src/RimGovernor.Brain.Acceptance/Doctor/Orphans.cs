@@ -7,11 +7,11 @@ namespace RimGovernor.Brain.Acceptance;
 /// <summary>
 /// A harness process (<see cref="HarnessProcesses.HarnessImages"/>) launched under a <c>.claude/worktrees/&lt;name&gt;/</c>
 /// that git no longer lists: the worktree went with its root, so <c>acceptance stop -root</c> cannot reach it, and the
-/// game runs detached from the run that launched it (Go <c>doctor.Orphan</c>).
+/// game runs detached from the run that launched it.
 /// </summary>
 public sealed record Orphan(HarnessProcess Process, string Worktree);
 
-/// <summary>The doctor's orphan sweep and stuck-boot detection (Go <c>doctor/orphans.go</c>).</summary>
+/// <summary>The doctor's orphan sweep and stuck-boot detection.</summary>
 public static class Orphans
 {
     /// <summary>A game that has run longer than this with a small working set and a pegged core never loaded a world.</summary>

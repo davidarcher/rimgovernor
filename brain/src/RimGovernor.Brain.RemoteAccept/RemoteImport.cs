@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.RemoteAccept;
 
-/// <summary>Reads authenticated GitHub endpoints (Go <c>API</c>) through the <c>gh api</c> CLI (Go <c>GitHub</c>): the operator's own authenticated session.</summary>
+/// <summary>Reads authenticated GitHub endpoints through the <c>gh api</c> CLI: the operator's own authenticated session.</summary>
 public static class GhCliApi
 {
     /// <summary>GETs <paramref name="endpoint"/> (a path such as <c>repos/o/r/actions/runs/1</c>) and streams the body to <paramref name="destination"/>.</summary>
@@ -35,7 +35,7 @@ public static class GhCliApi
     }
 }
 
-/// <summary>Importing a GitHub Actions evidence artifact into a new local directory (Go import.go and source.go).</summary>
+/// <summary>Importing a GitHub Actions evidence artifact into a new local directory.</summary>
 public static class RemoteImport
 {
     /// <summary>Reads the operator's trust pins from the repository's local git config (<c>rimgovernor.acceptance*</c>), never from artifact contents.</summary>
@@ -58,7 +58,7 @@ public static class RemoteImport
         return new Trust(values["repository"], values["workflow"], values["workflowCommit"], values["bundleSHA256"]);
     }
 
-    /// <summary>Authenticates the artifact against the pinned completed workflow run and returns its archive digest (Go <c>Authenticate</c>).</summary>
+    /// <summary>Authenticates the artifact against the pinned completed workflow run and returns its archive digest.</summary>
     public static async Task<string> AuthenticateAsync(Provenance provenance, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(provenance);
@@ -323,7 +323,7 @@ public static class RemoteImport
 
     private readonly record struct ArtifactIdentity(string Digest, long Size);
 
-    /// <summary>A write-only stream that refuses to take more than the artifact's declared size (Go <c>boundedWriter</c>).</summary>
+    /// <summary>A write-only stream that refuses to take more than the artifact's declared size.</summary>
     private sealed class BoundedStream(Stream inner, long left) : Stream
     {
         public override bool CanRead => false;

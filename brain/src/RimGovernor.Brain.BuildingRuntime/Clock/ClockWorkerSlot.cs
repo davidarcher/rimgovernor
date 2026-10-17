@@ -1,17 +1,16 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Port of the clockWorkerSlot of internal/buildingruntime/clock_worker_session.go. The worker itself (the event,
-// renew and step goroutines) is the brain host's scheduler thread, the run driver and its colony event consumer; what stays is the slot
+// The worker itself (the event, renew and step loops) is the brain host's scheduler thread, the run driver and its colony event consumer; what stays is the slot
 // the session stops before it stops its clock coordinator.
 
-/// <summary>Holds at most one clock worker for a session and stops it once (Go <c>clockWorkerSlot</c>).</summary>
+/// <summary>Holds at most one clock worker for a session and stops it once.</summary>
 public sealed class ClockWorkerSlot
 {
     private readonly Lock _mu = new();
     private ClockRunDriver? _worker;
     private bool _closing;
 
-    /// <summary>Registers the worker; throws when the slot is closing or already holds one (Go <c>attachClockWorker</c>).</summary>
+    /// <summary>Registers the worker; throws when the slot is closing or already holds one.</summary>
     public void Attach(ClockRunDriver worker)
     {
         ArgumentNullException.ThrowIfNull(worker);
@@ -27,7 +26,7 @@ public sealed class ClockWorkerSlot
 
     /// <summary>
     /// Closes the slot and stops its worker; whether there was one. Joining may need the coordinator and journal, so
-    /// no lifecycle lock is held (Go <c>stop</c>).
+    /// no lifecycle lock is held.
     /// </summary>
     public async Task<bool> Stop(CancellationToken ct)
     {

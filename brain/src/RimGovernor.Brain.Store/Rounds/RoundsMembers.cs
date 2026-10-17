@@ -4,7 +4,7 @@ using PolicyMoodHistory = RimGovernor.Brain.Policy.MoodHistory;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>The lookups a review answers over its persisted bindings (Go <c>Rounds</c> methods).</summary>
+/// <summary>The lookups a review answers over its persisted bindings.</summary>
 public static class RoundsMembers
 {
     /// <summary>

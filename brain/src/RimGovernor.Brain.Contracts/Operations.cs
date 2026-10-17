@@ -330,7 +330,7 @@ public enum DesignationGuard
     /// admissible sites refuse) and holds the demolition to the site's
     /// enclosure, supports, materials and roof support until a pawn finishes.
     /// target, when set, must name the wall at cell. A cell whose wall is gone
-    /// applies again; evidence is the WallEffect. Go waits for the census to
+    /// applies again; evidence is the WallEffect. The brain waits for the census to
     /// show the cell clear before releasing work that needs it.
     /// </summary>
     [WireName("DESIGNATION_GUARD_WALL_UPGRADE")]
@@ -703,7 +703,7 @@ public abstract record CombatOrderOrder
 
     /// <summary>
     /// CombatDrug: the drafted pawn ingests the carried drug of this
-    /// def name (Go chooses it) by the vanilla Ingest job.
+    /// def name by the vanilla Ingest job.
     /// Refusals: not_a_drug (the def is not a drug), no_drug (none carried),
     /// native_refused (vanilla declined the ordered job).
     /// </summary>
@@ -1510,7 +1510,7 @@ public sealed record IgniteIntent
 /// Use one ability of one pawn: one generic shape for every
 /// ability source. source names where the ability comes from and native's
 /// guard for that source decides eligibility by calling the game's own
-/// validation (never trusting Go for favor, cooldown or range); target is what
+/// validation (never trusting the brain for favor, cooldown or range); target is what
 /// the ability aims at and must match what the source takes. Applied means the
 /// ability was used and its native cooldown started; the evidence is an
 /// AbilityEffect. A use that already took effect is never re-sent: a retry
@@ -1911,7 +1911,7 @@ public sealed record DraftIntent
 
 /// <summary>
 /// Give one pawn one job: job names a vanilla JobDef, targets the
-/// things it acts on in JobDef target order (targetA, targetB, ...). Go
+/// things it acts on in JobDef target order (targetA, targetB, ...). The brain
 /// chooses the pawn and the targets; native checks the game rules
 /// (reservation, reachability, CanDoJob, the job's own preconditions) live
 /// and builds the job the game's work giver or float menu builds. A pawn
@@ -2450,7 +2450,7 @@ public sealed record HaulIntent
 /// Place one ordinary blueprint (or an instant building). Native validates the
 /// placement against live state and refuses with the placement reason; a
 /// matching blueprint, frame or building already on the cell counts as
-/// applied. Go reads what stands from the building census by definition,
+/// applied. The brain reads what stands from the building census by definition,
 /// stuff, anchor and rotation; nothing is stamped or saved.
 /// </summary>
 public sealed record BuildingIntent

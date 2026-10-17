@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_hunt.go
 //
 // CombatTactic.Hunt is a roster hunt: the view's threats are wild prey the threat census does not call hostile,
 // and the selected roster stages in a half circle at weapon range and focus-fires them down. Once the prey are all

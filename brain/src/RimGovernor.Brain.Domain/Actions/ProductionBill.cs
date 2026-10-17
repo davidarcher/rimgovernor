@@ -20,7 +20,7 @@ public enum BillMode
 /// <summary>Adds a native bill, optionally replacing the same recipe on its bench or an ordinary meal tier.</summary>
 public sealed record ProductionBill : IActionPayload
 {
-    /// <summary>Go <c>NewProductionBill</c>; throws <see cref="DomainException"/> when invalid. Ingredients are stored sorted.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid. Ingredients are stored sorted.</summary>
     public ProductionBill(string bench, string recipe, BillMode mode, int target, params string[] ingredients)
     {
         DomainException.Require(
@@ -62,13 +62,13 @@ public sealed record ProductionBill : IActionPayload
     /// <summary>The pinned worker's pawn identity; empty when the bill is not pinned.</summary>
     public string Worker { get; private init; }
 
-    /// <summary>The native bill id this bill replaces (Go <c>Replaces</c>); empty when it replaces none.</summary>
+    /// <summary>The native bill id this bill replaces; empty when it replaces none.</summary>
     public string Replaces { get; private init; }
 
     /// <summary>A corpse bill's ingredient filter; null for other bills.</summary>
     public CorpseOf? Corpses { get; private init; }
 
-    /// <summary>Go <c>NewHumanButcherBill</c>: a humanlike butcher bill is always pinned and never accepts animal corpses.</summary>
+    /// <summary>A humanlike butcher bill is always pinned and never accepts animal corpses.</summary>
     public static ProductionBill NewHumanButcherBill(string bench, string recipe, string worker)
     {
         var bill = new ProductionBill(bench, recipe, BillMode.ButcherForever, 0);
@@ -76,7 +76,7 @@ public sealed record ProductionBill : IActionPayload
         return bill with { Mode = BillMode.HumanButcherForever, Worker = worker, Corpses = CorpseOf.Stranger };
     }
 
-    /// <summary>Go <c>PinWorker</c>: restricts a fixed-count batch to one pawn (one art bill per artist).</summary>
+    /// <summary>Restricts a fixed-count batch to one pawn (one art bill per artist).</summary>
     public ProductionBill PinWorker(string worker)
     {
         DomainException.Require(Mode == BillMode.GearBatch && IdText.IsValidText(worker), "invalid pinned batch bill");
@@ -91,7 +91,6 @@ public sealed record ProductionBill : IActionPayload
         : Mode == BillMode.GearBatch && Worker.Length != 0 ? Recipe + "/" + Worker
         : Recipe;
 
-    /// <summary>Go <c>ReplaceOwnedBill</c> (retains the wire name; replacement does not require ownership).</summary>
     public ProductionBill ReplaceOwnedBill(string id)
     {
         DomainException.Require(

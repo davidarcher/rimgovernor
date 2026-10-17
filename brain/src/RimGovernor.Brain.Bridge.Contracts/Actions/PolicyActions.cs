@@ -4,25 +4,24 @@ using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go reading_policy.go, drug_policy.go, food_policy.go, pawn_settings.go and rules.go (rulesAttachAction). The rules
-// attach, clear and status calls of rules.go are wire plumbing and are not part of this file.
+// The rules attach, clear and status calls are wire plumbing and are not part of this file.
 public static class PolicyActions
 {
-    /// <summary>Go's <c>readingPolicyAction</c>: the ReadingPolicyIntent of one per-pawn reading policy, the label and the allowed book definitions; native checks the definitions are books (NativeReadingPolicy.cs).</summary>
+    /// <summary>The ReadingPolicyIntent of one per-pawn reading policy, the label and the allowed book definitions; native checks the definitions are books (NativeReadingPolicy.cs).</summary>
     internal static Op.Action ReadingPolicyAction(DomainAction action)
     {
         var v = action.ReadingPolicy ?? throw BridgeContractException.Contract("not a reading policy action");
         return new Op.Action { Intent = new Op.ReadingPolicyIntent { Name = v.Name, AllowedDefs = [.. v.Definitions] } };
     }
 
-    /// <summary>Go's <c>foodPolicyAction</c>: the FoodPolicyIntent of one per-pawn food policy, the label and the allowed food definitions.</summary>
+    /// <summary>The FoodPolicyIntent of one per-pawn food policy, the label and the allowed food definitions.</summary>
     internal static Op.Action FoodPolicyAction(DomainAction action)
     {
         var v = action.FoodPolicy ?? throw BridgeContractException.Contract("not a food policy action");
         return new Op.Action { Intent = new Op.FoodPolicyIntent { Name = v.Name, AllowedDefs = [.. v.Definitions] } };
     }
 
-    /// <summary>Go's <c>drugPolicyAction</c>: the DrugPolicyIntent of one per-pawn drug policy, the label and the entries that allow anything; native checks the drugs are the policy's (NativeDrugPolicy.cs).</summary>
+    /// <summary>The DrugPolicyIntent of one per-pawn drug policy, the label and the entries that allow anything; native checks the drugs are the policy's (NativeDrugPolicy.cs).</summary>
     internal static Op.Action DrugPolicyAction(DomainAction action)
     {
         var v = action.DrugPolicy ?? throw BridgeContractException.Contract("not a drug policy action");
@@ -44,7 +43,6 @@ public static class PolicyActions
         return new Op.Action { Intent = intent };
     }
 
-    // Go hostilityWire.
     private static Op.HostilityResponse HostilityWire(DomainHostility mode) =>
         mode switch
         {
@@ -54,7 +52,6 @@ public static class PolicyActions
             _ => throw BridgeContractException.Contract("unknown hostility response"),
         };
 
-    // Go medicalCareWire.
     private static Op.MedicalCare MedicalCareWire(DomainMedicalCare care) =>
         care switch
         {
@@ -67,7 +64,7 @@ public static class PolicyActions
         };
 
     /// <summary>
-    /// Go's <c>pawnSettingsAction</c>: the PawnSettingsIntent of one pawn and one setting. Native re-checks the pawn and
+    /// The PawnSettingsIntent of one pawn and one setting. Native re-checks the pawn and
     /// the setting live; a setting that already holds applies again (NativePawnSettings.cs).
     /// </summary>
     internal static Op.Action PawnSettingsAction(DomainAction action)

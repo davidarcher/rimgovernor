@@ -3,7 +3,7 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>The store package's free functions (Go <c>store.PlanOpen</c> and friends).</summary>
+/// <summary>The store package's free functions.</summary>
 public static class StorePackage
 {
     /// <summary>Bounds one batched bill plan to a round's reconcile.</summary>
@@ -30,7 +30,7 @@ public static class StorePackage
     /// <summary>A planned room's ring method: a build wave of a "&lt;role&gt;-shell-room&lt;id&gt;" reconcile.</summary>
     public static bool IsRoomShellMethod(MethodId method) => GlobMatch(method.Value, "*-shell-*-build-*");
 
-    /// <summary>Go <c>path.Match</c> restricted to the <c>*</c> wildcard, which never crosses a path separator.</summary>
+    /// <summary>Glob matching restricted to the <c>*</c> wildcard, which never crosses a path separator.</summary>
     private static bool GlobMatch(string name, string pattern)
     {
         var parts = pattern.Split('*');

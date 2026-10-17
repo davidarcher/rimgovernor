@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: bill_gap.go
 
 /// <summary>
 /// Why a bill selector chose no bill: a closed set the planner turns into the verdict it reports. The

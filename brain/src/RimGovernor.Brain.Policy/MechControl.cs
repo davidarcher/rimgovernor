@@ -43,7 +43,7 @@ public sealed record MechCatalog
     public string Recharge { get; init; } = "";
 }
 
-/// <summary>One colonist mechanitor. Go embeds <c>PawnMechanitor</c>; here it is composed with forwarding members.</summary>
+/// <summary>One colonist mechanitor. It is composed with forwarding members.</summary>
 public sealed record MechanitorInput
 {
     public PawnId Id { get; init; }
@@ -59,7 +59,7 @@ public sealed record MechanitorInput
     public IReadOnlyList<string> ControlledMechs => Mechanitor.ControlledMechs;
 }
 
-/// <summary>One colony mech with its Biotech row. Go embeds <c>PawnMech</c>; here it is composed with forwarding members.</summary>
+/// <summary>One colony mech with its Biotech row. It is composed with forwarding members.</summary>
 public sealed record MechInput
 {
     public PawnId Id { get; init; }
@@ -101,7 +101,7 @@ public sealed record MechGuardPlan
     public IReadOnlyList<CombatOrder> Orders { get; init; } = [];
 }
 
-/// <summary>One planned control group (Go <c>mechGroup</c>).</summary>
+/// <summary>One planned control group.</summary>
 public sealed record MechGroup
 {
     public int Index { get; init; }
@@ -135,7 +135,7 @@ public sealed record MechGroup
 }
 
 /// <summary>
-/// Ports <c>mech_control.go</c>. A mechanitor's mechs are split by role into control groups and each group is
+/// A mechanitor's mechs are split by role into control groups and each group is
 /// given the work mode its role needs. Workers (a race that does work, RaceProperties.IsWorkMech) and guards (a
 /// combat mech) never share a group while the overseer has two or more. Modes are Work, Escort, Recharge
 /// (MechRechargeMode) and SelfShutdown, which is not chosen here. Bandwidth is spent only by acquiring mechs

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Classifies what occupies a band cell. (Go <c>FirebreakGround</c>.)</summary>
+/// <summary>Classifies what occupies a band cell.</summary>
 public enum FirebreakGround
 {
     /// <summary>Ground the ring keeps cut or paves.</summary>
@@ -22,12 +22,11 @@ public enum FirebreakGround
 
 public static class FirebreakGroundExtensions
 {
-    /// <summary>Go <c>FirebreakGround.skipped</c>.</summary>
     public static bool Skipped(this FirebreakGround g) =>
         g is FirebreakGround.PlayerEdifice or FirebreakGround.Water or FirebreakGround.NaturalRock or FirebreakGround.StoneRuin;
 }
 
-/// <summary>What a ring cell is kept as. (Go <c>FirebreakTreatment</c>.)</summary>
+/// <summary>What a ring cell is kept as.</summary>
 public enum FirebreakTreatment
 {
     Cut,
@@ -36,7 +35,7 @@ public enum FirebreakTreatment
 
 /// <summary>
 /// Everything <c>PlanFirebreak</c> reads. Ground must classify every band cell; a band cell it lacks, or holds
-/// unknown, leaves the plan unknown. (Go <c>FirebreakRequest</c>.)
+/// unknown, leaves the plan unknown.
 /// </summary>
 public sealed record FirebreakRequest
 {
@@ -74,12 +73,12 @@ public sealed record FirebreakRequest
     public string Floor { get; init; } = "";
 }
 
-/// <summary>One ring cell's treatment. (Go <c>FirebreakCell</c>.)</summary>
+/// <summary>One ring cell's treatment.</summary>
 public sealed record FirebreakCell(Cell Cell, FirebreakTreatment Treatment);
 
 /// <summary>
 /// The ring work: every non-skipped band cell with its treatment and the wooden ruins to deconstruct.
-/// The rooms/flooring Need picks the floor a paved cell takes. (Go <c>FirebreakPlan</c>.)
+/// The rooms/flooring Need picks the floor a paved cell takes.
 /// </summary>
 public sealed record FirebreakPlan
 {
@@ -97,12 +96,12 @@ public static class FirebreakRules
     public static readonly Tick FirebreakSettleTicks = new(5L * GameTime.TicksPerDay);
 
     /// <summary>
-    /// Go <c>PlanFirebreak</c>: derives the firebreak ring: <see cref="FirebreakRingRules.FirebreakRing"/>'s band less skipped,
+    /// Derives the firebreak ring: <see cref="FirebreakRingRules.FirebreakRing"/>'s band less skipped,
     /// planned and claimed cells. A cell is paved when the colony is in Development, the cell has been in the
     /// ring FirebreakSettleTicks, and the stock left after claimed material covers the cheapest non-flammable
     /// floor for every such cell; otherwise it is cut. dwell maps each ring cell to its first tick in the ring;
     /// the returned map drops cells that left, so a returning cell restarts. An unknown input returns an unknown
-    /// plan and dwell unchanged. Throws where Go returned an error.
+    /// Plan and dwell unchanged. Throws.
     /// </summary>
     public static (Fact<FirebreakPlan> Plan, IReadOnlyDictionary<Cell, Tick> Dwell) PlanFirebreak(FirebreakRequest r, IReadOnlyDictionary<Cell, Tick> dwell)
     {

@@ -1,13 +1,12 @@
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's package-level constants of <c>internal/bridge</c>: the StatDef names the planning views read, the CLR
-/// classes they match by base class (never by name) and the room stat names. Spread over the Go catalog files;
-/// gathered here because they are data the stat evaluator and the fact projections share.
+/// The StatDef names the planning views read, the CLR
+/// classes they match by base class (never by name) and the room stat names. They are data the stat evaluator and the fact projections share.
 /// </summary>
 public static class StatDefNames
 {
-    // StatDefs (catalog_planning.go, catalog_terrain.go, catalog_items.go, catalog_races.go, race_rules.go, ...).
+    // StatDefs.
     public const string StatMaxHitPoints = "MaxHitPoints";
     public const string StatBedRestEffectiveness = "BedRestEffectiveness";
     public const string StatWorkToBuild = "WorkToBuild";
@@ -18,10 +17,10 @@ public static class StatDefNames
     public const string StatResearchSpeedFactor = "ResearchSpeedFactor";
     public const string StatMeatAmount = "MeatAmount";
 
-    /// <summary>The room stat the layout reads for impressiveness (catalog_room_stats.go).</summary>
+    /// <summary>The room stat the layout reads for impressiveness.</summary>
     public const string RoomStatImpressiveness = "Impressiveness";
 
-    // CLR classes matched by base class (catalog_planning.go and the files that name the rest).
+    // CLR classes matched by base class.
     public const string ClassPowerComp = "RimWorld.CompProperties_Power";
     public const string ClassGlowerComp = "RimWorld.CompProperties_Glower";
     public const string ClassExplosiveComp = "RimWorld.CompProperties_Explosive";

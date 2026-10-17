@@ -4,8 +4,7 @@ using System.Text.Json;
 namespace RimGovernor.Tools.Commands.ColonyReview;
 
 /// <summary>
-/// The colony score and the nightly comparison (Go: <c>ComputeScore</c>, <c>Compare</c>, <c>FindBaseline</c>,
-/// <c>CompareToStore</c>). The score is a vector of components read from the run timeline plus a weighted scalar for
+/// The colony score and the nightly comparison. The score is a vector of components read from the run timeline plus a weighted scalar for
 /// ranking. Signal only: it gates nothing. A component the timeline cannot supply is unknown (a null value) and is left out
 /// of the scalar, never counted as zero. A run's score is compared with the previous night's stored score for the same seed;
 /// one run per seed makes a delta noisy, so it gates nothing, and a missing baseline or a component either side could not

@@ -5,7 +5,7 @@ using RimGovernor.Brain.Store.Codec;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>Shared null handling for the review records: a Go pointer field without omitempty writes null.</summary>
+/// <summary>Shared null handling for the review records: a pointer field without omitempty writes null.</summary>
 internal static class RoundsCodecKit
 {
     internal static void PutNullable<T>(this Utf8JsonWriter w, string name, T? value, Codecs o)

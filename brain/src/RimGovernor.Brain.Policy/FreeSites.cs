@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// FreeSites' free-cell census: only walkable, unoccupied, unzoned, light-supporting cells outside any
-/// protected footprint may host a footprint. (Go <c>FreeSiteRequest</c>.)
+/// protected footprint may host a footprint.
 /// </summary>
 public sealed record FreeSiteRequest
 {
@@ -21,10 +21,10 @@ public sealed record FreeSiteRequest
 public static class FreeSitesRules
 {
     /// <summary>
-    /// Go <c>FreeSites</c>: returns a bounded, deterministically ordered list of width x height candidate
+    /// Returns a bounded, deterministically ordered list of width x height candidate
     /// rectangles nearest the colony anchor (a plain grave's 1x2). It is a proposal only: native placement
     /// previews still decide legality. Missing or unknown cells are never treated as free. Throws
-    /// <see cref="DomainException"/> where Go returned an error.
+    /// <see cref="DomainException"/>.
     /// </summary>
     public static IReadOnlyList<Rectangle> FreeSites(FreeSiteRequest r, int width, int height)
     {

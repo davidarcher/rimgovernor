@@ -20,7 +20,7 @@ public sealed record MedicineCarryPawn
 }
 
 /// <summary>
-/// Ports <c>medicine_carry.go</c>. The bot owns every colonist's Medicine inventory-stock count. Doctors carry 1-3
+/// The bot owns every colonist's Medicine inventory-stock count. Doctors carry 1-3
 /// so they tend without walking to stock; field roles carry 1-2 so a doctor can tend in the field. Everyone else
 /// carries none. The tier is the pawn's own medical care (native stocks the best medicine it allows); a care that
 /// allows no medicine carries none. The total carried is capped so colony stock stays at or above the medical
@@ -119,7 +119,7 @@ public static partial class MedicineCarryRules
             }
             catch (DomainException)
             {
-                // Go skipped a pawn whose setting failed validation.
+                // A pawn whose setting failed validation is skipped.
             }
         }
         return changes;

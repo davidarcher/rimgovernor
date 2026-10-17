@@ -636,7 +636,7 @@ public static class ColonyDecodeReads
     }
 
     /// <summary>
-    /// Go's string-backed type conversion (<c>policy.WorkType(name)</c>): the wire string as its enum member. A
+    /// The wire string as its enum member. A
     /// name the enum does not declare is a producer the brain was not built for, a contract break.
     /// </summary>
     internal static TEnum WireParse<TEnum>(string? name)

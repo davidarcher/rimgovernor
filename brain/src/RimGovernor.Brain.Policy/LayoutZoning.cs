@@ -24,7 +24,7 @@ public sealed partial record LayoutPlan
     }
 }
 
-/// <summary>Ports <c>layout_zoning.go</c>: whole-map zoning, every surveyed cell classified from terrain.</summary>
+/// <summary>Whole-map zoning, every surveyed cell classified from terrain.</summary>
 public static partial class LayoutZoningRules
 {
     /// <summary>Ground the core may grow over.</summary>

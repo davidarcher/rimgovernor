@@ -13,7 +13,6 @@ namespace RimGovernor.Brain.Policy;
 /// <param name="Interaction">The interaction cell offset from the anchor at North; null for a definition without one.</param>
 public sealed record InteriorPieceDef(string Def, Cell Size, RoomRole Family, Cell? Interaction)
 {
-    /// <summary>The zero value Go's struct literal starts from.</summary>
     public InteriorPieceDef() : this("", default, default, null)
     {
     }

@@ -5,7 +5,7 @@ using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>One span's distribution over the captures, in ms; Rows is the largest row count a capture reported (Go <c>profileStat</c>).</summary>
+/// <summary>One span's distribution over the captures, in ms; Rows is the largest row count a capture reported.</summary>
 public sealed class ProfileStat
 {
     public string Name { get; set; } = "";
@@ -24,7 +24,7 @@ public sealed class ProfileStat
 
     public int Seen { get; set; }
 
-    /// <summary>The nearest-rank p50/p90 and the max of <paramref name="values"/> (Go <c>stat</c>).</summary>
+    /// <summary>The nearest-rank p50/p90 and the max of <paramref name="values"/>.</summary>
     public static ProfileStat Of(string name, IReadOnlyList<double> values)
     {
         ArgumentNullException.ThrowIfNull(values);
@@ -35,7 +35,7 @@ public sealed class ProfileStat
 }
 
 /// <summary>
-/// What profile-capture reports: per-span stats of the op's captures (Go <c>profileSummary</c>). Its JSON form (count,
+/// What profile-capture reports: per-span stats of the op's captures. Its JSON form (count,
 /// tick, frameBytes, pawns, things, total, families, details, and equality when present) is profile-capture's -json
 /// output and a nightly record's profile; absent fields read back as zero.
 /// </summary>
@@ -61,8 +61,7 @@ public sealed class ProfileSummary
     public Fx.ProfileEquality? Equality { get; set; }
 
     /// <summary>
-    /// Reduces the op's raw captures to per-span stats, families and details each ordered by p50, slowest first (Go
-    /// <c>summarizeProfile</c>).
+    /// Reduces the op's raw captures to per-span stats, families and details each ordered by p50, slowest first.
     /// </summary>
     public static ProfileSummary Summarize(JsonObject reply)
     {
@@ -127,7 +126,7 @@ public sealed class ProfileSummary
         list.AddRange(sorted);
     }
 
-    /// <summary>Writes the table profile-capture prints (Go <c>printProfile</c>).</summary>
+    /// <summary>Writes the table profile-capture prints.</summary>
     public async Task PrintAsync(TextWriter writer, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(writer);

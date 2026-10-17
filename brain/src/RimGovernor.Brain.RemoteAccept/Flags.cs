@@ -9,7 +9,7 @@ internal sealed class FlagValue<T>(T value)
 }
 
 /// <summary>
-/// The slice of Go's <c>flag</c> package <c>remoteaccept</c> uses: <c>-name value</c>, <c>-name=value</c>, <c>--name</c>,
+/// The flag parsing <c>remoteaccept</c> uses: <c>-name value</c>, <c>-name=value</c>, <c>--name</c>,
 /// boolean flags with an optional <c>=false</c>, and a parse that stops at the first argument that is not a flag.
 /// </summary>
 internal sealed class Flags

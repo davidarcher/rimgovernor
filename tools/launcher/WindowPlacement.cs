@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace RimGovernor.Launcher;
 
-/// <summary>A window's outer bounds in screen pixels (the file keeps Go's X, Y, W, H names; the read is case-insensitive).</summary>
+/// <summary>A window's outer bounds in screen pixels (the file keeps the X, Y, W, H names; the read is case-insensitive).</summary>
 public readonly record struct WindowRect(int X, int Y, int W, int H)
 {
     /// <summary>Enough of the rectangle lies inside the virtual desktop to grab and drag.</summary>

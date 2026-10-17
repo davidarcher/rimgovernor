@@ -3,13 +3,13 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// A failed receipt read for live errors and retained evidence (Go <c>stepresult.Failure</c>): a blocking bridge
+/// A failed receipt read for live errors and retained evidence: a blocking bridge
 /// attention is told apart from a native exception or refusal. <see cref="Detail"/> keeps the text blocks,
 /// including attention ids and sample messages.
 /// </summary>
 public sealed record StepFailure(string Kind, string Summary, string Detail);
 
-/// <summary>Interprets a failed receipt envelope (Go <c>stepresult.Parse</c>).</summary>
+/// <summary>Interprets a failed receipt envelope.</summary>
 public static class StepResult
 {
     /// <summary>

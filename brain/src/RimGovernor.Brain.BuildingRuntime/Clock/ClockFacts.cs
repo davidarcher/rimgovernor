@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// The scheduler's fact store. The Go event-page invalidation (<c>apply</c>) is not ported: the clock stays in
-/// the mod.
+/// The scheduler's fact store. The clock stays in
+/// the mod, so there is no event-page invalidation (<c>apply</c>).
 /// </summary>
 internal sealed class ClockFacts
 {

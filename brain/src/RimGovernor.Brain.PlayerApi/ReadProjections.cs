@@ -7,8 +7,8 @@ using RimGovernor.Brain.Store;
 namespace RimGovernor.Brain.PlayerApi;
 
 /// <summary>
-/// The projections of internal views onto the read routes' wire shapes (Go <c>httpapi</c> <c>state</c>, <c>plan</c>,
-/// <c>roundsStatus</c> and <c>projectColonyStatus</c>). A view that breaks its own invariants is a
+/// The projections of internal views onto the read routes' wire shapes.
+/// A view that breaks its own invariants is a
 /// <see cref="DomainException"/>, which the route answers as an unavailable read, never as a guess.
 /// </summary>
 internal static class ReadProjections

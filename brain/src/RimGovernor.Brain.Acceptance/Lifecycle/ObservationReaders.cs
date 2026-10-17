@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The observation-load row's concurrent readers (Go <c>ObservationReaders</c>): <c>count</c> clients each polling
+/// The observation-load row's concurrent readers: <c>count</c> clients each polling
 /// the state every <c>interval</c> for the whole row, the way several open clients read the service's published view.
 /// They add read pressure beside the controller's own reads and never change anything. Latencies are recorded so a
 /// reader starved by the controller (or the controller by them) is visible in the row.

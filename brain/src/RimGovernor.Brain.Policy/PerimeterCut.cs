@@ -182,7 +182,7 @@ internal sealed class FlowNet
     }
 
     /// <summary>
-    /// One augmenting path from u to t along level edges, resuming at the current-arc pointers: the Go
+    /// One augmenting path from u to t along level edges, resuming at the current-arc pointers: the
     /// recursion, unrolled so a long path cannot overflow the stack.
     /// </summary>
     private int Dfs(int s, int t, int limit)

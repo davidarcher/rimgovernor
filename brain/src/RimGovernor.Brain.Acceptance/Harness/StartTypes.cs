@@ -4,8 +4,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The map size and planet coverage a start is generated with, and optionally the biomes it settles (Go
-/// <c>nativeaccept.DebugStart</c>; the case-authoring start of the same name is <see cref="DebugStart"/>).
+/// The map size and planet coverage a start is generated with, and optionally the biomes it settles (the case-authoring start of the same name is <see cref="DebugStart"/>).
 /// <see cref="Biomes"/> is a comma-separated list of BiomeDef names in preference order: the start lands on a random
 /// valid settlement tile of the first one the generated planet offers. <see cref="Seed"/> pins the world seed (empty
 /// draws one, which the report's world block records); a pinned seed caches under its own save. <see cref="Flat"/>
@@ -82,7 +81,7 @@ public sealed record DebugStartSize
     }
 }
 
-/// <summary>What the debug-colony start does about the storyteller once the colony exists (Go <c>QuietMode</c>).</summary>
+/// <summary>What the debug-colony start does about the storyteller once the colony exists.</summary>
 public enum QuietMode
 {
     /// <summary>The harness depends on a fixture build, so the quiet op must be discoverable and is applied; its absence is a stale-mod error.</summary>
@@ -95,7 +94,7 @@ public enum QuietMode
     Loud = 2,
 }
 
-/// <summary>Lab-world constants (Go <c>labstart.go</c>): a fixed seed on a temperate tile, wiped at <see cref="LabMapSize"/>.</summary>
+/// <summary>Lab-world constants: a fixed seed on a temperate tile, wiped at <see cref="LabMapSize"/>.</summary>
 public static class LabWorld
 {
     public const int LabMapSize = 100;
@@ -105,8 +104,7 @@ public static class LabWorld
 }
 
 /// <summary>
-/// Starts a programmatic scenario from the main menu through the production new-colony op (Go
-/// <c>nativeaccept.ScenarioStart</c>): world and colony generation under the built-in team policy, the clock paused,
+/// Starts a programmatic scenario from the main menu through the production new-colony op: world and colony generation under the built-in team policy, the clock paused,
 /// the naming dialog confirmed and the colony saved as <see cref="SaveName"/>. The seed is required and pins the world.
 /// </summary>
 public sealed record ScenarioSpec
@@ -149,7 +147,7 @@ public sealed record ScenarioSpec
 }
 
 /// <summary>
-/// Declares the in-mod brain session a service-driven case runs against (Go <c>nativeaccept.ServeSpec</c>). The brain
+/// Declares the in-mod brain session a service-driven case runs against. The brain
 /// is in-process in the mod, so there is no child binary or extra argument list: what remains is what the harness
 /// sets before the service takes over.
 /// </summary>

@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: herd_master.go
 
 public static class HerdMasterRules
 {

@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record AutoRefuel : IActionPayload
 {
-    /// <summary>Go <c>NewAutoRefuel</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public AutoRefuel(string thing, bool allow)
     {
         DomainException.Require(IdText.IsValidText(thing), "invalid auto refuel identity");

@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Host;
 
 /// <summary>
 /// Runs the bot for every fresh observed world once, without a launcher click: the world present at startup, and
-/// each new load token a native load afterwards issues (Go <c>autoResumer</c>, serve_resume.go). It goes through
+/// each new load token a native load afterwards issues. It goes through
 /// exactly the control intent <c>POST /api/player/control/resume</c> submits, so authority, the root plan and the
 /// fresh review are established the same way. A world is offered a resume once per run (bounded retries while
 /// observations settle), so a player's later Pause for that world stands. Authority the world then loses for any

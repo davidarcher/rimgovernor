@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The fixture generators and census tools (Go <c>cases/tools</c>); <see cref="Register"/> replaces the Go package's <c>init()</c>.</summary>
+/// <summary>The fixture generators and census tools; <see cref="Register"/> registers them.</summary>
 public static class ToolsCases
 {
     /// <summary>Registers every <c>tools/*</c> case.</summary>

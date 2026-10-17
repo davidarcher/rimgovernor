@@ -9,7 +9,7 @@ public sealed partial class Store
     /// Overlays the scoped transaction on the prior record. The immediate review judges no Need, so the prior
     /// record's progress rows stand as they were; copying the untouched record retains each derived
     /// history's observation time, and absence from this inspection is never a recovery or a new observation.
-    /// Returns the retained review and the result (Go <c>retainOrdinaryRounds</c>).
+    /// Returns the retained review and the result.
     /// </summary>
     internal static (Rounds Review, RoundsResult Result) RetainOrdinaryRounds(Rounds r, Rounds previous, RoundsResult result)
     {

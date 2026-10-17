@@ -3,11 +3,11 @@ using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go research_select_read.go: Client.ReadResearch, researchRequest and readResearchSnapshot.
+// Client.ReadResearch, researchRequest and readResearchSnapshot.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
-    /// Go <c>Client.ReadResearch</c>: the native research snapshot translated into the economy family's research shapes. It
+    /// The native research snapshot translated into the economy family's research shapes. It
     /// reads the definition catalog first (every project's static facts) and merges the progress rows over it.
     /// </summary>
     internal async Task<ResearchRead> ReadResearchAsync(PbCommon.Identity identity, CancellationToken cancellationToken)

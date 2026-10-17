@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_kite.go
 
 public static partial class CombatKiteRules
 {

@@ -3,7 +3,7 @@ using System.Text;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Go <c>ErrSupplyPlanFacts</c>: the supply plan inputs are unavailable or invalid.</summary>
+/// <summary>The supply plan inputs are unavailable or invalid.</summary>
 public sealed class SupplyPlanFactsException() : DomainException("supply plan inputs unavailable or invalid");
 
 /// <summary>

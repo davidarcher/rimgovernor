@@ -202,7 +202,6 @@ public sealed record MoodProposal
     public Fact<double> MoodBenefit { get; init; }
 }
 
-/// <summary>Ports <c>mood.go</c>.</summary>
 public static partial class MoodRules
 {
     internal static bool MoodNumber(Fact<double> f) => !f.TryGetValue(out var v) || (!double.IsNaN(v) && !double.IsInfinity(v));

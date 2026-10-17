@@ -44,7 +44,6 @@ public sealed record MoodLedger
     public int UnknownPawns { get; init; }
 }
 
-/// <summary>Ports <c>mood_ledger.go</c>.</summary>
 public static partial class MoodRules
 {
     /// <summary>

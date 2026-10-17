@@ -85,7 +85,7 @@ public sealed partial class Report
 }
 
 /// <summary>
-/// Accumulates the game ticks the process has seen pass (Go <c>tickStats</c>): every harness reply that carries the
+/// Accumulates the game ticks the process has seen pass: every harness reply that carries the
 /// game tick (an identity read, the typed colony facts, the supervised clock) feeds <see cref="Observe"/>, which
 /// sums the forward deltas between consecutive observations. A load (<see cref="ResetBaseline"/>) starts a new
 /// baseline so a save's tick is not counted as progress, and a rewind only re-baselines.
@@ -109,7 +109,7 @@ public static class TickStats
         }
     }
 
-    /// <summary>The newest tick a reply carried since the last load, or null before one did (Go <c>lastObservedTick</c>).</summary>
+    /// <summary>The newest tick a reply carried since the last load, or null before one did.</summary>
     public static ulong? Last
     {
         get

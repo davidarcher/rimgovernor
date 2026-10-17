@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Domain;
 
 /// <summary>
 /// The native storage filter preset a <see cref="StockpileFilter"/> starts from (native FilterPreset) before its
-/// allow/disallow selectors apply. Go <c>FilterBase</c>.
+/// Allow/disallow selectors apply.
 /// </summary>
 public enum FilterBase
 {
@@ -20,7 +20,7 @@ public enum FilterBase
 
 /// <summary>
 /// Names what a <see cref="FilterSelector"/>'s name resolves against natively. The declaration order is the
-/// canonical sort order of a selector list. Go <c>SelectorKind</c>.
+/// Canonical sort order of a selector list.
 /// </summary>
 public enum SelectorKind
 {
@@ -31,20 +31,17 @@ public enum SelectorKind
     SpecialFilter,
 }
 
-/// <summary>One native FilterSelector: exactly one def name of one kind. Go <c>FilterSelector</c>.</summary>
+/// <summary>One native FilterSelector: exactly one def name of one kind.</summary>
 public readonly record struct FilterSelector(SelectorKind Kind, string Name)
 {
-    /// <summary>Go <c>ThingDef(name)</c>.</summary>
     public static FilterSelector ThingDef(string name) => new(SelectorKind.ThingDef, name);
 
-    /// <summary>Go <c>CategoryDef(name)</c>.</summary>
     public static FilterSelector CategoryDef(string name) => new(SelectorKind.CategoryDef, name);
 
-    /// <summary>Go <c>SpecialFilter(name)</c>.</summary>
     public static FilterSelector SpecialFilter(string name) => new(SelectorKind.SpecialFilter, name);
 }
 
-/// <summary>A native QualityCategory name, in native order (Awful 0 .. Legendary 6). Go <c>Quality</c>.</summary>
+/// <summary>A native QualityCategory name, in native order (Awful 0 .. Legendary 6).</summary>
 public enum Quality
 {
     [WireName("Awful")]
@@ -71,7 +68,7 @@ public enum Quality
 
 public static class QualityExtensions
 {
-    /// <summary>Go <c>QualityRank</c>: the index in native QualityCategory order, -1 for a value outside the set.</summary>
+    /// <summary>The index in native QualityCategory order, -1 for a value outside the set.</summary>
     public static int Rank(this Quality q) => Wire.IsDefined(q) ? (int)q : -1;
 }
 
@@ -85,7 +82,6 @@ public readonly record struct QualityRange(Quality Min, Quality Max);
 /// The closed, comparable value of one storage filter (a stockpile zone's or a storage building's): a native base
 /// preset, then canonical (sorted, deduplicated, at most 32 each, disjoint) allow and disallow selectors, then
 /// optional hit-point fraction and quality ranges. It maps 1:1 onto native StockpileSettings.preset + FilterPatch.
-/// Go <c>StockpileFilter</c> (<c>NewStockpileFilter</c> is the constructor).
 /// </summary>
 public sealed partial record StockpileFilter
 {
@@ -114,10 +110,10 @@ public sealed partial record StockpileFilter
 
     public EquatableArray<FilterSelector> Disallow { get; }
 
-    /// <summary>Go <c>HitPoints() (min, max, ok)</c>: null when the filter has no hit-point bound.</summary>
+    /// <summary>Null when the filter has no hit-point bound.</summary>
     public HitPointRange? HitPoints { get; private init; }
 
-    /// <summary>Go <c>Quality() (min, max, ok)</c>: null when the filter has no quality bound.</summary>
+    /// <summary>Null when the filter has no quality bound.</summary>
     public QualityRange? QualityRange { get; private init; }
 
     private static EquatableArray<FilterSelector> CanonicalSelectors(IEnumerable<FilterSelector> rows)
@@ -228,7 +224,7 @@ public sealed partial record StockpileFilter
     }
 
     /// <summary>
-    /// Go <c>AllowOnlyDefinitions() ([]string, bool)</c>: an <see cref="AllowOnlyFilter"/>'s thing definitions;
+    /// An <see cref="AllowOnlyFilter"/>'s thing definitions;
     /// false for any other filter.
     /// </summary>
     public bool TryGetAllowOnlyDefinitions(out EquatableArray<string> definitions)

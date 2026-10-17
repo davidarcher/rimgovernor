@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// The observations profile compares the same staged colony at the same clock speed and useful-work budget across
-/// governor-off, ordinary governed, concurrent-reader and player runs (Go <c>observations.go</c>).
+/// governor-off, ordinary governed, concurrent-reader and player runs.
 /// </summary>
 internal sealed partial class SpeedmatrixRun
 {

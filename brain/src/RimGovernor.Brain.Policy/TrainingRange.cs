@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: training_range.go. The training range is a template of the mod's own buildings
+// The training range is a template of the mod's own buildings
 // (integrations/rimgovernor-native/Defs/ThingDefs/TrainingRange.xml) in open air: one row of stands side by side
 // with no gaps and, RangeDistance cells away, one row of dummies directly facing them. The room's Interior is the
 // bounding rectangle of the two rows, its Facing the direction from the stands to the dummies (the range layout

@@ -10,12 +10,11 @@ using PolicyThreatKind = RimGovernor.Brain.Policy.ThreatKind;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go emergency.go (ReadEmergency, DecodeEmergencyStatus and the row decoders), mental_state.go (PawnMentalState) and
-// threat_classify.go (ClassifyThreat, which only the emergency decoder uses).
+// PawnMentalState and ClassifyThreat (which only the emergency decoder uses).
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
-    /// Go <c>ReadEmergency</c>: observes basic health and the full status threat census, its pawn references joined
+    /// Observes basic health and the full status threat census, its pawn references joined
     /// against the pawn table. It does not bind a controller direction or plan or authorize treatment, combat or building.
     /// </summary>
     /// <param name="identity">The world the read is for.</param>
@@ -38,18 +37,18 @@ public sealed partial class FacadeNativeClient
         return EmergencyDecode.DecodeEmergencyStatus(observed, pawns);
     }
 
-    /// <summary>Go <c>emergencyRequest</c>: the status read <see cref="ReadEmergencyAsync"/> issues; a bundle's emergency section is seeded into the step cache under the same request.</summary>
+    /// <summary>The status read <see cref="ReadEmergencyAsync"/> issues; a bundle's emergency section is seeded into the step cache under the same request.</summary>
     internal static PbObservations.StatusRequest EmergencyRequest(PbCommon.Identity id) =>
         new() { Scope = new PbObservations.ReadScope { ExpectedIdentity = id }, Colonists = true, Threats = true };
 
     /// <summary>The emergency status decoder and the threat classifier it uses.</summary>
     internal static class EmergencyDecode
     {
-        /// <summary>Go <c>ThreatProximityRadius</c>: the Chebyshev radius around a colonist within which an unowned downed pawn or predator is a threat.</summary>
+        /// <summary>The Chebyshev radius around a colonist within which an unowned downed pawn or predator is a threat.</summary>
         internal const double ThreatProximityRadius = 30.0;
 
         /// <summary>
-        /// Go <c>DecodeEmergencyStatus</c>: shared by live reads and captured replay. Each pawn reference resolves
+        /// Shared by live reads and captured replay. Each pawn reference resolves
         /// against <paramref name="pawns"/>, the frame's pawn table; one the table lacks leaves that pawn's facts
         /// unknown until a later frame. The facts carry no player authority or controller plan identity.
         /// </summary>
@@ -58,7 +57,7 @@ public sealed partial class FacadeNativeClient
 
         internal static Fact<bool> EmergencyBool(bool? v) => v is { } b ? Known(b) : Unknown<bool>();
 
-        /// <summary>Go <c>emergencyPawn</c>: reads one census reference's facts from its table row (returned too); an unresolved reference has only its id known.</summary>
+        /// <summary>Reads one census reference's facts from its table row (returned too); an unresolved reference has only its id known.</summary>
         private static (PolicyEmergencyPawn Pawn, PbObservations.PawnState? State) EmergencyPawn(PbCommon.Ref? reference, Pawns pawns)
         {
             if (!pawns.TryRow(reference!, out var row))
@@ -68,7 +67,6 @@ public sealed partial class FacadeNativeClient
             return (EmergencyFacts(row), row);
         }
 
-        /// <summary>Go <c>emergencyFacts</c>.</summary>
         private static PolicyEmergencyPawn EmergencyFacts(PbObservations.PawnState row)
         {
             var result = new PolicyEmergencyPawn
@@ -95,7 +93,6 @@ public sealed partial class FacadeNativeClient
             return result;
         }
 
-        /// <summary>Go <c>emergencyStatus</c>.</summary>
         private static Bridge.Contracts.EmergencyObservation EmergencyStatus(PbObservations.StatusSnapshot v, Pawns pawns)
         {
             var context = v.Context!;
@@ -149,7 +146,7 @@ public sealed partial class FacadeNativeClient
                 }
                 dependentPatients = Known(EquatableArray.From(patients));
             }
-            // Go classifies the native's threat fact rows; the threats are listed kind by kind in ThreatKind order,
+            // The native's threat fact rows are classified; the threats are listed kind by kind in ThreatKind order,
             // each kind in row order.
             var byKind = new Dictionary<PolicyThreatKind, List<PolicyEmergencyThreat>>();
             foreach (var row in threatCensus.Pawns)
@@ -202,7 +199,7 @@ public sealed partial class FacadeNativeClient
         }
 
         /// <summary>
-        /// Go <c>emergencyBuilding</c>: reads one hostile-building row. A spawned building the census lists is standing
+        /// Reads one hostile-building row. A spawned building the census lists is standing
         /// (not dead) and never downed; the attack order sends its CAS token back as the target precondition and its
         /// occupied rect is the ranged target.
         /// </summary>
@@ -228,7 +225,7 @@ public sealed partial class FacadeNativeClient
         }
 
         /// <summary>
-        /// Go <c>ClassifyThreat</c>: the kinds a threat row is. A manhunter, a faction-hostile pawn or a prison breaker
+        /// The kinds a threat row is. A manhunter, a faction-hostile pawn or a prison breaker
         /// is Hostile; a predator hunt is a hunting predator or, when the hunter or its prey is ours, an ignored hunter;
         /// else an unowned pawn within <see cref="ThreatProximityRadius"/> of a colonist is nearby downed and/or nearby predator.
         /// </summary>

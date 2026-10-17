@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// What the mod resolves from the launch environment before it starts the host (#3115): the paths and switches the Go
+/// What the mod resolves from the launch environment before it starts the host (#3115): the paths and switches the
 /// controller took as <c>--state</c>, <c>--resume</c> and <c>--layout-overlay</c>. A pure function of
 /// the environment variables and the game's save-data folder, so the mod's bootstrap holds no parsing of its own.
 /// </summary>

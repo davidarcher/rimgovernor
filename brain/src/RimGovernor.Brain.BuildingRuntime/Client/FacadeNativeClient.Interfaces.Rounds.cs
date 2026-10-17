@@ -19,8 +19,8 @@ public sealed partial class FacadeNativeClient
         PreviewBuildingAsync(action, snapshot, ct);
 
     /// <remarks>
-    /// Go's <c>CombatGeometry</c> was synchronous; the one native call behind it is awaited here, so the planner's
-    /// worker blocks for the reply exactly as the Go goroutine did.
+    /// <c>CombatGeometry</c> is synchronous; the one native call behind it is awaited here, so the planner's
+    /// worker blocks for the reply.
     /// </remarks>
     M.CombatGeometry IRoundsDefenseSource.CombatGeometry(M.CombatGeometryRequest request, CancellationToken ct) =>
         CombatGeometryAsync(request, ct).GetAwaiter().GetResult();

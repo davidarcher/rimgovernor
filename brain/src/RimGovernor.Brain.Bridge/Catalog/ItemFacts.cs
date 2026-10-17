@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_item_facts.go: the planner-facing item numbers of the catalog.
+// The planner-facing item numbers of the catalog.
 
 public sealed partial class DefinitionCatalog
 {

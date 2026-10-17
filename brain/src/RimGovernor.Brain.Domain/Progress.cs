@@ -321,7 +321,7 @@ public sealed partial record Progress
         Action = action;
     }
 
-    /// <summary>Starts an action of <paramref name="plan"/> as Pending (Go <c>NewProgress</c>).</summary>
+    /// <summary>Starts an action of <paramref name="plan"/> as Pending.</summary>
     public Progress(PlanSpec plan, ActionId action)
     {
         var found = plan.Action(action) ?? throw new DomainException("action is not in plan");

@@ -1,7 +1,6 @@
 using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_blocking.go
 
 /// <summary>A defender's special duty in a formation, beyond a firing cell and a target.</summary>
 public enum CombatDuty

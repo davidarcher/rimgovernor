@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The upkeep case family (Go <c>cases/upkeep</c>).</summary>
+/// <summary>The upkeep case family.</summary>
 public static class UpkeepCases
 {
     public static void Register(CaseRegistry registry)

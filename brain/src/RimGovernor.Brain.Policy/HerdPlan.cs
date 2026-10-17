@@ -2,7 +2,7 @@ using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>The one reason the colony keeps a race. <c>Unset</c> is Go's empty job.</summary>
+/// <summary>The one reason the colony keeps a race. <c>Unset</c> is the empty job.</summary>
 public enum HerdJob
 {
     Unset = 0,

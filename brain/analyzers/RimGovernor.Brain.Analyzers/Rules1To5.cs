@@ -31,9 +31,8 @@ public sealed class LayersAnalyzer : GateAnalyzer
     };
 
     /// <summary>
-    /// Role denials on top of the order. Go also denied bridge->policy; the C# bridge returns Policy types by design
-    /// (go-to-csharp-port-conventions.md, "The catalog bridge"), so that denial is dropped. Go's store->transport becomes
-    /// store -> the two transport projects.
+    /// Role denials on top of the order. Bridge -> policy is not denied, because the bridge returns Policy types by
+    /// design; store is denied the two transport projects.
     /// </summary>
     private static readonly string[][] Denied =
     {
@@ -83,8 +82,7 @@ public sealed class LayersAnalyzer : GateAnalyzer
 }
 
 /// <summary>
-/// Rule 2, policy is pure (RGARCH002). Policy code uses no file, network, process, environment or clock API: the Go
-/// gate banned the imports time, os and net*. Search budgets count iterations, never wall time. TimeSpan stays legal
+/// Rule 2, policy is pure (RGARCH002). Policy code uses no file, network, process, environment or clock API. Search budgets count iterations, never wall time. TimeSpan stays legal
 /// (a duration is a value). Keys are "file|ban Type" and "file|import Namespace".
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -106,7 +104,7 @@ public sealed class PolicyPurityAnalyzer : GateAnalyzer
     };
 
     /// <summary>
-    /// In-memory System.IO types: reading an embedded resource (Go go:embed) and building text in memory touch no file or
+    /// In-memory System.IO types: reading an embedded resource and building text in memory touch no file or
     /// device. A file, directory or stream-over-a-file type stays banned, and naming one is what a caller would have to do.
     /// </summary>
     private static readonly HashSet<string> PureTypes = new(StringComparer.Ordinal)
@@ -121,7 +119,7 @@ public sealed class PolicyPurityAnalyzer : GateAnalyzer
         "System.IO.Path",
     };
 
-    /// <summary>The worker count of a deterministic fan-out (Go runtime.NumCPU, which the Go gate allows too).</summary>
+    /// <summary>The worker count of a deterministic fan-out.</summary>
     private static readonly HashSet<string> PureMembers = new(StringComparer.Ordinal)
     {
         "System.Environment.ProcessorCount",
@@ -313,7 +311,7 @@ public sealed class OneOwnerAnalyzer : GateAnalyzer
 }
 
 /// <summary>
-/// Rule 4, no swallowed errors (RGARCH004). The Go gate failed an empty `if err != nil`; the C# form of dropping an
+/// Rule 4, no swallowed errors (RGARCH004). The form of dropping an
 /// error is a catch block with no statement. Key "file|Type.Member".
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

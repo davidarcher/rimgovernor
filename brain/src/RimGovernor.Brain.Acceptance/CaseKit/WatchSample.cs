@@ -138,7 +138,7 @@ public sealed record WatchSample
     /// <summary>The wall-clock stamp a sample's <c>at</c> member carries (RFC 3339 UTC).</summary>
     public static string Stamp(DateTimeOffset at) => at.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
-    /// <summary>Parses <see cref="At"/>; the zero time when it is malformed (Go discards the parse error too).</summary>
+    /// <summary>Parses <see cref="At"/>; the zero time when it is malformed.</summary>
     public DateTimeOffset AtTime() =>
         DateTimeOffset.TryParse(At, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var at) ? at : default;
 
@@ -158,7 +158,7 @@ public sealed record WatchSample
 
         foreach (var (goal, sample, error) in Extras)
         {
-            // A goal listed twice keeps its last read, as the map the Go sample was did.
+            // A goal listed twice keeps its last read.
             _ = row.Remove(goal);
             row.Add(goal, sample is not null ? sample.ToJson() : new JsonObject { { "error", error } });
         }

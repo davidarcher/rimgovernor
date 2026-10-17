@@ -4,7 +4,7 @@ using RimGovernor.Contracts.Wire.Common;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>PrisonerCensus</c>: one rounds cycle's whole prisoner census, read once per cycle so the prisoners
+/// One rounds cycle's whole prisoner census, read once per cycle so the prisoners
 /// family can detect prisoners/recruit's deficit and select a candidate the same way the
 /// always-present generic colony census lets the husbandry planner detect and select from animal state. Unlike that
 /// generic census, prisoner facts live only on the dedicated population read. The read and its decoder
@@ -33,7 +33,7 @@ public sealed record PrisonerCensus
 public static class PrisonerCensusRules
 {
     /// <summary>
-    /// Go's <c>prisonerInteractionDefNames</c>: maps the open native defName a population person's interaction
+    /// Maps the open native defName a population person's interaction
     /// carries to the domain mode; any other current interaction (Execution, DLC modes the intent does not expose)
     /// stays unknown rather than misread.
     /// </summary>

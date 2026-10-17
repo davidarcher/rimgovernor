@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 /// (HuntRequest, which makes the military/combat Need unmet), and a formation channel of admitted prey is
 /// Designated from then, so the delivery credit commits it and moves the hunt group to Delivering at the first
 /// kill. It ends when no admitted animal stands any more. A restart forgets it; the next plan admits again.
-/// Go's nil receiver is a null reference here: callers use <c>admission?.Apply(channels) ?? channels</c>.
+/// A null reference stands for no admission: callers use <c>admission?.Apply(channels) ?? channels</c>.
 /// </summary>
 public sealed class HuntAdmission
 {

@@ -2,7 +2,7 @@ using System.Text;
 
 namespace RimGovernor.Brain.Domain;
 
-/// <summary>Native EditZoneCells' direction. Go <c>CellEditMode</c>.</summary>
+/// <summary>Native EditZoneCells' direction.</summary>
 public enum CellEditMode
 {
     Add,
@@ -12,7 +12,7 @@ public enum CellEditMode
 /// <summary>
 /// Grows or shrinks one exact zone (native EditZoneCells). The zone keeps its native id, so a zone_create claim
 /// on it survives the edit. Cells are canonical (sorted, deduplicated, nonempty); the result must stay contiguous
-/// (native refuses a split). Go <c>NewZoneCellEdit</c> is the constructor.
+/// (native refuses a split).
 /// </summary>
 public sealed record ZoneCellEdit : IActionPayload
 {
@@ -36,7 +36,7 @@ public sealed record ZoneCellEdit : IActionPayload
     public EquatableArray<Cell> Cells { get; }
 }
 
-/// <summary>Says what a <see cref="StockpilePatch"/>'s target id names. Go <c>StorageTargetKind</c>.</summary>
+/// <summary>Says what a <see cref="StockpilePatch"/>'s target id names.</summary>
 public enum StorageTargetKind
 {
     Zone,
@@ -46,8 +46,7 @@ public enum StorageTargetKind
 /// <summary>
 /// Replaces one storage target's priority and filter (native PatchStockpile): a stockpile zone or a player
 /// storage building such as a shelf. The filter's base preset resets the target's filter, so the patch is a full
-/// replacement. Role is the planner role key the patch claims the target for; empty is untagged. Go
-/// <c>NewStockpilePatch</c> is the constructor.
+/// replacement. Role is the planner role key the patch claims the target for; empty is untagged.
 /// </summary>
 public sealed record StockpilePatch : IActionPayload
 {
@@ -82,11 +81,11 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewZoneCellEditAction(ActionId id, ZoneCellEdit e) => Create(id, ActionKind.ZoneCellEdit, e);
 
-    /// <summary>Go <c>Action.ZoneCellEdit() (ZoneCellEdit, bool)</c>: the payload when this is a zone_cell_edit action, otherwise null.</summary>
+    /// <summary>The payload when this is a zone_cell_edit action, otherwise null.</summary>
     public ZoneCellEdit? ZoneCellEdit => PayloadOf<ZoneCellEdit>(ActionKind.ZoneCellEdit);
 
     public static DomainAction NewStockpilePatchAction(ActionId id, StockpilePatch p) => Create(id, ActionKind.StockpilePatch, p);
 
-    /// <summary>Go <c>Action.StockpilePatch() (StockpilePatch, bool)</c>: the payload when this is a stockpile_patch action, otherwise null.</summary>
+    /// <summary>The payload when this is a stockpile_patch action, otherwise null.</summary>
     public StockpilePatch? StockpilePatch => PayloadOf<StockpilePatch>(ActionKind.StockpilePatch);
 }

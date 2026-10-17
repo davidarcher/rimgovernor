@@ -5,7 +5,7 @@ using RimGovernor.Brain.Acceptance;
 
 namespace RimGovernor.Brain.RemoteAccept;
 
-/// <summary>A recomputed verdict (Go <c>Evaluation</c>); a supplied aggregate's pass bit is never evidence.</summary>
+/// <summary>A recomputed verdict; a supplied aggregate's pass bit is never evidence.</summary>
 public sealed class Evaluation
 {
     internal Evaluation(Ref run, Ref selection, IReadOnlyList<Shard> shards)
@@ -40,10 +40,10 @@ public sealed class Evaluation
     }
 }
 
-/// <summary>The evidence graph operations (Go <c>internal/remoteaccept</c>): digest-pinned references, the recomputed verdict and verification.</summary>
+/// <summary>The evidence graph operations: digest-pinned references, the recomputed verdict and verification.</summary>
 public static class RemoteEvidence
 {
-    /// <summary>The digest-pinned reference to <paramref name="relativePath"/> under <paramref name="root"/> (Go <c>FileRef</c>).</summary>
+    /// <summary>The digest-pinned reference to <paramref name="relativePath"/> under <paramref name="root"/>.</summary>
     public static Ref FileRef(string root, string relativePath)
     {
         ArgumentNullException.ThrowIfNull(root);
@@ -79,7 +79,7 @@ public static class RemoteEvidence
         return e;
     }
 
-    /// <summary>Recomputes the aggregate and compares every verdict and coverage field with the one on disk (Go <c>Verify</c>).</summary>
+    /// <summary>Recomputes the aggregate and compares every verdict and coverage field with the one on disk.</summary>
     public static Evaluation Verify(string root, Ref aggregateRef)
     {
         ArgumentNullException.ThrowIfNull(root);
@@ -96,7 +96,7 @@ public static class RemoteEvidence
         return e;
     }
 
-    /// <summary>Writes <paramref name="write"/>'s JSON (two-space indent, trailing newline) to <paramref name="relativePath"/> under <paramref name="root"/> and returns its reference (Go <c>WriteJSON</c>).</summary>
+    /// <summary>Writes <paramref name="write"/>'s JSON (two-space indent, trailing newline) to <paramref name="relativePath"/> under <paramref name="root"/> and returns its reference.</summary>
     internal static Ref WriteJson(string root, string relativePath, Action<Utf8JsonWriter> write)
     {
         if (!EvidenceRules.ValidPath(relativePath))

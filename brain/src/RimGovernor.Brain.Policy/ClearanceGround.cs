@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: clearance_ground.go
 // Planned-ground clearance: when a planned room needs ground, every building and constructed floor on that
 // ground the plan does not hold is cleared, the colony's own included. Per room the order is furniture and
 // other non-wall buildings, then each door standing on the room's wall ring where the plan has none (swapped

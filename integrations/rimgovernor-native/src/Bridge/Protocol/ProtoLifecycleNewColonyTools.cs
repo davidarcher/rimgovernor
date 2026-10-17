@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
             catch (Refusal refusal) { return Fail(refusal.Code, refusal.Message); }
 
             var seed = (request.Spec.Seed ?? "").Trim();
-            if (seed.Length == 0) seed = GenText.RandomSeedString(); // Defensive: Go requires a non-empty seed.
+            if (seed.Length == 0) seed = GenText.RandomSeedString(); // Defensive: a non-empty seed is required.
             var entry = new Entry((request.RequestId ?? ""), request.Spec, seed, request.TimeoutMs is not null ? (uint?)request.TimeoutMs.GetValueOrDefault() : null, resolved);
             lock (Lock)
             {

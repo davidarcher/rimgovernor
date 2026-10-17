@@ -2,15 +2,14 @@ using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go catalog.go (Client.DefinitionCatalog, RecordDefinitionCatalog, readCatalogWire, forLoad's held-catalog reuse).
 //
-// What this port can and cannot do: Go decoded the wire catalog into def rows (thing_defs, terrain_defs, defs). The
-// wire contract no longer carries them (Contracts/Observations.cs drops `defs`, `thing_defs`, `terrain_defs` and
+// What this client can and cannot do: the wire contract carries no def rows (thing_defs, terrain_defs, defs;
+// Contracts/Observations.cs drops `defs`, `thing_defs`, `terrain_defs` and
 // `game_constants`), and the C# DefinitionCatalog is built over the game's own Def objects with the load's DefStatTable
 // (Bridge/Catalog/Catalog.cs). So the read here hands the native catalog record (class chains, derived facts, stat
 // environment, thing facts) to CatalogFactory, which the lead installs and which builds the C# DefinitionCatalog from
 // the game's Defs. Without a factory the catalog cannot be built and DefinitionCatalogAsync refuses. Catalog caching is
-// by load token, as Go's catalogCache (the fingerprint reuse and catalog_disk.go cache of wire data are not ported: the
+// by load token (there is no fingerprint reuse or disk cache of wire data: the
 // rows are never on the wire).
 public sealed partial class FacadeNativeClient
 {
@@ -26,7 +25,7 @@ public sealed partial class FacadeNativeClient
     internal Func<PbObservations.DefinitionCatalog, PbCommon.Identity, BridgeCatalog>? CatalogFactory { get; set; }
 
     /// <summary>
-    /// Go <c>Client.DefinitionCatalog</c>: the catalog of identity's load, read the first time the load token is
+    /// The catalog of identity's load, read the first time the load token is
     /// seen and kept until the token changes.
     /// </summary>
     internal async Task<BridgeCatalog> DefinitionCatalogAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
@@ -52,7 +51,7 @@ public sealed partial class FacadeNativeClient
         return catalog;
     }
 
-    /// <summary>Go <c>readCatalogWire</c> with no held fingerprint: the catalog reply's observed payload.</summary>
+    /// <summary>The catalog reply's observed payload, read with no held fingerprint.</summary>
     private async Task<PbObservations.DefinitionCatalog> CatalogReadWireAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var request = new PbObservations.DefinitionCatalogRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };

@@ -6,21 +6,21 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go frames.go: ReadRoundsFrame, DecodeRoundsFrame/decodeRoundsFrame, podsPending, roundsPawnRows,
+// ReadRoundsFrame, DecodeRoundsFrame/decodeRoundsFrame, podsPending, roundsPawnRows,
 // roundsPawnIDs, ReadCombat, combatFrameHeld, censusPawns, primaryWeaponThings, DecodeCombat, combatRoom.
 public sealed partial class FacadeNativeClient
 {
-    /// <summary>Go <c>roundsFrameMethod</c>: keys a frame's routine census sections.</summary>
+    /// <summary>Keys a frame's routine census sections.</summary>
     private const string RoundsFrameMethod = "rimgovernor/snapshot_frame_routine";
 
-    /// <summary>Go <c>maxCombatRoomCells</c>: a larger enclosure is not a combat room.</summary>
+    /// <summary>A larger enclosure is not a combat room.</summary>
     private const int MaxCombatRoomCells = 1024;
 
-    /// <summary>Go's <c>frameStream.census</c>: the derived building census the routine readers update frame to frame.</summary>
+    /// <summary>The derived building census the routine readers update frame to frame.</summary>
     private readonly Memo _frameCensus = new();
 
     /// <summary>
-    /// Go <c>Client.ReadRoundsFrame</c>: decodes the routine census of the newest frame past this client's last write
+    /// Decodes the routine census of the newest frame past this client's last write
     /// against the load's definition catalog. Without a stream it is unavailable.
     /// </summary>
     internal async Task<RoundsFrame> ReadRoundsFrameAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
@@ -45,7 +45,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>decodeRoundsFrame</c>: decodes the frame's routine sections; the keyed tables and the emergency census
+    /// Decodes the frame's routine sections; the keyed tables and the emergency census
     /// are <paramref name="prepared"/>'s, decoded once per frame, never the frame's lists.
     /// </summary>
     internal static RoundsFrame DecodeRoundsFrame(PbObservations.BundleSnapshot v, DefinitionCatalog catalog, FramePrepared prepared)
@@ -102,7 +102,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>podsPending</c>: the emergency observation with <c>PodsOpen</c> set to the latest open tick of a drop-pod
+    /// The emergency observation with <c>PodsOpen</c> set to the latest open tick of a drop-pod
     /// arrival among <paramref name="events"/> whose pods are still closed at the census tick: its raiders are in
     /// their pods, not in the census.
     /// </summary>
@@ -122,7 +122,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>roundsPawnRows</c>: the routine list read answered from <paramref name="table"/>'s envelope and the rows
+    /// The routine list read answered from <paramref name="table"/>'s envelope and the rows
     /// the census colonists resolve against; null without a complete census or when the table misses one.
     /// </summary>
     internal static PbObservations.PawnSnapshot? RoundsPawnRows(PbObservations.PawnSnapshot table, Pawns rows, EmergencyObservation emergency)
@@ -136,7 +136,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>roundsPawnIDs</c>: the colonists the routine census reads pawn detail for, in census order: every
+    /// The colonists the routine census reads pawn detail for, in census order: every
     /// colonist of a complete emergency census, none otherwise.
     /// </summary>
     internal static List<string> RoundsPawnIds(EmergencyObservation emergency)
@@ -154,7 +154,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadCombat</c>: the combat state from the newest frame past this client's last write. There is no
+    /// The combat state from the newest frame past this client's last write. There is no
     /// live read behind it: without a stream it is unavailable.
     /// </summary>
     internal async Task<Combat> ReadCombatAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
@@ -176,7 +176,7 @@ public sealed partial class FacadeNativeClient
         return combat with { Catalog = catalog, Shells = catalog.MortarShells(P.CombatMortarRules.MortarSafeRadius) };
     }
 
-    /// <summary>Go <c>combatFrameHeld</c>: the part of the frame a combat read answers, its census rows looked up in the frame's held pawn table.</summary>
+    /// <summary>The part of the frame a combat read answers, its census rows looked up in the frame's held pawn table.</summary>
     private static PbObservations.BundleSnapshot CombatFrame(FrameView view, PbObservations.PawnSnapshot? pawns, PbObservations.ThingsSnapshot? things)
     {
         var v = view.Snapshot;
@@ -202,7 +202,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>primaryWeaponThings</c>: the things rows the census pawns' primary weapons name, as the frame's list and
+    /// The things rows the census pawns' primary weapons name, as the frame's list and
     /// keyed from the frame's held things table.
     /// </summary>
     private static (PbObservations.ThingsSnapshot? Rows, Things Table) PrimaryWeaponThings(FrameView view, PbObservations.PawnSnapshot? pawns)
@@ -227,7 +227,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>censusPawns</c>: the frame's pawn table rows the emergency census references, as the frame's list and
+    /// The frame's pawn table rows the emergency census references, as the frame's list and
     /// keyed from the frame's held pawn table.
     /// </summary>
     private static (PbObservations.PawnSnapshot? Rows, Pawns Table) CensusPawns(FrameView view)
@@ -289,12 +289,12 @@ public sealed partial class FacadeNativeClient
         return (rows, new Pawns(table));
     }
 
-    /// <summary>Go <c>isMechRow</c>: a living pawn carrying a mechanitor or mech block.</summary>
+    /// <summary>A living pawn carrying a mechanitor or mech block.</summary>
     private static bool IsMechRow(PbObservations.PawnState row) =>
         !row.Dead && (row.Biotech?.Mechanitor is not null || row.Biotech?.Mech is not null);
 
     /// <summary>
-    /// Go <c>DecodeCombat</c>: decodes a frame's combat part. The census pawns and weapons are keyed from
+    /// Decodes a frame's combat part. The census pawns and weapons are keyed from
     /// the frame's held tables and the emergency census is the frame's, decoded once (<see cref="FrameView.Prepared"/>).
     /// </summary>
     private static Combat DecodeCombat(FrameView view)
@@ -369,7 +369,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>combatRoom</c>: a frame room census row as the pods tactic's room: a proper room of at most
+    /// A frame room census row as the pods tactic's room: a proper room of at most
     /// <see cref="MaxCombatRoomCells"/> whose cells fill its extents, with the doors in its boundary. A room of any
     /// other shape is left out. The role is the census row's role string; one the policy does not know is unknown.
     /// </summary>
@@ -414,7 +414,7 @@ public sealed partial class FacadeNativeClient
         return room with { Doors = EquatableArray.From(doors) };
     }
 
-    /// <summary>Go <c>protoCell</c>: the cell of a wire cell, false when it is absent or lacks a coordinate (the cell is then the zero cell).</summary>
+    /// <summary>The cell of a wire cell, false when it is absent or lacks a coordinate (the cell is then the zero cell).</summary>
     private static bool TryWireCell(PbCommon.Cell? cell, out Cell result)
     {
         if (cell is { X: { } x, Z: { } z })

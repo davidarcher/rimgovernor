@@ -3,7 +3,7 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Port of operation_intent.go: the Operation.intent text a method's writes carry.</summary>
+/// <summary>The Operation.intent text a method's writes carry.</summary>
 public static class OperationIntent
 {
     // The in-game names of Concerns whose split identifier reads poorly; every other kind falls back to its words.
@@ -189,7 +189,7 @@ public static class OperationIntent
 
     /// <summary>
     /// The plan's method intent for the writes the dispatch issues, or null: a plan no goal admitted, or a failed
-    /// lookup, dispatches without one. Go carried it on the context; callers wrap the dispatch in
+    /// lookup, dispatches without one. Callers wrap the dispatch in
     /// <c>bridge.WithOperationIntent(intent)</c> when this is not null.
     /// </summary>
     public static async Task<string?> PlanIntentAsync(JournalStore intents, PlanId plan, CancellationToken ct)

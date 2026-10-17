@@ -7,8 +7,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// The per-pawn Assign-tab settings a PawnSettingsIntent writes (#1299, #1305, #1307, #1310): each row applies one arm
-/// through operations_apply on a lab colonist and reads the native setting back. Which pawn gets which value is policy
-/// (policy/hostility_test.go, medicine_carry_test.go, pawn_names_test.go); these prove the native write and read.
+/// through operations_apply on a lab colonist and reads the native setting back. Which pawn gets which value is policy;
+/// these prove the native write and read.
 /// </summary>
 internal static class PawnSettings
 {

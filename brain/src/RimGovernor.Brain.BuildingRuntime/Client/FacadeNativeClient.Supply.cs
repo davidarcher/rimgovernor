@@ -5,12 +5,11 @@ using EquatableArray = RimGovernor.Brain.Domain.EquatableArray;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go internal/bridge equip_things.go (ReadEquipWeapons) and supply_allow.go (ReadAllowSupplies, ReadForbidSupplies,
-// ReadFoodReserveSupplies): the supply census reads that locate loose weapons and loose supply items.
+// ReadAllowSupplies, ReadForbidSupplies and ReadFoodReserveSupplies: the supply census reads that locate loose weapons and loose supply items.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
-    /// Go <c>Client.ReadEquipWeapons</c>: observes loose weapons within one rectangle, forbidden or not: equipping a
+    /// Observes loose weapons within one rectangle, forbidden or not: equipping a
     /// forbidden weapon is simply refused downstream by the native preview, not filtered out here.
     /// </summary>
     internal async Task<EquipRead> ReadEquipWeaponsAsync(PbCommon.Identity identity, DomainCell minimum, DomainCell maximum, CancellationToken cancellationToken)
@@ -39,16 +38,16 @@ public sealed partial class FacadeNativeClient
         return SupplyDecodeEquipWeapons(SupplyObserved(reply));
     }
 
-    /// <summary>Go <c>Client.ReadAllowSupplies</c>: the loose forbidden supply items at one cell, as allow targets.</summary>
+    /// <summary>The loose forbidden supply items at one cell, as allow targets.</summary>
     internal Task<SupplyRead> ReadAllowSuppliesAsync(PbCommon.Identity identity, DomainCell cell, CancellationToken cancellationToken) =>
         SupplyReadAccessAsync(identity, cell, false, cancellationToken);
 
-    /// <summary>Go <c>Client.ReadForbidSupplies</c>: the loose unforbidden supply items at one cell, as forbid targets.</summary>
+    /// <summary>The loose unforbidden supply items at one cell, as forbid targets.</summary>
     internal Task<SupplyRead> ReadForbidSuppliesAsync(PbCommon.Identity identity, DomainCell cell, CancellationToken cancellationToken) =>
         SupplyReadAccessAsync(identity, cell, true, cancellationToken);
 
     /// <summary>
-    /// Go <c>Client.ReadFoodReserveSupplies</c>: locates durable shared food through the existing supply census; the
+    /// Locates durable shared food through the existing supply census; the
     /// food forecast intentionally carries no item positions.
     /// </summary>
     internal async Task<SupplyRead> ReadFoodReserveSuppliesAsync(PbCommon.Identity identity, bool forbid, CancellationToken cancellationToken)
@@ -68,7 +67,6 @@ public sealed partial class FacadeNativeClient
         return SupplyDecodeAccess(SupplyObserved(reply), forbid);
     }
 
-    /// <summary>Go <c>Client.readSupplyAccess</c>.</summary>
     private async Task<SupplyRead> SupplyReadAccessAsync(PbCommon.Identity identity, DomainCell cell, bool forbid, CancellationToken cancellationToken)
     {
         if (cell.X < 0 || cell.Z < 0)
@@ -109,7 +107,6 @@ public sealed partial class FacadeNativeClient
         return reply.Outcome.Observed!;
     }
 
-    /// <summary>Go <c>decodeEquipWeapons</c>.</summary>
     private static EquipRead SupplyDecodeEquipWeapons(PbObservations.SuppliesSnapshot v)
     {
         var targets = new List<EquipCandidate>();
@@ -146,7 +143,7 @@ public sealed partial class FacadeNativeClient
         return new EquipRead { Context = v.Context, Targets = targets };
     }
 
-    /// <summary>Go <c>decodeSupplyAccess</c>: the stocks' items with a CAS token, as allow or forbid targets.</summary>
+    /// <summary>The stocks' items with a CAS token, as allow or forbid targets.</summary>
     private static SupplyRead SupplyDecodeAccess(PbObservations.SuppliesSnapshot v, bool forbid)
     {
         var targets = new List<SupplyTarget>();

@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: care_orders.go
 // The medical reserve, the surgery part bills, baby food and mech gestation declare the one bill they want to
 // the work ledger (OrderDeclarer) and place nothing themselves. Their bills are declare-only in the first
 // pass (#2604): the ledger places a missing one and keeps a matching one, but never removes one as an orphan,

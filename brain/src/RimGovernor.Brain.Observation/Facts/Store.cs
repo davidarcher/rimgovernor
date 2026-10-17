@@ -34,7 +34,7 @@ public static class SectionExtensions
         Section.Rooms, Section.Zones, Section.Buildings, Section.Bills, Section.Ideology,
     ];
 
-    /// <summary>Every section in report order (Go <c>Sections()</c>).</summary>
+    /// <summary>Every section in report order.</summary>
     public static IReadOnlyList<Section> Sections() => All;
 
     /// <summary>The fact family whose invalidation the section follows.</summary>

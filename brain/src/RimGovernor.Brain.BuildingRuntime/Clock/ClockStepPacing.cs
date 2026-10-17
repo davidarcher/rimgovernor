@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
 /// The pace a step's clock status reported: the running epoch's pacing reason, the rate it holds and its ceiling, and
-/// native's effective speed (ticks per wall second, pauses included) (Go <c>StepPacing</c>).
+/// native's effective speed (ticks per wall second, pauses included).
 /// </summary>
 public sealed record StepPacing
 {
@@ -14,7 +14,7 @@ public sealed record StepPacing
 
     public double EffectiveTps { get; init; }
 
-    /// <summary>Reads the pace out of a status (Go <c>stepPacing</c>).</summary>
+    /// <summary>Reads the pace out of a status.</summary>
     public static StepPacing Of(PbClock.Status status)
     {
         var pacing = new StepPacing { EffectiveTps = status.EffectiveTicksPerSecond is not null ? status.EffectiveTicksPerSecond.GetValueOrDefault() : 0 };
@@ -30,7 +30,7 @@ public sealed record StepPacing
         return pacing;
     }
 
-    /// <summary>The wire reason without its enum prefix, lower case: <c>frame_budget</c>, <c>heartbeat</c>, ... (Go <c>PacingReasonName</c>).</summary>
+    /// <summary>The wire reason without its enum prefix, lower case: <c>frame_budget</c>, <c>heartbeat</c>, ....</summary>
     public static string PacingReasonName(PbClock.PacingReason reason)
     {
         var name = reason.ToString();
@@ -46,7 +46,7 @@ public sealed record StepPacing
         return builder.ToString();
     }
 
-    /// <summary>Adds the pace to a clock_step row: what the pacing reason and effective speed read (Go <c>publish</c>).</summary>
+    /// <summary>Adds the pace to a clock_step row: what the pacing reason and effective speed read.</summary>
     public void Publish(IDictionary<string, object?> extra)
     {
         if (Reason.Length != 0)

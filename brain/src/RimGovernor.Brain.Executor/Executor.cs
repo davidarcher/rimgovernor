@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Executor;
 // Port of internal/executor/executor.go. Owns one guarded building attempt at a time. The runtime must hold the
 // colony's process/store writer lease before enabling this local executor.
 //
-// Go's (Result, error) pairs stay pairs where the result carries partial progress next to the failure
+// (Result, error) pairs stay pairs where the result carries partial progress next to the failure
 // (RunBatchAsync reports both per item); everything else throws. Cancellation of the caller's token and
 // authority cancellation both surface as OperationCanceledException or AuthorityException on the item. An
 // uncertain native write is recorded as Receipt.Unknown and never retried here.
@@ -58,7 +58,7 @@ public sealed partial class Executor : IDisposable
         _writer.Dispose();
     }
 
-    /// <summary>The executor with explicit walk-to-cell orders for drafted pawns (Go <c>NewWithMovement</c>).</summary>
+    /// <summary>The executor with explicit walk-to-cell orders for drafted pawns.</summary>
     public static Executor NewWithMovement(IJournal journal, IBoundary building, IMovementBoundary move, IClock clock, Limits limits, IRoundsScope? roundsScope = null)
     {
         DomainException.Require(move is not null, "movement boundary required");
@@ -338,14 +338,14 @@ public sealed partial class Executor : IDisposable
         return RecordAsync(new ExecutorResult { Progress = progress }, v.Plan, new Placement(progress.Action, v.Attempt, v.Snapshot, v.Tick), Domain.Receipt.Unknown, null);
     }
 
-    // The error a cancelled token stands for (Go ctx.Err()), or null.
+    // The error a cancelled token stands for, or null.
     private static OperationCanceledException? CancelledBy(CancellationToken ct) =>
         ct.IsCancellationRequested ? new OperationCanceledException(ct) : null;
 }
 
 internal static class Errors
 {
-    /// <summary>The one error, none, or an aggregate of every present error (Go <c>errors.Join</c>).</summary>
+    /// <summary>The one error, none, or an aggregate of every present error.</summary>
     internal static Exception? Join(params Exception?[] errors)
     {
         var present = new List<Exception>(errors.Length);

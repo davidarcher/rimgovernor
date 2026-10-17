@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Acceptance;
 // only) and the CheckpointSidecar describing them.
 
 /// <summary>
-/// The checkpoint constants and the process-wide hooks (Go package-level functions of <c>checkpoint.go</c>): one case
+/// The checkpoint constants and the process-wide hooks: one case
 /// runs per process at a time, so a single ring is active and the hooks (<c>Harness.CallAsync</c>, the wait probes,
 /// a case's own watch) consult it.
 /// </summary>
@@ -45,7 +45,7 @@ public static class Checkpoints
     internal static void Uninstall(CheckpointRing ring) => Interlocked.CompareExchange(ref _active, null, ring);
 
     /// <summary>
-    /// The hook the natural-pause sites call (Go <c>CheckpointPause</c>, also a case's own poll loop): captures a ring
+    /// The hook the natural-pause sites call: captures a ring
     /// entry when one is due and returns how long that took, so a wait can leave it out of its stall accounting.
     /// </summary>
     public static Task<TimeSpan> PauseAsync(CancellationToken cancellationToken)

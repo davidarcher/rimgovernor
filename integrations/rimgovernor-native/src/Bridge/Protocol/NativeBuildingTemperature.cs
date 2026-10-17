@@ -13,7 +13,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // BuildingPatchIntent's target_temperature arm: RimWorld.CompTempControl
-    // .targetTemperature, a public settable float bounded by the Go planner
+    // .targetTemperature, a public settable float bounded by the planner
     // (domain.NewBuildingTemperature). The other arms are NativeBedUse,
     // NativeGrowerCrop and NativeClaimBuilding; BuildingPatchActionHandler
     // below routes them.

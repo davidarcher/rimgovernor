@@ -7,14 +7,14 @@ using RimGovernor.Brain.Acceptance;
 
 namespace RimGovernor.Brain.RemoteAccept;
 
-/// <summary>One selected case's pass count over a repeat=N soak run (Go <c>SoakRate</c>).</summary>
+/// <summary>One selected case's pass count over a repeat=N soak run.</summary>
 public sealed record SoakRate(string Case, int Passed, int Runs)
 {
     /// <summary>The <c>case: p/n passed</c> line the command prints.</summary>
     public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"{Case}: {Passed}/{Runs} passed");
 }
 
-/// <summary>Soak rates (Go soak.go): display only; the verdict is the aggregate's.</summary>
+/// <summary>Soak rates: display only; the verdict is the aggregate's.</summary>
 public static class RemoteSoak
 {
     /// <summary>
@@ -107,7 +107,7 @@ public sealed record IndexCase(
     string Log,
     IReadOnlyList<string> Snapshots);
 
-/// <summary>The per-case evidence index of one remote run (Go <c>Index</c>). Display only: the verdict is aggregate.json's.</summary>
+/// <summary>The per-case evidence index of one remote run. Display only: the verdict is aggregate.json's.</summary>
 public sealed record EvidenceIndex(int Version, string Status, IReadOnlyList<IndexCase> Cases)
 {
     private const int MaxDiagnosis = 8;
@@ -325,7 +325,7 @@ public sealed record EvidenceIndex(int Version, string Status, IReadOnlyList<Ind
     }
 }
 
-/// <summary>The measured wall time of each case on the CI runners (Go casetimes.go, the regeneration half).</summary>
+/// <summary>The measured wall time of each case on the CI runners.</summary>
 public static class CaseTimes
 {
     /// <summary>Reads every suite <c>result.json</c> under <paramref name="root"/> (a downloaded run's shard artifacts) and returns the table merged over the embedded one.</summary>
@@ -406,7 +406,7 @@ public static class CaseTimes
             }
             catch (RemoteAcceptException)
             {
-                // Not a suite report; skip it, as Go does.
+                // Not a suite report; skip it.
                 continue;
             }
         }

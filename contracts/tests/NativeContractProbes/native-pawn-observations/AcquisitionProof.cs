@@ -29,7 +29,7 @@ internal static class AcquisitionProof
             verbType.GetField("defaultProjectile")!.SetValue(value,definition);
             return value;
         };
-        // The raw verb facts Go's ordinary-weapon rule reads (policy.OrdinaryHuntVerbs): bullet-class
+        // The raw verb facts the ordinary-weapon rule reads (policy.OrdinaryHuntVerbs): bullet-class
         // projectile, no blast radius, no flame damage worker. An arrow is a Bullet-class projectile
         // with an arrow damage def, so it passes the same projectile-class test a bullet does.
         Func<object,string,object?> fact=(value,name)=>value.GetType().GetProperty(name)!.GetValue(value);

@@ -6,7 +6,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_surgery_parts.go: the replacement-part, blood-loss and body-part facts of the surgery planners.
+// The replacement-part, blood-loss and body-part facts of the surgery planners.
 
 public sealed partial class DefinitionCatalog
 {

@@ -11,7 +11,7 @@ namespace HomeBridge.BridgeTools
     // IgniteIntent on Actions/Apply: one drafted colonist
     // force-fires the molotov in the primary slot at one cell, as the
     // CombatOrder attack_ground order does; apply runs that order. Room
-    // occupancy, firebreak and stock are Go policy (policy.BurnOccupied), not
+    // occupancy, firebreak and stock are brain policy (policy.BurnOccupied), not
     // native vetoes. Applied means the throw order was taken; the fire catching
     // is the next census. The attack_ground path calls no validator that
     // reads Event.current.

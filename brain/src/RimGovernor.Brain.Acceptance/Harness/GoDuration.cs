@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>Go duration text (Go <c>time.Duration.String</c> / <c>ParseDuration</c>), for specs and labels.</summary>
+/// <summary>Go duration text, for specs and labels.</summary>
 public static partial class GoDuration
 {
     public static bool TryParse(string text, out TimeSpan value)
@@ -20,7 +20,7 @@ public static partial class GoDuration
 
         if (s == "0")
         {
-            // Go's ParseDuration takes a bare zero without a unit.
+            // A bare zero is valid without a unit.
             return true;
         }
 
@@ -62,7 +62,7 @@ public static partial class GoDuration
         return true;
     }
 
-    /// <summary>Formats like Go: "1m30s", "45s", "1h0m0s", "500ms", "1.5s".</summary>
+    /// <summary>Formats as duration text: "1m30s", "45s", "1h0m0s", "500ms", "1.5s".</summary>
     public static string Format(TimeSpan d)
     {
         if (d == TimeSpan.Zero)

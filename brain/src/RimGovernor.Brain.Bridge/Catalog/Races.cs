@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_races.go: every animal race of the catalog, a ThingDef with RaceProperties that the game's own race code
+// Every animal race of the catalog, a ThingDef with RaceProperties that the game's own race code
 // calls an animal, built from the defs, the def stat table and the game-computed race facts. A catalog without race facts
 // has no races.
 

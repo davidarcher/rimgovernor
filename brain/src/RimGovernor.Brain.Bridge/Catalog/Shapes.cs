@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_shapes.go: the plannable shape of every buildable def, by name: the size and interaction cell offset the def
+// The plannable shape of every buildable def, by name: the size and interaction cell offset the def
 // states, and the family the def shares slots with, which is the room role the game itself scores the building into.
 //   - a work table is in the family of its workTableRoomRole (the game's RoomRoleWorker_Workshop and _Laboratory count
 //     exactly the buildings whose workTableRoomRole is their role, and the kitchen role the stoves): a stove is Kitchen, a

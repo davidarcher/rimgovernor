@@ -3,13 +3,12 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The fixture machinery profile-capture borrows (Go <c>executeFixture</c>, <c>printFixture</c> and <c>preflight</c> of
-/// <c>cmd/acceptance</c>): the doctor/heal pass over a case whose start is the fixture op, then the same save-load and op
+/// The fixture machinery profile-capture borrows: the doctor/heal pass over a case whose start is the fixture op, then the same save-load and op
 /// call <c>acceptance fixture</c> makes, on the root's kept game.
 /// </summary>
 public static class ProfileFixtureHost
 {
-    /// <summary>The doctor/heal pass over a case whose start is the fixture op (Go <c>preflight</c> with one <c>cases.Fixture{Op}</c> case); false means the preflight refused and has printed why to <paramref name="info"/>.</summary>
+    /// <summary>The doctor/heal pass over a case whose start is the fixture op; false means the preflight refused and has printed why to <paramref name="info"/>.</summary>
     public static async Task<bool> PreflightAsync(ProfileFixtureCall request, TextWriter info, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -55,7 +54,7 @@ public static class ProfileFixtureHost
         }
     }
 
-    /// <summary>Prints a failed call's result (Go <c>printFixture</c>).</summary>
+    /// <summary>Prints a failed call's result.</summary>
     public static Task PrintFailureAsync(TextWriter writer, ProfileFixtureResult result, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(writer);

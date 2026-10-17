@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Acceptance;
 // The narrow interfaces the runner needs from machinery other slices own: the pre-run doctor/heal pass and the
 // session host. The tool host wires an implementation into RunDependencies.
 
-/// <summary>What the pre-run doctor/heal pass decided (Go <c>preflight</c>'s two results).</summary>
+/// <summary>What the pre-run doctor/heal pass decided.</summary>
 public sealed record PreflightResult(bool Ok, IReadOnlyList<string> Healed);
 
 /// <summary>Everything the runner needs wired from outside this folder.</summary>

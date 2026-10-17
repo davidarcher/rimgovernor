@@ -326,7 +326,7 @@ public static class DefenseBlock
     /// </summary>
     public static BlockPricing NewBlockPricing(StationFacts f, IReadOnlyDictionary<string, EquatableArray<Amount>> unitCosts, IReadOnlyDictionary<string, ClearRow> rows)
     {
-        var steel = f.Items.Market.GetValueOrDefault(SiteRules.SiteSteelUnit); // Go drops the missing-value error: an unpriced steel stays 0
+        var steel = f.Items.Market.GetValueOrDefault(SiteRules.SiteSteelUnit); // The missing-value error is dropped: an unpriced steel stays 0
         var p = new BlockPricing { Work = LayoutRegroupRules.StationWorkPrice(f), SteelValue = steel, Market = f.Items.Market, UnitCosts = unitCosts, Rows = rows };
         if (f.WorkPawns.TryGetValue(out var pawns) && ColonistWorkTicksPerDay(pawns).TryGetValue(out var ticks))
         {

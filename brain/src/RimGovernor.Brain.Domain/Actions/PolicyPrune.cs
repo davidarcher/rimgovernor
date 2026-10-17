@@ -1,9 +1,9 @@
 namespace RimGovernor.Brain.Domain;
 
 /// <summary>
-/// The native database a prune deletes from (Go <c>PolicyDatabase</c>). Members are the Go constants
+/// The native database a prune deletes from. Members are the constants
 /// <c>OutfitPolicies</c>, <c>DrugPolicies</c>, <c>FoodPolicies</c>, <c>ReadingPolicies</c>, <c>AllowedAreas</c>
-/// without the plural, so the wire names stay the Go strings.
+/// without the plural, so the wire names stay the strings.
 /// </summary>
 public enum PolicyDatabase
 {
@@ -22,7 +22,7 @@ public enum PolicyDatabase
 /// </summary>
 public sealed record PolicyPrune : IActionPayload
 {
-    /// <summary>Go <c>NewPolicyPrune</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public PolicyPrune(PolicyDatabase database, IEnumerable<string> ids)
     {
         DomainException.Require(Wire.IsDefined(database), "invalid policy database");

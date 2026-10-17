@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record Repair : IActionPayload
 {
-    /// <summary>Go <c>NewRepair</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public Repair(PawnId pawn, string structure, Cell cell)
     {
         DomainException.Require(

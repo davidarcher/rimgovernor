@@ -6,9 +6,8 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_planning.go: the planning views' shared reads. A comp is GetCompProperties<T>() (the first comp of the
-// class or a subclass), a class test is typeof(X).IsAssignableFrom, so the Go class-name consts and the
-// CompFloat/CompString reflection helpers have no counterpart.
+// The planning views' shared reads. A comp is GetCompProperties<T>() (the first comp of the
+// class or a subclass), a class test is typeof(X).IsAssignableFrom.
 
 /// <summary>The StatDef names the planning views read besides the floor stats.</summary>
 public static class PlanningStatNames

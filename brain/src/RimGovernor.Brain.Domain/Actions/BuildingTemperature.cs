@@ -9,7 +9,7 @@ public sealed record BuildingTemperature : IActionPayload
     private const double MinTemperatureCelsius = -273.15;
     private const double MaxTemperatureCelsius = 1000;
 
-    /// <summary>Go <c>NewBuildingTemperature</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public BuildingTemperature(string thing, double celsius)
     {
         DomainException.Require(IdText.IsValidText(thing), "invalid building temperature identity");
@@ -31,6 +31,6 @@ public sealed partial record DomainAction
     public static DomainAction NewBuildingTemperatureAction(ActionId id, BuildingTemperature temperature) =>
         Create(id, ActionKind.BuildingTemperature, temperature);
 
-    /// <summary>Go <c>Action.BuildingTemperature() (BuildingTemperature, bool)</c>: the payload when this is a building temperature action, otherwise null.</summary>
+    /// <summary>The payload when this is a building temperature action, otherwise null.</summary>
     public BuildingTemperature? BuildingTemperature => PayloadOf<BuildingTemperature>(ActionKind.BuildingTemperature);
 }

@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record DialogAnswer : IActionPayload
 {
-    /// <summary>Go <c>NewDialogAnswer</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public DialogAnswer(int windowId, int optionIndex, string optionLabel)
         : this(windowId, optionIndex, optionLabel, "") { }
 
@@ -31,7 +31,7 @@ public sealed record DialogAnswer : IActionPayload
     /// <summary>Empty for a window answer.</summary>
     public string LetterToken { get; }
 
-    /// <summary>Go <c>NewJoinerLetterAnswer</c>: targets a pending native letter rather than a window.</summary>
+    /// <summary>Targets a pending native letter rather than a window.</summary>
     public static DialogAnswer NewJoinerLetterAnswer(int letterId, string label, string token)
     {
         DomainException.Require(letterId >= 0 && IdText.IsValidText(label) && IdText.IsValidText(token), "invalid joiner letter target");

@@ -45,7 +45,7 @@ public sealed partial record StockpileFilter
             .WithHitPoints(StockpileRolesConstants.GearHitPointFloor, 1)
             .WithQuality(StockpileRolesConstants.GearQualityFloor, Quality.Legendary);
 
-    /// <summary>Go <c>IsArmoryFilter</c>: recognises the armory's filter by its shape (a gear floor over weapons).</summary>
+    /// <summary>Recognises the armory's filter by its shape (a gear floor over weapons).</summary>
     public static bool IsArmoryFilter(StockpileFilter f) =>
         f.HitPoints is not null
         && f.QualityRange is not null
@@ -53,7 +53,7 @@ public sealed partial record StockpileFilter
         && HasSelector(f.Allow, FilterSelector.CategoryDef("Weapons"))
         && !HasSelector(f.Allow, FilterSelector.CategoryDef("Apparel"));
 
-    /// <summary>Go <c>IsWardrobeFilter</c>: recognises the wardrobe's filter by its shape (a gear floor over apparel without weapons).</summary>
+    /// <summary>Recognises the wardrobe's filter by its shape (a gear floor over apparel without weapons).</summary>
     public static bool IsWardrobeFilter(StockpileFilter f) =>
         f.HitPoints is not null
         && f.QualityRange is not null

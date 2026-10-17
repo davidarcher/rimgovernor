@@ -3,7 +3,7 @@ using System.Globalization;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The per-invocation configuration shared by every case of a run (Go <c>cases.Options</c>). A record so the runner can
+/// The per-invocation configuration shared by every case of a run. A record so the runner can
 /// derive a variant (<c>with</c>) without touching the caller's.
 /// </summary>
 public sealed record RunOptions

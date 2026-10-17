@@ -1,11 +1,10 @@
 using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_decide.go
 //
 // Port note: CombatMemory, CombatRole and GeometryRequest are mutable classes/records here. DecideCombat threads
-// one working memory through dozens of in-place planners (Go passes *CombatMemory and mutates slice elements),
-// so the port keeps those mutations one-to-one and restores Go's value semantics with Copy() at the boundary
+// one working memory through dozens of in-place planners,
+// so those mutations are kept one-to-one and value semantics are restored with Copy() at the boundary
 // (memory in, memory out). Everything the planners only read (CombatView and its rows) is an immutable record.
 
 /// <summary>A combatant's stance (mirror CombatStance).</summary>
@@ -863,7 +862,7 @@ public sealed partial record CombatMemory
 
 public static partial class CombatDecideRules
 {
-    /// <summary>Go's <c>domain.PawnID(t.ID)</c>: the threat row's wire id as a pawn id.</summary>
+    /// <summary>The threat row's wire id as a pawn id.</summary>
     internal static PawnId ThreatPawn(SquadThreatFacts t) => t.Id;
 
     /// <summary>
@@ -896,7 +895,7 @@ public static partial class CombatDecideRules
         next.CannotHit = KeepHitRefusals(view, next.CannotHit);
         var live = view.Live();
 
-        // A downed or dead defender keeps no role; its rescue is rescueStep's (combat_rescue.go).
+        // A downed or dead defender keeps no role; its rescue is rescueStep's.
         next.Roles = EquatableArray.From(next.Roles.Where(r => live.GetValueOrDefault(r.Pawn)));
         var orderable = new HashSet<PawnId>(view.Orderable.Items);
         foreach (var d in view.Defenders.Items)
@@ -1298,7 +1297,7 @@ public static partial class CombatDecideRules
     /// <summary>
     /// The reaction table's formation row: no formation yet, a raid phase change or breach, a hold the raid
     /// has crossed, or a squad whose target is down or whose roster changed (a holder down or badly hurt, a
-    /// fit defender without a role; combat_squad_roster.go). Every other stop kind keeps the formation; their
+    /// fit defender without a role). Every other stop kind keeps the formation; their
     /// own responses (pull back when hurt, peel, rescue, scatter) are later rows.
     /// </summary>
     private static bool Reform(CombatView view, StopEvent stop, CombatMemory m)

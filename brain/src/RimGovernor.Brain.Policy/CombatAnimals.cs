@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_animals.go
 //
 // Animal tactics order the colony's animals with the animal orders, which need no draft claim. One use per
 // stop, first match wins:

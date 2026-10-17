@@ -37,7 +37,6 @@ public sealed record LootItem
 /// <summary>
 /// The latest complete safety census's work, not a first-seen cohort. The controller owns both forbidding and
 /// allowing items. Held lists the safe forbidden stacks a safety hold kept forbidden, with reasons.
-/// (Go <c>EventLootHistory</c>.)
 /// </summary>
 public sealed record EventLootHistory
 {
@@ -66,7 +65,7 @@ public sealed record EventLootHistory
 
 /// <summary>
 /// One loose stack at the cell the latest census saw it. Thing identity is the key; the cell only tells the
-/// planner where to read it, so a stack a builder hauls aside stays work. (Go <c>StartingSupply</c>.)
+/// planner where to read it, so a stack a builder hauls aside stays work.
 /// </summary>
 public sealed record StartingSupply
 {
@@ -89,7 +88,7 @@ public sealed record StartingSupply
 public static class EventLootRules
 {
     /// <summary>
-    /// Go <c>ReviewEventLoot</c>. Throws <see cref="DomainException"/> where Go returned an error (the caller
+    /// Throws <see cref="DomainException"/> (the caller
     /// keeps <paramref name="previous"/>).
     /// </summary>
     public static (EventLootHistory History, Fact<bool> Any) ReviewEventLoot(Fact<EquatableArray<LootItem>> observed, EventLootHistory previous)

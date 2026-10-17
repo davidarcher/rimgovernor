@@ -6,8 +6,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_quests.go and catalog_quest_families.go. The Go version walked the string fields of a proto message; the
-// game's node tree is walked by reflection over the fields that hold a QuestNode, a list of them, a plain
+// The game's node tree is walked by reflection over the fields that hold a QuestNode, a list of them, a plain
 // PlanetLayerDef, or a SlateRef (whose text is the def name, a `<li>` list of them, or an unresolved expression).
 
 public sealed partial class DefinitionCatalog

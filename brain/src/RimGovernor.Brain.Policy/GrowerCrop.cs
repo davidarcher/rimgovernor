@@ -5,7 +5,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// Asks which observed plant growers should sow a different crop than they do now. Choices are the same crop
 /// census a field request carries; Urgent prefers the fastest crop the way an urgent site selection does.
-/// (Go <c>GrowerCropRequest</c>.)
 /// </summary>
 public sealed record GrowerCropRequest
 {
@@ -18,7 +17,7 @@ public sealed record GrowerCropRequest
     public FieldRequest Field { get; init; } = new();
 }
 
-/// <summary>One grower whose crop should change, with the ranking that chose the crop. (Go <c>GrowerCropChoice</c>.)</summary>
+/// <summary>One grower whose crop should change, with the ranking that chose the crop.</summary>
 public sealed record GrowerCropChoice
 {
     public string Grower { get; init; } = "";
@@ -35,7 +34,7 @@ public sealed record GrowerCropChoice
 public static class GrowerCropRules
 {
     /// <summary>
-    /// Go <c>PlanGrowerCrops</c>: ranks, for each grower that can sow, every available edible crop carrying the
+    /// Ranks, for each grower that can sow, every available edible crop carrying the
     /// grower's sow tag by its nutrition rate over the grower's fertility (the same rate a basin candidate is
     /// scored with), and returns the growers whose current crop is not the winner. A grower whose crop, sow tag,
     /// fertility or sowing state is unknown is left alone, as is one already sowing the winner; growers are
@@ -125,7 +124,7 @@ public static class GrowerCropRules
             }
             return string.CompareOrdinal(a.Crop.Name, b.Crop.Name);
         }
-        // Stable, as Go's sort.SliceStable.
+        // Stable.
         return [.. ranking.OrderBy(c => c, Comparer<FieldCandidate>.Create(Compare))];
     }
 }

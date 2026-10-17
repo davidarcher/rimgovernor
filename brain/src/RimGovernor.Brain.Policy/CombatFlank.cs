@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_flank.go
 //
 // Flanking: a hold with at least the flank minimum of defenders and a layout choke detaches flankSize gunners
 // to cells beside the approach, just inside the choke, square to the main line (the L). They hold fire while

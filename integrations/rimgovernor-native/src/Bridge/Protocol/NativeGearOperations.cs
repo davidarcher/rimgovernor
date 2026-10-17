@@ -11,8 +11,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // GiveJobIntent Wear, the gear family's wear order: the
-    // pawn's availability, the apparel's eligibility are checked live
-    // (Go owns the gain policy), then the exact JobDefOf.Wear job an apparel
+    // pawn's availability, the apparel's eligibility are checked live, then the exact JobDefOf.Wear job an apparel
     // float-menu order would produce is issued as ordered work so no
     // forced-outfit entry is created. Weapons go through EQUIP. A pawn
     // already wearing the apparel, or walking to wear it, applies again.

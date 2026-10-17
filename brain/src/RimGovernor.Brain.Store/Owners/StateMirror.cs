@@ -5,9 +5,9 @@ using RimGovernor.Brain.Store.Codec;
 namespace RimGovernor.Brain.Store;
 
 /// <summary>
-/// The mirror of the store in the save's governor state component (Go <c>governor_state.go</c>). The store stays
+/// The mirror of the store in the save's governor state component. The store stays
 /// authoritative; each value is ASCII JSON (non-ASCII escaped as <c>\uXXXX</c>) with a top-level
-/// <c>schemaVersion</c>, and the shapes are those of the Go journal so saves written by either side load:
+/// <c>schemaVersion</c>, and the shapes are fixed:
 /// <list type="bullet">
 /// <item>A version 6 save's <c>standard/&lt;id&gt;</c> blobs are ignored on load (#3265): Standards are gone, and
 /// their methods were re-planned on every load anyway (<see cref="RebuildOwners"/>).</item>
@@ -275,7 +275,7 @@ public sealed partial class Store
                 continue;
             }
             using var document = ParseBlob(key, raw);
-            // The retired Standard's own JSON (Go field names): only Kind, Record and Snapshot are read.
+            // The retired Standard's own JSON: only Kind, Record and Snapshot are read.
             if (!document.RootElement.TryGetProperty("standard", out var standard) || standard.ValueKind != JsonValueKind.Object
                 || standard.StrOr("Kind") != LegacyReformKind.Value || standard.StrOr("Record") is not { Length: > 0 } text)
             {

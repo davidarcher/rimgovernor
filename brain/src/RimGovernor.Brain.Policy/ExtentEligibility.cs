@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// Overlays current, same-world evidence on established history. Region observations use the input region
 /// index; absent entries are unknown. Facilities is a complete census of current building and zone IDs. A
-/// map-wide threat may conservatively hold every region. (Go <c>ExtentEligibilityRequest</c>.)
+/// map-wide threat may conservatively hold every region.
 /// </summary>
 public sealed record ExtentEligibilityRequest
 {
@@ -25,7 +25,7 @@ public sealed record ExtentRegionObservation
 
 /// <summary>
 /// Neither Home coverage nor resource-operation reach. It contains no write authority and never edits its
-/// history or evidence inputs. (Go <c>ExtentEligibilityView</c>.)
+/// history or evidence inputs.
 /// </summary>
 public sealed record ExtentEligibilityView
 {
@@ -57,7 +57,6 @@ public sealed record ExtentRegionEligibility
 
 public static class ExtentEligibilityRules
 {
-    /// <summary>Go <c>ExtentEligibility</c>.</summary>
     public static ExtentEligibilityView ExtentEligibility(ExtentEligibilityRequest r)
     {
         if (!r.Extent.TryGetValue(out var e))

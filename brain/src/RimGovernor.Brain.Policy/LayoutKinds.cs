@@ -1,11 +1,11 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go's defined string types PlannedRole, NodeKind, ZoneKind and ReservationKind, as the port conventions' enums: the Go string is the wire name.
+// The string-named kinds PlannedRole, NodeKind, ZoneKind and ReservationKind, as enums: the string is the wire name.
 
 /// <summary>A planned room's role.</summary>
 public enum PlannedRole
 {
-    /// <summary>Go's empty PlannedRole: a room with no plan role.</summary>
+    /// <summary>The empty PlannedRole: a room with no plan role.</summary>
     [WireName("")]
     None,
 
@@ -297,7 +297,7 @@ public enum ReservationKind
 
 public static partial class LayoutKindsRules
 {
-    /// <summary>Go's <c>ReservationKind(s.Kind)</c>: the reservation kind that holds a site node's ground.</summary>
+    /// <summary>The reservation kind that holds a site node's ground.</summary>
     internal static ReservationKind ReservationKindOf(NodeKind kind) =>
         Wire.TryParse<ReservationKind>(Wire.Name(kind), out var reserved) ? reserved : throw new DomainException($"node kind {Wire.Name(kind)} has no reservation kind");
 }

@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record Ignite : IActionPayload
 {
-    /// <summary>Go <c>NewIgnite</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public Ignite(PawnId pawn, Cell cell)
     {
         DomainException.Require(pawn.IsValid && cell.X >= 0 && cell.Z >= 0, "ignite requires a valid pawn and cell");

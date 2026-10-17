@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The shared JSON report every acceptance run writes (Go <c>nativeaccept.Report</c>): a dynamic bag of fields,
+/// The shared JSON report every acceptance run writes: a dynamic bag of fields,
 /// always including <c>passed</c>, <c>scope</c>, <c>started_at</c> and, on failure, <c>error</c>. Finalize adds the
 /// timing fields (see <c>Report.Timing.cs</c>) and writes <c>result.json</c>.
 /// </summary>
@@ -134,7 +134,7 @@ public sealed partial class Report
 
     /// <summary>
     /// Writes the report as <c>output/result.json</c>. Finalize calls it; a runner that adds bookkeeping after
-    /// Finalize (the series' drift flags) calls it again. A failure to write is not reported, as in Go.
+    /// Finalize (the series' drift flags) calls it again. A failure to write is not reported.
     /// </summary>
     public void Write(string output)
     {

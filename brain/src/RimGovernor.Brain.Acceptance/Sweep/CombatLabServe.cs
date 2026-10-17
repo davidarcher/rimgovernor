@@ -37,7 +37,7 @@ public static class CombatServe
         _ = await h.PauseClockAsync("pause-after", cancellationToken).ConfigureAwait(false);
 
     /// <summary>
-    /// A lab_stage action that must succeed (Go <c>rawRead</c>): the raw reply, which the bundle keeps as the native
+    /// A lab_stage action that must succeed: the raw reply, which the bundle keeps as the native
     /// wrote it.
     /// </summary>
     public static async Task<JsonObject> RawReadAsync(Harness h, string action, CancellationToken cancellationToken)

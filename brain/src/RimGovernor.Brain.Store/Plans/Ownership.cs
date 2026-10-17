@@ -4,7 +4,7 @@ using RimGovernor.Brain.Store.Codec;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>One building method for admission (Go <c>BuildingMethodRequest</c>).</summary>
+/// <summary>One building method for admission.</summary>
 public sealed record BuildingMethodRequest
 {
     /// <summary>

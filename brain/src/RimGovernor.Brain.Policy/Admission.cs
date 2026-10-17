@@ -2,7 +2,7 @@ using System.Text;
 
 namespace RimGovernor.Brain.Policy;
 
-// Go: admission.go. Package policy admits explicit building work from complete native observations.
+// Package policy admits explicit building work from complete native observations.
 // Admission is not dispatch authorization; Hands must refresh native safety checks.
 
 /// <summary>A native resource definition name. Open set: the game's defs, so a wrapper rather than an enum.</summary>
@@ -31,7 +31,6 @@ public readonly partial record struct Resource(string Value) : IComparable<Resou
 
 public sealed record Amount(Resource Resource, long Count)
 {
-    /// <summary>The zero value Go's struct literal starts from.</summary>
     public Amount() : this(default, 0)
     {
     }
@@ -200,7 +199,6 @@ public readonly partial record struct Reason(string Value)
 /// <summary>One action admission turned away, with the safeguard reason. Kept apart from the wire and verdict refusals: it names a planned action, not a native reply or a routine step.</summary>
 public sealed record Refusal(ActionId Action, Reason Reason, Resource Resource)
 {
-    /// <summary>The zero value Go's struct literal starts from.</summary>
     public Refusal() : this(default, default, default)
     {
     }

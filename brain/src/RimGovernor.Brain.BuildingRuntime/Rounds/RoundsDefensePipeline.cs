@@ -26,7 +26,7 @@ internal sealed partial class DefensePipeline
     {
         if (census is null)
         {
-            // Go dereferences the census here; an absent census leaves the unbuilt list as it was.
+            // An absent census leaves the unbuilt list as it was.
             return;
         }
         Unbuilt = Unbuilt.Where(b => !census.Standing(b.Definition, b.Cell)).ToList();

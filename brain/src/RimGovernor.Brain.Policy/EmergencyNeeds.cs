@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 public static class EmergencyNeedsRules
 {
     /// <summary>
-    /// Go <c>EmergencyNeeds</c>: uses the same census and medical/threat rules as clock safety. Incomplete or
+    /// Uses the same census and medical/threat rules as clock safety. Incomplete or
     /// conflicting evidence cannot become a recovered routine need.
     /// </summary>
     public static (Fact<long> Hostiles, Fact<long> Patients) EmergencyNeeds(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick)
@@ -35,7 +35,7 @@ public static class EmergencyNeedsRules
     }
 
     /// <summary>
-    /// Go <c>UrgentPatients</c>: counts the critical patients who are bleeding or downed with a tend outstanding:
+    /// Counts the critical patients who are bleeding or downed with a tend outstanding:
     /// the ones whose care cannot wait for ordinary work. A living colonist who merely needs tending, or who is
     /// downed with nothing to tend, is a patient but not an urgent one. Uncertainty is unknown, exactly as
     /// <see cref="EmergencyNeeds"/> reports it.
@@ -47,7 +47,7 @@ public static class EmergencyNeedsRules
     }
 
     /// <summary>
-    /// Go <c>countPatients</c>: counts the living colonists who are urgent patients and, with tending, every
+    /// Counts the living colonists who are urgent patients and, with tending, every
     /// downed, bleeding or tend-needing colonist too. Callers have already established that every health fact is
     /// known.
     /// </summary>
@@ -107,7 +107,7 @@ public static class EmergencyNeedsRules
     }
 
     /// <summary>
-    /// Go <c>AmputationNeeds</c>: adds the colonists a life-saving amputation would save to the critical and
+    /// Adds the colonists a life-saving amputation would save to the critical and
     /// urgent patient counts, never counting a colonist either already includes. Losing an immunity race is an
     /// emergency: the amputation runs at CriticalMedical's priority. Unknown care facts add nobody; an unknown
     /// count stays unknown.

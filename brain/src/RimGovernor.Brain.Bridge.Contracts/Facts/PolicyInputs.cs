@@ -4,10 +4,9 @@ using WirePolicyInputs = RimGovernor.Contracts.Wire.Observations.PawnPolicyInput
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go policy_inputs.go.
 public static class PolicyInputs
 {
-    /// <summary>Go's <c>PawnPolicyInputs</c>: lifts a settings row's policy inputs; unknown when the producer carried none.</summary>
+    /// <summary>Lifts a settings row's policy inputs; unknown when the producer carried none.</summary>
     public static Fact<Brain.Policy.PawnPolicyInputs> PawnPolicyInputs(WirePolicyInputs? inputs)
     {
         if (inputs is null)

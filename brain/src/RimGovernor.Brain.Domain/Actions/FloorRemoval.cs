@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record FloorRemoval : IActionPayload
 {
-    /// <summary>Go <c>NewFloorRemoval</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public FloorRemoval(string definition, Cell cell)
     {
         DomainException.Require(IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0, "invalid floor removal definition or cell");
@@ -24,6 +24,6 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewFloorRemovalAction(ActionId id, FloorRemoval floor) => Create(id, ActionKind.FloorRemoval, floor);
 
-    /// <summary>Go <c>Action.FloorRemoval() (FloorRemoval, bool)</c>: the payload when this is a floor removal action, otherwise null.</summary>
+    /// <summary>The payload when this is a floor removal action, otherwise null.</summary>
     public FloorRemoval? FloorRemoval => PayloadOf<FloorRemoval>(ActionKind.FloorRemoval);
 }

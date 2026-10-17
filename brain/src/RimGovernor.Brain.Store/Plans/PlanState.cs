@@ -3,8 +3,7 @@ using RimGovernor.Brain.Domain;
 namespace RimGovernor.Brain.Store;
 
 /// <summary>
-/// A stored plan decoded: its spec, the progress each action has replayed to, and its zone footprint records
-/// (Go <c>PlanState</c>). Immutable, so the plan cache hands the same instance to every reader.
+/// A stored plan decoded: its spec, the progress each action has replayed to, and its zone footprint records. Immutable, so the plan cache hands the same instance to every reader.
 /// </summary>
 /// <param name="Retired">True once the plan left the active catalog; a retired plan is read-only.</param>
 /// <param name="SupersededBy">The plan that replaced this one, empty when none.</param>
@@ -34,20 +33,20 @@ public sealed record Admission(GenerationSnapshot Snapshot, Tick Tick, Equatable
 /// <summary>An <see cref="Admission"/> and the action it covers.</summary>
 public sealed record ActionAdmission(ActionId Action, Admission Admission);
 
-/// <summary>A loaded map of a save: the scope control, the root plan and incidents belong to (Go <c>World</c>).</summary>
+/// <summary>A loaded map of a save: the scope control, the root plan and incidents belong to.</summary>
 public readonly record struct World(ColonyId Colony, LoadId Load, MapId Map)
 {
     /// <summary>Whether the world's identity is valid.</summary>
     public bool IsValid => new GenerationSnapshot(Colony, Map, Load, new PlanId("world-validation"), new PlanRevision(1), default).IsValid;
 
-    /// <summary>Throws when the world's identity is not valid (Go <c>World.Validate</c>).</summary>
+    /// <summary>Throws when the world's identity is not valid.</summary>
     public void Validate() => new GenerationSnapshot(Colony, Map, Load, new PlanId("world-validation"), new PlanRevision(1), default).Validate();
 }
 
-/// <summary>Go <c>BatchAttempt</c>: one action of a prepare or dispatch batch.</summary>
+/// <summary>One action of a prepare or dispatch batch.</summary>
 public sealed record BatchAttempt(PlanId Plan, ActionId Action, GenerationSnapshot Snapshot, Tick Tick);
 
-/// <summary>Go <c>BatchReceipt</c>: one receipt of a <see cref="Store.RecordReceipts"/> batch.</summary>
+/// <summary>One receipt of a <see cref="Store.RecordReceipts"/> batch.</summary>
 public sealed record BatchReceipt(PlanId Plan, ActionId Action, AttemptId Attempt, Receipt Receipt)
 {
     /// <summary>The combat results a combat batch's receipt carries.</summary>
@@ -63,5 +62,5 @@ public sealed record BatchReceipt(PlanId Plan, ActionId Action, AttemptId Attemp
 /// </summary>
 public sealed record BatchResult(Progress? Progress, Exception? Error);
 
-/// <summary>The plan cache's lifetime counters (Go <c>PlanCacheStats</c>).</summary>
+/// <summary>The plan cache's lifetime counters.</summary>
 public readonly record struct PlanCacheStats(long Hits, long Misses, long Drops, long Flushes);

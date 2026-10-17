@@ -32,7 +32,7 @@ public static class OtlpFiles
 /// <summary>Bounds one signal's file ring: disk use is at most <see cref="SegmentBytes"/> x <see cref="Segments"/>.</summary>
 public readonly record struct OtlpLimits(long SegmentBytes, int Segments);
 
-/// <summary>Configures <see cref="OtlpFileWriter.Start"/>. Every optional member defaults as the Go service did.</summary>
+/// <summary>Configures <see cref="OtlpFileWriter.Start"/>. Every optional member has a default.</summary>
 public sealed record OtlpFileConfig
 {
     public const int DefaultQueueSize = 16384;

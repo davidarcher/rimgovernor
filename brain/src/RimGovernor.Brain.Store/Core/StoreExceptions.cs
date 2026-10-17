@@ -15,7 +15,7 @@ public sealed class ConstructionLaborException : DomainException
     public ConstructionLaborException() : base("the initial shelter holds the construction labor") { }
 }
 
-/// <summary>Go <c>core.ErrConflict</c>: a plan or action identity already exists, or a compare-and-swap lost.</summary>
+/// <summary>A plan or action identity already exists, or a compare-and-swap lost.</summary>
 public class ConflictException : DomainException
 {
     public ConflictException()
@@ -28,10 +28,10 @@ public class ConflictException : DomainException
         : base("plan or action identity already exists: " + detail) { }
 }
 
-/// <summary>Go <c>ErrMethodBound</c>: a commit refused because the owner already binds that method id.</summary>
+/// <summary>A commit refused because the owner already binds that method id.</summary>
 public sealed class MethodBoundException(string detail) : ConflictException("method already bound: " + detail);
 
-/// <summary>Go <c>core.ErrNotAdmitted</c>: a Need's method without a current enabled review.</summary>
+/// <summary>A Need's method without a current enabled review.</summary>
 public sealed class NotAdmittedException : DomainException
 {
     public NotAdmittedException()
@@ -41,13 +41,11 @@ public sealed class NotAdmittedException : DomainException
         : base("method not admitted: " + detail) { }
 }
 
-/// <summary>Go <c>core.ErrNotFound</c>.</summary>
 public sealed class NotFoundException() : DomainException("plan or action not found");
 
-/// <summary>Go <c>core.ErrCapacity</c>.</summary>
 public sealed class CapacityException() : DomainException("plan catalog capacity reached");
 
-/// <summary>Go <c>ErrActionVetoed</c>: an action Safeguard's dispatch refusal.</summary>
+/// <summary>An action Safeguard's dispatch refusal.</summary>
 public sealed class ActionVetoedException : DomainException
 {
     public ActionVetoedException()
@@ -57,12 +55,12 @@ public sealed class ActionVetoedException : DomainException
         : base("action vetoed: " + detail) { }
 }
 
-/// <summary>Go <c>ErrOpenMethod</c>: native postconditions must settle existing work before another method is admitted.</summary>
+/// <summary>Native postconditions must settle existing work before another method is admitted.</summary>
 /// <summary>The combat Need admits no Method beside its own open work or a held fight.</summary>
 public sealed class CombatWorkOpenException() : DomainException("existing combat method requires observation");
 
 /// <summary>
-/// Go <c>ErrIncompatible</c>: <see cref="Store.Open"/> refuses a database another schema version or
+/// <see cref="Store.Open"/> refuses a database another schema version or
 /// application wrote. <see cref="Found"/> is the <c>application/version</c> pair it carried.
 /// </summary>
 public sealed class IncompatibleDatabaseException(string found)

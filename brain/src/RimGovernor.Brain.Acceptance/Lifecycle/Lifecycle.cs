@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// Names a RimWorld NeedDef (Food, Rest, Joy, ...) that <see cref="Session.OpenAsync"/> leaves live when it freezes
-/// the rest (Go <c>NeedDef</c>).
+/// the rest.
 /// </summary>
 public readonly record struct NeedDef(string Value)
 {
@@ -29,7 +29,7 @@ public readonly record struct NeedDef(string Value)
     public override string ToString() => Value;
 }
 
-/// <summary>What a start contributes to the report's world block (Go <c>worldSource</c>): the save it loaded, the seed it knows and whether that seed was pinned.</summary>
+/// <summary>What a start contributes to the report's world block: the save it loaded, the seed it knows and whether that seed was pinned.</summary>
 public sealed record WorldSource
 {
     /// <summary>The save the start loaded by profile name; empty when it generated or reused a world.</summary>
@@ -41,9 +41,9 @@ public sealed record WorldSource
 }
 
 /// <summary>
-/// Everything around the lifecycle that depends on the profile and the game process, which other slices own (Go
-/// <c>Config.EnsureSave</c>, <c>UseSaveExpansions</c>, <c>PrepareConfig</c>, <c>PackageFiles</c>, <c>OpenGame</c>,
-/// <c>RecordWorld</c>, <c>FixtureBuildHint</c>). The lifecycle calls it in the order Go did.
+/// Everything around the lifecycle that depends on the profile and the game process, which other slices own
+/// (<c>Config.EnsureSave</c>, <c>UseSaveExpansions</c>, <c>PrepareConfig</c>, <c>PackageFiles</c>, <c>OpenGame</c>,
+/// <c>RecordWorld</c>, <c>FixtureBuildHint</c>).
 /// </summary>
 public interface ISessionHost
 {
@@ -56,13 +56,13 @@ public interface ISessionHost
     /// </summary>
     Task PrepareAsync(Config config, IReadOnlyList<string> saves, CancellationToken cancellationToken);
 
-    /// <summary>The installed package's file hashes (Go <c>PackageFiles</c>), name to hash; also fails a stale package.</summary>
+    /// <summary>The installed package's file hashes, name to hash; also fails a stale package.</summary>
     JsonObject PackageFiles(Config config);
 
     /// <summary>Opens the game (a kept process is reused) and returns the hold; <paramref name="report"/> receives its launch rows.</summary>
     Task<Game> OpenGameAsync(Config config, Report report, CancellationToken cancellationToken);
 
-    /// <summary>The report's world block for <paramref name="start"/> once it has loaded (Go <c>RecordWorld</c>); never fails the run.</summary>
+    /// <summary>The report's world block for <paramref name="start"/> once it has loaded; never fails the run.</summary>
     JsonObject RecordWorld(Config config, Start start, WorldSource source);
 
     /// <summary>The " -Fixture ..." build hint the stale-mod error appends for <paramref name="op"/>; empty when unknown.</summary>
@@ -71,7 +71,7 @@ public interface ISessionHost
 
 /// <summary>
 /// The game is already loaded in a reused process (<see cref="Config.KeepLoaded"/> left it there): the start loads
-/// nothing and fails at the main menu. The storyteller is left as it is (Go <c>Loaded</c>).
+/// nothing and fails at the main menu. The storyteller is left as it is.
 /// </summary>
 public sealed record LoadedStart : Start
 {
@@ -79,7 +79,7 @@ public sealed record LoadedStart : Start
 }
 
 /// <summary>
-/// The start behaviour Go declared on the <c>Start</c> interface (saves, fixtureOps, load, world), dispatched over the
+/// The start behaviour (saves, fixtureOps, load, world), dispatched over the
 /// sealed set of start records.
 /// </summary>
 public static class StartOps
@@ -266,7 +266,7 @@ public static class StartOps
 }
 
 /// <summary>
-/// A loaded, paused, quiet game with frozen needs for native-only cases (Go <c>Session</c>). The brain is in-process
+/// A loaded, paused, quiet game with frozen needs for native-only cases. The brain is in-process
 /// in the mod, so a service-driven case does not release a sole bridge slot to a child: <see cref="Release"/> and
 /// <see cref="Reattach"/> are trivial.
 /// </summary>
@@ -404,7 +404,7 @@ public sealed class Session
     }
 
     /// <summary>
-    /// Adopts an already-open harness without opening a game (Go <c>StartLab</c> builds its session this way): the
+    /// Adopts an already-open harness without opening a game: the
     /// session is for the start helpers only and holds no game to close.
     /// </summary>
     public static async Task<Session> AdoptAsync(Config config, ISessionHost host, Harness harness, Report report, CancellationToken cancellationToken)
@@ -434,14 +434,14 @@ public sealed class Session
     }
 
     /// <summary>
-    /// Hands the game to a service (Go <c>Release</c> gave up the harness's exclusive session). The brain runs in the mod and the
+    /// Hands the game to a service. The brain runs in the mod and the
     /// HTTP channel has no exclusive slot, so the harness stays usable and this does nothing.
     /// </summary>
     public static void Release()
     {
     }
 
-    /// <summary>Takes the game back once the service has stopped (Go <c>Reattach</c> reopened the bridge client); the harness never went away.</summary>
+    /// <summary>Takes the game back once the service has stopped; the harness never went away.</summary>
     public Harness Reattach() => Harness;
 
     /// <summary>Ends the hold: the process is kept at the main menu or stopped, and game_reuse lands on the report.</summary>

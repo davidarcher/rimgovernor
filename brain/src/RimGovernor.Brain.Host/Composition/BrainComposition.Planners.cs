@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Host;
 
 public sealed partial class BrainComposition
 {
-    // Budgets census and composed planner reads independently of epoch renewal (Go serviceClockStepTimeout).
+    // Budgets census and composed planner reads independently of epoch renewal.
     private static readonly TimeSpan StepTimeout = TimeSpan.FromMinutes(1);
 
     /// <summary>Called once, after the player exists and before the Worker does.</summary>
@@ -394,7 +394,7 @@ public sealed partial class BrainComposition
         return ClockRunDriver.Create(context.Player, context.Session, scheduler, client, clockWriter, config, SystemClock.Instance, context.Wake, CancellationToken.None);
     }
 
-    // Go roundsCapabilities: the routine policy thresholds and the method capabilities a composed serve declares from
+    // The routine policy thresholds and the method capabilities a composed serve declares from
     // its enabled families. Every family whose planner acts only while the development ranking selected its goal
     // must declare that goal here, or the review ranks it method_unavailable and the planner never runs.
     internal static (RoundsPolicy Thresholds, RoundsCapabilities Capabilities) RoundsCapabilitiesFor(BrainFamilies sc, bool layoutOverlay)

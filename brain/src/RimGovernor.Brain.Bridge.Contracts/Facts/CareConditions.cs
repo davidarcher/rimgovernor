@@ -3,11 +3,10 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go care_conditions.go.
 public static class CareConditionsRules
 {
     /// <summary>
-    /// Go's <c>CareConditions</c>: decodes a pawn's conditions and life threat, the inputs of the care planners.
+    /// Decodes a pawn's conditions and life threat, the inputs of the care planners.
     /// An absent conditions block leaves both unknown.
     /// </summary>
     public static (Fact<EquatableArray<CareCondition>> Conditions, Fact<bool> LifeThreatening) CareConditions(PawnConditions? conditions) =>

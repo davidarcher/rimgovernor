@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 // hostiles wake or an engaging hostile comes near, the same mapping returns the pawn's default and the planner
 // writes it back.
 
-/// <summary>One colonist's hostility inputs. (Go <c>HostilityPawn</c>.)</summary>
+/// <summary>One colonist's hostility inputs.</summary>
 public sealed record HostilityPawn
 {
     public PawnId ID { get; init; }
@@ -174,7 +174,7 @@ public static class HostilityRules
             }
             catch (DomainException)
             {
-                // an unwritable setting is skipped, as the Go error branch does
+                // An unwritable setting is skipped.
             }
         }
         return @out;

@@ -4,10 +4,10 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go biotech.go and biotech_catalog.go (#3056 left them out; #3111): one load's Biotech facts as a facade over the Def
+// One load's Biotech facts (#3111) as a facade over the Def
 // rows. The gene, race and mech kind defs are the catalog's own rows; the three mech work modes the game picks by
-// role are the MechWorkModeDefOf members, whose defName is the member's name. The GeneTuning singleton Go carried is
-// the game's own static GeneTuning class and needs no copy.
+// role are the MechWorkModeDefOf members, whose defName is the member's name. The game's own static GeneTuning class
+// needs no copy.
 
 public sealed partial class DefinitionCatalog
 {
@@ -68,10 +68,10 @@ public sealed partial class DefinitionCatalog
     }
 }
 
-/// <summary>A controllable mech kind as the planner reads it (Go <c>mechKindRow</c>).</summary>
+/// <summary>A controllable mech kind as the planner reads it.</summary>
 internal sealed record MechKindRow(string Race, bool WorkMech, double BandwidthCost, double CombatPower, IReadOnlyList<string> WorkTypes);
 
-/// <summary>One load's Biotech facts (Go <c>BiotechCatalog</c>); <see cref="DefinitionCatalog.Biotech"/> is null without Biotech.</summary>
+/// <summary>One load's Biotech facts; <see cref="DefinitionCatalog.Biotech"/> is null without Biotech.</summary>
 public sealed class BiotechCatalog
 {
     private readonly IReadOnlyDictionary<string, RaceProperties> _races;

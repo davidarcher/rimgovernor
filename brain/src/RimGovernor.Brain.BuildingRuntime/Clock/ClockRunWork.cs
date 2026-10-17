@@ -1,13 +1,12 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Port of the work census of internal/buildingruntime/clock_scheduler.go (clockSchedulerWork, roundsWork,
-// runningWork, clockSchedulerCombatPlan, armedCombatStops). The run driver reads it after the planning step: the
+// The work census. The run driver reads it after the planning step: the
 // coupled orders ready under a running clock, the open fight and the fingerprint of the plans' actions. Whether a
 // plan has work that needs game time is no longer asked: the clock runs whatever the plans hold.
 
 internal static class ClockRunWork
 {
-    /// <summary>The fingerprint of <paramref name="plan"/>'s actions (Go <c>clockSchedulerWork</c>). A plan that is not the current revision is refused rather than guessed at.</summary>
+    /// <summary>The fingerprint of <paramref name="plan"/>'s actions. A plan that is not the current revision is refused rather than guessed at.</summary>
     public static List<ClockWorkItem> Census(PlanState plan, GenerationSnapshot current)
     {
         if (plan.Spec.Id != current.Plan || plan.Spec.Revision != current.Revision || plan.Progress.Count != plan.Spec.Actions.Count)
@@ -25,7 +24,7 @@ internal static class ClockRunWork
 
     /// <summary>
     /// The dispatched or awaiting-observation watched actions of the root plan the running clock carries (<c>Live</c>)
-    /// and the coupled orders ready under it (Go <c>runningWork</c>). A plan the census cannot read counts none.
+    /// and the coupled orders ready under it. A plan the census cannot read counts none.
     /// </summary>
     public static async Task<(int Live, IReadOnlyList<ActionId> Coupled)> RunningAsync(StoreJournal journal, GenerationSnapshot snapshot, Tick tick, CancellationToken ct)
     {
@@ -54,8 +53,7 @@ internal static class ClockRunWork
     /// <summary>
     /// Whether the current rounds files an active combat standing whose <c>military/combat</c> Need holds an admitted
     /// plan with open work (#3311): the only evidence under which live hostiles are watched rather than refused.
-    /// <c>FightOpen</c> is whether a fight owns the combat and <c>Prey</c> the squad hunt's live prey (Go
-    /// <c>clockSchedulerCombatPlan</c>).
+    /// <c>FightOpen</c> is whether a fight owns the combat and <c>Prey</c> the squad hunt's live prey.
     /// </summary>
     public static async Task<(bool Plan, bool FightOpen, EquatableArray<PawnId> Prey)> CombatPlanAsync(StoreJournal journal, GenerationSnapshot current, CancellationToken ct)
     {
@@ -88,6 +86,6 @@ internal static class ClockRunWork
         return (false, false, default);
     }
 
-    /// <summary>The combat events a combat watch arms: the decision events while an admitted fight plan owns the combat, none otherwise (Go <c>armedCombatStops</c>).</summary>
+    /// <summary>The combat events a combat watch arms: the decision events while an admitted fight plan owns the combat, none otherwise.</summary>
     public static IReadOnlyList<PbClock.CombatEvent> ArmedStops(bool fightOpen) => fightOpen ? ClockCombatStops.DecisionEvents : [];
 }

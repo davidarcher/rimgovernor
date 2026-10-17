@@ -251,7 +251,7 @@ public static class HumanFoodRules
         return false;
     }
 
-    /// <summary>Allocates the human meat to its destinations in order. Throws <see cref="FoodFactsException"/> where Go returned ErrFoodFacts.</summary>
+    /// <summary>Allocates the human meat to its destinations in order. Throws <see cref="FoodFactsException"/>.</summary>
     public static IReadOnlyList<HumanMeatAllocation> RouteHumanMeat(HumanMeatRouting r)
     {
         if (!FoodForecastRules.FoodNumber(r.Nutrition) || !FoodForecastRules.FoodNumber(r.FeedShortfall) || !FoodForecastRules.FoodNumber(r.EligibleMealDemand) || !FoodForecastRules.FoodNumber(r.VegetableNutrition))

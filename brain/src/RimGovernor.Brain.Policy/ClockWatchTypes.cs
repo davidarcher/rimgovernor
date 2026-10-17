@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // The facts and verdict of the pure watch decision (EvaluateClockWatch): whether the held clock may Run and under
-// which watch policy. Go: clock_window_types.go, reduced to the continuous Run/Hold clock.
+// which watch policy. The clock is the continuous Run/Hold clock.
 
 public enum ClockWatchState
 {

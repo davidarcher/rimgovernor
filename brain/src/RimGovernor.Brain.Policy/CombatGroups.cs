@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_groups.go
 //
 // Divide and conquer: a raid split into groups on different flanks gets one squad per group. The group nearest
 // the layout choke (the line's middle without one) keeps the hold; each other group gets a share of the line's

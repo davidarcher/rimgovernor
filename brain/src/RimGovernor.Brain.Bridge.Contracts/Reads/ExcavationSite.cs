@@ -5,7 +5,7 @@ using DomainCell = RimGovernor.Brain.Domain.Cell;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>ExcavationSiteCell</c>: one requested rock cell as native saw it. Fogged cells carry no rock, roof or
+/// One requested rock cell as native saw it. Fogged cells carry no rock, roof or
 /// eligibility facts: they are unknown, never assumed empty or safe.
 /// </summary>
 public sealed record ExcavationSiteCell
@@ -26,7 +26,7 @@ public sealed record ExcavationSiteCell
 }
 
 /// <summary>
-/// Go's <c>ExcavationSite</c>: the site-level answer for one ordered cell set, the counterfactual roof support once
+/// The site-level answer for one ordered cell set, the counterfactual roof support once
 /// every requested cell is gone, plus worker access to the access cell. The read (<c>ReadExcavationSite</c>) is
 /// wire plumbing and not ported.
 /// </summary>
@@ -53,6 +53,6 @@ public sealed record ExcavationSite
 
 public static class ExcavationSiteRules
 {
-    /// <summary>Go's <c>excavationCellValid</c>: whether the cell lies on the map grid.</summary>
+    /// <summary>Whether the cell lies on the map grid.</summary>
     public static bool ExcavationCellValid(DomainCell cell) => cell.X >= 0 && cell.Z >= 0;
 }

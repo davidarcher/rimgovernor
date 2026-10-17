@@ -8,7 +8,7 @@ internal sealed record WorkerSource(string Src, string Base);
 /// <summary>A place in the game's code that grants a memory thought: <c>Type.Method</c> and the method's text.</summary>
 internal sealed record MemorySite(string Site, string Body);
 
-/// <summary>Scans the decompiled game sources for ThoughtWorker classes and thought grant sites (Go: <c>scanSources</c>).</summary>
+/// <summary>Scans the decompiled game sources for ThoughtWorker classes and thought grant sites.</summary>
 internal static partial class ThoughtSources
 {
     [GeneratedRegex(@"\bThoughtDefOf\.(\w+)", RegexOptions.ECMAScript | RegexOptions.CultureInvariant)]

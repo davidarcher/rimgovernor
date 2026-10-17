@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: trade_pawn.go.
 
 public static partial class TradePolicyRules
 {

@@ -2,7 +2,7 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Simulation.Supply;
 
-// Port of Go internal/supplysim (world.go): a day-by-day stock-flow simulator for colony supply. It models
+// A day-by-day stock-flow simulator for colony supply. It models
 // flows and constraints, never pawn behaviour: goods have stock, consumers draw them down, sources deliver
 // while opened and within a labor budget, and shocks change capacity or destroy stock. A planner opens and
 // closes sources each day; World.Run returns a deterministic Report. Goods are plain strings so a resource
@@ -29,7 +29,7 @@ public readonly record struct Good(string Value)
     public override string ToString() => Value;
 }
 
-/// <summary>Planning constants of the simulator (Go package-level consts of supplysim).</summary>
+/// <summary>Planning constants of the simulator.</summary>
 public static class SupplyConstants
 {
     /// <summary>The planning labor per worker per game day in pawn ticks, as in buildingruntime/rounds_food_plan.go (eight hours of a day).</summary>

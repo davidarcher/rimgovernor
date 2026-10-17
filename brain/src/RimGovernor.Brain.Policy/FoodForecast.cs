@@ -2,7 +2,7 @@ using System.Text;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Go <c>ErrFoodFacts</c>: the food forecast inputs are unavailable or invalid.</summary>
+/// <summary>The food forecast inputs are unavailable or invalid.</summary>
 public sealed class FoodFactsException() : DomainException("food forecast inputs unavailable or invalid");
 
 public sealed record FoodConsumer
@@ -120,7 +120,7 @@ public sealed record FoodForecast
     public IReadOnlyList<ConsumerFoodForecast> PetShortfalls { get; init; } = [];
 
     /// <summary>
-    /// Go <c>FoodForecast.GateOnColonists</c>: returns the forecast with RunwayDays taken over the colonists'
+    /// Returns the forecast with RunwayDays taken over the colonists'
     /// rows only: one unfed pet must not read the colony as starving. Every other row whose runway falls
     /// below minDays is reported in PetShortfalls as its own need. The allocation itself is unchanged, so pets
     /// still compete for shared stock. An empty census keeps the all-consumer minimum, and a census with no
@@ -188,11 +188,11 @@ public static class FoodForecastRules
     }
 
     /// <summary>
-    /// Go <c>ForecastFood</c>: allocates each stock among its observed eligible consumers by demand, then
+    /// Allocates each stock among its observed eligible consumers by demand, then
     /// consumes allocations in expiry order. Private inventory belongs only to its holder. A selected human
     /// census still competes with animal demand. This is feasible nutrition under fixed access/temperature, not
     /// predicted jobs. Null selected means all consumers; an empty selection has unknown runway. Throws
-    /// <see cref="FoodFactsException"/> where Go returned ErrFoodFacts.
+    /// <see cref="FoodFactsException"/>.
     /// </summary>
     public static FoodForecast ForecastFood(FoodSupply supply, IReadOnlyList<PawnId>? selected)
     {

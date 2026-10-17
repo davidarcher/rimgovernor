@@ -2,12 +2,12 @@ using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go zone.go, area.go, build_roof.go, remove_roof.go, area_plant_cut.go and policy_prune.go: the intents that edit
+// The intents that edit
 // ground, storage and the policy databases. Native checks the ground and the holders live when it applies.
 // PreviewZone (the zones_preview call) is wire plumbing and is not part of this file.
 public static class Zones
 {
-    /// <summary>Go's <c>ZoneConfiguration</c>: the create shape of the one zone intent.</summary>
+    /// <summary>The create shape of the one zone intent.</summary>
     public static Op.ZoneIntent ZoneConfiguration(ZoneCreate zone)
     {
         var command = new Op.ZoneIntent
@@ -43,7 +43,7 @@ public static class Zones
     }
 
     /// <summary>
-    /// Go's <c>StockpileSettings</c>: the native StockpileSettings for a filter and priority. The filter's base is the
+    /// The native StockpileSettings for a filter and priority. The filter's base is the
     /// preset, and a FilterPatch is sent only when the filter has selectors or ranges.
     /// </summary>
     public static Op.StockpileSettings StockpileSettings(StockpileFilter filter, StockpilePriority priority)
@@ -113,11 +113,11 @@ public static class Zones
 
     private static Op.Action ZoneAction(Op.ZoneIntent intent) => new() { Intent = intent };
 
-    /// <summary>Go's <c>zoneCreateAction</c>: the create shape of the zone arm for one zone_create, the configuration without a census token; native checks the ground live.</summary>
+    /// <summary>The create shape of the zone arm for one zone_create, the configuration without a census token; native checks the ground live.</summary>
     internal static Op.Action ZoneCreateAction(DomainAction action) =>
         ZoneAction(ZoneConfiguration(action.ZoneCreate ?? throw BridgeContractException.Contract("not a zone create action")));
 
-    /// <summary>Go's <c>zoneDeleteAction</c>: the delete shape of the zone arm for one zone_delete.</summary>
+    /// <summary>The delete shape of the zone arm for one zone_delete.</summary>
     internal static Op.Action ZoneDeleteAction(DomainAction action)
     {
         var del = action.ZoneDelete ?? throw BridgeContractException.Contract("not a zone delete action");
@@ -125,7 +125,7 @@ public static class Zones
         return ZoneAction(new Op.ZoneIntent { Zone = IntentActionRules.NewRef(del.Zone), Delete = true });
     }
 
-    /// <summary>Go's <c>zoneCellsAction</c>: the cells shape of the zone arm for one zone_cell_edit.</summary>
+    /// <summary>The cells shape of the zone arm for one zone_cell_edit.</summary>
     internal static Op.Action ZoneCellsAction(DomainAction action)
     {
         var e = action.ZoneCellEdit ?? throw BridgeContractException.Contract("not a zone cell edit action");
@@ -142,7 +142,7 @@ public static class Zones
         return ZoneAction(intent);
     }
 
-    /// <summary>Go's <c>stockpileAction</c>: the settings shape of the zone arm for one stockpile_patch, on a stockpile zone or a storage building alike.</summary>
+    /// <summary>The settings shape of the zone arm for one stockpile_patch, on a stockpile zone or a storage building alike.</summary>
     internal static Op.Action StockpileAction(DomainAction action)
     {
         var p = action.StockpilePatch ?? throw BridgeContractException.Contract("not a stockpile patch action");
@@ -150,7 +150,7 @@ public static class Zones
     }
 
     /// <summary>
-    /// Go's <c>areaAction</c>: the AreaIntent of one bot-owned allowed area or the home area. Native resolves the bot
+    /// The AreaIntent of one bot-owned allowed area or the home area. Native resolves the bot
     /// area by its key label and never touches a player's area (NativeAreaIntent.cs).
     /// </summary>
     internal static Op.Action AreaAction(DomainAction action)
@@ -184,7 +184,7 @@ public static class Zones
         return new Op.Action { Intent = intent };
     }
 
-    /// <summary>Go's <c>policyPruneAction</c>: the PolicyPruneIntent of one database; native reassigns holders to their own per-pawn policy, then deletes (NativePolicyPrune.cs).</summary>
+    /// <summary>The PolicyPruneIntent of one database; native reassigns holders to their own per-pawn policy, then deletes (NativePolicyPrune.cs).</summary>
     internal static Op.Action PolicyPruneAction(DomainAction action)
     {
         var v = action.PolicyPrune ?? throw BridgeContractException.Contract("not a policy prune action");
@@ -200,21 +200,21 @@ public static class Zones
         return new Op.Action { Intent = new Op.PolicyPruneIntent { Database = database, DeleteIds = [.. v.Ids] } };
     }
 
-    /// <summary>Go's <c>buildRoofAction</c>: the BuildRoofIntent over canonical cells. Native designates vanilla BuildRoof live (NativeBuildRoof.cs).</summary>
+    /// <summary>The BuildRoofIntent over canonical cells. Native designates vanilla BuildRoof live (NativeBuildRoof.cs).</summary>
     internal static Op.Action BuildRoofAction(DomainAction action)
     {
         var v = action.BuildRoof ?? throw BridgeContractException.Contract("not a build roof action");
         return new Op.Action { Intent = new Op.BuildRoofIntent { Cells = [.. IntentActionRules.WireCells(v.Cells)] } };
     }
 
-    /// <summary>Go's <c>removeRoofAction</c>: the RemoveRoofIntent over canonical cells. Native designates vanilla RemoveRoof live (NativeRemoveRoof.cs).</summary>
+    /// <summary>The RemoveRoofIntent over canonical cells. Native designates vanilla RemoveRoof live (NativeRemoveRoof.cs).</summary>
     internal static Op.Action RemoveRoofAction(DomainAction action)
     {
         var v = action.RemoveRoof ?? throw BridgeContractException.Contract("not a remove roof action");
         return new Op.Action { Intent = new Op.RemoveRoofIntent { Cells = [.. IntentActionRules.WireCells(v.Cells)] } };
     }
 
-    /// <summary>Go's <c>areaPlantCutAction</c>: the AreaPlantCutIntent over canonical cells. Native designates the cells' non-crop plants live (NativeAreaPlantCut.cs).</summary>
+    /// <summary>The AreaPlantCutIntent over canonical cells. Native designates the cells' non-crop plants live (NativeAreaPlantCut.cs).</summary>
     internal static Op.Action AreaPlantCutAction(DomainAction action)
     {
         var v = action.AreaPlantCut ?? throw BridgeContractException.Contract("not an area plant cut action");

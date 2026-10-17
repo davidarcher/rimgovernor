@@ -173,7 +173,7 @@ namespace HomeBridge.BridgeTools
                     if (room != null)
                     {
                         // The plants a proper room grows, standing or set in its
-                        // growing zones: Go reads which die to light (cave
+                        // growing zones: the brain reads which die to light (cave
                         // fungus) off their def rows.
                         if (room.ProperRoom)
                             row = row with { PlantDefs = [.. row.PlantDefs, .. room.Cells.SelectMany(c => new[] { c.GetPlant(map)?.def, (c.GetZone(map) as Zone_Growing)?.GetPlantDefToGrow() })
@@ -216,7 +216,7 @@ namespace HomeBridge.BridgeTools
                 // Every facility a colonist must reach, with each mobile
                 // colonist's native reachability from where they stand and
                 // the cost of the path the game itself would walk (every
-                // reachable pair, unless Go's route_path_budget_ms runs out:
+                // reachable pair, unless the brain's route_path_budget_ms runs out:
                 // later pairs then report path_skipped, never a silent
                 // absence). A facility no colonist reaches
                 // lists breach candidates: player wall cells on its room's

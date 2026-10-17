@@ -2,13 +2,12 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// A containment upkeep fact the colony cannot act on: Reason says in plain English what is unread or cannot be
-/// ordered. Cell is the door the issue is about, or the default cell for a holder level issue. (Go <c>UpkeepIssue</c>.)
+/// ordered. Cell is the door the issue is about, or the default cell for a holder level issue.
 /// </summary>
 public sealed record UpkeepIssue(string Reason, Cell Cell = default);
 
 /// <summary>
 /// What the colony owes its held entities now: doors to close and issues to report. Closes are by cell, sorted.
-/// (Go <c>ContainmentUpkeep</c>.)
 /// </summary>
 public sealed record ContainmentUpkeep
 {
@@ -26,7 +25,7 @@ public sealed record ContainmentUpkeep
 public static class EntityUpkeepRules
 {
     /// <summary>
-    /// Go <c>ContainmentDoorUpkeep</c>: reads every holder that holds a pawn. A door held open is closed; a
+    /// Reads every holder that holds a pawn. A door held open is closed; a
     /// door that is breached but is not held open and is blocked open is an issue (an order cannot clear what
     /// stands in it); an unread door fact is an issue. A door open and not held open closes by itself and is
     /// left alone.
@@ -85,7 +84,7 @@ public static class EntityUpkeepRules
         return new ContainmentUpkeep { CloseDoors = [.. close.OrderBy(c => c.Z).ThenBy(c => c.X)], Issues = issues };
     }
 
-    /// <summary>Go <c>ContainmentDoorTarget</c>: the first cell door to close, by position; null when none.</summary>
+    /// <summary>The first cell door to close, by position; null when none.</summary>
     public static Cell? ContainmentDoorTarget(ContainmentPlanning p)
     {
         var doors = ContainmentDoorUpkeep(p).CloseDoors;
@@ -93,7 +92,7 @@ public static class EntityUpkeepRules
     }
 
     /// <summary>
-    /// Go <c>EntityTendTarget</c>: the held entity to tend next: one that is alive, held and read as needing
+    /// The held entity to tend next: one that is alive, held and read as needing
     /// tend, a bleeding one first, then by pawn ID. An entity whose health facts are unread is skipped; null
     /// when none.
     /// </summary>

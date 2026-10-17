@@ -3,7 +3,7 @@ using System.Globalization;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// <c>acceptance prune</c> (Go <c>cmd/acceptance/prune.go</c>): deletes old run outputs under one directory. Each child
+/// <c>acceptance prune</c>: deletes old run outputs under one directory. Each child
 /// directory holding a result.json within <see cref="PruneDepth"/> is a run or suite output, ordered by modification
 /// time, and every one past the newest <c>-keep</c> is removed with the <c>&lt;name&gt;.log</c> and <c>&lt;name&gt;.err</c>
 /// a background launch wrote beside it. Anything else under the directory is left alone and named, so a root or a

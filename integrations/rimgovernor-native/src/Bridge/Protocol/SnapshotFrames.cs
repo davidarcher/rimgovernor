@@ -89,7 +89,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The census pawns the pawn table carries combat detail for:
-        // every engaged threat row, a superset of what Go classifies as a
+        // every engaged threat row, a superset of what the brain classifies as a
         // hostile or hunting predator.
         private static ISet<string> CombatSet(Obs.StatusSnapshot? census)
         {
@@ -178,7 +178,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The frame's colony facts request: planning, with the stream's herd
-        // radius and hunt route budget carried through when Go supplied them.
+        // radius and hunt route budget carried through when the brain supplied them.
         private static Obs.ColonyFactsRequest ColonyRequest(Obs.ReadScope scope, Obs.SnapshotStreamRequest request)
         {
             var colony = new Obs.ColonyFactsRequest { Scope = scope, Planning = true };

@@ -115,13 +115,13 @@ public sealed partial class RoundsBuildingPlanner
         return (null, false);
     }
 
-    /// <summary>A copy for a derived planner (Go's <c>spot := *r</c>); the proposals it holds stay shared, as the Go pointers do.</summary>
+    /// <summary>A copy for a derived planner; the proposals it holds stay shared.</summary>
     internal RoundsBuildingPlanner Copy() => (RoundsBuildingPlanner)MemberwiseClone();
 
     /// <summary>Is also used by the scheduler already holding the same player gate.</summary>
     internal async Task<RoundsBuildingResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
-        // The Go step defers the planner-step recording to the function's end.
+        // The planner-step recording is deferred to the function's end.
         IDisposable? scope = null;
         try
         {
@@ -926,7 +926,7 @@ public sealed partial class RoundsBuildingPlanner
         // A shell goes out as one wave with its door first in dispatch order (the preview lists it first). The
         // walls are not gated on the door completing: a door blueprint or frame no more seals a room than a
         // wall's does, and gating held every wall until the door stood, or for ever when its observation came
-        // back unknown. The pen shell in rounds_animal_containment.go orders its ring the same way.
+        // back unknown. The pen shell orders its ring the same way.
         foreach (var v in a.Selected)
         {
             actions.Add(v.Action);

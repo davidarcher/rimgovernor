@@ -8,7 +8,7 @@ using PbClock = RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.PlayerApi;
 
 /// <summary>
-/// The player session, control and clock-speed routes (Go <c>httpapi/player.go</c>),
+/// The player session, control and clock-speed routes,
 /// registered into the channel's <see cref="RouteTable"/>. The routes carry no token: the channel's request guard
 /// is the only access check (issue #3083). A route family whose provider is not given is not registered.
 /// </summary>
@@ -225,7 +225,7 @@ public static class PlayerRoutes
         }
     }
 
-    // Go projectControl: a record must be internally consistent before it is shown.
+    // A record must be internally consistent before it is shown.
     private static void ValidateRecord(ControlRecord? record)
     {
         if (record is null)
@@ -253,7 +253,6 @@ public static class PlayerRoutes
         }
     }
 
-    // Go projectPlayerState.
     private static void ValidateState(PlayerState state)
     {
         if (!state.ObservationKnown)
@@ -266,7 +265,6 @@ public static class PlayerRoutes
         DomainException.Require(!state.Enabled || (state.Snapshot.Native.Value != 0 && state.Snapshot.Revision.Value != 0), "invalid live authority");
     }
 
-    // Go playerFailure.
     private static (int Status, (string Code, string Detail) Failure) PlayerFailure(Exception cause) => cause switch
     {
         CapacityException => (409, ("capacity", "Intent history is full")),

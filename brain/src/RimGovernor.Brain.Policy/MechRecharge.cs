@@ -9,7 +9,7 @@ public sealed record MechCharger
 }
 
 /// <summary>
-/// Ports <c>mech_recharge.go</c>. Mechs spend Need_MechEnergy working and refill it on a charger
+/// Mechs spend Need_MechEnergy working and refill it on a charger
 /// (Building_MechCharger, one mech at a time). Each control group carries its own recharge band
 /// (mechRechargeThresholds, read natively per mech as PawnMech.RechargeBelow/RechargeAbove): the game sends a mech
 /// to a charger below the band's lower bound. The bot reuses that band instead of a number of its own: a group

@@ -4,7 +4,7 @@ using TelemetryDecision = RimGovernor.Brain.Telemetry.Decision;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>ReadTally</c>: counts the native round trips issued under one scope. Every native call the host makes
+/// Counts the native round trips issued under one scope. Every native call the host makes
 /// while a tally is attached (<see cref="Begin"/>, <see cref="ReadTallyScope.WithReadTally"/>) is counted by the
 /// native facade method it called (<see cref="ReadTallyRules.CountNativeRead"/>), errors included. A scheduler step
 /// attaches one at entry so the reads a full planner composition costs are visible per step and, through
@@ -109,7 +109,7 @@ public sealed class ReadTallyScope(ReadTally tally, IDisposable restore) : IDisp
     public void Dispose() => restore.Dispose();
 
     /// <summary>
-    /// Go's <c>WithReadTally</c>: attaches a fresh tally to the current async flow until the scope is disposed; one
+    /// Attaches a fresh tally to the current async flow until the scope is disposed; one
     /// already attached is replaced, never nested.
     /// </summary>
     public static ReadTallyScope WithReadTally()

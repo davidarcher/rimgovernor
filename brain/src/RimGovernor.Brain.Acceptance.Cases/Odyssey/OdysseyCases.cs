@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The Odyssey acceptance cases (Go <c>cases/odyssey</c>); <see cref="Register"/> replaces the Go package's <c>init()</c>.</summary>
+/// <summary>The Odyssey acceptance cases; <see cref="Register"/> registers them.</summary>
 public static class OdysseyCases
 {
     /// <summary>Registers every <c>odyssey/*</c> case.</summary>

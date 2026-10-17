@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// The <c>shelter/*</c> acceptance cases: the shelter's construction path, its retired ground's clearance and the
-/// sheltering from a real threat. <see cref="Register"/> replaces the Go package's <c>init()</c>.
+/// sheltering from a real threat. <see cref="Register"/> registers them.
 /// </summary>
 public static class ShelterCases
 {

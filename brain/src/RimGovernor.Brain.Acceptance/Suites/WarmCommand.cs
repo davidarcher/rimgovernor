@@ -5,7 +5,7 @@ using System.Globalization;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// <c>acceptance warm</c> (Go <c>cmd/acceptance/warm.go</c>): prepares the root's profile and boots its game to the main
+/// <c>acceptance warm</c>: prepares the root's profile and boots its game to the main
 /// menu so the next run attaches instead of launching. <c>-background</c> hands the work to a detached copy of this
 /// command, logging to <c>&lt;root&gt;/acceptance/warm/warm.log</c>, and returns at once with its pid; a post-build hook
 /// uses it after the native mod is installed.

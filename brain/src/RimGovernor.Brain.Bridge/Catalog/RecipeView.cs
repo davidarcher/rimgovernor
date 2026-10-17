@@ -6,10 +6,10 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_recipe_view.go: what a recipe is, costs and needs at a bench, read from its RecipeDef and the defs it
+// What a recipe is, costs and needs at a bench, read from its RecipeDef and the defs it
 // joins; a frame carries only whether a bench offers the recipe now. The recipes' ingredient filters are the game's
 // resolved ThingFilters, so a recipe generated from its product (RecipeDefGenerator) already has its allowed
-// defs and the Go reconstruction of a generated slot (generatedSlot) has no counterpart.
+// defs.
 
 /// <summary>One ingredient slot resolved against the defs: the defs its filter allows and the count each takes.</summary>
 internal sealed record RecipeSlot(IReadOnlyList<string> Allowed, IReadOnlyList<long> Counts);

@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: clothing_demand.go
 
 /// <summary>
 /// A garment the apparel policy lets the colonists wear that covers a core body-part group (GearCoreGroups):

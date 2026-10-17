@@ -47,7 +47,7 @@ internal sealed partial class Armament
     }
 
     /// <summary>
-    /// Go's DefinitionCatalog.PrimaryWeapon: false while an armed pawn names no primary id, the
+    /// False while an armed pawn names no primary id, the
     /// primary is not among the equipped items, or the things table does not hold its row yet; an unarmed pawn is the
     /// known empty weapon.
     /// </summary>
@@ -79,7 +79,7 @@ internal sealed partial class Armament
 
 partial class Armament
 {
-    /// <summary>The armament Go's readArmament reads: the newest frame's things table and the load's catalog.</summary>
+    /// <summary>The armament: the newest frame's things table and the load's catalog.</summary>
     internal static async Task<Armament> ReadArmamentAsync(object native, C.Identity identity, CancellationToken ct) =>
         new() { Things = await RoundsGear.FrameThingsOfAsync(native, identity, ct).ConfigureAwait(false), Catalog = await RoundsEquipPawn.PawnCatalogAsync(native, identity, ct).ConfigureAwait(false) };
 

@@ -2,7 +2,6 @@ using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-// Go: trade_mission.go.
 
 public static partial class TradePolicyRules
 {

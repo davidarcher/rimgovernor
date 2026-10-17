@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
             if (original == null) { ModLog.Warn("startup", "save handshake patch target missing."); return; }
             new Harmony("rimgovernor.save-handshake").Patch(original,
                 prefix: new HarmonyMethod(typeof(SaveHandshake), nameof(BeforeSave)));
-            // Go owns autosaves; vanilla's never runs, connected or not.
+            // The brain owns autosaves; vanilla's never runs, connected or not.
             var tick = AccessTools.Method(typeof(Autosaver), "AutosaverTick");
             if (tick == null) { ModLog.Warn("startup", "autosaver patch target missing."); return; }
             new Harmony("rimgovernor.save-handshake").Patch(tick,
@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
 
         private static bool SkipAutosave() => false;
 
-        // Go's own saves (lifecycle_save, the new-colony start) raise no signal.
+        // The brain's own saves (lifecycle_save, the new-colony start) raise no signal.
         public static void BeginGoSave() => Interlocked.Increment(ref goInitiated);
         public static void EndGoSave() => Interlocked.Decrement(ref goInitiated);
 

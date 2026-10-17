@@ -1,9 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>A race the herd plan lacks and the sexes it wants: a target with no animals wants either, a founder its missing sex. (Go <c>HerdWant</c>.)</summary>
+/// <summary>A race the herd plan lacks and the sexes it wants: a target with no animals wants either, a founder its missing sex.</summary>
 public sealed record HerdWant(Resource Race, bool Male, bool Female)
 {
-    /// <summary>The zero value Go's struct literal starts from.</summary>
     public HerdWant() : this(default, false, false)
     {
     }
@@ -11,7 +10,7 @@ public sealed record HerdWant(Resource Race, bool Male, bool Female)
 
 public static class HerdPurchaseRules
 {
-    /// <summary>Go <c>HerdWants</c>: lists what the plan lacks, best first: each job's target race in job order, then each founder's missing sex by race. A race is listed once.</summary>
+    /// <summary>Lists what the plan lacks, best first: each job's target race in job order, then each founder's missing sex by race. A race is listed once.</summary>
     public static IReadOnlyList<HerdWant> HerdWants(HerdPlan plan)
     {
         var @out = new List<HerdWant>();
@@ -40,7 +39,7 @@ public static class HerdPurchaseRules
         return @out;
     }
 
-    /// <summary>Go <c>HerdOffers</c>: the catalog races a trader's pawn rows offer; the plan counts them as obtainable.</summary>
+    /// <summary>The catalog races a trader's pawn rows offer; the plan counts them as obtainable.</summary>
     public static IReadOnlyList<Resource> HerdOffers(IReadOnlyList<TradeSheetRowFact> rows, AnimalRaceCatalog races)
     {
         var @out = new List<Resource>();
@@ -58,7 +57,7 @@ public static class HerdPurchaseRules
     }
 
     /// <summary>
-    /// Go <c>SelectAnimalPurchase</c>: picks the live animal a trader offers that the herd plan wants: a pawn row
+    /// Picks the live animal a trader offers that the herd plan wants: a pawn row
     /// the trader holds and will trade, with none on the colony side, of the first want that has an affordable
     /// row of its race and a sex it wants. The budget is SelectPawnPurchase's: colony silver - reserve - spent. Cheapest row, then line id, within a want. It returns false when
     /// nothing is wanted or affordable.

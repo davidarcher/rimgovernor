@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
 
-// Go: work_ledger_view.go and work_ledger_rows.go. The ledger view is the read-only picture of one Round's work
+// The ledger view is the read-only picture of one Round's work
 // ledger for the Grafana ledger dashboard: what each planner declared, where every wanted order stands against the
 // benches' bills, the orphans on their way out, the dispatcher's unmet throughput and calibration windows, and
 // the economy/trade Need's silver gap. It is a projection of memory the Round already holds; Rows is its derived copy in the

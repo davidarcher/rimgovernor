@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: upkeep.go.
 
 /// <summary>Each fact is a complete native section. An unavailable section cannot prove that its old targets disappeared, while a known empty section can.</summary>
 public sealed record UpkeepObservation

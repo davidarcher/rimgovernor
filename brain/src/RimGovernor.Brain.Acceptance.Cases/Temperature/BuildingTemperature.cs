@@ -8,7 +8,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>temperature/building</c> (Go <c>temperature/building.go</c>): the SetBuildingTemperature vertical through
+/// <c>temperature/building</c>: the SetBuildingTemperature vertical through
 /// BuildingPatchIntent's target_temperature arm on Actions/Apply, against one unpowered heater staged on the lab.
 /// </summary>
 internal static class BuildingTemperature

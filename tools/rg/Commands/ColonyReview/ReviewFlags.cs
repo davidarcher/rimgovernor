@@ -3,7 +3,7 @@ using System.Globalization;
 namespace RimGovernor.Tools.Commands.ColonyReview;
 
 /// <summary>
-/// The reviewer flags of an hour (Go: <c>flags</c>). They point a reviewer at an hour; they are not pass/fail gates.
+/// The reviewer flags of an hour. They point a reviewer at an hour; they are not pass/fail gates.
 /// </summary>
 internal static class ReviewFlags
 {

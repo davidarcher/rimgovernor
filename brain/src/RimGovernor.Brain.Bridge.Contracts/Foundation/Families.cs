@@ -3,15 +3,15 @@ using WireFactFamily = RimGovernor.Contracts.Wire.Clock.FactFamily;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go families.go: the bridge's FactFamily IS the policy registry's FactFamily (a Go type alias), so the C#
+// The bridge's FactFamily IS the policy registry's FactFamily, so the C#
 // type is RimGovernor.Brain.Policy.FactFamily and only the wire mapping lives here.
 public static class Families
 {
-    /// <summary>Go's <c>FactFamilies()</c>: every family, in wire order.</summary>
+    /// <summary>Every family, in wire order.</summary>
     public static IReadOnlyList<FactFamily> FactFamilies() => FactFamilyRules.FactFamilies();
 
     /// <summary>
-    /// Go's <c>FactFamilyFromWire</c>: maps a clock ObservationInvalidated family to its controller name; an
+    /// Maps a clock ObservationInvalidated family to its controller name; an
     /// unspecified or unknown value reports false.
     /// </summary>
     public static bool FactFamilyFromWire(WireFactFamily value, out FactFamily family)

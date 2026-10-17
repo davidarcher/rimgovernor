@@ -3,8 +3,7 @@ using Verse;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_stats.go: stat reads over the load's precomputed def stat table (DefStatTable); the Go stateval
-// evaluator is not ported.
+// Stat reads over the load's precomputed def stat table (DefStatTable).
 
 /// <summary>The StatDef names the catalog compares def fields against.</summary>
 public static class StatNames

@@ -62,7 +62,7 @@ public sealed class SnapshotRounds
     /// <summary>
     /// A recording from before the item facts carries none: it replays with Core's numbers, the game it was
     /// recorded on; and one whose gear census holds a pawn with no loadout model reads that census as unknown (what
-    /// a live read would refuse). Call it on a deserialised recording, as Go's Load did.
+    /// a live read would refuse). Call it on a deserialised recording.
     /// </summary>
     public void Normalize()
     {

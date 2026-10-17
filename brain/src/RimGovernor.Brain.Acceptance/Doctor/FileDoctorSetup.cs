@@ -4,8 +4,7 @@ using System.Xml.Linq;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// What the doctor needs from the setup and launch layers (Go <c>setup.*</c> and the <c>nativeaccept</c> package install
-/// helpers): reads the root's <c>config/config.json</c>, the package manifest, the ModsConfig.xml and the installed
+/// What the doctor needs from the setup and launch layers: reads the root's <c>config/config.json</c>, the package manifest, the ModsConfig.xml and the installed
 /// expansions straight from disk. The stale-package comparison, the fixture catalogue and the launched-state comparison
 /// need the Setup/Lifecycle code; here the stale check reports itself skipped, the fixture list is the installed one and
 /// a launch is never reported as mismatched.

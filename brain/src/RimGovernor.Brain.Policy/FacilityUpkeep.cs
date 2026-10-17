@@ -63,9 +63,9 @@ public static class FacilityUpkeepRules
     }
 
     /// <summary>
-    /// Go <c>ReviewHomeCoverage</c>: lists every census target (all colonist buildings and every stockpile: the
+    /// Lists every census target (all colonist buildings and every stockpile: the
     /// governor owns them whoever built them) still missing Home, at its current geometry. Throws
-    /// <see cref="DomainException"/> where Go returned an error.
+    /// <see cref="DomainException"/>.
     /// </summary>
     public static Fact<EquatableArray<HomeCoverageTarget>> ReviewHomeCoverage(Fact<HomeCoverageObservation> observed)
     {
@@ -99,7 +99,7 @@ public static class FacilityUpkeepRules
         return Known<EquatableArray<HomeCoverageTarget>>([.. result.OrderBy(t => t.Id, StringComparer.Ordinal)]);
     }
 
-    /// <summary>Go <c>ReviewStoneShell</c>. Throws <see cref="DomainException"/> where Go returned an error.</summary>
+    /// <summary>Throws <see cref="DomainException"/>.</summary>
     public static Fact<EquatableArray<string>> ReviewStoneShell(Fact<EquatableArray<ConstructionClaim>> owned, Fact<EquatableArray<StoneStructure>> structures)
     {
         var unknown = Unknown<EquatableArray<string>>();

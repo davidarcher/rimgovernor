@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
     // The generic strip op: vanilla's Strip designation on one exact
     // spawned pawn or corpse (DesignateIntent with THING_DESIGNATION_STRIP).
     // The designation is the whole write; colonists strip through ordinary
-    // Hauling work. Who to strip is decided in Go.
+    // Hauling work. Who to strip is decided by the brain.
     internal static class NativeStrip
     {
         internal const string Kind = "Strip";

@@ -108,7 +108,6 @@ public sealed record CombatResult
 {
     public int Index { get; init; }
 
-    /// <summary>Go <c>PawnID</c> (a plain string here).</summary>
     public string PawnId { get; init; } = "";
 
     public bool Applied { get; init; }

@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: acquisition_catalog.go
 // The acquisition method catalog: every way the colony can obtain a resource is a SupplyCandidate of one kind,
 // ranked by PlanSupply against the demand instead of each goal hardcoding its own order (produce before mine,
 // forage before hunt).

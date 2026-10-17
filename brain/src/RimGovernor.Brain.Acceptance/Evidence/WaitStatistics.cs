@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// What a report carries under <c>wait_stats</c> (Go <c>waitStats</c>): how many waits the run made, the longest a
+/// What a report carries under <c>wait_stats</c>: how many waits the run made, the longest a
 /// signature stayed unchanged before it moved or the wait ended (the evidence for tuning
 /// <see cref="Wait.DefaultStall"/>), and how many waits stalled.
 /// </summary>

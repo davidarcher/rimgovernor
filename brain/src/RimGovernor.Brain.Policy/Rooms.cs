@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 /// RimWorld's own RoomRoleDef defName, as the native room census reports Room.Role. The game scores every
 /// role worker against a room's contents and picks one: a room with beds is a Bedroom or Barracks whatever
 /// else it holds, so a role is a fact about the whole room, never something the controller assigns. Unset is
-/// Go's empty string.
+/// the empty string.
 /// </summary>
 public enum RoomRole
 {
@@ -287,7 +287,7 @@ public static partial class RoomsRules
             // (scored a Barracks once the bunks stand) when a ladder rung waits on it.
             new() { Role = RoomRole.Laboratory, Compatible = Hosts(RoomRole.Workshop, RoomRole.Barracks) },
             // A workshop shares the shelter: the ladder furnishes the first enclosed room rather than siting a
-            // second ring (rounds_sleeping.go), and once the sleeping spots move indoors the game scores that
+            // second ring, and once the sleeping spots move indoors the game scores that
             // room a Barracks while the bench keeps working.
             new() { Role = RoomRole.Workshop, Compatible = Hosts(RoomRole.Barracks) },
             new() { Role = RoomRole.Storeroom },

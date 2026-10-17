@@ -8,7 +8,7 @@ public sealed partial class Store
 {
     /// <summary>
     /// Carries the Need rows (the family runs' records, RecordPlannerReasons) into this review as they stand, with a
-    /// rewound clock clamped to this review's tick; a world change or rewind drops them (Go <c>roundsProgress</c>).
+    /// rewound clock clamped to this review's tick; a world change or rewind drops them.
     /// </summary>
     internal static List<ConcernProgress> RoundsProgress(RoundsRequest request, Rounds previous, bool reset)
     {
@@ -66,7 +66,7 @@ public sealed partial class Store
 
     /// <summary>
     /// A method id without its content hash or admission salt ("acquire-3f9a..." reads "acquire"), so the record
-    /// names the method family rather than one plan (Go <c>methodLabel</c>).
+    /// names the method family rather than one plan.
     /// </summary>
     internal static string MethodLabel(MethodId id)
     {

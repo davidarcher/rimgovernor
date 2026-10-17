@@ -5,7 +5,7 @@ using RimGovernor.Brain.Executor;
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// The combat planner's executor hands over the session (Go passed the <c>*Session</c> itself, whose <c>RunBatch</c>
+/// The combat planner's executor hands over the session (its <c>RunBatch</c>
 /// satisfied <c>combatHands</c>). The C# session dispatches asynchronously while the planner's hands are synchronous,
 /// so this waits on the dispatch; the planner runs on a scheduler-wave thread, not on a context that would deadlock.
 /// </summary>

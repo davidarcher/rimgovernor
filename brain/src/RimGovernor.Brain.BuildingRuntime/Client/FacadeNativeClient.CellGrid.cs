@@ -21,7 +21,7 @@ internal sealed class FrameCellGrid(PbMirror.CellGrid grid)
     internal P.Rectangle Rect { get; } = new(grid.X, grid.Z, grid.Width, grid.Height);
 
     /// <summary>
-    /// Go <c>Grid.Window</c>: the held cells inside <paramref name="rect"/> (clipped to the grid), row-major, and the
+    /// The held cells inside <paramref name="rect"/> (clipped to the grid), row-major, and the
     /// count of the rect's cells the grid does not hold (fogged).
     /// </summary>
     internal (IReadOnlyList<P.SiteCell> Cells, ulong Fogged) Window(P.Rectangle rect)
@@ -37,7 +37,7 @@ internal sealed class FrameCellGrid(PbMirror.CellGrid grid)
         }
     }
 
-    /// <summary>Go <c>Grid.CellsByRoom</c>: the held cells grouped by their room key, row-major within a key.</summary>
+    /// <summary>The held cells grouped by their room key, row-major within a key.</summary>
     internal Dictionary<int, List<Cell>> CellsByRoom()
     {
         var result = new Dictionary<int, List<Cell>>();
@@ -113,11 +113,11 @@ internal sealed class FrameCellGrid(PbMirror.CellGrid grid)
 
 public sealed partial class FacadeNativeClient
 {
-    /// <summary>Go <c>gridFrameMethod</c>: keys a frame's grid, frames-only; the reply is the frame's context.</summary>
+    /// <summary>Keys a frame's grid, frames-only; the reply is the frame's context.</summary>
     private const string GridFrameMethod = "rimgovernor/snapshot_frame_grid";
 
     /// <summary>
-    /// Go <c>Client.ReadMapBounds</c>: reads the one-cell grid at a caller-observed anchor for the map's dimensions. A
+    /// Reads the one-cell grid at a caller-observed anchor for the map's dimensions. A
     /// failed or unavailable observation never supplies default bounds.
     /// get_cells is no frame-served read and always goes to the facade.
     /// </summary>
@@ -152,7 +152,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadPlanningWindow</c>: the planning window rect from the snapshot stream's whole-map grid; a
+    /// The planning window rect from the snapshot stream's whole-map grid; a
     /// client without a stream serves none (unavailable) and the caller falls back to whatever window it holds.
     /// </summary>
     internal async Task<PlanningWindowRead> ReadPlanningWindowAsync(PbCommon.Identity identity, P.Rectangle rect, CancellationToken cancellationToken)
@@ -178,7 +178,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>RoomCells</c> (temperature_rooms.go): resolves each room of the census to its cells in the frame grid,
+    /// Resolves each room of the census to its cells in the frame grid,
     /// the held cells carrying its grid room key, row-major. A room without a key, or whose key the grid does not
     /// carry, is absent.
     /// </summary>

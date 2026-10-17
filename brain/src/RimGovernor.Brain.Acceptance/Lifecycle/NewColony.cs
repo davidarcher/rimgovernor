@@ -5,7 +5,7 @@ using Wl = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>A finished <c>lifecycle_new_colony</c> start (Go <c>NewColonyRun</c>).</summary>
+/// <summary>A finished <c>lifecycle_new_colony</c> start.</summary>
 public sealed record NewColonyRun
 {
     /// <summary>The phases seen in wire order, each once.</summary>
@@ -18,7 +18,7 @@ public sealed record NewColonyRun
     public int Rerolls { get; init; }
 }
 
-/// <summary>The new-colony op's driver (Go <c>newcolony.go</c>).</summary>
+/// <summary>The new-colony op's driver.</summary>
 public static class NewColony
 {
     /// <summary>The timeoutMs a harness start asks for when the caller names none: the team policy's reroll budget can take minutes.</summary>

@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
         // A pest is a wild animal hunted for what it destroys, not for meat
         //: a race that eats trees (RaceProperties.Eats(Tree), the
         // alphabeaver) defoliates the map and no census otherwise answers it
-        // (wild, factionless, not hostile, not a predator). Go reads the same
+        // (wild, factionless, not hostile, not a predator). The brain reads the same
         // rule off the race rows (AnimalRace.Pest).
         internal static bool PestRace(RaceProperties race) => race.Animal && race.Eats(FoodTypeFlags.Tree);
         // Pest is the pest rule: a wild, living, undowned animal of a pest
@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Pest(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal && !prey.InMentalState
             && prey.RaceProps.corpseDef != null && PestRace(prey.RaceProps);
         // MeatAmount is the live animal's stat (wounds, missing parts and malnutrition scale it);
-        // Go multiplies it by the meat's nutrition off the def rows.
+        // The brain multiplies it by the meat's nutrition off the def rows.
         private static double MeatAmount(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount));
         private static double Nutrition(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount)) * prey.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
         private static Obs.SnapshotRef Snapshot(Pawn prey, Common.ObservationContext context) => new Obs.SnapshotRef {
@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
             result = result with { PendingHunts = (uint)Pending(map) };
             // Wild animals by distance from the colony anchor, food prey then every pest: a pest row is
             // a hunt of one unit of nothing edible (food false, no nutrition), so the food and wood
-            // selections pass it over and only the pest concern takes it. Go orders its own selection.
+            // selections pass it over and only the pest concern takes it. The brain orders its own selection.
             var prey = map.mapPawns.AllPawnsSpawned.Where(p => !PestRace(p.RaceProps) && Candidate(p))
                 .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber)
                 .Concat(map.mapPawns.AllPawnsSpawned.Where(p => PestRace(p.RaceProps) && Candidate(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber))
@@ -114,7 +114,7 @@ namespace HomeBridge.BridgeTools
                         pairs.Add((pawn, hunter, animal));
                 census = census with { Hunters = [.. census.Hunters, hunter] };
             }
-            // Every eligible pair gets a verdict, pests first then nearest first, until Go's budget runs
+            // Every eligible pair gets a verdict, pests first then nearest first, until the brain's budget runs
             // out; the rest are marked skipped (never silently absent).
             var budgetTicks = routeBudgetMs.HasValue ? routeBudgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
             long spent = 0;
@@ -122,7 +122,7 @@ namespace HomeBridge.BridgeTools
             foreach (var (pawn, hunter, animal) in pairs.OrderBy(p => PestRace(p.animal.RaceProps) ? 0 : 1).ThenBy(p => p.pawn.Position.DistanceToSquared(p.animal.Position)))
             {
                 var route = new Obs.HuntRoute { PreyId = animal.GetUniqueLoadID() };
-                // No margin from Go is an unevaluated pair, never a guessed margin.
+                // No margin from the brain is an unevaluated pair, never a guessed margin.
                 if (spent >= budgetTicks || !predatorMarginCells.HasValue) route = route with { Skipped = true };
                 else
                 {
@@ -143,7 +143,7 @@ namespace HomeBridge.BridgeTools
         // Prepare is the apply-time precondition list for hunt (action-contracts.md): physical
         // validity of the exact animal (spawned, alive, not fogged, not designated, the native
         // designator accepts it) plus the request's resource, one rule at a time. Whether a hunt is
-        // wanted (butcher bill, hunter, weapon, pending cap) is Go policy (policy.HuntGate). The
+        // wanted (butcher bill, hunter, weapon, pending cap) is brain policy (policy.HuntGate). The
         // request's cell is a hint only: the hunt follows the animal by identity.
         internal static bool Prepare(AcquireRequest command, Common.ObservationContext context, out Pawn? prey, out Common.Failure failure)
         {

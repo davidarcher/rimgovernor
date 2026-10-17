@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record Strip : IActionPayload
 {
-    /// <summary>Go <c>NewStrip</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public Strip(string target)
     {
         DomainException.Require(IdText.IsValidText(target), "strip requires a valid target identity");

@@ -3,12 +3,11 @@ using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go world.go (Client.ReadWorld, worldSelected) and world_progression.go (Client.ReadWorldProgression,
-// worldProgressionRequest). The progression census decoder is WorldProgressionRead.DecodeWorldProgressionSnapshot.
+// ReadWorldProgression and its request. The progression census decoder is WorldProgressionRead.DecodeWorldProgressionSnapshot.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
-    /// Go <c>Client.ReadWorld</c>: the settlements within <paramref name="settlementRadius"/> tiles (0: exact tile) of
+    /// The settlements within <paramref name="settlementRadius"/> tiles (0: exact tile) of
     /// <paramref name="tile"/>, with the requested tile's longitude.
     /// </summary>
     internal async Task<WorldRead> ReadWorldAsync(PbCommon.Identity identity, int tile, double settlementRadius, CancellationToken cancellationToken)
@@ -72,7 +71,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadWorldProgression</c>: the world progression census (maps, caravans, quests, factions, sites).
+    /// The world progression census (maps, caravans, quests, factions, sites).
     /// </summary>
     internal async Task<WorldProgressionRead> ReadWorldProgressionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {

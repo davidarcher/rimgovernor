@@ -563,7 +563,7 @@ public static partial class ReadyWorkRules
     private static List<ReadyClaim> SortedClaims(IEnumerable<ReadyClaim> claims) =>
         claims.OrderBy(c => c.Kind, StringComparer.Ordinal).ThenBy(c => c.Key, StringComparer.Ordinal).ToList();
 
-    /// <summary>Go's fmt.Sprint of a claim slice, the proposal sort's last key.</summary>
+    /// <summary>The text of a claim slice, the proposal sort's last key.</summary>
     private static string ClaimsText(IEnumerable<ReadyClaim> claims) =>
         "[" + string.Join(" ", claims.Select(c => "{" + c.Kind + " " + c.Key + "}")) + "]";
 

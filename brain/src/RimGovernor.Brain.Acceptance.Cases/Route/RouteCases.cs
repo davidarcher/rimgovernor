@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The <c>route/*</c> cases (Go <c>cases/route</c>).</summary>
+/// <summary>The <c>route/*</c> cases.</summary>
 public static class RouteCases
 {
     /// <summary>Registers every <c>route/*</c> case.</summary>

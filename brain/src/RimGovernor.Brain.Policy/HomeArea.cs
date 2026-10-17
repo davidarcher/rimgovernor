@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// The diff from the current home to the target home: the base footprint (colony extent plus margin, largest
-/// region and its near neighbours) with the game's auto-expand off. (Go <c>HomeAreaPlan</c>.)
+/// region and its near neighbours) with the game's auto-expand off.
 /// </summary>
 public sealed record HomeAreaPlan
 {

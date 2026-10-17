@@ -5,8 +5,7 @@ namespace RimGovernor.Brain.RemoteBundle;
 
 /// <summary>
 /// The authenticated metadata and download boundary of the pinned release. The GitHub CLI owns token handling; tokens
-/// are never serialized or passed to child build processes (Go <c>OriginClient</c>), over the <c>gh</c> CLI (Go
-/// <c>GitHub</c>).
+/// are never serialized or passed to child build processes, over the <c>gh</c> CLI.
 /// </summary>
 public static class GitHubOriginClient
 {
@@ -53,7 +52,7 @@ public static class GitHubOriginClient
     }
 }
 
-/// <summary>Restoring the ciphertext cache from, and publishing parts to, the pinned release (Go <c>origin.go</c>).</summary>
+/// <summary>Restoring the ciphertext cache from, and publishing parts to, the pinned release.</summary>
 public static class BundleOrigin
 {
     /// <summary>The cache directory name for a manifest digest.</summary>
@@ -76,7 +75,7 @@ public static class BundleOrigin
     /// <summary>
     /// Verifies cache hits too: a corrupt cache is an error, never a fallback. Only encrypted parts are written to the
     /// cache directory; manifest and inventory stay in the trusted input directory and plaintext goes to a separate
-    /// per-job layout. Returns whether the cache already held the parts (Go <c>Restore</c>).
+    /// per-job layout. Returns whether the cache already held the parts.
     /// </summary>
     public static async Task<bool> RestoreAsync(string cache, string digest, Manifest manifest, CancellationToken cancellationToken)
     {
@@ -121,7 +120,7 @@ public static class BundleOrigin
 
     /// <summary>
     /// The explicit maintainer operation. Uploads never clobber; the final manifest is produced only after the asset IDs
-    /// are read back from the origin. Returns the published manifest's file name (Go <c>Publish</c>).
+    /// are read back from the origin. Returns the published manifest's file name.
     /// </summary>
     public static async Task<string> PublishAsync(string directory, Manifest manifest, CancellationToken cancellationToken)
     {
@@ -166,7 +165,7 @@ public static class BundleOrigin
     }
 }
 
-/// <summary>A write-only stream that fails a write past the declared size (Go <c>limitedWriter</c>).</summary>
+/// <summary>A write-only stream that fails a write past the declared size.</summary>
 internal sealed class LimitedStream(Stream inner, long limit) : Stream
 {
     private long _remaining = limit;

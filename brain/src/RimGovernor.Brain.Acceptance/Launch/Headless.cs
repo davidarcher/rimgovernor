@@ -7,17 +7,17 @@ using System.Xml.Linq;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The game profile preparation of the acceptance harness (Go <c>headless.go</c>): the disposable worker root's
+/// The game profile preparation of the acceptance harness: the disposable worker root's
 /// ModsConfig.xml, Prefs.xml, launch arguments and config.json, the launch snapshots that tell a kept process what it
 /// runs with, and the save-header expansion reader. The native package validation and manifest reading are
-/// <see cref="SetupPackage"/>'s (the same Go functions); the expansion naming is <see cref="Expansions"/>'s.
+/// <see cref="SetupPackage"/>'s; the expansion naming is <see cref="Expansions"/>'s.
 /// </summary>
 public static partial class HeadlessProfile
 {
     /// <summary>The unified native mod's package ID.</summary>
     public const string NativePackage = SetupPackage.NativePackage;
 
-    /// <summary>The game id the Go profile preparers hard-code in config.json.</summary>
+    /// <summary>The game id the profile preparers hard-code in config.json.</summary>
     public const string TrialGameId = "rimgovernor-trial";
 
     /// <summary>
@@ -49,7 +49,7 @@ public static partial class HeadlessProfile
     /// <summary>
     /// The game launch flag that asks the mod to host the brain in-process (<c>InProcLaunch.Flag</c> of Brain.Host, which
     /// this assembly does not reference). Every harness profile and the launcher carry it: in-process is the only launch
-    /// mode since the cutover (#3085), and the C# harness cannot drive the Go <c>serve</c> child.
+    /// mode since the cutover (#3085).
     /// </summary>
     public const string InProcArg = "-rimgovernor-inproc";
 
@@ -310,7 +310,7 @@ public static partial class HeadlessProfile
         File.WriteAllBytes(path, new UTF8Encoding(false).GetBytes(LaunchJson.Config(config)));
     }
 
-    /// <summary>The <c>games.&lt;gameId&gt;</c> section of a config.json (the Go preparers hard-code <see cref="TrialGameId"/>).</summary>
+    /// <summary>The <c>games.&lt;gameId&gt;</c> section of a config.json (the preparers hard-code <see cref="TrialGameId"/>).</summary>
     public static HarnessGame GameSection(HarnessConfig config, string gameId = TrialGameId)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -553,8 +553,7 @@ public static partial class HeadlessProfile
     }
 
     /// <summary>
-    /// Whether a RimWorld process for the game is already up under <paramref name="stateDir"/> (Go <c>GameRunning</c>
-    /// asked games_status): the next launch attaches to it rather than starting one. There is no shared-running state any
+    /// Whether a RimWorld process for the game is already up under <paramref name="stateDir"/>: the next launch attaches to it rather than starting one. There is no shared-running state any
     /// more; the recorded process is the one.
     /// </summary>
     public static bool GameRunning(string stateDir, string gameId) => GameProcess.Attach(stateDir, gameId) is not null;

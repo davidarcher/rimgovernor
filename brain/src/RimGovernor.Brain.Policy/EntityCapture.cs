@@ -3,7 +3,7 @@ using System.Globalization;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One entity pawn row's capture facts: each is unknown when native did not read it. (Go <c>CapturableEntity</c>.)
+/// One entity pawn row's capture facts: each is unknown when native did not read it.
 /// </summary>
 public sealed record CapturableEntity
 {
@@ -49,7 +49,7 @@ public sealed record CapturableEntity
     public Fact<double> BioferritePerDay { get; init; }
 }
 
-/// <summary>What the rule does with one downed entity. (Go <c>EntityDecision</c>.)</summary>
+/// <summary>What the rule does with one downed entity.</summary>
 public enum EntityDecision
 {
     /// <summary>Takes the entity to a platform that holds it.</summary>
@@ -62,7 +62,7 @@ public enum EntityDecision
     Refuse,
 }
 
-/// <summary>The rule's decision for one downed living entity and why in plain English. (Go <c>EntityVerdict</c>.)</summary>
+/// <summary>The rule's decision for one downed living entity and why in plain English.</summary>
 public sealed record EntityVerdict(Domain.PawnId Pawn, EntityDecision Decision, string Reason = "");
 
 // Capture a downed entity only when the cell's containment strength reaches what the entity needs with a
@@ -71,7 +71,7 @@ public sealed record EntityVerdict(Domain.PawnId Pawn, EntityDecision Decision, 
 public static class EntityCaptureRules
 {
     /// <summary>
-    /// Go <c>CaptureMargin</c>: the strength a holder of defs loses when its room's doors are forced open: the
+    /// The strength a holder of defs loses when its room's doors are forced open: the
     /// door term, scaled by the holder's containmentFactor like every term it sits in. Throws when the door has
     /// no hit points, so no margin is invented.
     /// </summary>
@@ -82,7 +82,7 @@ public static class EntityCaptureRules
     }
 
     /// <summary>
-    /// Go <c>EntityVerdicts</c>: decides every downed living entity that is not held, by pawn ID. A pawn that is
+    /// Decides every downed living entity that is not held, by pawn ID. A pawn that is
     /// dead, standing or already held is not decided.
     /// </summary>
     public static IReadOnlyList<EntityVerdict> EntityVerdicts(ContainmentPlanning p)
@@ -183,7 +183,7 @@ public static class EntityCaptureRules
         return new EntityVerdict(e.Pawn, EntityDecision.Capture);
     }
 
-    /// <summary>Go <c>EntityCaptureTarget</c>: the first downed entity the rule captures, by pawn ID; null when none.</summary>
+    /// <summary>The first downed entity the rule captures, by pawn ID; null when none.</summary>
     public static Domain.PawnId? EntityCaptureTarget(ContainmentPlanning p)
     {
         foreach (var v in EntityVerdicts(p))

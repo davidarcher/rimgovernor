@@ -3,7 +3,7 @@ using System.Globalization;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The <c>acceptance</c> command (Go <c>cmd/acceptance</c>): <c>RimGovernor.cmd acceptance &lt;subcommand&gt;</c>.
+/// The <c>acceptance</c> command: <c>RimGovernor.cmd acceptance &lt;subcommand&gt;</c>.
 /// The tool host passes the populated case registry; the remaining subcommands (run, why, ...) land with slice 4 (#3087).
 /// </summary>
 public static class AcceptanceCommand

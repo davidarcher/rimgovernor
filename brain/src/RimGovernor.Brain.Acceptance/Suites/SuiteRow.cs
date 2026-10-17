@@ -135,7 +135,7 @@ internal sealed class SuiteRow
     }
 }
 
-/// <summary>One attempt at a suite row (Go <c>attempt</c>): the record remote evidence keeps per attempt.</summary>
+/// <summary>One attempt at a suite row: the record remote evidence keeps per attempt.</summary>
 internal sealed record SuiteAttempt
 {
     public string Case { get; init; } = "";

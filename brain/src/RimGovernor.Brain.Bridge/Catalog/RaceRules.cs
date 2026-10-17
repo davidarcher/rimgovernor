@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go race_rules.go and the mech kind of biotech.go (the parts the catalog reads): the race rules the game's code
+// The race rules the game's code
 // states over def fields (RaceProperties, FleshTypeDef, LifeStageDef, TrainableDef, TrainabilityDef). What the game's
 // code computes beyond its fields stays in RaceGameFacts: the wildness curve, the adult feed and the
 // edible foods. The rules compare flesh types by def name, as the game compares them to its FleshTypeDefOf statics,

@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Port of break_dispatch.go: releasing a breaking pawn's work and fencing new dispatch near an aggressive break.</summary>
+/// <summary>Releasing a breaking pawn's work and fencing new dispatch near an aggressive break.</summary>
 internal static class BreakDispatch
 {
     public static Fact<Cell> BreakCell(PbObservations.PawnState row)

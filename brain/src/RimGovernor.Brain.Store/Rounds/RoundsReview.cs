@@ -12,7 +12,7 @@ public sealed partial class Store
 
     private const int MaxRoundsProgress = 306;
 
-    /// <summary>Reads and validates the stored review; an empty journal has the zero review (Go <c>loadRounds</c>).</summary>
+    /// <summary>Reads and validates the stored review; an empty journal has the zero review.</summary>
     internal static Rounds LoadRounds(StoreTransaction tx)
     {
         var (data, found) = tx.QueryFirst("SELECT payload FROM rounds WHERE singleton=1", [], r => r.GetString(0));

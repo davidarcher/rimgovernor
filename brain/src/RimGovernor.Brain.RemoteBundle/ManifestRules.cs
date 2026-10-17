@@ -3,7 +3,7 @@ using System.Text;
 
 namespace RimGovernor.Brain.RemoteBundle;
 
-/// <summary>Reading and validating the manifest and its inventory (Go <c>manifest.go</c>).</summary>
+/// <summary>Reading and validating the manifest and its inventory.</summary>
 public static class ManifestRules
 {
     /// <summary>The largest encrypted part a release asset may carry.</summary>
@@ -136,7 +136,7 @@ public static class ManifestRules
         }
     }
 
-    /// <summary>Fills each component's digest and the unpacked size from the inventory (Go <c>BindInventory</c>).</summary>
+    /// <summary>Fills each component's digest and the unpacked size from the inventory.</summary>
     public static Manifest BindInventory(Manifest manifest, Inventory inventory)
     {
         ArgumentNullException.ThrowIfNull(manifest);
@@ -159,7 +159,7 @@ public static class ManifestRules
     /// <summary>The inventory line a digest is taken over: path, size and digest, tab separated.</summary>
     internal static string Line(BundleFile file) => string.Create(CultureInfo.InvariantCulture, $"{file.Path}\t{file.Bytes}\t{file.Sha256}\n");
 
-    /// <summary>Go <c>path.Dir</c> for a clean relative slash path: "." for a bare name.</summary>
+    /// <summary>The parent directory of a clean relative slash path: "." for a bare name.</summary>
     internal static string ParentOf(string path)
     {
         var slash = path.LastIndexOf('/');

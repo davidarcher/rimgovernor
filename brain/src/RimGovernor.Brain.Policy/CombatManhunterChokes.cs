@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_manhunter_chokes.go
 
 /// <summary>One door of the planned rooms a wave's animals approach, the cells just inside it, and the animal nearest it.</summary>
 internal sealed class WaveChoke

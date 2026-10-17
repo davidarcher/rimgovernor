@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Store;
 public sealed partial class Store
 {
     /// <summary>
-    /// The action kinds routine execution dispatches (the case list of Go <c>roundsActionsSupported</c>).
+    /// The action kinds routine execution dispatches (the supported case list).
     /// </summary>
     private static readonly HashSet<ActionKind> RoundsSupportedKinds = new HashSet<ActionKind>
     {

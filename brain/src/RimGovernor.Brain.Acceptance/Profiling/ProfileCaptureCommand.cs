@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Acceptance;
 // (healed like a run's when the installed mod is stale), and the save is the newest bundle of the colony generator's ring so the
 // colony has real rows; the next call reloads it, so an edit, a rebuild and a profile take one command.
 
-/// <summary>The <c>acceptance profile-capture</c> subcommand (Go <c>profileCapture</c>).</summary>
+/// <summary>The <c>acceptance profile-capture</c> subcommand.</summary>
 public static class ProfileCaptureCommand
 {
     public const string Usage = """

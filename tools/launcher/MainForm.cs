@@ -7,7 +7,7 @@ using Microsoft.Web.WebView2.WinForms;
 namespace RimGovernor.Launcher;
 
 /// <summary>
-/// The launcher window: a WebView2 showing the embedded page (<c>ui/index.html</c>, unchanged from the Go launcher),
+/// The launcher window: a WebView2 showing the embedded page (<c>ui/index.html</c>),
 /// with the app's actions bound as global functions that return promises, as the page expects. A call arrives as a
 /// posted message {id, name, args}; the reply is {id, ok, result} or {id, ok: false, error}, and an error surfaces in
 /// the page as an <c>Error</c> with that message.

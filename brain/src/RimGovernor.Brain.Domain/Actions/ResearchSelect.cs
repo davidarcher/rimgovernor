@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record ResearchSelect : IActionPayload
 {
-    /// <summary>Go <c>NewResearchSelect</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public ResearchSelect(string project)
     {
         DomainException.Require(IdText.IsValidText(project), "research select requires a valid project identity");

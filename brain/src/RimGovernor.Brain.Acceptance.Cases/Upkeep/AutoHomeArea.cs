@@ -5,7 +5,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>upkeep/auto-home-area</c> (Go <c>auto_home_area.go</c>).</summary>
+/// <summary><c>upkeep/auto-home-area</c>.</summary>
 internal static class UpkeepAutoHomeArea
 {
     internal static TypedCase Case() => new()

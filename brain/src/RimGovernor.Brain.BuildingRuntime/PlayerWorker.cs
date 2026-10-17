@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The player state a <see cref="Worker"/> reads and flips under the player's lock (Go reached these fields directly, one package).</summary>
+/// <summary>The player state a <see cref="Worker"/> reads and flips under the player's lock.</summary>
 public sealed partial class Player
 {
     internal object Mu => _mu;

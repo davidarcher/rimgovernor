@@ -64,7 +64,7 @@ public static partial class CombatSiteExitRules
             }
             roles.Add(new CombatRole { Pawn = id, Cell = cell, Retreat = true });
             var order = new CombatOrder { Pawn = id, Kind = CombatOrderKind.Move, Cell = cell, Reason = CombatOrderReason.Retreat };
-            // The roles recorded so far are the memory the doing check reads, as Go's m.Roles was.
+            // The roles recorded so far are the memory the doing check reads.
             m = m with { Roles = EquatableArray.From(roles) };
             if (orderable.Contains(id) && !m.Doing(order, pawn))
             {

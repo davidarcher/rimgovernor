@@ -11,7 +11,7 @@ public sealed class SessionConfig
     public TradeCapabilities? Trade { get; set; }
 
     /// <summary>
-    /// The emitter the planners' static helpers write through (Go's process-wide telemetry sink). The host installs
+    /// The emitter the planners' static helpers write through. The host installs
     /// the one over its OTLP writer; left null, rows keep going to whatever was installed before (the null sink).
     /// </summary>
     public TelemetryEmitter? Telemetry { get; set; }
@@ -171,7 +171,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
 
     public void Disable() => _control.Disable();
 
-    /// <summary>Disables authority only if the state still is the one the caller observed; a <see cref="ConflictException"/> otherwise (Go <c>control.disableObserved</c>).</summary>
+    /// <summary>Disables authority only if the state still is the one the caller observed; a <see cref="ConflictException"/> otherwise.</summary>
     internal void DisableObserved(ControlState observed) => _control.DisableObserved(observed);
 
     /// <summary>Attaches only read reconciliation to a durable plan. It cannot obtain a lease, even if native status reports an active owner for this namespace.</summary>
@@ -196,7 +196,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     /// <summary>Dispatches a plan's actions in one native Apply.</summary>
     public async Task<IReadOnlyList<Executor.BatchItem>> RunBatchAsync(PlanId plan, IReadOnlyList<ActionId> actions, CancellationToken ct)
     {
-        // The plan's method intent rides with the writes the dispatch issues (Go withPlanIntent).
+        // The plan's method intent rides with the writes the dispatch issues.
         using var intent = OperationIntentScope.Begin(await Session.PlanIntentAsync(_journal, plan, ct).ConfigureAwait(false));
         return await _executor.RunBatchAsync(plan, actions, ct).ConfigureAwait(false);
     }
@@ -207,8 +207,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     public bool HasClock => _clock is not null;
 
     /// <summary>
-    /// Registers what drives the session's clock windows, to be stopped before the clock coordinator on a stop
-    /// (Go <c>attachClockWorker</c>). Throws when the session has no clock, is closing, or already has one.
+    /// Registers what drives the session's clock windows, to be stopped before the clock coordinator on a stop. Throws when the session has no clock, is closing, or already has one.
     /// </summary>
     public void AttachClockWorker(ClockRunDriver worker)
     {
@@ -331,7 +330,7 @@ internal sealed partial class SessionSink
 
     /// <summary>
     /// Holds the clock for an explicit Manual, a checkpoint save and shutdown. Drafted pawns stay drafted; with
-    /// authority inactive the game's own auto-undraft applies again (Go sessionSink.cleanup).
+    /// authority inactive the game's own auto-undraft applies again.
     /// </summary>
     internal async Task Cleanup(CancellationToken ct)
     {
@@ -371,14 +370,14 @@ internal sealed class StoreSessionIdentity(StoreJournal store)
 }
 
 /// <summary>
-/// The intent text the writes of one dispatch carry (Go <c>bridge.WithOperationIntent</c>): it is stamped as the
-/// purpose of every action that has none. The scope follows the async flow like a Go context value.
+/// The intent text the writes of one dispatch carry: it is stamped as the
+/// purpose of every action that has none. The scope follows the async flow.
 /// </summary>
 internal static class OperationIntentScope
 {
     private static readonly AsyncLocal<string?> s_current = new();
 
-    /// <summary>The intent of the dispatch in flight, empty when none was set (Go <c>OperationIntentFrom</c>).</summary>
+    /// <summary>The intent of the dispatch in flight, empty when none was set.</summary>
     internal static string Current => s_current.Value ?? "";
 
     /// <summary>Names why the writes under the scope are issued; an empty intent leaves the scope as it was.</summary>
@@ -401,8 +400,7 @@ internal static class OperationIntentScope
 partial class Session
 {
     /// <summary>
-    /// The method intent of a plan's writes; a plan no goal admitted, or a failed lookup, dispatches without one
-    /// (Go <c>withPlanIntent</c>).
+    /// The method intent of a plan's writes; a plan no goal admitted, or a failed lookup, dispatches without one.
     /// </summary>
     internal static async Task<string> PlanIntentAsync(StoreJournal journal, PlanId plan, CancellationToken ct)
     {

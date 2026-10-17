@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 public static class HazardThresholdsRules
 {
-    // Hazard thresholds Go authors into every clock WatchPolicy (and the hunt route margin into the colony facts
+    // Hazard thresholds the policy authors into every clock WatchPolicy (and the hunt route margin into the colony facts
     // request and native rules). Native holds no literal for them: it validates presence and finiteness and
     // applies what it is sent. docs/developers/architecture/hazard-detection-bounds.md describes each.
 

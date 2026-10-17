@@ -3,10 +3,10 @@ using RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go clock.go: the watch policy validator of the clock domain, checked before the brain sends a Run.
+// The watch policy validator of the clock domain, checked before the brain sends a Run.
 public static class ClockValidation
 {
-    /// <summary>Go's <c>clockPolicy</c>: presence, bounds, finite positive hazard thresholds and distinct pawn ids.</summary>
+    /// <summary>Presence, bounds, finite positive hazard thresholds and distinct pawn ids.</summary>
     internal static void ClockPolicy(WatchPolicy? p)
     {
         if (p is null

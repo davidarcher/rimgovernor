@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 partial class RoundsTradePlanner
 {
-    /// <summary>Whether <paramref name="m"/> passes its own validation (Go: <c>m.Validate() == nil</c>).</summary>
+    /// <summary>Whether <paramref name="m"/> passes its own validation.</summary>
     internal static bool TradeMissionValid(TradeMission m)
     {
         try
@@ -23,7 +23,7 @@ partial class RoundsTradePlanner
     /// <summary>
     /// A read-only exact-pack calculation. The caller feeds its returned option to the existing acquisition
     /// planner. No planner registers automatic departure until the complete purchase/return driver is
-    /// installed. Throws <see cref="DomainException"/> with the Go failure reason when the mission cannot be
+    /// installed. Throws <see cref="DomainException"/> with the failure reason when the mission cannot be
     /// prepared.
     /// </summary>
     public static async Task<(TradeMission Mission, Pol.TradeAcquisitionOption Option)> PrepareTradeMissionAsync(FacadeNativeClient source, GenerationSnapshot world, int homeTile, SettlementFact settlement, Pol.RoundsFacts facts, Pol.RoundsPolicy thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<PawnId>? claimed, CancellationToken ct)
@@ -54,7 +54,7 @@ partial class RoundsTradePlanner
             throw new DomainException("mass_unknown");
         }
         // Native packing requires a day of food before it returns route estimates. Seed with that legal minimum;
-        // native measures silver mass rather than Go inventing a unit weight for modded definitions.
+        // native measures silver mass rather than the brain inventing a unit weight for modded definitions.
         var (seedFood, seedSkip) = Pol.TradePolicyRules.TradeMissionFood(facts, crew, 1, capacity, thresholds);
         if (!seedSkip.IsNone)
         {

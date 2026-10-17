@@ -3,14 +3,14 @@ using RimGovernor.Contracts.Wire.Common;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>ErrContract</c>: a native reply or a request broke the bridge contract (Go's <c>contract(format, ...)</c>).
+/// A native reply or a request broke the bridge contract.
 /// Callers that tested <c>errors.Is(err, ErrContract)</c> catch this type.
 /// </summary>
 public sealed partial class BridgeContractException(string message) : Exception("bridge contract failure: " + message);
 
 /// <summary>
-/// Go's <c>ErrRefused</c>: a native read was refused. <see cref="ReadRefusedException"/> and <see cref="NativeFailureException"/>
-/// are the typed forms; the base type itself is thrown where Go returned the bare sentinel.
+/// A native read was refused. <see cref="ReadRefusedException"/> and <see cref="NativeFailureException"/>
+/// are the typed forms; the base type itself is thrown where no typed form applies.
 /// </summary>
 public class BridgeRefusedException(string message) : Exception(message)
 {
@@ -18,7 +18,7 @@ public class BridgeRefusedException(string message) : Exception(message)
         : this("bridge read refused") { }
 }
 
-/// <summary>Go's <c>ErrUnavailable</c>: native observation is unavailable (no game, no map, or a typed unavailable reply).</summary>
+/// <summary>Native observation is unavailable (no game, no map, or a typed unavailable reply).</summary>
 public class BridgeUnavailableException(string message) : Exception(message)
 {
     public BridgeUnavailableException()
@@ -31,7 +31,7 @@ public class BridgeUnavailableException(string message) : Exception(message)
 /// </summary>
 public sealed class NotLoadedException(string message) : BridgeUnavailableException(message);
 
-/// <summary>Go's <c>NativeFailure</c>: an explicit typed pre-admission refusal, never a transport inference.</summary>
+/// <summary>An explicit typed pre-admission refusal, never a transport inference.</summary>
 public sealed class NativeFailureException(Failure value, Result receipt) : BridgeRefusedException(Describe(value))
 {
     public Failure Value { get; } = value;
@@ -44,7 +44,7 @@ public sealed class NativeFailureException(Failure value, Result receipt) : Brid
             : "native read refused: " + value.Code.GetValueOrDefault();
 }
 
-/// <summary>Go's <c>NativeUnavailable</c>: a typed unavailable reply.</summary>
+/// <summary>A typed unavailable reply.</summary>
 public sealed class NativeUnavailableException(Unavailable value, Result receipt) : BridgeUnavailableException(Describe(value))
 {
     public Unavailable Value { get; } = value;
@@ -57,7 +57,7 @@ public sealed class NativeUnavailableException(Unavailable value, Result receipt
             : "native read unavailable: " + value.Reason.GetValueOrDefault();
 }
 
-/// <summary>Go's <c>Refusal</c>: a named read the native side refused, with the refusal's own account of itself.</summary>
+/// <summary>A named read the native side refused, with the refusal's own account of itself.</summary>
 public sealed class ReadRefusedException : BridgeRefusedException
 {
     public ReadRefusedException(string tool, string cause, Result result)

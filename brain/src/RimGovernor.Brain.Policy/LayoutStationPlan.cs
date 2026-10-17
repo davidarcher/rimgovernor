@@ -384,7 +384,7 @@ public sealed record BuiltRegion
 /// <summary>The built rooms matched to one group: Rooms are the matched room ids, ascending; Capacity their summed floor.</summary>
 public sealed record GroupRooms(int Group, IReadOnlyList<int> Rooms, int Capacity);
 
-/// <summary>Ports <c>layout_station_plan.go</c>: the station chain over the live colony. The colony is read into StationFacts, the chain (BuildStationGraph, ClusterStations, Embed) runs over it, and each group is matched to the rooms already built for its predicted role.</summary>
+/// <summary>The station chain over the live colony. The colony is read into StationFacts, the chain (BuildStationGraph, ClusterStations, Embed) runs over it, and each group is matched to the rooms already built for its predicted role.</summary>
 public static partial class LayoutStationPlanRules
 {
     /// <summary>Names the unknown fact an advice could not be assembled for.</summary>
@@ -859,7 +859,7 @@ internal static class KeyText
 
 public sealed partial class StationGraph
 {
-    /// <summary>Go's value copy of the graph with its power sites replaced: the other slices are shared, as a Go struct copy shares them.</summary>
+    /// <summary>A value copy of the graph with its power sites replaced: the other slices are shared.</summary>
     internal StationGraph WithSites(IEnumerable<SiteNode> sites)
     {
         var copy = (StationGraph)MemberwiseClone();

@@ -207,7 +207,7 @@ public static class IdeoligionDesignRules
     }
 
     /// <summary>
-    /// Go compared the JSON encodings of two canonical designs to break score ties. The typed equivalent is
+    /// Score ties between two canonical designs break by
     /// the memes, then the precepts, each compared name by name, a longer list ahead of its own prefix (the
     /// closing bracket sorts after the comma), then the fluid flag.
     /// </summary>

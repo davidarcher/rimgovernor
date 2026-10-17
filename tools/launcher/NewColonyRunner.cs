@@ -34,8 +34,7 @@ public interface INewColonyHost
 }
 
 /// <summary>
-/// The launcher's orchestration of <c>POST /api/lifecycle/new</c> against the game's in-process brain (Go
-/// <c>colonyRunner</c>). One generation at a time. Native generates only from a fresh main menu: a running game the
+/// The launcher's orchestration of <c>POST /api/lifecycle/new</c> against the game's in-process brain. One generation at a time. Native generates only from a fresh main menu: a running game the
 /// host can reuse returns there (<c>/api/lifecycle/menu</c>), any other is closed and started afresh. Then it posts
 /// the spec and polls the request until native saves the colony. The page holds no labels, ordering or ranges: it
 /// renders <see cref="View"/> and calls <see cref="Generate"/> and <see cref="CancelAsync"/>.

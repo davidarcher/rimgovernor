@@ -12,8 +12,8 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace RimGovernor.Brain.Bridge;
 
 /// <summary>
-/// The brain's direct, in-memory call path to the native mod: the capabilities Go reached over a remote
-/// transport and JSON (<c>contracts/native-protobuf-cutover.md</c>) as typed calls. A call carries the same request and
+/// The brain's direct, in-memory call path to the native mod: the native capabilities as typed calls
+/// (<c>contracts/native-protobuf-cutover.md</c>). A call carries the same request and
 /// reply records as the tool's JSON bodies (<c>RimGovernor.Contracts.Wire</c>); no call is serialized, and nothing
 /// is parsed from text.
 /// </summary>

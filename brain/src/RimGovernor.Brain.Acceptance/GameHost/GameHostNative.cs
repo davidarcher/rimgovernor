@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>The Win32 surface of the game host (Go <c>proc_windows.go</c> through golang.org/x/sys/windows).</summary>
+/// <summary>The Win32 surface of the game host.</summary>
 internal static partial class GameHostNative
 {
     internal const uint ProcessTerminate = 0x0001;

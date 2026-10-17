@@ -3,7 +3,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One race's herd: the planned animals of the race.</summary>
 public sealed record StationHerd(Resource Race, int Animals)
 {
-    /// <summary>The zero value Go's struct literal starts from.</summary>
     public StationHerd() : this(default, 0)
     {
     }
@@ -18,7 +17,7 @@ public sealed record PenNode
 
 }
 
-/// <summary>Ports <c>layout_pen_nodes.go</c>: pens as outdoor nodes of the station graph.</summary>
+/// <summary>Pens as outdoor nodes of the station graph.</summary>
 public static partial class LayoutPenNodesRules
 {
     /// <summary>Why the graph holds a pen: the herd the plan keeps of a race.</summary>

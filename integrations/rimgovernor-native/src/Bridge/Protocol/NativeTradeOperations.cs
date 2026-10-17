@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
     // TradeSession/TradeDeal, TradeSession.SetupWith, Tradeable.AdjustTo and
     // TradeDeal.TryExecute behind the typed boundary, with no Dialog_Trade
     // "watch" theater (opening a real window, holding it on screen, closing
-    // it after): a typed native operation driven by the Go controller has no
+    // it after): a typed native operation driven by the controller has no
     // human to show a trade to.
     //
     // RimWorld allows exactly one TradeSession at a time, so every operation

@@ -97,7 +97,7 @@ public sealed class TileClosedException(string message) : TileException("packed 
 internal readonly record struct TileRoom(int Group, Rectangle Rect);
 
 /// <summary>
-/// Ports <c>layout_tile.go</c>. Tiling turns the embedding into a LayoutPlan: one room per placed group on the
+/// Tiling turns the embedding into a LayoutPlan: one room per placed group on the
 /// group's block, a door graph over the walls the blocks share, an exterior door and entrance per room, and the
 /// group's stations set into the room by PlaceInRegion. It is a pure function of the embedding and the survey. A
 /// group's role comes from what the game makes of its stations and its cold need (a storeroom that stores cold is the
@@ -288,7 +288,7 @@ internal sealed partial class Tiler(TileInput input)
         var placed = LayoutTrainingNodesRules.PlacedBlocks(In.Groups, blocks);
         blocks = [.. blocks.OrderBy(b => b.Group)];
         Plan = new LayoutPlan { Zones = In.Zones, Reservations = In.Reservations, Sites = [.. In.Sites], NextRoomId = In.NextRoomId };
-        this.FieldZones(); // the placed fields, no walls or doors (layout_field_place.go)
+        this.FieldZones(); // the placed fields, no walls or doors
 
         // Every group owes a room, placed or not: a group the embedding left out stays in the hard tier's Missing term
         // instead of hiding behind another group of its role. A role no planned room carries is stopped below when its

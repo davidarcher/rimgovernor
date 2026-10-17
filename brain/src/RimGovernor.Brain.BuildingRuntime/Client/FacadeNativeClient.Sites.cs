@@ -4,11 +4,11 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go excavation_site_read.go, clearance.go and shrines.go: the excavation site, clearance census and ancient shrine reads.
+// The excavation site, clearance census and ancient shrine reads.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
-    /// Go's <c>ReadExcavationSite</c>: reads the excavation site for the ordered cell set plus its access cell. Reply
+    /// Reads the excavation site for the ordered cell set plus its access cell. Reply
     /// rows echo the request order so callers can index stages positionally.
     /// </summary>
     internal async Task<ExcavationSite> ReadExcavationSiteAsync(PbCommon.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken cancellationToken)
@@ -80,12 +80,12 @@ public sealed partial class FacadeNativeClient
         };
     }
 
-    /// <summary>Go's <c>ReadClearanceTargets</c>: read-only and requires no authority. An unsupported native stub is unavailable, never a successful empty census.</summary>
+    /// <summary>Read-only and requires no authority. An unsupported native stub is unavailable, never a successful empty census.</summary>
     internal Task<PbObservations.ClearanceTargetsReply> ReadClearanceTargetsAsync(PbCommon.Identity identity, bool includeSalvage, CancellationToken cancellationToken) =>
         ReadClearanceTargetsOnGroundAsync(identity, includeSalvage, [], cancellationToken);
 
     /// <summary>
-    /// Go's <c>ReadClearanceTargetsOnGround</c>: widens the census to planned ground: on those rectangles native also
+    /// Widens the census to planned ground: on those rectangles native also
     /// reports the player's own buildings (with encloses_room) and constructed floors, one row per cell.
     /// </summary>
     internal async Task<PbObservations.ClearanceTargetsReply> ReadClearanceTargetsOnGroundAsync(PbCommon.Identity identity, bool includeSalvage, IReadOnlyList<PbObservations.Rectangle> planned, CancellationToken cancellationToken)
@@ -121,7 +121,7 @@ public sealed partial class FacadeNativeClient
 
     internal static class SiteBudgets
     {
-        // Salvage evidence tunables sent on every clearance read (Go SalvageMaxAgeTicks and friends). Native computes
+        // Salvage evidence tunables sent on every clearance read. Native computes
         // about 1 ms of colonist pathing per ruin, so these are main-thread guards: a cached row older than
         // SalvageMaxAgeTicks (four game hours) is recomputed, the frame refresher spends SalvageFrameBudgetMs per
         // update, a read computes rows with no cache entry up to SalvageInlineBudgetMs, and the first read (empty

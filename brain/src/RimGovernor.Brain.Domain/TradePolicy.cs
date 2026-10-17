@@ -2,8 +2,7 @@ namespace RimGovernor.Brain.Domain;
 
 /// <summary>
 /// One priority-ordered economic target: the definition the player named, the stock level it should be kept
-/// at, and the per-deal quantity and price limits either side of that level. It is the Go form of
-/// colony_plan.py's TradeTarget, with its field bounds carried on <see cref="Validate"/>.
+/// at, and the per-deal quantity and price limits either side of that level. Its field bounds are carried on <see cref="Validate"/>.
 /// </summary>
 public sealed record TradeTarget(string Item, long Stock, long MaxBuy, long MaxSell, double MinSellPrice)
 {

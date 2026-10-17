@@ -7,7 +7,7 @@ using RimGovernor.Brain.Acceptance;
 namespace RimGovernor.Brain.RemoteAccept;
 
 /// <summary>
-/// The <c>remoteaccept</c> command (Go <c>cmd/remoteaccept</c>): <c>RimGovernor.cmd remoteaccept &lt;subcommand&gt;</c>.
+/// The <c>remoteaccept</c> command: <c>RimGovernor.cmd remoteaccept &lt;subcommand&gt;</c>.
 /// Aggregates shard evidence or imports an authenticated GitHub Actions artifact for <c>land</c>; it never publishes
 /// source or dispatches.
 /// </summary>
@@ -32,7 +32,7 @@ public static class RemoteAcceptCommand
 
     /// <summary>
     /// Runs one subcommand. <paramref name="registry"/> is the trusted case registry <c>progress -prepare</c> maps selection
-    /// names to output paths with (Go registered the cases by blank import); <paramref name="stdin"/> carries the progress credential.
+    /// names to output paths with; <paramref name="stdin"/> carries the progress credential.
     /// </summary>
     public static async Task<int> RunAsync(IReadOnlyList<string> args, CaseRegistry? registry, Stream stdin, TextWriter stdout, TextWriter stderr, CancellationToken cancellationToken)
     {
@@ -156,7 +156,7 @@ public static class RemoteAcceptCommand
         }
     }
 
-    /// <summary>Where Go kept the table (internal/remoteaccept/casetimes.json); the C# planner embeds this file.</summary>
+    /// <summary>Where the case-times table lives; the planner embeds this file.</summary>
     private static string DefaultCaseTimesPath => Path.Combine("brain", "src", "RimGovernor.Brain.Acceptance", "Suites", "Data", "casetimes.json");
 
     private static async Task AggregateAsync(string root, string shardsFile, TextWriter stdout)
@@ -221,7 +221,7 @@ public static class RemoteAcceptCommand
     }
 }
 
-/// <summary><c>remoteaccept progress</c> (Go progressCommand, prepareProgress and validateProgress).</summary>
+/// <summary><c>remoteaccept progress</c>.</summary>
 internal static class ProgressCommand
 {
     public static async Task RunAsync(IReadOnlyList<string> args, CaseRegistry? registry, Stream stdin, CancellationToken cancellationToken)

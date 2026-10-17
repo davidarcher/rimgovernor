@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_research.go: every ResearchProjectDef as the project's static facts. The cost, the knowledge category, the
+// Every ResearchProjectDef as the project's static facts. The cost, the knowledge category, the
 // prerequisites and the required bench are fields of the def, so the catalog carries no second copy of them. The game's
 // ResearchProjectDef.hidden is a codex state and not a static fact: every project starts not hidden, and the research
 // read marks a codex-hidden one from its "hidden" lock reason.

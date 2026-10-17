@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record FoodPolicy : IActionPayload
 {
-    /// <summary>Go <c>NewFoodPolicy</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public FoodPolicy(string name, IEnumerable<string> definitions)
     {
         DomainException.Require(IdText.IsValidText(name) && Encoding.UTF8.GetByteCount(name) <= 80, "a food policy needs a name");

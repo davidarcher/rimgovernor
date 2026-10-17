@@ -2,7 +2,6 @@ using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
 
-// Go: animal_upkeep.go
 
 public sealed record UpkeepAnimal
 {
@@ -37,11 +36,11 @@ public sealed record UpkeepAnimal
 
     /// <summary>
     /// the animals family's husbandry facts straight from the same generic census read that already decodes
-    /// containment/feed facts; SafeToSlaughter (animal_food.go) decides.
+    /// Containment/feed facts; SafeToSlaughter decides.
     /// </summary>
     public SlaughterFacts SlaughterFacts { get; init; } = new();
 
-    /// <summary>Native's Designator_ReleaseAnimalToWild acceptance; ReleaseAllowed (animal_food.go) adds the exclusions policy owns.</summary>
+    /// <summary>Native's Designator_ReleaseAnimalToWild acceptance; ReleaseAllowed adds the exclusions policy owns.</summary>
     public Fact<bool> SafeToRelease { get; init; }
 
     public EquatableArray<HusbandryTrainable> Training { get; init; }

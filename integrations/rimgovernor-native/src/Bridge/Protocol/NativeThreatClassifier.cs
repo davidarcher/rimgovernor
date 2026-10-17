@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
     }
 
     /// Filter-first threat fact rows: the native emits facts,
-    /// Go classifies them (bridge.ClassifyThreat). A pawn is kept when any
+    /// the brain classifies them (bridge.ClassifyThreat). A pawn is kept when any
     /// fact a threat rule reads is set (a mental state, faction hostility, a
     /// prison break, a predator hunt), or when it is an unowned downed pawn
     /// or predator within the radius of a colonist; only a kept pawn gets

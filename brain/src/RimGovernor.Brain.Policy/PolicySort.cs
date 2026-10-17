@@ -1,9 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>List-style helpers over <see cref="EquatableArray{T}"/> for the ported Go slice idioms.</summary>
+/// <summary>List-style helpers over <see cref="EquatableArray{T}"/>.</summary>
 internal static class EquatableArrayExtensions
 {
-    /// <summary>Go's <c>slices.IndexFunc</c>.</summary>
     public static int FindIndex<T>(this EquatableArray<T> array, Predicate<T> match)
     {
         for (var i = 0; i < array.Count; i++)
@@ -18,7 +17,7 @@ internal static class EquatableArrayExtensions
     }
 }
 
-/// <summary>Stable sorting by a Go-style <c>less</c> function (Go's <c>sort.Slice</c> ties are arbitrary; stable is a refinement).</summary>
+/// <summary>Stable sorting by a <c>less</c> function.</summary>
 public static class PolicySort
 {
     public static List<T> ByLess<T>(IEnumerable<T> items, Func<T, T, bool> less)

@@ -7,8 +7,7 @@ using ReviewRecord = RimGovernor.Brain.Store.Rounds;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The durable journal a serve-driven case reads beside the player API (Go <c>na.OpenStoreWithRetry</c>,
-/// <c>ServiceProcess.WaitRounds</c> and <c>na.WaitReview</c>): the case opens <c>&lt;output&gt;/service.sqlite</c>
+/// The durable journal a serve-driven case reads beside the player API: the case opens <c>&lt;output&gt;/service.sqlite</c>
 /// read through the store and polls its Rounds record and plan history. The journal path follows the convention the
 /// checkpoint ring already uses.
 /// </summary>
@@ -28,11 +27,11 @@ public static class ServiceJournal
         return System.IO.Path.Combine(config.Output, Checkpoints.CheckpointStoreFile);
     }
 
-    /// <summary>Opens the run's durable journal (Go <c>service.Store(ctx)</c>), retrying while the service is still creating it.</summary>
+    /// <summary>Opens the run's durable journal, retrying while the service is still creating it.</summary>
     public static Task<Journal> OpenWithRetryAsync(Config config, CancellationToken cancellationToken) =>
         OpenWithRetryAsync(PathOf(config), cancellationToken);
 
-    /// <summary>The most recently committed plans admitted under a method matching the GLOB pattern (Go <c>PlanHistoryWithMethods(ctx, 256, pattern)</c>).</summary>
+    /// <summary>The most recently committed plans admitted under a method matching the GLOB pattern.</summary>
     public static Task<IReadOnlyList<PlanState>> PlanHistoryAsync(Journal journal, string pattern, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(journal);
@@ -54,7 +53,7 @@ public static class ServiceJournal
         return [.. history.Select(m => m.Method.Value)];
     }
 
-    /// <summary>The persisted review (Go <c>st.LoadRounds</c>), or null while none was persisted yet.</summary>
+    /// <summary>The persisted review, or null while none was persisted yet.</summary>
     public static async Task<ReviewRecord?> TryRoundsAsync(Journal journal, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(journal);

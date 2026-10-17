@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: trade_food.go.
 
 /// <summary>
 /// Comes from the shared food review, not a second plan made by trade. DesiredIngredients describes the desired

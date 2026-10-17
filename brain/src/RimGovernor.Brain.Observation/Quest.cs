@@ -4,7 +4,6 @@ namespace RimGovernor.Brain.Observation;
 
 public static class QuestReads
 {
-    // quest_capacity.go
 
     internal static Fact<int> FrameQuestColonistsAtHome(WorldProgressionRead? read, MapId home, EmergencyFacts emergency)
     {
@@ -48,7 +47,6 @@ public static class QuestReads
         return Unknown<int>();
     }
 
-    // quest_combat_exit.go
 
     /// <summary>Preserves the native exact exit cells from the same combat frame. No remote map selection or additional observation is performed.</summary>
     public static Fact<CombatSiteExit> CombatSiteExitOf(WorldProgressionRead? read, MapId mapId)
@@ -72,7 +70,6 @@ public static class QuestReads
         return Unknown<CombatSiteExit>();
     }
 
-    // quest_departure.go
 
     internal static Fact<EquatableArray<QuestDeparturePawn>> ProjectDepartureStrength(Fact<EquatableArray<QuestDeparturePawn>> candidates, Fact<EquatableArray<SquadDefenderFacts>> defenders)
     {
@@ -108,7 +105,6 @@ public static class QuestReads
         return Known(EquatableArray.From(rows));
     }
 
-    // quest_expedition.go
 
     internal static Fact<EquatableArray<ExpeditionTrip>> FrameExpeditionTrips(WorldProgressionRead? read, MapId home)
     {
@@ -158,7 +154,6 @@ public static class QuestReads
         return Known(EquatableArray.From(rows));
     }
 
-    // quest_guest_protection.go
 
     /// <summary>Derives the open meeting's protection on each read; rescue and ordinary tending stay available when operations are excluded.</summary>
     internal static RoundsFacts StampQuestGuestProtection(RoundsFacts f)
@@ -185,7 +180,6 @@ public static class QuestReads
         return f;
     }
 
-    // quest_refugees.go
 
     internal static RoundsFacts StampQuestRefugees(RoundsFacts f)
     {
@@ -202,7 +196,6 @@ public static class QuestReads
         return f;
     }
 
-    // quest_hack_gift.go
 
     internal static QuestObjective QuestHackGift(QuestObjectiveFact source, QuestObjective row)
     {
@@ -252,7 +245,6 @@ public static class QuestReads
         return row;
     }
 
-    // quest_monument.go
 
     internal static Fact<QuestMonument> QuestMonumentOf(O.QuestMonument? m, DefinitionCatalog? catalog)
     {
@@ -336,7 +328,6 @@ public static class QuestReads
         });
     }
 
-    // quest_monument_options.go
 
     /// <summary>
     /// Reads a monument piece's stuffs and build options from the catalog rows, the way
@@ -394,7 +385,6 @@ public static class QuestReads
         return (allowed, options);
     }
 
-    // quest_work_capacity.go
 
     internal static (Fact<EquatableArray<QuestWorkCapacity>> Capacity, Fact<EquatableArray<QuestDeparturePawn>> Departures) FrameQuestWorkerCapacity(WorldProgressionRead? read, MapId current)
     {

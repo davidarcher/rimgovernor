@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The waste case family (Go <c>cases/waste</c>).</summary>
+/// <summary>The waste case family.</summary>
 public static class WasteCases
 {
     public static void Register(CaseRegistry registry)

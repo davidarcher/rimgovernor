@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // The colony view the departments declare their stores from (DeclareStores). Declarations are derived state,
-// recomputed every pass in Go memory; the standing zones are the only record, and the admin/stockpiles Need applies
+// recomputed every pass in memory; the standing zones are the only record, and the admin/stockpiles Need applies
 // the diff.
 
 /// <summary>

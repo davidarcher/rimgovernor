@@ -70,7 +70,7 @@ public static partial class PenFoodRules
     public static (double Total, bool Ok) PenDemand(AnimalRaceCatalog races, IReadOnlyDictionary<Resource, long> ceilings)
     {
         double total = 0;
-        // Go ranged the map in random order; a fixed order keeps the float sum reproducible.
+        // A fixed order keeps the float sum reproducible.
         foreach (var (def, n) in ceilings.OrderBy(kv => kv.Key.Value, StringComparer.Ordinal))
         {
             if (n <= 0)

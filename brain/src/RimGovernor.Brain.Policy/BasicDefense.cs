@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: basic_defense.go
 
 public static class BasicDefenseRules
 {

@@ -330,7 +330,7 @@ public sealed partial class Rounder
         return f with { Gear = Known(gear with { Pawns = [.. gear.Pawns.Select(Stamp)] }) };
     }
 
-    /// <summary>The remembered layout and royalty served into a fresh projection, then the food plan, meals, reserve and baby feeding reviews (Go ran them in place on <c>&amp;reading.Projection</c>).</summary>
+    /// <summary>The remembered layout and royalty served into a fresh projection, then the food plan, meals, reserve and baby feeding reviews.</summary>
     private ColonyProjection ServeAndReview(ColonyProjection fresh)
     {
         var projection = Census.ServeLayout(fresh);

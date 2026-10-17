@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: trade_acquisition.go.
 
 public enum TradeAcquisitionKind
 {

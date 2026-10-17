@@ -2,11 +2,11 @@ using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go combat_orders.go: ValidateCombatOrders and its optionalTokenEntity. The receipt decoding
+// ValidateCombatOrders and its optionalTokenEntity. The receipt decoding
 // (CombatOrderResults) and the combat call belong to the combat call port, not to the builders.
 public static class CombatOrdersRules
 {
-    /// <summary>Go's <c>optionalTokenEntity</c>: an exact entity whose snapshot token may be omitted (orders dispatched under a running clock).</summary>
+    /// <summary>An exact entity whose snapshot token may be omitted (orders dispatched under a running clock).</summary>
     private static void OptionalTokenEntity(Op.EntityPrecondition? value)
     {
         if (value is null)
@@ -21,7 +21,7 @@ public static class CombatOrdersRules
         }
     }
 
-    /// <summary>Go's <c>ValidateCombatOrders</c>: applies the native request rules before any call.</summary>
+    /// <summary>Applies the native request rules before any call.</summary>
     /// <exception cref="BridgeContractException">The batch is malformed.</exception>
     public static void ValidateCombatOrders(Op.CombatOrders? command)
     {
@@ -153,7 +153,7 @@ public static class CombatOrdersRules
         }
     }
 
-    // Go's contract("combat order %d move: %v", i, err): the failing check's message after the order's label.
+    // The failing check's message after the order's label.
     private static void Check(Action check, string label)
     {
         try

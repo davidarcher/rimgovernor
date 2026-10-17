@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: animal_feed_runway.go
 // Animal feed runway. Each race group of the kept herd eats NutritionPerDay (the food forecast's per-animal
 // rate); the pasture of the pens feeds part of it and the unheld stock every animal of the group can eat the
 // rest. The runway is that stock over the net daily consumption, against MaintenanceHorizonDays. The shortfall is

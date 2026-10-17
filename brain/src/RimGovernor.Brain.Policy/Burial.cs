@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: burial.go
 // The admin/burial Need (AdminFamily.Burial) is the People department's burial: the tomb's sarcophagus or the
 // plain grave near the base, the morgue's shell, and the tomb and morgue stores. It is met while no human corpse is
 // owed a shell, a sarcophagus or a grave. Vanilla haulers carry the corpses; nothing here hauls.

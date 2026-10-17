@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>The suite data files embedded in the assembly (Go <c>cmd/acceptance/suites/*.json</c> and <c>remoteaccept/casetimes.json</c>).</summary>
+/// <summary>The suite data files embedded in the assembly.</summary>
 public static class SuiteFiles
 {
     private const string Prefix = "RimGovernor.Brain.Acceptance.Suites.";
@@ -23,11 +23,11 @@ public static class SuiteFiles
     public static IReadOnlyList<SuiteEntry> ReadSuite(string fileName) => SuiteCommand.ParseSuiteText(ReadText(fileName));
 }
 
-/// <summary>One planned shard: its id and its cases in run order (Go <c>remoteaccept.PlannedShard</c>).</summary>
+/// <summary>One planned shard: its id and its cases in run order.</summary>
 public sealed record PlannedShard(string Id, IReadOnlyList<string> Cases);
 
 /// <summary>
-/// The remote shard planner (Go <c>internal/remoteaccept</c> plan.go and casetimes.go, the part <c>acceptance plan</c>
+/// The remote shard planner (the part <c>acceptance plan</c>
 /// needs): it balances cases over shards by their cost.
 /// </summary>
 public static class RemotePlanning
@@ -126,13 +126,13 @@ public static class RemotePlanning
         return [.. shards.Select((cases, i) => new PlannedShard(string.Create(CultureInfo.InvariantCulture, $"s{i + 1}"), cases))];
     }
 
-    /// <summary>A case's planning weight in nanoseconds: its measured wall time when the table has it, else its budget (Go <c>ShardCost</c>).</summary>
+    /// <summary>A case's planning weight in nanoseconds: its measured wall time when the table has it, else its budget.</summary>
     public static long ShardCost(string name, TimeSpan budget) =>
         _measured.Value.TryGetValue(name, out var ms) && ms > 0
             ? ms * 1_000_000
             : budget.Ticks * 100;
 
-    /// <summary>Whether the measured table has a time for <paramref name="name"/> (Go <c>Measured</c>).</summary>
+    /// <summary>Whether the measured table has a time for <paramref name="name"/>.</summary>
     public static bool Measured(string name) => _measured.Value.TryGetValue(name, out var ms) && ms > 0;
 
     private static bool IsSorted(IReadOnlyList<string> names)

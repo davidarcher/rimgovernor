@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: bill_wanted.go
 
 public static class BillWantedRules
 {

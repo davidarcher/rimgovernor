@@ -16,7 +16,7 @@ public sealed partial record LayoutPlan
     }
 }
 
-/// <summary>Ports <c>layout_throne.go</c>: the throne room, one core room sized from the next title's minimum area.</summary>
+/// <summary>The throne room, one core room sized from the next title's minimum area.</summary>
 public static partial class LayoutThroneRules
 {
     /// <summary>The throne room's plan role.</summary>

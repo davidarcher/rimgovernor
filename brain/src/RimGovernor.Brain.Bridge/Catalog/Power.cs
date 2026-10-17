@@ -6,7 +6,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_power.go: the power views. A power comp is CompProperties_Power or a subclass; a solar or wind plant is
+// The power views. A power comp is CompProperties_Power or a subclass; a solar or wind plant is
 // told by its compClass (CompPowerPlantSolar, CompPowerPlantWind or a subclass).
 
 public sealed partial class DefinitionCatalog
@@ -100,7 +100,7 @@ public sealed partial class DefinitionCatalog
             return [];
         }
 
-        // The game's resolved filter has expanded its categories into defs, so the Go refusal of a category list has no counterpart.
+        // The game's resolved filter has expanded its categories into defs.
         return [.. fuel.fuelFilter.AllowedThingDefs.Select(d => d.defName).Order(StringComparer.Ordinal)];
     }
 

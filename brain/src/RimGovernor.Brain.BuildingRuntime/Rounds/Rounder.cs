@@ -568,7 +568,7 @@ public sealed partial class Rounder
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    // Go ignored this error: a failed bench census leaves coverage unknown.
+                    // A failed bench census leaves coverage unknown.
                 }
                 known = benchWork.TryGetValue(out var rows);
                 required = RoundsProjectBill.MergeWorkRequirements([.. required ?? []], rows ?? []);
@@ -601,7 +601,7 @@ public sealed partial class Rounder
                 }
                 catch (DomainException)
                 {
-                    // Go: PlanWork's error leaves the coverage facts as the review set them.
+                    // PlanWork's error leaves the coverage facts as the review set them.
                 }
             }
         }
@@ -714,7 +714,7 @@ public sealed partial class Rounder
 }
 
 /// <summary>
-/// Go mutated the review's projection and facts in place; the records are immutable here, so a review step
+/// The records are immutable, so a review step
 /// holds one <see cref="RoundsReading"/> and replaces it with an edited copy at each assignment.
 /// </summary>
 internal static class RoundsReadingEdits
@@ -1048,7 +1048,6 @@ public sealed partial class Rounder
     }
 }
 
-/// <summary>Go's <c>atomic.Pointer[T]</c>.</summary>
 internal sealed class AtomicPointer<T>
     where T : class
 {

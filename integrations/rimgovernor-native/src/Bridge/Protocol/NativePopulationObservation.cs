@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     // already made for the write side. Population-*'s recruit/maintain deficit
     // facts (recruitable, current interaction) live only here -- the generic
     // colony/upkeep census NativeUpkeepFacts populates has no guest section --
-    // so this is the one native read Go's routine planner needs to detect and
+    // so this is the one native read the routine planner needs to detect and
     // select a prisoner-interaction write. Single complete page, like
     // ReadStatus/ReadHusbandry/ReadPrisonerInteraction; a paginated population
     // is deferred to whatever candidate search eventually needs one.

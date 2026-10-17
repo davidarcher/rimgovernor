@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_terrain.go: the floors.
+// The floors.
 
 public sealed partial class DefinitionCatalog
 {

@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go defense_census.go: the defense census read off the cell mirror and the definition catalog.
+// The defense census read off the cell mirror and the definition catalog.
 
 public sealed partial class DefinitionCatalog
 {

@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Port of admission_log.go: files one admission row per method admission outcome that matters.</summary>
+/// <summary>Files one admission row per method admission outcome that matters.</summary>
 internal static class AdmissionLog
 {
     /// <summary>

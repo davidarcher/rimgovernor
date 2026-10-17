@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: break_response.go
 
 public sealed record BreakResponder
 {

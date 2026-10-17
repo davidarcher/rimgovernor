@@ -29,12 +29,12 @@ namespace HomeBridge.BridgeTools
         }
 
         // A trait whose degree disallows the ingestion thoughts of human meat (the
-        // TraitDef row Go reads the same way) eats it without a mood loss.
+        // TraitDef row the brain reads the same way) eats it without a mood loss.
         internal static bool EatsHumanMeatUnbothered(Pawn pawn) => pawn.story?.traits?.allTraits.Any(t =>
             t.CurrentData?.disallowedThoughtsFromIngestion?.Any(o => o.meatSource == MeatSourceCategory.Humanlike) == true) == true;
 
         // A pawn with a trait that nullifies the butchered-humanlike thought (the
-        // ThoughtDef row Go reads the same way) butchers a human without a mood loss.
+        // ThoughtDef row the brain reads the same way) butchers a human without a mood loss.
         internal static bool ButchersHumanUnbothered(Pawn pawn) => DefDatabase<ThoughtDef>.GetNamed("ButcheredHumanlikeCorpse").nullifyingTraits?.Any(t => pawn.story?.traits?.HasTrait(t) == true) == true;
 
         internal static bool AcceptsMeat(Pawn pawn) => EatsHumanMeatUnbothered(pawn) || Accepts(pawn, HistoryEventDefOf.AteHumanMeat,
@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
             && pawn.CanReach(bench, PathEndMode.InteractionCell, Danger.None);
 
         // The MeatAmount of the fresh humanlike corpses within reach of the bench,
-        // summed per race; Go prices each race's meat off its def rows.
+        // summed per race; the brain prices each race's meat off its def rows.
         internal static IEnumerable<Obs.HumanCorpseMeat> CorpseMeat(Thing bench) => bench.Map.listerThings.AllThings.OfType<Corpse>()
             .Where(c => c.InnerPawn.RaceProps.Humanlike && c.GetRotStage() == RotStage.Fresh
                 && c.InnerPawn.RaceProps.meatDef != null && c.Position.DistanceTo(bench.Position) <= 40

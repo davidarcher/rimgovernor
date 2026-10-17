@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: trade_offer.go.
 
 /// <summary>
 /// What one caravan's open trade sheet priced when the negotiator last looked at it (derived state, memory only).

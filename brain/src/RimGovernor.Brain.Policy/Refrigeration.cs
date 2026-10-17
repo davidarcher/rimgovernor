@@ -487,7 +487,7 @@ public static partial class RefrigerationRules
                 return (false, true);
             }
         }
-        // Go ranged a map here; the first room holding the hot cell decides. Rooms do not overlap, so the
+        // The first room holding the hot cell decides. Rooms do not overlap, so the
         // lowest id keeps the result independent of dictionary order.
         foreach (var id in rooms.Keys.Order(StringComparer.Ordinal))
         {
@@ -542,7 +542,7 @@ public static partial class RefrigerationRules
         return (default, default, false);
     }
 
-    // Go ordered rotations by their wire strings: east, north, south, west.
+    // Rotations order by their wire strings: east, north, south, west.
     private static int RotationWireOrder(Rotation r) => r switch
     {
         Rotation.East => 0,

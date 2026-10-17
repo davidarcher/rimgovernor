@@ -2,7 +2,6 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
 
-// Go: work_ledger.go, work_ledger_concern.go, work_ledger_unread.go.
 
 /// <summary>
 /// A production order's identity. It carries no native tag: a bill on a bench is the same order as a declared one
@@ -180,7 +179,7 @@ public static partial class WorkRules
     /// <summary>The vanilla bill stack cap of one bench.</summary>
     public const int LedgerBenchSlots = 15;
 
-    /// <summary>The Go string of a bill mode.</summary>
+    /// <summary>The string of a bill mode.</summary>
     internal static string BillModeName(BillMode m) =>
         m switch
         {

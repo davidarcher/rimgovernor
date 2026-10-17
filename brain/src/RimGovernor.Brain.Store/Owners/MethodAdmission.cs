@@ -14,7 +14,7 @@ public sealed partial class Store
 
     /// <summary>
     /// The per-family admission checks every owner shares, then the plan itself; the caller then writes the
-    /// methods row (Go <c>admitOwnerMethod</c>).
+    /// methods row.
     /// </summary>
     internal static void AdmitOwnerMethod(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {

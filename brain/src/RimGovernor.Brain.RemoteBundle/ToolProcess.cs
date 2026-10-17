@@ -3,7 +3,7 @@ using System.Text;
 
 namespace RimGovernor.Brain.RemoteBundle;
 
-/// <summary>The pinned executables bundle operations run (Go <c>Tools</c>); explicit paths from the trusted runner's tool installation.</summary>
+/// <summary>The pinned executables bundle operations run; explicit paths from the trusted runner's tool installation.</summary>
 /// <param name="SevenZip">The 7-Zip executable.</param>
 /// <param name="Age">The age executable.</param>
 public sealed record Tools(string SevenZip, string Age);
@@ -14,7 +14,7 @@ public sealed record Tools(string SevenZip, string Age);
 /// <param name="Stderr">The standard error.</param>
 internal sealed record ProcessResult(int ExitCode, string Stdout, string Stderr)
 {
-    /// <summary>Standard output followed by standard error (Go <c>CombinedOutput</c>, without interleaving).</summary>
+    /// <summary>Standard output followed by standard error.</summary>
     public string Combined => Stdout + Stderr;
 }
 
@@ -23,7 +23,7 @@ internal static class ToolProcess
 {
     /// <summary>
     /// Runs a tool that must succeed, with a scrubbed environment (no token, secret, password or private key), and
-    /// throws with its output when it fails (Go <c>command</c>).
+    /// throws with its output when it fails.
     /// </summary>
     public static async Task RunPublicAsync(string directory, string tool, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {

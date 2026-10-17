@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_mood.go: the mood price's catalog input (#2954): the break curve built from the MentalBreakDefs and
+// The mood price's catalog input (#2954): the break curve built from the MentalBreakDefs and
 // MentalStateDefs, and the stages of the thoughts the planner prices (the dark, the role thoughts). A catalog without the
 // threshold stat (a hand-built one) has an unknown model, not an error.
 //

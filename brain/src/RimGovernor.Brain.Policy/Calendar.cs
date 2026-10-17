@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: calendar.go
 
 /// <summary>
 /// The map tile's native growing calendar, read with the other routine facts. <see cref="GrowingDays"/> is the

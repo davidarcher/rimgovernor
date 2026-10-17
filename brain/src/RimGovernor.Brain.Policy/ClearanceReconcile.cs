@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: clearance_reconcile.go
 // The clear side of the reconciler: every planned room whose ground does not match the plan, standing or not,
 // is reconciled, and the operations that take things down are batched by kind across rooms. The build side
 // (wall, door, floor in, install, build) belongs to the owning concerns.

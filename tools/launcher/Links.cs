@@ -1,7 +1,7 @@
 namespace RimGovernor.Launcher;
 
 /// <summary>
-/// The addresses the launcher page may open in the browser (Go <c>links.go</c>). The bind is an allowlist, not a
+/// The addresses the launcher page may open in the browser. The bind is an allowlist, not a
 /// general open-URL: page content must not be able to launch arbitrary URLs.
 /// </summary>
 public static class Links

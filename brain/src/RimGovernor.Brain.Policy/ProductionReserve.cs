@@ -5,8 +5,7 @@ public static partial class ProductionRules
 {
     /// <summary>
     /// Sums the nutrition target already committed to existing TargetCount bills. It stays distinct from
-    /// current edible stock (food_forecast.go), animal feed demand (animal_upkeep.go) and future crop yield
-    /// (crop_choice.go, field_capacity.go): a bill still filling toward its target reserves that nutrition
+    /// Current edible stock, animal feed demand and future crop yield: a bill still filling toward its target reserves that nutrition
     /// even though none of it is edible yet, so it must never be added to any of those, only netted against
     /// new bill demand. Ok is false when the total is not a usable number.
     /// </summary>

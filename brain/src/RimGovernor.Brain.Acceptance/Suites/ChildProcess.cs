@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// How a command runs "this executable" again: the suite and the sweep run each case as a child
-/// <c>rg acceptance run</c>, the way the Go suite ran child <c>acceptance</c> processes. The path comes from
+/// <c>rg acceptance run</c>. The path comes from
 /// <see cref="Environment.ProcessPath"/>; when the host is the <c>dotnet</c> launcher (a framework-dependent run) the entry
 /// assembly follows it as the first argument.
 /// </summary>
@@ -57,7 +57,7 @@ internal static class ChildProcess
     /// <summary>
     /// Runs <paramref name="executable"/> with <paramref name="arguments"/>, <paramref name="extraEnvironment"/> added to
     /// this process's environment, stdout and stderr written to <paramref name="logPath"/>. Cancelling the token kills the
-    /// whole tree (Go <c>exec.CommandContext</c> killed the process). Throws <see cref="AcceptanceException"/> when the
+    /// whole tree. Throws <see cref="AcceptanceException"/> when the
     /// process cannot start; cancellation propagates as <see cref="OperationCanceledException"/> after the kill.
     /// </summary>
     internal static async Task<Exit> RunAsync(

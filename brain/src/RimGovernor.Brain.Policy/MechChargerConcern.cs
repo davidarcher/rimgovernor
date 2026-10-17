@@ -11,7 +11,7 @@ public sealed record MechChargerSiteFacts
 }
 
 /// <summary>
-/// Ports <c>mech_charger_concern.go</c>. The biotech/mech-charger Need keeps a recharging station free for the
+/// The biotech/mech-charger Need keeps a recharging station free for the
 /// mechs. A mechanitor's mechs recharge one at a time on a Building_MechCharger (MechChargerOwed): the Need is
 /// unmet while the colony owes one more charger, and met once a charger stands idle. The method is one charger
 /// construction; powering it is the power goal's, emptying its waste is the biotech/pollution Need's.

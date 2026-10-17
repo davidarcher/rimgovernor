@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native map-focus capability (Go <c>mapFocusNative</c>).</summary>
+/// <summary>The native map-focus capability.</summary>
 public interface IMapFocusNative
 {
     Task<PbAuthority.ControlReply> FocusMapAsync(PbAuthority.FocusMap request, CancellationToken ct);

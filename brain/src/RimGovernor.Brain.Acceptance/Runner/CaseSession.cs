@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The runner's session over the lifecycle's <see cref="Session"/> (Go <c>cases.session</c>) that a
+/// The runner's session over the lifecycle's <see cref="Session"/> that a
 /// <see cref="TypedSession"/> wraps, plus the services a case launched so the runner can stop them before the game
 /// closes. The lifecycle session is null for an Owned case, which opens its own game on <see cref="Config"/>.
 /// </summary>

@@ -4,14 +4,14 @@ using System.Text.Json;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>Runs the GitHub CLI with the arguments and returns its stdout; a test replaces it (Go <c>ghRunner</c>).</summary>
+/// <summary>Runs the GitHub CLI with the arguments and returns its stdout; a test replaces it.</summary>
 public delegate Task<string> GhRunner(IReadOnlyList<string> args, CancellationToken cancellationToken);
 
-/// <summary>The newest completed fixture-factory run on main (Go <c>factoryRun</c>).</summary>
+/// <summary>The newest completed fixture-factory run on main.</summary>
 public sealed record FactoryRun(long Id, string HeadSha, string Conclusion);
 
 /// <summary>
-/// The save-fixture factory (Go <c>cmd/acceptance/cifixture.go</c>): .github/workflows/fixture-factory.yml runs
+/// The save-fixture factory: .github/workflows/fixture-factory.yml runs
 /// the colony generator (<c>acceptance colony</c>) weekly on a Windows runner and uploads its checkpoint ring as the run artifact
 /// <c>colony-checkpoints-&lt;commit&gt;</c>. <c>-from latest-ci</c> (profile-capture) and <c>acceptance fetch-fixture</c>
 /// download the newest completed run's ring with <c>gh run download</c> into <c>&lt;root&gt;/ci-fixtures/&lt;run id&gt;</c>,
@@ -176,7 +176,7 @@ public static class CiFixture
         }
     }
 
-    /// <summary>The ring's newest bundle directory: its last entry, else its failed bundle, else empty (Go <c>newestInRing</c>).</summary>
+    /// <summary>The ring's newest bundle directory: its last entry, else its failed bundle, else empty.</summary>
     public static string NewestInRing(Ring? ring)
     {
         if (ring is null)
@@ -192,7 +192,7 @@ public static class CiFixture
         return ring.Failed?.Path ?? "";
     }
 
-    /// <summary>The newest bundle of the factory's ring for <paramref name="caseName"/> (Go <c>ciBundle</c>).</summary>
+    /// <summary>The newest bundle of the factory's ring for <paramref name="caseName"/>.</summary>
     public static async Task<string> CiBundleAsync(string root, string caseName, CancellationToken cancellationToken)
     {
         var (dir, _) = await FetchCiRingAsync(root, caseName, cancellationToken).ConfigureAwait(false);

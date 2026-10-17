@@ -51,7 +51,7 @@ public static class Durations
         return true;
     }
 
-    /// <summary>Whole-second text in Go's style: <c>1h2m3s</c>, <c>2m3s</c>, <c>5s</c>.</summary>
+    /// <summary>Whole-second duration text: <c>1h2m3s</c>, <c>2m3s</c>, <c>5s</c>.</summary>
     public static string Format(TimeSpan span)
     {
         var seconds = (long)Math.Round(span.TotalSeconds, MidpointRounding.AwayFromZero);

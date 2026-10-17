@@ -179,7 +179,7 @@ public readonly partial record struct Verdict(Outcome Outcome, Refusal Refusal =
 }
 
 /// <summary>
-/// The shared verdicts (Go <c>BuildingReason*</c>). Exits that need a more specific refusal build one with
+/// The shared verdicts. Exits that need a more specific refusal build one with
 /// <see cref="Verdict.Refuse"/> and its helpers; none may be a catch-all.
 /// </summary>
 partial record struct Verdict

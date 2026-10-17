@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: bill_demand.go
 
 /// <summary>
 /// One open production bill of the journal: its recipe, the batch count, the bill's ingredient filter (the

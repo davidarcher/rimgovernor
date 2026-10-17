@@ -24,7 +24,7 @@ public sealed record BrainHostStatus(BrainHostState State, SchedulerStatus Sched
 /// was: it opens the state database and the telemetry files, builds the session over the native facade, runs the
 /// scheduler on its own thread under a watchdog, serves the player routes, keeps the save's governor state
 /// flushed, and shuts all of it down in the order that leaves nothing half-written. The lease and
-/// reconnect machinery of the Go controller is not carried: the brain and the game share a process, so a link
+/// reconnect machinery of the old controller process is not carried: the brain and the game share a process, so a link
 /// cannot drop under it.
 /// </summary>
 /// <remarks>
@@ -114,7 +114,7 @@ public sealed class BrainHost : IAsyncDisposable
         var options = _options;
         var facade = options.Facade ?? NativeFacadeRegistry.Require();
         StartTelemetry();
-        // The Go init() made explicit: no kind is intent-mode until this runs, and it must precede any progress.
+        // Explicit registration: no kind is intent-mode until this runs, and it must precede any progress.
         IntentActionRules.RegisterIntentKinds();
 
         var (journal, movedAside) = await StoreJournal.OpenOrReplaceAsync(options.StatePath, startup).ConfigureAwait(false);
@@ -156,7 +156,7 @@ public sealed class BrainHost : IAsyncDisposable
         var wake = new WakeSignal();
         var sections = new FactStore();
         var flusher = new StateFlusher(governorState, worlds, journal, rebuild);
-        // Go flushedSave: every Go-made save (the player's and the autosave's) flushes the governor state first.
+        // Every save (the player's and the autosave's) flushes the governor state first.
         var lifecycle = parts.Player?.Lifecycle is { } rawLifecycle ? new FlushedLifecycle(rawLifecycle, flusher.FlushAsync) : null;
         Func<RimGovernor.Contracts.Wire.Common.Identity, long, CancellationToken, Task>? autosave = null;
         if (lifecycle is not null)
@@ -176,7 +176,7 @@ public sealed class BrainHost : IAsyncDisposable
             Sections = sections,
             Autosave = autosave,
             WorldReady = rebuild.SchedulerGate(),
-            // The Worker's advance steps the scheduler at once (Go ClockWorker.Nudge): a wake without evidence.
+            // The Worker's advance steps the scheduler at once: a wake without evidence.
             Nudge = () => wake.Notify(false),
         });
         _plannerParts = planners;
@@ -325,7 +325,7 @@ public sealed class BrainHost : IAsyncDisposable
         }
 
         // A failed join retains the database: Close itself observes uncertain cleanup, and these retries never
-        // repeat an execution command (Go drainBuilding).
+        // repeat an execution command.
         var drained = false;
         Exception? drainError = null;
         for (var attempt = 1; attempt <= timings.ShutdownAttempts && !drained; attempt++)

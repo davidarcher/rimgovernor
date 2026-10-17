@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public readonly record struct ReadScope(ColonyId Colony, MapId Map, LoadId Load, NativeGeneration Native)
 {
-    /// <summary>The read scope of a generation snapshot (Go <c>ScopeOf</c>).</summary>
+    /// <summary>The read scope of a generation snapshot.</summary>
     public static ReadScope Of(GenerationSnapshot s) => new(s.Colony, s.Map, s.Load, s.Native);
 
     public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"{Colony}/{Map}/{Load}@{Native}");
@@ -21,7 +21,7 @@ public readonly record struct ReadScope(ColonyId Colony, MapId Map, LoadId Load,
 /// </summary>
 public readonly record struct ReadValidity(ReadScope Scope, PlanId Plan, PlanRevision Revision, Tick Tick, string Invalid = "")
 {
-    /// <summary>The validity bound to <paramref name="s"/> at <paramref name="tick"/> (Go <c>ValidityOf</c>).</summary>
+    /// <summary>The validity bound to <paramref name="s"/> at <paramref name="tick"/>.</summary>
     public static ReadValidity Of(GenerationSnapshot s, Tick tick) => new(ReadScope.Of(s), s.Plan, s.Revision, tick);
 
     /// <summary>Whether a step fixed a validity; the default value validates nothing.</summary>
@@ -52,7 +52,7 @@ public readonly record struct ReadValidity(ReadScope Scope, PlanId Plan, PlanRev
 }
 
 /// <summary>
-/// Carries a <see cref="ReadValidity"/> on the ambient async context (Go's <c>WithReadValidity(ctx, v)</c> and
+/// Carries a <see cref="ReadValidity"/> on the ambient async context (<c>WithReadValidity(ctx, v)</c> and
 /// <c>ReadValidityFrom(ctx)</c>). Prefer passing the validity explicitly; this exists for call chains that
 /// threaded it through <c>context.Context</c>.
 /// </summary>

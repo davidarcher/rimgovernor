@@ -34,7 +34,7 @@ public sealed record LauncherView(
     Settings Settings,
     IReadOnlyList<string> Saves);
 
-/// <summary>The installed production mod's state against the worktree's native source hash (Go <c>ModState</c>).</summary>
+/// <summary>The installed production mod's state against the worktree's native source hash.</summary>
 public static class ArtifactStates
 {
     public static (string State, string Reason) ModState(SetupPackageManifest? manifest, string sourceTree)

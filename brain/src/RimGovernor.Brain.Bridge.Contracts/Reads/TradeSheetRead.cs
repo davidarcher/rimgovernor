@@ -4,7 +4,7 @@ using TradeTarget = RimGovernor.Contracts.Wire.Common.TradeTarget;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>TradeSheetRow</c>: one validated trade sheet line, the native line id SetTradeLines addresses, the
+/// One validated trade sheet line, the native line id SetTradeLines addresses, the
 /// definition it trades, both sides' current counts, both prices and the eligibility flags economic selection
 /// reads. Each optional proto field's presence is carried explicitly (the <c>...Known</c> flags) so an absent
 /// field is never read as a zero.
@@ -68,7 +68,7 @@ public sealed record TradeSheetRow
 }
 
 /// <summary>
-/// Go's <c>TradeSheetRead</c>: one complete, unfiltered read of the currently open session's trade sheet.
+/// One complete, unfiltered read of the currently open session's trade sheet.
 /// Completeness is a precondition, not a report: the read refuses rather than return a partial sheet whenever
 /// native filtered, truncated or failed to read any row, because an incomplete inventory view is unusable for an
 /// economic decision. The read and its decoders (<c>ReadTradeSheet</c>, <c>tradeSheetPage</c>,

@@ -11,14 +11,12 @@ public sealed class GoRandom
     private ulong _hi;
     private ulong _lo;
 
-    /// <summary>Go <c>rand.New(rand.NewPCG(seed1, seed2))</c>.</summary>
     public GoRandom(ulong seed1, ulong seed2)
     {
         _hi = seed1;
         _lo = seed2;
     }
 
-    /// <summary>Go <c>Uint64</c>.</summary>
     public ulong NextUInt64()
     {
         const ulong mulHi = 2549297995355413924UL;
@@ -51,10 +49,10 @@ public sealed class GoRandom
         return hi;
     }
 
-    /// <summary>Go <c>Float64</c>: [0, 1) with 53 random bits.</summary>
+    /// <summary>[0, 1) with 53 random bits.</summary>
     public double NextDouble() => (double)((NextUInt64() << 11) >> 11) / (1UL << 53);
 
-    /// <summary>Go <c>uint64n</c>: unbiased in [0, n); n must be positive.</summary>
+    /// <summary>Unbiased in [0, n); n must be positive.</summary>
     public ulong NextUInt64(ulong n)
     {
         if ((n & (n - 1)) == 0)
@@ -73,7 +71,6 @@ public sealed class GoRandom
         return hi;
     }
 
-    /// <summary>Go <c>IntN</c>.</summary>
     public int NextInt(int n)
     {
         if (n <= 0)
@@ -83,7 +80,7 @@ public sealed class GoRandom
         return (int)NextUInt64((ulong)n);
     }
 
-    /// <summary>Go <c>Shuffle</c>: Fisher-Yates from the end.</summary>
+    /// <summary>Fisher-Yates from the end.</summary>
     public void Shuffle(int n, Action<int, int> swap)
     {
         for (var i = n - 1; i > 0; i--)
@@ -93,7 +90,7 @@ public sealed class GoRandom
         }
     }
 
-    /// <summary>Go <c>NormFloat64</c>: standard normal by the Marsaglia-Tsang ziggurat.</summary>
+    /// <summary>Standard normal by the Marsaglia-Tsang ziggurat.</summary>
     public double NextNormal()
     {
         const double rn = 3.442619855899;

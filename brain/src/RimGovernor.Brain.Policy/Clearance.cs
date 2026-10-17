@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: clearance.go
 
 /// <summary>
 /// A complete native building observation. Admission remains subject to a fresh observation and the native

@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// The <c>food/*</c> acceptance cases (Go <c>cases/food</c>): isolated nutrition channels verified against native
-/// facts. <see cref="Register"/> replaces the Go package's <c>init()</c>.
+/// The <c>food/*</c> acceptance cases: isolated nutrition channels verified against native
+/// facts. <see cref="Register"/> registers them.
 /// </summary>
 public static class FoodCases
 {

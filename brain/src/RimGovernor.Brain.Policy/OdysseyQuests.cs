@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public enum QuestScope
 {
-    /// <summary>Go's empty string: not classified.</summary>
+    /// <summary>The empty value: not classified.</summary>
     [WireName("")]
     None = 0,
 
@@ -27,8 +27,8 @@ public enum QuestScope
 public sealed record QuestClass(QuestScope Scope, string SpaceLayer);
 
 /// <summary>
-/// Names why a quest offer is not accepted. Go's reasons are an open set of snake_case strings shared by the
-/// quest families, so this is a string-valued struct; the default value is Go's empty string (no reason).
+/// Names why a quest offer is not accepted. The reasons are an open set of snake_case strings shared by the
+/// quest families, so this is a string-valued struct; the default value is the empty string (no reason).
 /// Every skip is logged by the reviewer, once per quest and reason.
 /// </summary>
 public readonly struct QuestSkipReason : IEquatable<QuestSkipReason>

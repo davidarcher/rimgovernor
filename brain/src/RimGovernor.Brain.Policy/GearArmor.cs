@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// One step of an armor family's ladder: the definition and the lowest armory tier that may craft it. Rungs run
 /// from the cheapest to the best; a family's need falls back down its rungs when the tier cannot reach the higher
-/// one. (Go <c>armoryArmorRung</c>.)
+/// one.
 /// </summary>
 internal readonly record struct ArmoryArmorRung(Resource Definition, ArmoryTier Tier);
 

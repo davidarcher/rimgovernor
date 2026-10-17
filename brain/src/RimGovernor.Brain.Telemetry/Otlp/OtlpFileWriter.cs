@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Telemetry.Otlp;
 
 /// <summary>
 /// The production <see cref="ITelemetrySink"/>: writes the process's telemetry as the local OTLP/JSON file rings
-/// the Go service wrote (contract: docs/developers/contracts/otel-core.md). Log records come from
+/// (contract: docs/developers/contracts/otel-core.md). Log records come from
 /// <see cref="TelemetryEmitter"/> rows, spans from the <see cref="Spans"/> activity sources and metrics from the
 /// <see cref="TelemetryMetrics"/> meter, each under <see cref="Spans.ScopePrefix"/>. Nothing here is a state store and
 /// nothing can block a caller: every signal has its own bounded queue and one writer task, and a full queue drops

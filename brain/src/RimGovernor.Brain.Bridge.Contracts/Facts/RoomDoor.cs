@@ -3,10 +3,9 @@ using RoomDoorWire = RimGovernor.Contracts.Wire.Observations.RoomDoor;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go room_door.go.
 public static class RoomDoorRules
 {
-    /// <summary>Go's <c>RoomDoorFacts</c>: keeps absent native fields unknown for both routine and combat.</summary>
+    /// <summary>Keeps absent native fields unknown for both routine and combat.</summary>
     public static PolicyRoomDoor RoomDoorFacts(RoomDoorWire door) =>
         new()
         {

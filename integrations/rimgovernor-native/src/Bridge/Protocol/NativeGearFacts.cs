@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
                     ComfortableMaxC = comfyMax,
                     ApparelPolicy = policy,
                     Equipment = equipment,
-                    // The wear inputs the apparel rows cannot say: Go applies the
+                    // The wear inputs the apparel rows cannot say: the brain applies the
                     // wear filter (gender, stage, body part groups) from the rows.
                     Gender = (Defs.Gender)(int)pawn.gender,
                     DevelopmentalStage = (Defs.DevelopmentalStage)(int)pawn.DevelopmentalStage
@@ -188,7 +188,7 @@ namespace HomeBridge.BridgeTools
             result = result with { TicksToNextTwelfth = GenDate.TicksPerTwelfth
                 - (int)((localTicks % GenDate.TicksPerTwelfth + GenDate.TicksPerTwelfth) % GenDate.TicksPerTwelfth) };
             // Sample the middle of each local-calendar twelfth. Seasonal
-            // temperature excludes weather and indoor heating; Go applies the
+            // temperature excludes weather and indoor heating; the brain applies the
             // bounded weather row only while the condition remains active.
             for (var twelfth = 0; twelfth < GenDate.TwelfthsPerYear; twelfth++) {
                 var sampleTick = (int)(twelfth * GenDate.TicksPerTwelfth + GenDate.TicksPerTwelfth / 2 - offset);

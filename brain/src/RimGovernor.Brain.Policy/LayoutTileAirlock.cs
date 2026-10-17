@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// Ports <c>layout_tile_airlock.go</c>: tiler airlocks (#2916). On a bad-climate map (the roofed set) a room's exterior
+/// Tiler airlocks (#2916). On a bad-climate map (the roofed set) a room's exterior
 /// door opens a roofed room onto the outdoors. The door is priced two ways in sustained watts: left as a door the
 /// pawns use, open for the share of the time their trips hold it, or as an airlock, whose second door and two walls
 /// are a one-time cost counted at the layout's own rate (BuildW) and whose two doors are never open at once. The

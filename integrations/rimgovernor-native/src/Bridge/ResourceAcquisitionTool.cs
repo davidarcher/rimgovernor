@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
 
         // Buried ore: a mineable deposit whose roof support holds and
         // that no colonist can reach, usually because it sits in fog. It is
-        // not mined directly; Go tunnels a corridor to it first, and the
+        // not mined directly; the brain tunnels a corridor to it first, and the
         // excavation re-checks support per cell at dispatch.
         internal static bool Buried(Thing t, Map map) => t is Mineable && t.Spawned && !t.IsForbidden(Faction.OfPlayer)
             && Product(t) != null && MiningBlocker(t, map) == null

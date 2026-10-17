@@ -3,16 +3,16 @@ using WireCommon = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go trade.go and trade_target.go (mapTradeTarget). Trade is RimWorld's single global session. Every step is an
+// Trade is RimWorld's single global session. Every step is an
 // idempotent intent naming that session's trader and negotiator, sent through Actions/Apply: native validates it
 // against live state when it applies and refuses with a reason when the session is gone or held by a different
 // pair (NativeTradeOperations.cs). This file checks wire shape only.
 public static class TradeRules
 {
-    /// <summary>Go's <c>mapTradeTarget</c>: the wire target of a map trader.</summary>
+    /// <summary>The wire target of a map trader.</summary>
     internal static WireCommon.TradeTarget MapTradeTarget(string id) => new() { Kind = new WireCommon.MapTradeTarget { TraderId = id } };
 
-    /// <summary>Go's <c>tradeAction</c>: the Actions/Apply trade arm of one domain trade action.</summary>
+    /// <summary>The Actions/Apply trade arm of one domain trade action.</summary>
     internal static Op.Action TradeAction(DomainAction action)
     {
         var t = action.Trade ?? throw BridgeContractException.Contract("not a trade action");

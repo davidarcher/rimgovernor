@@ -3,15 +3,15 @@ using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
-// The service-driven half of a checkpoint save (Go checkpoint.go serviceSave, ServiceSave and friends). The Go
-// harness reached the service through its `serve` child process (ServiceProcess); that process type belongs to the
+// The service-driven half of a checkpoint save. The service is reached through
+// ServiceProcess; that process type belongs to the
 // slice that owns the service launch, so this file declares only the narrow surface the ring needs from it.
 
 /// <summary>A service's HTTP reply: the decoded JSON body (null when none) and the status code.</summary>
 public sealed record ServiceApiReply(JsonObject? Body, int Status);
 
 /// <summary>
-/// One call against the running service's API (Go <c>ServiceProcess.API</c>): method, path, optional JSON body and
+/// One call against the running service's API: method, path, optional JSON body and
 /// the bearer token ("" for none). Transport failures throw <see cref="AcceptanceException"/>; a non-2xx status is
 /// a reply.
 /// </summary>

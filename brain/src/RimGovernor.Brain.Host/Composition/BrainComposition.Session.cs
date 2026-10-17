@@ -8,13 +8,13 @@ using RimGovernor.Brain.Telemetry;
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// Builds the parts of the brain that need a native client over <see cref="INativeFacade"/>; the host owns when they are built and torn down. Go's <c>serve_building.go</c> and <c>serve_clock.go</c> over the
+/// Builds the parts of the brain that need a native client over <see cref="INativeFacade"/>; the host owns when they are built and torn down. Everything is built over the
 /// in-process native client. <see cref="ComposeSession"/> is the part of <c>openBuildingService</c> and
 /// <c>serveBuildingWithBridge</c> that builds the session's capabilities; <see cref="ComposePlanners"/> is
 /// <c>startServiceClock</c>.
 /// </summary>
 /// <remarks>
-/// The autosave at a run's paused start (Go <c>newGoAutosaver</c>) is the host's: it arrives as
+/// The autosave at a run's paused start is the host's: it arrives as
 /// <see cref="PlannerContext.Autosave"/> because it must flush the governor state the host owns before it saves.
 /// </remarks>
 public sealed partial class BrainComposition(BrainCompositionOptions options)
@@ -54,7 +54,7 @@ public sealed partial class BrainComposition(BrainCompositionOptions options)
             Native = client,
             Writer = writer,
             Clock = new ClockCapabilities(client, new FacadeClockWriter(client.Facade)),
-            // Go haulExecutorRequired: only the food storage upkeep family hauls.
+            // Only the food storage upkeep family hauls.
             Haul = families.FoodStorageUpkeep ? new HaulCapabilities(client, writer) : null,
             Movement = families.Defense ? new MovementCapabilities(writer) : null,
             Trade = families.Trade ? new TradeCapabilities { Native = client, Writer = writer, Requests = client } : null,
@@ -71,7 +71,7 @@ public sealed partial class BrainComposition(BrainCompositionOptions options)
         };
     }
 
-    // Go orphanSweep: cancels the open trade session a per-world rebuild left without an owner. The world is the
+    // Cancels the open trade session a per-world rebuild left without an owner. The world is the
     // one the rebuild runs for, which is the loaded one. Read and transport errors abort the rebuild; a native
     // refusal is logged. The callback is synchronous, as the store's orphan pass is.
     private static void SweepOrphans(FacadeNativeClient client, IActionsWriter writer, HostLog log, IReadOnlyList<PlanState> plans, CancellationToken ct) =>

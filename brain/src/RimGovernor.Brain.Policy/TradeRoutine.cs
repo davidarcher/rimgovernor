@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: trade_routine.go. The routine trade goal: while a tradeable caravan stands on the map and the colony has
+// The routine trade goal: while a tradeable caravan stands on the map and the colony has
 // something to buy from it (the medicine shortfall medical/reserves already reports, or a component
 // shortfall under the derived component need) or to sell to it (stock above an economy/resource target),
 // RoundsTradePlanner opens one bounded session per caravan and settles it. It is config-only work like a
@@ -77,7 +77,7 @@ public sealed record TradeNeed
     /// <summary>The count of surplus prisoners (SurplusPrisoners) while a tribute collector is present: sold for royal favor.</summary>
     public long FavorPrisoners { get; init; }
 
-    /// <summary>Go <c>retain</c>: a copy that keeps <paramref name="count"/> of the resource after its sale.</summary>
+    /// <summary>A copy that keeps <paramref name="count"/> of the resource after its sale.</summary>
     internal TradeNeed Retain(Resource resource, long count)
     {
         var retained = new Dictionary<Resource, long>(Retained) { [resource] = count };

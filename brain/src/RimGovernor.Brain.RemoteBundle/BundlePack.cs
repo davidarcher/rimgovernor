@@ -5,8 +5,7 @@ using RimGovernor.Brain.Acceptance;
 namespace RimGovernor.Brain.RemoteBundle;
 
 /// <summary>
-/// What <see cref="BundlePack.PackAsync"/> packs. It deliberately names dependencies, never a whole profile or worktree
-/// (Go <c>PackOptions</c>).
+/// What <see cref="BundlePack.PackAsync"/> packs. It deliberately names dependencies, never a whole profile or worktree.
 /// </summary>
 public sealed record PackOptions
 {
@@ -50,7 +49,7 @@ public sealed record PackOptions
     public string HarmonyMod { get; init; } = "";
 }
 
-/// <summary>Packing the game, Harmony and cached starts into the encrypted bundle, and checking cached starts (Go <c>pack.go</c> and <c>starts.go</c>).</summary>
+/// <summary>Packing the game, Harmony and cached starts into the encrypted bundle, and checking cached starts.</summary>
 public static class BundlePack
 {
     /// <summary>The status <see cref="ValidateStarts"/> returns when saved starts match and should be staged.</summary>
@@ -76,7 +75,7 @@ public static class BundlePack
     /// <summary>
     /// The inclusion list for a 1.7 install: every regular file in the install root (executable, runtime, Waylith and
     /// game assemblies, Assets.zip, notices) except debug symbols, plus the game directories. User profiles, workshop
-    /// trees and unrelated mods are excluded (Go <c>GamePaths</c>).
+    /// trees and unrelated mods are excluded.
     /// </summary>
     public static IReadOnlyList<string> GamePaths(string gameDir)
     {
@@ -194,8 +193,7 @@ public static class BundlePack
 
     /// <summary>
     /// Refuses unproven generated saves. Fresh starts regenerate through the ordinary harness, which reports its cache
-    /// miss. Committed saves come from the tested checkout; a bundle never overwrites them. Returns the status line
-    /// (Go <c>ValidateStarts</c>).
+    /// miss. Committed saves come from the tested checkout; a bundle never overwrites them. Returns the status line.
     /// </summary>
     public static string ValidateStarts(string tree, string repo, Manifest manifest)
     {

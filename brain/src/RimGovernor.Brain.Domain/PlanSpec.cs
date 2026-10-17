@@ -10,8 +10,7 @@ namespace RimGovernor.Brain.Domain;
 public readonly record struct ActionDependency(ActionId Action, ActionId Requires, bool Coupled = false);
 
 /// <summary>
-/// An immutable, validated set of actions with their dependencies (Go <c>PlanSpec</c>). The constructor is
-/// Go's <c>NewPlan</c>. Actions can only exist in canonical form, so unlike Go there is no per-kind
+/// An immutable, validated set of actions with their dependencies. Actions can only exist in canonical form, so there is no per-kind
 /// re-canonicalisation here; the plan checks identity, duplicates, family prerequisites and dependencies.
 /// </summary>
 public sealed record PlanSpec
@@ -46,7 +45,7 @@ public sealed record PlanSpec
         {
             if (a.WallRemoval is { BackupOf.IsEmpty: false } removal)
             {
-                // Go compares the whole struct, so only an uncoupled dependency satisfies this.
+                // The whole struct is compared, so only an uncoupled dependency satisfies this.
                 DomainException.Require(deps.Contains(new ActionDependency(a.Id, removal.BackupOf)), "backup wall removal must declare its backup wall as a dependency");
             }
             if (a.Capture is { Arrest: true } capture)
@@ -74,7 +73,7 @@ public sealed record PlanSpec
     /// <summary>Dependencies in canonical (action, requires) order.</summary>
     public EquatableArray<ActionDependency> Dependencies { get; }
 
-    /// <summary>The plan action with the id (Go <c>PlanSpec.Action</c>); null when absent.</summary>
+    /// <summary>The plan action with the id; null when absent.</summary>
     public DomainAction? Action(ActionId id)
     {
         foreach (var a in Actions)

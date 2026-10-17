@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 // The scheduler state the run driver shares with the planning step: the pace measurement. The step only plans, so the driver reaches them through these internal members.
 
-/// <summary>The pace the running clock is measured at (Go <c>paceTick</c>, <c>paceAt</c>, <c>pacePerSecond</c>, <c>livePaceTicks</c>); touched only under the player gate.</summary>
+/// <summary>The pace the running clock is measured at; touched only under the player gate.</summary>
 internal sealed class ClockPaceMeasure
 {
     public long Tick { get; set; }
@@ -28,13 +28,13 @@ public sealed partial class ClockScheduler
 
     internal bool LastTickKnown => _lastTickKnown;
 
-    /// <summary>The ticks the running clock's pace covers in the step's wall: what a step expects the tick to have moved by since its predecessor (Go <c>drift</c>).</summary>
+    /// <summary>The ticks the running clock's pace covers in the step's wall: what a step expects the tick to have moved by since its predecessor.</summary>
     private long Drift() => (long)(Pace.LiveTicks * Config.MaxAge.TotalSeconds);
 
     /// <summary>
     /// Measures the running clock's pace from the previous step's status tick: the pace the step's read validity
     /// widens its bounds by. A held or never-run clock, or a pace not yet measured, leaves the pace at zero so a
-    /// paused step keeps the tick-exact bound (Go <c>livePace</c>).
+    /// paused step keeps the tick-exact bound.
     /// </summary>
     internal void LivePace(PbClock.Status status, DateTimeOffset readAt)
     {
@@ -51,13 +51,12 @@ public sealed partial class ClockScheduler
 
     internal void SetRunning(bool running) => _running = running;
 
-    /// <summary>Stamps the full-step safety net as just run (Go <c>s.lastFull = s.clock.Now()</c>).</summary>
+    /// <summary>Stamps the full-step safety net as just run.</summary>
     internal void MarkFull() => _lastFull = _clock.Now();
 
     /// <summary>
     /// The clock_step row of one step: target the cause the step acted on, dur the step's wall, verdict what the
-    /// step did (failed, deferred, idle) and reason why. The run driver files the clock_run verdicts on its own rows
-    /// (Go <c>stepDecision</c>).
+    /// step did (failed, deferred, idle) and reason why. The run driver files the clock_run verdicts on its own rows.
     /// </summary>
     internal static Decision StepDecision(ClockSchedulerResult result, Exception? error, StepCause cause, TimeSpan elapsed, Dictionary<string, object?> attrs)
     {

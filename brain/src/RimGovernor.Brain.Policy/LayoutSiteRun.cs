@@ -439,7 +439,7 @@ public sealed class SiteRun
     }
 }
 
-/// <summary>Ports <c>layout_site_run.go</c>: the site embedder entry point.</summary>
+/// <summary>The site embedder entry point.</summary>
 public static partial class LayoutSiteRunRules
 {
     /// <summary>The least fertility a field cell needs (plain soil), shared with the site run.</summary>

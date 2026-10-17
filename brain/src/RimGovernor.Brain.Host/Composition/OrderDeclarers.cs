@@ -5,10 +5,10 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Host;
 
-// Go's planners satisfied the ledger's OrderDeclarer implicitly through a DeclareOrders method. Five of the C# planners
+// The ledger's OrderDeclarer is satisfied implicitly through a DeclareOrders method. Five of the C# planners
 // carry the method but not the IOrderDeclarer interface (or, for gear and resource, a method of another shape), so the
 // composition adapts them. The ledger names a declarer by its type name without the Rounds prefix and the Planner or
-// Declarer suffix (Rounder.DeclarerName), so each adapter is named Rounds<Name>Declarer to keep the names Go reported.
+// Declarer suffix (Rounder.DeclarerName), so each adapter is named Rounds<Name>Declarer to keep the declarer names stable.
 
 /// <summary>Declares the armory's orders to the work ledger.</summary>
 internal sealed class RoundsArmoryDeclarer(RoundsArmoryPlanner planner) : IOrderDeclarer

@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// The test fixture sources (<c>scripts/fixtures/&lt;Name&gt;Fixture.cs</c>; no saves are committed, the harness
-/// generates them) and which of them a case depends on (Go <c>inputs/fixture_inputs.go</c>). Which fixture source a
+/// generates them) and which of them a case depends on. Which fixture source a
 /// case depends on follows from the case's sources: it feeds a case when the case names one of its
 /// <c>[Tool("test/...")]</c> ops, while any other file directly under the root feeds every case.
 /// </summary>

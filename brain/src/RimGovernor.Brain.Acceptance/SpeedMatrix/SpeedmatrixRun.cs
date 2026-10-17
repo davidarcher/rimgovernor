@@ -12,7 +12,7 @@ using Journal = RimGovernor.Brain.Store.Store;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// What the matrix profiles differ by (Go <c>speedmatrix.profile</c>): the stage the fixture prepares, the save it is kept
+/// What the matrix profiles differ by: the stage the fixture prepares, the save it is kept
 /// in, the tick target each row runs to and the rows compared. <c>acceptance speedmatrix</c> (plain) is the whole speed
 /// sweep on a quiet flat debug colony; <c>-profile observations</c> is the rendered observation baseline on the tribal8 colony.
 /// </summary>
@@ -30,7 +30,7 @@ internal sealed record SpeedmatrixProfile
 }
 
 /// <summary>
-/// Runs identical staged work at each clock speed and checks equal game outcomes (Go <c>cases/speedmatrix</c>).
+/// Runs identical staged work at each clock speed and checks equal game outcomes.
 /// Governor-off measures the simulation ceiling outside that outcome comparison. Governed rows report wall TPS
 /// including holds, native paused fraction, hold counts by reason, resume latency and effective speed; sampled pause ratios are diagnostic only. The throughput
 /// fixture provides construction and hauling work in a quiet colony with frozen needs.
@@ -197,12 +197,12 @@ internal sealed partial class SpeedmatrixRun
             throw new AcceptanceException("clock throughput short of the thresholds: " + string.Join("; ", metricProblems));
         }
 
-        // Go checkStartupLog: the run's last assertion (no native error in the game's startup log) is a no-op there.
+        // The run's last assertion (no native error in the game's startup log) is a no-op there.
     }
 
     private static JsonArray Problems(IEnumerable<string> problems) => OutputJson.Array(problems);
 
-    // A harness over the session's game whose evidence goes under another directory (Go set Harness.Output).
+    // A harness over the session's game whose evidence goes under another directory.
     private Harness HarnessFor(string output)
     {
         var shared = _session.Harness;

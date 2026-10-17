@@ -7,7 +7,7 @@ using Microsoft.Win32;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The machine's shared game files the setup reads from and never writes (Go <c>setup.Inputs</c>): the RimWorld install
+/// The machine's shared game files the setup reads from and never writes: the RimWorld install
 /// the copy junctions into and the Harmony assembly the mod build references.
 /// </summary>
 public sealed class SetupInputs
@@ -37,7 +37,7 @@ public sealed class SetupInputs
     public IReadOnlyDictionary<string, string> Sources { get; }
 }
 
-/// <summary>The explicit paths the caller gives; empty fields are discovered (Go <c>setup.Overrides</c>).</summary>
+/// <summary>The explicit paths the caller gives; empty fields are discovered.</summary>
 public sealed class SetupOverrides
 {
     public string HarmonyMod { get; set; } = "";
@@ -68,7 +68,7 @@ public sealed class SetupException : AcceptanceException
 }
 
 /// <summary>
-/// Resolves the machine's RimWorld and Harmony inputs (Go <c>setup/discover.go</c>): each override, then its
+/// Resolves the machine's RimWorld and Harmony inputs: each override, then its
 /// environment variable, then Steam (the registry's install path and every library in
 /// <c>steamapps/libraryfolders.vdf</c>).
 /// </summary>
@@ -212,7 +212,7 @@ public static partial class SetupDiscovery
                 throw new SetupException("harmony runtime DLL: " + runtimeDll + " does not exist");
             }
 
-            // Go os.SameFile: the same file by identity. Paths (links resolved) stand in for it.
+            // The same file by identity. Paths (links resolved) stand in for it.
             if (!string.Equals(ResolvedFile(harmony), ResolvedFile(runtimeDll), StringComparison.OrdinalIgnoreCase))
             {
                 throw new SetupException(string.Create(CultureInfo.InvariantCulture, $"-harmony must name the DLL inside -harmony-mod/{HarmonyAssemblies}"));

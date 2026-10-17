@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_ideology.go and catalog_ideoligion_design.go: the Ideology defs (P.IdeologyDefs is a view over the game's
+// The Ideology defs (P.IdeologyDefs is a view over the game's
 // own PreceptDef, RitualPatternDef and RitualBehaviorDef rows) and the ideoligion design options.
 
 public sealed partial class DefinitionCatalog

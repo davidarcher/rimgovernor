@@ -3,7 +3,7 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>The Safeguards read through the journalled review (Go <c>Rounds.refuse</c>, <c>refuseNeed</c>, <c>vetoNeed</c>).</summary>
+/// <summary>The Safeguards read through the journalled review.</summary>
 internal static class RoundsSafeguards
 {
     public static (SafeguardRefusal Refusal, bool Refused) Refuse(this Rounds rounds, SafeguardProposal proposal) =>

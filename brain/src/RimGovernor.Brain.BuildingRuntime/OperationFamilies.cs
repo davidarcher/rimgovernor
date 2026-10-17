@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 partial class ClockScheduler
 {
     /// <summary>
-    /// The fact families a dispatched action of kind changes (Go <c>operationFamilies</c>, clock_facts.go:96).
+    /// The fact families a dispatched action of kind changes.
     /// Everything is true when the kind is not known or has no narrower answer: the whole decoded store is dropped.
     /// A building write changes the colony census, the room census and the pawns the builders are.
     /// </summary>
@@ -20,15 +20,15 @@ partial class ClockScheduler
 }
 
 /// <summary>
-/// Go <c>bridge.WithDeferredSnapshot</c> / <c>bridge.DeferredSnapshot</c> (snapshot_flush.go:19-26): marks the
+/// Marks the
 /// Actions and Apply calls issued under it defer_snapshot, so native records the write without capturing a frame
-/// until the flush. The mark follows the async flow like a Go context value.
+/// until the flush. The mark follows the async flow.
 /// </summary>
 internal static class DeferredSnapshotScope
 {
     private static readonly AsyncLocal<bool> s_deferred = new();
 
-    /// <summary>Whether the flow carries the mark (Go <c>DeferredSnapshot(ctx)</c>).</summary>
+    /// <summary>Whether the flow carries the mark.</summary>
     internal static bool Current => s_deferred.Value;
 
     /// <summary>Marks the flow until the returned scope is disposed.</summary>

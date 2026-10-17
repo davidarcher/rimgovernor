@@ -4,7 +4,7 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace RimGovernor.Brain.RemoteBundle;
 
-/// <summary>Raised for any refused bundle input or failed bundle operation (the Go package returned <c>error</c>).</summary>
+/// <summary>Raised for any refused bundle input or failed bundle operation.</summary>
 public sealed class BundleException : Exception
 {
     /// <summary>Creates the exception with the refusal text.</summary>
@@ -47,7 +47,7 @@ public sealed class BundleException : Exception
 internal sealed partial class BundleJsonContext : JsonSerializerContext;
 
 /// <summary>
-/// The JSON boundary of the bundle (Go <c>Decode</c> and <c>WriteJSON</c>): duplicate keys, <c>null</c> anywhere,
+/// The JSON boundary of the bundle: duplicate keys, <c>null</c> anywhere,
 /// missing required fields and trailing data fail closed; unknown fields stay allowed by the versioned contract.
 /// </summary>
 public static class BundleJson
@@ -64,7 +64,7 @@ public static class BundleJson
     /// <summary>Decodes the trusted workflow's authorization record.</summary>
     public static Trust DecodeTrust(byte[] data) => Decode(data, BundleJsonContext.Default.Trust);
 
-    /// <summary>Writes <paramref name="value"/> indented with a trailing newline, owner-only on creation (Go <c>WriteJSON</c>).</summary>
+    /// <summary>Writes <paramref name="value"/> indented with a trailing newline, owner-only on creation.</summary>
     public static void WriteManifest(string fileName, Manifest value) => Write(fileName, JsonSerializer.SerializeToUtf8Bytes(value, BundleJsonContext.Default.Manifest));
 
     /// <summary>Writes an inventory (see <see cref="WriteManifest"/>).</summary>

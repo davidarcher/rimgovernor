@@ -39,14 +39,14 @@ internal static class Crc32
 }
 
 /// <summary>
-/// The public-artifact PNG boundary (Go decoded the frame with <c>image/png</c> and re-encoded it to strip metadata and
-/// trailing payloads). The C# runtime has no PNG codec, so this validates the container and re-emits a clean file:
+/// The public-artifact PNG boundary, which strips metadata and
+/// trailing payloads. The C# runtime has no PNG codec, so this validates the container and re-emits a clean file:
 /// signature, every chunk's length and CRC, IHDR (dimensions 1..4096, legal depth/colour/interlace combination),
 /// PLTE/tRNS shape, contiguous IDAT, IEND, then the zlib stream is inflated through <see cref="ZLibStream"/> to prove it
 /// is complete, checksum-valid and exactly the size the header implies with every scanline filter type legal. The output
 /// copies only the critical IHDR, PLTE, tRNS (transparency) and a freshly deflated single IDAT plus IEND; every other
 /// ancillary chunk (text, time, ICC, EXIF, private) and everything after IEND is dropped. Pixels are not decoded (filters
-/// are not reversed and palette indices are not range-checked); an unknown critical chunk is refused, where Go ignored it.
+/// are not reversed and palette indices are not range-checked); an unknown critical chunk is refused.
 /// </summary>
 internal static class PngSanitizer
 {

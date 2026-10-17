@@ -28,7 +28,7 @@ public sealed record ColonyDiagnostics
     public Fact<ConstructionProjection> Construction { get; init; }
 }
 
-/// <summary>One net's stored energy over its current net drain. (Go <c>PowerNetProjection</c>.)</summary>
+/// <summary>One net's stored energy over its current net drain.</summary>
 public sealed record PowerNetProjection(string Id, double ReserveDays, double ShortfallDays);
 
 public sealed record PowerProjection
@@ -53,7 +53,7 @@ public static class ColonyDiagnosticsRules
             Construction = ConstructionProjectionRules.ProjectConstruction(input.Construction, input.Stock),
         };
 
-    /// <summary>Go <c>RunwayShortfall</c>: the days a runway falls short of target: the one formula the power projection and NutritionDemand share.</summary>
+    /// <summary>The days a runway falls short of target: the one formula the power projection and NutritionDemand share.</summary>
     public static double RunwayShortfall(double runway, double target) => Math.Max(0, target - runway);
 
     private static Fact<PowerProjection> ProjectPower(IReadOnlyList<PowerNetworkFact> nets)

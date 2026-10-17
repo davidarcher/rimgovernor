@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// The registration entry point of the acceptance cases (Go: each area package's <c>init()</c>). The
+/// The registration entry point of the acceptance cases. The
 /// <c>acceptance</c> command calls <see cref="Register"/> once at startup; a case area adds one call here
 /// (<c>BuildCases.Register(registry)</c>) and registers its <see cref="TypedCase"/> values through the public
 /// <see cref="CaseRegistry"/> API only, never the harness internals.

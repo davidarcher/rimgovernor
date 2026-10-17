@@ -4,13 +4,13 @@ using DomainCell = RimGovernor.Brain.Domain.Cell;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-/// <summary>Go's <c>CellRect</c>: one inclusive cell rectangle, the unit both defense reads and their callers' tiling work in.</summary>
+/// <summary>One inclusive cell rectangle, the unit both defense reads and their callers' tiling work in.</summary>
 public readonly record struct CellRect(DomainCell Min, DomainCell Max)
 {
-    /// <summary>Go's <c>Cells</c>: the inclusive cell count, zero for an inverted rectangle.</summary>
+    /// <summary>The inclusive cell count, zero for an inverted rectangle.</summary>
     public long Cells => Max.X < Min.X || Max.Z < Min.Z ? 0 : (long)(Max.X - Min.X + 1) * (Max.Z - Min.Z + 1);
 
-    /// <summary>Go's <c>validateDefenseRegion</c>: whether <paramref name="region"/> is a non-inverted rectangle on the defense map.</summary>
+    /// <summary>Whether <paramref name="region"/> is a non-inverted rectangle on the defense map.</summary>
     public static bool IsValidDefenseRegion(CellRect region) =>
         region.Min.X >= 0
         && region.Min.Z >= 0
@@ -21,7 +21,7 @@ public readonly record struct CellRect(DomainCell Min, DomainCell Max)
 }
 
 /// <summary>
-/// Go's <c>DefenseCensusCell</c>: one observed cell of a defense site census. Unknown (fogged) cells carry only
+/// One observed cell of a defense site census. Unknown (fogged) cells carry only
 /// <see cref="Fogged"/>; every other fact is the game's own: <see cref="CoverFill"/> (and sight blocking)
 /// are what CoverUtility/GenSight consult, <see cref="EdgeReachable"/> is native ground reachability to a map edge
 /// without opening doors (the walk-in raid approach), and NaturalRock/Door/PlayerOwned describe the edifice.
@@ -64,14 +64,14 @@ public sealed record DefenseCensusCell
 }
 
 /// <summary>
-/// Go's <c>DefenseCover</c>: the clearance identity of one cover thing, what it is, which designation removes it
+/// The clearance identity of one cover thing, what it is, which designation removes it
 /// and whether one already stands.
 /// </summary>
 public sealed record DefenseCover(string ThingId, string DefName, CoverKind Kind, bool Designated)
 {
     /// <summary>
-    /// Go's <c>Designation</c>: the native designation def the cover's kind takes, the one a CoverClearance action
-    /// carries; null (Go's empty string) for an unknown kind.
+    /// The native designation def the cover's kind takes, the one a CoverClearance action
+    /// carries; null for an unknown kind.
     /// </summary>
     public CoverClearanceDesignation? Designation =>
         Kind switch
@@ -85,7 +85,7 @@ public sealed record DefenseCover(string ThingId, string DefName, CoverKind Kind
 }
 
 /// <summary>
-/// Go's <c>RaidTrack</c>: one hostile lord the map has seen since load, its first pawn's spawn cell (<see cref="Ground"/>
+/// One hostile lord the map has seen since load, its first pawn's spawn cell (<see cref="Ground"/>
 /// when on the map edge) and a bounded trail of one of its pawns, sampled by the native RaidArrivalState component.
 /// </summary>
 public sealed record RaidTrack
@@ -105,11 +105,11 @@ public sealed record RaidTrack
     public IReadOnlyList<DomainCell> Trail { get; init; } = [];
 }
 
-/// <summary>Go's <c>DefenseSite</c>: one complete rectangle census with the context the caller validates against its acting generation.</summary>
+/// <summary>One complete rectangle census with the context the caller validates against its acting generation.</summary>
 public sealed record DefenseSite(ObservationContext? Context, uint Width, uint Height, CellRect Region, IReadOnlyList<DefenseCensusCell> Cells);
 
 /// <summary>
-/// Go's <c>LineOfFire</c>: the native shooting-model evidence for one (firing, approach) pair, GenSight line of
+/// The native shooting-model evidence for one (firing, approach) pair, GenSight line of
 /// sight and CoverUtility's overall block chance for a target at <see cref="To"/> shot from <see cref="From"/>
 /// (<see cref="TargetCover"/>) and the reverse (<see cref="ShooterCover"/>). A fogged endpoint leaves
 /// <see cref="Known"/> false with only the distance set.
@@ -132,20 +132,20 @@ public sealed record LineOfFire
 }
 
 /// <summary>
-/// Go's <c>LinesOfFire</c>: the pairs a read produced, firing-major. <see cref="Skipped"/> means the
+/// The pairs a read produced, firing-major. <see cref="Skipped"/> means the
 /// LinesOfFireBudgetMS ran out: the pairs after <see cref="Lines"/> were not read, so a pair absent from
 /// <see cref="Lines"/> is unknown, not blocked.
 /// </summary>
 public sealed record LinesOfFire(ObservationContext? Context, IReadOnlyList<LineOfFire> Lines, bool Skipped);
 
-// Go defense_site.go. ReadDefenseSite, ReadLinesOfFire and the defense site / lines-of-fire reply validators are
+// ReadDefenseSite, ReadLinesOfFire and the defense site / lines-of-fire reply validators are
 // wire plumbing and not ported; the raid-track decoder the colony threat projection needs is.
 public static class DefenseSiteRules
 {
-    /// <summary>Go's <c>maxDefenseSiteExtent</c>: bounds a defense-layout cell coordinate.</summary>
+    /// <summary>Bounds a defense-layout cell coordinate.</summary>
     internal const int MaxDefenseSiteExtent = 4096;
 
-    /// <summary>Go's <c>validateRaidTracks</c>: decodes the hostile lords of a threat census, one track per lord.</summary>
+    /// <summary>Decodes the hostile lords of a threat census, one track per lord.</summary>
     internal static IReadOnlyList<RaidTrack> DecodeRaidTracks(IEnumerable<RimGovernor.Contracts.Wire.Observations.RaidTrack> rows)
     {
         var tracks = new List<RaidTrack>();

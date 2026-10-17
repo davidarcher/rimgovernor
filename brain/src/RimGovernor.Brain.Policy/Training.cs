@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: training.go.
 
 /// <summary>Assigned combat requirements threatened by bounded native skill decay.</summary>
 public sealed record TrainingReview

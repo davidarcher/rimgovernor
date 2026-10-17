@@ -12,7 +12,7 @@ public sealed record NativeResult(JsonNode? Envelope, JsonObject? Structured);
 /// <summary>Per-call settings the transport honours.</summary>
 public sealed record NativeCallOptions
 {
-    /// <summary>A deadline longer than the transport's default (Go <c>bridge.WithCallTimeout</c>); a shorter one is ignored.</summary>
+    /// <summary>A deadline longer than the transport's default; a shorter one is ignored.</summary>
     public TimeSpan? Timeout { get; init; }
 
     /// <summary>The call's phase in a recorded transcript (the evidence label).</summary>
@@ -33,7 +33,7 @@ public class AcceptanceException : Exception
     }
 }
 
-/// <summary>The transport failed: no endpoint, a refused connection, a timeout or a tool the channel does not route (Go <c>ErrTransport</c>).</summary>
+/// <summary>The transport failed: no endpoint, a refused connection, a timeout or a tool the channel does not route.</summary>
 public class NativeTransportException : AcceptanceException
 {
     public NativeTransportException(string message)
@@ -60,7 +60,7 @@ public sealed class RunLostException : AcceptanceException
     }
 }
 
-/// <summary>The game was reachable and refused or failed the call (Go <c>ErrRefused</c> / <c>bridge.Refusal</c>).</summary>
+/// <summary>The game was reachable and refused or failed the call.</summary>
 public sealed class NativeRefusedException : AcceptanceException
 {
     public NativeRefusedException(string tool, string cause, NativeResult result, string? message = null)
@@ -88,7 +88,7 @@ public sealed class NativeToolNotRoutedException : NativeTransportException
     }
 }
 
-/// <summary>The session was closed or released (Go <c>ErrClosed</c>); calls through that harness are a stale reference.</summary>
+/// <summary>The session was closed or released; calls through that harness are a stale reference.</summary>
 public sealed class HarnessClosedException : AcceptanceException
 {
     public HarnessClosedException(string message)

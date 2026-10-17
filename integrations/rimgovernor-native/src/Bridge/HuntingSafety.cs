@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
 
         /// True when the hunter can reach the prey by a Danger.None touch route
         /// that never passes within predatorMarginCells (Chebyshev) of a wild
-        /// predator. Go authors the margin on every caller's request or rule.
+        /// predator. The brain authors the margin on every caller's request or rule.
         internal static bool RouteSafe(Pawn hunter, Pawn prey, float predatorMarginCells)
         {
             if (hunter == null || prey == null || !hunter.Spawned || !prey.Spawned

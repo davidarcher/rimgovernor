@@ -6,8 +6,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// RimWorld's config XML (ModsConfig.xml, About.xml) as a mutable tree that keeps elements and the indentation
-/// whitespace between them in document order (Go <c>xmltree.go</c>'s hand-rolled <c>xmlElem</c>; LINQ to XML with
-/// preserved whitespace does the same job). The files are written with <c>encoding='utf8'</c>, which the XML
+/// whitespace between them in document order. The files are written with <c>encoding='utf8'</c>, which the XML
 /// reader would reject as an encoding name when it opens the bytes itself, so the text is decoded here and parsed from
 /// a string, where the declaration's encoding is not consulted.
 /// </summary>

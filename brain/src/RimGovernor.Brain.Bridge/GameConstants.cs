@@ -4,7 +4,7 @@ using Verse;
 
 namespace RimGovernor.Brain.Bridge;
 
-// The game's const and static readonly members the catalog reads (Go GameConstants, the typed mirror of defs.proto).
+// The game's const and static readonly members the catalog reads.
 // A public member is read directly (SkillRecord.MaxLevel); a private compile-time const has no storage to bind to,
 // so it is read once by name, typed, and a member the game renames or retypes fails loudly on first use.
 

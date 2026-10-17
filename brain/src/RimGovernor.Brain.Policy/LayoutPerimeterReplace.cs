@@ -124,7 +124,7 @@ public sealed partial record LayoutPlan
 }
 
 /// <summary>
-/// Ports <c>layout_perimeter_replace.go</c>. A ring traced again while the defense record still holds the old one is
+/// A ring traced again while the defense record still holds the old one is
 /// not edited in place: the planner stores the new ring, its gates, fence and pumps under revision-suffixed ids beside
 /// the old ones, which stay in the plan as retired nodes (replaced by the new ring: off the live ground, still on the
 /// reserved ground). The runtime builds the new generation while the old one defends, opens the old wall only once the

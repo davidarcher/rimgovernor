@@ -27,7 +27,7 @@ public sealed partial record LayoutPlan
     }
 }
 
-/// <summary>Ports <c>layout_roof.go</c>: on a map whose outdoor temperature is not good for pawns, every room except the outdoor roles is roofed.</summary>
+/// <summary>On a map whose outdoor temperature is not good for pawns, every room except the outdoor roles is roofed.</summary>
 public static partial class LayoutRoofRules
 {
     /// <summary>The temperature range pawns are comfortable in: the temperature planner's cold and hot limits.</summary>

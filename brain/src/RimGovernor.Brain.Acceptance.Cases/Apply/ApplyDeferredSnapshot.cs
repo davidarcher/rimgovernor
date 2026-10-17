@@ -7,7 +7,7 @@ using Operations = RimGovernor.Contracts.Wire.Operations;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>apply/deferred_snapshot</c> (Go <c>deferred_snapshot.go</c>): deferred snapshot capture (#1274). On the paused lab a
+/// <c>apply/deferred_snapshot</c>: deferred snapshot capture (#1274). On the paused lab a
 /// burst of defer_snapshot applies captures no frame per write where a plain burst does, observations_flush_snapshot
 /// reports the uncaptured writes, and the next frame reflects them. The capture schedule is native; a unit test cannot see
 /// it. The 1 s safety net is a wall-clock schedule (charter rule 4), so the case does not wait on it.

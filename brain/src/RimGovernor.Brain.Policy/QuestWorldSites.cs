@@ -260,7 +260,7 @@ public sealed record QuestMonumentResource
 
 /// <summary>
 /// Loss includes vanilla disaster's forced-hostility adjustment; gain is capped by native faction goodwill
-/// limits. These are observations, not Go tuning.
+/// limits. These are observations, not tuning.
 /// </summary>
 public sealed record PeaceTalksRisk
 {

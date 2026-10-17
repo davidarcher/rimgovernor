@@ -5,7 +5,7 @@ using Thing = RimGovernor.Contracts.Wire.Observations.Thing;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>Pawns</c>: a frame's pawn table by id, every spawned pawn on the map, the canonical rows every other
+/// A frame's pawn table by id, every spawned pawn on the map, the canonical rows every other
 /// section's pawn reference resolves against. A reference the table does not hold waits for the next frame: the
 /// fact it feeds is unknown until then. The table is persistent: a version is immutable, so a consumer may keep it
 /// across frames. The default value is the empty table.
@@ -15,7 +15,7 @@ public readonly record struct Pawns(Table<PawnState> Table)
     /// <summary>The number of rows.</summary>
     public int Count => Table.Count;
 
-    /// <summary>Go's <c>NewPawns</c>: the table of rows by their pawn id.</summary>
+    /// <summary>The table of rows by their pawn id.</summary>
     public static Pawns Of(params IEnumerable<PawnState> rows)
     {
         var table = default(Table<PawnState>);
@@ -43,7 +43,7 @@ public readonly record struct Pawns(Table<PawnState> Table)
     }
 
     /// <summary>
-    /// Go's <c>Snapshot</c>: the rows of <paramref name="ids"/> in id order as a list read answers them, null when the
+    /// The rows of <paramref name="ids"/> in id order as a list read answers them, null when the
     /// table misses one.
     /// </summary>
     public PawnSnapshot? Snapshot(ObservationContext context, IEnumerable<string> ids)
@@ -62,7 +62,7 @@ public readonly record struct Pawns(Table<PawnState> Table)
 }
 
 /// <summary>
-/// Go's <c>Buildings</c>: a frame's building table by id, the canonical rows every other section's building
+/// A frame's building table by id, the canonical rows every other section's building
 /// reference resolves against. A reference the table does not hold waits for the next frame.
 /// </summary>
 public readonly record struct Buildings(Table<BuildingState> Table)
@@ -70,7 +70,7 @@ public readonly record struct Buildings(Table<BuildingState> Table)
     /// <summary>The number of rows.</summary>
     public int Count => Table.Count;
 
-    /// <summary>Go's <c>NewBuildings</c>: the table of rows by their building id.</summary>
+    /// <summary>The table of rows by their building id.</summary>
     public static Buildings Of(params IEnumerable<BuildingState> rows)
     {
         var table = default(Table<BuildingState>);
@@ -81,7 +81,7 @@ public readonly record struct Buildings(Table<BuildingState> Table)
         return new Buildings(table);
     }
 
-    /// <summary>Go's <c>BuildingTable</c>: indexes the snapshot's rows by id; a null snapshot is an empty table.</summary>
+    /// <summary>Indexes the snapshot's rows by id; a null snapshot is an empty table.</summary>
     public static Buildings FromSnapshot(BuildingsSnapshot? snapshot) => snapshot is null ? default : Of(snapshot.Buildings);
 
     /// <summary>The table with <paramref name="row"/> added or replaced under <paramref name="id"/>.</summary>
@@ -101,16 +101,16 @@ public readonly record struct Buildings(Table<BuildingState> Table)
     public bool TryRow(Ref reference, out BuildingState row) => Table.TryGetValue(reference.Id ?? "", out row!);
 }
 
-/// <summary>Go's <c>Things</c>: a frame's things table by id, the canonical rows every food stock reference resolves against.</summary>
+/// <summary>A frame's things table by id, the canonical rows every food stock reference resolves against.</summary>
 public readonly record struct Things(Table<Thing> Table)
 {
-    /// <summary>Go's <c>ThingsSection</c>: names the things table in the colony mirror, keyed by thing id.</summary>
+    /// <summary>Names the things table in the colony mirror, keyed by thing id.</summary>
     public const string Section = "things";
 
     /// <summary>The number of rows.</summary>
     public int Count => Table.Count;
 
-    /// <summary>Go's <c>NewThings</c>: the table of rows by their thing id.</summary>
+    /// <summary>The table of rows by their thing id.</summary>
     public static Things Of(params IEnumerable<Thing> rows)
     {
         var table = default(Table<Thing>);
@@ -139,7 +139,7 @@ public readonly record struct Things(Table<Thing> Table)
 }
 
 /// <summary>
-/// Go's <c>Tables</c>: a frame's keyed row tables, what every reference in its other sections resolves against.
+/// A frame's keyed row tables, what every reference in its other sections resolves against.
 /// </summary>
 /// <param name="Buildings">The building table.</param>
 /// <param name="Pawns">The pawn table.</param>
@@ -177,14 +177,14 @@ public sealed record Tables(Buildings Buildings, Pawns Pawns, Things Things, Fac
 }
 
 /// <summary>
-/// Go's <c>BuildingCensus</c>: a frame's player building table (the routine frame's construction census): the held
+/// A frame's player building table (the routine frame's construction census): the held
 /// table version, the frame's context and the first invalid built row, which fails any reader of the construction
 /// census.
 /// </summary>
 public sealed record BuildingCensus(ObservationContext? Context, Buildings Rows, Memo? Memo = null);
 
 /// <summary>
-/// Go's <c>Memo</c>: holds one derived value a reader updates frame to frame: the update function gets the last
+/// Holds one derived value a reader updates frame to frame: the update function gets the last
 /// value (null at first) and returns the next. Calls are serialised.
 /// </summary>
 public sealed class Memo

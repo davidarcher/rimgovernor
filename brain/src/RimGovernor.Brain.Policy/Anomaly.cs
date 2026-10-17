@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: anomaly.go
 
 /// <summary>The order given for a held entity (EntityContainmentMode on the wire): keep it, study it, release it or execute it.</summary>
 public enum ContainmentMode

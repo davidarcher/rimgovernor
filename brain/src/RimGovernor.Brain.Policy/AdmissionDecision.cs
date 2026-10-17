@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: admission_decision.go
 public readonly partial record struct Reason
 {
     /// <summary>Native previewed the action and refused it.</summary>

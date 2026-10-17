@@ -197,7 +197,7 @@ public static partial class SafetyOverlayRules
 
     internal static bool InBounds(Cell c, Bounds b) => c.X >= 0 && c.Z >= 0 && c.X < b.Width && c.Z < b.Height;
 
-    /// <summary>The set's cells in row-major order (Go ranged the map; the caller canonicalises).</summary>
+    /// <summary>The set's cells in row-major order.</summary>
     internal static List<Cell> SetCells(IEnumerable<Cell> set) =>
         set.OrderBy(c => c.Z).ThenBy(c => c.X).ToList();
 }

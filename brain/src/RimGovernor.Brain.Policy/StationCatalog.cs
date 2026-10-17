@@ -46,7 +46,7 @@ public sealed record StationCatalog
         return false;
     }
 
-    /// <summary>Go <c>Station(def)</c>: the station for a definition and whether the catalog has it.</summary>
+    /// <summary>The station for a definition and whether the catalog has it.</summary>
     public (Station Station, bool Ok) Station(string def)
     {
         var ok = TryGetStation(def, out var station);
@@ -160,8 +160,7 @@ public enum RoleCondition
 /// <summary>
 /// The weight the game's role worker gives one building under a condition. Additive scores add per building
 /// (kitchen 28 per stove); a Flat score is a gate the role worker applies once (a bedroom is 100000 however
-/// many beds). Floor is the least score once any building counts (the worship room's 2000). Go
-/// <c>RoleContribution</c> is an alias of this type.
+/// many beds). Floor is the least score once any building counts (the worship room's 2000).
 /// </summary>
 public sealed record RoleScore
 {

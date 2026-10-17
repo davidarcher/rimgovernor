@@ -5,7 +5,7 @@ using RimGovernor.Brain.Store;
 namespace RimGovernor.Brain.PlayerApi;
 
 /// <summary>
-/// The read-only controller routes (Go <c>httpapi</c> <c>server.go</c> and <c>player.go</c>): state, one plan, the
+/// The read-only controller routes: state, one plan, the
 /// routine diagnostics and the colony census. Like every route here they carry no token; the channel's request guard
 /// is the only access check (issue #3083). A route whose provider is not given is not registered, so it answers 404.
 /// </summary>
@@ -121,7 +121,7 @@ public static class ReadRoutes
         }
     }
 
-    /// <summary>Go <c>readFailure</c> for the reads that are not cancellations: an unknown plan is 404, anything else is unavailable.</summary>
+    /// <summary>The failure for the reads that are not cancellations: an unknown plan is 404, anything else is unavailable.</summary>
     internal static ChannelResponse ReadFailure(Exception cause) => cause is NotFoundException
         ? ChannelResponse.Failure(404, "not_found", "Plan not found")
         : ChannelResponse.Failure(503, "unavailable", "Controller data is unavailable");

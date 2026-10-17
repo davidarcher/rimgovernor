@@ -5,8 +5,7 @@ using System.Text.Json;
 namespace RimGovernor.Launcher;
 
 /// <summary>
-/// Loads a save through the game's lifecycle channel (<c>/api/lifecycle/load</c>; Go <c>ReloadSave</c> and
-/// <c>loadSlot</c>). Two loads on one game each carry their own request id and native answers a load with a different
+/// Loads a save through the game's lifecycle channel (<c>/api/lifecycle/load</c>). Two loads on one game each carry their own request id and native answers a load with a different
 /// id by superseding the first and loading again, so only one load runs at a time: starting the next cancels the
 /// last, or a stale retry loop would reload the save for as long as it ran.
 /// </summary>

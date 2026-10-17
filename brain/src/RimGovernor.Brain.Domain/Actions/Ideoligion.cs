@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Domain;
 /// <summary>A meme and precept selection for an ideoligion. Use <see cref="CanonicalIdeoligionDesign"/> to sort and validate it.</summary>
 public sealed record IdeoligionDesign(EquatableArray<string> Memes, EquatableArray<string> Precepts, bool Fluid)
 {
-    /// <summary>Go <c>CanonicalIdeoligionDesign</c>: names sorted ordinally, validated, duplicate free.</summary>
+    /// <summary>Names sorted ordinally, validated, duplicate free.</summary>
     public static IdeoligionDesign CanonicalIdeoligionDesign(IdeoligionDesign v)
     {
         DomainException.Require(v.Memes.Count != 0 && v.Memes.Count <= 5 && v.Precepts.Count <= 256, "invalid ideoligion selection count");
@@ -26,7 +26,7 @@ public sealed record IdeoligionDesign(EquatableArray<string> Memes, EquatableArr
 /// <summary>Reforms a fluid ideoligion from an expected design to a different one.</summary>
 public sealed record IdeoligionReform : IActionPayload
 {
-    /// <summary>Go <c>NewIdeoligionReform</c>; throws <see cref="DomainException"/> when invalid. Designs are stored canonical.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid. Designs are stored canonical.</summary>
     public IdeoligionReform(string ideo, IdeoligionDesign expected, IdeoligionDesign design, int count)
     {
         DomainException.Require(

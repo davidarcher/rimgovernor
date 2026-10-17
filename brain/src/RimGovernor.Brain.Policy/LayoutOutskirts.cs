@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Ports <c>layout_outskirts.go</c> and <c>layout_outskirts_nodes.go</c>: the outskirts rooms as station-less room nodes of the station graph.</summary>
+/// <summary>The outskirts rooms as station-less room nodes of the station graph.</summary>
 public static partial class LayoutOutskirtsRules
 {
     /// <summary>Why the graph holds an outskirts room: the plan owes each from its start.</summary>

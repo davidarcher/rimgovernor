@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.PlayerApi;
 internal sealed class ScenarioPartException(string message) : Exception(message);
 
 /// <summary>
-/// The new-colony request body (Go <c>NewColonyRequestDTO</c>, <c>NewColonySpecDTO</c> and <c>NewColonyPartsDTO</c>) as
+/// The new-colony request body as
 /// a wire <see cref="NewColonyRequest"/>. Syntax is <see cref="StrictJson"/>'s. Beyond it a field the DTO does not
 /// name is refused, a missing field reads as its zero value (the shared bridge validation then refuses a required
 /// one), a wrong JSON type is refused, and the optional numbers stay absent when absent. Range and presence rules
@@ -107,7 +107,7 @@ internal static class NewColonyJson
         return Parts(spec, d);
     }
 
-    // Go applyNewColonyParts: a malformed enum name is an error; the rest is the bridge's validation.
+    // A malformed enum name is an error; the rest is the bridge's validation.
     private static NewColonySpec Parts(NewColonySpec spec, Members d)
     {
         foreach (var element in d.Objects("startingThings"))
@@ -223,7 +223,7 @@ internal static class NewColonyJson
     private static ScenarioPawnContext PawnContext(Members m) =>
         EnumByName<ScenarioPawnContext>(m.String("context") ?? "", "SCENARIO_PAWN_CONTEXT_", "context");
 
-    // Go enumByName: a lower-case wire name maps to the enum value of that prefixed upper-case name, never the zero value.
+    // A lower-case wire name maps to the enum value of that prefixed upper-case name, never the zero value.
     private static T EnumByName<T>(string name, string prefix, string part)
         where T : struct, Enum
     {
@@ -260,7 +260,7 @@ internal static class NewColonyJson
             return new Members(element);
         }
 
-        // A member that is absent or null reads as absent (Go leaves the zero value).
+        // A member that is absent or null reads as absent.
         private JsonElement? Find(string name) =>
             _object.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value : null;
 
@@ -326,8 +326,8 @@ internal static class NewColonyJson
 }
 
 /// <summary>
-/// Rhadamant's Sea Ice Community Challenge (Workshop 1565580939, 1.0 format) as scenario parts (Go
-/// <c>RhadamantParts</c>): 800 silver, 50 survival meals, 300 wood, 450 steel, 30 components, 30 medicine and a rifle
+/// Rhadamant's Sea Ice Community Challenge (Workshop 1565580939, 1.0 format) as scenario parts:
+/// 800 silver, 50 survival meals, 300 wood, 450 steel, 30 components, 30 medicine and a rifle
 /// at the start, 720 steel, 7 meals and 3 ship chunks scattered, forced Sanguine, Super-Immune and Jogger traits and
 /// a permanent ColdSnap. Parts replace the base scenario's parts of their kind, so these lists are the whole of
 /// them. Her cannibalism rules are not included.

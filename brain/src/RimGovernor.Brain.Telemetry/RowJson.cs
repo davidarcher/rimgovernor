@@ -5,9 +5,9 @@ using System.Text;
 namespace RimGovernor.Brain.Telemetry;
 
 /// <summary>
-/// The wire encoding a truncated row's size, hash and preview are taken over: Go's <c>encoding/json</c> form of
-/// the normalized payload (keys in ordinal order, compact, HTML characters escaped, floats in Go's shortest
-/// form). A hash recorded by the Go service and one recorded here agree for the same payload.
+/// The wire encoding a truncated row's size, hash and preview are taken over: the <c>encoding/json</c> form of
+/// the normalized payload (keys in ordinal order, compact, HTML characters escaped, floats in the shortest
+/// form).
 /// </summary>
 internal static class RowJson
 {

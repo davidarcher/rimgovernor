@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>The cases that prove the runner itself: open a game, read what the runner prepared, pass (Go <c>cases/smoke</c>).</summary>
+/// <summary>The cases that prove the runner itself: open a game, read what the runner prepared, pass.</summary>
 public static class SmokeCases
 {
     /// <summary>Registers every <c>smoke/*</c> case.</summary>

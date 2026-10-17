@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 namespace RimGovernor.Tools.Commands.ColonyReview;
 
 // The data of a colony review: what result.json records (Census and its parts), the rows the report derives from it, and
-// the run.json summary the site indexes (Go: cmd/colonyreview report.go, score.go, delta.go). Field names are the Go JSON
-// tags: run.json files written by the Go tool are read back by the site and the baseline comparison.
+// the run.json summary the site indexes. Field names are the JSON
+// tags: run.json files are read back by the site and the baseline comparison.
 
 /// <summary>One census pawn.</summary>
 internal sealed record Pawn
@@ -164,7 +164,7 @@ internal sealed record Row
 
     public string Anchor { get; init; } = "";
 
-    /// <summary>The colonist count, 0 when the census has none (Go <c>colonists</c>).</summary>
+    /// <summary>The colonist count, 0 when the census has none.</summary>
     public int Colonists => Census.Colonists is { } n ? (int)n : 0;
 }
 
@@ -293,6 +293,6 @@ internal sealed record RunSummary
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Error { get; init; }
 
-    /// <summary>The meta value of a key, empty when absent (a Go map index).</summary>
+    /// <summary>The meta value of a key, empty when absent.</summary>
     public string MetaValue(string key) => Meta.TryGetValue(key, out var v) ? v : "";
 }

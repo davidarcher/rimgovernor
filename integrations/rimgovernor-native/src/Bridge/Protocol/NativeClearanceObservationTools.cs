@@ -158,7 +158,7 @@ namespace HomeBridge.BridgeTools
         // carries no Salvage (remote salvage holds it as salvage_unknown) and
         // the refresher fills it for the next Read. The refresher only walks
         // targets a Read listed, so a colony that never asks pays nothing.
-        // The tunables are the last request's (Go supplies them, bridge.Salvage*);
+        // The tunables are the last request's;
         // the frame refresher between reads runs under the same values.
         private static int salvageMaxAgeTicks;
         private static double salvageFrameBudgetMs, salvageInlineBudgetMs, salvageCensusBudgetMs;

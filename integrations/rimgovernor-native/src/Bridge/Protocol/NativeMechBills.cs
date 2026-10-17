@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
     internal static class NativeMechBills
     {
         // A mech recipe produces a mechanoid race (resurrection excluded). The
-        // mech's PawnKindDef is a Go rule over the recipe and race rows
+        // mech's PawnKindDef is a brain rule over the recipe and race rows
         // (DefinitionCatalog.RecipeMechKind), which also refuses a gestation
         // recipe that makes no mechanoid.
         private static bool IsMech(RecipeDef recipe) => !recipe.mechResurrection && recipe.ProducedThingDef?.race?.IsMechanoid == true;

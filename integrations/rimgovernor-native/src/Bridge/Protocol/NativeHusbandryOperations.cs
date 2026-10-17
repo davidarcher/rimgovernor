@@ -108,7 +108,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The release designator's own acceptance and nothing more; which
-        // animals to protect (bonded, mastered, pregnant, downed) is Go herd
+        // animals to protect (bonded, mastered, pregnant, downed) is brain herd
         // policy (UpkeepAnimal.ReleaseAllowed).
         internal static bool SafeToRelease(Pawn animal) => !animal.Dead && new Designator_ReleaseAnimalToWild().CanDesignateThing(animal).Accepted;
 

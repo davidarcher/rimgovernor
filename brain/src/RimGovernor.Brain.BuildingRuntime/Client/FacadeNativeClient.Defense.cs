@@ -4,20 +4,19 @@ using EquatableArray = RimGovernor.Brain.Domain.EquatableArray;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go internal/bridge defense_site.go (ReadDefenseSite, ReadLinesOfFire) and spatial_access.go (ReadSpatialAccess):
-// the typed core methods and the decoders that turn their replies into the Bridge.Contracts read models.
+// The typed core methods and the decoders that turn their replies into the Bridge.Contracts read models.
 public sealed partial class FacadeNativeClient
 {
-    /// <summary>Go <c>LinesOfFireBudgetMS</c> (frames.go): the main-thread milliseconds a lines-of-fire read may spend.</summary>
+    /// <summary>The main-thread milliseconds a lines-of-fire read may spend.</summary>
     private const uint DefenseLinesOfFireBudgetMs = 15;
 
-    /// <summary>Go <c>SpatialAccessBudgetMS</c> (frames.go): the main-thread milliseconds a spatial access audit may spend.</summary>
+    /// <summary>The main-thread milliseconds a spatial access audit may spend.</summary>
     private const uint DefenseSpatialAccessBudgetMs = 2500;
 
-    /// <summary>Go <c>maxDefenseSiteExtent</c>: bounds a defense-layout cell coordinate.</summary>
+    /// <summary>Bounds a defense-layout cell coordinate.</summary>
     private const int DefenseMaxExtent = 4096;
 
-    /// <summary>Go <c>Client.ReadDefenseSite</c>: reads one inclusive rectangle; the read never samples or truncates.</summary>
+    /// <summary>Reads one inclusive rectangle; the read never samples or truncates.</summary>
     internal async Task<DefenseSite> ReadDefenseSiteAsync(PbCommon.Identity identity, CellRect region, CancellationToken cancellationToken)
     {
         if (!BridgeCellRect.IsValidDefenseRegion(region))
@@ -42,7 +41,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadLinesOfFire</c>: reads every (firing, approach) pair of unique cells, firing-major, under the
+    /// Reads every (firing, approach) pair of unique cells, firing-major, under the
     /// lines-of-fire budget; <see cref="LinesOfFire.Skipped"/> reports a read cut short.
     /// </summary>
     internal async Task<LinesOfFire> ReadLinesOfFireAsync(PbCommon.Identity identity, IReadOnlyList<DomainCell> firing, IReadOnlyList<DomainCell> approach, CancellationToken cancellationToken)
@@ -71,7 +70,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadSpatialAccess</c>: audits the map's colonist access (paused or running) with blocked cells
+    /// Audits the map's colonist access (paused or running) with blocked cells
     /// impassable and targets checked; empty <paramref name="pawnIds"/> audits every mobile free colonist.
     /// </summary>
     internal async Task<SpatialAccess> ReadSpatialAccessAsync(
@@ -123,7 +122,6 @@ public sealed partial class FacadeNativeClient
 
     private static PbCommon.Cell DefenseWireCell(DomainCell cell) => new() { X = cell.X, Z = cell.Z };
 
-    /// <summary>Go <c>validateLineCells</c>.</summary>
     private static void DefenseValidateLineCells(IReadOnlyList<DomainCell> cells)
     {
         if (cells.Count < 1)
@@ -140,7 +138,7 @@ public sealed partial class FacadeNativeClient
         }
     }
 
-    /// <summary>Go <c>validateDefenseSite</c>: decodes the defense site census of <paramref name="region"/>.</summary>
+    /// <summary>Decodes the defense site census of <paramref name="region"/>.</summary>
     private static DefenseSite DefenseDecodeSite(PbObservations.DefenseSiteSnapshot v, CellRect region)
     {
         var cells = new List<DefenseCensusCell>(v.Cells.Count);
@@ -182,7 +180,7 @@ public sealed partial class FacadeNativeClient
         return new DefenseSite(v.Context, v.MapSize.Width, v.MapSize.Height, region, cells);
     }
 
-    /// <summary>Go <c>validateLinesOfFire</c>: decodes the lines of fire; a line without line-of-sight facts is unknown.</summary>
+    /// <summary>Decodes the lines of fire; a line without line-of-sight facts is unknown.</summary>
     internal static List<LineOfFire> DefenseDecodeLinesOfFire(PbObservations.LinesOfFireSnapshot v)
     {
         var lines = new List<LineOfFire>(v.Lines.Count);
@@ -213,7 +211,7 @@ public sealed partial class FacadeNativeClient
         return lines;
     }
 
-    /// <summary>Go <c>validateSpatialAccess</c>: decodes the spatial access audit; a skipped colonist carries its position only.</summary>
+    /// <summary>Decodes the spatial access audit; a skipped colonist carries its position only.</summary>
     private static SpatialAccess DefenseDecodeSpatialAccess(PbObservations.SpatialAccessSnapshot v)
     {
         var pawns = new List<PawnAccess>(v.Pawns.Count);

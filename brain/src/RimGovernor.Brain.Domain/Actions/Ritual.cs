@@ -42,7 +42,7 @@ public sealed record RitualSlot(string Slot, EquatableArray<PawnId> Pawns);
 /// </summary>
 public sealed record Ritual : IActionPayload
 {
-    /// <summary>Go <c>NewRitual</c> (the start command); throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public Ritual(PawnId pawn, RitualKind kind, RitualVerb verb)
     {
         DomainException.Require(pawn.IsValid, "ritual requires a valid pawn identity");
@@ -68,7 +68,7 @@ public sealed record Ritual : IActionPayload
 
     public PawnId Pawn { get; }
 
-    /// <summary>Go <c>Ritual()</c>: the bestowing kind or the begun precept's id.</summary>
+    /// <summary>The bestowing kind or the begun precept's id.</summary>
     public RitualKind Kind { get; }
 
     public RitualVerb Verb { get; }
@@ -83,7 +83,7 @@ public sealed record Ritual : IActionPayload
     public EquatableArray<PawnId> Spectators { get; }
 
     /// <summary>
-    /// Go <c>NewRitualBegin</c>: the begin command of the ritual precept with the given id. Every pawn appears
+    /// The begin command of the ritual precept with the given id. Every pawn appears
     /// once across the slots and spectators, each slot is named once and holds a pawn.
     /// </summary>
     public static Ritual NewRitualBegin(PawnId organizer, string precept, Cell spot, IEnumerable<RitualSlot> slots, IEnumerable<PawnId> spectators)

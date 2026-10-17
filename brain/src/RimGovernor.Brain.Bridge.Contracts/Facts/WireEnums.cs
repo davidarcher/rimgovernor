@@ -8,12 +8,12 @@ using WireMedicalCare = RimGovernor.Contracts.Wire.Operations.MedicalCare;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go wire_enums.go: pawn-setting, skill, waste, bill, combat, route and quest enums on the wire map onto the
+// Pawn-setting, skill, waste, bill, combat, route and quest enums on the wire map onto the
 // vanilla names the domain and policy layers use; an unspecified or unknown value maps to "" (null for a domain
-// enum with no empty member). Go's name maps are switches here; the domain enums carry their wire names.
+// enum with no empty member). The name maps are switches; the domain enums carry their wire names.
 public static class WireEnums
 {
-    /// <summary>Go's <c>medicalCareWire</c> inverted: the domain care tier of a wire tier, null when unspecified or unknown.</summary>
+    /// <summary>The domain care tier of a wire tier, null when unspecified or unknown.</summary>
     internal static DomainMedicalCare? MedicalCareOf(WireMedicalCare care) =>
         care switch
         {
@@ -25,10 +25,10 @@ public static class WireEnums
             _ => null,
         };
 
-    /// <summary>Go's <c>MedicalCareName</c>: the MedicalCareCategory name of a wire care tier.</summary>
+    /// <summary>The MedicalCareCategory name of a wire care tier.</summary>
     public static string MedicalCareName(WireMedicalCare care) => MedicalCareOf(care) is { } tier ? Domain.Wire.Name(tier) : "";
 
-    /// <summary>Go's <c>HostilityName</c>: the HostilityResponseMode of a wire hostility response, null when unspecified or unknown.</summary>
+    /// <summary>The HostilityResponseMode of a wire hostility response, null when unspecified or unknown.</summary>
     public static DomainHostility? HostilityName(WireHostility value) =>
         value switch
         {
@@ -38,7 +38,7 @@ public static class WireEnums
             _ => null,
         };
 
-    /// <summary>Go's <c>PassionName</c>: the vanilla Passion name ("None", "Minor", "Major").</summary>
+    /// <summary>The vanilla Passion name ("None", "Minor", "Major").</summary>
     public static string PassionName(Passion passion) =>
         passion switch
         {
@@ -48,7 +48,7 @@ public static class WireEnums
             _ => "",
         };
 
-    /// <summary>Go's <c>RepeatModeName</c>: the vanilla BillRepeatModeDef name of a repeat mode.</summary>
+    /// <summary>The vanilla BillRepeatModeDef name of a repeat mode.</summary>
     public static string RepeatModeName(RepeatMode mode) =>
         mode switch
         {
@@ -58,7 +58,7 @@ public static class WireEnums
             _ => "",
         };
 
-    /// <summary>Go's <c>FireModeName</c>: policy's fire mode ("fire_at_will", "hold_fire").</summary>
+    /// <summary>Policy's fire mode ("fire_at_will", "hold_fire").</summary>
     public static string FireModeName(CombatFireMode mode) =>
         mode switch
         {
@@ -67,7 +67,7 @@ public static class WireEnums
             _ => "",
         };
 
-    /// <summary>Go's <c>RouteKindName</c>: policy's route facility kind ("bed", "bench", ...).</summary>
+    /// <summary>Policy's route facility kind ("bed", "bench", ...).</summary>
     public static string RouteKindName(RouteFacilityKind kind) =>
         kind switch
         {
@@ -80,7 +80,7 @@ public static class WireEnums
             _ => "",
         };
 
-    /// <summary>Go's <c>QuestStatusName</c>: the vanilla QuestState name ("NotYetAccepted", ...).</summary>
+    /// <summary>The vanilla QuestState name ("NotYetAccepted", ...).</summary>
     public static string QuestStatusName(QuestStatus status) =>
         status switch
         {

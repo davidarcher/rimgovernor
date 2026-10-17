@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record FoundationRemoval : IActionPayload
 {
-    /// <summary>Go <c>NewFoundationRemoval</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public FoundationRemoval(string definition, Cell cell)
     {
         DomainException.Require(IdText.IsValidText(definition) && cell.X >= 0 && cell.Z >= 0, "invalid foundation removal definition or cell");
@@ -25,6 +25,6 @@ public sealed partial record DomainAction
     public static DomainAction NewFoundationRemovalAction(ActionId id, FoundationRemoval foundation) =>
         Create(id, ActionKind.FoundationRemoval, foundation);
 
-    /// <summary>Go <c>Action.FoundationRemoval() (FoundationRemoval, bool)</c>: the payload when this is a foundation removal action, otherwise null.</summary>
+    /// <summary>The payload when this is a foundation removal action, otherwise null.</summary>
     public FoundationRemoval? FoundationRemoval => PayloadOf<FoundationRemoval>(ActionKind.FoundationRemoval);
 }

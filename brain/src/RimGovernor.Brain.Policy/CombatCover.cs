@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_cover.go
 
 /// <summary>
 /// Combat.geometry's cover for one (cell, hostile) pair: the game's CoverUtility block chance at the cell

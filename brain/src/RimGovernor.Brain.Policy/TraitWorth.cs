@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: trait_worth.go. Trait worth: whether a trait degree is good or bad in a prospect is the sign of its net
+// Trait worth: whether a trait degree is good or bad in a prospect is the sign of its net
 // effect on the terms the planners value, computed from the degree's TraitDef row (the definition catalog's
 // TraitBalance) and weighted here, in one place. The weights are the judgment; every effect they multiply is read.
 
@@ -30,7 +30,7 @@ public sealed record TraitBalance
             + (Mood * TraitWorthRules.TraitMoodWeight)
             + (DisabledWork * TraitWorthRules.TraitDisabledWorkWeight)
             + (Sociable * TraitWorthRules.TraitSociableWeight);
-        // Summed in ordinal stat order: float addition is not associative, and Go's map order is random.
+        // Summed in ordinal stat order: float addition is not associative, and a map's order is not fixed.
         foreach (var stat in Stats.Keys.Order(StringComparer.Ordinal))
         {
             worth += Stats[stat] * TraitWorthRules.TraitStatWeights.GetValueOrDefault(stat);

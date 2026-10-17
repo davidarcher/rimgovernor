@@ -4,7 +4,7 @@ using Fx = RimGovernor.Fixtures.Contracts;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>lab/sparring-*</c> (Go <c>sparring.go</c>): bout formation (#2708) and the spar job (#2709), one ring per case: who
+/// <c>lab/sparring-*</c>: bout formation (#2708) and the spar job (#2709), one ring per case: who
 /// spars with whom, and what the fight does to the gear. The bout registry, matchmaking, the work giver and the job driver
 /// are native. test/sparring_prepare stays a bespoke op (violence-capable colonists at given Melee levels with a Minor
 /// passion and training-only work, painstopper, a draft or a mid-bout event, which the stage primitives cannot express);

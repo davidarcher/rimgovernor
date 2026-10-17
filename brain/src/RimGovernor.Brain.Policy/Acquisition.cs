@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: acquisition.go
 
 /// <summary>
 /// An observed native-approved source, not inventory. Definition is the source's own native definition name

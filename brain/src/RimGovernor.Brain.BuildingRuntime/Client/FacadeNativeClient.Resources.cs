@@ -4,12 +4,11 @@ using Domain = RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go consumption_read.go (Client.ReadConsumption) and resource_sources_read.go (Client.ReadResourceSources,
-// decodeResourceStorage, DefinitionCatalog.ResourceSourceMethodOf).
+// ReadResourceSources, decodeResourceStorage and ResourceSourceMethodOf.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
-    /// Go <c>Client.ReadConsumption</c>: native's saved realized-consumption ring, every completed hour after
+    /// Native's saved realized-consumption ring, every completed hour after
     /// <paramref name="sinceHour"/> (negative: the whole 60-day window), sparse. The ring is game-scoped, not
     /// map-scoped, so the request carries no identity.
     /// </summary>
@@ -75,7 +74,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadResourceSources</c>: a fresh read of one resource definition's reachable mine/harvest sources and
+    /// A fresh read of one resource definition's reachable mine/harvest sources and
     /// the always-populated storage capacity payload, in one complete page. The rows come back nearest first (ties by
     /// thing id).
     /// </summary>
@@ -127,7 +126,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>decodeResourceStorage</c>: the always-populated StorageCapacity payload. Haulers are counted, not carried in
+    /// The always-populated StorageCapacity payload. Haulers are counted, not carried in
     /// full; candidate cells are native's own hauler-reachable, roofed, unreserved scan and are trusted as exact placement
     /// sites.
     /// </summary>
@@ -156,14 +155,14 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>DefinitionCatalog.ResourceSourceMethodOf</c>: how a source thing of <paramref name="def"/> is acquired. The
+    /// How a source thing of <paramref name="def"/> is acquired. The
     /// policy knows only mine versus every other method (cut and harvest are both <see cref="Policy.ResourceSourceMethod.Other"/>).
     /// </summary>
     /// <remarks>
-    /// APPROXIMATION: Go tested the def's thing class against the game's Mineable (ClassIsA). The Host references no
+    /// APPROXIMATION: the def's thing class would be tested against the game's Mineable (ClassIsA). The Host references no
     /// game assembly, so the class is not reachable here; a def is taken as mined when its building yields a mineable
     /// thing (<c>building.mineableThing</c>); unverified against every def, a catalog method that tests the class replaces it. A def with no row at
-    /// all is the same contract error Go raised.
+    /// all is a contract error.
     /// </remarks>
     private static Policy.ResourceSourceMethod ResourceSourceMethodOf(BridgeCatalog catalog, string def)
     {

@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The private remote-acceptance bundle boundary (Go internal/remotebundle and cmd/remotebundle, #3096): manifest and
+  <!-- The private remote-acceptance bundle boundary (#3096): manifest and
        inventory validation, age-encrypted 7z pack and extract, release publish, cache restore and bootstrap.
        Driven by the tool host: RimGovernor.cmd remotebundle. -->
   <PropertyGroup>

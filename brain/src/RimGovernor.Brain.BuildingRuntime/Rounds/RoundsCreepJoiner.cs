@@ -64,7 +64,7 @@ internal static class RoundsCreepJoiner
         return frame.Pawns.Pawns.Select(CreepJoinerHandOf).ToList();
     }
 
-    /// <summary>Go bridge.CreepJoinerHand: lifts a combat-detail pawn row into the weapon drop's facts (the downside check's facts, whether the colonist can take an order, its weapon, surgery operations and bills, allowed area and hunger).</summary>
+    /// <summary>Lifts a combat-detail pawn row into the weapon drop's facts (the downside check's facts, whether the colonist can take an order, its weapon, surgery operations and bills, allowed area and hunger).</summary>
     internal static CreepJoinerHand CreepJoinerHandOf(PbObservations.PawnState row)
     {
         var hand = new CreepJoinerHand

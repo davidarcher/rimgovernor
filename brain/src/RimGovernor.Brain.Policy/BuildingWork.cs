@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: building_work.go
 
 public static class BuildingWorkRules
 {

@@ -4,7 +4,7 @@ using RimGovernor.Brain.Domain;
 namespace RimGovernor.Brain.Store;
 
 /// <summary>
-/// The method a plan executes and the planner's reason for admitting it (Go <c>PlanMethod</c>).
+/// The method a plan executes and the planner's reason for admitting it.
 /// </summary>
 /// <param name="Concern">The Need the method serves, as its filing key.</param>
 /// <param name="Reason">The planner's short reason, empty when it gave none.</param>

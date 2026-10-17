@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What the colony owes its held entities now: the entities whose extract flag is to be set, by pawn ID, and
-/// the unread facts that kept the rule from deciding. (Go <c>BioferriteHarvest</c>.)
+/// the unread facts that kept the rule from deciding.
 /// </summary>
 public sealed record BioferriteHarvest
 {
@@ -19,17 +19,17 @@ public sealed record BioferriteHarvest
 // never a guess.
 public static class EntityBioferriteRules
 {
-    /// <summary>Go <c>ResearchBioferriteExtraction</c>: ResearchProjectDefOf.BioferriteExtraction.</summary>
+    /// <summary>ResearchProjectDefOf.BioferriteExtraction.</summary>
     public static readonly ResearchProjectId ResearchBioferriteExtraction = new("BioferriteExtraction");
 
     /// <summary>JobDriver_ExtractBioferrite.BioferriteModifier: an extraction yields floor(BioferritePerDay * 4).</summary>
     private const int BioferriteYieldFactor = 4;
 
-    /// <summary>Go <c>BioferriteYield</c>: the bioferrite one extraction yields at perDay.</summary>
+    /// <summary>The bioferrite one extraction yields at perDay.</summary>
     public static int BioferriteYield(double perDay) => (int)Math.Floor(perDay * BioferriteYieldFactor);
 
     /// <summary>
-    /// Go <c>BioferriteHarvestOwed</c>: decides every held, living entity. Research that is not finished owes
+    /// Decides every held, living entity. Research that is not finished owes
     /// nothing; research that is unread is an issue whenever an entity is held.
     /// </summary>
     public static BioferriteHarvest BioferriteHarvestOwed(ContainmentPlanning p, Fact<ResearchFacts> research)

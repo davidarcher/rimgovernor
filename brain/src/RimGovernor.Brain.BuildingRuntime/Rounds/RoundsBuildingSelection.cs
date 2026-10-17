@@ -3,8 +3,8 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go: rounds_building_selection.go. The RoundsBuildingPlanner type itself (fields reviewer, native, concern,
-// definition, environment, the per-concern proposals) is declared by the sibling slice that ports rounds_building.go.
+// The RoundsBuildingPlanner type itself (fields reviewer, native, concern,
+// definition, environment, the per-concern proposals) is declared by its sibling partial files.
 public sealed partial class RoundsBuildingPlanner
 {
     internal static bool PendingFacility(Progress progress, string definition) =>

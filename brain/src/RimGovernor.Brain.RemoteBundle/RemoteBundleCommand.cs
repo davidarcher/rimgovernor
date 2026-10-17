@@ -4,7 +4,7 @@ using RimGovernor.Brain.Acceptance;
 namespace RimGovernor.Brain.RemoteBundle;
 
 /// <summary>
-/// The <c>remotebundle</c> command (Go <c>cmd/remotebundle</c>): <c>RimGovernor.cmd remotebundle
+/// The <c>remotebundle</c> command: <c>RimGovernor.cmd remotebundle
 /// pack|publish|verify|extract|bootstrap [flags]</c>. It packages, verifies and bootstraps the encrypted acceptance
 /// dependencies.
 /// </summary>
@@ -155,7 +155,7 @@ public static class RemoteBundleCommand
         return 0;
     }
 
-    /// <summary>Go-flag-style parsing: <c>-name value</c> or <c>-name=value</c> (also <c>--name</c>); no positional arguments.</summary>
+    /// <summary>Flag parsing: <c>-name value</c> or <c>-name=value</c> (also <c>--name</c>); no positional arguments.</summary>
     private static Flags ParseFlags(List<string> args)
     {
         var flags = new Flags();

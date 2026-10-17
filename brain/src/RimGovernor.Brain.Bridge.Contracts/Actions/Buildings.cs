@@ -5,15 +5,12 @@ using WireCandidate = RimGovernor.Contracts.Wire.Placement.PlacementCandidate;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go haul.go, actions.go (movementAction, foundationRemovalAction, floorRemovalAction, movementCell),
-// building_intent.go, building_patch.go, move_building.go, deconstruct.go, excavation.go, wall_removal.go,
-// cover_clearance.go, wastepack_haul.go, cut_plant.go, supply_allow.go (supplyAction), strip.go, acquisition.go and
-// auto_home_area.go: the placement and designation arms. The supply census reads and decoders of supply_allow.go
-// are wire plumbing and are not part of this port.
+// The placement and designation arms. The supply census reads and decoders
+// are wire plumbing and are not part of this file.
 public static class BuildingsRules
 {
     /// <summary>
-    /// Go's <c>haulAction</c>: the Actions/Apply haul arm of one domain haul action, the pawn and the item and nothing
+    /// The Actions/Apply haul arm of one domain haul action, the pawn and the item and nothing
     /// else. Native checks both against live state, lets the game's Hauling WorkGiver pick the storage, and applies a
     /// resend to a pawn already hauling the item without a new order.
     /// </summary>
@@ -29,7 +26,7 @@ public static class BuildingsRules
         return new Op.Action { Intent = new Op.HaulIntent { PawnId = pawn, ThingId = thing } };
     }
 
-    /// <summary>Go's <c>movementAction</c>: the Actions/Apply move arm of one domain movement.</summary>
+    /// <summary>The Actions/Apply move arm of one domain movement.</summary>
     internal static Op.Action MovementAction(DomainAction action)
     {
         var m = action.Movement ?? throw BridgeContractException.Contract("not a movement action");
@@ -39,7 +36,7 @@ public static class BuildingsRules
         return new Op.Action { Intent = new Op.MoveIntent { PawnId = m.Pawn.Value, Destination = cell } };
     }
 
-    /// <summary>Go's <c>movementCell</c>: a present, non-negative cell with no fields the schema lacks.</summary>
+    /// <summary>A present, non-negative cell with no fields the schema lacks.</summary>
     internal static void MovementCell(Cell? cell)
     {
         if (cell is null || cell.X < 0 || cell.Z < 0)
@@ -49,7 +46,7 @@ public static class BuildingsRules
         FactHelpers.BuildingUnknown(cell);
     }
 
-    /// <summary>Go's <c>foundationRemovalAction</c>: the Actions/Apply remove_foundation arm of one foundation_removal.</summary>
+    /// <summary>The Actions/Apply remove_foundation arm of one foundation_removal.</summary>
     internal static Op.Action FoundationRemovalAction(DomainAction action)
     {
         var f = action.FoundationRemoval ?? throw BridgeContractException.Contract("not a foundation removal action");
@@ -57,7 +54,7 @@ public static class BuildingsRules
         return Designate(new Op.DesignateIntent { Designation = Op.ThingDesignation.RemoveFoundation, Cell = IntentActionRules.WireCell(f.Cell), ExpectedDef = f.Definition });
     }
 
-    /// <summary>Go's <c>floorRemovalAction</c>: the Actions/Apply remove_floor arm of one floor_removal.</summary>
+    /// <summary>The Actions/Apply remove_floor arm of one floor_removal.</summary>
     internal static Op.Action FloorRemovalAction(DomainAction action)
     {
         var f = action.FloorRemoval ?? throw BridgeContractException.Contract("not a floor removal action");
@@ -65,7 +62,7 @@ public static class BuildingsRules
         return new Op.Action { Intent = new Op.RemoveFloorIntent { Cell = IntentActionRules.WireCell(f.Cell), DefName = f.Definition } };
     }
 
-    // Go moveRotations / buildingAction's rotation table: the cardinal rotations only.
+    // The cardinal rotations only.
     private static PlacementRotation? WireRotation(Rotation rotation) =>
         rotation switch
         {
@@ -77,7 +74,7 @@ public static class BuildingsRules
         };
 
     /// <summary>
-    /// Go's <c>buildingAction</c>: the Actions/Apply intent for a building action, place one blueprint of the
+    /// The Actions/Apply intent for a building action, place one blueprint of the
     /// building's definition, stuff and rotation at its cell. Native validates the placement at apply time and stamps
     /// what it places with the intent key (BuildingState.intent_key).
     /// </summary>
@@ -110,7 +107,7 @@ public static class BuildingsRules
     }
 
     /// <summary>
-    /// Go's <c>relocateAction</c>: the RelocateIntent of a move (the game's reinstall blueprint, or its install
+    /// The RelocateIntent of a move (the game's reinstall blueprint, or its install
     /// blueprint for a packed item's inner id) or an uninstall (the Uninstall designation where the building stands).
     /// Native checks every rule live; applied means ordered and the next building read decides progress.
     /// </summary>
@@ -131,7 +128,7 @@ public static class BuildingsRules
         };
     }
 
-    // building_patch.go: one settings change on one exact building, a cooler or heater target, a bed's medical flag or
+    // One settings change on one exact building, a cooler or heater target, a bed's medical flag or
     // prisoner use, a grower's crop, a claim. Native checks the building and the game's own rules live; applied means
     // set, and the next building read confirms it.
     private static Op.Action BuildingPatch(string thing, Op.BuildingPatchIntentChange change)
@@ -180,11 +177,11 @@ public static class BuildingsRules
         return BuildingPatch(v.Thing, new Op.BuildingPatchIntentChange.ClaimCase(new Op.Clear()));
     }
 
-    /// <summary>Go's <c>designate</c>: wraps one DesignateIntent as an Actions/Apply action.</summary>
+    /// <summary>Wraps one DesignateIntent as an Actions/Apply action.</summary>
     private static Op.Action Designate(Op.DesignateIntent intent) => new() { Intent = intent };
 
     /// <summary>
-    /// Go's <c>deconstructAction</c>: the DECONSTRUCT Designate of one exact building under the enclosure guard. Native
+    /// The DECONSTRUCT Designate of one exact building under the enclosure guard. Native
     /// checks the target's safety and the game designator live when it applies; a designation already standing applies
     /// again, and revoking authority releases every guarded designation natively.
     /// </summary>
@@ -200,7 +197,7 @@ public static class BuildingsRules
     }
 
     /// <summary>
-    /// Go's <c>excavateAction</c>: the MINE Designate of one rock cell under the mine_safety guard. Native checks the
+    /// The MINE Designate of one rock cell under the mine_safety guard. Native checks the
     /// rock, roof support and the game designator live when it applies, adopting a standing Mine designation; applied
     /// means designated, and the site read decides when the cell is cleared.
     /// </summary>
@@ -211,7 +208,7 @@ public static class BuildingsRules
     }
 
     /// <summary>
-    /// Go's <c>wallRemovalAction</c>: the wall_upgrade-guarded Deconstruct Designate of one stone-shell wall removal, the
+    /// The wall_upgrade-guarded Deconstruct Designate of one stone-shell wall removal, the
     /// wall's cell and, for the original demolition, the wall identity the proposal observed. Native resolves the site
     /// live.
     /// </summary>
@@ -227,14 +224,14 @@ public static class BuildingsRules
     }
 
     /// <summary>
-    /// Go's <c>coverAction</c>: the Designate of one raider-cover clearance, the designation that removes the exact cover
+    /// The Designate of one raider-cover clearance, the designation that removes the exact cover
     /// thing the defense census named standing at its cell. Native checks the thing and the guard live when it applies;
     /// one already standing applies again.
     /// </summary>
     internal static Op.Action CoverAction(DomainAction action)
     {
         var v = action.CoverClearance ?? throw BridgeContractException.Contract("not a cover clearance action");
-        // Go coverDesignations: the designation and guard that remove the thing.
+        // The designation and guard that remove the thing.
         (Op.ThingDesignation Designation, Op.DesignationGuard Guard)? kind = v.Designation switch
         {
             CoverClearanceDesignation.Mine => (Op.ThingDesignation.Mine, Op.DesignationGuard.MineSafety),
@@ -256,7 +253,7 @@ public static class BuildingsRules
     }
 
     /// <summary>
-    /// Go's <c>wastepackHaulAction</c>: the DesignateIntent HAUL of one exact wastepack under the wastepack guard. Native
+    /// The DesignateIntent HAUL of one exact wastepack under the wastepack guard. Native
     /// checks the pack and the guard live when it applies; a designation already standing applies again.
     /// </summary>
     internal static Op.Action WastepackHaulAction(DomainAction action)
@@ -274,7 +271,7 @@ public static class BuildingsRules
         );
     }
 
-    /// <summary>Go's <c>cutPlantAction</c>: the DesignateIntent that orders one exact blighted plant cut.</summary>
+    /// <summary>The DesignateIntent that orders one exact blighted plant cut.</summary>
     internal static Op.Action CutPlantAction(DomainAction action)
     {
         var v = action.CutPlant ?? throw BridgeContractException.Contract("not a cut plant action");
@@ -282,7 +279,7 @@ public static class BuildingsRules
     }
 
     /// <summary>
-    /// Go's <c>supplyAction</c>: the DesignateIntent that allows or forbids one exact supply item. Native checks the item
+    /// The DesignateIntent that allows or forbids one exact supply item. Native checks the item
     /// live when it applies; an item already in the wanted state applies again.
     /// </summary>
     internal static Op.Action SupplyAction(DomainAction action)
@@ -293,7 +290,7 @@ public static class BuildingsRules
     }
 
     /// <summary>
-    /// Go's <c>stripAction</c>: the DesignateIntent that places vanilla's Strip designation on one exact pawn or corpse.
+    /// The DesignateIntent that places vanilla's Strip designation on one exact pawn or corpse.
     /// Native refuses a target that is not spawned, has nothing to strip, or is already designated.
     /// </summary>
     internal static Op.Action StripAction(DomainAction action)
@@ -303,7 +300,7 @@ public static class BuildingsRules
     }
 
     /// <summary>
-    /// Go's <c>acquireAction</c>: the acquisition-guarded Designate of an acquisition or a mine acquisition (designate the
+    /// The acquisition-guarded Designate of an acquisition or a mine acquisition (designate the
     /// source), or of a stall withdraw (withdraw=true). The designation is the one the source takes: MINE for a mine
     /// acquisition, HUNT for a corpse resource, otherwise HARVEST_PLANT. Native checks the source live; a designation
     /// already in the requested state applies again, and the next census reads progress.
@@ -339,7 +336,7 @@ public static class BuildingsRules
         return new Op.Action { Intent = intent };
     }
 
-    /// <summary>Go's <c>autoHomeAreaAction</c>: the AutoHomeAreaIntent that sets the game's home-area auto-expand. A value that already holds applies again.</summary>
+    /// <summary>The AutoHomeAreaIntent that sets the game's home-area auto-expand. A value that already holds applies again.</summary>
     internal static Op.Action AutoHomeAreaAction(DomainAction action)
     {
         var enabled = action.AutoHomeArea ?? throw BridgeContractException.Contract("not an auto home area action");

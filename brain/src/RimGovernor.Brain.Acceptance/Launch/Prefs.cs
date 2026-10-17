@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>Prefs.xml adjustments for the acceptance profiles (Go <c>prefs.go</c>).</summary>
+/// <summary>Prefs.xml adjustments for the acceptance profiles.</summary>
 public static class ProfilePrefs
 {
     /// <summary>

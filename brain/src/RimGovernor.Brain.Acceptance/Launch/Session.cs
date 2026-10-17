@@ -11,7 +11,7 @@ using IdentityRequest = RimGovernor.Contracts.Wire.Lifecycle.IdentityRequest;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// Starting, attaching to and connecting to the configured game (Go <c>session.go</c>'s OpenBridgeSession and friends).
+/// Starting, attaching to and connecting to the configured game.
 /// The brain runs in the mod and the harness talks to
 /// its local HTTP channel, so the session is an <see cref="HttpNativeTransport"/> and the launch is
 /// <see cref="GameProcess.StartDetached"/> with the channel's directory in the environment. The game records its channel

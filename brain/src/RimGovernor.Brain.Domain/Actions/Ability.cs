@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Domain;
 
-/// <summary>Names where an ability comes from (Go <c>AbilitySourceKind</c>).</summary>
+/// <summary>Names where an ability comes from.</summary>
 public enum AbilitySourceKind
 {
     /// <summary>An acting royal permit (royalAid) the pawn holds with a faction.</summary>
@@ -10,7 +10,7 @@ public enum AbilitySourceKind
     Psycast,
 }
 
-/// <summary>What an ability aims at (Go <c>AbilityTargetKind</c>).</summary>
+/// <summary>What an ability aims at.</summary>
 public enum AbilityTargetKind
 {
     None,
@@ -141,7 +141,7 @@ public sealed record AbilityTarget
 /// </summary>
 public sealed record Ability : IActionPayload
 {
-    /// <summary>Go <c>NewAbility</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public Ability(PawnId pawn, AbilitySource source, AbilityTarget target)
     {
         DomainException.Require(pawn.IsValid, "ability requires a valid pawn identity");

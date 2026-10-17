@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// Field placement (#2920). A field node (layout_field_nodes.go) is placed by the embedder beside the room
+// Field placement (#2920). A field node is placed by the embedder beside the room
 // groups and written by the tiler as a field zone. It is a block like a room's, with three differences, all of
 // them the outdoors:
 //

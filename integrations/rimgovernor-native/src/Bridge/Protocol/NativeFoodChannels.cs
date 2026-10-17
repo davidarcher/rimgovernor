@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
                     if (animal.RaceProps.meatDef != null && humanFood(animal.RaceProps.meatDef))
                     {
                         // The game's computed MeatAmount of this animal, sent only when the
-                        // colony eats the meat; Go derives nutrition, feed and reproduction.
+                        // colony eats the meat; the brain derives nutrition, feed and reproduction.
                         slaughter = slaughter with { MeatAmount = Finite(animal.GetStatValue(StatDefOf.MeatAmount)) };
                     }
                     result = result with { Slaughter = [.. result.Slaughter, slaughter] };
@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
                         PasturePerDay = Finite(pasture), StoredNutrition = Finite(food.sumStockpiledNutritionAvailableNow) }] };
                 }
                 // The pasture a cell of each terrain grows in the worst quadrum: the
-                // per-cell term PenFoodCalculator sums over a pen, so Go can size a
+                // per-cell term PenFoodCalculator sums over a pen, so the brain can size a
                 // pen before it exists.
                 var terrainPasture = new MapPastureNutritionCalculator();
                 terrainPasture.Reset(map);

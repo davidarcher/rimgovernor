@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: climate_envelope.go
 
 public static class ClimateEnvelopeRules
 {

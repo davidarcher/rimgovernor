@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: armory.go
 
 /// <summary>
 /// How far up the military ladder the armory planner reaches: the threat the storyteller's raid points call
@@ -26,7 +25,6 @@ public enum ArmoryTier
 
 public static class ArmoryTierExtensions
 {
-    /// <summary>Go's <c>ArmoryTier.String()</c>.</summary>
     public static string Name(this ArmoryTier t) =>
         t switch
         {

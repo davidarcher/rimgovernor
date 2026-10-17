@@ -4,7 +4,7 @@ using RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-/// <summary>Bounds a <see cref="NewColonyRequest"/> must respect; the HTTP route and native share them (Go <c>NewColony*</c> consts).</summary>
+/// <summary>Bounds a <see cref="NewColonyRequest"/> must respect; the HTTP route and native share them.</summary>
 public static class NewColonyBounds
 {
     public const int MaxColonists = 10;
@@ -21,7 +21,7 @@ public static class NewColonyBounds
     public const int MaxTraitDegree = 10;
     public const double MaxSeverity = 1;
 
-    /// <summary>The fixed <c>player_direction</c> the controller sends on lifecycle save and load (Go <c>LifecycleDirection</c>); the field must be nonzero and carries no other meaning.</summary>
+    /// <summary>The fixed <c>player_direction</c> the controller sends on lifecycle save and load; the field must be nonzero and carries no other meaning.</summary>
     public const ulong LifecycleDirection = 1;
 }
 
@@ -29,7 +29,7 @@ public static class NewColonyValidation
 {
     private static readonly Regex NewColonySaveName = new("^[A-Za-z0-9_-]{1,64}$", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
-    /// <summary>Go's <c>ValidateNewColonyRequest</c>: checks a request against every bound the wire contract names, before it reaches native.</summary>
+    /// <summary>Checks a request against every bound the wire contract names, before it reaches native.</summary>
     public static void ValidateNewColonyRequest(NewColonyRequest? request)
     {
         if (request is null)
@@ -50,7 +50,7 @@ public static class NewColonyValidation
         ValidateNewColonySpec(request.Spec);
     }
 
-    /// <summary>Go's <c>ValidateNewColonySpec</c>: the spec's presence and range rules. Whether a defName exists is native's call.</summary>
+    /// <summary>The spec's presence and range rules. Whether a defName exists is native's call.</summary>
     public static void ValidateNewColonySpec(NewColonySpec? spec)
     {
         if (spec is null)
@@ -217,7 +217,7 @@ public static class NewColonyValidation
         }
     }
 
-    // Go's validIDs(ids, true): every id valid and none repeated.
+    // Every id valid and none repeated.
     private static bool ValidIds(IEnumerable<string> ids)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);

@@ -283,7 +283,7 @@ public sealed record WatchPolicy
     public EquatableArray<CombatEvent> CombatStopEvents { get; init; }
 
     /// <summary>
-    /// Go-authored hazard thresholds; all required, each finite and positive.
+    /// Hazard thresholds; all required, each finite and positive.
     /// One blow of at least serious_single_hit_damage, summary health crossing
     /// under serious_summary_health_floor (also the floor a resting patient must
     /// stay over to remain eligible), a total bleed rate crossing over

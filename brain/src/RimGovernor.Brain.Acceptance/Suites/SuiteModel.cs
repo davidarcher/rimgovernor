@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>One row of a suite: a registry case (Go <c>entry</c>).</summary>
+/// <summary>One row of a suite: a registry case.</summary>
 public sealed record SuiteEntry
 {
     public SuiteEntry(string name, string acceptance = "")
@@ -48,7 +48,7 @@ public sealed record SuiteEntry
     }
 }
 
-/// <summary>The suite subcommand's resolved configuration (Go <c>suiteOptions</c>).</summary>
+/// <summary>The suite subcommand's resolved configuration.</summary>
 public sealed record SuiteOptions
 {
     public string Root { get; init; } = "";
@@ -84,7 +84,7 @@ public sealed record SuiteOptions
     public string Tier { get; init; } = "";
 }
 
-/// <summary>What an earlier suite's result.json contributes: wall and boot times and the flake record by case name (Go <c>baseline</c>).</summary>
+/// <summary>What an earlier suite's result.json contributes: wall and boot times and the flake record by case name.</summary>
 public sealed class SuiteBaseline
 {
     private readonly Dictionary<string, double> _wall = new(StringComparer.Ordinal);

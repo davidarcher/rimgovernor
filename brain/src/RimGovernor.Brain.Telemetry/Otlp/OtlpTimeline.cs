@@ -157,7 +157,7 @@ public static class OtlpTimeline
         _ => v,
     };
 
-    // Go's time.RFC3339Nano: UTC, a fraction without trailing zeros (none when zero), then Z.
+    // UTC, a fraction without trailing zeros (none when zero), then Z.
     private static string Rfc3339Nano(long unixNanos)
     {
         var seconds = Math.DivRem(unixNanos, 1_000_000_000L, out var nanos);

@@ -8,7 +8,7 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 namespace HomeBridge.BridgeTools
 {
     // Realized consumption: the completed hourly entries after the hour
-    // Go already holds, from the saved ConsumptionState ring.
+    // the brain already holds, from the saved ConsumptionState ring.
     internal static class NativeConsumptionTool
     {
 

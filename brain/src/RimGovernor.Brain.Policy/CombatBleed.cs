@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_bleed.go
 
 public static partial class CombatBleedRules
 {

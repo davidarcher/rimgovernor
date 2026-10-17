@@ -3,7 +3,7 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Executor;
 
 // Port of internal/executor haul.go, movement.go, trade.go and comms_trade_request.go: the kinds with their own
-// flow. Go's (Result, error) pair is kept: a step that fails returns the progress reached so far with the error.
+// flow. A (Result, error) pair is kept: a step that fails returns the progress reached so far with the error.
 
 public sealed partial class Executor
 {

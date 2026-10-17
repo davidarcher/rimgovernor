@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
 {
     /// <summary>
     /// rimgovernor/combat_geometry: DecideCombat's one geometry read
-    /// per stop, by the game's own rules so Go never reimplements cover,
+    /// per stop, by the game's own rules so the brain never reimplements cover,
     /// sight or pathing. For each candidate cell and each hostile: the cover
     /// at the cell against a shot from the hostile's cell
     /// (CoverUtility.CalculateOverallBlockChance), line of fire

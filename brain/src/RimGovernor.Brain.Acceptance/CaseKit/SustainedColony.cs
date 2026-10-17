@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// Summarizes the timeline's colony blocks so a sustained run can be judged from result.json alone: the worst food
 /// position seen, the colonist count at both ends, how many colonists the count lost along the way (every drop
 /// between consecutive readable samples, so a death and a departure both count), the worst downed count and mood
-/// mean, and how many samples had no readable census (Go <c>sustainedfood.ColonyOutcome</c>).
+/// mean, and how many samples had no readable census.
 /// </summary>
 public sealed record ColonyOutcome
 {
@@ -38,7 +38,7 @@ public sealed record ColonyOutcome
     /// <summary>The live game tick of the sample that recorded <see cref="MinFoodRunwayDays"/>, for finding the collapse in the OTLP log ring.</summary>
     public ulong? MinFoodRunwayTick { get; init; }
 
-    /// <summary>The outcome in the report's JSON shape (the Go struct's tags).</summary>
+    /// <summary>The outcome in the report's JSON shape.</summary>
     public JsonObject ToJson() => new()
     {
         { "samples", Samples },

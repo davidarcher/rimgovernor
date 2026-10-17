@@ -4,7 +4,7 @@ using Fx = RimGovernor.Fixtures.Contracts;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>lab/sparring-watch</c> and <c>lab/sparring-watch-no-bout</c> (Go <c>sparring_watch.go</c>): watching a sparring bout
+/// <c>lab/sparring-watch</c> and <c>lab/sparring-watch-no-bout</c>: watching a sparring bout
 /// (#2732), the watch-sparring joy giver and its driver. test/sparring_watch_prepare stages bystanders north of a ring
 /// staged by test/sparring_prepare (bored of every joy kind but Social, so vanilla's joy pick can only choose a Social giver)
 /// and a per-tick recorder of every watch job, so the case asserts what it saw: where the spectator stood, that joy rose,

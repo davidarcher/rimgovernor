@@ -13,7 +13,7 @@ public readonly record struct OtlpPosition(string File, int Line)
 }
 
 /// <summary>
-/// Walks a file ring written by <see cref="OtlpFileWriter"/> (or by the Go service, which wrote the same format).
+/// Walks a file ring written by <see cref="OtlpFileWriter"/>.
 /// Every reader tolerates a live ring: a torn or unparsable line is skipped, and a rotation racing the read can
 /// skip or repeat a segment.
 /// </summary>

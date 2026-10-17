@@ -17,7 +17,7 @@ public enum EvidenceMode
 }
 
 /// <summary>
-/// The evidence budget (Go <c>evidencebudget.go</c>): a row's payload (a native reply envelope under "result", a
+/// The evidence budget: a row's payload (a native reply envelope under "result", a
 /// service response under "response") is kept inline up to <see cref="EvidencePayloadCap"/> and past it replaced by
 /// its preview, size and hash; the untouched row survives only under <see cref="EvidenceMode.Full"/>, in
 /// <c>&lt;output&gt;/full/</c>. The artifact manifest hashes the capped rows and the files the report names, never
@@ -138,7 +138,7 @@ public static class EvidenceBudget
         }
     }
 
-    /// <summary>Writes one evidence row to <paramref name="path"/>, capped; under <see cref="EvidenceMode.Full"/> a cut row is also written untouched to <c>&lt;dir&gt;/full/&lt;name&gt;</c>. Write failures are dropped, as in Go.</summary>
+    /// <summary>Writes one evidence row to <paramref name="path"/>, capped; under <see cref="EvidenceMode.Full"/> a cut row is also written untouched to <c>&lt;dir&gt;/full/&lt;name&gt;</c>. Write failures are dropped.</summary>
     public static void WriteEvidence(string path, JsonObject row)
     {
         var (capped, cut) = CapEvidenceRow(row);

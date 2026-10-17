@@ -1,9 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_pods.go
 //
 // Port note: PodDoor and PodArrival are records because CombatMemory holds them as mutable working state and
-// copies them with `with`; Go's in-place marking of PodDoor.Sent becomes a returned copy (KeepSent) or an
+// copies them with `with`; the marking of PodDoor.Sent is a returned copy (KeepSent) or an
 // assignment on the working memory's door (PodDoorOrders).
 
 /// <summary>A drop-pod raid's arrival: the cells the pods land on and the tick the last pod opens (spawn + 520).</summary>

@@ -4,8 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
-// The service-driven family's lifecycle (Go serve.go). The Go harness launched a `rimgovernor serve` child beside the
-// game and held the harness's only session until it released it. The brain now runs in-process in the mod, so a
+// The service-driven family's lifecycle. The brain runs in-process in the mod, so a
 // ServiceProcess is a handle on the player API the mod's local HTTP channel serves: "launching" the service means
 // finding the channel's endpoint file and checking the brain answers, and "stopping" it ends the handle's own work
 // (keep-alive, evidence) without touching the game.
@@ -22,7 +21,7 @@ public sealed record ServiceLaunch
 
     /// <summary>
     /// Further environment entries (KEY=value). An entry named like an environment variable is added to the game's launch
-    /// environment (a kept game launched without it is relaunched); any other entry (a Go flag with no in-process
+    /// environment (a kept game launched without it is relaunched); any other entry (a flag with no in-process
     /// equivalent, such as <c>serve_args=...</c>) is recorded on the launch entry as <c>env_unapplied</c>.
     /// </summary>
     public IReadOnlyList<string> Env { get; init; } = [];
@@ -48,7 +47,7 @@ public sealed record ServiceLaunch
 /// </summary>
 public sealed partial class ServiceProcess
 {
-    /// <summary>The player API's base address from the channel's endpoint file (the Go serve URL).</summary>
+    /// <summary>The player API's base address from the channel's endpoint file.</summary>
     public string Url { get; private set; } = "";
 
     /// <summary>The process that hosts the brain: the game's pid, from the endpoint file.</summary>
@@ -103,7 +102,7 @@ public sealed partial class ServiceProcess
     /// health and session and waits until the brain has attached to the same identity. <paramref name="harness"/>
     /// may be null when the caller already prepared the game itself (a GameReuse case), in which case
     /// <paramref name="identity"/> is required. The launch is recorded under report["service"]
-    /// (report["service_N"] for a restart). The Go version released the harness's session here; with the
+    /// (report["service_N"] for a restart). With the
     /// HTTP channel there is no exclusive session, so the harness stays usable.
     /// </summary>
     public static Task<ServiceProcess> ServeAsync(Config cfg, Harness? harness, JsonObject? identity, ServeSpec spec, Report? report, CancellationToken cancellationToken)
@@ -326,7 +325,7 @@ public sealed partial class ServiceProcess
 
     /// <summary>
     /// Checks the routine families the brain runs against <see cref="ServeSpec.Families"/>. The families are fixed by
-    /// the game's launch environment (the Go harness set them on the child it started), so a mismatch means the game
+    /// the game's launch environment, so a mismatch means the game
     /// was launched with another selection and the case would silently exercise it. A brain that does not report its
     /// families yet is accepted, and the entry says so.
     /// </summary>
@@ -415,7 +414,7 @@ public sealed partial class ServiceProcess
 
     /// <summary>
     /// Ends the keep-alive, collects the service's last routine view as evidence and closes the handle. The brain
-    /// itself keeps running with the game (the Go version killed its serve child here). It returns the keep-alive
+    /// itself keeps running with the game. It returns the keep-alive
     /// counters when <see cref="KeepAuthority"/> ran, else null.
     /// </summary>
     public async Task<JsonObject?> StopAsync()
@@ -536,8 +535,7 @@ public sealed partial class ServiceProcess
     }
 
     /// <summary>
-    /// Verifies a stopped service handle was stopped. The Go check also proved the stopped serve process no longer
-    /// answered, so a game reused afterwards could not be reached through the retired controller; the in-mod brain
+    /// Verifies a stopped service handle was stopped. The in-mod brain
     /// belongs to the game and answers for as long as it runs, so only the handle's state is checked here and, when
     /// the game has exited, that its endpoint stopped answering.
     /// </summary>
@@ -572,7 +570,7 @@ public sealed partial class ServiceProcess
 
     /// <summary>
     /// Reports whether the scheduler has run a clock step since the service started, recording when the first
-    /// one was seen. The journaled clock attempts the Go version counted are not on the player API, so a window is
+    /// one was seen. Journaled clock attempts are not on the player API, so a window is
     /// admitted once the brain is automating and the game's tick has moved past the first one this handle read. Once
     /// <see cref="ServeSpec.StepStall"/> has elapsed since <paramref name="since"/> with none, it throws a
     /// <see cref="StepStallException"/> naming the last step failure the service logged; with StepStall zero it only

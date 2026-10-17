@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.RemoteAccept;
 
-/// <summary>A remote acceptance evidence failure: the Go <c>error</c> returned by <c>internal/remoteaccept</c> and <c>cmd/remoteaccept</c>. Every fail-closed check throws this.</summary>
+/// <summary>A remote acceptance evidence failure. Every fail-closed check throws this.</summary>
 public class RemoteAcceptException : Exception
 {
     /// <summary>Creates the exception with <paramref name="message"/>.</summary>
@@ -27,8 +27,8 @@ public sealed class RemoteAcceptUsageException : RemoteAcceptException
 }
 
 /// <summary>
-/// <see cref="RemoteEvidence.Evaluate"/> failed part way. Go returned the partially filled <c>Evaluation</c> beside the
-/// error and <c>aggregate</c> still wrote it as an incomplete verdict, so the partial state travels with the exception.
+/// <see cref="RemoteEvidence.Evaluate"/> failed part way. <c>aggregate</c> still writes the partially filled <c>Evaluation</c> as an incomplete verdict, so the
+/// partial state travels with the exception.
 /// </summary>
 public sealed class EvaluationFailedException : RemoteAcceptException
 {

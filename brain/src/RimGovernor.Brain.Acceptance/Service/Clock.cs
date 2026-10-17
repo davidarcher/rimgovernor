@@ -4,7 +4,7 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>The healthy-clock fixture precondition (Go <c>clock.go</c>).</summary>
+/// <summary>The healthy-clock fixture precondition.</summary>
 public static class ClockFixture
 {
     /// <summary>

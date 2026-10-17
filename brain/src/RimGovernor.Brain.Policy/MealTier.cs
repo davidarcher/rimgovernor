@@ -77,7 +77,6 @@ public sealed record MealTierReview
     }
 }
 
-/// <summary>Go's <c>ErrMealTierFacts</c>.</summary>
 public sealed class MealTierFactsException() : DomainException("meal tier inputs unavailable or invalid");
 
 public static partial class MealRules

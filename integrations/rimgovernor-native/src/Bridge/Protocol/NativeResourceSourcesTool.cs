@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
         // ResourceAcquisitionTools.Storage's hauler/capacity/candidate-cell
         // scan as the typed StorageCapacity message: haulers, capacity,
         // stored, stack_limit and candidates. Deep-drill portion sizing and
-        // the hauling WorkType are not carried -- nothing on the Go side
+        // the hauling WorkType are not carried -- nothing on the brain side
         // reads either.
         private static Obs.StorageCapacity Storage(Map map, ThingDef def)
         {

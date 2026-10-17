@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go: rounds_bill_demand.go, rounds_bill_mech.go and rounds_bill_surgery.go.
 
 public sealed partial class Rounder
 {

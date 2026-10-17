@@ -3,8 +3,7 @@ using System.Text;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// Refuses a decision that needs the biome's darkness when it was not read: lit is never assumed
-/// (Go <c>ErrOutdoorsDarkUnknown</c>).
+/// Refuses a decision that needs the biome's darkness when it was not read: lit is never assumed.
 /// </summary>
 public sealed class OutdoorsDarkUnknownException()
     : DomainException("cannot tell whether the biome keeps the sky dark: the colony frame carried no biome or no definition catalog was loaded");
@@ -311,7 +310,7 @@ public static class CropChoiceRules
         return (!indoor && !seasonKnown) || (runwayKnown && FoodForecastRules.FoodNumber(foodDays) && foodDays < fastest * 2.5);
     }
 
-    /// <summary>The Go <c>planField</c>: PlanField with the indoor switch.</summary>
+    /// <summary>PlanField with the indoor switch.</summary>
     internal static (FieldPlan Plan, bool Ok) PlanFieldIn(FieldRequest r, bool indoor)
     {
         var (viables, excluded, ok) = ViableCrops(r, indoor);

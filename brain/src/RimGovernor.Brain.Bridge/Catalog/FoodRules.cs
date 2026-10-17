@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go food_rules.go (the part the catalog reads): the food rules the game's code states over the defs: which defs a
+// The food rules the game's code states over the defs: which defs a
 // food policy can allow, the kind each is for diets and a meal's ingredients.
 
 public sealed partial class DefinitionCatalog

@@ -282,7 +282,7 @@ public sealed class RouteGrid
     }
 }
 
-/// <summary>Ports <c>layout_route.go</c>: route checks and traffic over the planned core.</summary>
+/// <summary>Route checks and traffic over the planned core.</summary>
 public static partial class LayoutRouteRules
 {
     internal readonly record struct RouteTrip(PlannedRole From, PlannedRole To, int Weight);

@@ -7,7 +7,7 @@ public sealed partial record LayoutPlan
         new() { Role = LayoutYardRules.PlannedYard, Region = RegionRules.RectRegion(LayoutPerimeterRules.Pad(outline, -1)), Outdoor = true };
 }
 
-/// <summary>Ports <c>layout_yard.go</c>: the materials yard, a planned Outdoor room beside the core.</summary>
+/// <summary>The materials yard, a planned Outdoor room beside the core.</summary>
 public static partial class LayoutYardRules
 {
     /// <summary>The plan role of a yard viewed as an Outdoor room.</summary>

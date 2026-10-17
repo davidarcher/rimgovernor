@@ -20,7 +20,7 @@ public sealed record ApparelPolicySpec(
 /// <summary>An apparel policy action payload: a validated <see cref="ApparelPolicySpec"/> with sorted, unique definitions.</summary>
 public sealed record ApparelPolicy : IActionPayload
 {
-    /// <summary>Go <c>NewApparelPolicy</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public ApparelPolicy(ApparelPolicySpec spec)
     {
         DomainException.Require(

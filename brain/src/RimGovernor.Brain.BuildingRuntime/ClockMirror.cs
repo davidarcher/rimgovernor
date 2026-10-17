@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// Port of clock_mirror.go: mirror helpers for the planning window. The rows it holds across steps in the
+/// Mirror helpers for the planning window. The rows it holds across steps in the
 /// recorded mirror, each refresh read whole since #858.
 /// </summary>
 internal static class ClockMirror

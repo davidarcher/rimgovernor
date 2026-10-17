@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
 {
     // Read-only census behind Observations/ListWallUpgradeSites, on the
     // WallUpgradeSafety geometry. Two row
-    // kinds serve the two WallRemoval steps the Go boundary re-validates by
+    // kinds serve the two WallRemoval steps the boundary re-validates by
     // exact (origin, normal) geometry:
     //  - with target_id: replacement candidates for that one colonist wall,
     //    one row per admissible normal, target == original, listed while the
@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
     // A standing deconstruct designation no removal record claims is adopted by
     // the RemoveWall operation; designated and removal_id report it.
     // Workers, stock, geometry and the roof-support
-    // snapshot are not projected: Go owns builders and stock (its material
+    // snapshot are not projected: the brain owns builders and stock (its material
     // budget); cells come through GetCells.
     internal static class NativeWallUpgradeObservationTools
     {

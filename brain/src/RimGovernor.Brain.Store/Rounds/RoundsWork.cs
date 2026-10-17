@@ -5,7 +5,7 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>One current-world, non-retired plan and the need (or player project) it serves (Go <c>roundsPlan</c>).</summary>
+/// <summary>One current-world, non-retired plan and the need (or player project) it serves.</summary>
 internal sealed record RoundsPlan(PlanState State, ConcernId Concern);
 
 public sealed partial class Store
@@ -13,7 +13,7 @@ public sealed partial class Store
     /// <summary>
     /// Maps every plan of the current world to its goal: routine plans to their bound need, player submissions to
     /// a per-plan project id. Plans of another world, and plans with neither a method nor a submission, are
-    /// skipped (Go <c>roundsPlans</c>).
+    /// skipped.
     /// </summary>
     internal static List<RoundsPlan> RoundsPlans(StoreTransaction tx, GenerationSnapshot current)
     {
@@ -60,7 +60,7 @@ public sealed partial class Store
     /// <summary>
     /// The shadow ready-work projection of the review's plans: diagnostics only, read by no admission. Stage
     /// inputs (bill ingredients, crop readiness) are not observed here yet, so staged work reads
-    /// awaiting_observation rather than ready (Go <c>readyWorkOf</c>).
+    /// awaiting_observation rather than ready.
     /// </summary>
     internal static ReadyWorkReport ReadyWorkOf(RoundsRequest r, IReadOnlyList<RoundsPlan> plans, IReadOnlyList<ConcernId> unserved) =>
         ReadyWorkRules.ProjectReadyWork(

@@ -7,7 +7,7 @@ internal sealed record SchemaPart(string Ddl, IReadOnlyList<string> Checks);
 
 /// <summary>
 /// The journal's schema (version <see cref="Store.SchemaVersion"/>). Domain payloads are JSON text written by the
-/// hand-written codecs, so a row keeps only the columns something queries; the per-kind column checks Go kept in SQL
+/// hand-written codecs, so a row keeps only the columns something queries; the per-kind column checks
 /// live in the domain constructors a payload is rebuilt through. The journal is disposable on upgrade: a file of
 /// another version is moved aside and replaced, so there are no migrations.
 /// </summary>

@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Host;
 /// The thread never calls a game API. Every native read goes through the facade, which queues it to the game
 /// thread and completes on the pool. Hazard stops stay native and independent of this thread: nothing here is on
 /// the path of a stop, so a wedged scheduler cannot delay one.
-/// The cadence ports the Go clock worker's step loop (clock_worker.go): the first step plans everything, later
+/// The cadence: the first step plans everything, later
 /// steps are woken by the timer or by committed evidence, an unchanged outcome backs off to the longest
 /// back-off, and evidence resets it.
 /// </remarks>
@@ -366,7 +366,7 @@ internal sealed class SchedulerLoop
         }
     }
 
-    /// <summary>What distinguishes one step's outcome from the last, so a sustained outcome logs and backs off once (Go <c>clockStepKey</c>).</summary>
+    /// <summary>What distinguishes one step's outcome from the last, so a sustained outcome logs and backs off once.</summary>
     private readonly record struct StepKey(bool Failed, string Failure, bool Running, bool Deferred)
     {
         public static StepKey Of(bool done, Exception? error, ClockSchedulerResult? result)

@@ -127,11 +127,11 @@ public sealed partial class Worker
         _config = config;
         _lifetime = lifetime;
         _stopPlayer = player.Lifetime.Register(() => lifetime.Cancel());
-        _stopContext = lifetime.Token.Register(() => { try { Stop(); } catch (Exception) { /* the Go AfterFunc discards the error */ } });
+        _stopContext = lifetime.Token.Register(() => { try { Stop(); } catch (Exception) { /* the error is discarded */ } });
         _done = Task.Run(async () =>
         {
             await Steps().ConfigureAwait(false);
-            try { Stop(); } catch (Exception) { /* discarded as in Go */ }
+            try { Stop(); } catch (Exception) { /* the error is discarded */ }
         });
     }
 
@@ -322,7 +322,7 @@ public sealed partial class Worker
             }
             catch (Exception)
             {
-                // The Go step loop discards the step's error; the dispatch rows and the telemetry carry it.
+                // The step loop discards the step's error; the dispatch rows and the telemetry carry it.
             }
             burst++;
             // A wake steps at once; while focused actions remain, keep stepping so each of them is reconciled

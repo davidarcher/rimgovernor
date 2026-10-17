@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
     // VISUAL readiness (MAP readiness plus at least one actual map draw --
     // see MapVisualReadyTracker below). Authority re-grant after a DISCONNECT
     // revocation is the ordinary SetMode path ; competing viewers and
-    // Go-side transport reconnection remain separate, unimplemented capability.
+    // Brain-side transport reconnection remain separate, unimplemented capability.
     internal static class ProtoLifecycleLoadTools
     {
 

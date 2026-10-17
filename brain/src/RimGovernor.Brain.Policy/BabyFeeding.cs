@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: baby_feeding.go
 // The food family's baby-feeding Need keeps babies fed. The game feeds a baby itself: a lactating pawn breastfeeds
 // any baby, otherwise a colonist on Childcare work bottle-feeds it food it can eat (baby food, milk or insect jelly).
 // Childcare is pinned work for every pawn already, so the one thing the colony owes is the food: with no

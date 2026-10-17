@@ -4,16 +4,15 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go internal/bridge gear_bench_census.go (ReadGearBenches, ReadSupplyStock).
 public sealed partial class FacadeNativeClient
 {
-    /// <summary>Go <c>maxStockFilterDefNames</c>: native ListSupplies' StockFilter.DefNames cap.</summary>
+    /// <summary>Native ListSupplies' StockFilter.DefNames cap.</summary>
     private const int GearMaxStockFilterDefNames = 256;
 
     /// <summary>
-    /// Go <c>Client.ReadGearBenches</c>: a fresh, uncached census of every workbench's bill stack, its CAS token and
-    /// its recipe catalog. <paramref name="catalog"/> is Go's <c>client.DefinitionCatalog(ctx, identity)</c>; it is
-    /// awaited after the bills reply arrives, the order the Go read made the calls in.
+    /// A fresh, uncached census of every workbench's bill stack, its CAS token and
+    /// its recipe catalog. <paramref name="catalog"/> is the definition catalog read; it is
+    /// awaited after the bills reply arrives.
     /// </summary>
     internal async Task<IReadOnlyList<GearBenchRead>> ReadGearBenchesAsync(
         PbCommon.Identity identity,
@@ -55,7 +54,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>Client.ReadSupplyStock</c>: reads the currently available, unforbidden owned quantity for a bounded set
+    /// Reads the currently available, unforbidden owned quantity for a bounded set
     /// of resource definitions. A requested definition the census has no row for is a known zero.
     /// </summary>
     internal async Task<IReadOnlyList<P.Stock>> ReadSupplyStockAsync(PbCommon.Identity identity, IReadOnlyList<string> defNames, CancellationToken cancellationToken)
@@ -91,7 +90,6 @@ public sealed partial class FacadeNativeClient
         return stocks;
     }
 
-    /// <summary>Go <c>readSupplyStockChunk</c>.</summary>
     private async Task GearReadSupplyStockChunkAsync(PbCommon.Identity identity, List<string> defNames, HashSet<string> seenOut, List<P.Stock> output, CancellationToken cancellationToken)
     {
         var request = new PbObservations.ListSuppliesRequest
@@ -121,7 +119,7 @@ public sealed partial class FacadeNativeClient
         }
     }
 
-    /// <summary>Go <c>Client.readGearRecipes</c>: the bench's recipes with what the catalog says each is, and the bench definition.</summary>
+    /// <summary>The bench's recipes with what the catalog says each is, and the bench definition.</summary>
     private async Task<(List<P.GearRecipe> Recipes, string Def)> GearReadRecipesAsync(PbCommon.Identity identity, string bench, GearRecipeCatalogAdapter catalog, CancellationToken cancellationToken)
     {
         var request = new PbObservations.RecipesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, BenchId = bench };
@@ -171,11 +169,10 @@ public sealed partial class FacadeNativeClient
         return (recipes, benchDef);
     }
 
-    /// <summary>Go <c>benchWorkSpeed</c>: the stack's work-table speed factor; unknown when native sent none or a negative one.</summary>
+    /// <summary>The stack's work-table speed factor; unknown when native sent none or a negative one.</summary>
     private static Fact<double> GearBenchWorkSpeed(PbObservations.BillStackRow stack) =>
         stack.WorkSpeed is { } speed && speed >= 0 ? Fact.Known(speed) : Fact.Unknown<double>();
 
-    /// <summary>Go <c>gearBillsFromStack</c>.</summary>
     private static List<P.GearBill> GearBillsFromStack(PbObservations.BillStackRow stack, string benchDef, List<P.GearRecipe> recipes, GearRecipeCatalogAdapter catalog)
     {
         var products = new Dictionary<string, EquatableArray<P.Resource>>(StringComparer.Ordinal);
@@ -212,7 +209,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>billOrderSpec</c>: a bill read back as the work ledger's order spec, in the terms native identifies a bill
+    /// A bill read back as the work ledger's order spec, in the terms native identifies a bill
     /// by (recipe, ingredient filter, worker pin, repeat mode and count). Unknown when the readback lacks the repeat
     /// mode, its count or whether the ingredient filter is the recipe's default.
     /// </summary>

@@ -21,30 +21,30 @@ public static class InProcLaunch
 }
 
 /// <summary>
-/// The call bounds the host runs under. <see cref="Standard"/> carries the values the Go controller used
-/// (<c>cmd/rimgovernor</c> serve_building.go and serve_clock.go); none of them is a watchdog threshold.
+/// The call bounds the host runs under. <see cref="Standard"/> carries the values the controller runs with.
+/// None of them is a watchdog threshold.
 /// </summary>
 public sealed record BrainTimings
 {
-    /// <summary>The bound of one native call made for control and the executor (Go <c>min(--timeout, 10s)</c>).</summary>
+    /// <summary>The bound of one native call made for control and the executor.</summary>
     public required TimeSpan CallTimeout { get; init; }
 
-    /// <summary>The bound of one player request, which queues for the player gate and makes native calls (Go <c>serviceClockStepTimeout</c>).</summary>
+    /// <summary>The bound of one player request, which queues for the player gate and makes native calls.</summary>
     public required TimeSpan PlayerCallTimeout { get; init; }
 
     /// <summary>The bound of one journal write on the player and executor paths.</summary>
     public required TimeSpan JournalTimeout { get; init; }
 
-    /// <summary>The executor's limits (Go <c>executor.Limits</c> of the serve composition).</summary>
+    /// <summary>The executor's limits.</summary>
     public required RimGovernor.Brain.Executor.Limits Executor { get; init; }
 
-    /// <summary>The cadence of a scheduler step that no evidence woke (Go <c>ClockWorkerConfig.StepInterval</c>).</summary>
+    /// <summary>The cadence of a scheduler step that no evidence woke.</summary>
     public required TimeSpan StepInterval { get; init; }
 
-    /// <summary>The bound of one scheduler step (Go <c>ClockWorkerConfig.StepTimeout</c>).</summary>
+    /// <summary>The bound of one scheduler step.</summary>
     public required TimeSpan StepTimeout { get; init; }
 
-    /// <summary>The Worker's step cadence, its longest back-off, its step bound and its renew bounds (Go <c>WorkerConfig</c>).</summary>
+    /// <summary>The Worker's step cadence, its longest back-off, its step bound and its renew bounds.</summary>
     public required TimeSpan WorkerStepInterval { get; init; }
 
     public required TimeSpan WorkerMaxBackoff { get; init; }
@@ -55,19 +55,19 @@ public sealed record BrainTimings
 
     public required TimeSpan WorkerRenewTimeout { get; init; }
 
-    /// <summary>How often the auto-resumer looks at the observed world (Go <c>serveRefresh</c>).</summary>
+    /// <summary>How often the auto-resumer looks at the observed world.</summary>
     public required TimeSpan RefreshInterval { get; init; }
 
-    /// <summary>The bound of one attempt to drain the session at shutdown (Go <c>drainBuilding</c>).</summary>
+    /// <summary>The bound of one attempt to drain the session at shutdown.</summary>
     public required TimeSpan ShutdownAttemptTimeout { get; init; }
 
-    /// <summary>How many drain attempts shutdown makes; Go retried without bound, which would hold the game's exit hostage.</summary>
+    /// <summary>How many drain attempts shutdown makes; retrying without bound would hold the game's exit hostage.</summary>
     public required int ShutdownAttempts { get; init; }
 
-    /// <summary>The bound of the final telemetry flush (Go: 5 s).</summary>
+    /// <summary>The bound of the final telemetry flush.</summary>
     public required TimeSpan TelemetryFlushTimeout { get; init; }
 
-    /// <summary>The timings the Go controller ran with, for a native call bound of <paramref name="nativeTimeout"/> (Go <c>--timeout</c>, 1 s to 1 min).</summary>
+    /// <summary>The standard timings, for a native call bound of <paramref name="nativeTimeout"/>.</summary>
     public static BrainTimings Standard(TimeSpan nativeTimeout)
     {
         if (nativeTimeout < TimeSpan.FromSeconds(1) || nativeTimeout > TimeSpan.FromMinutes(1))
@@ -149,7 +149,7 @@ public sealed record BrainWatchdog
     public required int PlannerMissLimit { get; init; }
 
     /// <summary>
-    /// The thresholds a launcher should start from. Go had no watchdog (a stuck step blocked <c>ClockWorker</c> until
+    /// The thresholds a launcher should start from. There is no watchdog (a stuck step blocks <c>ClockWorker</c> until
     /// its step timeout), so these are chosen, not ported: a step may use its whole <see cref="BrainTimings.StepTimeout"/>
     /// (1 min) plus half again before it is a stall; a step that ignores its token is abandoned 30 s after that; five
     /// consecutive faults is a pattern rather than a blip; the backoff matches the worker's maximum idle delay (10 s) at
@@ -180,7 +180,7 @@ public sealed record BrainWatchdog
 /// <summary>What starting the host takes. Everything the brain cannot know on its own is named here.</summary>
 public sealed record BrainHostOptions
 {
-    /// <summary>The state database (Go <c>--state</c>). A database from another schema version is moved aside and replaced.</summary>
+    /// <summary>The state database. A database from another schema version is moved aside and replaced.</summary>
     public required string StatePath { get; init; }
 
     /// <summary>The directory the OTLP/JSON files are written to (the Bridge's <c>RIMGOVERNOR_OTLP_DIR</c>).</summary>
@@ -199,10 +199,10 @@ public sealed record BrainHostOptions
     /// <summary>Builds everything that needs a native client over the facade (see <see cref="BrainComposition"/>).</summary>
     public required BrainComposition Composition { get; init; }
 
-    /// <summary>Whether the rounds methods run (Go <c>serveConfig.roundsMethods</c>).</summary>
+    /// <summary>Whether the rounds methods run.</summary>
     public bool RoundsMethods { get; init; } = true;
 
-    /// <summary>Runs the bot for every fresh observed world without a player click (Go <c>--resume</c>).</summary>
+    /// <summary>Runs the bot for every fresh observed world without a player click.</summary>
     public bool AutoResume { get; init; }
 
     /// <summary>The facade to run over; the one the mod published to <see cref="NativeFacadeRegistry"/> when null.</summary>

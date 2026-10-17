@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The suite engine (Go <c>cmd/acceptance/suite.go</c>, second half).
+/// The suite engine.
 /// <para>
 /// Scheduling: one shared queue in three tiers. Bridge-only cases that keep the process come first; cases that end or
 /// replace it (NoKeep: a shutdown, a fault, an owned lifecycle; Rendered: a windowed profile the headless worker cannot
@@ -307,7 +307,7 @@ public static class SuiteRunner
         return report.Finalize(opts.Output);
     }
 
-    /// <summary>Where a case's evidence and result.json go under a run's output directory (Go <c>cases.Options.CaseOutput</c> for a plain run).</summary>
+    /// <summary>Where a case's evidence and result.json go under a run's output directory.</summary>
     internal static string CaseOutput(string output, string caseName) =>
         Path.Combine(output, caseName.Replace('/', Path.DirectorySeparatorChar));
 

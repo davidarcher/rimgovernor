@@ -24,13 +24,13 @@ namespace HomeBridge.BridgeTools
     /// scan, run only while one of them is armed, sees them on their tick.
     /// Aim warmup, shots and ordinary damage are never stops. The backstop
     /// when nothing fires is the combat run's own tick budget
-    /// (combatBackstopTicks in go/cmd/rimgovernor/serve_clock.go).
+    /// (combatBackstopTicks).
     internal static partial class Supervisor
     {
-        /// The thresholds below are Go-authored WatchPolicy fields (serious_*,
+        /// The thresholds below are brain-authored WatchPolicy fields (serious_*,
         /// explosive_near_margin_cells, melee_reach_cells); native holds no
         /// literal for them. They read from the last epoch's policy, so a
-        /// colonist's damage is classified serious only once Go has started
+        /// colonist's damage is classified serious only once the brain has started
         /// an epoch, and the combat log records Unspecified before that.
         private static Clock.WatchPolicy? EpochPolicy => _state?.Policy;
 

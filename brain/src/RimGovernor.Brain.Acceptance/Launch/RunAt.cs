@@ -65,7 +65,7 @@ public sealed class PauseCause : AcceptanceException
     }
 }
 
-/// <summary>Running the game while a harness waits for it to do something (Go <c>runat.go</c>).</summary>
+/// <summary>Running the game while a harness waits for it to do something.</summary>
 public static class RunAt
 {
     /// <summary>
@@ -179,8 +179,7 @@ public static class RunAt
     /// tick is always part of the signature, so a game that stops ticking stalls. A game found paused is resolved before
     /// the probe: benign letters are acknowledged and the run resumed, anything else fails the wait at once with a
     /// <see cref="PauseCause"/>. <paramref name="quiet"/> says the world was started quiet (its discovery warning is
-    /// dismissed too) and <paramref name="report"/>, when given, collects the dismissed_letters rows (the Go harness carried
-    /// both on the Harness).
+    /// dismissed too) and <paramref name="report"/>, when given, collects the dismissed_letters rows.
     /// </summary>
     public static async Task<ulong> RunUntilAsync(
         Harness h,

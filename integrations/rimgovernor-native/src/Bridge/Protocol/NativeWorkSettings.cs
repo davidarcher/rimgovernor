@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
             .FirstOrDefault(a => RefIndex.Is(a, entityId) || a.ID.ToString(CultureInfo.InvariantCulture) == entityId);
 
         // Checked when a restriction is applied: paths move. Hazard safety
-        // is Go policy (sheltering assigns only the roofed Safe area). Removing
+        // is brain policy (sheltering assigns only the roofed Safe area). Removing
         // a saved restriction restores ordinary native job reachability; it
         // never teleports a pawn.
         internal static bool AreaReachable(Pawn pawn, Area_Allowed? area)

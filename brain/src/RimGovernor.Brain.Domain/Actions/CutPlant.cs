@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record CutPlant : IActionPayload
 {
-    /// <summary>Go <c>NewCutPlant</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public CutPlant(string plant, string definition, Cell cell)
     {
         DomainException.Require(
@@ -29,6 +29,6 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewCutPlantAction(ActionId id, CutPlant cut) => Create(id, ActionKind.CutPlant, cut);
 
-    /// <summary>Go <c>Action.CutPlant() (CutPlant, bool)</c>: the payload when this is a cut plant action, otherwise null.</summary>
+    /// <summary>The payload when this is a cut plant action, otherwise null.</summary>
     public CutPlant? CutPlant => PayloadOf<CutPlant>(ActionKind.CutPlant);
 }

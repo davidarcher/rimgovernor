@@ -2,7 +2,7 @@ using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// Go give_job.go (the GiveJobIntent builders and the draft arm) and recovery_service.go. Native checks the game
+// Native checks the game
 // rules live and builds the game's own job; a pawn already running it on the targets applies again.
 public static class GiveJobRules
 {
@@ -14,7 +14,7 @@ public static class GiveJobRules
     public const string JobEquip = "Equip";
 
     /// <summary>
-    /// Go's <c>JobDropWeapon</c>: this protocol's token, not a JobDef name. Native drops the weapon the pawn holds with
+    /// This protocol's token, not a JobDef name. Native drops the weapon the pawn holds with
     /// the game's own drop job, which it finds by its driver class.
     /// </summary>
     public const string JobDropWeapon = "DropWeapon";
@@ -34,13 +34,13 @@ public static class GiveJobRules
     public const string JobInvestigateMonolith = "InvestigateMonolith";
     public const string JobActivateMonolith = "ActivateMonolith";
 
-    /// <summary>Go's <c>JobInteractThing</c>: the awakening quest's interaction.</summary>
+    /// <summary>The awakening quest's interaction.</summary>
     public const string JobInteractThing = "InteractThing";
 
-    /// <summary>Go's <c>giveJob</c>: the GiveJobIntent of one pawn, one vanilla job and its targets in job target order.</summary>
+    /// <summary>The GiveJobIntent of one pawn, one vanilla job and its targets in job target order.</summary>
     private static Op.Action GiveJob(PawnId pawn, string job, params string[] targets) => GiveJobTo(pawn, job, false, targets);
 
-    /// <summary>Go's <c>giveJobTo</c>: <paramref name="self"/> admits the pawn among the targets, for the one job that may target its own user (UseItem).</summary>
+    /// <summary><paramref name="self"/> admits the pawn among the targets, for the one job that may target its own user (UseItem).</summary>
     private static Op.Action GiveJobTo(PawnId pawn, string job, bool self, params string[] targets)
     {
         if (targets.Length == 0)
@@ -66,7 +66,7 @@ public static class GiveJobRules
     }
 
     /// <summary>
-    /// Go's <c>PrioritizedJob</c>: the vanilla "Prioritize" order. The pawn takes <paramref name="job"/> (a JobDef name such
+    /// The vanilla "Prioritize" order. The pawn takes <paramref name="job"/> (a JobDef name such
     /// as FinishFrame, HaulToContainer or Deconstruct) on <paramref name="target"/> as a player-forced order, built by the
     /// first work giver the pawn may do that makes exactly that job.
     /// </summary>
@@ -76,7 +76,7 @@ public static class GiveJobRules
         return output with { Intent = (output.Intent?.GiveJob ?? new Op.GiveJobIntent()) with { Options = new Op.GiveJobOptions { Prioritized = true } } };
     }
 
-    /// <summary>Go's <c>draftAction</c>: drafts one plan-owned pawn.</summary>
+    /// <summary>Drafts one plan-owned pawn.</summary>
     internal static Op.Action DraftAction(DomainAction action)
     {
         if (action.OwnedDraft is not { } v)
@@ -116,7 +116,7 @@ public static class GiveJobRules
         return GiveJob(v.Pawn, JobEquip, v.Thing);
     }
 
-    /// <summary>Go's <c>dropEquipmentAction</c>: orders a pawn to drop the weapon it holds; native checks the weapon is in the pawn's hands live.</summary>
+    /// <summary>Orders a pawn to drop the weapon it holds; native checks the weapon is in the pawn's hands live.</summary>
     internal static Op.Action DropEquipmentAction(DomainAction action)
     {
         var v = action.DropEquipment ?? throw BridgeContractException.Contract("not a drop equipment action");
@@ -130,7 +130,7 @@ public static class GiveJobRules
     }
 
     /// <summary>
-    /// Go's <c>captureAction</c>: a capture of a downed pawn, or, with a bed, an arrest of a standing one; the arrest
+    /// A capture of a downed pawn, or, with a bed, an arrest of a standing one; the arrest
     /// rides the capturer's coupled owned draft.
     /// </summary>
     internal static Op.Action CaptureAction(DomainAction action)
@@ -147,7 +147,7 @@ public static class GiveJobRules
         return GiveJob(v.Capturer, JobArrest, v.Patient.Value, bed);
     }
 
-    /// <summary>Go's <c>wearAction</c>: orders a pawn to wear one loose apparel item as ordered work, not a forced outfit entry.</summary>
+    /// <summary>Orders a pawn to wear one loose apparel item as ordered work, not a forced outfit entry.</summary>
     internal static Op.Action WearAction(DomainAction action)
     {
         var v = action.GearReplace ?? throw BridgeContractException.Contract("not a gear replace action");
@@ -155,7 +155,7 @@ public static class GiveJobRules
     }
 
     /// <summary>
-    /// Go's <c>useItemAction</c>: one colonist uses one targetable item on one pawn, or its own CompUsable item on itself
+    /// One colonist uses one targetable item on one pawn, or its own CompUsable item on itself
     /// (a neuroformer: the target is the colonist); native validates the verb or use comp against the target live.
     /// </summary>
     internal static Op.Action UseItemAction(DomainAction action)
@@ -168,7 +168,6 @@ public static class GiveJobRules
         return GiveJobTo(v.Pawn, JobUseItem, v.SelfUse, v.Item, v.Target.Value);
     }
 
-    // Go recoveryServiceJobs.
     private static string RecoveryServiceJob(RecoveryMethod method) =>
         method switch
         {
@@ -184,7 +183,7 @@ public static class GiveJobRules
         };
 
     /// <summary>
-    /// Go's <c>recoverAction</c>: the GiveJobIntent of one pawn servicing one colony building (repair, breakdown,
+    /// The GiveJobIntent of one pawn servicing one colony building (repair, breakdown,
     /// refuel). Native checks the pawn, the building and whether it still needs the service live, and the game's own
     /// WorkGiver builds the job.
     /// </summary>

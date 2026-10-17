@@ -21,7 +21,7 @@ public sealed record GearClimate
 
 public static class GearClimateExtensions
 {
-    /// <summary>Throws <see cref="DomainException"/> where Go returned an error. A null climate is valid.</summary>
+    /// <summary>Throws <see cref="DomainException"/>. A null climate is valid.</summary>
     public static void Validate(this GearClimate? c)
     {
         if (c is null)

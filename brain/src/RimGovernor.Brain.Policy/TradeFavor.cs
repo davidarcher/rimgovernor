@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: trade_favor.go. The Royalty tribute collector pays royal favor (honor) instead of silver: a caravan of
+// The Royalty tribute collector pays royal favor (honor) instead of silver: a caravan of
 // TraderKind TributeCollectorKind opens a favor-currency session (the trade sheet's FavorCurrency), where every
 // row's sell price is the item's favor value and the trader's count is a placeholder, never a silver budget. The
 // bot sells it surplus gold and surplus prisoners.

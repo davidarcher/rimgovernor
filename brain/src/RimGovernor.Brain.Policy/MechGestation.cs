@@ -43,7 +43,7 @@ public sealed record MechChoice
 }
 
 /// <summary>
-/// Ports <c>mech_gestation.go</c>. The biotech/mechs Need is mech gestation: a mechanitor with bandwidth to
+/// The biotech/mechs Need is mech gestation: a mechanitor with bandwidth to
 /// spare, an idle mech gestator and no waste left lying about is owed one more mech, queued as a Bill_Mech on the
 /// gestator. Gestation rules (numbers come from the game defs, never from here): bandwidth is the limit (free
 /// bandwidth is TotalBandwidth - UsedBandwidth - GestationBandwidth); gestation is held while the gestators hold

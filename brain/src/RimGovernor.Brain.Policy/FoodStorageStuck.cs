@@ -3,7 +3,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// Why at-risk food sits unstored although a covered site has room. <see cref="None"/> means no reason was
 /// named. No haul is planned for any of them: vanilla hauling moves loose food once the blocker clears.
-/// (Go <c>FoodStuckReason</c>.)
 /// </summary>
 public enum FoodStuckReason
 {
@@ -29,7 +28,7 @@ public enum FoodStuckReason
 public static class FoodStorageStuckRules
 {
     /// <summary>
-    /// Go <c>FoodStorageStuckReason</c>: names why the unstored perishable stacks of the census are not stored.
+    /// Names why the unstored perishable stacks of the census are not stored.
     /// A known forbidden stack wins; otherwise a known empty hauler roster; anything else is
     /// <see cref="FoodStuckReason.Unestablished"/>.
     /// </summary>

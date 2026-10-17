@@ -72,7 +72,7 @@ public sealed class WindGround
 /// <summary>A turbine's turn, with whether the turbine stands on its pad's low row and faces the rising axis (TurbinePlacement's lowRow: north or east) and whether the pad lies turned.</summary>
 internal readonly record struct TurbineTurn(Rotation Rot, bool LowRow, bool Turned);
 
-/// <summary>Ports <c>layout_power_nodes.go</c>: the power sites as site nodes of the station graph.</summary>
+/// <summary>The power sites as site nodes of the station graph.</summary>
 public static partial class LayoutPowerNodesRules
 {
     // The wind path is a game rule, read from CompPowerPlantWind and WindTurbineUtility.CalculateWindCells and

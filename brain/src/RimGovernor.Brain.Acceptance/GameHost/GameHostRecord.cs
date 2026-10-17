@@ -3,7 +3,7 @@ using System.Globalization;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The <c>endpoint.json</c> record of a launched game (Go <c>gamehost.Endpoint</c>): <c>StateDir/&lt;gameId&gt;/endpoint.json</c>
+/// The <c>endpoint.json</c> record of a launched game: <c>StateDir/&lt;gameId&gt;/endpoint.json</c>
 /// names the process by pid plus start time so a reused pid is never mistaken for the game. The record carries no port or token:
 /// the mod's local HTTP channel is found through its own endpoint file.
 /// </summary>

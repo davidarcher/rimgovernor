@@ -5,7 +5,7 @@ public static class InteriorHelpersRules
     /// <summary>The lamp beside a bed or throne. It is no facility (no row links it), so the catalog has no rule that names it.</summary>
     internal const string StandingLampDef = "StandingLamp";
 
-    /// <summary>Reports whether id is among ids (Go <c>containsPawn</c>).</summary>
+    /// <summary>Reports whether id is among ids.</summary>
     internal static bool ContainsPawn(EquatableArray<PawnId> ids, PawnId id)
     {
         foreach (var p in ids)

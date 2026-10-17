@@ -16,7 +16,7 @@ public delegate Task<SaveResult> CheckpointSaver(string name, string label, bool
 
 /// <summary>
 /// Copies the SQLite database at the first path to the second through the online backup, so a service holding it
-/// open leaves a consistent copy (Go <c>store.Open</c> + <c>Snapshot</c>; the store lands with the service slice).
+/// open leaves a consistent copy.
 /// </summary>
 public delegate Task StoreSnapshotter(string source, string destination, CancellationToken cancellationToken);
 
@@ -453,7 +453,7 @@ public sealed partial class CheckpointRing
     private static bool IsCaptureFailure(Exception e) =>
         e is AcceptanceException or IOException or UnauthorizedAccessException or JsonException;
 
-    // Rounds half away from zero to a multiple of step, like Go's Duration.Round.
+    // Rounds half away from zero to a multiple of step.
     private static TimeSpan RoundTo(TimeSpan d, TimeSpan step)
     {
         if (step <= TimeSpan.Zero)

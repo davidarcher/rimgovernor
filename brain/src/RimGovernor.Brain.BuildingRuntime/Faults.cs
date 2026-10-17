@@ -161,7 +161,6 @@ public sealed record Faults
     }
 }
 
-/// <summary>Go <c>errFaultInjected</c>.</summary>
 public sealed class FaultInjectedException : Exception
 {
     public FaultInjectedException(string message)

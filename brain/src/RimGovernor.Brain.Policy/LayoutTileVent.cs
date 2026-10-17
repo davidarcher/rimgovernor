@@ -7,7 +7,7 @@ internal readonly record struct TileVent(Cell Cell, int Room, int Other, string 
 internal sealed record VentChannel(List<Cell> Cells, int Other);
 
 /// <summary>
-/// Ports <c>layout_tile_vent.go</c>: vents in the tiled plan (#2915). A vent is a wall cell with a room cell on one
+/// Vents in the tiled plan (#2915). A vent is a wall cell with a room cell on one
 /// side and the outdoors, or a neighbouring room, on the other; it is a PlannedSite of kind NodeVent, one cell,
 /// standing in the wall ring. The tiler picks them after the doors are final (KeepRoutes), from the wall cells no
 /// door, link or entrance holds: to the outdoors (inside, wall and outside in line, the outside cell open ground), or

@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: animal_food.go
 
 /// <summary>
 /// Compares a seasonal horizon with the native pen's worst-season pasture rate and stored feed. It does not add

@@ -281,7 +281,7 @@ public abstract record SaveReplyOutcome
 public sealed record LoadRequest
 {
     /// <summary>
-    /// Before a map exists, instance ownership is validated by the Go controller gamehost adapter.
+    /// Before a map exists, instance ownership is validated by the controller gamehost adapter.
     /// </summary>
     public string? RequestId { get; init; }
 
@@ -483,7 +483,7 @@ public sealed record NewColonySpec
     public Common.IdeoligionDesign? Ideoligion { get; init; }
 
     /// <summary>
-    /// Go resolves this request through the definition catalog before dispatch.
+    /// The brain resolves this request through the definition catalog before dispatch.
     /// </summary>
     public bool? GovernorIdeoligion { get; init; }
 
@@ -695,7 +695,7 @@ public abstract record NewColonyReplyOutcome
 }
 
 /// <summary>
-/// Governor state: opaque ASCII blobs Go keeps in the save's
+/// Governor state: opaque ASCII blobs the brain keeps in the save's
 /// GovernorState game component. Native stores and returns them verbatim and
 /// never interprets them; they persist once the game next saves.
 /// </summary>
@@ -756,7 +756,7 @@ public sealed record PutGovernorStateBatchRequest
 
 /// <summary>
 /// Save-time handshake. Native's SaveGame prefix never cancels a
-/// save. When Go holds a WaitSaveSignal call and the save is not Go-initiated,
+/// save. When the brain holds a WaitSaveSignal call and the save is not brain-initiated,
 /// native hands that call a pre_save signal, blocks the game thread until
 /// FlushDone acks its token (or ~3 s pass), then lets the save run. Signals
 /// are not durable: a signal raised with no held call is dropped. Both tools

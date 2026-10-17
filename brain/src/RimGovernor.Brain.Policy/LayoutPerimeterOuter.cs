@@ -24,7 +24,7 @@ internal readonly record struct StepGate(Rectangle Area, Cell Face, Cell Out, Ce
     }
 }
 
-/// <summary>Ports <c>layout_perimeter_outer.go</c>: the core ring also walls in the geothermal enclosures that crowd it; the outer ring that once walled the rest apart was removed.</summary>
+/// <summary>The core ring also walls in the geothermal enclosures that crowd it; the outer ring that once walled the rest apart was removed.</summary>
 public static partial class LayoutPerimeterOuterRules
 {
     /// <summary>The free cells between the core ring (and the killbox approach) and the outer ring.</summary>

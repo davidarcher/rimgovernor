@@ -102,7 +102,7 @@ public sealed partial class RoundsArmoryPlanner
 
 partial class RoundsArmoryPlanner
 {
-    /// <summary>Whether the observation context belongs to the snapshot's world: Go tested <c>boundary.Context</c> for an error, and its only errors are an invalid context and a foreign generation.</summary>
+    /// <summary>Whether the observation context belongs to the snapshot's world: it fails only for an invalid context or a foreign generation.</summary>
     internal static bool ContextMatches([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] PbCommon.ObservationContext? context, GenerationSnapshot snapshot)
     {
         try

@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record QuestAccept : IActionPayload
 {
-    /// <summary>Go <c>NewQuestAccept</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public QuestAccept(QuestId quest, PawnId accepterPawn, int rewardChoice)
     {
         DomainException.Require(quest.IsValid, "quest accept requires a valid quest identity");

@@ -6,7 +6,7 @@ using Operations = RimGovernor.Contracts.Wire.Operations;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>apply/actions</c> (Go <c>actions.go</c>): every arm of the Action oneof, sent with bogus ids, reaches a native
+/// <c>apply/actions</c>: every arm of the Action oneof, sent with bogus ids, reaches a native
 /// handler and comes back refused, and a resent key replays its first result.
 /// </summary>
 internal static class ApplyActions
@@ -57,7 +57,7 @@ internal static class ApplyActions
 
     /// <summary>
     /// Every arm of the Action oneof in ordinal order, each carrying its payload with the top-level string fields named
-    /// <c>*Id</c> set to an id no game holds (Go <c>bogusIDs</c>). The arms are the derived cases of
+    /// <c>*Id</c> set to an id no game holds. The arms are the derived cases of
     /// <see cref="Operations.ActionIntent"/>, discriminated by the arm's wire name.
     /// </summary>
     private static List<(string Arm, Operations.ActionIntent Intent)> Arms()

@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain;
 /// </summary>
 public sealed record AreaPlantCut : IActionPayload
 {
-    /// <summary>Go <c>NewAreaPlantCut</c>; throws <see cref="DomainException"/> when invalid.</summary>
+    /// <summary>Throws <see cref="DomainException"/> when invalid.</summary>
     public AreaPlantCut(IReadOnlyCollection<Cell> cells)
     {
         DomainException.Require(cells.Count != 0, "area plant cut needs at least one cell");
@@ -22,6 +22,6 @@ public sealed partial record DomainAction
 {
     public static DomainAction NewAreaPlantCutAction(ActionId id, AreaPlantCut cut) => Create(id, ActionKind.AreaPlantCut, cut);
 
-    /// <summary>Go <c>Action.AreaPlantCut() (AreaPlantCut, bool)</c>: the payload when this is an area plant cut action, otherwise null.</summary>
+    /// <summary>The payload when this is an area plant cut action, otherwise null.</summary>
     public AreaPlantCut? AreaPlantCut => PayloadOf<AreaPlantCut>(ActionKind.AreaPlantCut);
 }

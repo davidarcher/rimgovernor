@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Ports <c>layout_shelter.go</c> and <c>layout_shelter_retire.go</c>: the temporary starter room and its retirement.</summary>
+/// <summary>The temporary starter room and its retirement.</summary>
 public static partial class LayoutShelterRules
 {
     /// <summary>The deepest shelter interior.</summary>

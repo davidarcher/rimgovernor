@@ -46,7 +46,7 @@ public sealed record RoomGrowth
 
     /// <summary>
     /// What the defense record holds of the ring's nodes: a ring traced again over a held one is laid as a
-    /// replacement beside it, and not at all while a rebuild is in flight (layout_perimeter_replace.go).
+    /// Replacement beside it, and not at all while a rebuild is in flight.
     /// </summary>
     public PerimeterHold Perimeter { get; init; } = new();
 }

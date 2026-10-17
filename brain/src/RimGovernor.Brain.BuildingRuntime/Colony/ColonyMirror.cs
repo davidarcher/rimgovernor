@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Port of colony_mirror.go: the review's colony facts, mirrored per sub-section in the fact store.</summary>
+/// <summary>The review's colony facts, mirrored per sub-section in the fact store.</summary>
 internal static class ColonyMirror
 {
     /// <summary>

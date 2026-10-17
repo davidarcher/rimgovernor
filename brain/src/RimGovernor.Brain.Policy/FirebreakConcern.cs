@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What the ring owes now: the cut cells where an undesignated plant stands and the wooden ruins with no
-/// deconstruction designated. (Go <c>FirebreakWork</c>.) The <c>layout/firebreak</c> Need is unmet while any stands;
+/// deconstruction designated. The <c>layout/firebreak</c> Need is unmet while any stands;
 /// an order is the method, so the Need settles on the census, never on a receipt.
 /// </summary>
 public sealed record FirebreakWork
@@ -11,14 +11,14 @@ public sealed record FirebreakWork
 
     public IReadOnlyList<Cell> Deconstruct { get; init; } = [];
 
-    /// <summary>Go <c>Owed</c>: reports whether any ring work stands.</summary>
+    /// <summary>Reports whether any ring work stands.</summary>
     public bool Owed => Cut.Count + Deconstruct.Count > 0;
 }
 
 public static class FirebreakConcernRules
 {
     /// <summary>
-    /// Go <c>FirebreakOwed</c>: the ring work plan leaves: a cut cell where standing reports an undesignated
+    /// The ring work plan leaves: a cut cell where standing reports an undesignated
     /// plant, and a planned wooden ruin that open still reports undesignated. Paved cells are the rooms/flooring Need's;
     /// the plan's order is kept.
     /// </summary>

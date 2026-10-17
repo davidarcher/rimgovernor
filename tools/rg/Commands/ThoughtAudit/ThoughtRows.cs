@@ -14,7 +14,7 @@ namespace RimGovernor.Tools.Commands.ThoughtAudit;
 /// <param name="Owner">Who owns the def; hand-maintained.</param>
 internal sealed record ThoughtRow(string Def, string Kind, string Grant, string Dependency, string Owner);
 
-/// <summary>Classifies defs into table rows and reads and writes the table (Go: <c>BuildRows</c>, <c>Format</c>, <c>ParseOwners</c>).</summary>
+/// <summary>Classifies defs into table rows and reads and writes the table.</summary>
 internal static partial class ThoughtRows
 {
     private const string Header = "def\tkind\tgrant\tdependency\towner";

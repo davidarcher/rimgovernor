@@ -73,7 +73,6 @@ public sealed record MedicinePlanningRequest
     public Fact<EquatableArray<GearBench>> Benches { get; init; }
 }
 
-/// <summary>Ports <c>medical_reserve.go</c>.</summary>
 public static partial class MedicalRules
 {
     /// <summary>

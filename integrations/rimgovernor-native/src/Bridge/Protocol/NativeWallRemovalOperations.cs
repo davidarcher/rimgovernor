@@ -23,9 +23,9 @@ namespace HomeBridge.BridgeTools
     //  2. a cleanup site where this wall is a completed backup of a standing
     //     stone permanent wall (clear the backup);
     //  3. a corner site with open salvage access, rebuilt from whichever
-    //     stone material the site lists (Go budgets the stock).
+    //     stone material the site lists.
     // Several admissible sites of one class refuse rather than guess. Applied
-    // means designated; Go reads the building census for the wall's removal.
+    // means designated; the brain reads the building census for the wall's removal.
     internal static class NativeWallRemovalOperations
     {
         private sealed class Candidate

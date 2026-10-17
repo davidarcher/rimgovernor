@@ -1,12 +1,12 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Focuses the native map view on a target (Go <c>playerMapFocus</c>), implemented by the session.</summary>
+/// <summary>Focuses the native map view on a target, implemented by the session.</summary>
 internal interface IPlayerMapFocus
 {
     Task<NativeGeneration> FocusMapAsync(GenerationSnapshot before, GenerationSnapshot target, CancellationToken ct);
 }
 
-/// <summary>Proves the view changed while the prior Auto grant was live (Go <c>playerMapFocusConfirmation</c>).</summary>
+/// <summary>Proves the view changed while the prior Auto grant was live.</summary>
 internal interface IPlayerMapFocusConfirmation
 {
     Task ConfirmMapFocusAsync(GenerationSnapshot before, GenerationSnapshot target, NativeGeneration generation, CancellationToken ct);
@@ -99,7 +99,7 @@ public sealed partial class Player
         }
         catch (Exception e)
         {
-            // The uncertain record always throws; the handoff is reported as handled (Go returned true).
+            // The uncertain record always throws; the handoff is reported as handled.
             await UncertainAsync(record, e).ConfigureAwait(false);
             throw;
         }

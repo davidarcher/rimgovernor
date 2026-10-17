@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 // the order that should stand, every Round. A bill that already does the work is declared as it stands
 // (AdequateOrder), which keeps it; any other food bill is an orphan.
 
-/// <summary>Why a food declaration chose no order. (Go <c>FoodOrderGap</c>.)</summary>
+/// <summary>Why a food declaration chose no order.</summary>
 public enum FoodOrderGap
 {
     /// <summary>At least one order was chosen.</summary>
@@ -32,7 +32,7 @@ public enum FoodOrderGap
 
 /// <summary>
 /// One food purpose's reviewed inputs. Benches is the census with its bills; Supply is the combined food supply
-/// and Humans the human consumers' supply. (Go <c>FoodOrderRequest</c>.)
+/// and Humans the human consumers' supply.
 /// </summary>
 public sealed record FoodOrderRequest
 {
@@ -56,7 +56,7 @@ public sealed record FoodOrderRequest
     public Fact<double> Warm { get; init; }
 }
 
-/// <summary>The selection of one food purpose: the bills that should stand, with the bench each was chosen on. (Go <c>FoodOrder</c>.)</summary>
+/// <summary>The selection of one food purpose: the bills that should stand, with the bench each was chosen on.</summary>
 public sealed record FoodOrder
 {
     public IReadOnlyList<BillSelection> Selections { get; init; } = [];
@@ -68,7 +68,7 @@ public sealed record FoodOrder
 
 public static class BillSelectionOrderExtensions
 {
-    /// <summary>Go <c>BillSelection.Order</c>: the selection as the ledger identifies it on a bench of the kind.</summary>
+    /// <summary>The selection as the ledger identifies it on a bench of the kind.</summary>
     public static OrderSpec Order(this BillSelection s, string benchKind) =>
         new()
         {
@@ -83,7 +83,7 @@ public static class BillSelectionOrderExtensions
 
 public static class FoodOrdersRules
 {
-    /// <summary>Go <c>FoodPlanSupport</c>: whether the food plan opened or holds the channel.</summary>
+    /// <summary>Whether the food plan opened or holds the channel.</summary>
     public static bool FoodPlanSupport(Fact<FoodPlan> p, CandidateKind kind, string id)
     {
         if (!p.TryGetValue(out var plan))
@@ -111,7 +111,7 @@ public static class FoodOrdersRules
     }
 
     /// <summary>
-    /// Go <c>SelectFoodOrder</c>: chooses the food orders a purpose wants standing. A selector that cannot say
+    /// Chooses the food orders a purpose wants standing. A selector that cannot say
     /// (an unread fact, a food-plan channel not yet open) names the gap and chooses nothing.
     /// </summary>
     public static FoodOrder SelectFoodOrder(FoodOrderRequest r)
@@ -215,7 +215,7 @@ public static class FoodOrdersRules
     }
 
     /// <summary>
-    /// Go <c>DeclareFoodOrders</c>: a food purpose's wanted orders. Abstain while a fact the selection needs is
+    /// A food purpose's wanted orders. Abstain while a fact the selection needs is
     /// unread, the food plan has not opened the capacity, or a standing bill's readback is unread. A purpose that
     /// is not owed, or has no bench to serve it, keeps the bills that already stand for it, as the owners did
     /// before the ledger: the food runway is the last thing to starve on a transient fact. A solar-flare
@@ -339,7 +339,7 @@ public static class FoodOrdersRules
         a.Order(StringComparer.Ordinal).SequenceEqual(b.Order(StringComparer.Ordinal), StringComparer.Ordinal);
 
     /// <summary>
-    /// Go <c>FoodStorageMealOrder</c>: the food-stores/storage Need's produce fallback as an order: the stock-target bill
+    /// The food-stores/storage Need's produce fallback as an order: the stock-target bill
     /// of the choice's resource on the first bench (by id) whose recipe makes it, chosen as if no bill stood.
     /// Unknown while the bench recipes are unread; Ok is false when no bench can make the resource.
     /// </summary>
@@ -371,7 +371,7 @@ public static class FoodOrdersRules
         return (spec, picked.Kind, def.Length != 0);
     }
 
-    /// <summary>Go <c>StandingStockOrders</c>: the unspent bills that make the resource, declared as they stand; Abstain while a bill readback is unread.</summary>
+    /// <summary>The unspent bills that make the resource, declared as they stand; Abstain while a bill readback is unread.</summary>
     public static Declared StandingStockOrders(IReadOnlyList<GearBench> benches, Resource resource)
     {
         var (orders, known) = StandingOrders(benches, b => b.Products.Contains(resource));

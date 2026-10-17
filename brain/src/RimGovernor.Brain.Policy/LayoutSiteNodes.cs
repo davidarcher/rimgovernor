@@ -37,7 +37,7 @@ public sealed record SiteNode
 
     public string Reason { get; init; } = "";
 
-    /// <summary>The way the node faces (a turbine's wind side); null where Go's empty rotation stood.</summary>
+    /// <summary>The way the node faces (a turbine's wind side); null where there is no rotation.</summary>
     public Rotation? Rotation { get; init; }
 
     /// <summary>The other shapes the same node may take, its turns: only Footprint, Lanes and Rotation are read from them. A free node takes the shape and origin of least price.</summary>
@@ -85,10 +85,10 @@ public sealed record SiteEmbedding
     public SitePlacement? Site(string id) => Sites.FirstOrDefault(s => s.Node == id);
 }
 
-/// <summary>Marks a site node the embedder cannot read (Go <c>ErrSiteNode</c>).</summary>
+/// <summary>Marks a site node the embedder cannot read.</summary>
 public sealed class SiteNodeException(string message) : DomainException("site node: " + message);
 
-/// <summary>Ports <c>layout_site_nodes.go</c>: the things the colony builds that have no walls and no door as nodes of the station graph.</summary>
+/// <summary>The things the colony builds that have no walls and no door as nodes of the station graph.</summary>
 public static partial class LayoutSiteNodesRules
 {
     /// <summary>The site node was placed at its fixed anchor.</summary>

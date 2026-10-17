@@ -472,7 +472,7 @@ public abstract record RenderReplyOutcome
 /// <summary>
 /// RimGovernor map overlay: a native MapComponent draws named layers
 /// as meshes and labels. Output only and never saved: each call replaces
-/// the one layer it names and leaves the others; the Go side resends after
+/// the one layer it names and leaves the others; the brain resends after
 /// a load. Layer ids group producers: "layout", "heat.colonist", ...
 /// </summary>
 public sealed record OverlayColor

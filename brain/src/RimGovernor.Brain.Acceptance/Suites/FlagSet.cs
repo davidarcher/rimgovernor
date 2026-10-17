@@ -28,7 +28,7 @@ internal sealed class Flag<T>
 }
 
 /// <summary>
-/// The small slice of Go's <c>flag</c> package the acceptance subcommands use: <c>-name value</c>, <c>-name=value</c>,
+/// The flag parsing the acceptance subcommands use: <c>-name value</c>, <c>-name=value</c>,
 /// <c>--name</c>, boolean flags with an optional <c>=false</c>, and a parse that stops at the first argument that is not a
 /// flag (case names precede the flags in several subcommands, so they split the list themselves first).
 /// </summary>
@@ -47,7 +47,7 @@ internal sealed class FlagSet
     /// <summary>The arguments left after the flags.</summary>
     public IReadOnlyList<string> Args { get; private set; } = [];
 
-    /// <summary>Whether the flag appeared on the command line (Go <c>FlagSet.Visit</c>).</summary>
+    /// <summary>Whether the flag appeared on the command line.</summary>
     public bool WasSet(string name) => _visited.Contains(name);
 
     public Flag<string> String(string name, string defaultValue)

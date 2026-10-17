@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: combat_grenade.go
 
 public static partial class CombatGrenadeRules
 {

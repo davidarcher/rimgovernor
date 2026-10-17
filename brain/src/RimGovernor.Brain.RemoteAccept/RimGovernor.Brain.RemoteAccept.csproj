@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The remote acceptance evidence graph (Go internal/remoteaccept and cmd/remoteaccept, #3096): run, selection and
+  <!-- The remote acceptance evidence graph (#3096): run, selection and
        attempts validation, the recomputed aggregate verdict, the public-artifact export boundary, import, index, soak
        rates and live progress. Driven by the tool host: RimGovernor.cmd remoteaccept. -->
   <PropertyGroup>

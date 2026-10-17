@@ -146,7 +146,6 @@ public static class RoundsContainmentReads
         return Known(EquatableArray.From(holders));
     }
 
-    // rounds_entities.go
 
     /// <summary>
     /// The entity pawn rows the capture rule decides: every row the game marks an entity, or whose entity fact is
@@ -219,7 +218,6 @@ public static class RoundsContainmentReads
         return Known(EquatableArray.From(output));
     }
 
-    // rounds_mech.go
 
     /// <summary>
     /// Lifts the pawn table's living mechanitors (a colonist with a mechanitor block) and mechs (a mechanoid with a
@@ -262,7 +260,6 @@ public static class RoundsContainmentReads
     /// <summary>The pawn row's position.</summary>
     public static Fact<Cell> RowCellOf(O.PawnState row) => RitualSitesReads.RowCell(row.Pawn.Position);
 
-    // rounds_medical.go
 
     internal static Fact<EquatableArray<CarePawn>> RoundsMedical(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot, DefinitionCatalog catalog)
     {

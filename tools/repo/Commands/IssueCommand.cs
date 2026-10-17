@@ -6,8 +6,7 @@ using RimGovernor.Tools.Common;
 namespace RimGovernor.Tools.Workflow.Commands;
 
 /// <summary>
-/// Prints a GitHub issue with its comments as compact markdown, in one call, however long the thread is (Go:
-/// <c>cmd/issue</c>).
+/// Prints a GitHub issue with its comments as compact markdown, in one call, however long the thread is.
 /// <code>RimGovernor.cmd issue [-o file] [-limit bytes] [-last n] number...</code>
 /// Reads the issue through <c>gh issue view --json</c>, so it works where <c>gh issue view --comments</c> does not:
 /// with stdout redirected that form prints only the comments, and nothing at all on an issue without any. Output is

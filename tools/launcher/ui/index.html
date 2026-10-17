@@ -462,7 +462,7 @@ function everyWhile(viewId, poll, ms) {
   document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', run));
 }
 
-// Acceptance tab: the case list loads once (the Go side reads the registry in
+// Acceptance tab: the case list loads once (the host reads the registry in
 // the background); the run view polls while the tab shows. Rows re-render only
 // when the filter, the list or whether a run blocks them changes.
 const ac = { cases: [], loaded: false, key: '', run: null };
@@ -518,7 +518,7 @@ $('acStop').onclick = async () => {
   pollAcceptRun();
 };
 
-// New colony panel: renders getNewColony() verbatim; the Go view model
+// New colony panel: renders getNewColony() verbatim; the view model
 // owns every label, order, default and range. The page polls only while the
 // Launch tab is showing, skips a tick while a call is in flight, and ticks the
 // timer from its own clock between polls (anchored on progress.elapsedMs).

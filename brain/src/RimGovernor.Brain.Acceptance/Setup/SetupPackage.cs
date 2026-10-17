@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// native-manifest.json, the build record <see cref="NativeModBuild"/> writes at the package root: what the installed build
-/// was made from (Go <c>nativeaccept.PackageManifest</c>).
+/// was made from.
 /// </summary>
 public sealed class SetupPackageManifest
 {
@@ -40,8 +40,7 @@ public sealed class SetupPackageManifest
 
 /// <summary>
 /// The installed native package as the setup sees it: its manifest, the hash of the worktree's build inputs, and the
-/// layout checks. Go <c>nativeaccept</c> (<c>stale.go</c>, <c>headless.go</c> RequireNativePackage, CopyFile) and
-/// <c>nativeaccept/inputs</c> (<c>SourceTreeHash</c>, <c>FindRepo</c>) own these; they are re-stated here, narrowly, so the
+/// layout checks, stated narrowly so the
 /// setup stands alone.
 /// </summary>
 public static class SetupPackage
@@ -77,7 +76,7 @@ public static class SetupPackage
         }
     }
 
-    /// <summary>Copies a file, creating its directory and replacing the destination (Go <c>CopyFile</c>).</summary>
+    /// <summary>Copies a file, creating its directory and replacing the destination.</summary>
     public static void CopyFile(string source, string destination)
     {
         var dir = Path.GetDirectoryName(destination);

@@ -51,7 +51,7 @@ public sealed partial record LayoutPlan
     public List<PlannedRoom> RoomsOf(PlannedRole role) => [.. Rooms.Where(r => r.Role == role)];
 }
 
-/// <summary>Ports <c>layout_rooms.go</c> and <c>layout_plan_rooms.go</c>: room construction to plan shapes and room queries over a LayoutPlan.</summary>
+/// <summary>Room construction to plan shapes and room queries over a LayoutPlan.</summary>
 public static partial class LayoutRoomsRules
 {
     /// <summary>The v2 plan role a builder's room role fills; null for a role the core plans no room for.</summary>

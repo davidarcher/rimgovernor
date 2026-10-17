@@ -24,7 +24,7 @@ internal sealed class Allowance(long remaining)
 }
 
 /// <summary>
-/// The public-artifact export boundary (Go export.go). Only suite diagnostics are copied; worker layouts, profiles, saves
+/// The public-artifact export boundary. Only suite diagnostics are copied; worker layouts, profiles, saves
 /// and bootstrap inputs never enter the tree. Text is scanned for restricted markers and secrets, rewritten and hashed
 /// without being held in memory; PNG frames are validated and re-emitted clean.
 /// </summary>

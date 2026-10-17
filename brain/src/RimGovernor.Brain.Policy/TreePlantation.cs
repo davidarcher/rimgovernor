@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: tree_plantation.go. Tree plantations: a standing wood demand sows a rectangular growing zone of one tree
+// Tree plantations: a standing wood demand sows a rectangular growing zone of one tree
 // species, one tree per TreeCellsPerTree cells (the native lattice). Trees are always felled early, at the first
 // harvestable growth (the species' harvestMinGrowth), when a tree yields harvestYield * 0.5 wood
 // (Plant.YieldNow at growth == harvestMinGrowth). Species rank by wood per cell-day of land at lattice density.

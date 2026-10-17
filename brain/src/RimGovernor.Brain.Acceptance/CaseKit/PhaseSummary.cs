@@ -4,7 +4,7 @@ using RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>The clock_step rows a recording covers (Go <c>bridge.StepSample</c>).</summary>
+/// <summary>The clock_step rows a recording covers.</summary>
 public sealed class StepSample
 {
     public ulong Steps { get; set; }
@@ -38,7 +38,7 @@ public sealed class StepSample
     public double StepMs() => Steps == 0 ? 0 : ElapsedMs / Steps;
 }
 
-/// <summary>The native-run dispatch rows the routine Worker published (Go <c>bridge.DispatchSample</c>).</summary>
+/// <summary>The native-run dispatch rows the routine Worker published.</summary>
 public sealed class DispatchSample
 {
     public ulong Calls { get; set; }
@@ -55,7 +55,7 @@ public sealed class DispatchSample
     public double RefusedFraction() => Calls == 0 ? 0 : (double)Refused / Calls;
 }
 
-/// <summary>Wall TPS and the paused state the clock status samples report (Go <c>bridge.ClockSample</c>).</summary>
+/// <summary>Wall TPS and the paused state the clock status samples report.</summary>
 public sealed class ClockSample
 {
     public double WallTps { get; set; }
@@ -147,7 +147,7 @@ public sealed class ClockSample
 }
 
 /// <summary>
-/// A read-only aggregation of one log-ring timeline (Go <c>bridge.SummarizePhases</c>): the clock_step, clock_run and
+/// A read-only aggregation of one log-ring timeline: the clock_step, clock_run and
 /// dispatch rows, and native's clock accounting between two reads.
 /// </summary>
 public sealed class PhaseSummary

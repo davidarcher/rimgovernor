@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_drug_facts.go: the drug facts of the item facts.
+// The drug facts of the item facts.
 
 public sealed partial class DefinitionCatalog
 {

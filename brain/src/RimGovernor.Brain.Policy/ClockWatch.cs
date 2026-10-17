@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: clock_window.go, reduced to the continuous Run/Hold clock.
+// The continuous Run/Hold clock.
 
 public static class ClockWatchRules
 {

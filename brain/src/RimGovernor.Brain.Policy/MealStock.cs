@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Ports <c>meal_stock.go</c>.</summary>
 public static partial class MealRules
 {
     /// <summary>

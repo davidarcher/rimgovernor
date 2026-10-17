@@ -3,7 +3,7 @@ using System.Text;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>The role-driven requirement a room's floor is measured against. (Go <c>FloorTier</c>.)</summary>
+/// <summary>The role-driven requirement a room's floor is measured against.</summary>
 public enum FloorTier
 {
     /// <summary>The rooms whose cleanliness the game reads for food poisoning and infection: every cell needs a non-negative terrain cleanliness.</summary>
@@ -27,11 +27,10 @@ public enum FloorTier
 
 public static class FloorTierExtensions
 {
-    /// <summary>Go <c>FloorTier.fireproof</c>: true for the tiers that lay only floors with zero flammability.</summary>
+    /// <summary>True for the tiers that lay only floors with zero flammability.</summary>
     public static bool Fireproof(this FloorTier t) => t is FloorTier.Firebreak;
 }
 
-/// <summary>Go <c>FlooringPolicy</c>.</summary>
 public sealed record FlooringPolicy
 {
     /// <summary>The floor definitions the planner may choose from; the native planning census reports each one's availability and stats.</summary>
@@ -75,7 +74,7 @@ public sealed record FlooringPolicy
 
 /// <summary>
 /// Prices a floor's native stats: positive terms reward cleanliness and beauty, negative ones charge path cost,
-/// flammability and the summed cost list per cell. (Go <c>FloorWeights</c>.)
+/// flammability and the summed cost list per cell.
 /// </summary>
 public sealed record FloorWeights
 {
@@ -95,7 +94,7 @@ public sealed record FloorWeights
 
 /// <summary>
 /// The native flooring census: every proper indoor home room with the terrain under each cell, and the stats of
-/// every terrain named. (Go <c>FlooringObservation</c>.)
+/// every terrain named.
 /// </summary>
 public sealed record FlooringObservation
 {
@@ -178,7 +177,7 @@ public sealed record FloorRoom
     public IReadOnlyList<string> RequiredTags { get; init; } = [];
 }
 
-/// <summary>A room's native quality stats as Room.GetStat reports them. (Go <c>RoomQuality</c>.)</summary>
+/// <summary>A room's native quality stats as Room.GetStat reports them.</summary>
 public sealed record RoomQuality(double Space, double Beauty, double Cleanliness, double Wealth, double Impressiveness);
 
 public sealed record FloorCell
@@ -211,7 +210,7 @@ public sealed record FloorTerrain
     public IReadOnlyList<string> Tags { get; init; } = [];
 }
 
-/// <summary>One room measured short of its tier's requirement. (Go <c>FloorDeficit</c>.)</summary>
+/// <summary>One room measured short of its tier's requirement.</summary>
 public sealed record FloorDeficit
 {
     public string Key { get; init; } = "";
@@ -233,7 +232,7 @@ public sealed record FloorDeficit
 
 /// <summary>
 /// The per-room review: Deficits lists every room measured short, clean workspaces first and then by key. Known
-/// is false when the census was unknown, in which case Deficits is empty. (Go <c>FlooringReview</c>.)
+/// is false when the census was unknown, in which case Deficits is empty.
 /// </summary>
 public sealed record FlooringReview
 {
@@ -244,7 +243,7 @@ public sealed record FlooringReview
     public IReadOnlyList<FloorDeficit> Deficits { get; init; } = [];
 }
 
-/// <summary>Go <c>FlooringMethod</c>. <see cref="None"/> is Go's empty string.</summary>
+/// <summary><see cref="None"/> is the empty method.</summary>
 public enum FlooringMethod
 {
     [WireName("")]
@@ -281,7 +280,7 @@ public sealed record FlooringProposal
     public IReadOnlyList<Cell> Cells { get; init; } = [];
 }
 
-/// <summary>What the planning census reports for one candidate floor. (Go <c>FloorDefinition</c>.)</summary>
+/// <summary>What the planning census reports for one candidate floor.</summary>
 public sealed record FloorDefinition
 {
     public Fact<bool> Available { get; init; }
@@ -305,7 +304,7 @@ public sealed record FloorDefinition
     public IReadOnlyList<string> Tags { get; init; } = [];
 }
 
-/// <summary>What <c>SelectFlooringMethod</c> needs beyond the review. (Go <c>FlooringFacts</c>.)</summary>
+/// <summary>What <c>SelectFlooringMethod</c> needs beyond the review.</summary>
 public sealed record FlooringFacts
 {
     /// <summary>Credit floors already laid or ordered inside planned rooms.</summary>
@@ -356,7 +355,6 @@ public static class FlooringRules
     /// <summary>The colonist traffic layer's decay half-life: 120000 ticks. Steps per day = samples*ln2/halfLife.</summary>
     private const double ColonistTrafficHalfLifeDays = 2.0;
 
-    /// <summary>Go <c>DefaultFlooringPolicy</c>.</summary>
     public static FlooringPolicy DefaultFlooringPolicy() =>
         new()
         {
@@ -376,7 +374,7 @@ public static class FlooringRules
 
     internal static bool FloorNumber(double v) => !double.IsNaN(v) && !double.IsInfinity(v);
 
-    /// <summary>Go <c>FloorRoomKey</c>: identifies a flooring room across native renumbering the way RoomLatchKey does: by its lowest-sorted cell.</summary>
+    /// <summary>Identifies a flooring room across native renumbering the way RoomLatchKey does: by its lowest-sorted cell.</summary>
     public static string FloorRoomKey(FloorRoom room)
     {
         if (room.Cells.Count == 0)
@@ -545,10 +543,10 @@ public static class FlooringRules
     }
 
     /// <summary>
-    /// Go <c>ReviewFlooring</c>: measures every tiered room against its requirement. There is no hysteresis:
+    /// Measures every tiered room against its requirement. There is no hysteresis:
     /// terrain does not flap. A cell whose floor is already ordered still counts as deficient, so the Need
     /// stays unmet until the floor is actually laid, but the planner never orders it twice. An unknown census
-    /// measures nothing. Throws <see cref="DomainException"/> where Go returned an error.
+    /// Measures nothing. Throws <see cref="DomainException"/>.
     /// </summary>
     public static FlooringReview ReviewFlooring(Fact<FlooringObservation> fact, Fact<RoomObservation> rooms, FlooringPolicy p)
     {
@@ -703,12 +701,12 @@ public static class FlooringRules
     }
 
     /// <summary>
-    /// Go <c>SelectFlooringMethod</c>: resolves the first deficit: clean workspaces before living rooms.
+    /// Resolves the first deficit: clean workspaces before living rooms.
     /// Candidates must be known available, be terrain, meet the tier's requirement and be affordable for at
     /// least one cell; a floor that pays for the whole batch beats one that pays for part of it, then the tier's
     /// score decides, except the tiers that lay the tier style's floor or none. A room whose deficient cells are
     /// all ordered already waits for them. The traffic deficit lays the floor its cells were priced on. A
-    /// traffic latch the review could not price is unknown. Throws where Go returned an error.
+    /// Traffic latch the review could not price is unknown. Throws.
     /// </summary>
     public static FlooringProposal SelectFlooringMethod(FlooringReview review, FlooringFacts facts, FlooringPolicy p)
     {

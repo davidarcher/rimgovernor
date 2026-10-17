@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Ports <c>layout_training_nodes.go</c>: the training range and the sparring ring as station-less room nodes of the station graph.</summary>
+/// <summary>The training range and the sparring ring as station-less room nodes of the station graph.</summary>
 public static partial class LayoutTrainingNodesRules
 {
     /// <summary>Why the graph holds a training room: the colony's capable adults need a place to train.</summary>

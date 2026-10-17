@@ -1,9 +1,8 @@
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>Result</c>: the complete receipt at the transport boundary. <see cref="Structured"/> is untrusted wire
-/// JSON text until a consumer decodes its generated contract; the unexported reply-ring slot of Go is transport
-/// plumbing and is not carried. <see cref="Empty"/> is Go's <c>Result{}</c>.
+/// The complete receipt at the transport boundary. <see cref="Structured"/> is untrusted wire
+/// JSON text until a consumer decodes its generated contract. <see cref="Empty"/> is the empty receipt.
 /// </summary>
 public sealed record Result
 {

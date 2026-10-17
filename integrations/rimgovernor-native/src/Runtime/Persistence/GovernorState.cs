@@ -3,7 +3,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Governor state: opaque blobs Go owns, saved with the game. Native
+    // Governor state: opaque blobs the brain owns, saved with the game. Native
     // stores and returns them verbatim and never interprets them.
     public sealed class GovernorState : GameComponent
     {

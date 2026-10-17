@@ -11,7 +11,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // The blight responder's native half: the CutPlant designation on
-    // one exact plant (Go picks the blighted ones from the cell mirror's plant state;
+    // one exact plant (the brain picks the blighted ones from the cell mirror's plant state;
     // DesignateIntent with THING_DESIGNATION_CUT_PLANT). The
     // designation is the whole write; ordinary plant-cutting work cuts the
     // plant afterwards, and the census emptying is what settles the concern.

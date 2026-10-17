@@ -50,7 +50,7 @@ internal sealed class Autosaver(Func<PbLifecycle.SaveRequest, CancellationToken,
 }
 
 /// <summary>
-/// The lifecycle capability every Go-made save goes through (Go <c>flushedSave</c>): it flushes the governor state first,
+/// The lifecycle capability every save goes through: it flushes the governor state first,
 /// so the file carries fresh blobs. A failed flush refuses the save. Load, new colony and the menu return pass straight through.
 /// </summary>
 internal sealed class FlushedLifecycle(ILifecycleWriter inner, Func<CancellationToken, Task> flush) : ILifecycleWriter

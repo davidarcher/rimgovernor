@@ -352,9 +352,9 @@ partial class RoundsWorkPlanner
         return FoodPolicyRules.DietPolicyChanges(ideology, pawns, p.FoodEaters, owned, entries, p.Foods, stock?.IsShort ?? false);
     }
 
-    /// <summary>Go's <c>%q</c> of a string.</summary>
+    /// <summary>A string in double quotes, with backslashes and quotes escaped.</summary>
     internal static string GoQuote(string s) => "\"" + s.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 
-    /// <summary>Go's <c>%q</c> of a string slice.</summary>
+    /// <summary>Strings each in double quotes, separated by spaces, in brackets.</summary>
     internal static string GoQuoteList(IEnumerable<string> items) => "[" + string.Join(' ', items.Select(GoQuote)) + "]";
 }

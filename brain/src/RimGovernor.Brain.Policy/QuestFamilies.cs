@@ -3,7 +3,7 @@ using RimGovernor.Brain.Domain;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// Identifies the work a quest root requests. An unlisted root is unknown (<see cref="None"/>, Go's empty
+/// Identifies the work a quest root requests. An unlisted root is unknown (<see cref="None"/>, the empty
 /// string); neither a familiar prefix nor a favor reward establishes its work.
 /// </summary>
 public enum QuestFamily

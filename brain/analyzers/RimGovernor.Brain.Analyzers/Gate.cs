@@ -56,7 +56,7 @@ internal static class Arch
         return at < 0 ? null : ShortName(assembly) + "/" + path.Substring(at + marker.Length);
     }
 
-    /// <summary>"Type.Member" of the declaration enclosing a node, "-" outside any member (Go funcName).</summary>
+    /// <summary>"Type.Member" of the declaration enclosing a node, "-" outside any member.</summary>
     internal static string MemberName(SyntaxNode node)
     {
         foreach (var a in node.AncestorsAndSelf())
@@ -137,7 +137,7 @@ internal static class Arch
 /// <summary>
 /// One gate over one compilation: the violation keys found, compared with the rule's baseline when the compilation ends.
 /// The baseline may only shrink: a violation missing from it fails, and so does an entry of this project that no longer
-/// occurs (Go archgate.Compare).
+/// occurs.
 /// </summary>
 public sealed class GateRun
 {
@@ -227,7 +227,7 @@ public abstract class GateAnalyzer : DiagnosticAnalyzer
 
     protected string What { get; }
 
-    /// <summary>The most entries a baseline may hold before the rule needs review (Go baselineCap).</summary>
+    /// <summary>The most entries a baseline may hold before the rule needs review.</summary>
     protected virtual int BaselineCap => 200;
 
     public sealed override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(_descriptor);

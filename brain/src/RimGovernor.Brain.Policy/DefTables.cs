@@ -121,7 +121,7 @@ public static class DefTablesRules
         // The wind path constants (windPathWidth ... windBlockedLoss) are CompPowerPlantWind's and
         // WindTurbineUtility.CalculateWindCells's, read with ilspycmd; keyed by the turbine def so a rename
         // fails the gate. perimeterTable: DetourBudgetTicks is the one judgment of the perimeter cut's
-        // sapper-derived thickness (perimeter_cut.go); the wall def is the building the cut is walled with.
+        // sapper-derived thickness; the wall def is the building the cut is walled with.
         DefTable.Of("perimeterTable", "Verse.ThingDef", [PerimeterCutRules.PerimeterDefs().WallDef]),
         DefTable.Of("windPath", "Verse.ThingDef", [PowerRules.WindTurbineDefinition]),
         // interiorTable (#2956): the shelf and lamp the region interior wants beside benches and beds;

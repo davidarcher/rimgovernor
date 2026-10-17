@@ -3,13 +3,12 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Go authority.go (FocusMap) and lifecycle_save.go (Save,
-// ReadSave): the writes that are methods of the client rather than of a writer class.
+// Save and ReadSave: the writes that are methods of the client rather than of a writer class.
 public sealed partial class FacadeNativeClient
 {
 
     /// <summary>
-    /// Go <c>AuthorityControl.FocusMap</c>: changes only the viewed loaded map under the trusted control CAS. A
+    /// Changes only the viewed loaded map under the trusted control CAS. A
     /// typed refusal throws <see cref="NativeFailureException"/>; a facade call that throws
     /// surfaces as <see cref="FacadeAuthorityUncertainException"/>.
     /// </summary>
@@ -41,7 +40,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>LifecycleSave.Save</c>: requests one trusted checkpoint save. The request must carry a complete player
+    /// Requests one trusted checkpoint save. The request must carry a complete player
     /// identity, direction and request id and a save name; the expected tick is optional but, when set, is asserted
     /// before native persists anything. An uncertain outcome throws <see cref="FacadeSaveUncertainException"/>.
     /// </summary>
@@ -54,7 +53,7 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Go <c>LifecycleSave.ReadSave</c>: re-reads a prior save request's exact outcome. It exists only to recover a
+    /// Re-reads a prior save request's exact outcome. It exists only to recover a
     /// reply the caller never received; an unknown or expired request id surfaces as a failure.
     /// </summary>
     internal async Task<PbLifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken)
@@ -64,7 +63,7 @@ public sealed partial class FacadeNativeClient
         return reply;
     }
 
-    /// <summary>Go <c>interpretSaveOutcome</c>: throws the typed error for an uncertain or failed save.</summary>
+    /// <summary>Throws the typed error for an uncertain or failed save.</summary>
     private static void LifecycleSaveInterpret(PbLifecycle.SaveReply reply)
     {
         if (reply.Outcome.Uncertain is { } uncertain)
@@ -77,7 +76,6 @@ public sealed partial class FacadeNativeClient
         }
     }
 
-    /// <summary>Go <c>validateSaveRequest</c>.</summary>
     private static void LifecycleSaveValidateRequest(PbLifecycle.SaveRequest? request)
     {
         if (request is null || request.Player is null)

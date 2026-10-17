@@ -5,7 +5,7 @@ using RimGovernor.Brain.Acceptance;
 
 namespace RimGovernor.Brain.RemoteBundle;
 
-/// <summary>What <see cref="Bootstrapper.RunAsync"/> needs (Go <c>BootstrapOptions</c>).</summary>
+/// <summary>What <see cref="Bootstrapper.RunAsync"/> needs.</summary>
 public sealed record BootstrapOptions
 {
     /// <summary>The tested checkout.</summary>
@@ -40,7 +40,7 @@ public sealed record BootstrapOptions
 }
 
 /// <summary>
-/// Trust checks and the bootstrap sequence (Go <c>bootstrap.go</c>). Bootstrap is called only after workflow trust
+/// Trust checks and the bootstrap sequence. Bootstrap is called only after workflow trust
 /// gating and before any game is launched; even cache hits authenticate the origin and verify all ciphertext.
 /// </summary>
 public static partial class Bootstrapper

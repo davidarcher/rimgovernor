@@ -9,10 +9,10 @@ namespace RimGovernor.Brain.Acceptance;
 // Remote planning uses the tested checkout's registry and affected rules. It never starts a game or silently reduces a
 // selection to fit runner limits.
 
-/// <summary>A file named by its slash path under the evidence root and its SHA-256 (Go <c>planReference</c>).</summary>
+/// <summary>A file named by its slash path under the evidence root and its SHA-256.</summary>
 public sealed record PlanReference(string Path, string Sha256);
 
-/// <summary>The run's capacity limits (Go <c>planLimits</c>).</summary>
+/// <summary>The run's capacity limits.</summary>
 public sealed record PlanLimits
 {
     public string Runner { get; init; } = "";
@@ -36,7 +36,7 @@ public sealed record PlanLimits
     public bool Paid { get; init; }
 }
 
-/// <summary>The run.json a remote dispatch carries (Go <c>planRun</c>).</summary>
+/// <summary>The run.json a remote dispatch carries.</summary>
 public sealed record PlanRun
 {
     public int Version { get; init; }
@@ -67,7 +67,7 @@ public sealed record PlanRun
 
     public PlanLimits Limits { get; init; } = new();
 
-    /// <summary>Refuses a run outside remote v1's capabilities (Go <c>planRun.validate</c>).</summary>
+    /// <summary>Refuses a run outside remote v1's capabilities.</summary>
     public void Validate()
     {
         var zero = new string('0', 40);
@@ -118,7 +118,7 @@ public sealed record PlanRun
 }
 
 /// <summary>
-/// <c>acceptance plan</c> (Go <c>cmd/acceptance/plan.go</c>): reads a remote run.json from the evidence root and prints the
+/// <c>acceptance plan</c>: reads a remote run.json from the evidence root and prints the
 /// case selection and shard plan as JSON. It never starts a game.
 /// </summary>
 public static partial class PlanCommand
@@ -180,7 +180,7 @@ public static partial class PlanCommand
         }
     }
 
-    /// <summary>Whether <paramref name="s"/> is a relative slash path with no empty, dot or dot-dot element (Go <c>validPlanPath</c>).</summary>
+    /// <summary>Whether <paramref name="s"/> is a relative slash path with no empty, dot or dot-dot element.</summary>
     public static bool ValidPlanPath(string s)
     {
         ArgumentNullException.ThrowIfNull(s);
@@ -201,8 +201,7 @@ public static partial class PlanCommand
     }
 
     /// <summary>
-    /// Reads <paramref name="relative"/> under <paramref name="root"/> without following a link out of it (Go used
-    /// <c>os.OpenRoot</c>): any element that is a reparse point or symbolic link refuses.
+    /// Reads <paramref name="relative"/> under <paramref name="root"/> without following a link out of it: any element that is a reparse point or symbolic link refuses.
     /// </summary>
     internal static async Task<byte[]> ReadRootedAsync(string root, string relative, CancellationToken cancellationToken)
     {
@@ -225,7 +224,7 @@ public static partial class PlanCommand
         return await File.ReadAllBytesAsync(current, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Decodes run.json: duplicate keys at any depth, trailing data and an unstated <c>paid_usage_authorized</c> refuse before the run is validated (Go <c>decodePlanRun</c>).</summary>
+    /// <summary>Decodes run.json: duplicate keys at any depth, trailing data and an unstated <c>paid_usage_authorized</c> refuse before the run is validated.</summary>
     public static PlanRun DecodePlanRun(byte[] raw)
     {
         ArgumentNullException.ThrowIfNull(raw);
@@ -355,7 +354,7 @@ public static partial class PlanCommand
 
     /// <summary>
     /// Builds the selection: the tier's cases (or the requested ones), the shard plan and the
-    /// per-case rows. Refuses a selection that cannot fit the run's limits instead of truncating it (Go <c>buildSelection</c>).
+    /// per-case rows. Refuses a selection that cannot fit the run's limits instead of truncating it.
     /// </summary>
     public static JsonObject BuildSelection(PlanRun r, PlanReference reference, CaseRegistry registry)
     {
@@ -489,7 +488,7 @@ public static partial class PlanCommand
 
     /// <summary>
     /// Resolves an on-demand dispatch list. Each entry is an exact registry name or a bare area naming every case in it; an
-    /// entry that matches nothing refuses the plan rather than quietly running less (Go <c>requestedCases</c>).
+    /// entry that matches nothing refuses the plan rather than quietly running less.
     /// </summary>
     public static IReadOnlyList<AcceptanceCase> RequestedCases(IReadOnlyList<AcceptanceCase> all, IReadOnlyList<string> want)
     {

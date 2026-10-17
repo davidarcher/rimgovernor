@@ -4,7 +4,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// Go catalog_dining.go: the furniture the dining and recreation planners place, chosen by rules over the catalog rows
+// The furniture the dining and recreation planners place, chosen by rules over the catalog rows
 // and never by name. The chair is the buildable ThingDef the game lets a pawn sit on (BuildingProperties.isSittable)
 // with the most Comfort per unit of cost, taken at its best stuff; ties go to the name. The table is the buildable
 // ThingDef whose surfaceType is Eat with the smallest footprint, then the cheapest, then the name. The pin is the
