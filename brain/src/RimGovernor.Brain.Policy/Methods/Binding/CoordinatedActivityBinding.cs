@@ -14,13 +14,36 @@ internal static partial class CoordinatedActivityBinding
         // Planned sites are selectable but not placed: they have no action template, so they start no order (#3278).
         var unplaced = (planned ?? []).SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         var active = Start(selection.Selection, bindings, authority, method, tick, unplaced);
-        var deferred = selection.Deferred.Where(t => t.Until > tick).Select(t => new SelectedActivityTask(
+        var deferredPawns = selection.Deferred.Where(t => t.Until > tick).ToList();
+        active = DeferDistantServices(active, tick, deferredPawns);
+        var deferred = deferredPawns.Select(t => new SelectedActivityTask(
             "defer/" + t.Pawn, t.Pawn, [], new(PawnActivityKind.Idle, "", "", "", 0, t.Until), t.Location, tick)).ToArray();
         if (deferred.Length == 0) return active;
         return new(authority, [.. active?.Orders ?? [], .. deferred.Select(t => new PawnActivityOrder(t.Pawn,
             method + "/" + t.Pawn, method, 0, 1, false, [t.Step]) { Task = t.Id })])
         { Tasks = EquatableArray.From((active?.Tasks ?? []).Concat(deferred)) };
     }
+
+    /// <summary>An installed Method is protected from reselection, so holding a pawn for a service that departs far ahead would
+    /// freeze the colony until the hold ends (#3047). A pawn whose first task is such a service, with nothing waiting on it,
+    /// is deferred like any unselected pawn: it is reconsidered after the interval and the service starts once it is due.</summary>
+    internal static PawnActivities? DeferDistantServices(PawnActivities? active, long tick, List<ForecastDeferredPawn> deferred)
+    {
+        if (active is null) return null;
+        var far = active.Orders.Where(o => !o.Release && o.Preparing && active.Tasks.SingleOrDefault(t => t.Id == o.Task) is { } task
+            && task.Prerequisites.Count == 0 && task.Step.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation
+            && task.DepartTick - tick > DistantServiceTicks
+            && !active.Tasks.Any(t => t.Pawn != o.Pawn && t.Prerequisites.Any(p => active.Tasks.Any(r => r.Pawn == o.Pawn && r.Id == p))))
+            .ToArray();
+        if (far.Length == 0) return active;
+        var pawns = far.Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
+        foreach (var order in far)
+            deferred.Add(new(order.Pawn, active.Tasks.Single(t => t.Id == order.Task).Location, tick + DistantServiceTicks));
+        var orders = active.Orders.Where(o => !pawns.Contains(o.Pawn)).ToArray();
+        return orders.Length == 0 ? null : new(active.AuthorityGeneration, orders)
+            { Tasks = EquatableArray.From(active.Tasks.Where(t => !pawns.Contains(t.Pawn))) };
+    }
+    private const long DistantServiceTicks = 600;
     internal static PawnActivities? Start(ForecastActivityOutcomeComparison? selection,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
         IReadOnlySet<string>? unplaced = null)

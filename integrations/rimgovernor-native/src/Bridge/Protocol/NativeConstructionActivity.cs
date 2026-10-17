@@ -34,7 +34,7 @@ internal static class NativeConstructionActivity
         {
             var thing = map.thingGrid.ThingsListAt(new(building.Cell.X, 0, building.Cell.Z))
                 .FirstOrDefault(t => t is IConstructible && t.Faction == Faction.OfPlayer && t.def.entityDefToBuild?.defName == building.Definition);
-            if (thing is not IConstructible constructible || thing.def.entityDefToBuild is not ThingDef definition) continue;
+            if (thing is not IConstructible constructible || thing.def.entityDefToBuild is not BuildableDef definition) continue;
             var owed = constructible.TotalMaterialCost().Select(c => (c.thingDef, Count: constructible.ThingCountNeeded(c.thingDef)))
                 .Where(c => c.Count > 0).ToArray();
             var floorKnown = !ConstructionSkillGuard.Quality(thing) || ConstructionSkillGuard.Setting(thing)?.Minimum >= 0;

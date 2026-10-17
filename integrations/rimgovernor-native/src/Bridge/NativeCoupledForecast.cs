@@ -29,10 +29,12 @@ internal static class NativeCoupledForecast
         var plants = map.listerThings.AllThings.OfType<Plant>().Where(p => p.HarvestableNow
             && p.def.plant.harvestedThingDef?.IsNutritionGivingIngestible == true)
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-        var sites = map.listerThings.AllThings.Where(t => t is IConstructible && t.Faction == Faction.OfPlayer
-            && t.def.entityDefToBuild is ThingDef).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        // Every placed site is construction work, a floor's terrain blueprint included; only a building's rooms and roofs are thermal.
+        var placed = map.listerThings.AllThings.Where(t => t is IConstructible && t.Faction == Faction.OfPlayer
+            && t.def.entityDefToBuild is BuildableDef).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        var sites = placed.Where(t => t.def.entityDefToBuild is ThingDef).ToArray();
         var food = NativeFoodActivity.Read(new(context.Identity, EquatableArray.From(plants.Select(p => p.GetUniqueLoadID()))), legs); Lap("food");
-        var construction = NativeConstructionActivity.Read(new(context.Identity, EquatableArray.From(sites.Select(t =>
+        var construction = NativeConstructionActivity.Read(new(context.Identity, EquatableArray.From(placed.Select(t =>
             new RimGovernor.Brain.Domain.Building(t.def.entityDefToBuild.defName, new(t.Position.x, t.Position.z),
                 (Rotation)t.Rotation.AsInt, t.Stuff?.defName ?? "")))), legs); Lap("construction");
         var clothing = NativeRecipeActivity.Read(new(context.Identity), legs); Lap("clothing");

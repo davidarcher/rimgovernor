@@ -83,7 +83,8 @@ public static partial class PolicyFunctions
             => options.Add(new(id, pawn, ticks, Known(0.0)) { Equipment = equipment is null ? [] : [equipment] });
         foreach (var route in read.Routes) Route(route.Pawn, route.FromStart ? "start" : Location(route.From), Location(route.To), route.Ticks);
         var food = Methods.Generation.FoodMethodCandidates.GenerateCoupled(read, needs, deadline);
-        var construction = Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, deadline, resources);
+        var construction = Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, deadline, resources,
+            PolicyFunctions.DefaultFlooringPolicy().Floors.ToHashSet(StringComparer.Ordinal));
         var shelter = Methods.Generation.CoupledShelterCandidates.Generate((shelterEnabled ? facts.PlannedShelters : []).OrderBy(r => r.Id).Select(r =>
             new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)),
             facts.Upkeep.Rooms, read.Thermal, construction.Operations, construction.Bindings, plannedSites, planned.Sites, deadline, horizon);
@@ -199,7 +200,8 @@ public static partial class PolicyFunctions
                 if (first)
                 {
                     tasks.Add(original with { Id = id, Prerequisites = [.. original.Prerequisites, recovery.Task] });
-                    foreach (var option in options.Where(o => o.Activity == original.Id).ToArray())
+                    // Only the sleeper follows its own sleep: another pawn's work is not gated behind it (#3047).
+                    foreach (var option in options.Where(o => o.Activity == original.Id && (recovery.Kind != "rest" || o.Pawn == recovery.Pawn)).ToArray())
                     {
                         options.Add(option with { Activity = id });
                         if (bindings.TryGetValue((original.Id, option.Pawn), out var binding))

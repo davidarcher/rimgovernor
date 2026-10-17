@@ -42,6 +42,61 @@ public sealed class CoordinatedConstructionTests
         return StartCoupledActivity(selected, generated, 1, "construction", 100);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void OnlyFloorSitesCarryFlooringReliefSoEachLaidFloorIsCreditedOnce(bool floor)
+    {
+        var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
+        var template = facts.ForecastObserved.Needs!.Pawns[0];
+        var option = Option("producer", 0, 20, 20) with { Definition = floor ? DefaultFlooringPolicy().Floors[0] : "Wall" };
+        facts = facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
+        {
+            Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
+            Coupled = new() { Tick = 100, Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From([option]) } }
+        } };
+        var generated = GenerateCoupledActivities(facts, 1900)!;
+        var outcome = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome.StartsWith("construction/", StringComparison.Ordinal)).Outcome!;
+        if (floor) Assert.Equal("flooring/blueprint", Assert.Single(outcome.Requirements!.Relief).Need);
+        else Assert.Null(outcome.Requirements);
+    }
+
+    [Fact]
+    public void WorkDelayedBehindARecoveryBelongsToTheRecoveringPawn()
+    {
+        var facts = ForecastCoupledSelectionTests.Review();
+        var roster = WorkResourceTestFacts.Create("pawn", "helper");
+        var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
+        {
+            Location = new(1, 1),
+            SleepThreshold = Known(.9), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d), SleepWhileStarving = Known(false),
+            Needs = [new("rest", Known(.8), Known(.0001), Known(.3))],
+            Targets = [new("bed-pawn", "rest", "", 1, Known(10d), default, default, Known(.001)) { Location = new(1, 1) }]
+        };
+        var helper = pawn with { Pawn = "helper", Targets = [pawn.Targets[0] with { Id = "bed-helper" }] };
+        facts = facts with { WorkResources = roster.WorkResources, Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 20)]),
+            ForecastObserved = facts.ForecastObserved with
+            {
+                WorkPawns = roster.ForecastObserved.WorkPawns,
+                Needs = facts.ForecastObserved.Needs with { Pawns = [pawn, helper] },
+                Coupled = facts.ForecastObserved.Coupled! with
+                {
+                    Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [],
+                    Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+                        Options = EquatableArray.From([Option("pawn", 0, 20, 20), Option("helper", 0, 20, 20)]) }
+                }
+            } };
+        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var activities = GenerateCoupledActivities(facts, 1900)!.Context.Activities;
+        var delayed = activities.Activities.Where(a => a.Id.Contains("/after/need/", StringComparison.Ordinal)).ToArray();
+        Assert.NotEmpty(delayed);
+        foreach (var task in delayed)
+        {
+            var recovering = task.Id[(task.Id.IndexOf("/after/need/", StringComparison.Ordinal) + "/after/need/".Length)..].Split('/')[0];
+            Assert.All(activities.Options.Where(o => o.Activity == task.Id), o => Assert.Equal(recovering, o.Pawn));
+        }
+    }
+
     [Fact]
     public void SharedSearchChoosesDeliverySpecialistAndBuilderThenDistanceFlipsChoice()
     {

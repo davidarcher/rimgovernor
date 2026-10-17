@@ -4,7 +4,9 @@ namespace RimGovernor.Brain.Policy.Methods.Generation;
 
 internal static class ConstructionMethodCandidates
 {
-    internal static CoordinatedMethodCandidates Generate(ConstructionActivityRead read, long deadline, WorkResourceView resources)
+    internal const string FlooringRelief = "flooring"; // one relief per floor site, so each laid floor is credited once
+
+    internal static CoordinatedMethodCandidates Generate(ConstructionActivityRead read, long deadline, WorkResourceView resources, IReadOnlySet<string> floors)
     {
         var bindings = new Dictionary<(string, string), ActivityTaskCandidate>();
         if (!read.Known || read.Context?.Tick is not { } tick || deadline <= tick || resources.Claims.Truncated)
@@ -73,7 +75,13 @@ internal static class ConstructionMethodCandidates
                     { SiteDefinition = row.Definition, CompletionMustBeObserved = true };
                 }
             }
-            outcomes.Add(new(finish, "construction-method", finish, Known((double)horizon), default) { ProgressUnits = Known(1.0) });
+            // A floor is a declared service investment (#3047): it relieves kitchen cleanliness and room beauty, so the selector may spend labor on it.
+            outcomes.Add(new(finish, "construction-method", finish, Known((double)horizon), default)
+            {
+                ProgressUnits = Known(1.0),
+                Requirements = floors.Contains(first.Definition)
+                    ? new([new(FlooringRelief + "/" + first.Site, ProductionNeedPriority.Maintenance, 1.0)], default, default) : null
+            });
         }
         var capacities = workers.Order(StringComparer.Ordinal).Select(pawn => new ForecastPawnCapacity(pawn, "start",
             resources.Capacity.TryGetValue(pawn, out var capacity) && capacity.Capacity.Windows.TryGetValue(out var windows)
