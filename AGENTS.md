@@ -50,6 +50,12 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
   contracts, explicit ownership and explicit unknowns. The five mechanical
   [architecture gates](docs/developers/architecture/rules.md) have shrink-only
   baselines; never add exemptions to make a change pass.
+- Reference game and repo symbols in ways the compiler checks. Use `DefOf`
+  fields, `nameof`, typed members or a typed path such as
+  `WorkGiverDefOf.DoBillsCook.workType`, not `GetNamed("Cooking")`, string
+  reflection or hand-typed def names. If a `DefOf` field is missing, look for
+  a typed route to the def first. Use a string lookup only when no typed route
+  exists, and say so in a comment.
 - Before adding a fallback, retry, cache, wrapper or parallel path, check whether
   removing an earlier layer solves the problem. New behavior must trace to the
   task or issue; identify assumptions. Review orchestration, shared demand and
@@ -108,6 +114,14 @@ Update the owning contract or player guide when behavior changes; link it from
 the [documentation map](docs/README.md). Document current behavior, constraints
 and useful rationale, not change diaries or duplicated source inventories.
 
+Code your change makes unused is part of your change. Before committing, find
+every symbol the diff stopped reading (fields, records, native reads, wire
+contracts, helpers, tests, docs). Delete each one that has no remaining reader
+through every layer in the same commit. The native read or wire boundary is
+not a reason to stop. Leave an orphan only if the user explicitly limited the
+scope. In that case, file an issue for it and link it; a mention in the report
+does not count.
+
 Track out-of-scope bugs, deferred work and decisions in GitHub issues, one item
 per issue. Check for an existing match first. Include concrete evidence and a
 completion condition; use `priority:P0`/`P1`/`P2` or an applicable area label.
@@ -116,4 +130,5 @@ Do not file issues merely for unverified coverage. Read issues from the worktree
 MCP when the CLI is unavailable. Put ongoing issue status in comments.
 
 Landing reports state the result, verification, rules 7–9 review and
-`Complexity: added X / removed Y / deletion candidate: Z` (use `none` as needed).
+`Complexity: added X / removed Y / orphans left: none` (or list each
+`<symbol> — #issue` when the user limited the scope).

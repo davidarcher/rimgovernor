@@ -9,6 +9,7 @@ Implement groomed epic #$ARGUMENTS. You are the orchestrator; worktree agents do
 2. Order the children by their "Depends on" links. Show me the plan (waves of parallel issues) in a few lines and start without waiting unless something is ambiguous.
 3. For each wave, spawn one fresh worktree Agent per child issue, off current main. Tell each agent to:
    - follow AGENTS.md end to end: branch named for the issue, run `RimGovernor.cmd test` once, then `RimGovernor.cmd land` (it pushes), without waiting on acceptance (say what is unverified in the commit body), Complexity line;
+   - before committing, run the orphan sweep from AGENTS.md: delete everything the change made unused, across native reads, wire contracts, brain, tests and docs. "Removing it is a separate cleanup" is not an acceptable report;
    - treat the issue's Decisions as settled;
    - **stop and report a question instead of guessing** if it hits an unclear requirement, a design decision the issue doesn't settle, or a one-way door (save or wire formats, the native tool contract, new action kinds, shared data models, deleting a subsystem, anything expensive to change later).
 4. When an agent reports a question, ask me with AskUserQuestion (options and a recommendation), record the answer on the child issue, then start a **fresh** agent off current main (don't SendMessage the old one). Keep the other agents moving meanwhile.
