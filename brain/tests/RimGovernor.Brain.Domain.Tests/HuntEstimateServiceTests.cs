@@ -68,6 +68,10 @@ public sealed class HuntEstimateServiceTests
         Assert.True(HuntEncounterRequests.StillDescribes(Read(), Read(hunterX: 14), Roster));
         Assert.False(HuntEncounterRequests.StillDescribes(Read(), Read(hunterX: 25), Roster));
         Assert.False(HuntEncounterRequests.StillDescribes(Read(), Read(health: "Cut"), Roster));
+        // Biological age is a float that grows every tick: a few ticks of ageing must not stale an estimate.
+        var older = Read();
+        older = older with { Hunters = [older.Hunters[0] with { Age = older.Hunters[0].Age + 0.00001 }], Prey = [older.Prey[0] with { Age = older.Prey[0].Age + 0.00001 }] };
+        Assert.True(HuntEncounterRequests.StillDescribes(Read(), older, Roster));
     }
 
     [Fact]

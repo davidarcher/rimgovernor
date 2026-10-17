@@ -30,6 +30,8 @@ public static class HuntEncounterRequests
     public const int Samples = 16, SeedBase = 2000001;
     /// <summary>An estimate is reused while its pawns have moved no more than this many cells and nothing about them changed.</summary>
     public const int MoveTolerance = 8;
+    /// <summary>Biological age grows every tick, so an estimate is reused while the pawns have aged less than this many years.</summary>
+    public const double AgeTolerance = 0.25;
     /// <summary>An estimate is reused for at most one game day.</summary>
     public const long Lifetime = GameTime.TicksPerDay;
 
@@ -69,7 +71,8 @@ public static class HuntEncounterRequests
             || (a.World, a.GameBuild, a.Mods, a.Weather, a.Terrain) != (b.World, b.GameBuild, b.Mods, b.Weather, b.Terrain)) return false;
         bool Same(HuntActorRead? x, HuntActorRead? y) => x is not null && y is not null
             && Math.Abs(x.Location.X - y.Location.X) <= MoveTolerance && Math.Abs(x.Location.Z - y.Location.Z) <= MoveTolerance
-            && x with { Location = default } == y with { Location = default };
+            && Math.Abs(x.Age - y.Age) < AgeTolerance
+            && x with { Location = default, Age = 0 } == y with { Location = default, Age = 0 };
         return roster.Gunners.All(g => Same(made.Hunters.FirstOrDefault(h => h.Pawn == g), now.Hunters.FirstOrDefault(h => h.Pawn == g)))
             && roster.Prey.All(p => Same(made.Prey.FirstOrDefault(h => h.Pawn == p), now.Prey.FirstOrDefault(h => h.Pawn == p)));
     }
