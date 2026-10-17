@@ -86,13 +86,6 @@ public sealed partial class DefinitionCatalog
             : new P.RoofRules(roofs.ToDictionary(pair => pair.Key, pair => new P.RoofRule { Thick = pair.Value.isThickRoof, Natural = pair.Value.isNatural }, StringComparer.Ordinal));
     }
 
-    /// <summary>The WeatherDef's accuracyMultiplier: the factor on every ranged hit chance while the weather lasts. A weather the catalog has no row for and a non-positive multiplier are errors.</summary>
-    public double WeatherAccuracy(string name)
-    {
-        var accuracy = (RequireRow<WeatherDef>(name)).accuracyMultiplier;
-        return float.IsFinite(accuracy) && accuracy > 0 ? accuracy : throw new CatalogException($"weather {name} has accuracy multiplier {accuracy}");
-    }
-
     /// <summary>Whether the game condition def's class is GameCondition_DisableElectricity or derives from it (every powered building is off while it lasts).</summary>
     public bool DisablesElectricity(string name) =>
         typeof(GameCondition_DisableElectricity).IsAssignableFrom(ConditionClass(RequireRow<GameConditionDef>(name)));

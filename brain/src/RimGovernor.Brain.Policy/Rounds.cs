@@ -300,9 +300,6 @@ public sealed record RoundsFacts
     /// <summary>The containment cell's inputs and the entity rows the capture rule decides, set by the routine reading.</summary>
     public ContainmentPlanning Containment { get; init; } = new();
 
-    /// <summary>The same population read's storyteller outlook.</summary>
-    public PopulationOutlook Outlook { get; init; } = new();
-
     /// <summary>The same read's owned-pawn short-name census.</summary>
     public Fact<EquatableArray<OwnedName>> OwnedNames { get; init; }
 

@@ -201,12 +201,11 @@ a depleted drill for removal from the deep drill step's recorded read.
   planning region: sun lamps with the native growth cells (specialDisplayRadius,
   not glow radius), power draw, schedule-aware lit_now and network; plant growers
   with fertility, sow tag, current crop and can_sow; proper indoor rooms with
-  temperature, open-roof and lit cell counts; and every power network's current
-  generation split into solar and wind, consumption, stored and capacity
+  temperature and open-roof counts; and every power network's current
+  generation split into solar and wind, consumption and capacity
   watt-days. Planning definitions add sow_tags and grow_min_glow for plants and
   power_w, glow_radius, sow_tag and grower_fertility for buildings. An
-  `environment` section issue withholds the census; row counts are bounded and
-  a lit cell count never exceeds the room's cells.
+  `environment` section issue withholds the census; row counts are bounded.
 - The colony upkeep projection includes independent complete visible item,
   structure, fire and filth censuses, each returning every row. A section issue
   requires no rows and prevents recovery; missing required row fields remain
@@ -462,14 +461,14 @@ Def objects by the brain's catalog, never from brain name lists; the wire catalo
 are the def values verbatim and are only checked for being finite: vanilla defs carry -1 (Alligator
 `studyAmountToComplete`, a holding target escape interval), whose meaning the consuming goal sources before it reads the field.
 
-`PawnState.anomaly` carries `Pawn.IsEntity`, `IsMutant` and `IsShambler`, an
+`PawnState.anomaly` carries `Pawn.IsEntity` and `IsMutant`, an
 entity's `MinimumContainmentStrength`, its `CompHoldingPlatformTarget` state
-(held on a platform and which, the ordered `EntityContainmentMode`, escaping,
+(held on a platform, the ordered `EntityContainmentMode`, escaping,
 the extract-bioferrite flag, whether the platform has an attached bioferrite
 harvester (`harvester_attached`), `bioferrite_per_day`
 (`CompProducesBioferrite.BioferritePerDay`, 0 while BioferriteExtracted stands),
 whether it can be captured) and its `CompStudiable`
-state (enabled, completed, progress, points, knowledge gained, the knowledge
+state (completed, progress, points, knowledge gained, the knowledge
 category and amount the game resolves). Three threat facts feed the
 defense tactics: `hidden_from_player` (`InvisibilityUtility.IsHiddenFromPlayer`:
 the player cannot see or target the pawn, so no attack order names it),
@@ -480,8 +479,7 @@ abilities is `ai_IsOffensive`; an entity or mutant that is melee only fights
 as a charging pack, so squad defense and the manhunter tactic apply). Each is
 read alone: a failed read is absent with a `ReadIssue` named for it.
 Hostility stays `PawnState.hostile`.
-A pawn with a creepjoiner tracker carries `anomaly.creepjoiner`: its
-form and benefit def names (both shown to a player in the offer letter) and
+A pawn with a creepjoiner tracker carries `anomaly.creepjoiner`:
 `downside_triggered`, the tracker's private `triggeredDownside`, read natively
 and true only once a timed downside has fired. The downside def is hidden
 information: no pawn row carries it and nothing reads it (the catalog's

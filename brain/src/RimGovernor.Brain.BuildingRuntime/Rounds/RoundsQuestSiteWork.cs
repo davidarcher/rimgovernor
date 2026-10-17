@@ -111,7 +111,7 @@ public sealed partial class JoinersRounds
 
                 if (returning)
                 {
-                    var step = PolicyFunctions.PlanSiteReturn(site, false);
+                    var step = PolicyFunctions.PlanSiteReturn(site);
                     if (step.Departure is null)
                     {
                         if (step.Reason != "")

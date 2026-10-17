@@ -7,10 +7,6 @@ public sealed record WorldSite
 {
     public string Id { get; init; } = "";
 
-    public string Def { get; init; } = "";
-
-    public string Label { get; init; } = "";
-
     public Fact<int> Tile { get; init; }
 
     public Fact<int> Layer { get; init; }
@@ -18,8 +14,6 @@ public sealed record WorldSite
     public Pb.WorldSiteState State { get; init; }
 
     public Fact<MapId> Map { get; init; }
-
-    public Fact<double> DistanceTiles { get; init; }
 
     public IReadOnlyList<QuestId> QuestIds { get; init; } = [];
 
@@ -63,17 +57,11 @@ public sealed record SiteSecurity
 
     public Fact<bool> DormantThreat { get; init; }
 
-    public Fact<bool> DetectionActive { get; init; }
-
     public Fact<double> InitialPoints { get; init; }
 
     public Fact<double> PendingRaidPoints { get; init; }
 
     public Fact<int> TrapCount { get; init; }
-
-    public Fact<int> RaidsSent { get; init; }
-
-    public Fact<long> DetectionTicksLeft { get; init; }
 }
 
 public sealed record SiteExtraction
@@ -129,13 +117,9 @@ public sealed record QuestSurveyScanner
 {
     public string SiteId { get; init; } = "";
 
-    public string ScannerId { get; init; } = "";
-
     public Fact<long> DurationTicks { get; init; }
 
     public Fact<long> EndTick { get; init; }
-
-    public Fact<long> RaidTick { get; init; }
 
     public Fact<bool> Alive { get; init; }
 
@@ -152,8 +136,6 @@ public sealed record QuestGravEngine
 
     public Fact<bool> Inspected { get; init; }
 
-    public Cell Cell { get; init; }
-
     public IReadOnlyList<PawnId> EligiblePawns { get; init; } = [];
 
     public IReadOnlyList<PawnId> InspectingPawnIds { get; init; } = [];
@@ -167,17 +149,11 @@ public sealed record QuestHackTarget
 
     public Fact<bool> Spawned { get; init; }
 
-    public Fact<bool> Hacked { get; init; }
-
     public Fact<bool> Satisfied { get; init; }
 
     public Fact<bool> LockedOut { get; init; }
 
     public Fact<bool> Autohack { get; init; }
-
-    public Fact<double> ProgressPercent { get; init; }
-
-    public Fact<double> Defence { get; init; }
 
     public IReadOnlyList<PawnId> EligiblePawnIds { get; init; } = [];
 }
@@ -218,23 +194,17 @@ public sealed record QuestMonument
 
     public Fact<bool> Installed { get; init; }
 
-    public Fact<bool> Complete { get; init; }
-
     public Fact<bool> AllDone { get; init; }
 
     public Cell Cell { get; init; }
 
     public string DisallowedBuilding { get; init; } = "";
 
-    public Fact<long> DisallowedTicks { get; init; }
-
     public IReadOnlyList<Cell> InstallCells { get; init; } = [];
 
     public IReadOnlyList<QuestMonumentPiece> Pieces { get; init; } = [];
 
     public IReadOnlyList<QuestMonumentResource> Resources { get; init; } = [];
-
-    public Fact<bool> Offered { get; init; }
 
     public Fact<bool> ClearSite { get; init; }
 

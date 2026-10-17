@@ -160,6 +160,43 @@ public sealed class ContractOrphansTests : IDisposable
     }
 
     [Fact]
+    public void CountsAReadInALambdaOfAStaticFieldInitializerWhenTheBrainTouchesTheType()
+    {
+        var policy = Compile("RimGovernor.Brain.Policy", """
+            using System;
+            using System.Collections.Generic;
+            namespace RimGovernor.Brain.Policy;
+
+            public sealed record HuntRoom(string Id)
+            {
+                public int Hunters { get; init; }
+                public int Spare { get; init; }
+            }
+
+            public static class HuntRules
+            {
+                private static readonly Lazy<IReadOnlyDictionary<string, Func<HuntRoom, int>>> Rules = new(() =>
+                    new Dictionary<string, Func<HuntRoom, int>> { ["hunt"] = room => room.Hunters });
+
+                public static int Apply(HuntRoom room) => Rules.Value["hunt"](room);
+            }
+            """);
+        var runtime = Compile("RimGovernor.Brain.BuildingRuntime", """
+            using RimGovernor.Brain.Policy;
+            public static class Rounds
+            {
+                public static int Count() => HuntRules.Apply(new HuntRoom("r1") { Hunters = 2, Spare = 1 });
+            }
+            """, policy);
+
+        var orphans = ContractOrphans.Find(ContractOrphans.PolicyRecords, policy, [runtime], [], out _);
+
+        // Hunters is read only inside the Lazy factory's lambda, which the static constructor builds when Apply
+        // touches Rules; Id and Spare are written and never read.
+        Assert.Equal([("Policy|HuntRoom.Id", "written, never read"), ("Policy|HuntRoom.Spare", "written, never read")], orphans);
+    }
+
+    [Fact]
     public void CountsAMemberAnAcceptanceCaseReadsByJsonKeyAsRead()
     {
         var contracts = Compile("RimGovernor.Brain.Contracts", ContractsSource);

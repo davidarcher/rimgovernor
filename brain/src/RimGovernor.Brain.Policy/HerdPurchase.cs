@@ -109,7 +109,7 @@ public static partial class PolicyFunctions
             }
             if (best is not null)
             {
-                return (new TradeSelectionLine { LineID = best.LineID, DefName = best.DefName, Count = 1 }, true);
+                return (new TradeSelectionLine { LineID = best.LineID, Count = 1 }, true);
             }
         }
         return (new TradeSelectionLine(), false);

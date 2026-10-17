@@ -20,9 +20,6 @@ public sealed record PrisonerCensus
     /// <summary>The same read's capture/rescue candidate census: every observed humanlike, not only prisoners.</summary>
     public Fact<EquatableArray<CustodyFacts>> Custody { get; init; }
 
-    /// <summary>The snapshot's storyteller population outlook.</summary>
-    public PopulationOutlook Outlook { get; init; } = new();
-
     /// <summary>The colony side of each prisoner's use: the free colonists' best skills and the snapshot's Ideology facts.</summary>
     public Fact<PrisonerColony> Colony { get; init; }
 

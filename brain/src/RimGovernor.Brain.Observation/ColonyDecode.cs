@@ -441,11 +441,8 @@ public static partial class ObservationPackage
             {
                 Id = row.LetterId.GetValueOrDefault(),
                 Token = row.SnapshotToken ?? "",
-                Pawn = new PawnId((row.PawnId ?? "")),
-                Expires = new Tick((long)row.ExpiresTick.GetValueOrDefault()),
                 Label = row.AcceptLabel ?? "",
                 CanAccept = row.CanAccept.GetValueOrDefault(),
-                CreepJoiner = row.Creepjoiner.GetValueOrDefault(),
             });
         }
         f = f with { JoinerLetters = Known(EquatableArray.From(letters)) };
@@ -593,27 +590,16 @@ public static partial class ObservationPackage
         var e = new ControlledEnvironment
         {
             OutdoorTemperatureC = outdoor is { } temperature ? Known(temperature) : Unknown<double>(),
-            Daylight = Optional(v.Daylight is not null, v.Daylight.GetValueOrDefault()),
-            WeatherAccuracy = Unknown<double>(),
         };
-        if (v.Weather is not null)
-        {
-            e = e with { WeatherAccuracy = Known(RequireCatalog(catalog).WeatherAccuracy((v.Weather ?? ""))) };
-        }
         var lights = new List<GrowLight>();
         foreach (var row in v.Lights)
         {
             var reference = buildings.Entity(row.Building);
-            var power = DefPowerW(catalog, reference?.DefName ?? "");
             lights.Add(new GrowLight
             {
                 Id = reference?.Id ?? "",
-                Definition = reference?.DefName ?? "",
-                Cell = CellOf(reference?.Position),
                 Room = OptionalRef(row.Room),
                 Network = Optional(row.PowerNetId is not null, (row.PowerNetId ?? "")),
-                Powered = Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
-                PowerW = power,
                 LitNow = Optional(row.LitNow is not null, row.LitNow.GetValueOrDefault()),
                 GrowthCells = CellsOf(row.GrowthCells),
             });
@@ -622,22 +608,14 @@ public static partial class ObservationPackage
         foreach (var row in v.Growers)
         {
             var reference = buildings.Entity(row.Building);
-            var power = DefPowerW(catalog, reference?.DefName ?? "");
             var (fertility, sowTag) = GrowerRows(catalog, reference?.DefName ?? "");
             growers.Add(new PlantGrower
             {
                 Id = reference?.Id ?? "",
-                Definition = reference?.DefName ?? "",
-                Cell = CellOf(reference?.Position),
-                Room = OptionalRef(row.Room),
-                Network = Optional(row.PowerNetId is not null, (row.PowerNetId ?? "")),
-                Powered = Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
-                PowerW = power,
                 Fertility = fertility,
                 SowTag = sowTag,
                 Crop = Optional(row.CropDefName is not null, (row.CropDefName ?? "")),
                 CanSow = Optional(row.CanSow is not null, row.CanSow.GetValueOrDefault()),
-                Cells = CellsOf(row.PlantCells),
             });
         }
         var rooms = new List<GrowRoom>();
@@ -648,11 +626,6 @@ public static partial class ObservationPackage
                 Id = row.Room?.Id ?? "",
                 GridRoom = Optional(row.GridRoom is not null, row.GridRoom.GetValueOrDefault()),
                 TemperatureC = Optional(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault()),
-                Cells = Count(row.CellCount is not null, row.CellCount.GetValueOrDefault()),
-                OpenRoof = Count(row.OpenRoofCount is not null, row.OpenRoofCount.GetValueOrDefault()),
-                Lit = Count(row.LitCells is not null, row.LitCells.GetValueOrDefault()),
-                Proper = Optional(row.ProperRoom is not null, row.ProperRoom.GetValueOrDefault()),
-                Outdoors = Optional(row.PsychologicallyOutdoors is not null, row.PsychologicallyOutdoors.GetValueOrDefault()),
             });
         }
         var networks = new List<PowerHeadroom>();
@@ -665,19 +638,11 @@ public static partial class ObservationPackage
                 SolarW = Optional(row.SolarW is not null, row.SolarW.GetValueOrDefault()),
                 WindW = Optional(row.WindW is not null, row.WindW.GetValueOrDefault()),
                 ConsumptionW = Optional(row.ConsumptionW is not null, row.ConsumptionW.GetValueOrDefault()),
-                StoredWattDays = Optional(row.StoredWattDays is not null, row.StoredWattDays.GetValueOrDefault()),
                 CapacityWattDays = Optional(row.CapacityWattDays is not null, row.CapacityWattDays.GetValueOrDefault()),
                 ActiveSource = Optional(row.HasActiveSource is not null, row.HasActiveSource.GetValueOrDefault()),
             });
         }
         return e with { Lights = [.. lights], Growers = [.. growers], Rooms = [.. rooms], Networks = [.. networks] };
-    }
-
-    /// <summary>The base draw of def's power comp row (CompProperties_Power), unknown for a def without one.</summary>
-    internal static Fact<double> DefPowerW(DefinitionCatalog? catalog, string def)
-    {
-        var row = RequireCatalog(catalog).ThingRow(def);
-        return DefinitionCatalog.PowerDraw(row) is { } watts ? FiniteFact(watts) : Unknown<double>();
     }
 
     /// <summary>A plant grower def's own numbers: its fixed fertility (when it sets one) and the sow tag of its building properties, unknown for a def that names none.</summary>
@@ -697,8 +662,6 @@ public static partial class ObservationPackage
         }
         return (fertility, sowTag);
     }
-
-    internal static Fact<int> Count(bool has, uint value) => has ? Known((int)value) : Unknown<int>();
 
     /// <summary>
     /// Go's string-backed type conversion (<c>policy.WorkType(name)</c>): the wire string as its enum member. A

@@ -9,27 +9,16 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One native recipe-ingredient alternative's exact required quantity and the deficit against current stock.</summary>
 public sealed record ResourceRequirement
 {
-    public Resource Resource { get; init; }
-
-    public long Required { get; init; }
-
-    public long Deficit { get; init; }
 }
 
 /// <summary>Mirrors one designated mineable source's native hit points; a decrease since the prior observation is excavation progress.</summary>
 public sealed record MiningProgress
 {
-    public string ThingId { get; init; } = "";
-
-    public long HitPoints { get; init; }
 }
 
 /// <summary>Mirrors one owned native drill's progress fraction; an increase since the prior observation is drilling progress.</summary>
 public sealed record DrillingProgress
 {
-    public string ThingId { get; init; } = "";
-
-    public double Progress { get; init; }
 }
 
 /// <summary>
@@ -57,9 +46,6 @@ public sealed record ResourceSource
 
     public bool Designated { get; init; }
 
-    /// <summary>DesignatedTick and Taken mirror AcquisitionSource's; mine rows only.</summary>
-    public Tick DesignatedTick { get; init; }
-
     public bool Taken { get; init; }
 
     /// <summary>
@@ -68,16 +54,12 @@ public sealed record ResourceSource
     /// </summary>
     public string Safety { get; init; } = "";
 
-    public EquatableArray<WorkType> WorkTypes { get; init; }
-
     /// <summary>
     /// Cell and Token are populated for a "mine" source only: the exact position and CAS snapshot token
     /// required to dispatch an acquisition Designate against it. Harvest/hunt sources still carry neither;
     /// they are reached only through the AcquisitionFacts census path's own token, not this one.
     /// </summary>
     public Cell Cell { get; init; }
-
-    public string Token { get; init; } = "";
 
     public Fact<bool> Reachable { get; init; }
 
@@ -94,8 +76,6 @@ public sealed record ResourceSource
 /// <summary>Mirrors one Observations.ListResourceSources storage payload (NativeResourceSourcesTool.Storage).</summary>
 public sealed record ResourceStorage
 {
-    public Resource Resource { get; init; }
-
     public long Capacity { get; init; }
 
     public long Stored { get; init; }
@@ -106,12 +86,6 @@ public sealed record ResourceStorage
     public long Haulers { get; init; }
 
     public EquatableArray<Cell> Candidates { get; init; }
-}
-
-/// <summary>The exact new allow-listed stockpile zone the storage check sizes (SelectStockpileCapacity; no zone is built).</summary>
-public sealed record ResourceStorageZone
-{
-    public EquatableArray<Cell> Cells { get; init; }
 }
 
 /// <summary>One configured stock floor still unmet by the census: the resource and its absolute target.</summary>
@@ -141,17 +115,11 @@ public sealed record ResourceMethod
 {
     public ResourceMethodKind Kind { get; init; }
 
-    public MethodId Id { get; init; }
-
     public string Bench { get; init; } = "";
 
     public string Recipe { get; init; } = "";
 
-    public string Replace { get; init; } = "";
-
     public Resource Resource { get; init; }
-
-    public long Target { get; init; }
 
     /// <summary>
     /// The recipe's ingredients for one craft, the slots with a single alternative (a slot that may be filled
@@ -174,8 +142,6 @@ public sealed record ResourceMethodRequest
     public EquatableArray<MethodId> Seen { get; init; }
 
     public Fact<EquatableArray<GearBench>> Benches { get; init; }
-
-    public EquatableArray<Stock> Stock { get; init; }
 }
 
 public static partial class PolicyFunctions
@@ -329,17 +295,15 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Decides whether hauling a selection of resource sources (from SelectResourceSources) needs a new
-    /// covered stockpile zone. The check only ever applies when at least one selected source is a "mine"
-    /// source (an ordinary harvest/hunt yield needs no dedicated storage zone). Blocked is true when there is
-    /// no route to funding storage at all this tick (no eligible hauler, or no free candidate cell covers the
-    /// shortfall); a caller should treat this as a hard stop. Needed is true only when blocked is false and a
-    /// new zone must be built. Throws <see cref="DomainException"/> on an invalid observation.
+    /// Decides whether hauling a selection of resource sources (from SelectResourceSources) has no route to
+    /// funding storage this tick. The check only ever applies when at least one selected source is a "mine"
+    /// source (an ordinary harvest/hunt yield needs no dedicated storage zone). It is blocked when there is no
+    /// eligible hauler, or no free candidate cell covers the shortfall; a caller should treat this as a hard
+    /// stop. Throws <see cref="DomainException"/> on an invalid observation.
     /// </summary>
-    public static (ResourceStorageZone Zone, bool Needed, bool Blocked) SelectResourceStorageZone(
-        IReadOnlyList<ResourceSource> selected, long pending, ResourceStorage storage)
+    public static bool ResourceStorageBlocked(IReadOnlyList<ResourceSource> selected, ResourceStorage storage)
     {
-        if (pending < 0 || storage.Capacity < 0 || storage.Stored < 0 || storage.StackLimit < 0 || storage.Haulers < 0)
+        if (storage.Capacity < 0 || storage.Stored < 0 || storage.StackLimit < 0 || storage.Haulers < 0)
         {
             throw new DomainException("invalid resource storage observation");
         }
@@ -355,42 +319,23 @@ public static partial class PolicyFunctions
         }
         if (!hasMine)
         {
-            return (new ResourceStorageZone(), false, false);
-        }
-        return SelectStockpileCapacity(yield + pending, storage);
-    }
-
-    /// <summary>Uses native covered, reachable storage candidates.</summary>
-    public static (ResourceStorageZone Zone, bool Needed, bool Blocked) SelectStockpileCapacity(long capacityNeeded, ResourceStorage storage)
-    {
-        if (capacityNeeded < 0 || storage.Capacity < 0 || storage.Stored < 0 || storage.StackLimit < 0 || storage.Haulers < 0)
-        {
-            throw new DomainException("invalid stockpile capacity");
+            return false;
         }
         if (storage.Haulers == 0)
         {
-            return (new ResourceStorageZone(), false, true);
+            return true;
         }
-        if (storage.Capacity >= capacityNeeded)
+        if (storage.Capacity >= yield)
         {
-            return (new ResourceStorageZone(), false, false);
+            return false;
         }
         if (storage.StackLimit == 0)
         {
-            return (new ResourceStorageZone(), false, true);
+            return true;
         }
-        var shortfall = capacityNeeded - storage.Capacity;
+        var shortfall = yield - storage.Capacity;
         var cellsNeeded = (shortfall + storage.StackLimit - 1) / storage.StackLimit;
-        if (cellsNeeded > storage.Candidates.Count)
-        {
-            cellsNeeded = storage.Candidates.Count;
-        }
-        if (cellsNeeded <= 0)
-        {
-            return (new ResourceStorageZone(), false, true);
-        }
-        var cells = storage.Candidates.Take((int)cellsNeeded);
-        return (new ResourceStorageZone { Cells = EquatableArray.From(cells) }, true, false);
+        return Math.Min(cellsNeeded, storage.Candidates.Count) <= 0;
     }
 
     /// <summary>
@@ -543,11 +488,10 @@ public static partial class PolicyFunctions
                 var id = ResourceMethodId(r.Resource, b.Id, recipe.Definition);
                 if (seen.Contains(id))
                 {
-                    return new ResourceMethod { Kind = ResourceMethodKind.Wait, Id = id };
+                    return new ResourceMethod { Kind = ResourceMethodKind.Wait };
                 }
-                // Reuse the native replacement operation for an inactive matching bill; adding beside it is
-                // refused by the native duplicate guard.
-                var replace = "";
+                // A matching bill with an unreadable state or id leaves the method unknown; the first inactive
+                // one is the one the native replacement operation reuses.
                 foreach (var bill in b.Bills.Value)
                 {
                     if (bill.Recipe != recipe.Definition)
@@ -560,19 +504,15 @@ public static partial class PolicyFunctions
                     }
                     if (!active)
                     {
-                        replace = bill.Id;
                         break;
                     }
                 }
                 return new ResourceMethod
                 {
                     Kind = ResourceMethodKind.Produce,
-                    Id = id,
                     Bench = b.Id,
                     Recipe = recipe.Definition,
-                    Replace = replace,
                     Resource = r.Resource,
-                    Target = r.Target,
                     Ingredients = EquatableArray.From(RecipeDraws(recipe)),
                 };
             }

@@ -230,7 +230,7 @@ public sealed partial class RoundsResourcePlanner
             supply = await native.ReadSupplyStockAsync(identity, names, call).ConfigureAwait(false);
         }
 
-        var request = new ResourceMethodRequest { Resource = resource, Target = target, Benches = Known<EquatableArray<GearBench>>([.. benches]), Stock = [.. supply] };
+        var request = new ResourceMethodRequest { Resource = resource, Target = target, Benches = Known<EquatableArray<GearBench>>([.. benches]) };
         SnapshotPackage.NoteResourceMethod(request);
         return (PolicyFunctions.SelectResourceMethod(request), supply);
     }
@@ -428,7 +428,7 @@ public sealed partial class RoundsResourcePlanner
 
     internal static (RoundsResourceResult Result, bool Handled) MaterialStorageBlocked(IReadOnlyList<ResourceSource> selected, ResourceStorage storage)
     {
-        var (_, _, blocked) = PolicyFunctions.SelectResourceStorageZone(selected, 0, storage);
+        var blocked = PolicyFunctions.ResourceStorageBlocked(selected, storage);
         if (!blocked)
         {
             return (default, false);

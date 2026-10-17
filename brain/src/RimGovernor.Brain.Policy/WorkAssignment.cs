@@ -195,13 +195,8 @@ public sealed record WorkPawn
 
     public Fact<double> Health { get; init; }
 
-    /// <summary>playerSettings.selfTend; unknown when the read carried no care settings.</summary>
-    public Fact<bool> SelfTend { get; init; }
-
     /// <summary>Need levels from the pawn needs block; unknown when the read carried no readable needs.</summary>
     public Fact<double> Rest { get; init; }
-
-    public Fact<double> Joy { get; init; }
 
     public Fact<double> Mood { get; init; }
 
@@ -210,11 +205,6 @@ public sealed record WorkPawn
 
     /// <summary>The social block's expectations pressure (mood tier).</summary>
     public Fact<bool> HighExpectations { get; init; }
-
-    /// <summary>Psyfocus (0-1): known only for a psycaster; unknown without Royalty, a psylink or needs.</summary>
-    public Fact<double> Psyfocus { get; init; }
-
-    public Fact<double> PsyfocusTarget { get; init; }
 
     public Fact<int> PsylinkLevel { get; init; }
 
@@ -308,9 +298,6 @@ public sealed record WorkRosterReport
 
 public sealed record WorkDecision
 {
-    /// <summary>Shared observed occupancy; native job reads do not estimate remaining duration.</summary>
-    public IReadOnlyList<ForecastCurrentWork> CurrentWork { get; init; } = [];
-
     public IReadOnlyList<PawnWorkAssignment> Assignments { get; init; } = [];
 
     public Fact<bool> Capacity { get; init; }
@@ -865,7 +852,6 @@ public static partial class PolicyFunctions
         }
         return new WorkDecision
         {
-            CurrentWork = currentWork.Values.ToArray(),
             Capacity = Known(capacity),
             Matches = Known(matches),
             Assignments = assignments,

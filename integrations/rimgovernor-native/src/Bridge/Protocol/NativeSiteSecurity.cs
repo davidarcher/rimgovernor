@@ -91,13 +91,11 @@ namespace HomeBridge.BridgeTools
             var timed = site.GetComponent<TimedDetectionRaids>();
             if (timed != null)
             {
-                row = row with { DetectionActive = timed.DetectionCountdownStarted };
                 row = row with { RaidsSent = timed.RaidsSentCount };
                 if (timed.DetectionCountdownStarted) row = row with { DetectionTicksLeft = System.Math.Max(0, timed.TicksLeftToSendRaids) };
                 if (site.HasMap) row = row with { PendingRaidPoints = (row.PendingRaidPoints is not null ? row.PendingRaidPoints.GetValueOrDefault() : 0) + StorytellerUtility.DefaultThreatPointsNow(site.Map) * TimedDetectionRaids.RaidThreatPointsMultiplier };
                 else row = row with { Known = false };
             }
-            else row = row with { DetectionActive = false };
             var linked = quests.Where(q => q.QuestLookTargets.Any(t => t.HasWorldObject && t.WorldObject == site)).ToArray();
             double pending = row.PendingRaidPoints is not null ? row.PendingRaidPoints.GetValueOrDefault() : 0;
             foreach (var quest in linked)

@@ -166,7 +166,7 @@ public sealed record QuestObjectiveFact
 }
 
 /// <summary>Go's <c>QuestLodgerMoodFact</c>.</summary>
-public sealed record QuestLodgerMoodFact(string PawnId, double? Mood);
+public sealed record QuestLodgerMoodFact(double? Mood);
 
 /// <summary>Go's <c>QuestShuttleFact</c>.</summary>
 public sealed record QuestShuttleFact

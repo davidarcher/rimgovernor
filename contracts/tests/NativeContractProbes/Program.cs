@@ -52,7 +52,6 @@ internal static class NativeContractProbesDispatcher
                 case "native-proto-placement": return NativeProtoPlacementProbe.Invoke(rest);
                 case "native-proto-presentation": return NativeProtoPresentationProbe.Invoke(rest);
                 case "native-proto-research": return NativeProtoResearchProbe.Invoke(rest);
-                case "native-population-outlook": return NativePopulationOutlookProbe.Invoke(rest);
                 case "native-give-job": return NativeGiveJobProbe.Invoke(rest);
                 case "native-remove-production-bill": return NativeRemoveProductionBillProbe.Invoke(rest);
                 case "native-quest-shuttle": return NativeQuestShuttleProbe.Invoke(rest);
@@ -86,7 +85,7 @@ internal static class NativeContractProbesDispatcher
             "native-movement-operations",
             "native-pawn-control-state", "native-pawn-observations", "native-proto-buildings",
             "native-proto-observations", "native-proto-placement", "native-proto-presentation",
-            "native-proto-research", "native-population-outlook", "native-give-job", "native-remove-production-bill", "native-quest-shuttle", "native-quest-hack-gift", "native-proto-rooms", "native-proto-supplies",
+            "native-proto-research", "native-give-job", "native-remove-production-bill", "native-quest-shuttle", "native-quest-hack-gift", "native-proto-rooms", "native-proto-supplies",
         }) Console.Error.WriteLine("  " + name);
     }
 }

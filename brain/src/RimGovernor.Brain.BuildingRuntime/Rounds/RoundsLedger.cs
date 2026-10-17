@@ -186,7 +186,7 @@ public sealed partial class Rounder
             l.Unmet = [];
             l.Colonists = 0;
             l.BenchKinds = null;
-            l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewInactive, projection.Identity.Tick.Value);
+            l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewInactive);
         }
 
         if (declarers.Count == 0 || Native is not IRoundsWorkBenchSource native)
@@ -204,7 +204,7 @@ public sealed partial class Rounder
             call.ThrowIfCancellationRequested();
             lock (l.Mu)
             {
-                l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewUnread, projection.Identity.Tick.Value);
+                l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewUnread);
                 foreach (var d in declarers)
                 {
                     var (purpose, ok) = PurposeOf(d, true);
@@ -241,7 +241,7 @@ public sealed partial class Rounder
             l.NoteBatches(declared);
             if (!known)
             {
-                l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewUnread, projection.Identity.Tick.Value);
+                l.View = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewUnread);
                 l.View = l.View with { Declarers = [.. named.Select(d => PolicyFunctions.DeclarerView(d.Name, d.Declared))] };
 
                 return Unknown<bool>();
@@ -257,7 +257,6 @@ public sealed partial class Rounder
             l.Colonists = pawns.Count;
             l.View = PolicyFunctions.BuildLedgerView(new LedgerViewInput
             {
-                Tick = projection.Identity.Tick.Value,
                 Declarers = named,
                 Plan = plan,
                 Placed = placed,

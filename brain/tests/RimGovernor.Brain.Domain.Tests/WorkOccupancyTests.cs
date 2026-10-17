@@ -42,7 +42,6 @@ public sealed class WorkOccupancyTests
         var repeated = Plan(Apply(cook, decision), Apply(free, decision));
         Assert.True(repeated.Matches.Value);
         Assert.Equal(1, Priority(repeated, "free", WorkType.Construction));
-        Assert.False(decision.CurrentWork.Single(c => c.Pawn == cook.Id).RemainingTicks.IsKnown);
     }
 
     [Fact]
@@ -58,7 +57,6 @@ public sealed class WorkOccupancyTests
         // Completion and cancellation both arrive as a fresh job read. No saved hold needs clearing.
         var idle = Plan(Apply(pawn, busy) with { Job = Known(new PawnJob()) });
         Assert.Equal(1, Priority(idle, "both", WorkType.Construction));
-        Assert.Equal(0, Assert.Single(idle.CurrentWork).RemainingTicks.Value);
     }
 
     [Fact]
@@ -82,7 +80,6 @@ public sealed class WorkOccupancyTests
         var unknown = Pawn("unknown") with { Job = Unknown<PawnJob>() };
         var free = Pawn("free");
         var decision = Plan(unknown, free);
-        Assert.False(decision.CurrentWork.Single(c => c.Pawn == unknown.Id).Occupied.IsKnown);
         Assert.Contains(decision.Assignments, a => a.Pawn == free.Id);
         var input = new ForecastCapacityInput
         {
@@ -103,10 +100,8 @@ public sealed class WorkOccupancyTests
             Pawn = pawn, Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
             Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
         };
-        Assert.False(Assert.Single(Plan(pawn).CurrentWork).Occupied.Value);
         Assert.Equal(100, ForecastPawnCapacityOf(input).FreeTicks.Value);
         var busy = input with { Pawn = Cooking(pawn) };
-        Assert.True(Assert.Single(Plan(busy.Pawn).CurrentWork).Occupied.Value);
         Assert.Contains("unknown_current_job_remaining", ForecastPawnCapacityOf(busy).Findings);
         Assert.Equal(60, ForecastPawnCapacityOf(busy with { CurrentJobRemainingTicks = Known(40.0) }).FreeTicks.Value);
         Assert.Throws<DomainException>(() => ForecastCurrentWorkOf(pawn, Known(-1.0)));

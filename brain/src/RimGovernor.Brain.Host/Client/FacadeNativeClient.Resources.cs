@@ -224,11 +224,9 @@ internal sealed partial class FacadeNativeClient
                 Distance = row.Distance.Value,
                 Method = method,
                 Designated = row.Designated.Value,
-                DesignatedTick = new Domain.Tick(row.DesignatedTick ?? 0),
                 Taken = row.Taken ?? false,
                 Safety = row.Safety ?? "",
                 Cell = cell,
-                Token = token,
                 Reachable = row.Reachable is { } reachable ? Known(reachable) : Unknown<bool>(),
                 Buried = row.Buried ?? false,
             });
@@ -287,7 +285,6 @@ internal sealed partial class FacadeNativeClient
 
         return new Policy.ResourceStorage
         {
-            Resource = new Policy.Resource(resource),
             Capacity = storage.Capacity.Value,
             Stored = storage.Stored.Value,
             StackLimit = stackLimit,

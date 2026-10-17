@@ -16,32 +16,20 @@ public sealed record CarePawn
     public Fact<bool> NeedsTend { get; init; }
     public Fact<bool> BadConditions { get; init; }
 
-    /// <summary>Surgery facts ride on the same health read. Native computes every value through vanilla; nothing here is recomputed.</summary>
-    public Fact<EquatableArray<MissingPart>> MissingParts { get; init; }
-
     public Fact<EquatableArray<SurgeryOperation>> Operations { get; init; }
 
     /// <summary>The medical bills queued on the patient: the surgery planner's in-flight evidence.</summary>
     public Fact<int> QueuedSurgeries { get; init; }
 
-    /// <summary>Each queued bill's recipe; ReserveSurgeryStock holds their parts back from sale until the surgery runs.</summary>
-    public IReadOnlyList<string> QueuedRecipes { get; init; } = [];
-
     /// <summary>The part items those bills install, by the catalog's recipe rows.</summary>
     public IReadOnlyList<Resource> QueuedItems { get; init; } = [];
-
-    /// <summary>The added parts the pawn carries; unknown when the native read failed.</summary>
-    public Fact<EquatableArray<InstalledPart>> InstalledParts { get; init; }
 }
 
 /// <summary>A missing or destroyed body part at its common missing ancestor; its descendants are implied.</summary>
 public sealed record MissingPart
 {
     public Fact<int> PartIndex { get; init; }
-    public Fact<int> ParentIndex { get; init; }
     public Fact<string> PartDefName { get; init; }
-    public Fact<string> ParentDefName { get; init; }
-    public Fact<bool> Vital { get; init; }
 }
 
 /// <summary>Classifies an operation the way the surgery planner ranks it.</summary>
@@ -111,8 +99,6 @@ public sealed record CareCondition
     public Fact<double> Immunity { get; init; }
     public Fact<double> ImmunityPerDay { get; init; }
     public Fact<bool> Tended { get; init; }
-    public Fact<double> TendQuality { get; init; }
-
     /// <summary>The condition's part in the race body's AllParts; unknown for a whole-body condition.</summary>
     public Fact<int> PartIndex { get; init; }
 }
@@ -155,16 +141,6 @@ public sealed record MedicalCareHistory
         }
         return Known(true);
     }
-}
-
-/// <summary>One added part (bionic, prosthetic, peg, archotech) read natively. Hediff is the added-part hediff def, Part the body part def and PartIndex its index; Item is the thing its removal spawns, which prices it; Tier is the hediff def's partEfficiency. No price is carried: the spent side prices Item.</summary>
-public sealed record InstalledPart
-{
-    public string Hediff { get; init; } = "";
-    public Fact<string> Part { get; init; }
-    public Fact<int> PartIndex { get; init; }
-    public Fact<Resource> Item { get; init; }
-    public double Tier { get; init; }
 }
 
 public static partial class PolicyFunctions

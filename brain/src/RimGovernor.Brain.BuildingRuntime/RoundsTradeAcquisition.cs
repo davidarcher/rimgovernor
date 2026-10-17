@@ -31,7 +31,6 @@ public sealed partial class Rounder
         {
             m.Proposals.TryGetValue(owner, out var plan);
             plan ??= new Pol.TradeAcquisitionPlan();
-            plan = plan with { Decisions = [.. plan.Decisions] };
             if (plan.Proposal is not null)
             {
                 var own = plan.Proposal with { };
@@ -170,7 +169,6 @@ internal static partial class BuildingRuntimePackage
                 ID = (row.FactionId ?? "") + "/" + ProtoNames.Of(row.Kind) + "/" + (row.TraderKind ?? ""),
                 Faction = row.FactionId ?? "",
                 TraderKind = row.TraderKind ?? "",
-                LastRequestTick = row.LastRequestTick.GetValueOrDefault(),
                 PassingShips = facts.PassingShips.Count,
                 LaborTicks = Known(0.0),
                 Kind = row.Kind == CommonPb.TradeRequestKind.Orbital ? Pol.TradeAcquisitionKind.Orbital : Pol.TradeAcquisitionKind.Caravan,

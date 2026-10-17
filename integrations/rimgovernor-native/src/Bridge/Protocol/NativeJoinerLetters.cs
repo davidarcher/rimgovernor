@@ -55,8 +55,8 @@ namespace HomeBridge.BridgeTools
             foreach (var letter in PendingCreepJoiners().OrderBy(l => l.ID))
             {
                 var accept = letter.Choices.First();
-                var row = new Obs.JoinerLetter { LetterId = letter.ID, SnapshotToken = CreepJoinerToken(letter), ExpiresTick = letter.disappearAtTick, PawnId = letter.pawn.GetUniqueLoadID(),
-                    AcceptLabel = ChoiceDialogTools.Label(accept), CanAccept = !accept.disabled && !string.IsNullOrEmpty(letter.signalAccept), Creepjoiner = true };
+                var row = new Obs.JoinerLetter { LetterId = letter.ID, SnapshotToken = CreepJoinerToken(letter), PawnId = letter.pawn.GetUniqueLoadID(),
+                    AcceptLabel = ChoiceDialogTools.Label(accept), CanAccept = !accept.disabled && !string.IsNullOrEmpty(letter.signalAccept) };
                 rows.Add(row);
             }
             return rows;
@@ -104,7 +104,7 @@ namespace HomeBridge.BridgeTools
                 if (pawn == null || pawn.Dead) continue;
                 var accept = letter.Choices.First();
                 rows.Add(new Obs.JoinerLetter { LetterId = letter.ID, SnapshotToken = Token(letter, pawn),
-                    PawnId = pawn.GetUniqueLoadID(), ExpiresTick = letter.disappearAtTick,
+                    PawnId = pawn.GetUniqueLoadID(),
                     AcceptLabel = ChoiceDialogTools.Label(accept), CanAccept = !accept.disabled && accept.action != null });
             }
             return rows;

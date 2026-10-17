@@ -298,11 +298,10 @@ public static partial class ObservationPackage
             }
             if (row.Health is { } h && !HasIssue(row.Issues, "health"))
             {
-                var (missing, operations) = SurgeryFacts(h, parts);
-                p = p with { MissingParts = missing, Operations = operations, QueuedSurgeries = QueuedSurgeries(h) };
-                p = p with { InstalledParts = InstalledParts(h, parts) };
+                var (_, operations) = SurgeryFacts(h, parts);
+                p = p with { Operations = operations, QueuedSurgeries = QueuedSurgeries(h) };
                 var recipes = QueuedSurgeryRecipes(h) ?? [];
-                p = p with { QueuedRecipes = recipes, QueuedItems = QueuedSurgeryItems(recipes, parts) };
+                p = p with { QueuedItems = QueuedSurgeryItems(recipes, parts) };
                 var (conditions, lifeThreatening) = CareConditions(h);
                 p = p with
                 {

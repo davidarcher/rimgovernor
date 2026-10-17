@@ -19,7 +19,7 @@ public sealed class SelfTendPermissionTests
         GenerationSnapshot world = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
         var facts = WorkResourceTestFacts.Create("patient");
         facts = facts with { WorkCoverage = Fact.Known(false), ForecastObserved = facts.ForecastObserved with
-        { WorkPawns = Fact.Known<EquatableArray<WorkPawn>>([new() { Id = new("patient"), SelfTend = Fact.Known(true), Available = Fact.Known(true) }]) } };
+        { WorkPawns = Fact.Known<EquatableArray<WorkPawn>>([new() { Id = new("patient"), Available = Fact.Known(true) }]) } };
         _ = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
         var plan = new PlanSpec(new("obsolete-setting"), new(1),

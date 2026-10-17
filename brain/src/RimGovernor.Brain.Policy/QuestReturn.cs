@@ -5,15 +5,7 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record SiteReturnPlan
 {
-    public string Site { get; init; } = "";
-
     public CaravanDeparture? Departure { get; init; }
-
-    public IReadOnlyList<PawnId> Crew { get; init; } = [];
-
-    public int HomeTile { get; init; }
-
-    public bool Retreat { get; init; }
 
     public QuestSkipReason Reason { get; init; }
 }
@@ -71,18 +63,17 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Retains the desired inventory explicitly because vanilla reform empties inventories before packing the
-    /// selected transferables. A failed fight requests a walking retreat; it never reforms through hostiles.
+    /// selected transferables. It never reforms through hostiles.
     /// </summary>
-    public static SiteReturnPlan PlanSiteReturn(WorldSite site, bool failedFight)
+    public static SiteReturnPlan PlanSiteReturn(WorldSite site)
     {
-        var result = new SiteReturnPlan { Site = site.Id };
+        var result = new SiteReturnPlan();
         SiteReturnPlan Fail(QuestSkipReason reason) => result with { Reason = reason };
 
         if (!site.Extraction.TryGetValue(out var extraction) || extraction.Crew.Count == 0)
         {
             return Fail("extraction_unknown");
         }
-        result = result with { Crew = extraction.Crew.ToList() };
         var routes = extraction.HomeRoutes.ToList();
         routes.Sort((x, y) =>
         {
@@ -113,17 +104,12 @@ public static partial class PolicyFunctions
         {
             return Fail("home_route_unknown");
         }
-        result = result with { HomeTile = route.Tile };
         if (!extraction.CanReform.TryGetValue(out var canReform))
         {
             return Fail("reform_unknown");
         }
         if (!canReform)
         {
-            if (failedFight)
-            {
-                return result with { Retreat = true };
-            }
             return Fail("site_fight_pending");
         }
         if (!site.Security.TryGetValue(out var security))
@@ -148,12 +134,11 @@ public static partial class PolicyFunctions
         }
         if (active || dormant)
         {
-            result = result with { Retreat = failedFight };
             return Fail("site_fight_pending");
         }
         route.TravelTicks.TryGetValue(out var travel);
         var days = (double)travel / GameTime.TicksPerDay + 1;
-        var (cargo, reason) = SiteReturnCargo(extraction, days, !failedFight);
+        var (cargo, reason) = SiteReturnCargo(extraction, days);
         if (!reason.IsNone)
         {
             return Fail(reason);
@@ -165,7 +150,7 @@ public static partial class PolicyFunctions
         return result with { Departure = departure with { Mode = CaravanDepartureMode.SiteReform } };
     }
 
-    private static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) SiteReturnCargo(SiteExtraction extraction, double days, bool loot)
+    private static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) SiteReturnCargo(SiteExtraction extraction, double days)
     {
         IReadOnlyList<CargoItem> none = [];
         var ck = extraction.CarryCapacity.TryGetValue(out var capacity);
@@ -276,25 +261,22 @@ public static partial class PolicyFunctions
         {
             return (none, "food_capacity");
         }
-        if (loot)
+        foreach (var row in rows)
         {
-            foreach (var row in rows)
+            var count = left.GetValueOrDefault(row.Id);
+            var vk = row.MarketValue.TryGetValue(out var value);
+            row.UnitMass.TryGetValue(out var mass);
+            if (count == 0 || !vk || !Finite(value) || value <= 0)
             {
-                var count = left.GetValueOrDefault(row.Id);
-                var vk = row.MarketValue.TryGetValue(out var value);
-                row.UnitMass.TryGetValue(out var mass);
-                if (count == 0 || !vk || !Finite(value) || value <= 0)
-                {
-                    continue;
-                }
-                var take = count;
-                if (mass > 0)
-                {
-                    take = Math.Min(take, Math.Max(0L, (long)Math.Floor(free / mass)));
-                }
-                packed[row.Def] = packed.GetValueOrDefault(row.Def) + (ulong)take;
-                free -= take * mass;
+                continue;
             }
+            var take = count;
+            if (mass > 0)
+            {
+                take = Math.Min(take, Math.Max(0L, (long)Math.Floor(free / mass)));
+            }
+            packed[row.Def] = packed.GetValueOrDefault(row.Def) + (ulong)take;
+            free -= take * mass;
         }
         var cargo = packed.Where(kv => kv.Value > 0)
             .Select(kv => new CargoItem(kv.Key, kv.Value))

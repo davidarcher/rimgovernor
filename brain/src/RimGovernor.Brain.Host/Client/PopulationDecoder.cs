@@ -42,7 +42,7 @@ internal static class PopulationDecoder
             }
             if (!pawns.TryRow(person.Pawn!, out var row))
             {
-                return new PrisonerCensus { Context = observed.Context, Outlook = DecodeOutlook(observed), Names = Known(EquatableArray.From(names)) };
+                return new PrisonerCensus { Context = observed.Context, Names = Known(EquatableArray.From(names)) };
             }
             resolved[i] = row;
         }
@@ -147,7 +147,6 @@ internal static class PopulationDecoder
             Custody = Known(EquatableArray.From(custody)),
             Colony = Known(colony),
             Guests = Known(EquatableArray.From(guests)),
-            Outlook = DecodeOutlook(observed),
             Names = Known(EquatableArray.From(names)),
         };
     }
@@ -172,10 +171,6 @@ internal static class PopulationDecoder
         {
             f = f with { HeldTicks = Known(ticks) };
         }
-        if (person.Will is { } will)
-        {
-            f = f with { Will = Known(will) };
-        }
         f = f with { Ideo = person.IdeoId ?? "", WildMan = person.WildMan.GetValueOrDefault(), Prospect = prospect };
         if (person.Surgery is { } health)
         {
@@ -193,7 +188,6 @@ internal static class PopulationDecoder
         {
             f = f with { CreepJoiner = Known(joiner is not null) };
         }
-        f = f with { Faction = person.Faction?.Id ?? "" };
         if (person.HarvestGoodwillChange is { } goodwill)
         {
             f = f with { HarvestGoodwill = Known(goodwill) };
@@ -204,7 +198,6 @@ internal static class PopulationDecoder
         }
         var (conditions, life) = BridgeFunctions.CareConditions(person.Conditions);
         f = f with { Conditions = conditions, LifeThreatening = life, Executing = person.Interaction == "Execution" };
-        f = f with { PolicyInputs = BridgeFunctions.PawnPolicyInputs(person.PolicyInputs) };
         if (person.Withdrawal is { } withdrawal)
         {
             f = f with { Withdrawal = Known(withdrawal) };
@@ -252,12 +245,4 @@ internal static class PopulationDecoder
         });
     }
 
-    /// <summary>Go <c>decodeOutlook</c>: the snapshot's storyteller fields; an absent field is unknown.</summary>
-    private static P.PopulationOutlook DecodeOutlook(PbObservations.PopulationSnapshot observed) => new()
-    {
-        Intent = observed.PopulationIntent is { } intent ? Known(intent) : default,
-        AdjustedPopulation = observed.AdjustedPopulation is { } adjusted ? Known(adjusted) : default,
-        DeathOnDownedChance = observed.DeathOnDownedChance is { } death ? Known(death) : default,
-        UnrecruitableChance = observed.UnrecruitableChance is { } unrecruitable ? Known(unrecruitable) : default,
-    };
 }

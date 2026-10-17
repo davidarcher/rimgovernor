@@ -27,9 +27,6 @@ public sealed record PawnAnomaly
     /// <summary>Pawn.IsMutant (a shambler is one).</summary>
     public Fact<bool> Mutant { get; init; }
 
-    /// <summary>Pawn.IsShambler.</summary>
-    public Fact<bool> Shambler { get; init; }
-
     /// <summary>The containment strength an entity needs to stay held; unknown for a pawn that is no entity.</summary>
     public Fact<double> MinContainmentStrength { get; init; }
 
@@ -57,10 +54,6 @@ public sealed record PawnAnomaly
 /// </summary>
 public sealed record CreepJoiner
 {
-    public Fact<string> Form { get; init; }
-
-    public Fact<string> Benefit { get; init; }
-
     public Fact<bool> DownsideTriggered { get; init; }
 }
 
@@ -87,8 +80,6 @@ public sealed record EntityHeld
     /// <summary>CompProducesBioferrite.BioferritePerDay, 0 while the BioferriteExtracted hediff stands.</summary>
     public Fact<double> BioferritePerDay { get; init; }
 
-    public Fact<string> Platform { get; init; }
-
     public Fact<ContainmentMode> Mode { get; init; }
 }
 
@@ -98,25 +89,7 @@ public sealed record EntityHeld
 /// </summary>
 public sealed record StudyState
 {
-    public Fact<bool> StudyEnabled { get; init; }
-
-    public Fact<bool> Completed { get; init; }
-
-    public Fact<bool> EverStudiable { get; init; }
-
     public Fact<bool> CurrentlyStudiable { get; init; }
-
-    public Fact<double> ProgressPercent { get; init; }
-
-    public Fact<double> StudyPoints { get; init; }
-
-    public Fact<double> KnowledgeGained { get; init; }
-
-    public Fact<double> AnomalyKnowledge { get; init; }
-
-    public Fact<int> Interactions { get; init; }
-
-    public Fact<string> KnowledgeCategory { get; init; }
 }
 
 /// <summary>
@@ -126,8 +99,6 @@ public sealed record StudyState
 public sealed record BuildingAnomaly
 {
     public Fact<EntityHolder?> Holder { get; init; }
-
-    public Fact<StudyState?> Study { get; init; }
 }
 
 /// <summary>A CompEntityHolder: the containment strength it provides now, whether it can take a pawn and the pawn it holds (known "" when none).</summary>
@@ -151,8 +122,6 @@ public sealed record EntityHolder
 public sealed record ContainmentDoor
 {
     public Cell Cell { get; init; }
-
-    public Fact<bool> Open { get; init; }
 
     public Fact<bool> HoldOpen { get; init; }
 

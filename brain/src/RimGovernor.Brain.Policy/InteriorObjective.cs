@@ -158,31 +158,17 @@ public sealed record InteriorScore
     /// <summary>Counts the targets with a facility in range.</summary>
     public int LinksServed { get; init; }
 
-    /// <summary>The weight-averaged walking distance in steps over the gated (recipe and item) flow edges; 0 with no edges.</summary>
-    public double Walk { get; init; }
-
-    /// <summary>The number of gated flow edges Walk averages.</summary>
-    public int WalkEdges { get; init; }
-
     /// <summary>The average over the gated edges that end at a door (a part of Walk).</summary>
     public double DoorWalk { get; init; }
 
     /// <summary>The average over the gated edges between two pieces (a part of Walk).</summary>
     public double PairWalk { get; init; }
 
-    /// <summary>The same average over the informational edges (meals, sleep, rest): reported, never gated.</summary>
-    public double InfoWalk { get; init; }
-
-    public int InfoEdges { get; init; }
-
     /// <summary>Sums the known Beauty of the pieces.</summary>
     public double Beauty { get; init; }
 
     /// <summary>Lists the definitions whose Beauty was not known.</summary>
     public IReadOnlyList<string> Unknown { get; init; } = [];
-
-    /// <summary>The count of pieces placed.</summary>
-    public int Pieces { get; init; }
 
     /// <summary>Reports whether every hard constraint holds.</summary>
     public bool Feasible() => Violations.Count == 0;
@@ -391,7 +377,6 @@ public static partial class PolicyFunctions
             FreeCells = freeCells,
             LinksWanted = wanted,
             LinksServed = served,
-            Pieces = input.Pieces.Count,
         };
         score = WalkDistance(score, input, Walkable, thresholds, stand);
         var (beauty, unknown) = PieceBeauty(input);
@@ -428,7 +413,7 @@ public static partial class PolicyFunctions
         return dist;
     }
 
-    /// <summary>Fills the walking terms: the gated average over recipe and item edges (with its door and pair parts) and the informational average.</summary>
+    /// <summary>Fills the walking terms: the gated average over recipe and item edges, its door and pair parts. Informational edges (meals, sleep, rest) are never gated and add nothing.</summary>
     private static InteriorScore WalkDistance(InteriorScore s, InteriorObjective input, Func<Cell, bool> free, IReadOnlyList<Cell> thresholds, Dictionary<string, List<Cell>> stand)
     {
         var flows = input.Flows;
@@ -437,13 +422,12 @@ public static partial class PolicyFunctions
             return s;
         }
         IReadOnlyList<Cell> Ends(FlowEnd e) => e.Door ? thresholds : stand.GetValueOrDefault(e.Slot ?? string.Empty) ?? [];
-        double sum = 0, weight = 0, doorSum = 0, doorWeight = 0, infoSum = 0, infoWeight = 0;
-        int walkEdges = 0, infoEdges = 0;
+        double sum = 0, weight = 0, doorSum = 0, doorWeight = 0;
         foreach (var e in flows.Edges(input.Pieces))
         {
             var from = Ends(e.From);
             var to = Ends(e.To);
-            if (e.Weight <= 0 || from.Count == 0 || to.Count == 0)
+            if (e.Weight <= 0 || e.Informational || from.Count == 0 || to.Count == 0)
             {
                 continue;
             }
@@ -463,13 +447,6 @@ public static partial class PolicyFunctions
                 continue;
             }
             var cost = e.Weight * best;
-            if (e.Informational)
-            {
-                infoSum += cost;
-                infoWeight += e.Weight;
-                infoEdges++;
-                continue;
-            }
             sum += cost;
             weight += e.Weight;
             if (e.From.Door || e.To.Door)
@@ -477,17 +454,12 @@ public static partial class PolicyFunctions
                 doorSum += cost;
                 doorWeight += e.Weight;
             }
-            walkEdges++;
         }
         static double Avg(double total, double w) => w == 0 ? 0 : total / w;
         return s with
         {
-            WalkEdges = walkEdges,
-            InfoEdges = infoEdges,
-            Walk = Avg(sum, weight),
             DoorWalk = Avg(doorSum, doorWeight),
             PairWalk = Avg(sum - doorSum, weight - doorWeight),
-            InfoWalk = Avg(infoSum, infoWeight),
         };
     }
 

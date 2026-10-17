@@ -192,50 +192,40 @@ public static partial class PolicyFunctions
     /// SelectTrade for a favor session: it sells the gold row's stock above keep and each surplus prisoner
     /// (facts.FavorPrisoners), and buys nothing. There is no silver budget and no trader-cash cap; the favor price
     /// must be known and positive, the row tradeable and the stock known. Anything else selects nothing (not a
-    /// refusal) so the session is cancelled. A staged prisoner's evidence is matched with a zero retained target:
-    /// AcceptTrade needs a floor entry for the row's definition.
+    /// refusal) so the session is cancelled.
     /// </summary>
     public static TradeSelection SelectFavorSale(TradeSelectionFacts facts, long keep)
     {
         if (!facts.Complete)
         {
-            return new TradeSelection { Refused = true, Reason = "Economic selection requires an unfiltered complete trade sheet" };
+            return new TradeSelection { Refused = true };
         }
         var selected = new List<TradeSelectionLine>();
-        var evidenceRows = new List<TradeSelectionEvidence>();
         foreach (var row in facts.Rows)
         {
             if (FavorPrisonerRow(facts, row))
             {
-                evidenceRows.Add(new TradeSelectionEvidence { Item = row.DefName, Matched = true, EligibleStock = 1, ExportCapacity = 1, Count = -1 });
-                selected.Add(new TradeSelectionLine(row.LineID, row.DefName, -1));
+                selected.Add(new TradeSelectionLine(row.LineID, -1));
                 continue;
             }
             if (row.DefName != FavorSaleResource.Value)
             {
                 continue;
             }
-            var evidence = new TradeSelectionEvidence { Item = row.DefName };
             if (!row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn || !row.CurrencyKnown || row.Currency)
             {
-                evidence = evidence with { Blocker = TradeBlockerRow };
+                continue;
             }
-            else if (row.ColonyCount < 0 || !row.SellPriceKnown || !Finite(row.SellPrice) || row.SellPrice <= 0)
+            if (row.ColonyCount < 0 || !row.SellPriceKnown || !Finite(row.SellPrice) || row.SellPrice <= 0)
             {
-                evidence = evidence with { Blocker = TradeBlockerUnknown };
+                continue;
             }
-            if (evidence.Blocker.Length == 0)
+            var sell = row.ColonyCount - keep;
+            if (sell > 0)
             {
-                var sell = row.ColonyCount - keep;
-                evidence = evidence with { Matched = true, EligibleStock = row.ColonyCount, RetainedTarget = keep, ExportCapacity = Math.Max(0, sell) };
-                if (sell > 0)
-                {
-                    evidence = evidence with { Count = -sell };
-                    selected.Add(new TradeSelectionLine(row.LineID, row.DefName, -sell));
-                }
+                selected.Add(new TradeSelectionLine(row.LineID, -sell));
             }
-            evidenceRows.Add(evidence);
         }
-        return new TradeSelection { Selected = selected, Evidence = evidenceRows };
+        return new TradeSelection { Selected = selected };
     }
 }

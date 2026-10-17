@@ -19,11 +19,6 @@ public sealed record ControlledEnvironment
 
     public Fact<double> OutdoorTemperatureC { get; init; }
 
-    public Fact<bool> Daylight { get; init; }
-
-    /// <summary>The current WeatherDef's accuracyMultiplier; unknown when the weather is unread.</summary>
-    public Fact<double> WeatherAccuracy { get; init; }
-
     /// <summary>The headroom row for a native network id.</summary>
     public PowerHeadroom? Network(string id)
     {
@@ -66,17 +61,9 @@ public sealed record GrowLight
 {
     public string Id { get; init; } = "";
 
-    public string Definition { get; init; } = "";
-
-    public Cell Cell { get; init; }
-
     public Fact<string> Room { get; init; }
 
     public Fact<string> Network { get; init; }
-
-    public Fact<bool> Powered { get; init; }
-
-    public Fact<double> PowerW { get; init; }
 
     /// <summary>Powered and inside the lamp's native schedule.</summary>
     public Fact<bool> LitNow { get; init; }
@@ -89,18 +76,6 @@ public sealed record PlantGrower
 {
     public string Id { get; init; } = "";
 
-    public string Definition { get; init; } = "";
-
-    public Cell Cell { get; init; }
-
-    public Fact<string> Room { get; init; }
-
-    public Fact<string> Network { get; init; }
-
-    public Fact<bool> Powered { get; init; }
-
-    public Fact<double> PowerW { get; init; }
-
     public Fact<double> Fertility { get; init; }
 
     public Fact<string> SowTag { get; init; }
@@ -108,8 +83,6 @@ public sealed record PlantGrower
     public Fact<string> Crop { get; init; }
 
     public Fact<bool> CanSow { get; init; }
-
-    public EquatableArray<Cell> Cells { get; init; }
 }
 
 public sealed record GrowRoom
@@ -120,16 +93,6 @@ public sealed record GrowRoom
     public Fact<int> GridRoom { get; init; }
 
     public Fact<double> TemperatureC { get; init; }
-
-    public Fact<int> Cells { get; init; }
-
-    public Fact<int> OpenRoof { get; init; }
-
-    public Fact<int> Lit { get; init; }
-
-    public Fact<bool> Proper { get; init; }
-
-    public Fact<bool> Outdoors { get; init; }
 }
 
 public sealed record PowerHeadroom
@@ -143,8 +106,6 @@ public sealed record PowerHeadroom
     public Fact<double> WindW { get; init; }
 
     public Fact<double> ConsumptionW { get; init; }
-
-    public Fact<double> StoredWattDays { get; init; }
 
     public Fact<double> CapacityWattDays { get; init; }
 

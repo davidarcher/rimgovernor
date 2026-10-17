@@ -35,7 +35,6 @@ public static partial class BridgeFunctions
                     Immunity = OptionalFact(condition.Immunity is not null, condition.Immunity.GetValueOrDefault()),
                     ImmunityPerDay = OptionalFact(condition.ImmunityPerDay is not null, condition.ImmunityPerDay.GetValueOrDefault()),
                     Tended = OptionalFact(condition.Tended is not null, condition.Tended.GetValueOrDefault()),
-                    TendQuality = OptionalFact(condition.TendQuality is not null, condition.TendQuality.GetValueOrDefault()),
                     PartIndex = OptionalInt(condition.PartIndex is not null, condition.PartIndex.GetValueOrDefault()),
                     DefName = OptionalFact(condition.DefName is not null, (condition.DefName ?? "")),
                 }

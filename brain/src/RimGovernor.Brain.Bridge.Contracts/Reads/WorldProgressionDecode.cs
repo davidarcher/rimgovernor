@@ -407,7 +407,7 @@ public static partial class BridgeFunctions
             {
                 throw Contract("invalid quest lodger mood");
             }
-            moods.Add(new QuestLodgerMoodFact((mood.PawnId ?? ""), mood.Mood is not null ? mood.Mood.GetValueOrDefault() : null));
+            moods.Add(new QuestLodgerMoodFact(mood.Mood is not null ? mood.Mood.GetValueOrDefault() : null));
         }
         return new QuestObjectiveFact
         {

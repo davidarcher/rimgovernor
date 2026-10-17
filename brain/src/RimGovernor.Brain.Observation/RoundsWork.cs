@@ -283,10 +283,6 @@ public static partial class ObservationPackage
         {
             w = w with { Hostility = Known(hostility) };
         }
-        if (row.Settings is { } ts && ts.SelfTend is not null && !HasIssue(ts.Issues, "self_tend"))
-        {
-            w = w with { SelfTend = Known(ts.SelfTend.GetValueOrDefault()) };
-        }
         if (row.Biography is { } db && !HasIssue(db.Issues, "disabled_work_tags"))
         {
             var violent = true;
@@ -305,7 +301,6 @@ public static partial class ObservationPackage
             w = w with
             {
                 Rest = Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
-                Joy = Optional(n.Joy is not null, n.Joy.GetValueOrDefault()),
                 Mood = Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
                 BreakThreshold = Optional(n.BreakThresholdMinor is not null, n.BreakThresholdMinor.GetValueOrDefault()),
             };
@@ -316,7 +311,7 @@ public static partial class ObservationPackage
         }
         if (row.Needs is { } pn && pn.Psyfocus is not null && pn.PsyfocusTarget is not null && pn.PsylinkLevel is not null)
         {
-            w = w with { Psyfocus = Known((double)pn.Psyfocus.GetValueOrDefault()), PsyfocusTarget = Known((double)pn.PsyfocusTarget.GetValueOrDefault()), PsylinkLevel = Known((int)pn.PsylinkLevel.GetValueOrDefault()) };
+            w = w with { PsylinkLevel = Known((int)pn.PsylinkLevel.GetValueOrDefault()) };
         }
         return w;
     }

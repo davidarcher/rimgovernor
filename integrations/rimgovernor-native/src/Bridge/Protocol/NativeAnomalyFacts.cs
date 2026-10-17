@@ -28,8 +28,8 @@ namespace HomeBridge.BridgeTools
         internal static Obs.StudyState? Study(Thing thing)
         {
             if (!ModsConfig.AnomalyActive || (thing as ThingWithComps)?.GetComp<CompStudiable>() is not CompStudiable study) return null;
-            var state = new Obs.StudyState { StudyEnabled = study.studyEnabled, Completed = study.Completed, StudyInteractions = study.studyInteractions,
-                EverStudiable = study.EverStudiable(), CurrentlyStudiable = study.CurrentlyStudiable() };
+            var state = new Obs.StudyState { Completed = study.Completed, StudyInteractions = study.studyInteractions,
+                CurrentlyStudiable = study.CurrentlyStudiable() };
             if (Finite(study.ProgressPercent)) state = state with { ProgressPercent = study.ProgressPercent };
             if (Finite(study.studyPoints)) state = state with { StudyPoints = study.studyPoints };
             if (Finite(study.anomalyKnowledgeGained)) state = state with { AnomalyKnowledgeGained = study.anomalyKnowledgeGained };
@@ -50,11 +50,9 @@ namespace HomeBridge.BridgeTools
                 // leaves the whole group absent next to its ReadIssue.
                 var entity = pawn.IsEntity;
                 var mutant = pawn.IsMutant;
-                var shambler = pawn.IsShambler;
                 var minimum = entity ? pawn.GetStatValue(StatDefOf.MinimumContainmentStrength) : float.NaN;
                 row = row with { Entity = entity };
                 row = row with { Mutant = mutant };
-                row = row with { Shambler = shambler };
                 if (entity && Finite(minimum)) row = row with { MinContainmentStrength = minimum };
             }
             catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("entity", ex)] }; }
@@ -84,7 +82,6 @@ namespace HomeBridge.BridgeTools
                         NeedsTend = pawn.health.HasHediffsNeedingTend(false), Bleeding = Finite(pawn.health.hediffSet.BleedRateTotal) && pawn.health.hediffSet.BleedRateTotal > 0 };
                     if (target.HeldPlatform is Building_HoldingPlatform platform)
                     {
-                        held = held with { Platform = NativeRef.Thing(platform) };
                         held = held with { HarvesterAttached = platform.HasAttachedBioferriteHarvester };
                     }
                     var perDay = CompProducesBioferrite.BioferritePerDay(pawn);
@@ -115,8 +112,6 @@ namespace HomeBridge.BridgeTools
         {
             if (pawn.creepjoiner is not Pawn_CreepJoinerTracker tracker) return null;
             var state = new Obs.CreepJoinerState { DownsideTriggered = CreepJoinerFields.DownsideTriggered(tracker) };
-            if (Id(tracker.form?.defName) is string form) state = state with { Form = form };
-            if (Id(tracker.benefit?.defName) is string benefit) state = state with { Benefit = benefit };
             return state;
         }
 

@@ -32,7 +32,6 @@ public sealed record MedicalReserveReview
 {
     public bool Active { get; init; }
     public Fact<long> Stock { get; init; }
-    public Fact<long> Entry { get; init; }
     public Fact<long> Target { get; init; }
     public Fact<long> Replenish { get; init; }
 }
@@ -55,12 +54,9 @@ public enum MedicineMethodKind
 public sealed record MedicineMethod
 {
     public MedicineMethodKind Kind { get; init; }
-    public MethodId Id { get; init; }
     public string Bench { get; init; } = "";
     public string Recipe { get; init; } = "";
-    public Resource Resource { get; init; }
     public long Target { get; init; }
-    public IReadOnlyList<WorkRequirement> RequiredWork { get; init; } = [];
 }
 
 /// <summary>
@@ -165,7 +161,7 @@ public static partial class PolicyFunctions
         var threshold = active ? target : entry;
         var nowActive = people > 0 && stock < threshold;
         var replenishment = nowActive ? Math.Max(0, target - stock) : 0;
-        return r with { Active = nowActive, Stock = Known(stock), Entry = Known(entry), Target = Known(target), Replenish = Known(replenishment) };
+        return r with { Active = nowActive, Stock = Known(stock), Target = Known(target), Replenish = Known(replenishment) };
     }
 
     private static MethodId MedicineMethodId(Resource resource, string bench, string recipe) =>
@@ -255,24 +251,21 @@ public static partial class PolicyFunctions
                 {
                     return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
                 }
-                if (!recipe.RequiredWork.TryGetValue(out var work))
+                if (!recipe.RequiredWork.IsKnown)
                 {
                     return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
                 }
                 var id = MedicineMethodId(r.Resource, b.Id, recipe.Definition);
                 if (seen.Contains(id))
                 {
-                    return new MedicineMethod { Kind = MedicineMethodKind.Wait, Id = id };
+                    return new MedicineMethod { Kind = MedicineMethodKind.Wait };
                 }
                 return new MedicineMethod
                 {
                     Kind = MedicineMethodKind.Produce,
-                    Id = id,
                     Bench = b.Id,
                     Recipe = recipe.Definition,
-                    Resource = r.Resource,
                     Target = target,
-                    RequiredWork = [.. work],
                 };
             }
         }

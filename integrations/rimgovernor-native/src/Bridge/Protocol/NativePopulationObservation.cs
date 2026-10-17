@@ -58,7 +58,6 @@ namespace HomeBridge.BridgeTools
                     // routine release path's "held N days with resistance
                     // unbroken" clock. Only a current prisoner carries it.
                     if (p.IsPrisoner && p.records != null) person = person with { PrisonerTicks = (long)p.records.GetValue(RecordDefOf.TimeAsPrisoner) };
-                    if (ModsConfig.IdeologyActive && p.IsPrisoner) person = person with { Will = Number(p.guest.will) };
                 }
                 if (p.Ideo != null) person = person with { IdeoId = NativePawnObservationTools.Id(p.Ideo.GetUniqueLoadID()) };
                 // Prospect facts: the prisoners family weighs a prisoner's
@@ -131,23 +130,8 @@ namespace HomeBridge.BridgeTools
                     snapshot = snapshot with { ColonyIdeoId = NativePawnObservationTools.Id(ideo.GetUniqueLoadID()) };
                 }
             }
-            // Storyteller population outlook.
-            var intent = StorytellerUtilityPopulation.PopulationIntent;
-            var difficulty = Find.Storyteller.difficulty;
-            snapshot = snapshot with { PopulationIntent = Number(intent) };
-            snapshot = snapshot with { AdjustedPopulation = Number(StorytellerUtilityPopulation.AdjustedPopulation) };
-            snapshot = snapshot with { DeathOnDownedChance = Number(DeathOnDownedChance(intent, difficulty.unwaveringPrisoners, difficulty.enemyDeathOnDownedChanceFactor)) };
-            snapshot = snapshot with { UnrecruitableChance = Number(UnrecruitableChance(intent)) };
             return snapshot;
         }
-
-        // The humanlike branch of Pawn_HealthTracker's death-on-downed roll for a
-        // non-colony pawn downed by violence, with no per-pawn override.
-        internal static float DeathOnDownedChance(float intent, bool unwaveringPrisoners, float enemyFactor) =>
-            (unwaveringPrisoners ? HealthTuning.DeathOnDownedChance_NonColonyHumanlikeFromPopulationIntentCurve
-                : HealthTuning.DeathOnDownedChance_NonColonyHumanlikeFromPopulationIntentCurve_WaveringPrisoners).Evaluate(intent) * enemyFactor;
-
-        internal static float UnrecruitableChance(float intent) => HealthTuning.NonRecruitableChanceOverPopulationIntentCurve.Evaluate(intent);
 
         private static double Number(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };

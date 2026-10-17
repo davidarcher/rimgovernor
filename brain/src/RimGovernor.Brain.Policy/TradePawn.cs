@@ -27,7 +27,7 @@ public static partial class PolicyFunctions
     {
         if (!capacity)
         {
-            return (new TradeSelectionLine("", "", 0), false);
+            return (new TradeSelectionLine(), false);
         }
         var price = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var row in rows)
@@ -43,7 +43,7 @@ public static partial class PolicyFunctions
             }
         }
         var budget = (colonySilver - reserve) - spent;
-        var best = new TradeSelectionLine("", "", 0);
+        var best = new TradeSelectionLine();
         var bestScore = 0.0;
         var found = false;
         foreach (var row in rows)
@@ -63,7 +63,7 @@ public static partial class PolicyFunctions
             var score = PawnPurchaseValue(row.Skills) / row.BuyPrice;
             if (!found || score > bestScore || (score == bestScore && string.CompareOrdinal(row.LineID, best.LineID) < 0))
             {
-                best = new TradeSelectionLine(row.LineID, row.DefName, 1);
+                best = new TradeSelectionLine(row.LineID, 1);
                 bestScore = score;
                 found = true;
             }

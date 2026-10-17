@@ -30,8 +30,7 @@ namespace HomeBridge.BridgeTools
             var offered = quest.State == QuestState.NotYetAccepted && !marker.Spawned && pack?.Spawned != true;
             var map = offered ? delivery[0].Part.mapParent.Map : marker.Spawned ? marker.Map : pack!.Map;
             var row = new Obs.QuestMonument { MarkerId = marker.GetUniqueLoadID(), DefName = marker.def.defName,
-                MapId = map.uniqueID, Packed = !offered && pack != null, Installed = marker.Spawned, Offered = offered, Complete = marker.complete,
-                DisallowedTicks = marker.ticksSinceDisallowedBuilding };
+                MapId = map.uniqueID, Packed = !offered && pack != null, Installed = marker.Spawned, Offered = offered, Complete = marker.complete };
             if (offered)
                 row = row with { SuppliedResources = [.. delivery[0].Part.Things.Where(t => t.def.category == ThingCategory.Item && !(t.GetInnerIfMinified() is MonumentMarker))
                     .GroupBy(t => t.def).Select(g => new Obs.Quantity { DefName = g.Key.defName, Units = g.Sum(t => (long)t.stackCount) })] };

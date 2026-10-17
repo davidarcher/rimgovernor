@@ -34,7 +34,7 @@ public sealed partial class DefinitionCatalog
     }
 
     /// <summary>The added part hediff's partEfficiency; a hediff with no row or no addedPartProps is an error.</summary>
-    public double HediffPartTier(string hediff) =>
+    private double HediffPartTier(string hediff) =>
         RequireRow<HediffDef>(hediff).addedPartProps is { } added
             ? Decimal32(added.partEfficiency)
             : throw new CatalogException($"hediff {hediff} has no addedPartProps");
@@ -58,10 +58,6 @@ public sealed partial class DefinitionCatalog
 
     /// <summary>The hediff def's isBad; a hediff with no row is an error.</summary>
     public Fact<bool> HediffBad(string hediff) => Known(RequireRow<HediffDef>(hediff).isBad);
-
-    /// <summary>The item a removed part hediff leaves behind (its spawnThingOnRemoved), unknown when it spawns nothing; a hediff with no row is an error.</summary>
-    public Fact<P.Resource> HediffSpawnOnRemoved(string hediff) =>
-        RequireRow<HediffDef>(hediff).spawnThingOnRemoved is { } item ? Known(new P.Resource(item.defName)) : Unknown<P.Resource>();
 
     /// <summary>
     /// The harvest and kept-part facts derived from the BodyDef trees and the BodyPartDef rows. A vital BodyPartTagDef

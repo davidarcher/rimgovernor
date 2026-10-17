@@ -53,8 +53,6 @@ public sealed record JoinerOffer
 
     public Fact<int> RewardChoiceParts { get; init; }
 
-    public PawnId Asker { get; init; }
-
     public Fact<bool> AskerFactionPlayer { get; init; }
 
     public Fact<bool> ViolentQuestsAllowed { get; init; }
@@ -100,8 +98,6 @@ public sealed record QuestObjective
 
     public Fact<QuestWorkload> Workload { get; init; }
 
-    public string UnmetRequirement { get; init; } = "";
-
     public IReadOnlyList<PawnId> PawnIds { get; init; } = [];
 
     public Fact<double> MinimumMood { get; init; }
@@ -111,12 +107,10 @@ public sealed record QuestObjective
     public Fact<bool> Active { get; init; }
 }
 
-public sealed record QuestLodgerMood(PawnId Pawn, Fact<double> Mood);
+public sealed record QuestLodgerMood(Fact<double> Mood);
 
 public sealed record QuestShuttleState
 {
-    public string Id { get; init; } = "";
-
     public Fact<bool> AutoloadAvailable { get; init; }
 
     public Fact<bool> Autoload { get; init; }
@@ -127,13 +121,9 @@ public sealed record QuestShuttleState
 
     public Fact<bool> ManualLaunchAvailable { get; init; }
 
-    public IReadOnlyList<PawnId> PawnIds { get; init; } = [];
-
     public IReadOnlyList<PawnId> LoadedPawnIds { get; init; } = [];
 
     public IReadOnlyList<PawnId> PendingPawnIds { get; init; } = [];
-
-    public Fact<int> RequiredColonistCount { get; init; }
 }
 
 /// <summary>The royal favor one QuestAccept reward choice grants.</summary>
@@ -196,15 +186,9 @@ public sealed record JoinerLetterOffer
 
     public string Token { get; init; } = "";
 
-    public PawnId Pawn { get; init; }
-
-    public Tick Expires { get; init; }
-
     public string Label { get; init; } = "";
 
     public bool CanAccept { get; init; }
-
-    public bool CreepJoiner { get; init; }
 }
 
 public static partial class PolicyFunctions

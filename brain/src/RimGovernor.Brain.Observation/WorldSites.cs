@@ -14,12 +14,9 @@ public static partial class ObservationPackage
             var row = new WorldSite
             {
                 Id = site.Id ?? "",
-                Def = site.DefName ?? "",
-                Label = site.Label ?? "",
                 Tile = Optional(site.Tile is not null, site.Tile.GetValueOrDefault()),
                 Layer = Optional(site.LayerId is not null, site.LayerId.GetValueOrDefault()),
                 State = site.State.GetValueOrDefault(),
-                DistanceTiles = Optional(site.DistanceTiles is not null, site.DistanceTiles.GetValueOrDefault()),
                 Threat = Optional(site.Threat is not null, site.Threat.GetValueOrDefault()),
                 ThreatPoints = Optional(site.ThreatPoints is not null, site.ThreatPoints.GetValueOrDefault()),
                 Reachable = Optional(site.Reachable is not null, site.Reachable.GetValueOrDefault()),
@@ -52,9 +49,6 @@ public static partial class ObservationPackage
                         ActiveThreat = Optional(s.ActiveThreat is not null, s.ActiveThreat.GetValueOrDefault()),
                         DormantThreat = Optional(s.DormantThreat is not null, s.DormantThreat.GetValueOrDefault()),
                         TrapCount = Optional(s.TrapCount is not null, (int)s.TrapCount.GetValueOrDefault()),
-                        DetectionActive = Optional(s.DetectionActive is not null, s.DetectionActive.GetValueOrDefault()),
-                        DetectionTicksLeft = Optional(s.DetectionTicksLeft is not null, (long)s.DetectionTicksLeft.GetValueOrDefault()),
-                        RaidsSent = Optional(s.RaidsSent is not null, (int)s.RaidsSent.GetValueOrDefault()),
                     }),
                 };
             }
@@ -141,10 +135,8 @@ public static partial class ObservationPackage
             : Known(new QuestSurveyScanner
             {
                 SiteId = scanner.SiteId ?? "",
-                ScannerId = scanner.ScannerId ?? "",
                 DurationTicks = Optional(scanner.DurationTicks is not null, (long)scanner.DurationTicks.GetValueOrDefault()),
                 EndTick = Optional(scanner.EndTick is not null, (long)scanner.EndTick.GetValueOrDefault()),
-                RaidTick = Optional(scanner.RaidTick is not null, (long)scanner.RaidTick.GetValueOrDefault()),
                 Alive = Optional(scanner.Alive is not null, scanner.Alive.GetValueOrDefault()),
                 Complete = Optional(scanner.Complete is not null, scanner.Complete.GetValueOrDefault()),
             });
@@ -171,7 +163,6 @@ public static partial class ObservationPackage
             Map = new MapId(engine.MapId.GetValueOrDefault()),
             Spawned = Optional(engine.Spawned is not null, engine.Spawned.GetValueOrDefault()),
             Inspected = Optional(engine.Inspected is not null, engine.Inspected.GetValueOrDefault()),
-            Cell = engine.Cell is null ? default : CellOf(engine.Cell),
             EligiblePawns = eligible,
             InspectingPawnIds = inspecting,
         });

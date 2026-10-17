@@ -6,8 +6,4 @@ public sealed class DefinitionPartCatalog(DefinitionCatalog catalog) : IPartCata
     public Resource InstallItem(string recipe) => catalog.InstallItem(recipe);
 
     public double PartTier(string recipe) => catalog.PartTier(recipe);
-
-    public double HediffPartTier(string hediff) => catalog.HediffPartTier(hediff);
-
-    public Fact<Resource> HediffSpawnOnRemoved(string hediff) => catalog.HediffSpawnOnRemoved(hediff);
 }

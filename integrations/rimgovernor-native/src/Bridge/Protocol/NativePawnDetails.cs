@@ -228,16 +228,9 @@ namespace HomeBridge.BridgeTools
         internal static Obs.PawnHealth Surgery(Pawn pawn,Obs.PawnHealth row)
         {
             var parts=pawn.RaceProps.body.AllParts;
-            foreach(var added in pawn.health.hediffSet.hediffs.OfType<Hediff_AddedPart>()) {
-                var installed=new Obs.InstalledPart {Definition=Definition(added.def)};
-                if(added.Part!=null) {installed = installed with { PartIndex = parts.IndexOf(added.Part) };installed = installed with { PartDefName = Id(added.Part.def.defName) };}
-                row = row with { InstalledParts = [.. row.InstalledParts, installed] };
-            }
             foreach(var missing in pawn.health.hediffSet.GetMissingPartsCommonAncestors()) {
                 var part=missing.Part; if(part==null) continue;
-                var m=new Obs.MissingBodyPart {PartIndex=parts.IndexOf(part),PartDefName=Id(part.def.defName),
-                    Vital=part.def.tags!=null && part.def.tags.Any(t => t!=null && t.vital)};
-                if(part.parent!=null) {m = m with { ParentIndex = parts.IndexOf(part.parent) };m = m with { ParentDefName = Id(part.parent.def.defName) };}
+                var m=new Obs.MissingBodyPart {PartIndex=parts.IndexOf(part),PartDefName=Id(part.def.defName)};
                 row = row with { MissingParts = [.. row.MissingParts, m] };
             }
             var map=pawn.MapHeld;

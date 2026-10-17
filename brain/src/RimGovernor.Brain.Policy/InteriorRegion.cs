@@ -189,7 +189,7 @@ public static partial class PolicyFunctions
         {
             return (default!, false);
         }
-        return (new InteriorPlan { Room = room, Pieces = pieces }, true);
+        return (new InteriorPlan { Pieces = pieces }, true);
     }
 
     /// <summary>The live interior entry: the region placer's plan, false for a role with no entry in the role table.</summary>

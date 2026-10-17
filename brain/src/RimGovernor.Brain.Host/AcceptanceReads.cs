@@ -97,7 +97,7 @@ public sealed class AcceptanceReads
             Cold = projection.ColdMap.TryGetValue(out var cold) && cold,
             Hot = projection.HotMap.TryGetValue(out var hot) && hot,
         };
-        var facts = StationFactsBuilder.StationFacts(catalog, StationFactsBuilder.FirstPlanFacts(projection, survey, new Dictionary<Resource, long>(), PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone, 0)));
+        var facts = StationFactsBuilder.StationFacts(catalog, StationFactsBuilder.FirstPlanFacts(projection, survey, new Dictionary<Resource, long>(), PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone)));
         var (fact, _) = PolicyFunctions.DeriveLayoutPlan(survey, facts, []);
         var planJson = fact.TryGetValue(out var plan) ? StoreJson.Serialize(plan) : null;
         projection.Facts.Colonists.TryGetValue(out var colonists);

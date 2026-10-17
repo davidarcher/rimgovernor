@@ -15,22 +15,6 @@ public sealed record PrisonerPolicy
     public double FoodTargetDays { get; init; }
 }
 
-/// <summary>
-/// The storyteller's colony-level population state read with the population census:
-/// StorytellerUtilityPopulation's intent and adjusted population, the chance a non-colony humanlike downed by
-/// violence dies now, and the chance a new prisoner is unrecruitable.
-/// </summary>
-public sealed record PopulationOutlook
-{
-    public Fact<double> Intent { get; init; }
-
-    public Fact<double> AdjustedPopulation { get; init; }
-
-    public Fact<double> DeathOnDownedChance { get; init; }
-
-    public Fact<double> UnrecruitableChance { get; init; }
-}
-
 /// <summary>One pawn's native skill row. Passion is "None", "Minor" or "Major".</summary>
 public sealed record PrisonerSkill
 {
@@ -131,9 +115,6 @@ public sealed partial record PrisonerFacts
     /// <summary>The TimeAsPrisoner record, in ticks.</summary>
     public Fact<long> HeldTicks { get; init; }
 
-    /// <summary>Pawn_GuestTracker.will (Ideology only).</summary>
-    public Fact<double> Will { get; init; }
-
     /// <summary>The prisoner's ideoligion id, empty for none.</summary>
     public string Ideo { get; init; } = "";
 
@@ -151,8 +132,6 @@ public sealed partial record PrisonerFacts
 
     public Fact<int> QueuedSurgeries { get; init; }
 
-    public string Faction { get; init; } = "";
-
     public Fact<int> HarvestGoodwill { get; init; }
 
     /// <summary>The prisoner's MedicalCareCategory name.</summary>
@@ -169,9 +148,6 @@ public sealed partial record PrisonerFacts
     public IReadOnlyList<string> QueuedRecipes { get; init; } = [];
 
     public bool Executing { get; init; }
-
-    /// <summary>The prisoner's current drug policy and chemicals.</summary>
-    public Fact<PawnPolicyInputs> PolicyInputs { get; init; }
 
     /// <summary>The prisoner has a creepjoiner tracker (unknown while that read failed); Kind is its PawnKindDef name.</summary>
     public Fact<bool> CreepJoiner { get; init; }

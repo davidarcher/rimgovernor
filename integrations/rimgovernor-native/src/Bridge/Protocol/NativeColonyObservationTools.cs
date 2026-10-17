@@ -408,9 +408,7 @@ namespace HomeBridge.BridgeTools
         private static bool IsSunLamp(Building b) => b.def.thingClass?.Name == "Building_SunLamp" && b.def.specialDisplayRadius > 0f;
         private static Obs.ControlledEnvironment Environment(Map map)
         {
-            var result = new Obs.ControlledEnvironment { Daylight = GenCelestial.CurCelestialSunGlow(map) >= 0.3f };
-            var weather = map.weatherManager?.curWeather?.defName;
-            if (!string.IsNullOrEmpty(weather)) result = result with { Weather = weather };
+            var result = new Obs.ControlledEnvironment();
             string? NetId(CompPowerTrader? power) => power?.PowerNet == null ? null : power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
             var rooms = new Dictionary<int, Room>();
             void Note(Room? room) { if (room != null && !room.PsychologicallyOutdoors && room.ProperRoom) rooms[room.ID] = room; }
@@ -432,8 +430,7 @@ namespace HomeBridge.BridgeTools
                         CanSow = grower.CanAcceptSowNow() };
                     var crop = grower.GetPlantDefToGrow();
                     if (crop != null) row = row with { CropDefName = crop.defName };
-                    if (power != null) { row = row with { Powered = power.PowerOn }; var id = NetId(power); if (id != null) row = row with { PowerNetId = id }; }
-                    foreach (var c in ((IPlantToGrowSettable)grower).Cells) row = row with { PlantCells = [.. row.PlantCells, Cell(c)] };
+                    if (power != null) row = row with { Powered = power.PowerOn };
                     if (room != null) { row = row with { Room = NativeRef.Room(room) }; Note(room); }
                     result = result with { Growers = [.. result.Growers, row] };
                 }
@@ -444,9 +441,6 @@ namespace HomeBridge.BridgeTools
                     OpenRoofCount = (uint)room.OpenRoofCount, ProperRoom = room.ProperRoom, PsychologicallyOutdoors = room.PsychologicallyOutdoors };
                 var held = room.Cells.Where(c => !c.Fogged(map)).ToList();
                 if (held.Count > 0) row = row with { GridRoom = held.Min(c => c.z * map.Size.x + c.x) };
-                uint lit = 0;
-                foreach (var c in room.Cells) if (map.glowGrid.GroundGlowAt(c) >= 0.3f) lit++;
-                row = row with { LitCells = lit };
                 result = result with { Rooms = [.. result.Rooms, row] };
             }
             var nets = map.powerNetManager?.AllNetsListForReading ?? new List<PowerNet>();
@@ -466,7 +460,7 @@ namespace HomeBridge.BridgeTools
                 double capacity = 0;
                 foreach (var battery in net.batteryComps ?? new List<CompPowerBattery>()) if (battery?.Props != null) capacity += Finite(battery.Props.storedEnergyMax);
                 row = row with { GenerationW = generation }; row = row with { SolarW = solar }; row = row with { WindW = wind }; row = row with { ConsumptionW = consumption };
-                row = row with { StoredWattDays = Finite(net.CurrentStoredEnergy()) }; row = row with { CapacityWattDays = capacity };
+                row = row with { CapacityWattDays = capacity };
                 result = result with { Networks = [.. result.Networks, row] };
             }
             return result;

@@ -45,17 +45,16 @@ public sealed partial class Rounder
 
         if (view is null || view.Status == "")
         {
-            view = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone, 0);
+            view = PolicyFunctions.NewLedgerView(PolicyFunctions.LedgerViewNone);
         }
 
         view = view with { Export = Exports.View(world) };
         return view;
     }
 
-    internal static (string Key, PlacementEntry Entry) PlacementEntryOf(string plan, ProductionBill bill, PlacementAttempt attempt)
+    internal static (string Key, PlacementEntry Entry) PlacementEntryOf(ProductionBill bill, PlacementAttempt attempt)
     {
         var spec = new OrderSpec { Recipe = bill.Recipe, Ingredients = bill.Ingredients, Worker = bill.Worker, Mode = bill.Mode, Target = bill.Target };
-        attempt = attempt with { Plan = plan };
         return (bill.Bench + "/" + spec.Key(), new PlacementEntry(bill.Bench, spec, attempt));
     }
 
@@ -66,7 +65,7 @@ public sealed partial class Rounder
             return;
         }
 
-        var (key, e) = PlacementEntryOf(plan.Value, bill, AttemptOf(v));
+        var (key, e) = PlacementEntryOf(bill, AttemptOf(v));
         var x = Ledger.Attempts;
         lock (x.Mu)
         {
@@ -160,7 +159,7 @@ public sealed partial class Rounder
             {
                 if (progress.Action.ProductionBill is { } bill)
                 {
-                    var (key, e) = PlacementEntryOf(method.Plan.Value, bill, AttemptOf(progress.View));
+                    var (key, e) = PlacementEntryOf(bill, AttemptOf(progress.View));
                     if (!found.TryGetValue(key, out var held) || e.Attempt.Tick >= held.Attempt.Tick)
                     {
                         found[key] = e;

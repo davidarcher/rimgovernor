@@ -192,6 +192,7 @@ internal static class ContractOrphans
     private sealed class Declared
     {
         private const string Constructed = "new:";
+        private const string Initialized = "cctor:";
 
         private readonly Dictionary<string, string> fieldMembers = new(StringComparer.Ordinal);
         private readonly Dictionary<string, Body> bodies = new(StringComparer.Ordinal);
@@ -275,6 +276,10 @@ internal static class ContractOrphans
                     constructed.Calls.Add(Constructed + names.TypeDef((TypeDefinitionHandle)type.BaseType));
                 }
                 bodies[Constructed + typeKey] = constructed;
+                // Touching a static member runs the type's static constructor, whose field initializers hold the lambdas
+                // (a Lazy factory, a table of delegates) that no call token reaches.
+                var initializer = new Body([], []);
+                bodies[Initialized + typeKey] = initializer;
                 foreach (var m in type.GetMethods())
                 {
                     var method = md.GetMethodDefinition(m);
@@ -286,6 +291,10 @@ internal static class ContractOrphans
                     if ((method.Attributes & MethodAttributes.Virtual) != 0 || md.GetString(method.Name) == ".cctor")
                     {
                         constructed.Calls.Add(key);
+                    }
+                    if (md.GetString(method.Name) == ".cctor")
+                    {
+                        initializer.Calls.Add(key);
                     }
                     var body = new Body([], []);
                     if (accessorMembers.TryGetValue(m, out var own))
@@ -300,10 +309,15 @@ internal static class ContractOrphans
                             {
                                 body.Fields.Add((member, Il.IsStore(op)));
                             }
+                            if (op is ILOpCode.Ldsfld or ILOpCode.Ldsflda or ILOpCode.Stsfld && names.Field(token) is { } staticField)
+                            {
+                                body.Calls.Add(Initialized + TypeOf(staticField));
+                            }
                         }
                         else if (Il.IsCall(op) && names.Method(token) is { } callee)
                         {
                             body.Calls.Add(callee);
+                            body.Calls.Add(Initialized + TypeOf(callee));
                             if (op == ILOpCode.Newobj)
                             {
                                 body.Calls.Add(Constructed + TypeOf(callee));

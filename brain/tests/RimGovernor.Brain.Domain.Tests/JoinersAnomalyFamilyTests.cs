@@ -83,7 +83,7 @@ public sealed class JoinersAnomalyFamilyTests
         HeldPawn = pawn,
         Doors = Known<EquatableArray<ContainmentDoor>>([new ContainmentDoor
         {
-            Cell = new(x, 1), Open = Known(holdOpen), HoldOpen = Known(holdOpen), Breached = Known(false), BlockedOpen = Known(false),
+            Cell = new(x, 1), HoldOpen = Known(holdOpen), Breached = Known(false), BlockedOpen = Known(false),
         }]),
     };
 

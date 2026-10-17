@@ -368,8 +368,6 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(EquatableArray<Observations.SurgeryBill>), TypeInfoPropertyName = "EquatableArrayObservationsSurgeryBill")]
 [JsonSerializable(typeof(EquatableArray<Observations.MissingBodyPart>), TypeInfoPropertyName = "EquatableArrayObservationsMissingBodyPart")]
 [JsonSerializable(typeof(EquatableArray<Observations.SurgeryOperation>), TypeInfoPropertyName = "EquatableArrayObservationsSurgeryOperation")]
-[JsonSerializable(typeof(EquatableArray<Observations.InstalledPart>), TypeInfoPropertyName = "EquatableArrayObservationsInstalledPart")]
-[JsonSerializable(typeof(Observations.InstalledPart), TypeInfoPropertyName = "ObservationsInstalledPart")]
 [JsonSerializable(typeof(Observations.MissingBodyPart), TypeInfoPropertyName = "ObservationsMissingBodyPart")]
 [JsonSerializable(typeof(Observations.SurgeryOperation), TypeInfoPropertyName = "ObservationsSurgeryOperation")]
 [JsonSerializable(typeof(Observations.GearItem), TypeInfoPropertyName = "ObservationsGearItem")]

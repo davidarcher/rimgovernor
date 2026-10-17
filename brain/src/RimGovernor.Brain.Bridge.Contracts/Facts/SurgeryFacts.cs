@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using PolicyMissingPart = RimGovernor.Brain.Policy.MissingPart;
-using PolicyInstalledPart = RimGovernor.Brain.Policy.InstalledPart;
 using PolicySurgeryKind = RimGovernor.Brain.Policy.SurgeryKind;
 using PolicySurgeryOperation = RimGovernor.Brain.Policy.SurgeryOperation;
 using WireSurgeryKind = RimGovernor.Contracts.Wire.Observations.SurgeryKind;
@@ -21,12 +20,6 @@ public interface IPartCatalog
 
     /// <summary>The recipe's installed part tier.</summary>
     double PartTier(string recipe);
-
-    /// <summary>The hediff def's partEfficiency.</summary>
-    double HediffPartTier(string hediff);
-
-    /// <summary>The hediff's spawnThingOnRemoved item; unknown when the part spawns nothing.</summary>
-    Fact<Resource> HediffSpawnOnRemoved(string hediff);
 }
 
 // Go surgery_facts.go.
@@ -63,10 +56,7 @@ public static partial class BridgeFunctions
                     new PolicyMissingPart
                     {
                         PartIndex = OptionalInt(part.PartIndex is not null, part.PartIndex.GetValueOrDefault()),
-                        ParentIndex = OptionalInt(part.ParentIndex is not null, part.ParentIndex.GetValueOrDefault()),
                         PartDefName = OptionalFact(part.PartDefName is not null, (part.PartDefName ?? "")),
-                        ParentDefName = OptionalFact(part.ParentDefName is not null, (part.ParentDefName ?? "")),
-                        Vital = OptionalFact(part.Vital is not null, part.Vital.GetValueOrDefault()),
                     });
             }
             parts = Known(EquatableArray.From(rows));
@@ -149,36 +139,4 @@ public static partial class BridgeFunctions
         IssueNames(health.Issues, "surgery_bills")
             ? null
             : [.. health.SurgeryBills.Where(bill => bill.Recipe is not null && (bill.Recipe ?? "").Length > 0).Select(bill => (bill.Recipe ?? ""))];
-
-    /// <summary>
-    /// Go's <c>InstalledParts</c>: maps the native installed added parts. A read issue on installed_parts is
-    /// unknown, never an empty list. The tier is the hediff def's partEfficiency from the catalog; the priced item
-    /// is the hediff's spawnThingOnRemoved, unknown when the part spawns nothing.
-    /// </summary>
-    public static Fact<EquatableArray<PolicyInstalledPart>> InstalledParts(PawnHealth health, IPartCatalog catalog)
-    {
-        if (IssueNames(health.Issues, "installed_parts"))
-        {
-            return Unknown<EquatableArray<PolicyInstalledPart>>();
-        }
-        var rows = new List<PolicyInstalledPart>(health.InstalledParts.Count);
-        foreach (var part in health.InstalledParts)
-        {
-            var hediff = part.Definition?.DefName ?? "";
-            if (hediff.Length == 0)
-            {
-                continue;
-            }
-            rows.Add(
-                new PolicyInstalledPart
-                {
-                    Hediff = hediff,
-                    Part = OptionalFact(part.PartDefName is not null, (part.PartDefName ?? "")),
-                    PartIndex = OptionalInt(part.PartIndex is not null, part.PartIndex.GetValueOrDefault()),
-                    Tier = catalog.HediffPartTier(hediff),
-                    Item = catalog.HediffSpawnOnRemoved(hediff),
-                });
-        }
-        return Known(EquatableArray.From(rows));
-    }
 }

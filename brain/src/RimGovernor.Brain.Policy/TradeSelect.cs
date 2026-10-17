@@ -138,57 +138,29 @@ public sealed record TradeSelectionFacts
 }
 
 /// <summary>
-/// One selected row adjustment: the native line id SetTradeLines addresses, the definition it came from, and the
+/// One selected row adjustment: the native line id SetTradeLines addresses and the
 /// signed count (positive buys, negative sells) the trade line carries as its AbsoluteCount.
 /// </summary>
-public sealed record TradeSelectionLine(string LineID, string DefName, long Count)
+public sealed record TradeSelectionLine(string LineID, long Count)
 {
     /// <summary>The zero value Go's struct literal starts from.</summary>
-    public TradeSelectionLine() : this("", "", 0)
+    public TradeSelectionLine() : this("", 0)
     {
     }
 }
 
 /// <summary>
-/// One target's decision row, mirroring Python's evidence dictionaries one for one: either a blocker naming why
-/// the target was skipped, or the matched quantities that produced its count.
-/// </summary>
-public sealed record TradeSelectionEvidence
-{
-    public string Item { get; init; } = "";
-
-    public string Blocker { get; init; } = "";
-
-    public bool Matched { get; init; }
-
-    public long EligibleStock { get; init; }
-
-    public long RetainedTarget { get; init; }
-
-    public long Count { get; init; }
-
-    public long ExportCapacity { get; init; }
-}
-
-/// <summary>
-/// One whole economic decision: the lines to stage, the per-target evidence behind them, and the silver reserve
-/// the AcceptTrade floors must carry. Refused is set when the facts themselves were unusable, in which case
-/// Selected and Evidence are empty and Reason explains why, distinct from an admissible decision that simply
-/// selected nothing.
+/// One whole economic decision: the lines to stage and the silver reserve the AcceptTrade floors must carry.
+/// Refused is set when the facts themselves were unusable, in which case Selected is empty, distinct from an
+/// admissible decision that simply selected nothing.
 /// </summary>
 public sealed record TradeSelection
 {
     public bool Refused { get; init; }
 
-    public string Reason { get; init; } = "";
-
     public IReadOnlyList<TradeSelectionLine> Selected { get; init; } = [];
 
-    public IReadOnlyList<TradeSelectionEvidence> Evidence { get; init; } = [];
-
     public long SilverReserve { get; init; }
-
-    public long Budget { get; init; }
 }
 
 /// <summary>
@@ -206,14 +178,6 @@ public sealed record TradeReserveFacts
 
 public static partial class PolicyFunctions
 {
-    internal const string TradeBlockerAmbiguous = "Unavailable or ambiguous native definition";
-
-    internal const string TradeBlockerRow = "Ineligible trade row";
-
-    internal const string TradeBlockerProtected = "Food outside the authorized crop surplus";
-
-    internal const string TradeBlockerUnknown = "Economic stock or price evidence is unknown";
-
     /// <summary>The surplus sale's MinSellPrice (RoundsTradeTargets): any positive price.</summary>
     internal const double ArtMinSellPrice = double.Epsilon;
 
@@ -244,7 +208,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static TradeSelection SelectTrade(TradeEconomicPolicy p, TradeSelectionFacts facts)
     {
-        static TradeSelection Refuse(string reason) => new() { Refused = true, Reason = reason };
+        static TradeSelection Refuse() => new() { Refused = true };
 
         // Art or animals alone sell without a catalog target.
         if (p.Targets.Count > 0 || facts.SaleArt.Count + facts.SaleAnimals.Count + facts.SaleGear.Count == 0)
@@ -253,23 +217,23 @@ public static partial class PolicyFunctions
             {
                 p.Validate();
             }
-            catch (DomainException e)
+            catch (DomainException)
             {
-                return Refuse(e.Message);
+                return Refuse();
             }
         }
         else if (p.SilverReserve < 0)
         {
-            return Refuse("economic silver reserve out of range");
+            return Refuse();
         }
         if (!facts.Complete)
         {
-            return Refuse("Economic selection requires an unfiltered complete trade sheet");
+            return Refuse();
         }
         var (currency, hasCurrency) = TradeCurrency(facts.Rows);
         if (!hasCurrency || !facts.SilverKnown || facts.ColonySilver < 0 || facts.TraderSilver < 0 || facts.MaxSilverSpend < 0)
         {
-            return Refuse(TradeBlockerUnknown);
+            return Refuse();
         }
         var stopped = new HashSet<string>(facts.Stopped, StringComparer.Ordinal);
         var reserve = Math.Max(p.SilverReserve, facts.Floors.GetValueOrDefault(currency));
@@ -284,10 +248,9 @@ public static partial class PolicyFunctions
         double budget = budgetCap;
         double traderCash = facts.TraderSilver;
         var selected = new List<TradeSelectionLine>();
-        var evidence = new List<TradeSelectionEvidence>();
         if (facts.ArtFirst)
         {
-            SellArt(selected, evidence, facts, stopped, ref traderCash);
+            SellArt(selected, facts, stopped, ref traderCash);
         }
         foreach (var target in p.Targets)
         {
@@ -308,19 +271,16 @@ public static partial class PolicyFunctions
             }
             if (row is null || ambiguous)
             {
-                evidence.Add(new TradeSelectionEvidence { Item = target.Item, Blocker = TradeBlockerAmbiguous });
                 continue;
             }
             // Classification comes from ThingDef, never localized names or model guesses; an unknown flag is
             // never read as a permissive default.
             if (!row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn || !row.CurrencyKnown || row.Currency)
             {
-                evidence.Add(new TradeSelectionEvidence { Item = target.Item, Blocker = TradeBlockerRow });
                 continue;
             }
             if (row.ColonyCount < 0 || row.TraderCount < 0)
             {
-                evidence.Add(new TradeSelectionEvidence { Item = target.Item, Blocker = TradeBlockerUnknown });
                 continue;
             }
             var stock = row.ColonyCount;
@@ -338,7 +298,6 @@ public static partial class PolicyFunctions
             {
                 if (!row.BuyPriceKnown || !Finite(row.BuyPrice) || row.BuyPrice < 0)
                 {
-                    evidence.Add(new TradeSelectionEvidence { Item = target.Item, Blocker = TradeBlockerUnknown });
                     continue;
                 }
                 var price = row.BuyPrice;
@@ -363,12 +322,10 @@ public static partial class PolicyFunctions
                 var listed = facts.CropSurplusFloors.ContainsKey(target.Item);
                 if ((foodKnown || listed) && !cropAuthorized)
                 {
-                    evidence.Add(new TradeSelectionEvidence { Item = target.Item, Blocker = TradeBlockerProtected });
                     continue;
                 }
                 if (!row.SellPriceKnown || !Finite(row.SellPrice) || row.SellPrice < 0)
                 {
-                    evidence.Add(new TradeSelectionEvidence { Item = target.Item, Blocker = TradeBlockerUnknown });
                     continue;
                 }
                 var price = row.SellPrice;
@@ -382,68 +339,55 @@ public static partial class PolicyFunctions
                     traderCash += count * price;
                 }
             }
-            evidence.Add(
-                new TradeSelectionEvidence
-                {
-                    Item = target.Item,
-                    Matched = true,
-                    EligibleStock = stock,
-                    RetainedTarget = floor,
-                    Count = count,
-                    ExportCapacity = Math.Max(0, stock - floor),
-                }
-            );
             if (count != 0)
             {
-                selected.Add(new TradeSelectionLine(row.LineID, row.DefName, count));
+                selected.Add(new TradeSelectionLine(row.LineID, count));
             }
         }
         if (!facts.ArtFirst)
         {
-            SellArt(selected, evidence, facts, stopped, ref traderCash);
+            SellArt(selected, facts, stopped, ref traderCash);
         }
-        SellAnimals(selected, evidence, facts, stopped, ref traderCash);
-        SellGear(selected, evidence, facts, stopped, ref traderCash);
+        SellAnimals(selected, facts, stopped, ref traderCash);
+        SellGear(selected, facts, stopped, ref traderCash);
         return new TradeSelection
         {
             Selected = selected,
-            Evidence = evidence,
             SilverReserve = reserve,
-            Budget = budgetCap,
         };
     }
 
     // The art-sale step: each row whose thing is sale art sells that one piece, line by line, under the same rules
     // as a surplus sale: a tradeable unprotected row, a known positive price (surplus MinSellPrice) and the
     // trader's remaining cash. A line already selected is left alone.
-    private static void SellArt(List<TradeSelectionLine> selected, List<TradeSelectionEvidence> evidence, TradeSelectionFacts facts, HashSet<string> stopped, ref double traderCash)
+    private static void SellArt(List<TradeSelectionLine> selected, TradeSelectionFacts facts, HashSet<string> stopped, ref double traderCash)
     {
         if (facts.SaleArt.Count == 0)
         {
             return;
         }
-        SellRows(selected, evidence, facts.Rows, stopped, ref traderCash, false, row => row.ThingID.Length != 0 && facts.SaleArt.Contains(row.ThingID));
+        SellRows(selected, facts.Rows, stopped, ref traderCash, false, row => row.ThingID.Length != 0 && facts.SaleArt.Contains(row.ThingID));
     }
 
     // The live-animal sale step: each pawn row whose pawn id is a sale animal sells that one animal under the same
     // rules. The herd plan that chose the animal is the authorization.
-    private static void SellAnimals(List<TradeSelectionLine> selected, List<TradeSelectionEvidence> evidence, TradeSelectionFacts facts, HashSet<string> stopped, ref double traderCash)
+    private static void SellAnimals(List<TradeSelectionLine> selected, TradeSelectionFacts facts, HashSet<string> stopped, ref double traderCash)
     {
         if (facts.SaleAnimals.Count == 0)
         {
             return;
         }
-        SellRows(selected, evidence, facts.Rows, stopped, ref traderCash, true, row => row.PawnID.Length != 0 && facts.SaleAnimals.Contains(new PawnId(row.PawnID)));
+        SellRows(selected, facts.Rows, stopped, ref traderCash, true, row => row.PawnID.Length != 0 && facts.SaleAnimals.Contains(new PawnId(row.PawnID)));
     }
 
     // The gear-sale step: each row whose thing is sale gear sells that one piece under the same rules.
-    private static void SellGear(List<TradeSelectionLine> selected, List<TradeSelectionEvidence> evidence, TradeSelectionFacts facts, HashSet<string> stopped, ref double traderCash)
+    private static void SellGear(List<TradeSelectionLine> selected, TradeSelectionFacts facts, HashSet<string> stopped, ref double traderCash)
     {
         if (facts.SaleGear.Count == 0)
         {
             return;
         }
-        SellRows(selected, evidence, facts.Rows, stopped, ref traderCash, false, row => row.ThingID.Length != 0 && facts.SaleGear.Contains(row.ThingID));
+        SellRows(selected, facts.Rows, stopped, ref traderCash, false, row => row.ThingID.Length != 0 && facts.SaleGear.Contains(row.ThingID));
     }
 
     /// <summary>
@@ -474,7 +418,6 @@ public static partial class PolicyFunctions
     // Sells each wanted single-item row; pawns says the rows are pawn rows.
     private static void SellRows(
         List<TradeSelectionLine> selectedLines,
-        List<TradeSelectionEvidence> evidenceRows,
         IReadOnlyList<TradeSheetRowFact> rows,
         HashSet<string> stopped,
         ref double traderCash,
@@ -489,29 +432,20 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var evidence = new TradeSelectionEvidence { Item = row.DefName };
             if (!row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn != pawns || !row.CurrencyKnown || row.Currency || stopped.Contains(row.DefName))
             {
-                evidence = evidence with { Blocker = TradeBlockerRow };
-            }
-            else if (row.ColonyCount < 1 || !row.SellPriceKnown || !Finite(row.SellPrice) || row.SellPrice < 0)
-            {
-                evidence = evidence with { Blocker = TradeBlockerUnknown };
-            }
-            if (evidence.Blocker.Length != 0)
-            {
-                evidenceRows.Add(evidence);
                 continue;
             }
-            evidence = evidence with { Matched = true, EligibleStock = 1, ExportCapacity = 1 };
+            if (row.ColonyCount < 1 || !row.SellPriceKnown || !Finite(row.SellPrice) || row.SellPrice < 0)
+            {
+                continue;
+            }
             var price = row.SellPrice;
             if (price >= ArtMinSellPrice && price <= traderCash)
             {
-                evidence = evidence with { Count = -1 };
                 traderCash -= price;
-                selectedLines.Add(new TradeSelectionLine(row.LineID, row.DefName, -1));
+                selectedLines.Add(new TradeSelectionLine(row.LineID, -1));
             }
-            evidenceRows.Add(evidence);
         }
     }
 

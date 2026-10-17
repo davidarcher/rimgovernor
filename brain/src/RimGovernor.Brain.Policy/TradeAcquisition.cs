@@ -37,8 +37,6 @@ public sealed record TradeAcquisitionOption
 
     public string Negotiator { get; init; } = "";
 
-    public long LastRequestTick { get; init; }
-
     public EquatableArray<ResourceKey> Compatible { get; init; }
 
     public Fact<bool> Eligible { get; init; }
@@ -74,8 +72,8 @@ public sealed record TradeAcquisitionOption
     public Fact<double> RotDays { get; init; }
 }
 
-/// <summary>Holds an attempt for an unmet demand. Gap is explanatory demand, not expected stock, purchased goods or delivery credit.</summary>
-public sealed record TradeAcquisitionProposal(TradeAcquisitionOption Option, SupplyDemand Demand, double Gap);
+/// <summary>Holds an attempt for an unmet demand. It is explanatory demand, not expected stock, purchased goods or delivery credit.</summary>
+public sealed record TradeAcquisitionProposal(TradeAcquisitionOption Option);
 
 public sealed record TradeAcquisitionRequest
 {
@@ -90,13 +88,9 @@ public sealed record TradeAcquisitionRequest
     public string ActiveID { get; init; } = "";
 }
 
-public sealed record TradeAcquisitionDecision(TradeAcquisitionOption Option, string Reason);
-
 public sealed record TradeAcquisitionPlan
 {
     public TradeAcquisitionProposal? Proposal { get; init; }
-
-    public IReadOnlyList<TradeAcquisitionDecision> Decisions { get; init; } = [];
 }
 
 public static partial class PolicyFunctions
@@ -108,7 +102,6 @@ public static partial class PolicyFunctions
     public static TradeAcquisitionPlan PlanTradeAcquisition(TradeAcquisitionRequest request)
     {
         TradeAcquisitionProposal? proposal = null;
-        var decisions = new List<TradeAcquisitionDecision>();
         var sk = request.Silver.TryGetValue(out var silver);
         var rk = request.Reserve.TryGetValue(out var reserve);
         var options = request
@@ -178,16 +171,10 @@ public static partial class PolicyFunctions
             }
             if (reason.Length == 0 && proposal is null)
             {
-                proposal = new TradeAcquisitionProposal(o, matched!.Demand, matched.Gap);
-                reason = "selected";
+                proposal = new TradeAcquisitionProposal(o);
             }
-            else if (reason.Length == 0)
-            {
-                reason = "other_attempt_selected";
-            }
-            decisions.Add(new TradeAcquisitionDecision(o, reason));
         }
-        return new TradeAcquisitionPlan { Proposal = proposal, Decisions = decisions };
+        return new TradeAcquisitionPlan { Proposal = proposal };
     }
 
     private static string AcquisitionAttemptGate(TradeAcquisitionOption o)

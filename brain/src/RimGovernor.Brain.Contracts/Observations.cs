@@ -920,26 +920,6 @@ public sealed record PawnHealth
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<SurgeryOperation>))]
     public EquatableArray<SurgeryOperation> Operations { get; init; }
-
-    /// <summary>
-    /// Installed added parts: every Hediff_AddedPart on the pawn. A read
-    /// failure is a read issue with field "installed_parts", never an empty list.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<InstalledPart>))]
-    public EquatableArray<InstalledPart> InstalledParts { get; init; }
-}
-
-/// <summary>
-/// One installed added part (bionic, prosthetic, peg, archotech). definition is
-/// the hediff def; the part item it leaves on removal is that def's spawnThingOnRemoved row.
-/// </summary>
-public sealed record InstalledPart
-{
-    public DefinitionRef? Definition { get; init; }
-
-    public string? PartDefName { get; init; }
-
-    public int? PartIndex { get; init; }
 }
 
 /// <summary>
@@ -950,12 +930,6 @@ public sealed record MissingBodyPart
     public int? PartIndex { get; init; }
 
     public string? PartDefName { get; init; }
-
-    public int? ParentIndex { get; init; }
-
-    public string? ParentDefName { get; init; }
-
-    public bool? Vital { get; init; }
 }
 
 /// <summary>
@@ -4488,12 +4462,10 @@ public sealed record PopulationPerson
 
     /// <summary>
     /// Prisoner prospect facts prisoners/recruit judges a prisoner's use by
-    /// Pawn_GuestTracker.will (Ideology), the pawn's ideoligion load
+    /// the pawn's ideoligion load
     /// id, Verse.WildManUtility.IsWildMan, and, for prisoners and free
     /// colonists, the skill/trait/age biography and SummaryHealthPercent.
     /// </summary>
-    public double? Will { get; init; }
-
     public string? IdeoId { get; init; }
 
     public bool? WildMan { get; init; }
@@ -4571,19 +4543,6 @@ public sealed record PopulationSnapshot
     public bool? ClassicIdeoMode { get; init; }
 
     public string? ColonyIdeoId { get; init; }
-
-    /// <summary>
-    /// Storyteller population outlook: StorytellerUtilityPopulation intent and
-    /// adjusted population, and the capture odds that intent sets for a non-colony
-    /// humanlike downed by violence (death chance) and for a new prisoner (unrecruitable).
-    /// </summary>
-    public double? PopulationIntent { get; init; }
-
-    public double? AdjustedPopulation { get; init; }
-
-    public double? DeathOnDownedChance { get; init; }
-
-    public double? UnrecruitableChance { get; init; }
 
     /// <summary>
     /// (Organ-use precepts ride the ideology section.)
@@ -5065,8 +5024,6 @@ public sealed record QuestSiteSecurity
 
     public int? TrapCount { get; init; }
 
-    public bool? DetectionActive { get; init; }
-
     public long? DetectionTicksLeft { get; init; }
 
     public int? RaidsSent { get; init; }
@@ -5175,8 +5132,6 @@ public sealed record QuestMonument
     public bool? AllDone { get; init; }
 
     public string? DisallowedBuildingId { get; init; }
-
-    public long? DisallowedTicks { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
     public EquatableArray<Common.Cell> InstallCells { get; init; }
@@ -7231,14 +7186,9 @@ public sealed record PlantGrower
 
     public bool? Powered { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> PlantCells { get; init; }
-
     public string? CropDefName { get; init; }
 
     public bool? CanSow { get; init; }
-
-    public string? PowerNetId { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
@@ -7260,8 +7210,6 @@ public sealed record GrowRoom
     public bool? ProperRoom { get; init; }
 
     public bool? PsychologicallyOutdoors { get; init; }
-
-    public uint? LitCells { get; init; }
 }
 
 public sealed record PowerHeadroom
@@ -7275,8 +7223,6 @@ public sealed record PowerHeadroom
     public double? WindW { get; init; }
 
     public double? ConsumptionW { get; init; }
-
-    public double? StoredWattDays { get; init; }
 
     public double? CapacityWattDays { get; init; }
 
@@ -7297,12 +7243,8 @@ public sealed record ControlledEnvironment
     [JsonConverter(typeof(EquatableArrayJsonConverter<PowerHeadroom>))]
     public EquatableArray<PowerHeadroom> Networks { get; init; }
 
-    public bool? Daylight { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
-
-    public string? Weather { get; init; }
 }
 
 /// <summary>
@@ -9904,13 +9846,10 @@ public sealed record JoinerLetter
 
     public string? PawnId { get; init; }
 
-    public long? ExpiresTick { get; init; }
-
     public string? AcceptLabel { get; init; }
 
     public bool? CanAccept { get; init; }
 
-    public bool? Creepjoiner { get; init; }
 }
 
 /// <summary>
@@ -10838,8 +10777,6 @@ public sealed record PawnAnomaly
 
     public bool? Mutant { get; init; }
 
-    public bool? Shambler { get; init; }
-
     public double? MinContainmentStrength { get; init; }
 
     public HeldState? Held { get; init; }
@@ -10860,24 +10797,18 @@ public sealed record PawnAnomaly
 
 /// <summary>
 /// A creepjoiner's facts, set for a pawn with a creepjoiner tracker
-/// (a failed read leaves it absent with a ReadIssue named creepjoiner). form and
-/// benefit are CreepJoinerFormKindDef and CreepJoinerBenefitDef names, which a
-/// player sees in the offer letter. downside_triggered is the tracker's
+/// (a failed read leaves it absent with a ReadIssue named creepjoiner).
+/// downside_triggered is the tracker's
 /// triggeredDownside, true once the game has shown the downside; the downside
 /// def itself is hidden information and is never read.
 /// </summary>
 public sealed record CreepJoinerState
 {
-    public string? Form { get; init; }
-
-    public string? Benefit { get; init; }
-
     public bool? DownsideTriggered { get; init; }
 }
 
 /// <summary>
-/// CompHoldingPlatformTarget: held is CurrentlyHeldOnPlatform and platform the
-/// Building_HoldingPlatform holding the pawn; mode the ordered containment
+/// CompHoldingPlatformTarget: held is CurrentlyHeldOnPlatform; mode the ordered containment
 /// mode; escaping the pawn has begun to escape; can_be_captured whether the
 /// game lets the player capture it. needs_tend is Pawn.health
 /// HasHediffsNeedingTend and bleeding a positive BleedRateTotal: a
@@ -10891,8 +10822,6 @@ public sealed record CreepJoinerState
 public sealed record HeldState
 {
     public bool? Held { get; init; }
-
-    public Common.Ref? Platform { get; init; }
 
     public EntityContainmentModeKind? Mode { get; init; }
 
@@ -10918,8 +10847,6 @@ public sealed record HeldState
 /// </summary>
 public sealed record StudyState
 {
-    public bool? StudyEnabled { get; init; }
-
     public bool? Completed { get; init; }
 
     public double? ProgressPercent { get; init; }
@@ -10929,8 +10856,6 @@ public sealed record StudyState
     public double? AnomalyKnowledgeGained { get; init; }
 
     public int? StudyInteractions { get; init; }
-
-    public bool? EverStudiable { get; init; }
 
     public bool? CurrentlyStudiable { get; init; }
 

@@ -14,8 +14,6 @@ public sealed record NamedDeclared(string Name, Declared Declared);
 /// <summary>The latest outcome of a ledger plan's production_bill for one order, read from the Rounder's placement index.</summary>
 public sealed record PlacementAttempt
 {
-    public string Plan { get; init; } = "";
-
     public long Tick { get; init; }
 
     /// <summary>One of the Attempt* outcomes.</summary>
@@ -46,8 +44,6 @@ public sealed class PlacementAttempts
 /// <summary>What the Round holds when it builds the view.</summary>
 public sealed record LedgerViewInput
 {
-    public long Tick { get; init; }
-
     public IReadOnlyList<NamedDeclared> Declarers { get; init; } = [];
 
     public LedgerPlan Plan { get; init; } = new();
@@ -71,8 +67,6 @@ public sealed record LedgerViewInput
 public sealed record LedgerView
 {
     public string Status { get; init; } = "";
-
-    public long Tick { get; init; }
 
     /// <summary>OrphanGraceRounds: the Rounds an undeclared bill waits.</summary>
     public int GraceRounds { get; init; }
@@ -295,8 +289,6 @@ public sealed record LedgerOrderView
     /// <summary>How many benches should carry it (the rate model).</summary>
     public int Copies { get; init; }
 
-    public int Eligible { get; init; }
-
     public string State { get; init; } = "";
 
     public IReadOnlyList<string> Benches { get; init; } = [];
@@ -307,15 +299,6 @@ public sealed record LedgerOrderView
     public int Unplaced { get; init; }
 
     public UnmetReason Reason { get; init; }
-
-    public double? Demand { get; init; }
-
-    public double? Capacity { get; init; }
-
-    public int? Wanted { get; init; }
-
-    /// <summary>The calibration's extra benches.</summary>
-    public int Widen { get; init; }
 
     /// <summary>The closed window's verdict while it holds.</summary>
     public UnmetView? Shortfall { get; init; }
@@ -329,15 +312,11 @@ public sealed record LedgerOrderView
 /// <summary>An order's calibration window: predicted against observed.</summary>
 public sealed record WindowView
 {
-    public bool Open { get; init; }
-
     public long Start { get; init; }
 
     public long Ends { get; init; }
 
     public long StartStock { get; init; }
-
-    public long Deficit { get; init; }
 
     /// <summary>The carrying benches' units per day.</summary>
     public double PredictedPerDay { get; init; }
@@ -348,10 +327,6 @@ public sealed record WindowView
     public int Carrying { get; init; }
 
     public int Samples { get; init; }
-
-    public int Busy { get; init; }
-
-    public bool Inactive { get; init; }
 
     public bool Met { get; init; }
 }
@@ -367,8 +342,6 @@ public sealed record LedgerBillView
 
     public string Recipe { get; init; } = "";
 
-    public string Mode { get; init; } = "";
-
     public int Target { get; init; }
 
     public string Worker { get; init; } = "";
@@ -380,8 +353,6 @@ public sealed record LedgerBillView
     public int Rounds { get; init; }
 
     public int GraceLeft { get; init; }
-
-    public IReadOnlyList<string> Filter { get; init; } = [];
 }
 
 /// <summary>A throughput shortfall in product units per day.</summary>
@@ -413,15 +384,11 @@ public sealed record ExportCandidateView
 {
     public string Recipe { get; init; } = "";
 
-    public string BenchKind { get; init; } = "";
-
     public string Product { get; init; } = "";
 
     public string Stuff { get; init; } = "";
 
     public string Worker { get; init; } = "";
-
-    public double Value { get; init; }
 
     public double Net { get; init; }
 
@@ -533,11 +500,9 @@ public static partial class PolicyFunctions
             .Select(c => new ExportCandidateView
             {
                 Recipe = c.Recipe,
-                BenchKind = c.BenchKind,
                 Product = c.Product.Value,
                 Stuff = c.Stuff.Value,
                 Worker = c.Worker.Value,
-                Value = c.Value,
                 Net = c.Net,
                 Ticks = c.Ticks,
                 Score = c.Score,
@@ -560,7 +525,7 @@ public static partial class PolicyFunctions
         list.Any(o => o.Recipe == c.Recipe && o.Stuff == c.Stuff && o.Worker == c.Worker && o.BenchKind == c.BenchKind);
 
     /// <summary>An empty view with the given status.</summary>
-    public static LedgerView NewLedgerView(string status, long tick) => new() { Status = status, Tick = tick, GraceRounds = OrphanGraceRounds };
+    public static LedgerView NewLedgerView(string status) => new() { Status = status, GraceRounds = OrphanGraceRounds };
 
     /// <summary>Projects one Round's ledger state. The result shares none of the dispatcher memory it reads.</summary>
     public static LedgerView BuildLedgerView(LedgerViewInput input)
@@ -598,19 +563,13 @@ public static partial class PolicyFunctions
                 Product = o.Product.Value,
                 Mode = BillModeName(o.Mode),
                 Target = o.Target,
-                BenchKind = o.BenchKind,
                 Worker = o.Worker,
                 Ingredients = [.. o.Ingredients.Items],
                 Copies = Math.Max(d.Copies, 1),
-                Eligible = d.Eligible,
                 State = OrderPlaced,
                 Benches = SortedStrings(matched.GetValueOrDefault(k)),
                 Placing = SortedStrings(placing.GetValueOrDefault(k)),
                 Unplaced = unplaced.GetValueOrDefault(k),
-                Demand = d.Demand.TryGetValue(out var demand) ? demand : null,
-                Capacity = d.Capacity.TryGetValue(out var capacity) ? capacity : null,
-                Wanted = d.Wanted.TryGetValue(out var benchesWanted) ? benchesWanted : null,
-                Widen = input.Memory.Widen.GetValueOrDefault(k),
             };
             if (row.Unplaced > 0)
             {
@@ -630,16 +589,12 @@ public static partial class PolicyFunctions
                 {
                     Window = new WindowView
                     {
-                        Open = w.Open,
                         Start = w.Start,
                         Ends = w.Start + ThroughputWindowTicks,
                         StartStock = w.StartStock,
-                        Deficit = w.Deficit,
                         PredictedPerDay = w.PerDay,
                         Carrying = w.Carrying,
                         Samples = w.Samples,
-                        Busy = w.Busy,
-                        Inactive = w.Inactive,
                         Met = w.Met,
                         ObservedGain = stockKnown ? stock!.GetValueOrDefault(o.Product) - w.StartStock : null,
                     },
@@ -656,7 +611,7 @@ public static partial class PolicyFunctions
         {
             orphans.Add(BillView(b, abstain ? OrphanHeld : OrphanPending, input.Plan.Orphans.GetValueOrDefault(b.Id)));
         }
-        return NewLedgerView(LedgerViewReconciled, input.Tick) with
+        return NewLedgerView(LedgerViewReconciled) with
         {
             FurtherBenches = [.. input.Further],
             Declarers = declarers,
@@ -685,14 +640,12 @@ public static partial class PolicyFunctions
             Bench = b.Bench,
             Kind = Wire.Name(b.Kind),
             Recipe = b.Spec.Recipe,
-            Mode = BillModeName(b.Spec.Mode),
             Target = b.Spec.Target,
             Worker = b.Spec.Worker,
             Spent = b.Spent,
             State = state,
             Rounds = rounds,
             GraceLeft = state == OrphanPending ? Math.Max(0, OrphanGraceRounds - rounds) : 0,
-            Filter = [.. b.Spec.Ingredients.Items],
         };
 
     private static IReadOnlyList<string> SortedStrings(List<string>? s) => [.. (s ?? []).Order(StringComparer.Ordinal)];

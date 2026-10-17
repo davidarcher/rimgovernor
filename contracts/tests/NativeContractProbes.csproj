@@ -124,7 +124,6 @@
     <Compile Include="NativeContractProbes/native-proto-observations/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-placement/Program.cs" />
     <Compile Include="NativeContractProbes/native-proto-presentation/Program.cs" />
-    <Compile Include="NativeContractProbes/native-population-outlook/Program.cs" />
     <Compile Include="NativeContractProbes/native-give-job/Program.cs" />
     <Compile Include="NativeContractProbes/native-remove-production-bill/Program.cs" />
     <Compile Include="NativeContractProbes/native-quest-shuttle/Program.cs" />

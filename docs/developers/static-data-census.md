@@ -380,7 +380,6 @@ Kept, reason recorded:
 | Capacity | message | 246 | 3 | state | Pawn capacity level |  |  |
 | SurgeryBill | message | 247 | 4 | state | Queued surgery bill on a pawn |  |  |
 | PawnHealth | message | 248 | 22 | state | Pawn health summary conditions capacities hediffs and surgery facts |  |  |
-| InstalledPart | message | 267 | 3 | state | Installed added part (the item it leaves is HediffDef.spawnThingOnRemoved from the catalog, #2656) |  |  |
 | MissingBodyPart | message | 269 | 5 | mixed | Missing body part at its common ancestor | part_def_name; parent_index; parent_def_name; vital | BodyDef BodyPartRecord tree (def and parent per index); vital: BodyPartDef.tags BodyPartTagDef.vital |
 | SurgeryKind | enum | 270 | 7 | code | Tag classifying a surgery recipe |  | Go rule over RecipeDef (addsHediff removesHediff workerClass) |
 | SurgeryOperation | message | 283 | 16 | mixed | Available operation on one part with success chance and market values | kind; yield_market_value; yield_thing_def; medicine_market_value (base value) | kind: Go rule over RecipeDef; yield_thing_def: HediffDef.spawnThingOnRemoved; yield_market_value and medicine_market_value: ThingDef.statBases MarketValue x count |
