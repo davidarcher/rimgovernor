@@ -1,11 +1,10 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// What the served combat lab cases share (Go <c>metrics_case.go</c> and <c>hunt.go</c>): the planner families a fight
-/// is served with, the pause mode that keeps a letter from pausing the served game, and a window of served game ticks.
+/// What the combat sweep's served fights share: the planner families a fight is served with, the pause mode that keeps
+/// a letter from pausing the served game, and the served game's tick.
 /// </summary>
 public static class CombatServe
 {
@@ -62,49 +61,5 @@ public static class CombatServe
         }
 
         return last;
-    }
-
-    /// <summary>Lets the served game run until its tick reaches <paramref name="until"/>, failing when the service exits or the clock sits still for the stall budget.</summary>
-    public static async Task<int> ServeTicksAsync(ServiceProcess service, int until, CancellationToken cancellationToken)
-    {
-        var tick = -1;
-        var wait = new Wait { Stall = Wait.StallBudget(), Interval = TimeSpan.FromSeconds(1), Terminal = service.Exited };
-        await wait.WaitProgressAsync(
-            async ct =>
-            {
-                tick = await ServedTickAsync(service, tick, ct).ConfigureAwait(false);
-                return (tick.ToString(CultureInfo.InvariantCulture), tick >= until);
-            },
-            cancellationToken).ConfigureAwait(false);
-        return tick;
-    }
-
-    /// <summary>
-    /// Serves the planners for <paramref name="ticks"/> game ticks past the current tick, then stops the service and
-    /// reattaches the harness. <paramref name="resume"/> starts the service on an already running fight.
-    /// </summary>
-    public static async Task<Harness> ServedWindowAsync(ISession s, int ticks, bool resume, CancellationToken cancellationToken)
-    {
-        var (_, start) = await CombatStage.ReadAsync(s.Harness, cancellationToken).ConfigureAwait(false);
-        var service = await s.ServeAsync(s.Spec with { Resume = resume }, cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (!resume)
-            {
-                _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            service.KeepAuthority(cancellationToken);
-            var tick = await ServeTicksAsync(service, start + ticks, cancellationToken).ConfigureAwait(false);
-            s.Report[string.Create(CultureInfo.InvariantCulture, $"servedTick+{ticks}")] = tick;
-        }
-        finally
-        {
-            _ = await service.StopAsync().ConfigureAwait(false);
-        }
-
-        var h = s.Reattach();
-        await PauseAfterAsync(h, cancellationToken).ConfigureAwait(false);
-        return h;
     }
 }

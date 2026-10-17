@@ -135,9 +135,8 @@ namespace HomeBridge.BridgeTools
     // A combat lab fight is staged by test/stage (StageFixture); test/lab_stage reads, ticks and reseeds it.
     public static class LabStage
     {
-        // Reseed (#2849) sets the game's Rand seed from spec.seed after a checkpoint
-        // load, so one staged save serves runs seeds 1..N. It uses the same
-        // derivation as the post-staging reseed, so a seed means one RNG start. The
+        // Reseed (#2849) sets the game's Rand seed from spec.seed after the pinned
+        // staging, so a run seed means one RNG start. The
         // reply echoes the seed and the next four draws, read without consuming them.
         public static object Reseed(JObject spec)
         {
@@ -328,7 +327,7 @@ namespace HomeBridge.BridgeTools
         [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): read, tick or reseed a combat lab fight test/stage staged. action read replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, the damage ledger since the last staging, and the tick.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Action spec JSON (reseed and orphan-animal).")] string spec = "{}",
-            [ToolParameter(Description = "read (default), reseed (spec {seed: non-zero}: set the game Rand seed the way a seeded staging ends, reply the next four draws; #2849), orphan-animal (spec animal and mode: despawn, dead or foreign), shots (the shot tap since the last staging: launches, impacts, jobs, stances, draft changes and each pawn's first think ticks, #2917), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "read",
+            [ToolParameter(Description = "read (default), reseed (spec {seed: non-zero}: set the game Rand seed from a run seed after the pinned staging, reply the next four draws; #2849), orphan-animal (spec animal and mode: despawn, dead or foreign), shots (the shot tap since the last staging: launches, impacts, jobs, stances, draft changes and each pawn's first think ticks, #2917), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "read",
             [ToolParameter(Description = "Ticks for action tick, 1..2000.")] int ticks = 0)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

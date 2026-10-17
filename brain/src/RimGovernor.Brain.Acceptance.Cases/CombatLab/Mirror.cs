@@ -1,519 +1,246 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Mirror = RimGovernor.Contracts.Wire.Mirror;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>combatlab/mirror</c> (Go <c>mirror.go</c>).</summary>
+/// <summary>
+/// <c>combatlab/mirror</c> (#851, #858, #871, #881): the combat frame sections and combat_geometry on lab-ranged plus a
+/// choke room. Geometry reads the staged layout (cover, line of fire, colonist in path, path ticks, the caps' timing, the
+/// cover_behind_line, firing_cells and adjacent_to_choke proposals); a frame lists every rifleman and raider with a rifle;
+/// and the firefight's first downing or death arrives as a combat_events row with the pawn's row agreeing.
+/// </summary>
 internal static class CombatLabMirror
 {
-    // mirrorStepTicks is one synchronous lab step between frames: the stream's capture period.
-    internal const int StepTicks = 60;
+    /// <summary>Bounds the lab-ranged firefight until a pawn goes down.</summary>
+    private const int FightTicks = 4800 + CombatLabKit.ProbeTicks;
 
-    // mirrorFightTicks bounds the lab-ranged firefight until a pawn goes down (the case budget is 5,000 ticks).
-    internal const int FightTicks = 4800;
+    /// <summary>The choke room's centre offset from the lab centre: east of the firing line and south of the sandbags.</summary>
+    private const int ChokeDx = 25;
 
-    // geometryBudgetMs is the main-thread budget of one geometry read at the caps.
-    internal const double GeometryBudgetMs = 50.0;
+    private const int ChokeDz = -20;
 
-    internal static AcceptanceCase Case() => new()
+    /// <summary>Timing samples per read at the caps: the worst one counts.</summary>
+    private const int Samples = 5;
+
+    // lab-ranged plus lab-choke's granite room (a ChokeHalf ring whose one opening is the middle of its north wall) off to the side.
+    private static readonly LabFixture Fixture = CombatLabKit.Fixture("lab-ranged", (f, cx, cz) =>
+    {
+        var (rx, rz) = (cx + ChokeDx, cz + ChokeDz);
+        for (var x = rx - CombatFixtures.ChokeHalf; x <= rx + CombatFixtures.ChokeHalf; x++)
+        {
+            for (var z = rz - CombatFixtures.ChokeHalf; z <= rz + CombatFixtures.ChokeHalf; z++)
+            {
+                var edge = x == rx - CombatFixtures.ChokeHalf || x == rx + CombatFixtures.ChokeHalf || z == rz - CombatFixtures.ChokeHalf || z == rz + CombatFixtures.ChokeHalf;
+                if (edge && !(x == rx && z == rz + CombatFixtures.ChokeHalf))
+                {
+                    f.Things.Add(new FixtureThing { Def = "Wall", Stuff = "BlocksGranite", X = x, Z = z });
+                }
+            }
+        }
+    });
+
+    internal static TypedCase Case() => new()
     {
         Name = "combatlab/mirror",
-        Scope = "Combat frame sections (#851, #858) and combat.geometry on lab-ranged: a snapshot frame's combat_pawns lists the 4 riflemen and 4 raiders with rifles; "
-            + "combat.geometry gives a sandbagged rifleman cover against the raider north of him, an open cell none, line of fire to every raider, a colonist in the path from the cell behind a rifleman, "
-            + "path ticks for a named pawn, and a read at 64 cells x 8 pawns under 50 ms of main thread; proposing cover_behind_line on the sandbags returns every cell behind them, and a firing_cells proposal at the radius cap fills 64 cells within budget (#871); the firefight's first downing or death arrives as a combat_events row and, in the same frame, "
-            + "the pawn's row (downed, stamped with the event's watermark) or its absence; then lab-pods' center drop arrives as a hostile_arrived row with strategy pods, "
-            + "landing cells and an open tick by which every raider is out of its pod (#870).",
-        Start = new LabStart { Colonists = 4 },
-        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
+        Scope = "Combat frame sections (#851, #858) and combat_geometry on lab-ranged plus a lab-choke room: on the staged layout combat_geometry "
+            + "gives a sandbagged rifleman cover against the raider north of him, an open cell none, line of fire to the raider, a colonist in the "
+            + "path from the cell behind a rifleman and path ticks for a named pawn; a read at 64 cells x 8 pawns projects under 50 ms of main thread "
+            + "at the caps; cover_behind_line on the sandbags proposes every cell behind them, a firing_cells proposal at the radius cap fills 64 cells "
+            + "within budget (#871), and adjacent_to_choke on the room's gap proposes exactly its three inner cells, the one straight behind first "
+            + "(#881). A frame's combat_pawns lists the 4 riflemen and 4 raiders with rifles, and the firefight's first downing or death arrives as a "
+            + "combat_events row after shot_fired rows, with the pawn's row downed (changed at or after the event) or gone in the same frame.",
+        Ticks = CombatLabKit.ProbeTicks + FightTicks,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = Fixture.Colonists },
+        Stage = CombatLabKit.Spec(Fixture),
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
-    }
+        var lab = new StagedLab(Fixture, s.Staged!);
 
-    private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var h = s.Harness;
-        var staged = await CombatStage.StageAsync(h, "lab-ranged", cancellationToken).ConfigureAwait(false);
-        var identity = s.Identity;
-        var report = s.Report;
+        // Geometry reads the staged layout before any tick: the undrafted colonists wander off their cells once the clock runs.
+        await GeometryAsync(s, lab, cancellationToken).ConfigureAwait(false);
+        await ProposeAsync(s, lab, cancellationToken).ConfigureAwait(false);
+        await ChokeAsync(s, lab, cancellationToken).ConfigureAwait(false);
 
-        // Geometry reads the staged layout before any tick: the undrafted colonists wander off their cells once the
-        // clock runs.
-        await GeometryAsync(h, identity, staged, report, cancellationToken).ConfigureAwait(false);
-        var frames = await CombatFrames.OpenAsync(h, identity, cancellationToken).ConfigureAwait(false);
-
-        // One step so a frame is captured past the staging.
-        var (_, tick) = await CombatStage.TickAsync(h, StepTicks, cancellationToken).ConfigureAwait(false);
-        var state = await frames.NextAsync(tick, cancellationToken).ConfigureAwait(false);
-        var rows = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
-        foreach (var row in state.Pawns)
+        var frames = new LabFrames(s);
+        var first = await frames.CombatAsync("rows", cancellationToken).ConfigureAwait(false);
+        foreach (var id in lab.Colonists().Concat(lab.Hostiles()))
         {
-            rows[row["id"].AsString()] = row;
-        }
-
-        // The weapon's range and class are the def rows', not the frame's.
-        var rifleFacts = await WeaponCatalog.RangedFactsAsync(h, identity, CombatFixtures.Rifle, cancellationToken).ConfigureAwait(false);
-        if (!rifleFacts.Ranged || rifleFacts.Range <= 0)
-        {
-            throw new AcceptanceException($"catalog rows give {CombatFixtures.Rifle} no ranged verb: {{Ranged:{rifleFacts.Ranged} Range:{rifleFacts.Range.ToString(CultureInfo.InvariantCulture)}}}");
-        }
-
-        foreach (var id in staged.Colonists().Concat(staged.Hostiles()))
-        {
-            if (!rows.TryGetValue(id, out var row) || row["weapon"].AsString() != CombatFixtures.Rifle)
+            if (LabFrames.Row(first, id) is not { Weapon: CombatFixtures.Rifle })
             {
-                throw new AcceptanceException($"combat_pawns row for {id}: {(rows.TryGetValue(id, out var shown) ? shown.ToJson() : "<nil>")} (frame {CaseSupport.Tag(rows.Count)} rows)");
+                throw new AcceptanceException($"combat_pawns row for {id}: {LabFrames.Row(first, id)} (frame {first.CombatPawns.Count} rows)");
             }
         }
 
-        report["frameRows"] = rows.Count;
-        await FightAsync(h, frames, report, cancellationToken).ConfigureAwait(false);
-        await DropPodsAsync(h, frames, report, cancellationToken).ConfigureAwait(false);
+        s.Record("frame_rows", first.CombatPawns.Count);
+        await FightAsync(s, frames, cancellationToken).ConfigureAwait(false);
     }
 
-    // dropPods stages lab-pods: the center drop's arrival is a combat_events hostile_arrived row with strategy pods, its
-    // landing cells and an open tick after the arrival, and by that tick every raider is out.
-    private static async Task DropPodsAsync(Harness h, CombatFrames frames, Report report, CancellationToken cancellationToken)
-    {
-        var staged = await CombatStage.StageAsync(h, "lab-pods", cancellationToken).ConfigureAwait(false);
-        var (_, tick) = await CombatStage.TickAsync(h, StepTicks, cancellationToken).ConfigureAwait(false);
-        var state = await frames.NextAsync(tick, cancellationToken).ConfigureAwait(false);
-        JsonObject? row = null;
-        foreach (var e in state.Events)
-        {
-            if (Geometry.DropPodArrival(e))
-            {
-                row = e;
-            }
-        }
-
-        if (row is null)
-        {
-            throw new AcceptanceException($"lab-pods: no combat_events row with strategy pods in {CaseSupport.Tag(state.Events.Count)} frame events");
-        }
-
-        var at = row["at"].AsMap();
-        var landing = row["landingCells"].AsSlice().Count;
-        report["pods"] = new JsonObject
-        {
-            ["at"] = Geometry.WatermarkTick(at),
-            ["openTick"] = row["openTick"].AsNumberOrZero(),
-            ["landingCells"] = landing,
-            ["arrival"] = row["defName"].AsString(),
-        };
-        var wait = (int)((long)row["openTick"].AsNumberOrZero() - Geometry.WatermarkTick(at)) + StepTicks;
-        if (wait <= StepTicks || landing == 0)
-        {
-            throw new AcceptanceException($"lab-pods row without an open tick after its arrival or landing cells: {row.ToJson()}");
-        }
-
-        var (pawns, _) = await CombatStage.TickAsync(h, wait, cancellationToken).ConfigureAwait(false);
-        foreach (var id in staged.Hostiles())
-        {
-            if (!pawns.ContainsKey(id))
-            {
-                throw new AcceptanceException($"lab-pods raider {id} still in its pod {CaseSupport.Tag(wait)} ticks after the arrival (open tick {CaseSupport.Tag((long)row["openTick"].AsNumberOrZero())})");
-            }
-        }
-    }
-
-    // geometry checks the lab-ranged answers and times a read at the caps.
-    private static async Task GeometryAsync(Harness h, JsonObject identity, StagedFixture staged, Report report, CancellationToken cancellationToken)
+    // The lab-ranged answers on the rifleman's, an open and a behind cell, then a read at the caps timed.
+    private static async Task GeometryAsync(ITypedSession s, StagedLab lab, CancellationToken cancellationToken)
     {
         // Spec order: colonist i then its raider straight north.
-        LabPawn? rifleman = null;
-        LabPawn? raider = null;
-        foreach (var pawn in staged.Fixture.Pawns)
+        var rifleman = Fixture.Pawns.First(p => p.Side == CombatFixtures.Colonist);
+        var at = lab.At(rifleman.X, rifleman.Z);
+        var hostiles = lab.Hostiles();
+        var colonists = lab.Colonists();
+        var g = await CombatLabKit.GeometryAsync(s, "geometry", new Mirror.CombatGeometryRequest
         {
-            if (pawn.Side == CombatFixtures.Colonist && rifleman is null)
-            {
-                rifleman = pawn;
-            }
-
-            if (pawn.Side == CombatFixtures.Hostile && raider is null)
-            {
-                raider = pawn;
-            }
+            Cells = [at, Offset(at, -12, 0), Offset(at, 0, -2)],
+            HostileIds = [hostiles[0]],
+            PawnId = colonists[1],
+        }, cancellationToken).ConfigureAwait(false);
+        var (sandbagged, bare, back) = (g.Cells[0].Lines[0], g.Cells[1].Lines[0], g.Cells[2].Lines[0]);
+        if (sandbagged is not { Cover: > 0, LineOfFire: true } || sandbagged.ColonistInPath == true
+            || bare is not { Cover: 0, LineOfFire: true } || back.ColonistInPath != true)
+        {
+            throw new AcceptanceException($"geometry answers off lab-ranged's layout: sandbagged {sandbagged}, open {bare}, behind {back}");
         }
 
-        rifleman ??= new LabPawn();
-        raider ??= new LabPawn();
-        var hostiles = staged.Hostiles();
-        var colonists = staged.Colonists();
-        var open = CaseSupport.Cell(rifleman.X - 12, rifleman.Z);
-        var behind = CaseSupport.Cell(rifleman.X, rifleman.Z - 2);
-        var request = Geometry.Ask(identity, [CaseSupport.Cell(rifleman.X, rifleman.Z), open, behind], hostiles.Take(1), colonists[1]);
-        var reply = await Geometry.CallAsync(h, "combat-geometry", request, cancellationToken).ConfigureAwait(false);
-        var g = Geometry.Observed(reply);
-        try
+        if (g.Cells[1].PathTicks is not > 0)
         {
-            Geometry.Validate(g, request);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"geometry reply {reply.ToJson()}: {e.Message}", e);
+            throw new AcceptanceException($"no path ticks to the open cell: {g.Cells[1]}");
         }
 
-        var cells = g!["cells"].AsSlice().Select(c => c.AsMap() ?? []).ToList();
-        var sandbagged = cells[0]["lines"].AsSlice()[0].AsMap() ?? [];
-        var bare = cells[1]["lines"].AsSlice()[0].AsMap() ?? [];
-        var back = cells[2]["lines"].AsSlice()[0].AsMap() ?? [];
-        report["geometry"] = new JsonObject
-        {
-            ["sandbaggedCover"] = sandbagged["cover"].AsNumberOrZero(),
-            ["openCover"] = bare["cover"].AsNumberOrZero(),
-            ["behindColonistInPath"] = back["colonistInPath"].AsBool() == true,
-            ["pathTicks"] = new JsonArray(cells[0]["pathTicks"].AsNumberOrZero(), cells[1]["pathTicks"].AsNumberOrZero(), cells[2]["pathTicks"].AsNumberOrZero()),
-        };
-        if (sandbagged["cover"].AsNumberOrZero() <= 0 || bare["cover"].AsNumberOrZero() != 0 || sandbagged["lineOfFire"].AsBool() != true || bare["lineOfFire"].AsBool() != true
-            || back["colonistInPath"].AsBool() != true || sandbagged["colonistInPath"].AsBool() == true)
-        {
-            throw new AcceptanceException($"geometry answers off lab-ranged's layout (raider {CaseSupport.Tag(raider.X)},{CaseSupport.Tag(raider.Z)}): {g.ToJson()}");
-        }
-
-        if (cells[1]["pathTicks"] is null || cells[1]["pathTicks"].AsNumberOrZero() <= 0)
-        {
-            throw new AcceptanceException($"no path ticks to the open cell: {cells[1].ToJson()}");
-        }
-
-        // The timing: every staged pawn as a target (only 4 are hostile, and the read does not care which side a target
-        // is on) against the cells-cap of cells around the line, with path ticks.
+        // The timing: every staged pawn as a target (the read does not care which side a target is on) against the
+        // cells cap of cells around the line, with path ticks.
         var targets = hostiles.Concat(colonists).ToList();
-        var capCells = new List<JsonObject>();
-        for (var dz = 0; capCells.Count < Geometry.MaxCells; dz++)
+        var cells = new List<Common.Cell>();
+        for (var dz = 0; cells.Count < CombatGeometryContract.MaxCells; dz++)
         {
-            for (var dx = -8; dx < 8 && capCells.Count < Geometry.MaxCells; dx++)
+            for (var dx = -8; dx < 8 && cells.Count < CombatGeometryContract.MaxCells; dx++)
             {
-                capCells.Add(CaseSupport.Cell(rifleman.X + 3 + dx, rifleman.Z - 2 - dz));
+                cells.Add(Offset(at, 3 + dx, -2 - dz));
             }
         }
 
-        var samples = new List<double>();
-        for (var i = 0; i < 5; i++)
+        var worst = await WorstMsAsync(s, "geometry-cap", new Mirror.CombatGeometryRequest { Cells = [.. cells], HostileIds = [.. targets], PawnId = colonists[1] }, _ => { }, cancellationToken).ConfigureAwait(false);
+        var projected = worst / (cells.Count * targets.Count) * CombatGeometryContract.MaxCells * CombatGeometryContract.MaxHostiles;
+        s.Record("geometry_timing", CombatLabKit.Obj(("cells", cells.Count), ("targets", targets.Count), ("worst_ms", worst), ("projected_at_caps_ms", projected)));
+        if (projected > CombatGeometryContract.BudgetMs)
         {
-            var capRequest = Geometry.Ask(identity, capCells, targets, colonists[1]);
-            var capReply = await Geometry.CallAsync(h, $"combat-geometry-cap-{CaseSupport.Tag(i)}", capRequest, cancellationToken).ConfigureAwait(false);
-            try
-            {
-                Geometry.Validate(Geometry.Observed(capReply), capRequest);
-            }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"geometry at the caps {capReply["failure"].ToJson()}: {e.Message}", e);
-            }
-
-            samples.Add(Geometry.Observed(capReply)!["mainThreadMs"].AsNumberOrZero());
+            throw new AcceptanceException($"geometry at the caps projects {projected:0.0} ms (worst {worst:0.0} ms at {cells.Count}x{targets.Count}), over {CombatGeometryContract.BudgetMs} ms");
         }
-
-        samples.Sort();
-        var worst = samples[^1];
-        var perPair = worst / (capCells.Count * targets.Count);
-        var projected = perPair * Geometry.MaxCells * Geometry.MaxHostiles;
-        report["geometryTiming"] = new JsonObject
-        {
-            ["cells"] = capCells.Count,
-            ["targets"] = targets.Count,
-            ["msSorted"] = new JsonArray([.. samples.Select(m => (JsonNode?)JsonValue.Create(m))]),
-            ["worstMs"] = worst,
-            ["projectedAtCapsMs"] = projected,
-            ["caps"] = $"{CaseSupport.Tag(Geometry.MaxCells)}x{CaseSupport.Tag(Geometry.MaxHostiles)}",
-        };
-        if (projected > GeometryBudgetMs)
-        {
-            throw new AcceptanceException($"geometry at the caps projects {projected.ToString("0.0", CultureInfo.InvariantCulture)} ms (worst {worst.ToString("0.0", CultureInfo.InvariantCulture)} ms at {CaseSupport.Tag(capCells.Count)}x{CaseSupport.Tag(targets.Count)}), over {GeometryBudgetMs.ToString("0", CultureInfo.InvariantCulture)} ms");
-        }
-
-        await ProposeAsync(h, identity, staged, rifleman, report, cancellationToken).ConfigureAwait(false);
     }
 
-    // propose: cover_behind_line on the sandbag line returns every cell behind it (the riflemen's row), and a
-    // firing_cells proposal at the radius cap, 64 cells scored against every staged pawn, stays in budget.
-    private static async Task ProposeAsync(Harness h, JsonObject identity, StagedFixture staged, LabPawn rifleman, Report report, CancellationToken cancellationToken)
+    // cover_behind_line on the sandbag line proposes every cell behind it (the riflemen's row), and a firing_cells
+    // proposal at the radius cap, 64 cells scored against every staged pawn, stays in budget.
+    private static async Task ProposeAsync(ITypedSession s, StagedLab lab, CancellationToken cancellationToken)
     {
-        var line = new JsonArray();
-        var behind = new HashSet<(int, int)>();
-        foreach (var th in staged.Fixture.Things)
+        var line = Fixture.Things.Where(t => t.Def == "Sandbags").Select(t => lab.At(t.X, t.Z)).ToList();
+        var cover = await CombatLabKit.GeometryAsync(s, "propose-cover", new Mirror.CombatGeometryRequest
         {
-            if (th.Def == "Sandbags")
+            HostileIds = [.. lab.Hostiles()],
+            Propose = new Mirror.CombatGeometryPropose { Role = new Mirror.CombatCoverBehindLine { Line = [.. line] } },
+        }, cancellationToken).ConfigureAwait(false);
+        var proposed = CombatGeometryContract.Cells(cover.Proposed);
+        var missed = line.Select(c => (c.X, c.Z - 1)).Where(c => !proposed.Contains(c)).ToList();
+        if (missed.Count != 0)
+        {
+            throw new AcceptanceException($"cover_behind_line on the sandbags missed [{string.Join(" ", missed)}]; proposed [{string.Join(" ", proposed)}]");
+        }
+
+        var rifleman = Fixture.Pawns.First(p => p.Side == CombatFixtures.Colonist);
+        var pawns = lab.Hostiles().Concat(lab.Colonists()).ToList();
+        var firing = new Mirror.CombatGeometryRequest
+        {
+            HostileIds = [.. pawns],
+            PawnId = lab.Colonists()[1],
+            Propose = new Mirror.CombatGeometryPropose
             {
-                line.Add(CaseSupport.Cell(th.X, th.Z));
-                _ = behind.Add((th.X, th.Z - 1));
-            }
-        }
-
-        var request = Geometry.ProposeAsk(identity, Geometry.Role("coverBehindLine", new JsonObject { ["line"] = line }), staged.Hostiles(), "");
-        var reply = await Geometry.CallAsync(h, "combat-geometry-propose-cover", request, cancellationToken).ConfigureAwait(false);
-        var g = Geometry.Observed(reply);
-        try
+                Role = new Mirror.CombatFiringCells
+                {
+                    Targets = [.. Fixture.Pawns.Select(p => lab.At(p.X, p.Z))],
+                    From = lab.At(rifleman.X, rifleman.Z - 3),
+                    Radius = CombatGeometryContract.MaxRadius,
+                },
+            },
+        };
+        var worst = await WorstMsAsync(s, "propose-cap", firing, g =>
         {
-            Geometry.Validate(g, request);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"propose cover_behind_line {reply["failure"].ToJson()}: {e.Message}", e);
-        }
-
-        var proposed = new JsonArray();
-        var proposedText = new List<string>();
-        foreach (var row in g!["proposed"].AsSlice())
-        {
-            var cell = row.AsMap()?["cell"].AsMap() ?? [];
-            var key = ((int)cell["x"].AsNumberOrZero(), (int)cell["z"].AsNumberOrZero());
-            proposed.Add(new JsonArray(key.Item1, key.Item2));
-            proposedText.Add($"[{CaseSupport.Tag(key.Item1)} {CaseSupport.Tag(key.Item2)}]");
-            _ = behind.Remove(key);
-        }
-
-        report["proposeCover"] = new JsonObject { ["cells"] = proposed, ["ms"] = g["mainThreadMs"].AsNumberOrZero() };
-        if (behind.Count != 0)
-        {
-            var missed = string.Join(" ", behind.OrderBy(b => b.Item1).ThenBy(b => b.Item2).Select(b => $"[{CaseSupport.Tag(b.Item1)} {CaseSupport.Tag(b.Item2)}]"));
-            throw new AcceptanceException($"cover_behind_line on the sandbags missed [{missed}]; proposed [{string.Join(" ", proposedText)}]");
-        }
-
-        var pawns = staged.Hostiles().Concat(staged.Colonists()).ToList();
-        var targets = new JsonArray();
-        foreach (var pawn in staged.Fixture.Pawns)
-        {
-            targets.Add(CaseSupport.Cell(pawn.X, pawn.Z));
-        }
-
-        var firing = Geometry.Role("firingCells", new JsonObject
-        {
-            ["targets"] = targets,
-            ["from"] = CaseSupport.Cell(rifleman.X, rifleman.Z - 3),
-            ["radius"] = Geometry.MaxRadius,
-        });
-        var samples = new List<double>();
-        for (var i = 0; i < 5; i++)
-        {
-            var firingRequest = Geometry.ProposeAsk(identity, firing, pawns, staged.Colonists()[1]);
-            var firingReply = await Geometry.CallAsync(h, $"combat-geometry-propose-cap-{CaseSupport.Tag(i)}", firingRequest, cancellationToken).ConfigureAwait(false);
-            var observed = Geometry.Observed(firingReply);
-            try
+            if (g.Proposed.Count != CombatGeometryContract.MaxCells)
             {
-                Geometry.Validate(observed, firingRequest);
+                throw new AcceptanceException($"propose firing_cells at radius {CombatGeometryContract.MaxRadius} gave {g.Proposed.Count} cells, want {CombatGeometryContract.MaxCells}");
             }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"propose firing_cells {firingReply["failure"].ToJson()}: {e.Message}", e);
-            }
-
-            var n = observed!["proposed"].AsSlice().Count;
-            if (n != Geometry.MaxCells)
-            {
-                throw new AcceptanceException($"propose firing_cells at radius {CaseSupport.Tag(Geometry.MaxRadius)} gave {CaseSupport.Tag(n)} cells, want {CaseSupport.Tag(Geometry.MaxCells)}");
-            }
-
-            samples.Add(observed["mainThreadMs"].AsNumberOrZero());
-        }
-
-        samples.Sort();
-        var worst = samples[^1];
+        }, cancellationToken).ConfigureAwait(false);
 
         // Scan and scoring are linear in targets and hostiles: 8 each here, the caps are 16.
-        var projected = worst * Geometry.MaxHostiles / pawns.Count;
-        report["proposeTiming"] = new JsonObject
+        var projected = worst * CombatGeometryContract.MaxHostiles / pawns.Count;
+        s.Record("propose_timing", CombatLabKit.Obj(("hostiles", pawns.Count), ("worst_ms", worst), ("projected_at_caps_ms", projected)));
+        if (projected > CombatGeometryContract.BudgetMs)
         {
-            ["targets"] = targets.Count,
-            ["hostiles"] = pawns.Count,
-            ["radius"] = Geometry.MaxRadius,
-            ["msSorted"] = new JsonArray([.. samples.Select(m => (JsonNode?)JsonValue.Create(m))]),
-            ["worstMs"] = worst,
-            ["projectedAtCapsMs"] = projected,
-        };
-        if (projected > GeometryBudgetMs)
-        {
-            throw new AcceptanceException($"propose at the caps projects {projected.ToString("0.0", CultureInfo.InvariantCulture)} ms (worst {worst.ToString("0.0", CultureInfo.InvariantCulture)} ms), over {GeometryBudgetMs.ToString("0", CultureInfo.InvariantCulture)} ms");
+            throw new AcceptanceException($"propose at the caps projects {projected:0.0} ms (worst {worst:0.0} ms), over {CombatGeometryContract.BudgetMs} ms");
         }
     }
 
-    // shots requires the fight's shots in the events section (the Verb_LaunchProjectile and Verb_MeleeAttack hooks).
-    private static void Shots(Dictionary<string, int> kinds)
+    // adjacent_to_choke on the room's gap, our side three cells inside, proposes exactly the three floor cells inside the
+    // gap, the one straight behind it first; the walls either side and the cells outside are not proposed.
+    private static async Task ChokeAsync(ITypedSession s, StagedLab lab, CancellationToken cancellationToken)
     {
-        if (kinds.GetValueOrDefault("COMBAT_LOG_KIND_SHOT_FIRED") == 0)
+        var gap = lab.Cell(ChokeDx, ChokeDz + CombatFixtures.ChokeHalf);
+        var g = await CombatLabKit.GeometryAsync(s, "propose-choke", new Mirror.CombatGeometryRequest
         {
-            throw new AcceptanceException($"a pawn went down but no shot_fired event was recorded: {KindsText(kinds)}");
+            HostileIds = [.. lab.Hostiles()],
+            Propose = new Mirror.CombatGeometryPropose { Role = new Mirror.CombatAdjacentToChoke { Choke = gap, OurSide = Offset(gap, 0, -3) } },
+        }, cancellationToken).ConfigureAwait(false);
+        var inside = Offset(gap, 0, -1);
+        var want = new HashSet<(int, int)> { CombatGeometryContract.Key(inside), CombatGeometryContract.Key(Offset(inside, -1, 0)), CombatGeometryContract.Key(Offset(inside, 1, 0)) };
+        var proposed = g.Proposed.Select(r => CombatGeometryContract.Key(r.Cell)).ToList();
+        if (proposed.Count != want.Count || proposed[0] != CombatGeometryContract.Key(inside) || !proposed.All(want.Contains))
+        {
+            throw new AcceptanceException($"adjacent_to_choke on the gap at {CombatLabKit.Show(gap)} proposed [{string.Join(" ", proposed)}], want the three cells at z={inside.Z}, x={inside.X} first");
         }
     }
 
-    // fight runs the lab until a pawn goes down or dies, then checks that the event and the pawn's change came in one
-    // frame at one watermark. Every frame carries the whole event ring, so only events not seen before are counted.
-    private static async Task FightAsync(Harness h, CombatFrames f, Report report, CancellationToken cancellationToken)
+    // Reads request Samples times, each checked by check, and returns the worst main-thread time.
+    private static async Task<double> WorstMsAsync(ITypedSession s, string label, Mirror.CombatGeometryRequest request, Action<Mirror.CombatGeometry> check, CancellationToken cancellationToken)
     {
-        var kinds = new Dictionary<string, int>(StringComparer.Ordinal);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        for (var ticks = 0; ticks < FightTicks; ticks += StepTicks)
+        var worst = 0.0;
+        for (var i = 0; i < Samples; i++)
         {
-            var (_, tick) = await CombatStage.TickAsync(h, StepTicks, cancellationToken).ConfigureAwait(false);
-            var state = await f.NextAsync(tick, cancellationToken).ConfigureAwait(false);
-            var rows = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
-            foreach (var row in state.Pawns)
-            {
-                rows[row["id"].AsString()] = row;
-            }
-
-            foreach (var e in state.Events)
-            {
-                if (!seen.Add(Geometry.EventId(e)))
-                {
-                    continue;
-                }
-
-                var kind = e["kind"].AsString();
-                kinds[kind] = kinds.GetValueOrDefault(kind) + 1;
-                switch (kind)
-                {
-                    case "COMBAT_LOG_KIND_DOWNED":
-                        _ = rows.TryGetValue(e["thingId"].AsString(), out var downedRow);
-                        report["eventKinds"] = KindsJson(kinds);
-                        report["down"] = new JsonObject
-                        {
-                            ["event"] = e["at"]?.DeepClone(),
-                            ["row"] = downedRow?.DeepClone(),
-                            ["ticks"] = ticks + StepTicks,
-                        };
-                        if (downedRow is null)
-                        {
-                            // Downed then killed inside one step: its row is gone.
-                            Shots(kinds);
-                            return;
-                        }
-
-                        if (downedRow["downed"].AsBool() != true || !SameWatermark(downedRow["changed"].AsMap(), e["at"].AsMap()))
-                        {
-                            throw new AcceptanceException($"downing {e.ToJson()} without its pawn row at the same watermark: {downedRow.ToJson()}");
-                        }
-
-                        Shots(kinds);
-                        return;
-                    case "COMBAT_LOG_KIND_KILLED":
-                        report["eventKinds"] = KindsJson(kinds);
-                        report["down"] = new JsonObject { ["event"] = e["at"]?.DeepClone(), ["killed"] = e["thingId"].AsString(), ["ticks"] = ticks + StepTicks };
-                        if (rows.ContainsKey(e["thingId"].AsString()))
-                        {
-                            throw new AcceptanceException($"death {e.ToJson()} with its pawn row still in the same frame");
-                        }
-
-                        Shots(kinds);
-                        return;
-                }
-            }
-
-            report["eventKinds"] = KindsJson(kinds);
+            var g = await CombatLabKit.GeometryAsync(s, $"{label}-{i}", request, cancellationToken).ConfigureAwait(false);
+            check(g);
+            worst = Math.Max(worst, g.MainThreadMs ?? 0);
         }
 
-        if (kinds.GetValueOrDefault("COMBAT_LOG_KIND_SHOT_FIRED") == 0)
-        {
-            throw new AcceptanceException($"no shot fired in {CaseSupport.Tag(FightTicks)} ticks of lab-ranged");
-        }
-
-        throw new AcceptanceException($"nobody went down in {CaseSupport.Tag(FightTicks)} ticks of lab-ranged: {KindsText(kinds)}");
+        return worst;
     }
 
-    private static bool SameWatermark(JsonObject? a, JsonObject? b) =>
-        Geometry.WatermarkTick(a) == Geometry.WatermarkTick(b) && Geometry.WatermarkSeq(a) == Geometry.WatermarkSeq(b);
-
-    private static JsonObject KindsJson(Dictionary<string, int> kinds)
+    // Runs the lab until a pawn goes down or dies: the frame that first carries the event carries the pawn's row
+    // downed (changed at or after the event) or, for a death or a downing then death between frames, no row.
+    private static async Task FightAsync(ITypedSession s, LabFrames frames, CancellationToken cancellationToken)
     {
-        var o = new JsonObject();
-        foreach (var (name, n) in kinds.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        Mirror.CombatEventRow? down = null;
+        var frame = await frames.UntilAsync("fight", FightTicks, 0, f =>
         {
-            o[name] = n;
+            down = frames.Events.FirstOrDefault(e => e.Kind is Mirror.CombatLogKind.Downed or Mirror.CombatLogKind.Killed);
+            return down is not null;
+        }, cancellationToken).ConfigureAwait(false);
+        var kinds = frames.Events.GroupBy(e => e.Kind?.ToString() ?? "").ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+        s.Record("event_kinds", new JsonObject([.. kinds.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => new KeyValuePair<string, JsonNode?>(k.Key, k.Value))]));
+        s.RecordWire("down", down);
+        var row = LabFrames.Row(frame, down!.ThingId ?? "");
+        s.RecordWire("down_row", row);
+        if (down.Kind == Mirror.CombatLogKind.Killed && row is not null)
+        {
+            throw new AcceptanceException($"death {down} with its pawn row still in the same frame: {row}");
         }
 
-        return o;
-    }
-
-    private static string KindsText(Dictionary<string, int> kinds) =>
-        "map[" + string.Join(" ", kinds.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => $"{pair.Key}:{CaseSupport.Tag(pair.Value)}")) + "]";
-}
-
-/// <summary>The def rows' view of one weapon (the part of Go <c>DefinitionCatalog.WeaponOf</c> the mirror case reads).</summary>
-internal static class WeaponCatalog
-{
-    private const string MeleeVerbClass = "RimWorld.Verb_MeleeAttack";
-
-    /// <summary>
-    /// Reads the definition catalog and reports whether the weapon def's first non-melee verb is a ranged one and its
-    /// range. A melee verb is one whose class is, or derives from, <c>RimWorld.Verb_MeleeAttack</c> by the catalog's
-    /// class chains.
-    /// </summary>
-    internal static async Task<(bool Ranged, double Range)> RangedFactsAsync(Harness h, JsonObject identity, string defName, CancellationToken cancellationToken)
-    {
-        var reply = await h.WireAsync(
-            "combat-definition-catalog",
-            "observations_read_definition_catalog",
-            new JsonObject { ["scope"] = new JsonObject { ["expectedIdentity"] = identity.DeepClone() } },
-            cancellationToken).ConfigureAwait(false);
-        var observed = reply["observed"].AsMap() ?? throw new AcceptanceException($"definition catalog not observed: {reply.ToJson()}");
-        var row = Find(observed, defName) ?? throw new AcceptanceException($"contract: catalog has no def row for {defName}");
-        var bases = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-        foreach (var chain in observed["classChains"].AsSlice())
+        if (row is not null && (row.Downed != true || row.Changed?.Tick < down.At?.Tick))
         {
-            var c = chain.AsMap() ?? [];
-            bases[c["name"].AsString()] = [.. c["bases"].AsSlice().Select(b => b.AsString())];
+            throw new AcceptanceException($"downing {down} without its pawn row downed at or after the event: {row}");
         }
 
-        foreach (var entry in row["verbs"].AsSlice())
+        if (!kinds.ContainsKey(nameof(Mirror.CombatLogKind.ShotFired)))
         {
-            var verb = entry.AsMap()?["value"].AsMap() ?? entry.AsMap() ?? [];
-            var verbClass = verb["verbClass"].AsString();
-            if (!bases.TryGetValue(verbClass, out var chainBases))
-            {
-                throw new AcceptanceException($"contract: catalog has no class chain for {verbClass}");
-            }
-
-            if (verbClass == MeleeVerbClass || chainBases.Contains(MeleeVerbClass, StringComparer.Ordinal))
-            {
-                continue;
-            }
-
-            return (true, verb["range"].AsNumberOrZero());
-        }
-
-        return (false, 0);
-    }
-
-    // The def row is the object carrying defName and a verbs list; the catalog groups rows by def message, so find it
-    // by walking the document.
-    private static JsonObject? Find(JsonNode? node, string defName)
-    {
-        switch (node)
-        {
-            case JsonObject o:
-                if (o["defName"].AsString() == defName && o["verbs"] is JsonArray)
-                {
-                    return o;
-                }
-
-                foreach (var (_, child) in o)
-                {
-                    if (Find(child, defName) is { } found)
-                    {
-                        return found;
-                    }
-                }
-
-                return null;
-            case JsonArray a:
-                foreach (var child in a)
-                {
-                    if (Find(child, defName) is { } found)
-                    {
-                        return found;
-                    }
-                }
-
-                return null;
-            default:
-                return null;
+            throw new AcceptanceException($"a pawn went down but no shot_fired event was recorded: {string.Join(", ", kinds)}");
         }
     }
+
+    private static Common.Cell Offset(Common.Cell c, int dx, int dz) => new() { X = c.X + dx, Z = c.Z + dz };
 }

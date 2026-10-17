@@ -13,12 +13,6 @@ namespace RimGovernor.Fixtures.Contracts;
 public sealed record StageSpec
 {
     /// <summary>
-    /// Zero is the pinned staging. Non-zero draws each <see cref="StagePawn.SkillSpread"/> from a state derived from it,
-    /// and reseeds the game's Rand from it once staging ends, so the fight after it is a function of the seed.
-    /// </summary>
-    public int Seed { get; init; }
-
-    /// <summary>
     /// Refuses the staging unless the game is paused: a setup start that must not race the clock. Off for a staging
     /// mid-fight (a combat case adds a manhunter to a served window).
     /// </summary>
@@ -334,9 +328,6 @@ public sealed record StagePawn
 
     /// <summary>Every skill at this level without passion; null leaves the skills generated.</summary>
     public int? SkillLevel { get; init; }
-
-    /// <summary>Under a non-zero spec seed each skill is drawn from SkillLevel plus or minus this.</summary>
-    public int SkillSpread { get; init; }
 
     /// <summary>Removes every generated trait; false leaves them generated.</summary>
     public bool ClearTraits { get; init; }

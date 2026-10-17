@@ -5,6 +5,7 @@ using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
 using RimGovernor.Contracts.Wire;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
@@ -146,6 +147,81 @@ public sealed class TypedSession : ITypedSession
             cancellationToken).ConfigureAwait(false);
         return found ?? throw new AcceptanceException($"{label}: no matching {kind.Name} row");
     }
+
+    public async Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, Clock.RunRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        Budget(label, ticks);
+        var run = await CallAsync(label + "-run", NativeOps.RunClock, request with { Identity = Identity }, cancellationToken).ConfigureAwait(false);
+        var status = run.Outcome?.Status is { State: Clock.ClockState.Running } started
+            ? started
+            : throw new AcceptanceException($"{label}: clock run refused or left held: {run.Outcome}");
+        try
+        {
+            // Each round reads the status (the wait's tick), then beats while it still runs: the native ceiling drops to
+            // Normal after five seconds without contact.
+            var ran = await ServedWait.UntilAsync(
+                label,
+                ticks,
+                async ct =>
+                {
+                    var reply = await CallAsync(label + "-status", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = Identity }, ct).ConfigureAwait(false);
+                    status = reply.Outcome?.Status ?? throw new AcceptanceException($"{label}: no clock status: {reply.Outcome}");
+                    return (ulong)Math.Max(status.Context?.Tick ?? 0, 0);
+                },
+                async ct =>
+                {
+                    if (status.State == Clock.ClockState.Held)
+                    {
+                        return (string.Empty, true);
+                    }
+
+                    var beat = await CallAsync(label + "-heartbeat", NativeOps.HeartbeatClock, new Clock.HeartbeatRequest { Identity = Identity }, ct).ConfigureAwait(false);
+                    _ = beat.Outcome?.Ack ?? throw new AcceptanceException($"{label}: heartbeat refused: {beat.Outcome}");
+                    return (Wait.Signature(status.Context?.Tick, status.State), false);
+                },
+                new Wait { Stall = Wait.StallBudget(), Interval = TimeSpan.FromMilliseconds(250) },
+                cancellationToken).ConfigureAwait(false);
+            _spent += ran;
+            return status;
+        }
+        finally
+        {
+            if (status.State != Clock.ClockState.Held)
+            {
+                // Native keeps the first reason, so a hold that raced this one is not overwritten.
+                _ = await CallAsync(
+                    label + "-hold",
+                    NativeOps.HoldClock,
+                    new Clock.HoldRequest { Identity = Identity, Reason = Clock.HoldReason.Review, Detail = label + ": the wait ended before a hold" },
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+    }
+
+    public async Task<LogRow> HoldRowAsync(string label, Clock.Status held, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(held);
+        var heldAt = held.HeldAtUnixMs ?? throw new AcceptanceException($"{label}: the status is not held: {held}");
+        var deadline = DateTime.UtcNow + HoldRowWait;
+        while (true)
+        {
+            if (Telemetry(TelemetryKinds.ClockHold).LastOrDefault(row => ClockRows.Whole(row, ClockEventTelemetry.StopAtMsKey) == heldAt) is { } row)
+            {
+                return row;
+            }
+
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new AcceptanceException($"{label}: no clock_hold row with stop_at_ms {heldAt} within {HoldRowWait} ({held.Reason}: {held.Detail})");
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    // The game is held while a hold row is awaited: only the log sink's batch flush stands between the hold and its row.
+    private static readonly TimeSpan HoldRowWait = TimeSpan.FromSeconds(30);
 
     public void Record(string key, JsonNode? value) => _s.Report[key] = value;
 

@@ -2,8 +2,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// Wires the harness-side observation seams that the in-mod brain's state database can answer: the store reader
-/// (<see cref="ObservedSession.StoreOpener"/>, <see cref="CaseJournal"/>, the phase store), the layout-plan reader and the
-/// combat-fight journal. The harness points the game at <c>&lt;Output&gt;/service.sqlite</c> with <c>RIMGOVERNOR_STATE</c>
+/// (<see cref="ObservedSession.StoreOpener"/>, <see cref="CaseJournal"/>, the phase store) and the layout-plan reader.
+/// The harness points the game at <c>&lt;Output&gt;/service.sqlite</c> with <c>RIMGOVERNOR_STATE</c>
 /// at launch, so every reader opens the file the game writes (<see cref="ServiceJournal.PathOf"/>).
 /// </summary>
 /// <remarks>
@@ -19,7 +19,6 @@ internal static class HostSeams
     {
         ObservedSession.StoreOpener = async (config, ct) => await CaseStore.OpenAsync(config, ct).ConfigureAwait(false);
         ObservedSession.LayoutPlanReader = CaseStore.ReadLayoutPlanAsync;
-        CombatLabResume.JournalOpener = CaseStore.OpenCombatFightsAsync;
 
         // The game-side reads: the mod's rimgovernor/acceptance_read_* tools over the generic native route.
         var planner = new HostReads.StarterSiteReader();

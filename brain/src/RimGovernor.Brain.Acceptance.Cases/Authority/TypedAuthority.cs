@@ -8,12 +8,18 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal static class TypedAuthority
 {
     /// <summary>SetMode(Auto) at the generation the status reads: operations_apply admits a controller's actions only.</summary>
-    internal static async Task GrantAutoAsync(ITypedSession s, CancellationToken cancellationToken)
+    internal static async Task GrantAutoAsync(ITypedSession s, CancellationToken cancellationToken) =>
+        _ = await GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
+
+    /// <summary>
+    /// <see cref="GrantAutoAsync"/>, returning the granted native generation: the generation a clock_run is admitted against.
+    /// </summary>
+    internal static async Task<ulong> GrantAutoGenerationAsync(ITypedSession s, CancellationToken cancellationToken)
     {
         var status = await StatusAsync(s, "acquire-status", s.Identity, cancellationToken).ConfigureAwait(false);
         var generation = status.Context?.NativeGeneration
             ?? throw new AcceptanceException($"acquire-status: no native generation: {status}");
-        _ = await GrantAsync(s, "acquire", s.Identity, generation, cancellationToken).ConfigureAwait(false);
+        return await GrantAsync(s, "acquire", s.Identity, generation, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The authority status <c>authority_read_status</c> reports for <paramref name="identity"/>; a refusal fails <paramref name="label"/>.</summary>

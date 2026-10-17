@@ -1,117 +1,70 @@
-using System.Text.Json.Nodes;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>combatlab/mortar-shell</c> (Go <c>mortar_shell.go</c>).</summary>
+/// <summary>
+/// <c>combatlab/mortar-shell</c> (#1051, #1202): the mortar shell order. On lab-siege an HE mortar_fire at the camp and a
+/// man_mortar crew load Shell_HighExplosive (the frame's combat_mortars row), a Steel shell refuses unknown_shell, and an
+/// EMP mortar_fire alone has the crew load Shell_EMP.
+/// </summary>
 internal static class CombatLabMortarShell
 {
-    // shellLoadTicks bounds each wait for the crew to fetch and load a shell (a few cells' walk and the load), inside
-    // the 5,000-tick budget.
-    private const int LoadTicks = 1800;
+    /// <summary>Bounds each load: a few cells' walk to the shell and the load.</summary>
+    private const int LoadTicks = 1800 + CombatLabKit.ProbeTicks;
 
-    internal static AcceptanceCase Case() => new()
+    private static readonly LabFixture Fixture = CombatLabKit.Fixture("lab-siege");
+
+    internal static TypedCase Case() => new()
     {
         Name = "combatlab/mortar-shell",
-        Scope = "The combat.orders mortar shell op (#1051), a native op no snapshot can prove: on lab-siege, a mortar_fire order for HE at the siege camp "
-            + "and a man_mortar crew load Shell_HighExplosive (the combat_mortars row's loaded_shell), a mortar_fire naming Steel refuses unknown_shell, "
-            + "and a mortar_fire alone naming Shell_EMP unloads the HE (if still loaded) and the crew loads the EMP shell (#1202).",
-        Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
+        Scope = "The combat_orders mortar shell op (#1051), a native op no snapshot can prove: on lab-siege, a mortar_fire order for HE at the "
+            + "siege camp and a man_mortar crew load Shell_HighExplosive (the frame's combat_mortars row's loaded_shell), a mortar_fire naming "
+            + "Steel refuses unknown_shell, and a mortar_fire alone naming Shell_EMP unloads the HE (if still loaded) and the crew loads the EMP "
+            + "shell (#1202).",
+        Ticks = 2 * LoadTicks,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = Fixture.Colonists },
+        Stage = CombatLabKit.Spec(Fixture),
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
-    }
+        var lab = new StagedLab(Fixture, s.Staged!);
+        var crew = lab.Colonists()[0];
+        var mortar = lab.Cell(0, CombatFixtures.SiegeOurMortar);
+        var camp = lab.Cell(0, CombatFixtures.SiegeCampMortar);
+        Operations.CombatOrder Fire(string shell) =>
+            CombatLabKit.Order(null, new Operations.CombatOrderOrder.MortarFireCase(new Operations.CombatMortarFire { Mortar = mortar, Target = camp, Shell = shell }));
 
-    private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var h = s.Harness;
-        var report = s.Report;
-        var cx = 0;
-        var cz = 0;
-        var staged = await CombatStage.StageAsync(h, "lab-siege", cancellationToken, (_, x, z) =>
-        {
-            cx = x;
-            cz = z;
-        }).ConfigureAwait(false);
-        var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "combat-mortar-shell-acquire", s.Identity, cancellationToken).ConfigureAwait(false);
-        var colonists = staged.Colonists();
-        JsonObject Mortar() => CaseSupport.Cell(cx, cz + CombatFixtures.SiegeOurMortar);
-        JsonObject Fire(string shell) => new()
-        {
-            ["mortarFire"] = new JsonObject { ["mortar"] = Mortar(), ["target"] = CaseSupport.Cell(cx, cz + CombatFixtures.SiegeCampMortar), ["shell"] = shell },
-        };
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        var results = await CombatLabKit.OrdersAsync(
+            s,
+            "load-he",
+            cancellationToken,
+            CombatLabKit.Order(crew, new Operations.CombatOrderOrder.DraftCase(new Operations.Clear())),
+            Fire("Shell_HighExplosive"),
+            CombatLabKit.Order(crew, new Operations.CombatOrderOrder.ManMortarCase(mortar)),
+            Fire("Steel")).ConfigureAwait(false);
+        CombatLabKit.Applied("draft", results[0]);
+        CombatLabKit.Applied("HE fire", results[1]);
+        CombatLabKit.Applied("crew", results[2], "ManTurret");
+        CombatLabKit.Refused("steel fire", results[3], "unknown_shell");
 
-        var results = await LabOps.IssueAsync(
-            h,
-            s.Identity,
-            "combat-mortar-shell-1",
-            new JsonArray(
-                new JsonObject { ["pawn"] = LabOps.PawnTarget(colonists[0]), ["draft"] = new JsonObject() },
-                Fire("Shell_HighExplosive"),
-                new JsonObject { ["pawn"] = LabOps.PawnTarget(colonists[0]), ["manMortar"] = Mortar() },
-                Fire("Steel")),
-            cancellationToken).ConfigureAwait(false);
-        report["first"] = new JsonArray([.. results.Select(r => (JsonNode?)r.DeepClone())]);
-        if (results[1]["applied"].AsBool() != true)
-        {
-            throw new AcceptanceException($"the HE fire order: want applied, got {results[1].ToJson()}");
-        }
-
-        if (results[2]["applied"].AsBool() != true || results[2]["jobDef"].AsString() != "ManTurret")
-        {
-            throw new AcceptanceException($"the crew order: want applied ManTurret, got {results[2].ToJson()}");
-        }
-
-        if (results[3]["applied"].AsBool() == true || results[3]["refusal"].AsString() != "unknown_shell")
-        {
-            throw new AcceptanceException($"steel order: want refusal unknown_shell, got {results[3].ToJson()}");
-        }
-
-        await AwaitLoadedAsync(h, frames, cx, cz + CombatFixtures.SiegeOurMortar, "Shell_HighExplosive", report, "heTick", cancellationToken).ConfigureAwait(false);
+        var frames = new LabFrames(s);
+        await LoadedAsync(s, frames, mortar, "Shell_HighExplosive", cancellationToken).ConfigureAwait(false);
 
         // The crew still mans it: the fire order alone retakes ManTurret.
-        results = await LabOps.IssueAsync(h, s.Identity, "combat-mortar-shell-2", new JsonArray(Fire("Shell_EMP")), cancellationToken).ConfigureAwait(false);
-        report["second"] = new JsonArray([.. results.Select(r => (JsonNode?)r.DeepClone())]);
-        if (results[0]["applied"].AsBool() != true)
-        {
-            throw new AcceptanceException($"the EMP order: want applied, got {results[0].ToJson()}");
-        }
-
-        await AwaitLoadedAsync(h, frames, cx, cz + CombatFixtures.SiegeOurMortar, "Shell_EMP", report, "empTick", cancellationToken).ConfigureAwait(false);
+        CombatLabKit.Applied("EMP fire", (await CombatLabKit.OrdersAsync(s, "load-emp", cancellationToken, Fire("Shell_EMP")).ConfigureAwait(false))[0]);
+        await LoadedAsync(s, frames, mortar, "Shell_EMP", cancellationToken).ConfigureAwait(false);
     }
 
-    // awaitLoaded steps the clock until a frame's combat_mortars row for the mortar at (x, z) shows shell loaded, within
-    // shellLoadTicks.
-    private static async Task AwaitLoadedAsync(Harness h, CombatFrames frames, int x, int z, string shell, Report report, string key, CancellationToken cancellationToken)
+    // Runs until a frame's combat_mortars row for the mortar shows the shell loaded.
+    private static async Task LoadedAsync(ITypedSession s, LabFrames frames, Common.Cell mortar, string shell, CancellationToken cancellationToken)
     {
-        var last = "";
-        for (var waited = 0; waited < LoadTicks; waited += CombatLabMirror.StepTicks)
-        {
-            var (_, tick) = await CombatStage.TickAsync(h, CombatLabMirror.StepTicks, cancellationToken).ConfigureAwait(false);
-            var v = await frames.SnapshotAsync(tick, cancellationToken).ConfigureAwait(false);
-            foreach (var raw in v["combatMortars"].AsSlice())
-            {
-                var row = raw.AsMap() ?? [];
-                var cell = row["cell"].AsMap() ?? [];
-                if ((int)cell["x"].AsNumberOrZero() == x && (int)cell["z"].AsNumberOrZero() == z)
-                {
-                    last = row["loadedShell"].AsString();
-                    if (last == shell)
-                    {
-                        report[key] = tick;
-                        return;
-                    }
-                }
-            }
-        }
-
-        throw new AcceptanceException($"mortar at {CaseSupport.Tag(x)},{CaseSupport.Tag(z)} never loaded {shell} within {CaseSupport.Tag(LoadTicks)} ticks (last \"{last}\")");
+        var frame = await frames.UntilAsync("loaded-" + shell, LoadTicks, 0, f => f.CombatMortars.Any(m => m.Cell == mortar && m.LoadedShell == shell), cancellationToken).ConfigureAwait(false);
+        s.RecordWire("loaded_" + shell, frame.CombatMortars.First(m => m.Cell == mortar));
     }
 }

@@ -48,27 +48,11 @@ namespace HomeBridge.BridgeTools
         {
             var catalog = new Obs.DefinitionCatalog { Context = context };
             // The reply carries no def rows or game constants (#3100): the in-process brain builds its catalog over the
-            // game's Def objects (NativeCatalogFactory), so only the class chains and Biotech facts are sent; the race
+            // game's Def objects (NativeCatalogFactory), so only the Biotech facts are sent; the race
             // facts are published beside the stat table (NativeRaceFacts) and the derived facts are computed in process
             // (BrainDerived).
-            // The base chains of the def classes the game has.
-            catalog = catalog with { ClassChains = DefMirrorFill.ClassChains(DefClasses()) };
             catalog = catalog with { Biotech = NativeBiotechFacts.Catalog() };
             return catalog;
-        }
-
-        // Every concrete def class the game has: the ones with a database and the exact
-        // classes of the defs in them (a class below another concrete def class has no
-        // database of its own; its defs sit in the root class's database).
-        private static IEnumerable<Type> DefClasses()
-        {
-            var classes = new HashSet<Type> { typeof(ThingDef), typeof(TerrainDef) };
-            foreach (var root in GenDefDatabase.AllDefTypesWithDatabases().Where(t => !t.IsAbstract))
-            {
-                classes.Add(root);
-                foreach (var def in GenDefDatabase.GetAllDefsInDatabaseForDef(root)) classes.Add(def.GetType());
-            }
-            return classes;
         }
 
         // The brain catalog's derived facts: the def names the game's code names (read straight from ThingDefOf, so

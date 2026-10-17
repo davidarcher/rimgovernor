@@ -1,173 +1,162 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>combatlab/animals</c> and <c>combatlab/orphan-animal-area</c> (Go <c>animals.go</c>).</summary>
+/// <summary><c>combatlab/animals</c> (#1057) and <c>combatlab/orphan-animal-area</c>: the combat orders for colony animals and their areas.</summary>
 internal static class CombatLabAnimals
 {
-    internal static AcceptanceCase Case() => new()
+    /// <summary>The ways a zoned animal stops being the colony's: despawned, dead, gone to no faction.</summary>
+    private static readonly string[] OrphanModes = ["despawn", "dead", "foreign"];
+
+    private static readonly LabFixture Fixture = CombatLabKit.Fixture("lab-manhunter");
+
+    // One untrained husky per orphan mode beside the colonist.
+    private static readonly LabFixture OrphanFixture = CombatLabKit.Fixture("lab-manhunter", (f, cx, cz) =>
+    {
+        for (var i = 0; i < OrphanModes.Length; i++)
+        {
+            f.Pawns.Add(new LabPawn { Side = CombatFixtures.Animal, Kind = "Husky", X = cx - 3 - i, Z = cz });
+        }
+    });
+
+    /// <summary>
+    /// test/lab_stage action orphan-animal: the primitive no stage spec expresses, a player animal despawned, killed or
+    /// turned factionless mid-case.
+    /// </summary>
+    private static readonly FixtureOp<(string Animal, string Mode), Fx.FixtureDone> Orphan = new(
+        CombatFixtures.LabTool,
+        r => ServedOps.Args(("action", "orphan-animal"), ("spec", CombatLabKit.Obj(("animal", r.Animal), ("mode", r.Mode)).ToJsonString())),
+        ServedOps.Done(CombatFixtures.LabTool));
+
+    internal static TypedCase Case() => new()
     {
         Name = "combatlab/animals",
-        Scope = "combat.orders animal orders (#1057), native op contracts no snapshot can prove: on lab-manhunter one call releases the trained husky "
-            + "at a warg (applied, AttackMelee), releases the untrained husky (untrained), zones a warg (not_ours) and zones the untrained husky onto one "
-            + "cell (applied). One tick later the trained husky attacks the warg and the other stands restricted to a one-cell area; a clear order then "
-            + "restores it to no area.",
-        Start = new LabStart { Colonists = 1 },
-        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
+        Scope = "Combat orders for animals (#1057), native op contracts no unit test reaches: on lab-manhunter one batch releases the trained "
+            + "husky at a warg (applied, AttackMelee), releases the untrained husky (untrained), zones a warg (not_ours) and zones the untrained "
+            + "husky onto one cell (applied); on the paused game the trained husky attacks the warg and the other is restricted to a one-cell "
+            + "\"Combat <id>\" allowed area, and a clear order leaves it in no area.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = Fixture.Colonists },
+        Stage = CombatLabKit.Spec(Fixture),
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    internal static AcceptanceCase OrphanCase() => new()
+    internal static TypedCase OrphanCase() => new()
     {
         Name = "combatlab/orphan-animal-area",
-        Scope = "Native area deletion after death, despawn and lost ownership; Go snapshots cannot prove native areaManager effects. Repeated clears model a fresh cleanup after a lost reply.",
-        Start = new LabStart { Colonists = 1 },
-        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
+        Scope = "Native area deletion after death, despawn and lost ownership: a husky zoned by an animal_area order is despawned, killed or made "
+            + "factionless, and two clear orders in a row (a fresh cleanup after a lost reply) each refuse not_found or not_ours while its "
+            + "\"Combat <id>\" allowed area is gone from the colony read.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = OrphanFixture.Colonists },
+        Stage = CombatLabKit.Spec(OrphanFixture),
+        Ops = [CombatFixtures.LabTool],
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunOrphanAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static Operations.CombatOrderOrder.AnimalAreaCase Zone(Operations.CombatAnimalAreaArea area) =>
+        new Operations.CombatOrderOrder.AnimalAreaCase(new Operations.CombatAnimalArea { Area = area });
+
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var report = s.Report;
-        var cx = 0;
-        var cz = 0;
-        var staged = await CombatStage.StageAsync(h, "lab-manhunter", cancellationToken, (_, x, z) =>
-        {
-            cx = x;
-            cz = z;
-        }).ConfigureAwait(false);
-        var animals = staged.Animals();
-        var wargs = staged.Manhunters();
+        var lab = new StagedLab(Fixture, s.Staged!);
+        var animals = lab.Animals();
+        var wargs = lab.Manhunters();
         if (animals.Count != 2 || wargs.Count != 2)
         {
-            throw new AcceptanceException($"staged {CaseSupport.Tag(animals.Count)} animals and {CaseSupport.Tag(wargs.Count)} manhunters, want 2 and 2");
+            throw new AcceptanceException($"staged {animals.Count} animals and {wargs.Count} manhunters, want 2 and 2");
         }
 
         var trained = animals[0];
         var pup = animals[1];
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "combat-animals-acquire", identity, cancellationToken).ConfigureAwait(false);
-        var results = await LabOps.IssueAsync(
-            h,
-            identity,
-            "combat-animals-1",
-            new JsonArray(
-                new JsonObject { ["pawn"] = LabOps.PawnTarget(trained), ["release"] = LabOps.PawnTarget(wargs[0]) },
-                new JsonObject { ["pawn"] = LabOps.PawnTarget(pup), ["release"] = LabOps.PawnTarget(wargs[0]) },
-                new JsonObject { ["pawn"] = LabOps.PawnTarget(wargs[1]), ["animalArea"] = new JsonObject { ["cell"] = CaseSupport.Cell(cx - 1, cz - 3) } },
-                new JsonObject { ["pawn"] = LabOps.PawnTarget(pup), ["animalArea"] = new JsonObject { ["cell"] = CaseSupport.Cell(cx - 1, cz - 3) } }),
-            cancellationToken).ConfigureAwait(false);
-        report["results"] = new JsonArray([.. results.Select(r => (JsonNode?)r.DeepClone())]);
-        if (results[0]["applied"].AsBool() != true || results[0]["jobDef"].AsString() != "AttackMelee")
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        var results = await CombatLabKit.OrdersAsync(
+            s,
+            "animals",
+            cancellationToken,
+            CombatLabKit.Order(trained, new Operations.CombatOrderOrder.ReleaseCase(CombatLabKit.Pawn(wargs[0]))),
+            CombatLabKit.Order(pup, new Operations.CombatOrderOrder.ReleaseCase(CombatLabKit.Pawn(wargs[0]))),
+            CombatLabKit.Order(wargs[1], Zone(new Operations.CombatAnimalAreaArea.CellCase(lab.Cell(-1, -3)))),
+            CombatLabKit.Order(pup, Zone(new Operations.CombatAnimalAreaArea.CellCase(lab.Cell(-1, -3))))).ConfigureAwait(false);
+        CombatLabKit.Applied("release", results[0], "AttackMelee");
+        CombatLabKit.Refused("release untrained", results[1], "untrained");
+        CombatLabKit.Refused("zone warg", results[2], "not_ours");
+        CombatLabKit.Applied("zone pup", results[3]);
+
+        var husky = await CombatLabKit.PawnAsync(s, "husky", trained, cancellationToken).ConfigureAwait(false);
+        if (CombatLabKit.Job(husky) != "AttackMelee" || CombatLabKit.JobThing(husky) != wargs[0])
         {
-            throw new AcceptanceException($"release: want applied with AttackMelee, got {results[0].ToJson()}");
+            throw new AcceptanceException($"released husky does not attack warg {wargs[0]}: {husky.Job}");
         }
 
-        foreach (var (i, want) in new[] { (1, "untrained"), (2, "not_ours") })
+        var area = await PupAreaAsync(s, "zoned", pup, cancellationToken).ConfigureAwait(false);
+        if (area is not { CellCount: 1 } || area.Label != "Combat " + pup)
         {
-            if (results[i]["applied"].AsBool() == true || results[i]["refusal"].AsString() != want)
-            {
-                throw new AcceptanceException($"order {CaseSupport.Tag(i)}: want refusal {want}, got {results[i].ToJson()}");
-            }
+            throw new AcceptanceException($"zoned husky not restricted to a one-cell \"Combat {pup}\" area: {area}");
         }
 
-        if (results[3]["applied"].AsBool() != true)
+        CombatLabKit.Applied("clear", (await CombatLabKit.OrdersAsync(s, "clear", cancellationToken, CombatLabKit.Order(pup, Zone(new Operations.CombatAnimalAreaArea.ClearCase(new Operations.Clear())))).ConfigureAwait(false))[0]);
+        if (await PupAreaAsync(s, "cleared", pup, cancellationToken).ConfigureAwait(false) is { } left)
         {
-            throw new AcceptanceException($"animal_area: want applied, got {results[3].ToJson()}");
-        }
-
-        var after = await LabOps.TickReadAsync(h, cancellationToken).ConfigureAwait(false);
-        report["after"] = after.PawnsJson();
-        var husky = after.Row(trained);
-        if (husky["job"].AsString() != "AttackMelee" || husky["jobThing"].AsString() != wargs[0])
-        {
-            throw new AcceptanceException($"released husky does not attack the warg: {husky.ToJson()}");
-        }
-
-        var zoned = after.Row(pup);
-        if (zoned["area"].AsString() != "Combat " + pup || (int)zoned["areaCells"].AsNumber() != 1)
-        {
-            throw new AcceptanceException($"zoned husky not restricted to one cell: {zoned.ToJson()}");
-        }
-
-        results = await LabOps.IssueAsync(
-            h,
-            identity,
-            "combat-animals-2",
-            new JsonArray(new JsonObject { ["pawn"] = LabOps.PawnTarget(pup), ["animalArea"] = new JsonObject { ["clear"] = new JsonObject() } }),
-            cancellationToken).ConfigureAwait(false);
-        report["clear"] = new JsonArray([.. results.Select(r => (JsonNode?)r.DeepClone())]);
-        if (results[0]["applied"].AsBool() != true)
-        {
-            throw new AcceptanceException($"animal_area clear: want applied, got {results[0].ToJson()}");
-        }
-
-        var cleared = await LabOps.TickReadAsync(h, cancellationToken).ConfigureAwait(false);
-        var restored = cleared.Row(pup);
-        if (restored["area"].AsString() != string.Empty)
-        {
-            throw new AcceptanceException($"cleared husky still restricted: {restored.ToJson()}");
+            throw new AcceptanceException($"cleared husky still restricted to {left}");
         }
     }
 
-    private static async Task RunOrphanAsync(ISession s, CancellationToken cancellationToken)
+    // The allowed area the pawn is restricted to: the area listing it, which its own settings name.
+    private static async Task<Observations.AllowedAreaEntry?> PupAreaAsync(ITypedSession s, string label, string pup, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        foreach (var mode in new[] { "despawn", "dead", "foreign" })
+        var areas = await CombatLabKit.AreasAsync(s, label + "-areas", cancellationToken).ConfigureAwait(false);
+        s.RecordWire(label + "_areas", areas);
+        var listing = areas.Where(a => a.PawnIds.Contains(pup)).ToList();
+        var settings = (await CombatLabKit.PawnAsync(s, label + "-pup", pup, cancellationToken).ConfigureAwait(false)).Settings?.AllowedAreaId;
+        if (listing.Count > 1 || listing.FirstOrDefault()?.Id != settings)
         {
-            var cx = 0;
-            var cz = 0;
-            var staged = await CombatStage.StageAsync(h, "lab-manhunter", cancellationToken, (_, x, z) =>
-            {
-                cx = x;
-                cz = z;
-            }).ConfigureAwait(false);
-            var animal = staged.Animals()[1];
-            _ = await Authority.GrantAutoAsync(h.WireFunc(), "orphan-acquire-" + mode, identity, cancellationToken).ConfigureAwait(false);
-            var results = await LabOps.IssueAsync(
-                h,
-                identity,
-                "orphan-zone-" + mode,
-                new JsonArray(new JsonObject { ["pawn"] = LabOps.PawnTarget(animal), ["animalArea"] = new JsonObject { ["cell"] = CaseSupport.Cell(cx - 1, cz - 3) } }),
-                cancellationToken).ConfigureAwait(false);
-            if (results[0]["applied"].AsBool() != true)
-            {
-                throw new AcceptanceException($"zone {mode}: {new JsonArray([.. results.Select(r => (JsonNode?)r.DeepClone())]).ToJson()}");
-            }
+            throw new AcceptanceException($"{label}: pup {pup} settings name area {settings ?? "<none>"}, the colony read lists it under [{string.Join(", ", listing.Select(a => a.Id))}]");
+        }
 
-            var setup = new JsonObject { ["animal"] = animal, ["mode"] = mode }.ToJsonString();
-            _ = await h.CallAsync("orphan-setup-" + mode, CombatFixtures.LabTool, new JsonObject { ["action"] = "orphan-animal", ["spec"] = setup }, cancellationToken).ConfigureAwait(false);
+        return listing.FirstOrDefault();
+    }
+
+    private static async Task RunOrphanAsync(ITypedSession s, CancellationToken cancellationToken)
+    {
+        var lab = new StagedLab(OrphanFixture, s.Staged!);
+        var huskies = lab.Animals().Skip(2).ToList();
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        var zoned = await CombatLabKit.OrdersAsync(
+            s,
+            "zone",
+            cancellationToken,
+            [.. huskies.Select((h, i) => CombatLabKit.Order(h, Zone(new Operations.CombatAnimalAreaArea.CellCase(lab.Cell(-1 - i, -3)))))]).ConfigureAwait(false);
+        foreach (var r in zoned)
+        {
+            CombatLabKit.Applied("zone", r);
+        }
+
+        for (var m = 0; m < OrphanModes.Length; m++)
+        {
+            var mode = OrphanModes[m];
+            var animal = huskies[m];
+            _ = await s.FixtureAsync("orphan-" + mode, Orphan, (animal, mode), cancellationToken).ConfigureAwait(false);
             for (var i = 0; i < 2; i++)
             {
-                var n = i.ToString(CultureInfo.InvariantCulture);
-                results = await LabOps.IssueAsync(
-                    h,
-                    identity,
-                    $"orphan-clear-{mode}-{n}",
-                    new JsonArray(new JsonObject { ["pawn"] = LabOps.PawnTarget(animal), ["animalArea"] = new JsonObject { ["clear"] = new JsonObject() } }),
-                    cancellationToken).ConfigureAwait(false);
-                var refusal = results[0]["refusal"].AsString();
-                if (refusal is not ("not_found" or "not_ours"))
+                var label = $"clear-{mode}-{i}";
+                var r = (await CombatLabKit.OrdersAsync(s, label, cancellationToken, CombatLabKit.Order(animal, Zone(new Operations.CombatAnimalAreaArea.ClearCase(new Operations.Clear())))).ConfigureAwait(false))[0];
+                if (r.Applied == true || r.Refusal is not ("not_found" or "not_ours"))
                 {
-                    throw new AcceptanceException($"clear {mode}: {new JsonArray([.. results.Select(r => (JsonNode?)r.DeepClone())]).ToJson()}");
+                    throw new AcceptanceException($"{label}: want refusal not_found or not_ours, got {r}");
                 }
 
-                var read = await h.CallAsync($"orphan-read-{mode}-{n}", CombatFixtures.LabTool, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
-                foreach (var area in read["areas"].AsSlice())
+                var areas = await CombatLabKit.AreasAsync(s, label + "-areas", cancellationToken).ConfigureAwait(false);
+                if (areas.FirstOrDefault(a => a.Label == "Combat " + animal) is { } survived)
                 {
-                    if (area.AsString() == "Combat " + animal)
-                    {
-                        throw new AcceptanceException($"orphan area survived {mode} clear");
-                    }
+                    throw new AcceptanceException($"orphan area survived the {mode} clear: {survived}");
                 }
             }
         }

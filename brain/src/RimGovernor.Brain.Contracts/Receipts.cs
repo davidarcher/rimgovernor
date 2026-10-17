@@ -401,10 +401,6 @@ public abstract record EffectEvidenceEffect
 
     public static implicit operator EffectEvidenceEffect(QuestEffect value) => new QuestCase(value);
 
-    /// <summary>The <c>Acquisition</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public AcquisitionEffect? Acquisition => (this as AcquisitionCase)?.Value;
-
     public sealed record AcquisitionCase(AcquisitionEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(AcquisitionEffect value) => new AcquisitionCase(value);

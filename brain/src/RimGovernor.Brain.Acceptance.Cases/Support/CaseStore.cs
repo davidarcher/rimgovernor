@@ -142,26 +142,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>The brain's combat_fights table.</summary>
-    internal static async Task<ICombatFightJournal> OpenCombatFightsAsync(Config config, CancellationToken cancellationToken) =>
-        new CombatFights(await OpenAsync(config, cancellationToken).ConfigureAwait(false));
-
-    private sealed class CombatFights(CaseStore owner) : ICombatFightJournal, IDisposable
-    {
-        public Task<IReadOnlyDictionary<string, CombatFightRow>> OpenCombatFightsAsync(CancellationToken cancellationToken) =>
-            ReadAsync(
-                "open combat fights",
-                ct => (IReadOnlyDictionary<string, CombatFightRow>)owner._store.OpenCombatFights(ct).ToDictionary(f => f.Key.Value, f => Row(f.Value), StringComparer.Ordinal),
-                cancellationToken);
-
-        public Task<CombatFightRow?> LoadCombatFightAsync(string plan, CancellationToken cancellationToken) =>
-            ReadAsync("combat fight " + plan, ct => owner._store.LoadCombatFight(new PlanId(plan), ct) is { } fight ? Row(fight) : null, cancellationToken);
-
-        public void Dispose() => owner.Dispose();
-
-        private static CombatFightRow Row(CombatFight fight) => new(fight.Open, fight.Roster.Select(p => p.Value).ToHashSet(StringComparer.Ordinal));
-    }
-
     private static async Task<T> ReadAsync<T>(string what, Func<CancellationToken, T> read, CancellationToken cancellationToken)
     {
         try

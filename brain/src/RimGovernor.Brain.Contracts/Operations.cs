@@ -642,21 +642,9 @@ public abstract record CombatOrderOrder
     /// <summary>
     /// Force-fire a ground-targetable verb (grenades, launchers) at a cell.
     /// </summary>
-    /// <summary>The <c>AttackGround</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Cell? AttackGround => (this as AttackGroundCase)?.Value;
-
     public sealed record AttackGroundCase(Common.Cell Value) : CombatOrderOrder;
 
-    /// <summary>The <c>FireMode</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatFireMode? FireMode => (this as FireModeCase)?.Value;
-
     public sealed record FireModeCase(CombatFireMode Value) : CombatOrderOrder;
-
-    /// <summary>The <c>HoldPosition</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Clear? HoldPosition => (this as HoldPositionCase)?.Value;
 
     public sealed record HoldPositionCase(Clear Value) : CombatOrderOrder;
 
@@ -678,10 +666,6 @@ public abstract record CombatOrderOrder
 
     public sealed record RescueCase(CombatRescue Value) : CombatOrderOrder;
 
-    /// <summary>The <c>Repair</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatRepair? Repair => (this as RepairCase)?.Value;
-
     public sealed record RepairCase(CombatRepair Value) : CombatOrderOrder;
 
     /// <summary>
@@ -700,15 +684,7 @@ public abstract record CombatOrderOrder
     /// on the cell (vanilla ManTurret, which loads shells from stock); one
     /// already manning it applies. Refusals: not_a_mortar, unreachable.
     /// </summary>
-    /// <summary>The <c>ManMortar</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Cell? ManMortar => (this as ManMortarCase)?.Value;
-
     public sealed record ManMortarCase(Common.Cell Value) : CombatOrderOrder;
-
-    /// <summary>The <c>MortarFire</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatMortarFire? MortarFire => (this as MortarFireCase)?.Value;
 
     public sealed record MortarFireCase(CombatMortarFire Value) : CombatOrderOrder;
 
@@ -723,10 +699,6 @@ public abstract record CombatOrderOrder
 
     public sealed record ReleaseCase(EntityPrecondition Value) : CombatOrderOrder;
 
-    /// <summary>The <c>AnimalArea</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatAnimalArea? AnimalArea => (this as AnimalAreaCase)?.Value;
-
     public sealed record AnimalAreaCase(CombatAnimalArea Value) : CombatOrderOrder;
 
     /// <summary>
@@ -735,10 +707,6 @@ public abstract record CombatOrderOrder
     /// Refusals: not_a_drug (the def is not a drug), no_drug (none carried),
     /// native_refused (vanilla declined the ordered job).
     /// </summary>
-    /// <summary>The <c>CombatDrug</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public string? CombatDrug => (this as CombatDrugCase)?.Value;
-
     public sealed record CombatDrugCase(string Value) : CombatOrderOrder;
 }
 
@@ -886,12 +854,6 @@ public sealed record BillSettings
     /// refused on others; a butcher bill with a pinned worker is humanlike.
     /// </summary>
     public Common.CorpseClass? CorpseClass { get; init; }
-}
-
-public sealed record DefinitionList
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Defs { get; init; }
 }
 
 public sealed record StockpileSettings

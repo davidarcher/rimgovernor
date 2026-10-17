@@ -218,12 +218,6 @@ namespace HomeBridge.BridgeTools
                     row = row with { WeaponItems = [.. row.WeaponItems, weapon] };
                 }
                 if (entry.Holder != null) row = row with { Holders = [.. row.Holders, new Obs.HeldStock { Holder = NativeRef.Thing(entry.Holder), HolderKind = NativeEnums.Holder(entry.HolderKind!), Units = units }] };
-                if (entry.Thing is Corpse corpse)
-                {
-                    _ = corpse.InnerPawn ?? throw new InvalidOperationException("Corpse pawn unavailable.");
-                    var detail = new Obs.CorpseState { Corpse = NativeRef.Thing(corpse) };
-                    row = row with { Corpses = [.. row.Corpses, detail] };
-                }
             }
             row = row with { Issues = [.. row.Issues, Issue("items.snapshot", Common.UnavailableReason.Unsupported, "One or more items lack an Allow snapshot; only eligible loose supplies support Allow.")] };
             return row with { Units = totalUnits, Spawned = spawned, Ours = ours, OursUnforbidden = oursUnforbidden, Forbidden = forbidden,

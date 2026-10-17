@@ -113,16 +113,9 @@ The required evidence is:
 - Startup, first-request, warm-request and cancellation/cleanup measurements,
   including failures. A diagnostic timeout ceiling is not a passing latency gate.
 
-The existing `combatlab/hunt-squad` and `combatlab/hunt-door` cases use a quiet
-world. The latter explicitly substitutes a permanent manhunter because that
-fixture's storyteller disables revenge on damage. These are execution cases,
-not suitable evidence for revenge frequency. Reuse the CombatLab machinery with
-revenge enabled and observed; do not qualify against the substituted threat.
-
-Disposition: both cases are rewritten as execution cases for the roster hunt. They launch the game with
-`RIMGOVERNOR_ENCOUNTER_WORKER` set to the built RealCombat.Host Release worker (the case fails at its start if
-it is not built), lead the hunt in steps until the chosen roster is drafted (estimates arrive in real time),
-and no longer assume a gunner count. Neither has been run natively since the change; the nightly supplies that.
+The former `combatlab/hunt-squad` and `combatlab/hunt-door` execution cases were deleted with the acceptance
+port (#3399): they used a quiet world with a substituted permanent manhunter, so they were never evidence for
+revenge frequency. Qualification reuses the CombatLab machinery with revenge enabled and observed.
 
 Even with zero failures, the exact one-sided 95% binomial upper bound is
 `1 - 0.05^(1/n)`. At least 299 independent applicable safe predictions with zero

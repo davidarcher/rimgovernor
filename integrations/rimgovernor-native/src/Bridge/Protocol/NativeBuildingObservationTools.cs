@@ -150,6 +150,7 @@ namespace HomeBridge.BridgeTools
             row = row with { Service = Service(thing) };
             row = row with { Settings = new Obs.BuildingSettings { Forbidden = Faction.OfPlayerSilentFail != null && thing.IsForbidden(Faction.OfPlayerSilentFail) } };
             row = row with { Anomaly = NativeAnomalyFacts.Building(thing) };
+            if (thing is Building_Door door) row = row with { Door = new Obs.BuildingDoor { Open = door.Open, HoldOpen = door.HoldOpen } };
             return row;
         }
 

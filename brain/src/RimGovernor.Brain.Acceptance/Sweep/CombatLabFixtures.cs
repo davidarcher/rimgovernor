@@ -85,7 +85,7 @@ public sealed class LabPawn
 
     /// <summary>
     /// This combatant as the stage spec's pawn named <paramref name="name"/>: a side is a faction and the fixed staging
-    /// the combat lab gives it (hostiles and prisoners an adult of 30, no traits, Shooting and Melee 8 varied by a seed,
+    /// the combat lab gives it (hostiles and prisoners an adult of 30, no traits, every skill 8,
     /// stripped of their own gear; animals 3 years old).
     /// </summary>
     public Fx.StagePawn ToSpec(string name)
@@ -119,7 +119,6 @@ public sealed class LabPawn
                 Age = 30,
                 ClearTraits = true,
                 SkillLevel = 8,
-                SkillSpread = 2,
             },
             CombatFixtures.Insect => pawn with { Kind = Kind, Faction = Fx.StageFaction.Insect },
             CombatFixtures.Mech => pawn with { Kind = Kind, Faction = Fx.StageFaction.Mechanoid },
@@ -180,9 +179,6 @@ public sealed class LabFixture
     /// <summary>Stages the hostiles' assault lord as a sapper raid.</summary>
     public bool Sappers { get; set; }
 
-    /// <summary>When non-zero, varies the staging and reseeds the game's RNG once staging ends.</summary>
-    public int Seed { get; set; }
-
     public LabLayout? Layout { get; set; }
 
     /// <summary>
@@ -212,7 +208,6 @@ public sealed class LabFixture
             : null;
         return new Fx.StageSpec
         {
-            Seed = Seed,
             Cells = roof,
             Buildings = buildings,
             Things = things,

@@ -58,26 +58,6 @@ public static class ApplyIntents
         return AppliedJob(label, result);
     }
 
-    /// <summary>
-    /// Sends one combat_orders batch as an Actions/Apply intent under <paramref name="key"/> and returns its per-order
-    /// results. The intent always applies; each order carries its own applied or refusal.
-    /// </summary>
-    public static async Task<IReadOnlyList<JsonObject>> ApplyCombatOrdersAsync(Harness harness, string label, JsonNode identity, string key, JsonArray orders, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(orders);
-        var intent = new JsonObject { ["combatOrders"] = new JsonObject { ["orders"] = orders.DeepClone() } };
-        var result = await ApplyOneAsync(harness, label, identity, key, intent, cancellationToken).ConfigureAwait(false);
-        var applied = result["applied"].Member("applied").AsMap()
-            ?? throw new AcceptanceException($"{label}: combat orders not applied: {result.ToJson()}");
-        var rows = applied["observed"].Member("combatOrders").Member("results").AsSlice();
-        if (rows.Count != orders.Count)
-        {
-            throw new AcceptanceException($"{label}: {rows.Count} results for {orders.Count} orders: {result.ToJson()}");
-        }
-
-        return [.. rows.Select(row => row.AsMap() ?? [])];
-    }
-
     /// <summary>The job evidence of an applied result, or an exception naming the refusal.</summary>
     public static JsonObject AppliedJob(string label, JsonObject result)
     {

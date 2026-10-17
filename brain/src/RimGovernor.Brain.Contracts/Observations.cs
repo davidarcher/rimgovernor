@@ -1757,7 +1757,7 @@ public sealed record PawnSnapshot
     public bool? MeditateAssignmentAvailable { get; init; }
 
     /// <summary>
-    /// Row ids removed since the base table, in a delta section (SectionWatermark.delta).
+    /// Row ids removed since the base table, in a delta section.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Removed { get; init; }
@@ -1846,14 +1846,6 @@ public sealed record HeldStock
 }
 
 /// <summary>
-/// One corpse a stock row counts: its race and whether that race is humanlike.
-/// </summary>
-public sealed record CorpseState
-{
-    public Common.Ref Corpse { get; init; } = new();
-}
-
-/// <summary>
 /// One definition's stock: unit and stack counts by place, ownership and
 /// state.
 /// </summary>
@@ -1882,9 +1874,6 @@ public sealed record ResourceStock
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<HeldStock>))]
     public EquatableArray<HeldStock> Holders { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<CorpseState>))]
-    public EquatableArray<CorpseState> Corpses { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
@@ -2256,6 +2245,22 @@ public sealed record BuildingState
     /// that is no entity holder.
     /// </summary>
     public AnomalyBuilding? Anomaly { get; init; }
+
+    /// <summary>
+    /// A door's state (Building_Door); absent on any other building.
+    /// </summary>
+    public BuildingDoor? Door { get; init; }
+}
+
+/// <summary>
+/// A door building's state: open is Building_Door.Open (physically open
+/// now), hold_open the player's hold-open latch (Building_Door.HoldOpen).
+/// </summary>
+public sealed record BuildingDoor
+{
+    public bool Open { get; init; }
+
+    public bool HoldOpen { get; init; }
 }
 
 /// <summary>
@@ -2281,7 +2286,7 @@ public sealed record BuildingsSnapshot
     public EquatableArray<BuildingState> Buildings { get; init; }
 
     /// <summary>
-    /// Row ids removed since the base table, in a delta section (SectionWatermark.delta).
+    /// Row ids removed since the base table, in a delta section.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Removed { get; init; }
@@ -2658,7 +2663,7 @@ public sealed record ThingsSnapshot
     public EquatableArray<Thing> Things { get; init; }
 
     /// <summary>
-    /// Row ids removed since the base table, in a delta section (SectionWatermark.delta).
+    /// Row ids removed since the base table, in a delta section.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Removed { get; init; }
@@ -8372,6 +8377,11 @@ public sealed record AllowedAreaEntry
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> PawnIds { get; init; }
+
+    /// <summary>
+    /// The cells the area holds (Area.TrueCount).
+    /// </summary>
+    public int CellCount { get; init; }
 }
 
 public sealed record PolicyFacts
@@ -9248,26 +9258,6 @@ public sealed record BundleSnapshot
     public bool? IdeologyActive { get; init; }
 }
 
-/// <summary>
-/// seq counts a section's changes since the stream opened; captured_tick is
-/// the tick of the frame that last carried it.
-/// A keyed table section (pawns, buildings, things) is a keyframe,
-/// carrying every row, unless delta is set: then it carries only the rows
-/// whose content changed or appeared since the table at base_seq, plus the
-/// ids that left it in removed, and the reader merges it into the table it
-/// holds at base_seq (a different held seq is a gap: it asks for a keyframe).
-/// An unchanged table is omitted like a singleton section.
-/// </summary>
-public sealed record SectionWatermark
-{
-    public string? Section { get; init; }
-
-    public ulong? Seq { get; init; }
-
-    public bool? Delta { get; init; }
-
-}
-
 public sealed record ObservationBatchSnapshot
 {
     public ListPawnsReply? Pawns { get; init; }
@@ -9379,26 +9369,6 @@ public sealed record DefinitionCatalog
     /// </summary>
     public BiotechCatalog? Biotech { get; init; }
 
-    /// <summary>
-    /// The base classes of every class the def rows name: the class of each
-    /// mirrored object (each def's own class among them) and each System.Type
-    /// value in a row (worker, condition, thing classes), sorted by name. Go
-    /// matches a family against it (`DefinitionCatalog.ClassIsA`) with no name list.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ClassChain>))]
-    public EquatableArray<ClassChain> ClassChains { get; init; }
-}
-
-/// <summary>
-/// A class by CLR full name and its base classes, nearest first, up to but not
-/// including System.Object.
-/// </summary>
-public sealed record ClassChain
-{
-    public string Name { get; init; } = "";
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Bases { get; init; }
 }
 
 /// <summary>

@@ -151,7 +151,6 @@ internal static class SweepSeed
             ? await StagePodsAsync(h, session.Identity, name, cancellationToken).ConfigureAwait(false)
             : await CombatStage.StageAsync(h, name, cancellationToken).ConfigureAwait(false);
         report["staged_digest"] = staged.Digest;
-        report["staged_seed"] = staged.Seed;
         update(r => r with { StagedDigest = staged.Digest });
         var first = await CombatServe.RawReadAsync(h, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
         var sides = new JsonObject();

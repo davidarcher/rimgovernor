@@ -19,22 +19,11 @@ public sealed class StagedFixture
 
     public string Digest { get; init; } = "";
 
-    public List<string> Rows { get; } = [];
-
-    /// <summary>The seed test/stage echoed back.</summary>
-    public int Seed { get; init; }
-
-    /// <summary>The lab wipe's centre the fixture was built around.</summary>
-    public LabCell Center { get; init; }
-
     /// <summary>The staged colonists' load ids, spec order.</summary>
     public List<string> Colonists() => Ids(CombatFixtures.Colonist);
 
     /// <summary>The staged hostiles' load ids, spec order.</summary>
     public List<string> Hostiles() => Ids(CombatFixtures.Hostile);
-
-    /// <summary>The staged player animals' load ids, spec order.</summary>
-    public List<string> Animals() => Ids(CombatFixtures.Animal);
 
     /// <summary>The staged manhunters' load ids, spec order.</summary>
     public List<string> Manhunters() => Ids(CombatFixtures.Manhunter);
@@ -66,9 +55,6 @@ public readonly record struct LabPosition(string Id, string Side, int X, int Z, 
 /// </summary>
 public static class CombatStage
 {
-    /// <summary>An edit that stages the fixture under <paramref name="seed"/> (see <see cref="LabFixture.Seed"/>).</summary>
-    public static Action<LabFixture, int, int> WithSeed(int seed) => (f, _, _) => f.Seed = seed;
-
     /// <summary>
     /// Wipes the lab to the fixture's colonists, builds it around the wipe's centre and stages it, checking every pawn
     /// read back where the spec put it, armed as specified, hostile under an assault lord. An edit adapts the named
@@ -103,13 +89,7 @@ public static class CombatStage
             throw new AcceptanceException($"{FixtureStage.Tool} {name}: {reply.Pawns.Count} pawns read back, want {f.Pawns.Count}");
         }
 
-        var output = new StagedFixture { Fixture = f, Digest = reply.Digest, Seed = reply.Seed, Center = new LabCell(cx, cz) };
-        if (output.Seed != f.Seed)
-        {
-            throw new AcceptanceException($"{FixtureStage.Tool} {name}: staged under seed {output.Seed}, want {f.Seed}");
-        }
-
-        output.Rows.AddRange(reply.DigestRows);
+        var output = new StagedFixture { Fixture = f, Digest = reply.Digest };
         var lord = f.Siege is not null ? "LordJob_Siege" : "LordJob_AssaultColony";
         for (var i = 0; i < f.Pawns.Count; i++)
         {
@@ -182,10 +162,6 @@ public static class CombatStage
             : draws;
     }
 
-    /// <summary>Returns every pawn on the lab with its cell, and the game tick.</summary>
-    public static Task<(Dictionary<string, LabPosition> Pawns, int Tick)> ReadAsync(Harness h, CancellationToken cancellationToken) =>
-        ReadCoreAsync(h, new JsonObject { ["action"] = "read" }, cancellationToken);
-
     /// <summary>
     /// Runs <paramref name="n"/> synchronous game ticks on the paused lab (no clock, no safety stops: the fixture's
     /// hostiles are the point), then reads.
@@ -216,66 +192,6 @@ public static class CombatStage
         }
 
         return (output, (int)reply["tick"].AsNumber());
-    }
-
-    /// <summary>The shortest squared distance between a live hostile and a live colonist in pawns; -1 when either side has none.</summary>
-    public static int Gap(Dictionary<string, LabPosition> pawns)
-    {
-        var best = -1;
-        foreach (var h in pawns.Values.OrderBy(p => p.Id, StringComparer.Ordinal))
-        {
-            if (h.Side != CombatFixtures.Hostile || h.Dead)
-            {
-                continue;
-            }
-
-            foreach (var c in pawns.Values.OrderBy(p => p.Id, StringComparer.Ordinal))
-            {
-                if (c.Side != CombatFixtures.Colonist || c.Dead)
-                {
-                    continue;
-                }
-
-                var d = ((h.X - c.X) * (h.X - c.X)) + ((h.Z - c.Z) * (h.Z - c.Z));
-                if (best < 0 || d < best)
-                {
-                    best = d;
-                }
-            }
-        }
-
-        return best;
-    }
-
-    /// <summary>The digest rows only one of two stagings has.</summary>
-    public static string RowDiff(IEnumerable<string> a, IEnumerable<string> b)
-    {
-        var count = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var r in a)
-        {
-            count[r] = count.GetValueOrDefault(r) + 1;
-        }
-
-        foreach (var r in b)
-        {
-            count[r] = count.GetValueOrDefault(r) - 1;
-        }
-
-        var only = new List<string>();
-        foreach (var (r, n) in count)
-        {
-            if (n > 0)
-            {
-                only.Add("first only " + r);
-            }
-            else if (n < 0)
-            {
-                only.Add("second only " + r);
-            }
-        }
-
-        only.Sort(StringComparer.Ordinal);
-        return string.Join("; ", only);
     }
 
     private static void CheckPawn(LabPawn want, Fx.StagedPawn got, string lord)
@@ -311,9 +227,9 @@ public static class CombatStage
             }
 
             var wantWorn = want.Apparel.Length > 0 ? 1 : 0;
-            if (got.Worn.Count != wantWorn)
+            if (got.Worn != wantWorn)
             {
-                throw new AcceptanceException($"hostile wears {got.Worn.Count} apparel, want {wantWorn}");
+                throw new AcceptanceException($"hostile wears {got.Worn} apparel, want {wantWorn}");
             }
         }
 

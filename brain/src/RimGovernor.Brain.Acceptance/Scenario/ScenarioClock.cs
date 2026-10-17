@@ -77,12 +77,6 @@ public sealed class ScenarioClock
 
     public Report? Report { get; }
 
-    /// <summary>When non-empty, switches every clock_run this clock issues to WATCH_MODE_COMBAT with these acknowledged hostiles.</summary>
-    public IReadOnlyList<string> CombatTargets { get; set; } = [];
-
-    /// <summary>When set, edits every clock_run's watch policy after the combat-target injection (a case arming combat stop events).</summary>
-    public Action<JsonObject>? PolicyEdit { get; set; }
-
     /// <summary>
     /// Opts AdvanceGame into Ultrafast. Native serves every Run(Ultrafast) with the 150x boost (9000 ticks/s) under the
     /// one ceiling, with no launch gate; the acceptance launches' -rimgovernor-test-acceleration
@@ -194,7 +188,7 @@ public sealed class ScenarioClock
             ["identity"] = Identity.DeepClone(),
             ["expectedGeneration"] = Dig(Grant, "context", "nativeGeneration")?.DeepClone(),
             ["speed"] = "SPEED_" + speed.ToUpperInvariant(),
-            ["policy"] = Policy(),
+            ["policy"] = ScenarioPolicy(),
             // The harness plans from its pre-run read, as a brain step does: a hold since refuses the resume.
             ["plannedHoldSerial"] = beforeStatus["holdSerial"]?.DeepClone(),
         };
@@ -279,25 +273,6 @@ public sealed class ScenarioClock
         var reply = await Wire("clock-status", "clock_read_status", new JsonObject { ["identity"] = Identity.DeepClone() }, cancellationToken).ConfigureAwait(false);
         var (_, status) = Harness.Outcome(reply, "status");
         return FinishStatus(status);
-    }
-
-    private JsonObject Policy()
-    {
-        var policy = ScenarioPolicy();
-        if (CombatTargets.Count > 0)
-        {
-            var targets = new JsonArray();
-            foreach (var target in CombatTargets)
-            {
-                targets.Add(target);
-            }
-
-            policy["mode"] = "WATCH_MODE_COMBAT";
-            policy["acknowledgedHostileIds"] = targets;
-        }
-
-        PolicyEdit?.Invoke(policy);
-        return policy;
     }
 
     // A Run or Hold reply is a Status or a Failure; a failure names the refusal.

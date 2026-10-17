@@ -64,7 +64,7 @@ namespace HomeBridge.BridgeTools
                     facts = facts with { FoodEaters = [.. facts.FoodEaters, row] };
                 }
                 foreach (var area in map.areaManager.AllAreas.OfType<Area_Allowed>()) {
-                    var row = new Obs.AllowedAreaEntry { Id = Id(area.GetUniqueLoadID()), Label = Text(area.Label ?? "") };
+                    var row = new Obs.AllowedAreaEntry { Id = Id(area.GetUniqueLoadID()), Label = Text(area.Label ?? ""), CellCount = area.TrueCount };
                     row = row with { PawnIds = [.. row.PawnIds, .. pawns.Where(p => p.MapHeld == map && p.playerSettings?.AreaRestrictionInPawnCurrentMap == area)
                         .Select(p => Id(p.GetUniqueLoadID()))] };
                     facts = facts with { AllowedAreas = [.. facts.AllowedAreas, row] };

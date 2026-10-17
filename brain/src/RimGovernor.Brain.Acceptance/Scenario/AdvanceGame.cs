@@ -18,11 +18,9 @@ internal sealed class AdvanceSettings
     public IReadOnlyList<(string Label, string LetterDef)> ExpectedLetters { get; set; } = [("Ancient danger", "ThreatBig")];
 
     public bool StrictLetters { get; set; }
-
-    public IReadOnlyList<string> CombatTargets { get; set; } = [];
 }
 
-/// <summary>The AdvanceGame options (Go <c>WithTimeout</c>, <c>WithExpectedLetters</c>, <c>WithCombatTargets</c>).</summary>
+/// <summary>The AdvanceGame options (Go <c>WithTimeout</c>, <c>WithExpectedLetters</c>).</summary>
 public static class AdvanceOptions
 {
     /// <summary>Bounds the whole advance, like advance_game's timeout= keyword.</summary>
@@ -33,9 +31,6 @@ public static class AdvanceOptions
     /// longer apply. Pass no pairs for interruption acceptance, matching advance_game's expected_letters=().
     /// </summary>
     public static IScenarioAdvanceOption WithExpectedLetters(params (string Label, string LetterDef)[] letters) => new ExpectedLettersOption(letters);
-
-    /// <summary>Requires the exact committed defense targets already on the runtime's CombatTargets, mirroring advance_game's combat_targets= keyword.</summary>
-    public static IScenarioAdvanceOption WithCombatTargets(params string[] targets) => new CombatTargetsOption(targets);
 
     internal static void ApplyAll(IEnumerable<IScenarioAdvanceOption> options, AdvanceSettings settings)
     {
@@ -65,11 +60,6 @@ public static class AdvanceOptions
             settings.StrictLetters = true;
         }
     }
-
-    private sealed class CombatTargetsOption(string[] targets) : IAdvanceOptionApply
-    {
-        void IAdvanceOptionApply.Apply(AdvanceSettings settings) => settings.CombatTargets = targets;
-    }
 }
 
 /// <summary>
@@ -78,8 +68,7 @@ public static class AdvanceOptions
 /// verified pause; the overshoot is recorded as <c>overshootTicks</c>. It acknowledges inspected fixture warnings and,
 /// unless the advance is strict, the informational letters in <see cref="ScenarioRuntime.AcknowledgedLetterDefs"/>
 /// (dismissed through <see cref="ScenarioRuntime.DismissLetterTool"/> when the runtime's tools carry it, recorded under
-/// the interruption either way). A combat advance also continues past a colonist_health hold while every colonist still
-/// stands. It never clears player holds or retries game orders; an unexpected injury, new threat, or drifted identity
+/// the interruption either way). It never clears player holds or retries game orders; an unexpected injury, new threat, or drifted identity
 /// raises <see cref="ScenarioInterruptedException"/> with the failing evidence retained on the runtime's report.
 /// </summary>
 public static class AdvanceGame
@@ -91,12 +80,6 @@ public static class AdvanceGame
     private const string LetterIdKey = "letter_id";
 
     /// <summary>
-    /// The bound on the colonist_health holds one combat advance continues past; the native guard needs a fresh drop
-    /// of healthDropFraction per run, so this many is a colonist near downing.
-    /// </summary>
-    private const int CombatHealthStopsPerAdvance = 8;
-
-    /// <summary>
     /// The bound on the pacing holds (continuable holds) one advance continues past, per reason. Each is a clean hold
     /// that consumed game time, so a healthy advance sees a handful; a watch that re-fires every tick would otherwise
     /// spin the tick target out one hold at a time until the timeout, with the reason buried in the evidence.
@@ -106,16 +89,9 @@ public static class AdvanceGame
     /// <summary>
     /// Whether a clock hold is pacing rather than an interruption. The set is global, not a case field beside
     /// Letters: notification_batch is the native batching a pending notification, which says nothing about the advance
-    /// in any case, and hostile is the threat watch firing, which is the situation under test exactly when the advance
-    /// commits combat targets and an unexpected threat everywhere else. Letters is per-case because which letters are
-    /// expected is; which hold reasons are pacing is not.
+    /// in any case. Letters is per-case because which letters are expected is; which hold reasons are pacing is not.
     /// </summary>
-    internal static bool ContinuableStop(string reason, bool combat) => reason switch
-    {
-        "notification_batch" => true,
-        "hostile" => combat,
-        _ => false,
-    };
+    internal static bool ContinuableStop(string reason) => reason == "notification_batch";
 
     /// <summary>Records one continuable stop and reports whether the reason is still within the per-advance bound.</summary>
     internal static bool CountPacingStop(Dictionary<string, int> counts, string reason)
@@ -134,23 +110,6 @@ public static class AdvanceGame
 
         var settings = new AdvanceSettings();
         AdvanceOptions.ApplyAll(options ?? [], settings);
-        if (settings.CombatTargets.Count > 0)
-        {
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var target in settings.CombatTargets)
-            {
-                if (target.Length == 0 || !seen.Add(target))
-                {
-                    throw new AcceptanceException("combat waits require distinct non-empty targets");
-                }
-            }
-
-            if (!seen.SetEquals(rt.CombatTargets))
-            {
-                throw new AcceptanceException("combat waits require the exact committed defense targets");
-            }
-        }
-
         var evidence = new JsonObject { ["ticks"] = ticks, ["holds"] = new JsonArray(), ["interruptions"] = new JsonArray() };
         rt.ReportArray("simulation").Add(evidence);
 
@@ -247,13 +206,11 @@ public static class AdvanceGame
     private static async Task<JsonObject> LoopAsync(ScenarioRuntime rt, ulong ticks, AdvanceSettings settings, JsonObject evidence, JsonObject identity, CancellationToken cancellationToken)
     {
         var supervisor = rt.Clock;
-        var combat = settings.CombatTargets.Count > 0;
         JsonObject? state = null;
         ulong previousTick = 0;
         var havePreviousTick = false;
         ulong targetTick = 0;
         var seenLetters = new HashSet<string>(StringComparer.Ordinal);
-        var healthStops = 0;
         var pacingStops = new Dictionary<string, int>(StringComparer.Ordinal);
         var holds = (JsonArray)evidence["holds"]!;
         var interruptions = (JsonArray)evidence["interruptions"]!;
@@ -334,34 +291,7 @@ public static class AdvanceGame
 
             var detail = new JsonObject { ["clock"] = state.DeepClone(), ["events"] = new JsonArray() };
             interruptions.Add(detail);
-            if (stopReason == "colonist_health" && combat)
-            {
-                // A colonist ordered to engage the committed targets may take the wounds the combat policy flags; the
-                // stop is recorded and the next run continues so the fight can resolve. Each run baselines
-                // health afresh, so a repeat needs a further drop; the cap keeps a pawn who bleeds out under the
-                // guard from consuming the whole tick target hold by hold. A downed or dead colonist still
-                // interrupts.
-                healthStops++;
-                detail["combatHealth"] = true;
-                Require(evidence, healthStops <= CombatHealthStopsPerAdvance, "Combat health stops exhausted");
-                var (combatStatus, combatComplete) = await ScenarioRuntime.ReadSafetyStatusAsync(supervisor, "scenario-status", cancellationToken).ConfigureAwait(false);
-                detail["status"] = combatStatus?.DeepClone();
-                Require(evidence, combatComplete, "Safety observation incomplete");
-                var colonists = combatStatus.Member("colonistRows").AsSlice();
-                var standing = colonists.Count > 0;
-                foreach (var raw in colonists)
-                {
-                    if (raw is not JsonObject pawn || pawn["dead"].AsBool() == true || pawn["downed"].AsBool() == true)
-                    {
-                        standing = false;
-                    }
-                }
-
-                Require(evidence, standing, "Colonist downed under the combat health guard");
-                continue;
-            }
-
-            if (ContinuableStop(stopReason, combat))
+            if (ContinuableStop(stopReason))
             {
                 // A pacing hold invalidates nothing: record it and run on.
                 detail["pacing"] = true;

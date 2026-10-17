@@ -385,25 +385,13 @@ public abstract record CombatGeometryProposeRole
 {
     private protected CombatGeometryProposeRole() { }
 
-    /// <summary>The <c>CoverBehindLine</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatCoverBehindLine? CoverBehindLine => (this as CoverBehindLineCase)?.Value;
-
     public sealed record CoverBehindLineCase(CombatCoverBehindLine Value) : CombatGeometryProposeRole;
 
     public static implicit operator CombatGeometryProposeRole(CombatCoverBehindLine value) => new CoverBehindLineCase(value);
 
-    /// <summary>The <c>AdjacentToChoke</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatAdjacentToChoke? AdjacentToChoke => (this as AdjacentToChokeCase)?.Value;
-
     public sealed record AdjacentToChokeCase(CombatAdjacentToChoke Value) : CombatGeometryProposeRole;
 
     public static implicit operator CombatGeometryProposeRole(CombatAdjacentToChoke value) => new AdjacentToChokeCase(value);
-
-    /// <summary>The <c>FiringCells</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatFiringCells? FiringCells => (this as FiringCellsCase)?.Value;
 
     public sealed record FiringCellsCase(CombatFiringCells Value) : CombatGeometryProposeRole;
 

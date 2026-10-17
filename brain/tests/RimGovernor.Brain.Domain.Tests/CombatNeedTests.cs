@@ -51,6 +51,30 @@ public sealed class CombatNeedTests
         Assert.Null(Reviewed(journal, World, 0, 130, ct).Review.Combat);
     }
 
+    /// <summary>
+    /// A --resume restart reopens the same journal file (no game load): the open fight and its drafted roster are read
+    /// back as they were committed, so the restarted controller keeps the defenders on it (#916).
+    /// </summary>
+    [Fact]
+    public void AnOpenFightAndItsRosterSurviveReopeningTheJournal()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var path = Path.Combine(Path.GetTempPath(), "rg-combat-resume-" + Guid.NewGuid().ToString("N") + ".db");
+        var plan = DraftPlan("resumed-fight");
+        using (var journal = Journal.Open(path, ct))
+        {
+            _ = Reviewed(journal, World, 1, 100, ct);
+            _ = journal.CommitCombatFight(World, new("engage-1"), plan, new CombatMemory(), [new("a"), new("b")], ct);
+        }
+
+        using var reopened = Journal.Open(path, ct);
+        var fight = Assert.Single(reopened.OpenCombatFights(ct));
+        Assert.Equal(plan.Id, fight.Key);
+        Assert.True(fight.Value.Open);
+        Assert.Equal(["a", "b"], fight.Value.Roster.Select(p => p.Value).Order(StringComparer.Ordinal));
+        Assert.True(fight.Value.Roster.SetEquals(reopened.LoadCombatFight(plan.Id, ct)!.Roster));
+    }
+
     [Fact]
     public void AnOpenFightClosesOnLoadAndItsRestorationIsKept()
     {

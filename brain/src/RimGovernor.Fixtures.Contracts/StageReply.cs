@@ -11,8 +11,6 @@ public sealed record StageReply
 {
     public bool Success { get; init; }
 
-    public int Seed { get; init; }
-
     /// <summary>Each staged research project's progress as a fraction of its base cost; 1 when finished.</summary>
     public IReadOnlyDictionary<string, float> Research { get; init; } = new Dictionary<string, float>();
 
@@ -82,10 +80,9 @@ public sealed record StagedPawn
     /// <summary>Summary health 0..1.</summary>
     public float Health { get; init; }
 
-    public IReadOnlyList<StagedApparel> Worn { get; init; } = [];
+    /// <summary>How many apparel things it wears.</summary>
+    public int Worn { get; init; }
 }
-
-public sealed record StagedApparel(string Id, string Def);
 
 /// <summary>A fired incident: the pawns it brought that trade.</summary>
 public sealed record StagedIncident(IReadOnlyList<string> Traders);

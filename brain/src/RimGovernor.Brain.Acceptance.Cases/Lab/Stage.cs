@@ -135,7 +135,7 @@ internal static class LabStage
         Want(reply.Pawns.GetValueOrDefault("sad") is { Spawned: true, MentalState: "Wander_Sad" }, $"sad {reply.Pawns.GetValueOrDefault("sad")}, want a colonist in Wander_Sad");
         var raider = reply.Pawns.GetValueOrDefault("raider");
         Want(
-            raider is { Hostile: true, Weapon: Rifle, LordJob: "LordJob_AssaultColony", Worn.Count: 0 } && raider.Cell == At(10, 10),
+            raider is { Hostile: true, Weapon: Rifle, LordJob: "LordJob_AssaultColony", Worn: 0 } && raider.Cell == At(10, 10),
             $"raider {raider}, want a hostile stripped rifleman under an assault lord at {At(10, 10)}");
         var muffalo = reply.Pawns.GetValueOrDefault("muffalo");
         Want(muffalo is { Kind: "Muffalo", Hostile: false } && muffalo.Cell == At(7, 10), $"muffalo {muffalo}, want a player Muffalo at {At(7, 10)}");

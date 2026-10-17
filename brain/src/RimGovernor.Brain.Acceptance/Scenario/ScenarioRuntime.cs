@@ -60,12 +60,6 @@ public sealed class ScenarioRuntime : IScenarioRuntime
 
     public Report Report { get; }
 
-    /// <summary>
-    /// Mirrors rt.current_plan.control["combat"]["targets"]: the committed defense targets AdvanceGame's
-    /// combat-target option must match. Empty outside combat scenarios.
-    /// </summary>
-    public IReadOnlyList<string> CombatTargets { get; set; } = [];
-
     /// <summary>The discovered tool names; when they include <see cref="DismissLetterTool"/> AdvanceGame takes each acknowledged letter off the stack. Empty leaves letters on the stack.</summary>
     public IReadOnlyList<string> Tools { get; }
 

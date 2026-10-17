@@ -1,89 +1,56 @@
 using System.Text.Json.Nodes;
+using Mirror = RimGovernor.Contracts.Wire.Mirror;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>combatlab/breach</c> (Go <c>breach.go</c>).</summary>
+/// <summary>
+/// <c>combatlab/breach</c> (#1149, #913-#915): a sapper raid staged against lab-breach's doorless walled room digs in,
+/// and a frame's combat row reads a raider's job Mine while it stands against the wall outside the room.
+/// </summary>
 internal static class CombatLabBreach
 {
-    // breachDigTicks bounds the walk to the wall and the first Mine job: the sappers stand 15 cells off it.
-    private const int DigTicks = 3000;
+    /// <summary>Bounds the walk to the wall and the first Mine job: the sappers stand 15 cells off it.</summary>
+    private const int DigTicks = 3000 + (2 * CombatLabKit.ProbeTicks);
 
-    internal static AcceptanceCase Case() => new()
+    private static readonly LabFixture Fixture = CombatLabKit.Fixture("lab-breach");
+
+    internal static TypedCase Case() => new()
     {
         Name = "combatlab/breach",
-        Scope = "The sapper Mine job on lab-breach (#1149, #913-#915): a sapper raid staged against a doorless walled room digs in, and a frame's combat_pawns row "
-            + "reads a raider's job Mine while it stands against the wall outside the room, within 3000 ticks. Native because the job is vanilla's sapper AI digging, not a recorded fact.",
-        Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
+        Scope = "The sapper Mine job on lab-breach (#1149, #913-#915): a sapper raid staged against a doorless walled room digs in, and a frame's "
+            + "combat_pawns row reads a raider's job Mine while it stands against the wall outside the room. Native because the job is vanilla's "
+            + "sapper AI digging, not a recorded fact.",
+        Ticks = DigTicks,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = Fixture.Colonists },
+        Stage = CombatLabKit.Spec(Fixture),
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var h = s.Harness;
-        var report = s.Report;
-        var staged = await CombatStage.StageAsync(h, "lab-breach", cancellationToken).ConfigureAwait(false);
-        var raiders = new HashSet<string>(staged.Hostiles(), StringComparer.Ordinal);
-
-        // The room's centre is the first colonist's cell two north.
-        var cx = staged.Fixture.Pawns[0].X + 2;
-        var cz = staged.Fixture.Pawns[0].Z + 2;
-        var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
+        var lab = new StagedLab(Fixture, s.Staged!);
+        var raiders = lab.Hostiles().ToHashSet(StringComparer.Ordinal);
+        var centre = lab.Cell(0, 0);
         var jobs = new SortedDictionary<string, int>(StringComparer.Ordinal);
-        for (var ticks = CombatLabMirror.StepTicks; ticks <= DigTicks; ticks += CombatLabMirror.StepTicks)
+        Mirror.CombatPawn? miner = null;
+        _ = await new LabFrames(s).UntilAsync("dig", DigTicks, 0, frame =>
         {
-            var (_, tick) = await CombatStage.TickAsync(h, CombatLabMirror.StepTicks, cancellationToken).ConfigureAwait(false);
-            var state = await frames.NextAsync(tick, cancellationToken).ConfigureAwait(false);
-            foreach (var row in state.Pawns)
+            foreach (var row in frame.CombatPawns.Where(r => raiders.Contains(r.Id ?? "")))
             {
-                var id = row["id"].AsString();
-                if (!raiders.Contains(id))
-                {
-                    continue;
-                }
-
-                var job = row["job"].AsString();
-                jobs[job] = jobs.GetValueOrDefault(job) + 1;
-                if (job != "Mine")
-                {
-                    continue;
-                }
+                jobs[row.Job ?? ""] = jobs.GetValueOrDefault(row.Job ?? "") + 1;
 
                 // Mine walks to the wall first: digging is Mine against it, from a cell just outside the ring.
-                var cell = row["cell"].AsMap() ?? [];
-                var x = (int)cell["x"].AsNumberOrZero();
-                var z = (int)cell["z"].AsNumberOrZero();
-                if (Math.Max(Math.Abs(x - cx), Math.Abs(z - cz)) != CombatFixtures.BreachHalf + 1)
+                if (row is { Job: "Mine", Cell: { } cell } && CombatLabKit.Chebyshev(cell, centre) == CombatFixtures.BreachHalf + 1)
                 {
-                    continue;
+                    miner = row;
                 }
-
-                report["mine"] = new JsonObject { ["pawn"] = id, ["x"] = x, ["z"] = z, ["ticks"] = ticks };
-                report["jobs"] = JobsJson(jobs);
-                return;
             }
-        }
 
-        report["jobs"] = JobsJson(jobs);
-        throw new AcceptanceException($"no raider read job Mine against the wall in {CaseSupport.Tag(DigTicks)} ticks of lab-breach: {JobsJson(jobs).ToJson()}");
-    }
-
-    private static JsonObject JobsJson(SortedDictionary<string, int> jobs)
-    {
-        var output = new JsonObject();
-        foreach (var (job, n) in jobs)
-        {
-            output[job] = n;
-        }
-
-        return output;
+            return miner is not null;
+        }, cancellationToken).ConfigureAwait(false);
+        s.Record("jobs", new JsonObject([.. jobs.Select(j => new KeyValuePair<string, JsonNode?>(j.Key, j.Value))]));
+        s.RecordWire("miner", miner);
     }
 }

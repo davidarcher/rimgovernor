@@ -1,135 +1,100 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
+using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>combatlab/strip</c> (Go <c>strip.go</c>).</summary>
+/// <summary>
+/// <c>combatlab/strip</c> (#1117): the generic strip op. On lab-open cut to one raider staged downed in a duster, a
+/// designate Strip applies with Strip designation evidence, a repeat does not apply, and a colonist strips the duster off.
+/// </summary>
 internal static class CombatLabStrip
 {
     private const string Apparel = "Apparel_Duster";
 
-    internal static AcceptanceCase Case() => new()
+    /// <summary>Bounds the haul: a colonist walks to the raider and strips it through ordinary Hauling work.</summary>
+    private const int StripTicks = 2400 + CombatLabKit.ProbeTicks;
+
+    // One raider, downed and wearing a duster.
+    private static readonly LabFixture Fixture = CombatLabKit.Fixture("lab-open", (f, _, _) =>
+    {
+        var raiders = f.Pawns.Where(p => p.Side == CombatFixtures.Hostile).ToList();
+        foreach (var extra in raiders.Skip(1))
+        {
+            _ = f.Pawns.Remove(extra);
+        }
+
+        raiders[0].Downed = true;
+        raiders[0].Apparel = Apparel;
+    });
+
+    internal static TypedCase Case() => new()
     {
         Name = "combatlab/strip",
-        Scope = "The generic strip op (#1117), a native op contract no snapshot can prove: on lab-open cut to one raider staged downed in a duster, "
-            + "one Actions/Apply designate STRIP on the raider applies with Strip designation evidence, a second one refuses as already designated, "
-            + "and within 2400 ticks a colonist strips the duster off through ordinary Hauling work. Who to strip is #1079.",
-        Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool, "rimgovernor/operations_apply"],
+        Scope = "The generic strip op (#1117), a native op contract no snapshot can prove: on lab-open cut to one raider staged downed in a "
+            + "duster (its one worn apparel), one operations_apply designate STRIP on the raider applies with present Strip designation evidence, "
+            + "a second one does not apply, and a colonist then strips the duster off through ordinary Hauling work. Who to strip is #1079.",
+        Ticks = StripTicks,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = Fixture.Colonists },
+        Stage = CombatLabKit.Spec(Fixture),
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    // stripKit keeps one raider, downed and wearing a duster.
-    private static void Kit(LabFixture f, int cx, int cz)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var pawns = new List<LabPawn>();
-        var raiders = 0;
-        foreach (var p in f.Pawns)
-        {
-            if (p.Side == CombatFixtures.Hostile)
-            {
-                if (++raiders > 1)
-                {
-                    continue;
-                }
-
-                p.Downed = true;
-                p.Apparel = Apparel;
-            }
-
-            pawns.Add(p);
-        }
-
-        f.Pawns = pawns;
-    }
-
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var h = s.Harness;
-        var report = s.Report;
-        var staged = await CombatStage.StageAsync(h, "lab-open", cancellationToken, Kit).ConfigureAwait(false);
-        var hostiles = staged.Hostiles();
+        var hostiles = new StagedLab(Fixture, s.Staged!).Hostiles();
         if (hostiles.Count != 1)
         {
-            throw new AcceptanceException($"staged {CaseSupport.Tag(hostiles.Count)} hostiles, want 1");
+            throw new AcceptanceException($"staged {hostiles.Count} hostiles, want 1");
         }
 
         var raider = hostiles[0];
-        report["raider"] = raider;
-        var worn = await ReadWornAsync(h, raider, cancellationToken).ConfigureAwait(false);
-        if (!worn.Contains(Apparel))
+        s.Record("raider", raider);
+
+        // The staging strips the raider's own gear and dresses it in the duster: its one worn apparel.
+        var worn = await WornAsync(s, "worn", raider, cancellationToken).ConfigureAwait(false);
+        if (worn.Count != 1)
         {
-            throw new AcceptanceException($"raider does not wear {Apparel} before strip (<nil>): [{string.Join(' ', worn.Order(StringComparer.Ordinal))}]");
+            throw new AcceptanceException($"raider before strip: want one worn apparel ({Apparel}), got [{string.Join(", ", worn)}]");
         }
 
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "strip-acquire", s.Identity, cancellationToken).ConfigureAwait(false);
-
-        Task<JsonObject> ApplyAsync(string key) => ApplyIntents.ApplyOneAsync(
-            h,
-            key,
-            s.Identity,
-            key,
-            new JsonObject { ["designate"] = new JsonObject { ["thingId"] = raider, ["designation"] = "THING_DESIGNATION_STRIP" } },
-            cancellationToken);
-
-        var first = await ApplyAsync("strip-1").ConfigureAwait(false);
-        report["result"] = first.DeepClone();
-        var applied = first["applied"].AsMap() ?? throw new AcceptanceException($"strip not applied: {first.ToJson()}");
-        var effect = applied["observed"].AsMap() ?? [];
-        var designation = effect["designation"].AsMap() ?? [];
-        if (designation["designationDef"].AsString() != "Strip" || designation["present"].AsBool() != true || designation["thingId"].AsString() != raider)
+        var duster = worn[0];
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        var first = await StripAsync(s, "strip-1", raider, cancellationToken).ConfigureAwait(false);
+        var outcome = first.Outcome?.Applied?.Outcome?.Applied
+            ?? throw new AcceptanceException($"strip not applied: {first}");
+        if (outcome.Observed?.Effect?.Designation is not { DesignationDef: "Strip", Present: true } evidence || evidence.ThingId != raider)
         {
-            throw new AcceptanceException($"strip evidence: want a present Strip designation on {raider}, got {applied.ToJson()}");
+            throw new AcceptanceException($"strip evidence: want a present Strip designation on {raider}, got {outcome.Observed?.Effect}");
         }
 
-        var second = await ApplyAsync("strip-2").ConfigureAwait(false);
-        report["repeat"] = second.DeepClone();
-        if (second["applied"].AsMap() is not null)
+        var second = await StripAsync(s, "strip-2", raider, cancellationToken).ConfigureAwait(false);
+        if (second.Outcome?.Applied?.Outcome?.Applied is not null)
         {
-            throw new AcceptanceException($"a second strip on a designated raider applied: {second.ToJson()}");
+            throw new AcceptanceException($"a second strip on a designated raider applied: {second}");
         }
 
-        for (var step = 0; step < 40; step++)
+        _ = await s.RunUntilAsync("stripped", StripTicks, async ct =>
         {
-            var (_, tick) = await CombatStage.TickAsync(h, 60, cancellationToken).ConfigureAwait(false);
-            worn = await ReadWornAsync(h, raider, cancellationToken).ConfigureAwait(false);
-            if (!worn.Contains(Apparel))
-            {
-                report["stripped_tick"] = tick;
-                return;
-            }
-        }
-
-        throw new AcceptanceException($"raider still wears {Apparel} 2400 ticks after the strip designation");
+            var now = await WornAsync(s, "worn", raider, ct).ConfigureAwait(false);
+            return (Wait.Signature(now.Count), !now.Contains(duster));
+        }, cancellationToken).ConfigureAwait(false);
     }
 
-    // readWorn is one pawn's worn apparel defs from the lab read.
-    private static async Task<HashSet<string>> ReadWornAsync(Harness h, string id, CancellationToken cancellationToken)
+    private static async Task<Operations.ActionResult> StripAsync(ITypedSession s, string key, string raider, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync("strip-worn", CombatFixtures.LabTool, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
-        foreach (var r in reply["pawns"].AsSlice())
+        var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
-            var row = r.AsMap() ?? [];
-            if (row["id"].AsString() != id)
-            {
-                continue;
-            }
-
-            var output = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var w in row["worn"].AsSlice())
-            {
-                if (w.AsMap() is { } item)
-                {
-                    _ = output.Add(item["def"].AsString());
-                }
-            }
-
-            return output;
-        }
-
-        throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"pawn {id} missing from the lab read"));
+            Identity = s.Identity,
+            Actions = [new Operations.Action { Key = key, Intent = new Operations.DesignateIntent { ThingId = raider, Designation = Operations.ThingDesignation.Strip } }],
+        }, cancellationToken).ConfigureAwait(false);
+        var result = reply.Results.Count == 1 ? reply.Results[0] : throw new AcceptanceException($"{key}: {reply.BatchFailure} {string.Join("; ", reply.Results)}");
+        s.RecordWire(key, result);
+        return result;
     }
+
+    // The ids of the pawn's worn apparel.
+    private static async Task<List<string>> WornAsync(ITypedSession s, string label, string id, CancellationToken cancellationToken) =>
+        [.. (await CombatLabKit.PawnAsync(s, label, id, cancellationToken).ConfigureAwait(false)).Equipment?.Apparel.Select(a => a.Thing.Id ?? "") ?? []];
 }

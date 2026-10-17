@@ -63,6 +63,13 @@ identity), `Staged` and `TicksLeft`. Its members:
   `TypedReads.Observed` unwraps a read's `observed` arm.
 - **Waits:** `RunTicksAsync`, `RunUntilAsync` (a `Probe` signature) and `RunUntilEventAsync` (a telemetry row).
   Each spends from `Ticks`, and a wait past what is left fails before the game runs.
+- **Native clock:** `RunClockUntilHeldAsync(label, ticks, runRequest)` runs the native clock under the request's
+  watch policy (combat mode, armed stop events, health thresholds) until the clock holds itself, beating while it
+  runs, and returns the held `Clock.Status` (reason, detail, combat event, tick, `HeldAtUnixMs`). It spends from
+  `Ticks` like the other waits; a wait that ends otherwise holds the clock before it throws. Call it again with the
+  same request to resume after a hold. `HoldRowAsync(label, held)` returns that hold's `clock_hold` row (the one whose
+  `stop_at_ms` is `HeldAtUnixMs`; `ClockRows` reads its fields) for what the status does not carry: the thing, the
+  detected and occurrence ticks. It spends no ticks. `combatlab/stops` is the worked example.
 - **Telemetry:** `Telemetry(TelemetryKinds.<Kind>)` returns the game log ring's rows of that kind as `LogRow`s.
   A kind is added to `TelemetryKinds` (`brain/src/RimGovernor.Brain.Telemetry/TelemetryKinds.cs`) with its row in
   the kinds table.
@@ -315,8 +322,8 @@ the game in process on its worker root, stages the fixture fresh through the
 action), serves the brain for the fixture's ticks and reads the outcome. Each
 seed's `result.json` carries `run_seed` and `run_seed_draws`. The reseed fixes
 the RNG start only: once two tactics diverge their draws diverge too, so paired
-seeds compare starting dice, not identical dice. `combatlab/reseed` checks the
-action itself. Seeds are dispatched with `CombatDispatcher.Dispatch` on 1 or 2
+seeds compare starting dice, not identical dice; each seed's reseed reply must
+echo its seed and carry draws. Seeds are dispatched with `CombatDispatcher.Dispatch` on 1 or 2
 private clones of `-root` (more is refused); the result records the workers and
 a RimWorld process count taken before dispatch, so a timing-dependent metric can
 be read against box load. `-timeout` bounds one seed (10 minutes by default).

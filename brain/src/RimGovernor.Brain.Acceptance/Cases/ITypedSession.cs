@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Telemetry;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
@@ -66,6 +67,20 @@ public interface ITypedSession
     /// most <paramref name="ticks"/> ticks from <see cref="TicksLeft"/>, then pauses; returns the matching row.
     /// </summary>
     Task<LogRow> RunUntilEventAsync(string label, int ticks, TelemetryKind kind, Func<LogRow, bool> match, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Runs the native clock under <paramref name="request"/> (its watch policy decides what holds it) until the clock
+    /// holds itself, at most <paramref name="ticks"/> ticks from <see cref="TicksLeft"/>, beating while it runs; returns
+    /// the held status. A wait that ends otherwise holds the clock before it throws.
+    /// </summary>
+    Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, Clock.RunRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The <c>clock_hold</c> row of the hold <paramref name="held"/> reports (a held status, as
+    /// <see cref="RunClockUntilHeldAsync"/> returns): the row whose <c>stop_at_ms</c> is its <c>HeldAtUnixMs</c>. The
+    /// game is held, so the wait spends no ticks; it ends when the row reaches the log ring, under the hang guard.
+    /// </summary>
+    Task<LogRow> HoldRowAsync(string label, Clock.Status held, CancellationToken cancellationToken);
 
     /// <summary>Records <paramref name="value"/> in the report under <paramref name="key"/>: the evidence a reviewer reads.</summary>
     void Record(string key, JsonNode? value);

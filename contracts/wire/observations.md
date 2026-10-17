@@ -229,7 +229,7 @@ The definition catalog reply (`DefinitionCatalog` in `Observations.cs`) no longe
 constants. The brain's `DefinitionCatalog` (`Bridge/Catalog`) is built in the mod over the game's own `Def` objects
 (`NativeCatalogFactory.Create`, installed as `BrainCompositionOptions.CatalogFactory`; see
 [brain-host](../../docs/developers/architecture/brain-host.md)), and the wire catalog supplies only what the game
-computes in code: `derived` (`CatalogDerived`), `class_chains`, the
+computes in code: `derived` (`CatalogDerived`), the
 Biotech block and the `fingerprint`. A catalog read sends `held_fingerprint`; a reply with the same
 fingerprint carries only the per-load fields.
 
@@ -249,11 +249,9 @@ def carries `growMinGlow`.
 The catalog read validates the context and a present `derived`; the brain refuses a non-positive or nonfinite constant it reads. Catalogs are cached
 per load token.
 
-`DefinitionCatalog.class_chains` (`ClassChain`) carries the base classes
-of every class the def rows name: each def's own class and every `System.Type` value in a
-row, sorted by name. A family is matched by base class, never by a
-name list. `ActiveCondition.condition_class` is the concrete `GetType().FullName`,
-the key the chains use. `DefinitionCatalog.OutdoorsPermanentlyDark(biome)` is
+The brain catalog matches a family by base class over the game's own types, never by a
+name list. `ActiveCondition.condition_class` is the concrete `GetType().FullName`.
+`DefinitionCatalog.OutdoorsPermanentlyDark(biome)` is
 true when a `BiomeDef.biomeMapConditions` condition's `conditionClass` is or
 derives from `RimWorld.GameCondition_NoSunlight`; the colony projection carries
 it as `RoundsFacts.OutdoorsDark` and `CropClimate.OutdoorsDark`, unknown

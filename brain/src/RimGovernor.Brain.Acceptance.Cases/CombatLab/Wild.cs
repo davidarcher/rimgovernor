@@ -1,58 +1,50 @@
-using System.Text.Json.Nodes;
+using Mirror = RimGovernor.Contracts.Wire.Mirror;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>combatlab/wild</c> (Go <c>wild.go</c>).</summary>
+/// <summary>
+/// <c>combatlab/wild</c> (#1116): the combat mirror's wild-animal side. lab-ranged with a thrumbo just past the raiders,
+/// a hare beside them and a warg 40+ cells away: the first live frame has a wild-animal row for the thrumbo only.
+/// </summary>
 internal static class CombatLabWild
 {
-    internal static AcceptanceCase Case() => new()
+    private static readonly LabFixture Fixture = CombatLabKit.Fixture("lab-ranged", (f, cx, cz) =>
+    {
+        f.Pawns.Add(new LabPawn { Side = CombatFixtures.Wild, Kind = "Thrumbo", X = cx + 7, Z = cz + 18 });
+        f.Pawns.Add(new LabPawn { Side = CombatFixtures.Wild, Kind = "Hare", X = cx - 7, Z = cz + 18 });
+        f.Pawns.Add(new LabPawn { Side = CombatFixtures.Wild, Kind = "Warg", X = cx + 30, Z = cz - 30 });
+    });
+
+    internal static TypedCase Case() => new()
     {
         Name = "combatlab/wild",
-        Scope = "The combat mirror's wild-animal side (#1116) on lab-ranged with three calm wild animals: a thrumbo 4 cells past the raiders is a "
-            + "COMBAT_SIDE_WILD_ANIMAL row; a hare beside them (small, no predator) and a warg 40+ cells away are no row.",
-        Start = new LabStart { Colonists = 4 },
-        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
+        Scope = "The combat mirror's wild-animal side (#1116), a native read: on lab-ranged with three calm wild animals the first live snapshot frame "
+            + "has a COMBAT_SIDE_WILD_ANIMAL row for a thrumbo 4 cells past the raiders, and no row for a hare beside them (small, no predator) or a "
+            + "warg 40+ cells away.",
+        Ticks = CombatLabKit.ProbeTicks,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = Fixture.Colonists },
+        Stage = CombatLabKit.Spec(Fixture),
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var h = s.Harness;
-        var staged = await CombatStage.StageAsync(h, "lab-ranged", cancellationToken, (f, cx, cz) =>
+        var wild = new StagedLab(Fixture, s.Staged!).Ids(CombatFixtures.Wild);
+        var frame = await new LabFrames(s).CombatAsync("frame", cancellationToken).ConfigureAwait(false);
+        s.RecordWire("rows", frame.CombatPawns);
+        if (LabFrames.Row(frame, wild[0]) is not { Side: Mirror.CombatSide.WildAnimal } thrumbo)
         {
-            f.Pawns.Add(new LabPawn { Side = CombatFixtures.Wild, Kind = "Thrumbo", X = cx + 7, Z = cz + 18 });
-            f.Pawns.Add(new LabPawn { Side = CombatFixtures.Wild, Kind = "Hare", X = cx - 7, Z = cz + 18 });
-            f.Pawns.Add(new LabPawn { Side = CombatFixtures.Wild, Kind = "Warg", X = cx + 30, Z = cz - 30 });
-        }).ConfigureAwait(false);
-        var wild = staged.Ids(CombatFixtures.Wild);
-        var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
-        var (_, tick) = await CombatStage.TickAsync(h, CombatLabMirror.StepTicks, cancellationToken).ConfigureAwait(false);
-        var state = await frames.NextAsync(tick, cancellationToken).ConfigureAwait(false);
-        var rows = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
-        foreach (var row in state.Pawns)
-        {
-            rows[row["id"].AsString()] = row;
+            throw new AcceptanceException($"thrumbo {wild[0]} near the raiders: row {LabFrames.Row(frame, wild[0])}, want side wild_animal");
         }
 
-        s.Report["frameRows"] = rows.Count;
-        if (!rows.TryGetValue(wild[0], out var thrumbo) || thrumbo["side"].AsString() != "COMBAT_SIDE_WILD_ANIMAL")
-        {
-            throw new AcceptanceException($"thrumbo {wild[0]} near the raiders: row {(thrumbo is null ? "<nil>" : thrumbo.ToJson())}, want side wild_animal");
-        }
-
+        s.RecordWire("thrumbo", thrumbo);
         foreach (var id in wild.Skip(1))
         {
-            if (rows.TryGetValue(id, out var row))
+            if (LabFrames.Row(frame, id) is { } row)
             {
-                throw new AcceptanceException($"wild {id} has a combat row: {row.ToJson()}");
+                throw new AcceptanceException($"wild {id} has a combat row: {row}");
             }
         }
     }

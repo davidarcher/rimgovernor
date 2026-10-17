@@ -185,7 +185,7 @@ tiers spend. A map without stone chunks derives no target; the ladder does
 not mine rock for chunks. The chunk census that funds the bill counts every
 stack: a `list_supplies` stock row's units and ownership buckets cover all
 the definition's things even when the map strews more than 256 of them,
-and only the listed `items` (with `holders` and `corpses`) are then a
+and only the listed `items` (with `holders`) are then a
 256-entry prefix, flagged by `items_completeness` (`page.complete=false`,
 `matched` the true count) for the per-cell readers that need each entity.
 

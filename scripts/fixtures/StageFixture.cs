@@ -12,13 +12,11 @@ using Verse.AI.Group;
 
 namespace HomeBridge.BridgeTools
 {
-    // The Rand states a staging runs under: zero is the pinned staging; a non-zero seed varies the skill spread and,
-    // once staging ends, sets the game's seed (test/lab_stage reseed derives the same one), so a seed is one RNG start.
+    // The Rand states of the combat lab: every staging runs under the pinned state, and test/lab_stage reseed sets the
+    // game's seed from a run seed after it, so a run seed is one RNG start.
     public static class StageSeed
     {
         public const int Pinned = 854;
-
-        public static int Staging(int seed) => seed == 0 ? Pinned : unchecked(Pinned + seed * 7919);
 
         public static int After(int seed) => unchecked(Pinned ^ (seed * 31337));
     }
@@ -74,7 +72,7 @@ namespace HomeBridge.BridgeTools
             if (spec.World?.OutdoorTemperature is float outdoor) FixtureKit.PinOutdoorTemperature(outdoor);
             if (spec.World?.Hour is int hour) FixtureKit.AdvanceToHour(map, hour);
 
-            Rand.PushState(StageSeed.Staging(spec.Seed));
+            Rand.PushState(StageSeed.Pinned);
             try
             {
                 if (spec.Site is StageSite s)
@@ -208,7 +206,7 @@ namespace HomeBridge.BridgeTools
                 {
                     IntVec3? at = p.Cell is StageCell c ? At(c) : (IntVec3?)null;
                     var pawn = p.Colonist is int index ? Move(colonists, index, at, p)
-                        : Generate(map, p, Owner(p.Faction), spec.Seed, at ?? throw new ArgumentException($"Pawn {p.Name}: a generated pawn needs a cell."), arrival != null, raiders, prisoners, insects, mechs);
+                        : Generate(map, p, Owner(p.Faction), at ?? throw new ArgumentException($"Pawn {p.Name}: a generated pawn needs a cell."), arrival != null, raiders, prisoners, insects, mechs);
                     var cell = at ?? pawn.Position;
                     Equip(pawn, p);
                     Set(pawn, p);
@@ -224,8 +222,6 @@ namespace HomeBridge.BridgeTools
             {
                 Rand.PopState();
             }
-            // The fight's later draws are a function of the seed.
-            if (spec.Seed != 0) Rand.Seed = StageSeed.After(spec.Seed);
             // A siege is a real siege lord camped at the spot: the game's own LordToil_Siege places the blueprints, drops
             // the supplies and sets the builders to work on the frames.
             if (raiders.Count > 0 && spec.Raid?.Siege is StageSiege siege)
@@ -249,7 +245,7 @@ namespace HomeBridge.BridgeTools
                     Hostile = pawn.HostileTo(Faction.OfPlayer), Prisoner = pawn.IsPrisonerOfColony, Weapon = pawn.equipment?.Primary?.def.defName,
                     LordJob = pawn.GetLord()?.LordJob?.GetType().Name, MentalState = pawn.MentalStateDef?.defName, Inspiration = pawn.InspirationDef?.defName,
                     Health = pawn.health.summaryHealth.SummaryHealthPercent,
-                    Worn = pawn.apparel?.WornApparel.Select(a => new StagedApparel(a.GetUniqueLoadID(), a.def.defName)).ToList() ?? new List<StagedApparel>(),
+                    Worn = pawn.apparel?.WornApparel.Count ?? 0,
                 };
             foreach (var z in spec.Zones)
                 Add(zones, z.Name, LayZone(map, z, z.Cells.Select(At).ToList()));
@@ -260,7 +256,7 @@ namespace HomeBridge.BridgeTools
                 Add(incidents, i.Name, new StagedIncident(Ids(arrived.Where(x => x.trader?.traderKind != null))));
             }
             var rows = FixtureKit.DigestRows(map);
-            return new StageReply { Success = true, Seed = spec.Seed, Research = research, Site = site, Rooms = rooms, Buildings = buildings, Bills = bills, Things = things, Plants = plants, Pawns = pawns, Zones = zones,
+            return new StageReply { Success = true, Research = research, Site = site, Rooms = rooms, Buildings = buildings, Bills = bills, Things = things, Plants = plants, Pawns = pawns, Zones = zones,
                 Incidents = incidents,OutdoorTemperature = map.mapTemperature.OutdoorTemp, Hour = GenLocalDate.HourOfDay(map),
                 Digest = FixtureKit.Digest(rows), DigestRows = rows };
         }
@@ -291,7 +287,7 @@ namespace HomeBridge.BridgeTools
 
         // Spawn pawn: generated from its kind, then traits, bad hediffs, skills and strip before it spawns (a raider
         // under an arrival mode is left for the arrival), then the prisoner, training and manhunter state.
-        private static Pawn Generate(Map map, StagePawn p, Faction faction, int seed, IntVec3 cell, bool arrival,
+        private static Pawn Generate(Map map, StagePawn p, Faction faction, IntVec3 cell, bool arrival,
             List<Pawn> raiders, List<Pawn> prisoners, List<Pawn> insects, List<Pawn> mechs)
         {
             var kind = FixtureKit.Def<PawnKindDef>(p.Kind ?? throw new ArgumentException($"Pawn {p.Name} names neither a Kind nor a Colonist."));
@@ -308,7 +304,7 @@ namespace HomeBridge.BridgeTools
             if (p.SkillLevel is int level)
                 foreach (var skill in pawn.skills.skills)
                 {
-                    skill.Level = seed == 0 || p.SkillSpread == 0 ? level : level + Rand.RangeInclusive(-p.SkillSpread, p.SkillSpread);
+                    skill.Level = level;
                     skill.passion = Passion.None;
                 }
             if (p.Gear?.Strip == true)

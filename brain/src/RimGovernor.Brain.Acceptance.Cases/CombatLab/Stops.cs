@@ -1,138 +1,120 @@
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Telemetry;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>combatlab/stops</c> (Go <c>stops.go</c>).</summary>
+/// <summary>
+/// <c>combatlab/stops</c> (#849): a combat-mode clock run armed with the downed and entered-range events holds the clock on
+/// the exact tick of each, once per raider and direction, until a pawn goes down.
+/// </summary>
 internal static class CombatLabStops
 {
-    // The longest the raiders may take to close in and be fought, in holds: each armed event holds the clock once.
+    /// <summary>The most holds the raiders may take to close in and be fought: each armed event holds the clock once.</summary>
     private const int MaxHolds = 20;
 
-    private static readonly TimeSpan HoldTimeout = TimeSpan.FromSeconds(90);
+    /// <summary>The club raiders start 20 cells from the riflemen; contact and a downing come well inside this.</summary>
+    private const int FightTicks = 12_000;
 
-    internal static AcceptanceCase Case() => new()
+    private static readonly LabFixture Fixture = CombatLabKit.Fixture("lab-open");
+
+    internal static TypedCase Case() => new()
     {
         Name = "combatlab/stops",
-        Scope = "Event-triggered combat holds (#849): on lab-open a combat run armed with downed and entered-range holds the clock on the exact tick a raider's weapon reaches a colonist or a colonist's reaches a raider (the hold event's tick equals its occurrence tick), once per raider and direction per combat, and a colonist going down holds on its tick.",
-        Start = new LabStart { Colonists = 3 },
-        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
+        Scope = "Event-triggered combat holds (#849): on lab-open a combat run armed with downed and entered-range holds the clock on the exact tick "
+            + "a raider's weapon reaches a colonist or a colonist's reaches a raider (the hold row's tick equals its occurrence and detected "
+            + "ticks), once per raider and direction per combat, and a pawn going down holds on its tick.",
+        Ticks = FightTicks,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = Fixture.Colonists },
+        Stage = CombatLabKit.Spec(Fixture),
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    // Acknowledged, the raiders' approach is not a hostile hold, and the health thresholds are off: only the armed events hold.
+    private static Clock.WatchPolicy Policy(IEnumerable<string> hostiles) => new()
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var staged = await CombatStage.StageAsync(h, "lab-open", cancellationToken).ConfigureAwait(false);
-        var grant = await Authority.GrantAutoAsync(h.WireFunc(), "combat-stops-acquire", identity, cancellationToken).ConfigureAwait(false);
-        var report = s.Report;
-        var clock = new ScenarioClock(h, identity, new Report())
+        Mode = Clock.WatchMode.Combat,
+        HealthDropFraction = 1,
+        MinHealthFraction = 0.01f,
+        HostileWithin = 40,
+        InjuryStopCooldownMs = 0,
+        AcknowledgedHostileIds = [.. hostiles],
+        CombatStopEvents = [Clock.CombatEvent.Downed, Clock.CombatEvent.EnteredRange],
+        SeriousSingleHitDamage = (float)PolicyFunctions.SeriousSingleHitDamage,
+        SeriousSummaryHealthFloor = (float)PolicyFunctions.SeriousSummaryHealthFloor,
+        SeriousBleedRateFloor = (float)PolicyFunctions.SeriousBleedRateFloor,
+        SeriousVitalPartFloor = (float)PolicyFunctions.SeriousVitalPartFloor,
+        ExplosiveNearMarginCells = (float)PolicyFunctions.ExplosiveNearMarginCells,
+        MeleeReachCells = (float)PolicyFunctions.MeleeReachCells,
+        InjurySeverityFloorTicks = (uint)PolicyFunctions.InjurySeverityFloorTicks,
+        PredatorMarginCells = (float)PolicyFunctions.HuntPredatorMarginCells,
+    };
+
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    {
+        var lab = new StagedLab(Fixture, s.Staged!);
+        var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
+        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Superfast, Policy = Policy(lab.Hostiles()) };
+
+        var entered = new HashSet<(string Thing, bool ReachedBy)>();
+        var downed = false;
+        for (var index = 0; index < MaxHolds && !downed; index++)
         {
-            Grant = grant,
-
-            // Acknowledged, the raiders' approach is not a hostile hold; the health thresholds are off so only armed
-            // events hold the clock.
-            CombatTargets = staged.Hostiles(),
-            PolicyEdit = policy =>
+            var label = "hold-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var held = await s.RunClockUntilHeldAsync(label, s.TicksLeft, request, cancellationToken).ConfigureAwait(false);
+            if (held.Reason != Clock.HoldReason.CombatEvent)
             {
-                policy["combatStopEvents"] = new JsonArray("COMBAT_EVENT_DOWNED", "COMBAT_EVENT_ENTERED_RANGE");
-                policy["healthDropFraction"] = 1;
-                policy["minHealthFraction"] = 0.01;
-            },
-        };
-        var stops = new JsonArray();
-        var sawRange = false;
-        var sawDowned = false;
-        var entered = new HashSet<string>(StringComparer.Ordinal);
-        for (var index = 0; index <= MaxHolds && !sawDowned; index++)
-        {
-            try
-            {
-                _ = await clock.RunAsync("Superfast", cancellationToken).ConfigureAwait(false);
-            }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"hold {CaseSupport.Tag(index)} run: {e.Message}", e);
+                throw new AcceptanceException($"{label}: not a combat-event hold: {held}");
             }
 
-            JsonObject stop;
-            try
+            // The clock_hold row carries what the status does not: the thing and the event's detected and occurrence ticks.
+            var row = await s.HoldRowAsync(label, held, cancellationToken).ConfigureAwait(false);
+            var tick = ClockRows.Tick(row);
+            var detected = ClockRows.Whole(row, ClockEventTelemetry.DetectedTickKey);
+            var occurred = ClockRows.Whole(row, ClockEventTelemetry.OccurrenceTickKey);
+            var thing = ClockRows.Text(row, "thing");
+            var reason = ClockRows.Text(row, "combat_reason");
+            s.Record(label, CombatLabKit.Obj(
+                ("event", held.CombatEvent?.ToString()),
+                ("thing", thing),
+                ("reason", reason),
+                ("tick", tick),
+                ("detectedTick", detected),
+                ("occurrenceTick", occurred)));
+            if (held.Context?.Tick != tick || detected != tick || occurred != tick)
             {
-                stop = await AwaitHoldAsync(clock, cancellationToken).ConfigureAwait(false);
-            }
-            catch (AcceptanceException e)
-            {
-                throw new AcceptanceException($"hold {CaseSupport.Tag(index)}: {e.Message}", e);
-            }
-
-            stop["hold"] = index;
-            stops.Add(stop.DeepClone());
-            report["stops"] = stops;
-            var tick = stop["tick"].AsUInt64() ?? 0;
-            if (stop["kind"].AsString() != "combat_event")
-            {
-                throw new AcceptanceException($"hold {CaseSupport.Tag(index)}: unexpected hold: {stop.ToJson()}");
-            }
-
-            if (tick != (stop["occurrenceTick"].AsUInt64() ?? 0) || tick != (stop["detectedTick"].AsUInt64() ?? 0))
-            {
-                throw new AcceptanceException($"hold {CaseSupport.Tag(index)}: combat hold off its event's tick: {stop.ToJson()}");
+                throw new AcceptanceException($"{label}: combat hold off its event's tick: status {held.Context?.Tick}, row {tick}, detected {detected}, occurred {occurred}");
             }
 
-            switch (stop["event"].AsString())
+            switch (held.CombatEvent)
             {
-                case nameof(Clock.CombatEvent.EnteredRange):
-                    // First time only: the combat remembers a raider across holds. Keyed by hostile and direction
-                    // ("reaches" or "reached by").
-                    var key = stop["thingId"].AsString() + (stop["detail"].AsString().Contains("reached by", StringComparison.Ordinal) ? "true" : "false");
+                case Clock.CombatEvent.EnteredRange:
+                    // First time only: the combat remembers a raider across holds, per direction ("reaches" or "reached by").
+                    var key = (thing, reason.Contains(" reached by ", StringComparison.Ordinal));
                     if (!entered.Add(key))
                     {
-                        throw new AcceptanceException($"hold {CaseSupport.Tag(index)}: {key} entered range a second time: {stop.ToJson()}");
+                        throw new AcceptanceException($"{label}: {key} entered range a second time: {reason}");
                     }
 
-                    sawRange = true;
                     break;
-                case nameof(Clock.CombatEvent.Downed):
-                    sawDowned = true;
+                case Clock.CombatEvent.Downed:
+                    if (index == 0)
+                    {
+                        throw new AcceptanceException($"the first hold was a downing before any entered range: {reason}");
+                    }
+
+                    downed = true;
                     break;
                 default:
-                    throw new AcceptanceException($"hold {CaseSupport.Tag(index)}: unarmed combat event held the clock: {stop.ToJson()}");
-            }
-
-            if (index == 0 && !sawRange)
-            {
-                throw new AcceptanceException($"first hold was {stop.ToJson()} before entered range");
+                    throw new AcceptanceException($"{label}: an unarmed combat event {held.CombatEvent} held the clock: {reason}");
             }
         }
 
-        report["enteredRange"] = sawRange;
-        report["downed"] = sawDowned;
-        if (!sawDowned)
+        if (!downed)
         {
-            throw new AcceptanceException($"no downed hold after contact: {stops.ToJson()}");
+            throw new AcceptanceException($"no downed hold within {MaxHolds} holds: {entered.Count} entered-range holds");
         }
-    }
-
-    // awaitHold waits (beating) until the running clock is held, then returns its clock_hold row: kind, the armed event,
-    // and the event's tick, detected and occurrence ticks.
-    private static async Task<JsonObject> AwaitHoldAsync(ScenarioClock clock, CancellationToken cancellationToken)
-    {
-        var status = await clock.AwaitHeldAsync(HoldTimeout, "the combat hold", cancellationToken).ConfigureAwait(false);
-        var row = await clock.AwaitHoldRowAsync(status, cancellationToken).ConfigureAwait(false);
-        return new JsonObject
-        {
-            ["kind"] = ClockRows.Reason(row),
-            ["detail"] = ClockRows.Text(row, "msg"),
-            ["tick"] = ClockRows.Tick(row),
-            ["detectedTick"] = ClockRows.Whole(row, ClockEventTelemetry.DetectedTickKey) ?? 0,
-            ["occurrenceTick"] = ClockRows.Whole(row, ClockEventTelemetry.OccurrenceTickKey) ?? 0,
-            ["event"] = ClockRows.Text(row, "combat_event"),
-            ["thingId"] = ClockRows.Text(row, "thing"),
-        };
     }
 }

@@ -1,94 +1,68 @@
-using System.Globalization;
-using System.Text.Json.Nodes;
+using Operations = RimGovernor.Contracts.Wire.Operations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary><c>combatlab/repair</c> (Go <c>draft_resume.go</c>, the repair half).</summary>
+/// <summary>
+/// <c>combatlab/repair</c> (#900): drafted Repair. On lab-choke with a damaged wooden door in the gap, a drafted brawler's
+/// repair order on the door applies with job Repair, and the paused game reads that brawler on Repair of the door, still drafted.
+/// </summary>
 internal static class CombatLabRepair
 {
-    // repairDoorHitPoints is the staged gap door's hit points: well under any door's maximum, so it reads damaged.
+    /// <summary>The gap door's hit points: well under any door's maximum, so it reads damaged.</summary>
     private const int DoorHitPoints = 10;
 
-    internal static AcceptanceCase Case() => new()
+    // lab-choke's gap closed with a damaged wooden door: the last fixture thing.
+    private static readonly LabFixture Fixture = CombatLabKit.Fixture("lab-choke", (f, cx, cz) =>
+        f.Things.Add(new FixtureThing { Def = "Door", Stuff = "WoodLog", X = cx, Z = cz + CombatFixtures.ChokeHalf, HitPoints = DoorHitPoints }));
+
+    internal static TypedCase Case() => new()
     {
         Name = "combatlab/repair",
-        Scope = "Drafted Repair (#900), a native op contract no snapshot can prove: on lab-choke with a damaged wooden door in the gap, "
-            + "the brawlers are drafted and one combat.orders repair order on the door applies with job Repair; one tick later that brawler's job is Repair on the door and it is still drafted.",
-        Start = new LabStart { Colonists = 5 },
-        RequiredOps = [DebugGame.LabStartTool, FixtureStage.Tool, CombatFixtures.LabTool],
+        Scope = "Drafted Repair (#900), a native op contract no snapshot can prove: on lab-choke with a damaged wooden door in the gap, the "
+            + "brawlers are drafted and a combat_orders repair order on the door applies with job Repair (the first brawler capable of it); the "
+            + "paused pawn read then gives that brawler job Repair on the door, still drafted.",
+        Ticks = 0,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = Fixture.Colonists },
+        Stage = CombatLabKit.Spec(Fixture),
         QuietWorld = true,
-        Budget = AcceptanceCase.LabBudget,
-        Crew = new Crew { Size = 3 },
         Run = RunAsync,
     };
 
-    // repairKit closes lab-choke's gap with a damaged wooden door.
-    private static void Kit(LabFixture f, int cx, int cz) =>
-        f.Things.Add(new FixtureThing { Def = "Door", Stuff = "WoodLog", X = cx, Z = cz + CombatFixtures.ChokeHalf, HitPoints = DoorHitPoints });
-
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var h = s.Harness;
-        var identity = s.Identity;
-        var report = s.Report;
-        var cx = 0;
-        var cz = 0;
-        var staged = await CombatStage.StageAsync(h, "lab-choke", cancellationToken, (f, x, z) =>
-        {
-            Kit(f, x, z);
-            cx = x;
-            cz = z;
-        }).ConfigureAwait(false);
-        var door = staged.Things[^1];
-        var colonists = staged.Colonists();
-        _ = await Authority.GrantAutoAsync(h.WireFunc(), "combat-repair-acquire", identity, cancellationToken).ConfigureAwait(false);
-
-        // The three brawlers stand two cells inside the gap.
-        var brawlers = colonists.GetRange(0, 3);
-        await LabOps.DraftAllAsync(h, identity, "repair-draft", brawlers, cancellationToken).ConfigureAwait(false);
+        var lab = new StagedLab(Fixture, s.Staged!);
+        var door = lab.Thing(Fixture.Things.Count - 1);
+        var cell = lab.Cell(0, CombatFixtures.ChokeHalf);
+        var brawlers = lab.Colonists().GetRange(0, 3);
+        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        await CombatLabKit.DraftAsync(s, brawlers, cancellationToken).ConfigureAwait(false);
 
         // A lab colonist may be incapable of construction (cannot_repair): the first brawler whose order applies is the repairer.
-        var repairer = "";
-        var tried = new JsonArray();
-        for (var i = 0; i < brawlers.Count; i++)
+        string? repairer = null;
+        var tried = new List<Receipts.CombatOrderResult>();
+        for (var i = 0; i < brawlers.Count && repairer is null; i++)
         {
-            var id = brawlers[i];
-            var results = await LabOps.IssueAsync(
-                h,
-                identity,
-                "combat-repair-" + i.ToString(CultureInfo.InvariantCulture),
-                new JsonArray(new JsonObject { ["pawn"] = LabOps.PawnTarget(id), ["repair"] = new JsonObject { ["cell"] = CaseSupport.Cell(cx, cz + CombatFixtures.ChokeHalf) } }),
-                cancellationToken).ConfigureAwait(false);
-            tried.Add(results[0].DeepClone());
-            if (results[0]["applied"].AsBool() == true)
+            var r = (await CombatLabKit.OrdersAsync(s, $"repair-{i}", cancellationToken, CombatLabKit.Order(brawlers[i], new Operations.CombatOrderOrder.RepairCase(new Operations.CombatRepair { Cell = cell }))).ConfigureAwait(false))[0];
+            tried.Add(r);
+            if (r.Applied == true)
             {
-                if (results[0]["jobDef"].AsString() != "Repair")
-                {
-                    throw new AcceptanceException($"brawler {CaseSupport.Tag(i)} repair applied with job {results[0]["jobDef"].ToJson()}, want Repair: {results[0].ToJson()}");
-                }
-
-                repairer = id;
-                break;
+                CombatLabKit.Applied($"brawler {i}", r, "Repair");
+                repairer = brawlers[i];
             }
         }
 
-        report["results"] = tried;
-        if (repairer.Length == 0)
+        if (repairer is null)
         {
-            throw new AcceptanceException($"no brawler took the repair order on the door at {CaseSupport.Tag(cx)},{CaseSupport.Tag(cz + CombatFixtures.ChokeHalf)}: {tried.ToJson()}");
+            throw new AcceptanceException($"no brawler took the repair order on the door at {CombatLabKit.Show(cell)}: {string.Join("; ", tried)}");
         }
 
-        var after = await LabOps.TickReadAsync(h, cancellationToken).ConfigureAwait(false);
-        var p = after.Row(repairer);
-        report["repairer"] = p.DeepClone();
-        if (p["job"].AsString() != "Repair" || p["jobThing"].AsString() != door)
+        var p = await CombatLabKit.PawnAsync(s, "repairer", repairer, cancellationToken).ConfigureAwait(false);
+        s.RecordWire("repairer", p);
+        if (CombatLabKit.Job(p) != "Repair" || CombatLabKit.JobThing(p) != door || !p.Drafted)
         {
-            throw new AcceptanceException($"repairer {repairer} after one tick: job {p["job"].ToJson()} on {p["jobThing"].ToJson()}, want Repair on {door}: {p.ToJson()}");
-        }
-
-        if (p["drafted"].AsBool() != true)
-        {
-            throw new AcceptanceException($"repairer {repairer} undrafted by the Repair job: {p.ToJson()}");
+            throw new AcceptanceException($"repairer {repairer}: want drafted on Repair of {door}, got drafted {p.Drafted} job {p.Job}");
         }
     }
 }

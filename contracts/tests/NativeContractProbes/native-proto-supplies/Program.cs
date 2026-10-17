@@ -219,9 +219,6 @@ internal static class NativeProtoSuppliesProbe
             MakeEntry(corpse, null, null, false, false, false, true, false, false, false),
             MakeEntry(ration, corpse, "corpse", false, false, false, true, false, false, false),
         });
-        Check(((IList)Get(corpseRow, "Corpses")).Count == 1, "Corpse traversal descends into held inventory and reports one corpse");
-        var corpseState = ((IList)Get(corpseRow, "Corpses"))[0]!;
-        Check((bool)Get(corpseState, "Humanlike"), "Corpse intelligence fact observed");
         Check(((IList)Get(corpseRow, "Holders")).Count == 1, "Corpse-held ration surfaces as one held-stock row");
         var corpseIssues = (IList)Get(corpseRow, "Issues");
         Check(corpseIssues.Count == 1, "Corpse without a rot component reads without a rot issue, not a crash");
