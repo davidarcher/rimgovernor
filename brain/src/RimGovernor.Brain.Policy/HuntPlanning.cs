@@ -10,6 +10,9 @@ public sealed record HuntPlan(HuntSelection? Selection, EquatableArray<HuntRoste
 {
     public static readonly HuntPlan None = new(null, [], []);
 
+    /// <summary>The prey of the rosters still being asked about: a lone hunt must not designate them before the comparison is answered.</summary>
+    public IReadOnlySet<string> Awaiting => Unestimated.SelectMany(r => r.Prey).ToHashSet(StringComparer.Ordinal);
+
     /// <summary>The hunt formation channel to offer the food plan, or none: no selection, no roster chosen or a no-hunt choice.</summary>
     public SupplyCandidate? Channel(IReadOnlyList<AcquisitionSource> sources) =>
         Selection is { Selected: { Roster: { } roster } selected } ? PolicyFunctions.HuntRosterChannel(selected, roster, sources) : null;

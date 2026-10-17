@@ -679,6 +679,7 @@ public sealed partial class Rounder
         if (reading.Projection.Facts.ForecastObserved.Coupled?.Hunt is { } huntRead)
         {
             attrs.Add(("hunt_read", $"known={huntRead.Known} hunters={huntRead.Hunters.Count} prey={huntRead.Prey.Count} findings=[{string.Join(";", huntRead.Findings)}]"));
+            attrs.Add(("hunt_choice", Census.HuntNote));
             if (HuntEstimates is { } estimates)
             {
                 var view = estimates.Current(huntRead, reading.Projection.Identity.Tick.Value);

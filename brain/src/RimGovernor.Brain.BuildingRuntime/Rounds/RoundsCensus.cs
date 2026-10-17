@@ -30,6 +30,9 @@ internal sealed class RoundsCensusStore
 
     /// <summary>The hunt estimate revision the cached food plan was built over.</summary>
     internal string FoodHunt = "";
+
+    /// <summary>The last hunt comparison, described for the review telemetry.</summary>
+    internal string HuntNote = "";
     internal ResourceSupplyState? Supply;
     internal ResourceSupplyKey SupplyKey;
     internal Fact<LayoutPlan> Layout;

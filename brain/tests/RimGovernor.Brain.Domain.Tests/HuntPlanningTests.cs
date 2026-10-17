@@ -81,6 +81,16 @@ public sealed class HuntPlanningTests
     }
 
     [Fact]
+    public void LoneChannelsWaitForPreyWhoseRostersAreStillBeingPredicted()
+    {
+        var sources = new[] { Source("boar"), Source("deer") };
+        var plan = PolicyFunctions.PlanHunt(Read(), sources, Routes, HuntEstimateView.None, 5);
+        Assert.NotEmpty(plan.Unestimated);
+        var candidates = PolicyFunctions.HuntCandidates(sources, 2, plan.Channel(sources), plan.Awaiting);
+        Assert.DoesNotContain(candidates, c => c.Id == "boar");
+    }
+
+    [Fact]
     public void LoneChannelsSkipThePreyAFormationTakes()
     {
         var sources = new[] { Source("boar"), Source("deer") };
