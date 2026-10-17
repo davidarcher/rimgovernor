@@ -277,6 +277,9 @@ public sealed class NeedFamilyTests
             using var read = connection.CreateCommand();
             read.CommandText = "PRAGMA user_version";
             Assert.Equal((long)Journal.SchemaVersion, Convert.ToInt64(read.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture));
+            // The clock journal is gone (#3417): no clock_* table is created.
+            read.CommandText = "SELECT count(*) FROM sqlite_master WHERE name LIKE 'clock\\_%' ESCAPE '\\'";
+            Assert.Equal(0L, Convert.ToInt64(read.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture));
             read.CommandText = $"PRAGMA user_version={Journal.SchemaVersion - 1}";
             read.ExecuteNonQuery();
         }

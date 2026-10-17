@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // and sent Run in one step; the C# step only plans (ClockScheduler), and this driver runs after each step.
 // The clock is Running at the target speed or Held; the driver is the hold state machine that keeps it so.
 
-/// <summary>What the run driver reads natively beyond the scheduler's own reads: the journal page and the emergency census.</summary>
+/// <summary>What the run driver reads natively beyond the scheduler's own reads: the ring page and the emergency census.</summary>
 public interface IClockDriverNative : IClockEventNative
 {
     /// <summary>The emergency census of the world <paramref name="identity"/> names.</summary>
@@ -13,7 +13,7 @@ public interface IClockDriverNative : IClockEventNative
 
 /// <summary>
 /// Runs the native clock of a session: sends Run at the target speed under the watch policy the facts imply, takes
-/// the brain's own holds (a coupled order, a review, an autosave), keeps the heartbeat, and polls the native journal
+/// the brain's own holds (a coupled order, a review, an autosave), keeps the heartbeat, and polls the native ring
 /// for what held it. The host calls <see cref="AfterStepAsync"/> after every scheduler step and
 /// <see cref="StopAsync"/> on shutdown.
 /// </summary>
@@ -64,15 +64,14 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
         _clock = clock;
         _wake = wake;
         _combatStops = new CombatStopMetrics(config.CombatResumeBudget);
-        _poll = new ClockEventPoll(player, session, native, clock, config);
+        _poll = new ClockEventPoll(session, native, config);
     }
 
     /// <summary>
-    /// Builds the driver for <paramref name="scheduler"/>, binds the profile's native journal, attaches the driver to the
-    /// session's clock worker slot and starts the poll and heartbeat loops (Go <c>NewClockScheduler</c>'s profile and
-    /// policy validation and <c>NewClockWorker</c>).
+    /// Builds the driver for <paramref name="scheduler"/>, attaches it to the session's clock worker slot and starts the
+    /// poll and heartbeat loops (Go <c>NewClockScheduler</c>'s policy validation and <c>NewClockWorker</c>).
     /// </summary>
-    public static async Task<ClockRunDriver> CreateAsync(
+    public static ClockRunDriver Create(
         Player player,
         Session session,
         ClockScheduler scheduler,
@@ -95,8 +94,7 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
             throw new ControlException("NewClockRunDriver: the session has no clock capability");
         }
         Validated(config);
-        var inbox = await player.Journal.BindClockInboxAsync(config.Profile, lifetime).ConfigureAwait(false);
-        var driver = new ClockRunDriver(player, session, scheduler, native, writer, config with { Profile = inbox.Profile }, clock, wake);
+        var driver = new ClockRunDriver(player, session, scheduler, native, writer, config, clock, wake);
         session.AttachClockWorker(driver);
         driver._pollTask = Task.Run(() => driver.PollLoopAsync(lifetime), CancellationToken.None);
         driver._heartbeatTask = Task.Run(() => driver.HeartbeatLoopAsync(lifetime), CancellationToken.None);
@@ -104,7 +102,7 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
     }
 
     // Checks the run the driver starts from: a colony watch with nothing acknowledged, a policy the bridge validator
-    // accepts and a profile directory.
+    // accepts, a real combat fallback and a heartbeat inside the native tolerance.
     private static void Validated(ClockRunConfig config)
     {
         var p = config.Policy;
@@ -123,16 +121,9 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
         {
             throw new ControlException("NewClockRunDriver: the heartbeat interval must be under the native tolerance of five seconds");
         }
-        if (!Directory.Exists(config.Profile))
-        {
-            throw new ControlException("NewClockRunDriver: the profile is not a directory");
-        }
     }
 
-    /// <summary>The native profile whose journal the driver polls, canonical after the inbox bound it.</summary>
-    public string Profile => _config.Profile;
-
-    // Reads the native journal: one unheld read per round, answered at once. A read that captured evidence is followed
+    // Reads the native ring: one unheld read per round, answered at once. A read that captured evidence is followed
     // by the next at once; a failed call backs off from 250 ms to 2 s; otherwise the loop waits the cadence or until a
     // completed step releases it. The cadence is a safety bound: a blocked step must not hide a hold from this
     // independent loop.
@@ -162,8 +153,8 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
             }
             if (result is not null && (result.Captured || result.Invalidated.Count > 0 || result.AuthorityChanged))
             {
-                // The step loop reacts to the page: a hold native took wakes it, and the hold itself is not a decision
-                // input beyond the review the poll just recorded.
+                // The step loop reacts to the page: a hold native took wakes it; the hold itself is guarded by the Run's
+                // hold serial, not by the poll.
                 _wake?.NotifySections(result.Invalidated, result.InvalidatedSections, result.AuthorityChanged, result.Held, result.HeldAt);
             }
             if (result is not null && result.Captured)
@@ -231,7 +222,7 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
         }
     }
 
-    // Releases the poll's wait on every completed step (and from a test that has just changed the journal): the poll reads again at once.
+    // Releases the poll's wait on every completed step (and from a test that has just changed the ring): the poll reads again at once.
     internal void WakePoll() => _pollWake.Release();
 
     /// <summary>

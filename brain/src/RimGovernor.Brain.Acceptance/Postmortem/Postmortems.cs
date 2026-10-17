@@ -307,7 +307,7 @@ public static partial class Postmortems
         {
             foreach (var entry in new DirectoryInfo(dir).EnumerateDirectories())
             {
-                if (entry.Name.StartsWith("service-", StringComparison.Ordinal) && entry.Name != "service-profile")
+                if (entry.Name.StartsWith("service-", StringComparison.Ordinal))
                 {
                     relaunches.Add(entry.Name);
                 }

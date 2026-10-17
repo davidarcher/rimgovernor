@@ -8,7 +8,6 @@ internal static partial class StoreSchema
         ControlPart,
         SubmissionPart,
         OwnersPart,
-        Store.ClockPart,
         TimelinePart,
         SingletonPart,
         CombatFightsPart,

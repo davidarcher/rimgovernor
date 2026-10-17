@@ -286,15 +286,6 @@ public sealed partial class ServiceProcess
                     entry["state_error"] = e.Message;
                 }
 
-                try
-                {
-                    entry["clock"] = (await ApiAsync("GET", "/api/player/clock", null, "", ct).ConfigureAwait(false)).Body?.DeepClone();
-                }
-                catch (NativeTransportException e)
-                {
-                    entry["clock_error"] = e.Message;
-                }
-
                 diagnostics.Add(entry);
                 var mode = state.Member("mode").AsString();
                 if (mode == "automate")
@@ -424,8 +415,6 @@ public sealed class AuthorityKeepAlive : IDisposable
     private bool _wasAutomate;
     private int _attempts;
     private int _reacquired;
-    private int _acknowledged;
-    private int _acknowledgeFailed;
 
     // The sum, over reacquisitions, of the native generations each resume cost: the grant's generation less the one
     // the service reported before it. A resume from a plain clock hold costs one; generationsOverOne counts those
@@ -470,8 +459,6 @@ public sealed class AuthorityKeepAlive : IDisposable
             {
                 ["attempts"] = _attempts,
                 ["reacquired"] = _reacquired,
-                ["acknowledged"] = _acknowledged,
-                ["acknowledge_failed"] = _acknowledgeFailed,
                 ["generation_advance"] = _generationAdvance,
                 ["generations_over_one"] = _generationsOverOne,
             };
@@ -588,7 +575,6 @@ public sealed class AuthorityKeepAlive : IDisposable
         }
 
         var beforeKnown = TryGeneration(state["generation"], out var before);
-        await AcknowledgeHoldsAsync().ConfigureAwait(false);
         lock (_gate)
         {
             _attempts++;
@@ -624,58 +610,6 @@ public sealed class AuthorityKeepAlive : IDisposable
                 {
                     _generationsOverOne++;
                 }
-            }
-        }
-    }
-
-    // Acknowledges any clock hold before the resume, so the resume is not refused over an unreviewed hold.
-    private async Task AcknowledgeHoldsAsync()
-    {
-        ServiceApiReply clock;
-        try
-        {
-            clock = await _service.ApiAsync("GET", "/api/player/clock", null, "", CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (AcceptanceException)
-        {
-            return;
-        }
-
-        if (clock.Status != 200 || clock.Body is not { } review || review["holds"].AsSlice().Count == 0)
-        {
-            return;
-        }
-
-        var ack = new JsonObject
-        {
-            ["requestId"] = string.Create(CultureInfo.InvariantCulture, $"{_prefix}-ack-{ServiceProcess.UniqueStamp()}"),
-            ["expectedRevision"] = review["revision"].AsString(),
-            ["throughCursor"] = review["inboxCursor"].AsString(),
-        };
-        string? failure = null;
-        try
-        {
-            var reply = await _service.ApiAsync("POST", "/api/player/clock/acknowledge", ack, _token, CancellationToken.None).ConfigureAwait(false);
-            if (reply.Status != 200)
-            {
-                failure = string.Create(CultureInfo.InvariantCulture, $"acknowledge status={reply.Status}");
-            }
-        }
-        catch (AcceptanceException e)
-        {
-            failure = "acknowledge: " + e.Message;
-        }
-
-        lock (_gate)
-        {
-            if (failure is null)
-            {
-                _acknowledged++;
-            }
-            else
-            {
-                _lastError = failure;
-                _acknowledgeFailed++;
             }
         }
     }

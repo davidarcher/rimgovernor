@@ -114,7 +114,6 @@ public static partial class BridgeFunctions
         }
         if (s.State is null
             || s.NativeTickBoundary is null
-            || s.DurableEvents is null
             || s.NewestCursor is null
             || s.NewestCursor.GetValueOrDefault() < 0
             || s.HoldSerial is null

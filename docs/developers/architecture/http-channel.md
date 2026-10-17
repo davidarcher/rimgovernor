@@ -52,7 +52,7 @@ reloads. A route family whose provider is null is not registered, so it answers 
 
 | Call | Routes | Providers |
 | --- | --- | --- |
-| `PlayerRoutes.Register(routes, player, controls, clock)` | `GET /api/player/session`, `control`, `POST control/resume`, `control/pause`, `GET clock`, `POST clock/acknowledge` | `IPlayerControl`, `IControlReader`, `IClockReview` |
+| `PlayerRoutes.Register(routes, player, controls, speed)` | `GET /api/player/session`, `control`, `POST control/resume`, `control/pause`, `POST clock-speed` | `IPlayerControl`, `IControlReader`, `IClockSpeedControl` |
 | `ReadRoutes.Register(routes, snapshots, plans, rounds, colony)` | `GET /api/state`, `/api/plan?id=`, `/api/routines`, `/api/player/colony` | `ISnapshotProvider`, `IPlanReader` (both required), `IRoundsProvider`, `IColonyStatusReader` |
 | `PresentationRoutes.Register(routes, snapshots, reader, media, notifications)` | `GET /api/presentation/camera`, `selection`, `colonists`, `render-state`, `notifications`; `POST render-demand` | `IPresentationReader`, `IPresentationMediaWriter`, `INotificationReader` |
 | `LifecycleRoutes.Register(routes, snapshots, lifecycle)` | `POST` and `GET ?requestId=` on `/api/lifecycle/save`, `load`, `new`, `menu` | `ILifecycleWriter` |

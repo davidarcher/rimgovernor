@@ -17,8 +17,8 @@ public sealed class ClockTargetSpeedTests
     }
 
     private static BrainCompositionOptions Options(Speed? speed = null) => speed is { } s
-        ? new() { Profile = Path.GetTempPath(), TargetSpeed = s }
-        : new() { Profile = Path.GetTempPath() };
+        ? new() { TargetSpeed = s }
+        : new();
 
     [Fact]
     public void TheCompositionTargetsUltrafastUnlessTheOptionSaysOtherwise()

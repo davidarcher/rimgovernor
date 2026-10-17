@@ -82,7 +82,6 @@ public sealed class ResumePauseClockOwnerTests
             State = Held ? PbClock.ClockState.Held : PbClock.ClockState.Running,
             Reason = Held ? Reason : null,
             NativeTickBoundary = true,
-            DurableEvents = true,
             NewestCursor = 0,
             HoldSerial = 0,
             ObservedSpeed = Held ? PbClock.ObservedSpeed.Paused : PbClock.ObservedSpeed.Fast,
@@ -162,7 +161,7 @@ public sealed class ResumePauseClockOwnerTests
             var session = new FakeSession(Holder);
             _player = Player.Create(new PlayerConfig(timeout, timeout), Journal, session, new Worlds(), _lifetime.Token);
             var routes = new RouteTable();
-            _ = PlayerRoutes.Register(routes, new PlayerControl(_player), new Reader(Journal), null);
+            _ = PlayerRoutes.Register(routes, new PlayerControl(_player), new Reader(Journal));
             _dispatcher = new Dispatcher(routes, 1 << 20);
         }
 

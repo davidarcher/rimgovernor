@@ -424,8 +424,6 @@ public sealed record Status
 
     public bool? NativeTickBoundary { get; init; }
 
-    public bool? DurableEvents { get; init; }
-
     public long? NewestCursor { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Alert>))]

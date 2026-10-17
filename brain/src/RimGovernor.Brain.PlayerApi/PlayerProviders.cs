@@ -32,14 +32,6 @@ public interface IControlReader
     Task<ControlRecord> CurrentControlAsync(CancellationToken cancellationToken);
 }
 
-/// <summary>Clock review: the unreviewed clock events and the player's acknowledgement of them.</summary>
-public interface IClockReview
-{
-    Task<ClockReviewState> ReadAsync(CancellationToken cancellationToken);
-
-    Task<ClockReviewState> AcknowledgeAsync(ClockAcknowledgement acknowledgement, CancellationToken cancellationToken);
-}
-
 /// <summary>The speed the brain requests while it owns the clock; a change applies from the next run.</summary>
 public interface IClockSpeedControl
 {

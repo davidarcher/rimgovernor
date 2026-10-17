@@ -214,7 +214,6 @@ internal static class LifecycleReuse
                     QuietWorld = cfg.QuietWorld,
                     KeepLoaded = cfg.KeepLoaded,
                     Resumed = cfg.Resumed,
-                    ServiceProfile = cfg.ServiceProfile,
                 },
                 new ServiceLaunch(),
                 serviceReport,

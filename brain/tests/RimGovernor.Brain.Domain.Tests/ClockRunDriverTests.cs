@@ -171,7 +171,6 @@ public sealed class ClockRunDriverTests
             PauseVerified = _held ? true : null,
             HeldAtUnixMs = _held ? _heldAtMs : null,
             NativeTickBoundary = true,
-            DurableEvents = true,
             NewestCursor = _events.Count,
             HoldSerial = _holdSerial,
             ObservedSpeed = _held ? PbClock.ObservedSpeed.Paused : PbClock.ObservedSpeed.Ultrafast,
@@ -369,7 +368,7 @@ public sealed class ClockRunDriverTests
         private static readonly ActionId Second = new("second");
 
         private readonly CancellationTokenSource _lifetime = new();
-        private readonly string _profile = Path.Combine(Path.GetTempPath(), "rg-clock-run-" + Guid.NewGuid().ToString("N"));
+        private readonly string _root = Path.Combine(Path.GetTempPath(), "rg-clock-run-" + Guid.NewGuid().ToString("N"));
         private bool _stopped;
 
         private Rig(FakeGame game)
@@ -397,10 +396,10 @@ public sealed class ClockRunDriverTests
         {
             options ??= new RigOptions();
             var rig = new Rig(new FakeGame());
-            Directory.CreateDirectory(rig._profile);
+            Directory.CreateDirectory(rig._root);
             var lifetime = rig._lifetime.Token;
             var timeout = TimeSpan.FromSeconds(10);
-            rig.Journal = JournalStore.Open(Path.Combine(rig._profile, "journal.db"), lifetime);
+            rig.Journal = JournalStore.Open(Path.Combine(rig._root, "journal.db"), lifetime);
             if (options.CoupledPlan)
             {
                 var root = JournalStore.RootPlanId(PlayerWorld);
@@ -434,7 +433,6 @@ public sealed class ClockRunDriverTests
             rig.Scheduler = new ClockScheduler(rig.Player, DispatchProxy.Create<IClockStepNative, Unreached>(), new ClockSchedulerConfig { MaxAge = TimeSpan.FromSeconds(30), Worker = true }, rig.Time);
             var config = new ClockRunConfig
             {
-                Profile = rig._profile,
                 TargetSpeed = rig.Target,
                 Policy = BridgeFunctions.WithHazardThresholds(new PbClock.WatchPolicy
                 {
@@ -451,7 +449,7 @@ public sealed class ClockRunDriverTests
                 PollInterval = TimeSpan.FromMinutes(10),
                 CallTimeout = timeout,
             };
-            rig.Driver = await ClockRunDriver.CreateAsync(rig.Player, rig.Session, rig.Scheduler, rig.Game, writer, config, rig.Time, null, lifetime);
+            rig.Driver = ClockRunDriver.Create(rig.Player, rig.Session, rig.Scheduler, rig.Game, writer, config, rig.Time, null, lifetime);
             return rig;
         }
 
@@ -474,25 +472,25 @@ public sealed class ClockRunDriverTests
             }
         }
 
-        /// <summary>One scheduler step has finished, and the driver acts on it. A step begun after everything the poll reviewed has planned against it.</summary>
-        public Task<bool> StepAsync() => Driver.AfterStepAsync(new ClockSchedulerResult { StartedAt = Time.Now(), HoldSerial = Game.HoldSerial }, Ct);
-
-        public Task<ClockReviewState> ReviewAsync() => Journal.ReadClockReviewAsync(Driver.Profile, Ct);
+        /// <summary>One scheduler step has finished, and the driver acts on it. The step read the game's current hold serial.</summary>
+        public Task<bool> StepAsync() => Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = Game.HoldSerial }, Ct);
 
         /// <summary>
-        /// Waits until the poll has captured and reviewed every journal row the game holds, and has gone on to read past them.
-        /// The poll sleeps its cadence between a step's wakes, so a row the game took after the last wake is read only when
-        /// the poll is woken here; waiting on a step's wake alone races the poll's read against the row.
+        /// Waits until the poll's cursor has reached every ring row the game holds: a read after the newest row is only
+        /// issued once the cursor stands there. At an empty ring the poll's first read (from 0, before it adopts the
+        /// newest cursor) also asks after 0, so a second read is the one that proves the cursor. The poll sleeps its
+        /// cadence between a step's wakes, so a row the game took after the last wake is read only when the poll is woken
+        /// here; waiting on a step's wake alone races the poll's read against the row.
         /// </summary>
         public async Task PolledAsync()
         {
             var newest = Game.Newest;
-            if (Game.ReadsAfter(newest) == 0)
+            var reads = newest == 0 ? 2 : 1;
+            if (Game.ReadsAfter(newest) < reads)
             {
                 Driver.WakePoll();
             }
-            await UntilAsync(() => Game.ReadsAfter(newest) > 0);
-            await UntilAsync(async () => (await ReviewAsync()).ReviewedCursor == newest);
+            await UntilAsync(() => Game.ReadsAfter(newest) >= reads);
         }
 
         public async Task StopAsync()
@@ -521,7 +519,7 @@ public sealed class ClockRunDriverTests
             _lifetime.Dispose();
             try
             {
-                Directory.Delete(_profile, true);
+                Directory.Delete(_root, true);
             }
             catch (IOException)
             {
@@ -576,13 +574,13 @@ public sealed class ClockRunDriverTests
         using var rig = await Rig.StartAsync();
         await rig.PolledAsync();
 
-        Assert.False(await rig.Driver.AfterStepAsync(new ClockSchedulerResult { Deferred = true, StartedAt = rig.Time.Now() }, Ct));
+        Assert.False(await rig.Driver.AfterStepAsync(new ClockSchedulerResult { Deferred = true }, Ct));
         Assert.Equal(0, rig.Game.Runs);
         Assert.True(rig.Game.Held);
     }
 
     [Fact]
-    public async Task ANativeHazardHoldIsAcknowledgedByAStepThatPlannedAgainstItAndThenRunResumes()
+    public async Task ANativeHazardHoldResumesAtTheNextStepThatReadItsSerial()
     {
         using var rig = await Rig.StartAsync();
         await rig.PolledAsync();
@@ -590,42 +588,13 @@ public sealed class ClockRunDriverTests
 
         rig.Game.HostileHazard();
         await rig.PolledAsync();
-        var review = await rig.ReviewAsync();
         Assert.Equal(PbClock.HoldReason.Hostile, rig.Game.Reason);
-        Assert.Single(review.Holds);
 
-        // The step began after the poll reviewed the hold, so it planned against the held world: the hold is
-        // acknowledged and Run resumes the clock.
+        // The step read the hold's serial, so it planned against the held world and Run resumes the clock.
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
         Assert.Equal(2, rig.Game.Runs);
-        review = await rig.ReviewAsync();
-        Assert.Empty(review.Holds);
-        Assert.Equal(review.ReviewedCursor, review.AcknowledgedCursor);
-    }
-
-    [Fact]
-    public async Task AHoldReviewedAfterTheStepBeganStaysHeldUntilAStepPlansAgainstIt()
-    {
-        using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
-        Assert.True(await rig.StepAsync());
-
-        var early = rig.Time.Now();
-        var earlySerial = rig.Game.HoldSerial;
-        rig.Game.HostileHazard();
-        await rig.PolledAsync();
-
-        // The step began before the poll reviewed the hold, so it knows nothing of it: the Run is refused and the
-        // clock stays held, with the hold still unacknowledged.
-        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { StartedAt = early, HoldSerial = earlySerial }, Ct));
-        Assert.True(rig.Game.Held);
-        Assert.Equal(1, rig.Game.Runs);
-        Assert.Single((await rig.ReviewAsync()).Holds);
-
-        Assert.True(await rig.StepAsync());
-        Assert.False(rig.Game.Held);
-        Assert.Equal(2, rig.Game.Runs);
+        Assert.Equal(rig.Game.HoldSerial, rig.Game.RunRequests[^1].PlannedHoldSerial);
     }
 
     [Fact]
@@ -646,7 +615,7 @@ public sealed class ClockRunDriverTests
     }
 
     // A step read the running clock; a hazard held it after that read and before the driver decided, and the poll has
-    // already reviewed it, so the decision itself would resume. Returns the serial the step read.
+    // already read it, so the decision itself would resume. Returns the serial the step read.
     private static async Task<ulong> HeldAfterTheStepReadAsync(Rig rig)
     {
         await rig.PolledAsync();
@@ -664,7 +633,7 @@ public sealed class ClockRunDriverTests
         using var rig = await Rig.StartAsync();
         var stepRead = await HeldAfterTheStepReadAsync(rig);
 
-        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { StartedAt = rig.Time.Now(), HoldSerial = stepRead }, Ct));
+        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = stepRead }, Ct));
         Assert.Equal([stepRead], rig.Game.StaleSerials);
         Assert.Equal(1, rig.Game.Runs);
     }
@@ -675,7 +644,7 @@ public sealed class ClockRunDriverTests
         using var rig = await Rig.StartAsync();
         var stepRead = await HeldAfterTheStepReadAsync(rig);
 
-        var refused = await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { StartedAt = rig.Time.Now(), HoldSerial = stepRead }, Ct));
+        var refused = await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = stepRead }, Ct));
         Assert.Contains("clock run refused", refused.Message, StringComparison.Ordinal);
         Assert.True(rig.Game.Held);
         Assert.Equal(PbClock.HoldReason.Hostile, rig.Game.Reason);
@@ -720,7 +689,7 @@ public sealed class ClockRunDriverTests
         Assert.Equal(PbClock.HoldReason.Autosave, rig.Game.Reason);
         Assert.Empty(saved);
 
-        // The held step saves at the held tick, then resumes; the brain's own hold is benign and needs no review.
+        // The held step saves at the held tick, then resumes.
         await rig.PolledAsync();
         Assert.True(await rig.StepAsync());
         Assert.Equal([rig.Game.Tick], saved);
@@ -801,7 +770,7 @@ public sealed class ClockRunDriverTests
     }
 
     [Fact]
-    public async Task AReviewHoldTheBrainTookIsBenignAndRunReleasesIt()
+    public async Task AReviewHoldTheBrainTookIsReleasedByTheNextRun()
     {
         using var rig = await Rig.StartAsync();
         await rig.PolledAsync();
@@ -811,7 +780,6 @@ public sealed class ClockRunDriverTests
         await rig.Session.HoldClockAsync(PbClock.HoldReason.Review, "checkpoint", Ct);
         Assert.Equal(PbClock.HoldReason.Review, rig.Game.Reason);
         await rig.PolledAsync();
-        Assert.Empty((await rig.ReviewAsync()).Holds);
 
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
@@ -858,13 +826,12 @@ public sealed class ClockRunDriverTests
         Assert.Single(rig.Game.HoldRequests);
 
         await rig.PolledAsync();
-        Assert.Single((await rig.ReviewAsync()).Holds);
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
     }
 
     [Fact]
-    public async Task AHazardThatFiresBeforeTheBrainsAutosaveHoldKeepsItsReasonAndItsReview()
+    public async Task AHazardThatFiresBeforeTheBrainsAutosaveHoldKeepsItsReason()
     {
         using var rig = await Rig.StartAsync(new RigOptions { AutosaveEveryTicks = 500, Autosave = (_, _, _) => Task.CompletedTask });
         await rig.PolledAsync();
@@ -873,9 +840,8 @@ public sealed class ClockRunDriverTests
         Assert.False(await rig.StepAsync());
         rig.Game.Advance(500);
 
-        // The hazard is not benign: a step that began before the poll reviewed it is refused. The hazard fires inside the
-        // next step, so a time taken before that step is before any review of it, whenever the poll gets to read.
-        var early = rig.Time.Now();
+        // A step that read the hold serial before the hazard is refused. The hazard fires inside the next step, so the
+        // serial read before that step predates it, whenever the poll gets to read.
         var earlySerial = rig.Game.HoldSerial;
         rig.Game.BeforeHold = rig.Game.HostileHazard;
         Assert.True(await rig.StepAsync());
@@ -883,14 +849,14 @@ public sealed class ClockRunDriverTests
         Assert.Equal(0, rig.Game.Holds);
 
         await rig.PolledAsync();
-        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { StartedAt = early, HoldSerial = earlySerial }, Ct));
+        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = earlySerial }, Ct));
         Assert.True(rig.Game.Held);
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
     }
 
     [Fact]
-    public async Task ARunLandingWhileANewHazardFiresLeavesTheClockHeldAndTheNewHoldUnacknowledged()
+    public async Task ARunLandingWhileANewHazardFiresLeavesTheClockHeldUntilTheNextStep()
     {
         using var rig = await Rig.StartAsync();
         await rig.PolledAsync();
@@ -911,16 +877,13 @@ public sealed class ClockRunDriverTests
         Assert.False(rig.Scheduler.ClockRunning);
         Assert.Equal(2, rig.Game.Runs);
 
-        // The new hold has not been acknowledged: no step resumes the clock until the poll has reviewed it.
+        // The new hold leaves the clock held until a step plans against it.
         await rig.PolledAsync();
-        var review = await rig.ReviewAsync();
-        Assert.Single(review.Holds);
         Assert.Equal(PbClock.HoldReason.ColonistDowned, rig.Game.Reason);
 
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
         Assert.Equal(3, rig.Game.Runs);
-        Assert.Empty((await rig.ReviewAsync()).Holds);
     }
 
     [Fact]
@@ -1005,7 +968,6 @@ public sealed class ClockRunDriverTests
 
         rig.Game.Hazard(PbClock.HoldReason.CombatEvent, new PbClock.HoldEvidence.CombatCase(new PbClock.CombatEventHold { Event = PbClock.CombatEvent.Downed, ThingId = "colonist-1" }));
         await rig.PolledAsync();
-        Assert.Empty((await rig.ReviewAsync()).Holds);
 
         // The stop is the fight's next decision: the defense planner is marked and the clock stays held.
         var marks = rig.Scheduler.Queue.Seq;

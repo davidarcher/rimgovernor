@@ -24,8 +24,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// and <c>incident_methods</c> tables and the <c>plan_methods</c> view; <c>plan_owner</c> holds Needs only.
     /// Version 20 renames <c>concern_transitions</c> to <c>need_transitions</c>, keyed by the <c>need</c> column (#3265).
     /// Version 21 drops the <c>combat_evidence</c> table (#3407): its only reader was an acceptance case; OTLP keeps the stop history.
+    /// Version 22 drops the seven <c>clock_*</c> journal tables (#3417): the brain keeps no clock events; the native ring is read live.
     /// </summary>
-    public const int SchemaVersion = 21;
+    public const int SchemaVersion = 22;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

@@ -793,7 +793,7 @@ stateDiagram-v2
 | --- | --- |
 | Native clock (`NativeClockRuntime`, the supervisor) | The game's speed, the hazard probe, the event journal, the hold itself and the one ceiling. Hazard holds happen on a tick boundary within the [declared bounds](hazard-detection-bounds.md). |
 | `ClockScheduler` step | Planning only: one coherent bundle read, the planner wave and the result. It starts and stops nothing. |
-| `ClockRunDriver` | The hold state machine, run after every step. It sends `Run`, takes the brain's own holds, acknowledges reviewed holds, keeps the heartbeat and polls the journal. |
+| `ClockRunDriver` | The hold state machine, run after every step. It sends `Run`, takes the brain's own holds, keeps the heartbeat and polls the native journal from an in-memory cursor. |
 | Hands and the Worker | Order dispatch under the running clock. |
 
 The brain only ever asks for a speed. It does not manage a rate, a frame budget
@@ -819,9 +819,9 @@ Losing the brain's heartbeat is not a hold (see the ceiling below).
 After each planning step the driver reads the clock status and decides:
 
 - A held clock resumes with `Run` when the watch decision
-  (`policy.EvaluateClockWatch`) allows it: facts fresh and same-authority, every
-  captured journal page reviewed, no unacknowledged interruption or gap, no
-  unknown threat. A refused decision leaves the clock held and the next step
+  (`policy.EvaluateClockWatch`) allows it: facts fresh and same-authority, the
+  event poll caught up with a held clock's newest journal cursor, no unknown
+  threat. A refused decision leaves the clock held and the next step
   retries (`HeldException`).
 - The `Run` quotes the hold serial of the step's own read
   (`ClockSchedulerResult.HoldSerial`), never the driver's later status read.
@@ -834,9 +834,9 @@ After each planning step the driver reads the clock status and decides:
   sees. The driver only resends `Run` when the implied watch policy or the speed
   differs from the last one sent. `Run` is idempotent and doubles as the speed
   and policy change.
-- Holds that native took (a hazard, a letter) are acknowledged once a step has
-  planned against them. The brain finishes the reason, then resumes at its target
-  speed.
+- Holds that native took (a hazard, a letter) need no acknowledgement: a step
+  that read the hold's serial has planned against it. The brain finishes the
+  reason, then resumes at its target speed.
 - A step that follows a driver hold or `Run` repeats at once (a `settled` step,
   never twice in a row) so the planners work against the held world without
   waiting a step interval.

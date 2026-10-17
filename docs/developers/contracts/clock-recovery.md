@@ -9,9 +9,8 @@ validation never restores permission after restart.
 The clock is continuous run with named holds: `Run(target speed, policy)`, `Hold(reason)` and an explicit
 heartbeat ([Execute under supervision](../architecture/control-loop.md#execute-under-supervision) and the
 [clock wire contract](../../../contracts/wire/clock-lifecycle.md)). This page owns what the brain does with the native
-journal and with each run decision: the event inbox, review and acknowledgement, the run decision, the scheduler step and
-the run driver. The only clock state the brain persists is that inbox and its review log; there is no clock attempt,
-receipt or lease store.
+journal and with each run decision: the event poll, the run decision, the scheduler step and the run driver. The brain
+persists no clock state: there is no clock event inbox, review log, attempt, receipt or lease store (#3417).
 
 ## Immediate protection and ordinary review
 
@@ -40,7 +39,7 @@ records supply evidence for later calibration, without numeric latency gates.
 
 ## Session lifecycle
 
-The optional complete clock capability shares Session authority and profile ownership. Startup stays disabled and
+The optional complete clock capability shares Session authority. Startup stays disabled and
 sends no `Run`; no constructor starts time or acquires native authority. Manual and Stop hold the clock for review
 (`HOLD_REASON_REVIEW`) once, under the Control gate; a hold of an already held clock keeps the first reason. Nothing
 about the clock is persisted: a restart finds native held (`NEVER_RUN` or the last reason) until the brain sends `Run`.
@@ -48,7 +47,7 @@ about the clock is persisted: a restart finds native held (`NEVER_RUN` or the la
 ## Process event cursors
 
 The native clock journal is an in-memory ring of typed `ClockEvent` records in the
-game process (the durable copy is the brain's clock inbox, one database per launch).
+game process; the brain keeps no copy.
 Its cursors are a plain sequence from 1: the brain is hosted in the same process, so
 no cursor it holds predates the journal. A page's observation context matches the
 requested current world; each event retains its original world. A load or map change
@@ -67,7 +66,7 @@ The poll loop reads the page after its cursor unheld at `ClockRunConfig.PollInte
 page's, as above.
 
 Native journal events are `HoldEntered` (reason, evidence, detected and occurrence tick) and `Resumed` (speed, from),
-plus the facts below. A brain-requested hold is not a decision event; a hold for a non-benign native hazard reason is.
+plus the facts below. A brain-requested hold does not wake the step loop; a hold native took does.
 `ObservationInvalidated` rows name one to eight distinct `FactFamily` values (never
 unspecified) that changed under a running clock without a brain write or a
 stop. A row may narrow the discard: `entity_ids` (at most 64 distinct) name the
@@ -76,60 +75,24 @@ bounds; past the id bound the family alone is named, and a native that cannot
 attribute a change omits both. Like outcomes and authority changes they are facts,
 not holds.
 
-Valid loss evidence must be retained as a hold. Reading or storing an event does
-not acknowledge an interruption, prove it was processed, or permit time to resume.
-The brain must persist evidence before advancing its ingestion cursor.
+## Event poll
 
-`BindClockInbox` binds one canonical existing profile directory to the database.
-`AppendClockEvents` atomically stores the request, page, surviving immutable events
-and cursor progress. Exact retained request/page replay is a no-op. A changed stale
-page must be refetched from the stored cursor; it cannot rewrite prior evidence.
-Missing profile metadata with retained history is an error, not a new binding.
+`ClockEventPoll` keeps only an in-memory cursor. Its first read finds the ring's newest cursor and starts there, so a
+started or restarted brain replays no backlog and its first step plans Full. Each later read pages on from the cursor;
+a page wakes the step loop with its invalidated families and sections, an authority change, or a native hold (a hold
+the brain requested is not a wake). Reading an event acknowledges nothing and never resumes time.
 
-`ReadClockInbox` and `LoadClockInbox` validate complete retained history and derive
-the cursor, sticky gap, loss count and catalog sizes. Storage is bounded to 4,096
-pages, 4,096 events and 16 MiB of encoded requests/pages. Capacity failure leaves
-the entire append uncommitted. Review and acknowledgement are separate durable
-operations; ingestion alone never clears a gap or an interruption. Polling compacts
-eligible reviewed history before ingesting another page.
-
-## Review and acknowledgement
-
-Captured and reviewed cursors are distinct. Review consumes only committed pages
-and derives interruption and gap holds from that evidence. These never create
-interruption holds:
-
-- speed changes, hostiles-cleared, force-pause-cleared,
-  force-pause waits (an autosave or transient pause native says is not a stop; one that
-  outlasts its grace becomes a `FORCE_PAUSED` stop),
-  authority changes;
-- game alerts (`Event_Alert`): planning evidence and an `alert` row;
-- injury observations (`Event_InjuryObserved`): sub-threshold damage native coalesces;
-- notifications (`Event_Notification`): only classes native never stops play for;
-- the benign holds (`ClockJournal.BenignHold`): never-run, the brain's own coupled-order, review and autosave
-  holds, a game-forced pause, an armed combat event and a letter pause for an informational letter.
-
-Pause failures and other stop events remain conservative holds.
-Cleared conditions cannot erase an earlier unacknowledged event.
-
-Acknowledgements require an exact review revision and reviewed cursor. An exact
-request replay returns its historical result and never acknowledges later data.
-Consumers must read current review state before a new policy decision and require
-the reviewed cursor to match the current captured cursor. Acknowledgement records
-inspection only; current unsafe facts and missing native events still hold.
-
-The bounded review log validates its canonical head against its checkpoint,
-retained operations and inbox provenance on every load. Capacity refusal leaves
-state unchanged. Compaction preserves exact acknowledgement results in an indexed
-archive, queried only by request ID; later events cannot change those results.
+Nothing reviews or acknowledges holds. A held clock resumes only through a `Run` whose `planned_hold_serial` is the
+serial the step read (#3414): a hold native took after that read bumps the serial, native refuses the stale `Run`, and
+the next step re-plans against the held world.
 
 ## Run decision
 
-`policy.EvaluateClockWatch` requires fresh same-authority status and emergency facts and a complete catalog. Reviewed
-and captured cursors must match the native newest cursor, with no interruption or gap holds. Native tick boundaries
-and durable events must be known (a never-run clock reports `HOLD_REASON_NEVER_RUN`). The decision names the watch
-mode and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `unknown_facts`, `unsafe_colony`,
-`unreviewed_events` or `interruption`) only keeps a held clock held; it never stops a running one.
+`policy.EvaluateClockWatch` requires fresh same-authority status and emergency facts and a complete catalog. The poll
+must have read its first page, and a held clock's native newest cursor must not run ahead of the poll's cursor. Native
+tick boundaries must be known (a never-run clock reports `HOLD_REASON_NEVER_RUN`). The decision names the watch mode
+and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `unknown_facts`, `unsafe_colony` or
+`unreviewed_events`) only keeps a held clock held; it never stops a running one.
 
 ### Threat and stock rules
 
@@ -249,9 +212,8 @@ bracket: CAS evidence on every write refuses a decision the world moved past.
 ## Run driver
 
 `ClockRunDriver` runs three loops separately: the native journal poll, the heartbeat and the step loop. The step loop
-calls `AfterStepAsync` after every scheduler step. Polling never takes the Player gate: observed interruptions
-invalidate permission before persistence, and read or persistence failures also disable writes. Pages commit before
-review; no event is automatically acknowledged.
+calls `AfterStepAsync` after every scheduler step. Polling never takes the Player gate; a page whose world is not the
+one authority was granted for disables authority. No event is acknowledged or persisted.
 
 The driver is the hold state machine. Native is Running at the target speed or Held for a named reason, and only a
 `Run` ends a hold. After each step the driver diffs the watch policy the facts imply against the last one sent and
@@ -263,7 +225,7 @@ five seconds); losing the beat lowers the native ceiling to Normal and is neithe
 authority ends under a `Run` this driver sent, the same loop holds the clock for review (`no_authority`).
 
 The session attaches one clock driver before its loops start. Close cancels and joins the loops before releasing
-native handles, the journal or profile owner. Concurrent Stop calls serialize, successful cleanup is cached, failed
+native handles or the journal. Concurrent Stop calls serialize, successful cleanup is cached, failed
 cleanup is retryable; Stop drops authority and holds the clock for review. Autonomous play attaches the driver;
 observe-only (`RIMGOVERNOR_OBSERVE`) does not.
 
@@ -345,26 +307,7 @@ opt-out.
 
 A fresh driver over reopened state remains disabled: it acquires no authority and sends no `Run`. Native stays held
 (`NEVER_RUN`, or the last hold) until the brain sends `Run` under a fresh grant. A native reply that ignores
-cancellation keeps shutdown retryable and the profile locked until the call returns.
-
-## Event and review maintenance
-
-Event/review maintenance checkpoints the validated review head and retires a
-contiguous reviewed prefix, retaining eight recent pages and every unreviewed or
-unacknowledged interruption/gap. Cursors, revision, profile binding and cumulative
-loss evidence survive compaction and restart. Deletion, checkpoint advancement and
-acknowledgement archival commit atomically. Maintenance runs at 128 active
-reviews/pages, 256 events or half the byte budget. Unresolved holds can still fill
-the bounded inbox and fail closed; they are never discarded to make space.
-
-With clock supervision enabled, GET /api/player/clock exposes durable review
-revision, cursors and interruption/gap holds. POST /api/player/clock/acknowledge
-requires the player session token, an explicit request ID, expectedRevision and
-throughCursor; counters use canonical decimal strings. A changed revision returns a
-conflict; exact replay uses the retained request ID. It only acknowledges inspected
-evidence and never acquires authority or resumes time. The launcher preserves its
-last review during refresh failures and offers an explicit retry of the same
-acknowledgement after an uncertain response.
+cancellation keeps shutdown retryable until the call returns.
 
 ### Zone policy section
 

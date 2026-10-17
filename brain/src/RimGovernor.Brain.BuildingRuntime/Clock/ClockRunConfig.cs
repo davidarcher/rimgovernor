@@ -1,15 +1,12 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// What the run driver needs beyond the scheduler's own configuration: the profile whose native journal it polls, the
-/// speed it asks the clock to run at, the base watch policy every Run carries, the autosave and the poll cadence (Go
-/// <c>ClockSchedulerConfig</c> fields the planning step does not use, and <c>ClockWorkerConfig</c>).
+/// What the run driver needs beyond the scheduler's own configuration: the speed it asks the clock to run at, the
+/// base watch policy every Run carries, the autosave and the poll cadence (Go <c>ClockSchedulerConfig</c> fields the
+/// planning step does not use, and <c>ClockWorkerConfig</c>).
 /// </summary>
 public sealed record ClockRunConfig
 {
-    /// <summary>The native profile whose journal the poll reads.</summary>
-    public required string Profile { get; init; }
-
     /// <summary>The speed the clock runs at; a change reaches the clock as a Run at the new speed (player acceleration only while it is Ultrafast).</summary>
     public required ClockTargetSpeed TargetSpeed { get; init; }
 

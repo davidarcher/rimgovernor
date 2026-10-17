@@ -6,9 +6,9 @@ using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace HomeBridge.BridgeTools
 {
-    // The process's clock events, in memory only: the durable copy is the
-    // brain's clock inbox (persistence-contracts.md, one database per
-    // launch), so native keeps a bounded ring for the brain to page. Cursors
+    // The process's clock events, in memory only: nothing keeps a durable
+    // copy (the brain reads the ring live and persists no clock events,
+    // persistence-contracts.md); native keeps a bounded ring to page. Cursors
     // are a plain sequence from 1; the brain is hosted in this process, so
     // no cursor it holds predates the journal. Events overwritten in the ring
     // read as lost, one per scanned position.

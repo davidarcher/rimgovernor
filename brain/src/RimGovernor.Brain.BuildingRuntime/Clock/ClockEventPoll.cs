@@ -1,10 +1,9 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Port of internal/buildingruntime/clock_poll.go (PollEvents and its page predicates). The Go lease and its renewal are
-// not carried (Boundary.cs documents the lease as dropped). The poll captures the native journal page into the
-// controller's inbox and marks it reviewed; it never disables authority for a hold and never acknowledges one: native
-// holds itself on a hazard and stays held until the run driver, having planned against the held world and
-// acknowledged what it reviewed, sends Run.
+// not carried (Boundary.cs documents the lease as dropped). The poll pages the native ring after an in-memory cursor
+// for wakes and the authority check; nothing about events is kept. It never disables authority for a hold and never releases
+// one: native holds itself on a hazard and stays held until the run driver sends a Run whose hold serial matches.
 
 /// <summary>What the native clock exposes to the event poll (Go <c>ClockEventNative</c>).</summary>
 public interface IClockEventNative
@@ -12,7 +11,7 @@ public interface IClockEventNative
     /// <summary>One bare or identified step read; the poll uses it only to learn the current world's identity.</summary>
     Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeApi.StepRequest request, CancellationToken ct);
 
-    /// <summary>The journal page after a cursor. A refusal is a <see cref="NativeFailureException"/>.</summary>
+    /// <summary>The ring page after a cursor. A refusal is a <see cref="NativeFailureException"/>.</summary>
     Task<PbClock.EventsReply> ReadClockEventsAsync(PbClock.EventsRequest request, CancellationToken ct);
 }
 
@@ -31,33 +30,29 @@ internal sealed record ClockPollResult
     public bool Held { get; init; }
 
     public DateTimeOffset? HeldAt { get; init; }
-
-    public ClockReviewState? Review { get; init; }
 }
 
 /// <summary>
-/// Reads the native clock journal into the controller's inbox and marks it reviewed (Go
-/// <c>ClockScheduler.PollEvents</c>). It never takes the player gate.
+/// Pages the native clock ring after an in-memory cursor (Go <c>ClockScheduler.PollEvents</c>). The cursor starts at
+/// the ring's newest on the first page: a started or restarted brain replays no backlog, and its first step plans
+/// Full. It never takes the player gate.
 /// </summary>
 internal sealed class ClockEventPoll(
-    Player player,
     Session session,
     IClockEventNative native,
-    IClock clock,
     ClockRunConfig config) : IDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private PbCommon.Identity? _identity;
-    private bool _historyKnown;
-    private long _reviewedAtTicks;
+    private long _cursor = -1;
 
     public void Dispose() => _gate.Dispose();
 
     /// <summary>The loaded world's identity as of the last page the poll read; null before the first page or after a failed read.</summary>
     public PbCommon.Identity? Identity => Volatile.Read(ref _identity);
 
-    /// <summary>When the review last moved forward; a step that began after it has planned against everything the review covers.</summary>
-    public DateTimeOffset ReviewedAt => new(Volatile.Read(ref _reviewedAtTicks), TimeSpan.Zero);
+    /// <summary>The ring cursor the poll has read through; -1 before its first page.</summary>
+    public long Cursor => Volatile.Read(ref _cursor);
 
     private static bool MatchesAuthority(PbCommon.ObservationContext observed, ControlState state) =>
         !state.Enabled
@@ -88,22 +83,18 @@ internal sealed class ClockEventPoll(
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(config.CallTimeout);
             var call = timeout.Token;
-            var journal = player.Journal;
-
-            var review = await journal.ReadClockReviewAsync(config.Profile, call).ConfigureAwait(false);
-            await journal.CompactClockHistoryAsync(config.Profile, call).ConfigureAwait(false);
-            // The poll's one native read: the journal page after the review's cursor. A load between the identity and
-            // the read answers StaleIdentity with the current context; the poll re-anchors on it and asks again, once.
+            // The poll's one native read: the ring page after the cursor. A load between the identity and the read
+            // answers StaleIdentity with the current context; the poll re-anchors on it and asks again, once.
             var identity = await EventsIdentityAsync(call).ConfigureAwait(false);
             PbClock.EventsRequest request = new();
             PbClock.EventsReply? reply = null;
             Exception? readError = null;
 
-            async Task ReadAsync()
+            async Task ReadAsync(long after)
             {
                 for (var attempt = 0; ; attempt++)
                 {
-                    request = new PbClock.EventsRequest { Identity = identity, AfterCursor = review.InboxCursor, Limit = config.PageLimit };
+                    request = new PbClock.EventsRequest { Identity = identity, AfterCursor = after, Limit = config.PageLimit };
                     readError = null;
                     try
                     {
@@ -123,22 +114,18 @@ internal sealed class ClockEventPoll(
                 }
             }
 
-            await ReadAsync().ConfigureAwait(false);
-            // A journal that never read this profile adopts the native backlog but its newest page as history
-            // instead of replaying every earlier session a page per poll.
-            if (readError is null && reply?.Outcome?.Page is { } first && review.InboxCursor == 0 && !_historyKnown && !first.Gap.GetValueOrDefault()
-                && first.NewestCursor - config.PageLimit > 0 && first.NewestCursor > LastCursor(first))
+            var cursor = Cursor;
+            await ReadAsync(Math.Max(cursor, 0)).ConfigureAwait(false);
+            // The first page only finds the ring's newest cursor: the poll starts there and reads what follows it.
+            if (readError is null && cursor < 0 && reply?.Outcome?.Page is { } first)
             {
-                var skip = first.NewestCursor.GetValueOrDefault() - config.PageLimit;
-                if (await journal.AdoptClockBacklogAsync(config.Profile, skip, call).ConfigureAwait(false))
+                if (first.Context?.Identity is { } adopted)
                 {
-                    review = await journal.ReadClockReviewAsync(config.Profile, call).ConfigureAwait(false);
-                    if (first.Context?.Identity is { } adopted)
-                    {
-                        identity = adopted;
-                    }
-                    await ReadAsync().ConfigureAwait(false);
+                    identity = adopted;
                 }
+                cursor = first.NewestCursor.GetValueOrDefault();
+                Volatile.Write(ref _cursor, cursor);
+                await ReadAsync(cursor).ConfigureAwait(false);
             }
             if (readError is not null)
             {
@@ -151,7 +138,7 @@ internal sealed class ClockEventPoll(
             var state = session.State();
             if (!MatchesAuthority(current, state))
             {
-                // The loaded world is not the one authority was granted for: authority ends, the page is still captured.
+                // The loaded world is not the one authority was granted for: authority ends, the page is still read.
                 ClockEvents.AuthorityLost("events poll context does not match the held authority",
                     ("held_known", state.ObservationKnown), ("held", state.Snapshot.ToString()), ("observed_generation", current.NativeGeneration), ("observed_tick", current.Tick));
                 if (!TryDisableObserved(state))
@@ -160,25 +147,18 @@ internal sealed class ClockEventPoll(
                 }
             }
             BridgeApi.ValidateClockEventsPage(page, request);
-            _historyKnown = true;
             call.ThrowIfCancellationRequested();
-            var (_, captured) = await journal.AppendClockEventsAsync(config.Profile, request, page, call).ConfigureAwait(false);
+            var next = page.NextCursor.GetValueOrDefault();
+            var captured = next != cursor;
             ClockPageWake wake = new([], false, false, null);
             IReadOnlyList<Facts.Section> sections = [];
             if (captured)
             {
+                Volatile.Write(ref _cursor, next);
                 Tel.ObserveTick(current.Tick);
                 wake = Pkg.PageWake(page);
                 sections = Pkg.ClockPageSections(page);
             }
-            review = await journal.ReadClockReviewAsync(config.Profile, call).ConfigureAwait(false);
-            var before = review.ReviewedCursor;
-            var reviewed = await journal.ReviewClockEventsAsync(config.Profile, review.Revision, call).ConfigureAwait(false);
-            if (reviewed.ReviewedCursor != before)
-            {
-                Volatile.Write(ref _reviewedAtTicks, clock.Now().UtcTicks);
-            }
-            call.ThrowIfCancellationRequested();
             return new ClockPollResult
             {
                 Captured = captured,
@@ -187,7 +167,6 @@ internal sealed class ClockEventPoll(
                 AuthorityChanged = wake.Authority,
                 Held = wake.Stopped,
                 HeldAt = wake.StopAt,
-                Review = reviewed,
             };
         }
         finally
@@ -209,6 +188,4 @@ internal sealed class ClockEventPoll(
             return false;
         }
     }
-
-    private static long LastCursor(PbClock.EventsPage page) => page.Events.Count == 0 ? -1 : page.Events[^1].Cursor.GetValueOrDefault();
 }

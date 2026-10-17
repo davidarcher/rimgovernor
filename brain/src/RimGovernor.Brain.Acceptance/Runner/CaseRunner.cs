@@ -410,15 +410,11 @@ public sealed class CaseRunner
         if (resumed.Resuming)
         {
             // The bundle's save replaces the case's Start (the fixture op already ran before the capture), its store
-            // lands where the service opens it, and its journal is read at a fresh launch.
+            // lands where the service opens it, and a kept process relaunches.
             var entry = resumed.Entry!;
             var save = Wrap("stage checkpoint", () => Checkpoints.StageCheckpoint(opts.Root, entry, Path.Combine(output, "service.sqlite")));
             start = new SaveStart { Name = save, Resumed = true };
             cfg.Resumed = true;
-            if (entry.Store && entry.ServiceProfile.Length > 0)
-            {
-                cfg.ServiceProfile = entry.ServiceProfile;
-            }
 
             var rev = resumed.Previous is { } previous ? previous.SourceRevision : entry.SourceRevision;
             report["resumed_from"] = new JsonObject
@@ -438,10 +434,6 @@ public sealed class CaseRunner
             var save = Wrap("stage bundle", () => Checkpoints.StageCheckpoint(opts.Root, entry, Path.Combine(output, "service.sqlite")));
             start = new SaveStart { Name = save, Resumed = true };
             cfg.Resumed = true;
-            if (entry.Store && entry.ServiceProfile.Length > 0)
-            {
-                cfg.ServiceProfile = entry.ServiceProfile;
-            }
 
             report["staged_from"] = new JsonObject
             {

@@ -62,7 +62,7 @@ public static partial class BridgeFunctions
         var previous = request.AfterCursor.GetValueOrDefault();
         foreach (var @event in page.Events)
         {
-            ClockJournalEvent(@event);
+            ClockPageEvent(@event);
             if (@event.Cursor.GetValueOrDefault() <= previous
                 || @event.Cursor.GetValueOrDefault() > page.NextCursor.GetValueOrDefault())
             {
@@ -76,7 +76,7 @@ public static partial class BridgeFunctions
         }
     }
 
-    private static void ClockJournalEvent(ClockEvent @event)
+    private static void ClockPageEvent(ClockEvent @event)
     {
         ValidateContext(@event.Context);
         if (@event.Cursor is null

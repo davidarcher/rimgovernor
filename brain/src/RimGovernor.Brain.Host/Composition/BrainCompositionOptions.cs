@@ -4,14 +4,11 @@ namespace RimGovernor.Brain.Host;
 
 /// <summary>
 /// What <see cref="BrainComposition"/> needs beyond the facade: the parts of Go's <c>serveConfig</c> the composition
-/// reads. Every default is the Go flag's default, so <c>new BrainCompositionOptions { Profile = ... }</c> composes what
+/// reads. Every default is the Go flag's default, so <c>new BrainCompositionOptions()</c> composes what
 /// an autonomous <c>rimgovernor serve</c> composed.
 /// </summary>
 public sealed record BrainCompositionOptions
 {
-    /// <summary>The shared game profile directory whose native journal the clock run driver polls (Go <c>--profile</c>); must exist.</summary>
-    public required string Profile { get; init; }
-
     /// <summary>The routine planner families (Go <c>RIMGOVERNOR_ROUTINE_FAMILIES</c>, every family on by default).</summary>
     public BrainFamilies Families { get; init; } = BrainFamilies.All;
 
@@ -51,10 +48,6 @@ public sealed record BrainCompositionOptions
 
     internal void Validate()
     {
-        if (string.IsNullOrWhiteSpace(Profile) || !Path.IsPathRooted(Profile))
-        {
-            throw new ArgumentException("the profile must be an absolute directory", nameof(Profile));
-        }
         ArgumentNullException.ThrowIfNull(Families);
         if (TargetSpeed == PbClock.Speed.Unspecified || !Enum.IsDefined(TargetSpeed))
         {

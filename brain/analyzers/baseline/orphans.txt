@@ -22,7 +22,6 @@ Policy|CardSiteAction.Action
 Policy|ClearedRoom.Room
 Policy|ClockWatchDecision.Snapshot
 Policy|ClockWatchDecision.Tick
-Policy|ClockWatchReview.Revision
 Policy|ClothingActivityDemand.Findings
 Policy|ColonyDiagnostics.Construction
 Policy|ColonyDiagnostics.HorizonDays

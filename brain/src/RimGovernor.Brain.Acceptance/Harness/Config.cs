@@ -49,16 +49,9 @@ public sealed partial class Config
     public bool KeepLoaded { get; set; }
 
     /// <summary>
-    /// Marks a run restored from a checkpoint bundle: its store holds clock cursors from the process that saved it,
-    /// so the open relaunches a kept process, whose cursors could be older.
+    /// Marks a run restored from a checkpoint bundle: the open relaunches a kept process rather than reuse it.
     /// </summary>
     public bool Resumed { get; set; }
-
-    /// <summary>
-    /// The profile directory every service this session launches uses instead of <c>&lt;Output&gt;/service-profile</c>:
-    /// a resumed run keeps its bundle's, which the restored store is bound to.
-    /// </summary>
-    public string ServiceProfile { get; set; } = "";
 
     /// <summary>
     /// The environment entries a fresh game launch under this configuration adds: <c>RIMGOVERNOR_STATE</c> (the brain's
@@ -71,7 +64,4 @@ public sealed partial class Config
         // auto-resume would race that start and run the bot in native-only cases. A ServeSpec.Env entry overrides this.
         [HeadlessProfile.ObserveVariable] = "1",
     };
-
-    /// <summary>The profile directory services launched under this configuration use.</summary>
-    public string ServiceProfileDir() => ServiceProfile.Length > 0 ? ServiceProfile : Path.Combine(Output, "service-profile");
 }

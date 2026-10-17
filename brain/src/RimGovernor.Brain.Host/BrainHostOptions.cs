@@ -183,9 +183,6 @@ public sealed record BrainHostOptions
     /// <summary>The state database (Go <c>--state</c>). A database from another schema version is moved aside and replaced.</summary>
     public required string StatePath { get; init; }
 
-    /// <summary>The shared game profile directory the clock review reads its player-owned files from (Go <c>--profile</c>).</summary>
-    public required string ProfileDirectory { get; init; }
-
     /// <summary>The directory the OTLP/JSON files are written to (the Bridge's <c>RIMGOVERNOR_OTLP_DIR</c>).</summary>
     public required string OtlpDirectory { get; init; }
 
@@ -219,9 +216,9 @@ public sealed record BrainHostOptions
 
     internal void Validate()
     {
-        if (!Path.IsPathRooted(StatePath) || !Path.IsPathRooted(ProfileDirectory) || !Path.IsPathRooted(OtlpDirectory))
+        if (!Path.IsPathRooted(StatePath) || !Path.IsPathRooted(OtlpDirectory))
         {
-            throw new ArgumentException("the state path, profile directory and OTLP directory must be absolute");
+            throw new ArgumentException("the state path and OTLP directory must be absolute");
         }
         if (string.IsNullOrWhiteSpace(RunId) || string.IsNullOrWhiteSpace(OtlpService))
         {

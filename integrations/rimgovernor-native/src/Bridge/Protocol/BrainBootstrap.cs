@@ -60,7 +60,6 @@ namespace HomeBridge.BridgeTools
                     return;
                 }
                 _ = Directory.CreateDirectory(Path.GetDirectoryName(inputs!.StatePath)!);
-                _ = Directory.CreateDirectory(inputs.ProfileDirectory);
                 _ = Directory.CreateDirectory(inputs.OtlpDirectory);
 
                 var routesStart = LaunchPhases.UtcNow;
@@ -75,7 +74,6 @@ namespace HomeBridge.BridgeTools
                 timings = timings with { ShutdownAttempts = 1, ShutdownAttemptTimeout = TimeSpan.FromSeconds(8) };
                 var composition = new BrainComposition(new BrainCompositionOptions
                 {
-                    Profile = inputs.ProfileDirectory,
                     LayoutOverlay = inputs.LayoutOverlay,
                     // The acceptance harness narrows the families through the launch environment; unset composes every family.
                     Families = BrainFamilies.FromEnvironment(Environment.GetEnvironmentVariable(BrainFamilies.EnvironmentVariable)),
@@ -90,7 +88,6 @@ namespace HomeBridge.BridgeTools
                 var started = await BrainHost.StartAsync(new BrainHostOptions
                 {
                     StatePath = inputs.StatePath,
-                    ProfileDirectory = inputs.ProfileDirectory,
                     OtlpDirectory = inputs.OtlpDirectory,
                     RunId = inputs.RunId,
                     Timings = timings,

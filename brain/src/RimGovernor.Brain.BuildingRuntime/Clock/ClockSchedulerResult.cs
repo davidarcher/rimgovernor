@@ -9,9 +9,6 @@ public sealed class ClockSchedulerResult
 {
     public bool Immediate { get; set; }
 
-    /// <summary>When the step began: everything the event poll had reviewed before it is what the step planned against.</summary>
-    public DateTimeOffset StartedAt { get; set; }
-
     /// <summary>
     /// The hold serial the step's own clock read reported. The run driver's Run quotes it, never its own later read,
     /// so a hold native entered after the step planned refuses the resume.

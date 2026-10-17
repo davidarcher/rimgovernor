@@ -78,12 +78,3 @@ internal sealed class HostClockSpeed(ClockTargetSpeed target) : IClockSpeedContr
 
     public void Change(PbClock.Speed speed) => target.Set(speed);
 }
-
-/// <summary>The clock review: unreviewed clock events and the player's acknowledgement, from the journal and the profile.</summary>
-internal sealed class HostClockReview(StoreJournal journal, string profile) : IClockReview
-{
-    public Task<ClockReviewState> ReadAsync(CancellationToken cancellationToken) => journal.ReadClockReviewAsync(profile, cancellationToken);
-
-    public Task<ClockReviewState> AcknowledgeAsync(ClockAcknowledgement acknowledgement, CancellationToken cancellationToken) =>
-        journal.AcknowledgeClockEventsAsync(profile, acknowledgement, cancellationToken);
-}

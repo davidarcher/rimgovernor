@@ -165,7 +165,6 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.Sqlite.Core": "[10.0.0, )",
-          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",

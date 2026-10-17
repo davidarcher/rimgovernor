@@ -370,8 +370,7 @@ public sealed partial class BrainComposition
     }
 
     // The run driver's configuration: the base colony watch policy every Run carries, the poll cadence and the
-    // autosave hold. ComposePlanners is synchronous, so the driver's journal binding is waited on from a thread-pool
-    // thread (it holds no thread-affine state).
+    // autosave hold.
     private ClockRunHostDriver CreateClock(PlannerContext context, FacadeNativeClient client, ClockScheduler scheduler, IClockWriter clockWriter)
     {
         var testAcceleration = _options.ClockTestAcceleration;
@@ -380,7 +379,6 @@ public sealed partial class BrainComposition
         // speed whatever the native speed controls say.
         var config = new ClockRunConfig
         {
-            Profile = _options.Profile,
             TargetSpeed = testAcceleration ? new ClockTargetSpeed(PbClock.Speed.Ultrafast) : TargetSpeed,
             Policy = BridgeFunctions.WithHazardThresholds(new PbClock.WatchPolicy
             {
@@ -397,8 +395,7 @@ public sealed partial class BrainComposition
             PollInterval = TimeSpan.FromSeconds(1),
             CallTimeout = lease,
         };
-        var driver = Task.Run(() => ClockRunDriver.CreateAsync(context.Player, context.Session, scheduler, client, clockWriter, config, SystemClock.Instance, context.Wake, CancellationToken.None))
-            .GetAwaiter().GetResult();
+        var driver = ClockRunDriver.Create(context.Player, context.Session, scheduler, client, clockWriter, config, SystemClock.Instance, context.Wake, CancellationToken.None);
         return new ClockRunHostDriver(driver);
     }
 

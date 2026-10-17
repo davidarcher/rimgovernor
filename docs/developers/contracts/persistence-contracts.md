@@ -17,7 +17,7 @@ still loads (its `standard/<id>` blobs are ignored). Databases from other versio
 there is no adoption path.
 
 The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
-keeps the same ownership rules in its own file format: `PRAGMA user_version` 21 (`Store.SchemaVersion`) and the same `application_id`.
+keeps the same ownership rules in its own file format: `PRAGMA user_version` 22 (`Store.SchemaVersion`) and the same `application_id`.
 Domain payloads (actions, admissions, transitions, Rounds and the family records) are
 JSON text written by hand-written codecs under `Codec/` with fixed field names and no reflection
 serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`). The per-kind column checks the brain kept in SQL `CHECK`
@@ -41,7 +41,7 @@ copy of a fact is a bug, not a cache.
 |---|---|---|
 | Native save, `GovernorState` blobs | Brain intent the world cannot show: family plans (`family/*`; the layout plan, `family/layout_plan`, keys each pen room with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`), original temporary combat settings (`family/combat_restoration`), the creepjoiner inspection record (`family/admin/creep_joiners`: the pawns ordered and done, keyed by colony and map, so it is read back after a reload; #3264), the settlement trade missions under way (`family/economy/trade_missions`: each mission's minted id and intent, keyed by colony and map; a mission leaves it once delivered or ended; #3316) and the ideology family's pending reform (`family/ideology/reform`, #3260); written by the brain at save time, opaque to native | Follows the save's timeline; the brain rebuilds its in-memory views from the blobs |
 | Native save, other components | Exact non-autonomous `Bill_GovernorRecipe` intents and native unfinished garments (recipe, stuff, ingredients, remaining work and bound bill); only Hands provisions these after selecting a Method, and only owned bills without unfinished work are cleaned up. Colony identity, per-target construction settings, the finishing-skill floor (the brain chooses once; native transfers blueprint to frame and enforces every finishing order) and the mutable [construction tier](construction-tiers.md), and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; home coverage). Native observation rings, each one packed, versioned, append-only string: realized consumption (`ConsumptionState`, hourly spend per definition and reason, 60 days) and storage occupancy (`StorageOccupancyState`, hourly stacks held per player storage group by load id, 15 days); the brain derives rates from them and keeps no copy past the load | Follows the save; construction settings disappear with the exact cancelled/completed target, never transfer by cell |
-| SQLite, one database per launch (`RIMGOVERNOR_STATE`) | The session journal: actions (including selected productive task service-time bounds), transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
+| SQLite, one database per launch (`RIMGOVERNOR_STATE`) | The session journal: actions (including selected productive task service-time bounds), transitions, admissions, request-ID replay; no clock events (native buffers them in memory only, #3417) | Not restored; read across launches only by postmortem |
 | memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read per load token), the def stat table (def-level stat values, allowed stuffs and adjusted costs; owned by the mod's `NativeStatTable`, built once per load on the game thread by the catalog read and read immutable by the brain catalog; [stat evaluation](stat-classes.md)), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`), equipment-owned requirement estimates on transient clothing candidates (derived from the current census, not bill identity or reservations); the family tables are such views of the save blobs (`RebuildFamilies`; `RebuildOwners` retires the previous world's owned plans in one orphan pass) | Rebuilt from the save and the live world |
 | Refusal budget ledger (`policy.RefusalBudget.Entries`) | A planner's refusals by subject and reason, each with its class and the `GenerationSnapshot` it was met in. A pure value: the store that owns the subject persists it. Every planner that retries a refused write (medical, repair, clean, equip, mood, drill, clearance, husbandry, population, quest, ideology, ritual, permit, defense, firebreak, mine, sleeping, trade and psylink) derives its ledger from the refusals journaled on its plans each step and keeps nothing of its own | With its owner: a session-scoped planner's ledger is derived and rebuilt |
 | OTLP files `otlp/traces.jsonl`, `logs.jsonl`, `metrics.jsonl` | All brain telemetry, one log record per thing that happened ([OTEL signals](otel-signals.md)), the only log: always on in the host, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
@@ -196,7 +196,7 @@ version 216; a database of another version is moved aside, never migrated):
   observation, never by transport replay. A reply lost after dispatch leaves the action uncertain; it
   is reconciled from the next observation, and its plan stays live until then.
 - **Request-ID replay.** Player submissions (policies, decisions, building and research intents,
-  control intents, clock acknowledgements) are keyed by the caller's request ID within a world.
+  control intents) are keyed by the caller's request ID within a world.
   Repeating an ID returns the recorded outcome; a changed body under the same ID is a conflict.
   Native keeps no action replay: the in-process game-thread hop returns the result of every body
   that ran, and cancellation reaches only a hop still queued. The brain journals each
@@ -205,9 +205,6 @@ version 216; a database of another version is moved aside, never migrated):
 - **The Rounds cursor and policy inputs.** Latches, recovery histories and the Needs' progress rows let the
   next review continue where the last stopped; population and resource policies and
   per-pawn decisions are what the reviewer reads.
-- **Clock inbox and source cursors.** Native clock reads journal fetched events with their source
-  cursor before advancing; delivery consumes the inbox atomically with the review. Colony-scoped
-  cursors survive load changes; history beyond a bounded tail is retired once reviewed.
 - **Colony extent history.** Established extent regions (with provenance and the tick and native
   generation that first observed them) are an append-only session cache per world (colony, map)
   (`store.EstablishColonyExtent`). A read sees the world's entries at or before its tick. A world

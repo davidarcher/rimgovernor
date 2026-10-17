@@ -8,8 +8,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 //   Running  the watch policy the facts imply is diffed against the last one sent and resent when it differs (Run is
 //            idempotent and doubles as the speed change); a coupled order newly ready, or an autosave that is due,
 //            takes a brain hold. A refused decision never stops a running clock: native holds on what it sees.
-//   Held     the autosave runs when one is due, the holds the review shows are acknowledged once a step has planned
-//            against them, and Run resumes the clock when the decision allows it.
+//   Held     the autosave runs when one is due, and Run resumes the clock when the decision allows it. The Run quotes
+//            the hold serial the step read, so native refuses it when a hold entered after that read.
 //
 // Differences from Go, all consequences of the C# step planning only: the status and the emergency census are read
 // again here, and the step publishes its own clock_step row while this driver files its own "clock_run" row.
@@ -30,8 +30,6 @@ public sealed partial class ClockRunDriver
         public int Live { get; set; }
 
         public int CoupledOrders { get; set; }
-
-        public int Acknowledged { get; set; }
 
         public ClockWatchDecision? Decision { get; set; }
 
@@ -85,10 +83,6 @@ public sealed partial class ClockRunDriver
         if (note.CoupledOrders > 0)
         {
             attrs["coupled_orders"] = note.CoupledOrders;
-        }
-        if (note.Acknowledged > 0)
-        {
-            attrs["acknowledged_holds"] = note.Acknowledged;
         }
         if (note.HeldFor is { } heldFor)
         {
@@ -268,17 +262,8 @@ public sealed partial class ClockRunDriver
             }
         }
 
-        // The holds the review shows were captured before this step began, so it planned against them: acknowledge.
-        var review = await journal.ReadClockReviewAsync(_config.Profile, call).ConfigureAwait(false);
-        if (review.Holds.Count > 0 && review.ReviewedCursor == review.InboxCursor && _poll.ReviewedAt < step.StartedAt)
-        {
-            note.Acknowledged = review.Holds.Count;
-            var ack = new ClockAcknowledgement($"clock-ack-{review.Revision}-{review.ReviewedCursor}", review.Revision, review.ReviewedCursor);
-            review = await journal.AcknowledgeClockEventsAsync(_config.Profile, ack, call).ConfigureAwait(false);
-        }
-
         // The decision's emergency census is the freshest the driver holds: file it so the store's section is the one
-        // the run was decided against, not the review's earlier read of the same world.
+        // the run was decided against, not the step's earlier read of the same world.
         EmergencyObservation emergency;
         EmergencySnapshot emergencyFacts;
         try
@@ -315,22 +300,13 @@ public sealed partial class ClockRunDriver
             SinceStarted = _clock.Now() - started,
             SinceObserved = _clock.Now() - observedAt,
             Emergency = emergencyFacts,
-            Review = new ClockWatchReview
-            {
-                Revision = review.Revision,
-                Captured = review.InboxCursor,
-                Reviewed = review.ReviewedCursor,
-                Acknowledged = review.AcknowledgedCursor,
-                HasHolds = Known(review.Holds.Count > 0),
-            },
+            Captured = _poll.Cursor,
             Status = new ClockWatchStatus
             {
                 Snapshot = state.Snapshot,
                 Tick = tick,
                 State = running ? ClockWatchState.Running : ClockWatchState.Held,
-                NeverRun = status.Reason == PbClock.HoldReason.NeverRun,
                 NativeTickBoundary = Boundary.FactBool(status.NativeTickBoundary is not null, status.NativeTickBoundary.GetValueOrDefault()),
-                DurableEvents = Boundary.FactBool(status.DurableEvents is not null, status.DurableEvents.GetValueOrDefault()),
                 NewestCursor = status.NewestCursor is not null ? Known((long)status.NewestCursor.GetValueOrDefault()) : Unknown<long>(),
             },
             CombatPlan = Known(combatPlan),

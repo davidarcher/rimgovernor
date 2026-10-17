@@ -137,15 +137,6 @@ public static class ServiceJournal
                     entry["state_error"] = e.Message;
                 }
 
-                try
-                {
-                    entry["clock"] = (await service.ApiAsync("GET", "/api/player/clock", null, "", ct).ConfigureAwait(false)).Body?.DeepClone();
-                }
-                catch (NativeTransportException e)
-                {
-                    entry["clock_error"] = e.Message;
-                }
-
                 diagnostics.Add(entry);
                 var mode = state.Member("mode").AsString();
                 if (mode == "automate")

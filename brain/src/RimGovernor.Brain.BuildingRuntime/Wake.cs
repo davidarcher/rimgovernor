@@ -9,8 +9,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public readonly record struct WakeOutcome(ActionId Action, AttemptId Attempt, bool Terminal = false);
 
 /// <summary>
-/// Carries committed clock evidence from the poll loop to the scheduler step loop and the Worker. Only evidence
-/// the journal has stored wakes anyone; a wake is a hint to act now, never a fact by itself. A caller that has no
+/// Carries clock evidence from the poll loop to the scheduler step loop and the Worker. Only a page the poll has
+/// read and validated wakes anyone; a wake is a hint to act now, never a fact by itself. A caller that has no
 /// signal holds null and uses <see cref="Wait"/>, which never completes for it.
 /// </summary>
 public sealed class WakeSignal
@@ -134,7 +134,7 @@ internal static partial class Pkg
             switch (@event.Event)
             {
                 case ClockPb.ClockEventEvent.HoldEnteredCase { Value: var held }:
-                    if (Sto.ClockJournal.OtherWorld(@event, page))
+                    if (OtherWorld(@event, page))
                     {
                         continue; // a previous load's hold
                     }
@@ -204,6 +204,18 @@ internal static partial class Pkg
             }
         }
         return output;
+    }
+
+    /// <summary>Go <c>OtherWorld</c>: whether the event was observed in another world (colony, load or map) than the page's current context.</summary>
+    private static bool OtherWorld(ClockPb.ClockEvent @event, ClockPb.EventsPage page)
+    {
+        var a = @event.Context?.Identity;
+        var b = page.Context?.Identity;
+        if (a is null || b is null)
+        {
+            return false;
+        }
+        return !string.Equals(a.ColonyId, b.ColonyId ?? "", StringComparison.Ordinal) || !string.Equals(a.LoadToken, b.LoadToken ?? "", StringComparison.Ordinal) || a.MapId != b.MapId;
     }
 
     /// <summary>Whether the hold was the brain's own request (a coupled order, a review or an autosave) rather than native's.</summary>

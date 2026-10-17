@@ -436,7 +436,6 @@ public sealed partial class CheckpointRing
             Prepared = Prepared,
             State = StateSnapshot(),
             Serve = Serve,
-            ServiceProfile = Config.ServiceProfileDir(),
             SourceRevision = SourceRevision,
             Package = Fingerprint.Package,
             Start = Fingerprint.Start,

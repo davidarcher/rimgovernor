@@ -48,7 +48,7 @@ the brain's `rimgovernor/*` tool names), which is how a scheduler step reports i
 
 `ClockRunDriver` (#3178) is the hold state machine of the clock: after each planning step it keeps the clock Running at the target
 speed under the watch policy the facts imply (`Run`), takes the brain's own holds (a coupled order, a review, an autosave),
-keeps the heartbeat and polls the native journal. The composition builds it with `ClockRunDriver.CreateAsync` over a
+keeps the heartbeat and polls the native journal from an in-memory cursor. The composition builds it with `ClockRunDriver.Create` over a
 `ClockCapabilities` session and an `IClockDriverNative`, wraps it in `ClockRunHostDriver` and returns it as
 `PlannerParts.Clock`. The composition (`startServiceClock` and
 `roundsCapabilities`) is `IBrainComposition`; its family flags are all on by default and
@@ -151,7 +151,6 @@ Decided (user, 2026-10-13):
   | Variable | Meaning | Default |
   | --- | --- | --- |
   | `RIMGOVERNOR_STATE` | state database | `<save-data>/RimGovernor/brain-state.db`; a stamped `brain-state-yyyyMMdd-HHmmss.db` when continue is off |
-  | `RIMGOVERNOR_PROFILE` | shared game profile directory | the game's save-data folder |
   | `RIMGOVERNOR_OTLP_DIR`, `RIMGOVERNOR_RUN_ID` | the Bridge's existing variables | `<save-data>/RimGovernor/otlp`, a fresh GUID |
   | `RIMGOVERNOR_OBSERVE` | launcher Observe: no auto-resume, no layout overlay | off |
   | `RIMGOVERNOR_CONTINUE_STATE` | launcher Continue: reuse the default database | on |
@@ -160,8 +159,8 @@ Decided (user, 2026-10-13):
 
   The launcher sets the last three from its saved settings. The default database is shared by every save, so an
   incompatible-schema reset affects them all. Launcher Telemetry is intentionally unmapped (not a bug, #3117): the
-  host writes OTLP files and has no endpoint to send to, so the saved setting has nothing to drive, and
-  `RIMGOVERNOR_PROFILE` stays unset by the harness. `-rimgovernor-test-acceleration` also sets `ClockTestAcceleration`.
+  host writes OTLP files and has no endpoint to send to, so the saved setting has nothing to drive.
+  `-rimgovernor-test-acceleration` also sets `ClockTestAcceleration`.
   `BrainCompositionOptions.TargetSpeed` (default Ultrafast) is the speed every `Run` asks for; the harness changes
   it live between launches and speed-matrix rows with `POST /api/player/clock-speed`, with no relaunch.
 - **Acceptance harness.** The acceptance harness launches every game with `-rimgovernor-inproc` and

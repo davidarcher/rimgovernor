@@ -21,7 +21,6 @@ public sealed class InProcEnvironmentTests
         var (ok, inputs, _) = Resolve();
         Assert.True(ok);
         Assert.Equal(Path.Combine(SaveData, "RimGovernor", "brain-state.db"), inputs!.StatePath);
-        Assert.Equal(SaveData, inputs.ProfileDirectory);
         Assert.Equal(Path.Combine(SaveData, "RimGovernor", "otlp"), inputs.OtlpDirectory);
         Assert.False(string.IsNullOrWhiteSpace(inputs.RunId));
         Assert.True(inputs.AutoResume);
@@ -32,12 +31,10 @@ public sealed class InProcEnvironmentTests
     public void ExplicitValuesWinOverDefaults()
     {
         var state = Path.Combine(SaveData, "elsewhere", "s.db");
-        var profile = Path.Combine(SaveData, "profile");
         var otlp = Path.Combine(SaveData, "otlp-here");
-        var (ok, inputs, _) = Resolve((InProcEnvironment.State, state), (InProcEnvironment.Profile, profile), (InProcEnvironment.OtlpDirectory, otlp), (InProcEnvironment.RunId, "run1"), (InProcEnvironment.ContinueState, "0"));
+        var (ok, inputs, _) = Resolve((InProcEnvironment.State, state), (InProcEnvironment.OtlpDirectory, otlp), (InProcEnvironment.RunId, "run1"), (InProcEnvironment.ContinueState, "0"));
         Assert.True(ok);
         Assert.Equal(state, inputs!.StatePath);
-        Assert.Equal(profile, inputs.ProfileDirectory);
         Assert.Equal(otlp, inputs.OtlpDirectory);
         Assert.Equal("run1", inputs.RunId);
     }
@@ -70,7 +67,6 @@ public sealed class InProcEnvironmentTests
 
     [Theory]
     [InlineData("RIMGOVERNOR_STATE", "relative/state.db")]
-    [InlineData("RIMGOVERNOR_PROFILE", "profile")]
     [InlineData("RIMGOVERNOR_OTLP_DIR", "otlp")]
     [InlineData("RIMGOVERNOR_OBSERVE", "maybe")]
     [InlineData("RIMGOVERNOR_CONTINUE_STATE", "2")]

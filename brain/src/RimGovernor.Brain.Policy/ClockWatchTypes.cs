@@ -3,19 +3,6 @@ namespace RimGovernor.Brain.Policy;
 // The facts and verdict of the pure watch decision (EvaluateClockWatch): whether the held clock may Run and under
 // which watch policy. Go: clock_window_types.go, reduced to the continuous Run/Hold clock.
 
-public sealed record ClockWatchReview
-{
-    public ulong Revision { get; init; }
-
-    public long Captured { get; init; }
-
-    public long Reviewed { get; init; }
-
-    public long Acknowledged { get; init; }
-
-    public Fact<bool> HasHolds { get; init; }
-}
-
 public enum ClockWatchState
 {
     None,
@@ -35,12 +22,7 @@ public sealed record ClockWatchStatus
 
     public ClockWatchState State { get; init; }
 
-    /// <summary>The clock was held before any Run of the loaded game: it has no events to have reviewed.</summary>
-    public bool NeverRun { get; init; }
-
     public Fact<bool> NativeTickBoundary { get; init; }
-
-    public Fact<bool> DurableEvents { get; init; }
 
     public Fact<long> NewestCursor { get; init; }
 }
@@ -58,7 +40,8 @@ public sealed record ClockWatchFacts
 
     public required EmergencySnapshot Emergency { get; init; }
 
-    public ClockWatchReview Review { get; init; } = new();
+    /// <summary>The ring cursor the event poll has read through (its in-memory cursor); -1 before its first page.</summary>
+    public long Captured { get; init; }
 
     public ClockWatchStatus Status { get; init; } = new();
 
@@ -119,9 +102,6 @@ public enum ClockWatchReason
 
     [WireName("unreviewed_events")]
     Unreviewed,
-
-    [WireName("interruption")]
-    Interrupted,
 }
 
 /// <summary>

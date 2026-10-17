@@ -54,13 +54,12 @@ public sealed class BrainHostStopTests
                 new BrainHostOptions
                 {
                     StatePath = state,
-                    ProfileDirectory = root,
                     OtlpDirectory = otlp,
                     RunId = "host-stop",
                     // One drain attempt, as the mod runs it: a retry would hide a failure the first attempt had.
                     Timings = BrainTimings.Standard(TimeSpan.FromSeconds(5)) with { ShutdownAttempts = 1 },
                     Watchdog = BrainWatchdog.Standard(),
-                    Composition = new BrainComposition(new BrainCompositionOptions { Profile = root }),
+                    Composition = new BrainComposition(new BrainCompositionOptions()),
                     Facade = DispatchProxy.Create<INativeFacade, SilentGame>(),
                 },
                 Ct);

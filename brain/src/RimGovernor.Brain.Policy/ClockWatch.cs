@@ -163,20 +163,7 @@ public static partial class PolicyFunctions
         }
 
         Check(f.Status.NativeTickBoundary, true, ClockWatchReason.Unknown);
-        var known = f.Status.DurableEvents.TryGetValue(out var durable);
-        if (!known || (!durable && !f.Status.NeverRun))
-        {
-            Hold(ClockWatchReason.Unknown);
-        }
-
-        var review = f.Review;
-        if (
-            review.Captured < 0
-            || review.Reviewed < 0
-            || review.Acknowledged < 0
-            || review.Acknowledged > review.Reviewed
-            || review.Reviewed != review.Captured
-        )
+        if (f.Captured < 0)
         {
             Hold(ClockWatchReason.Unreviewed);
         }
@@ -185,14 +172,13 @@ public static partial class PolicyFunctions
         {
             Hold(ClockWatchReason.Unknown);
         }
-        else if (newest < 0 || (f.Status.State == ClockWatchState.Held && newest > review.Captured))
+        else if (newest < 0 || (f.Status.State == ClockWatchState.Held && newest > f.Captured))
         {
-            // A held clock resumes only once the brain has captured the events up to the hold; a running one
-            // keeps capturing, so its cursor runs ahead of the review by design.
+            // A held clock resumes only once the poll has read the events up to the hold; a running one keeps
+            // producing them, so its cursor runs ahead of the poll by design.
             Hold(ClockWatchReason.Unreviewed);
         }
 
-        Check(review.HasHolds, false, ClockWatchReason.Interrupted);
         if (refused.Count != 0)
         {
             return new ClockWatchDecision { Refused = EquatableArray.From(refused) };

@@ -370,7 +370,6 @@ namespace HomeBridge.BridgeTools
                 EnsurePatched();
                 var result = new Clock.Status { Context = context, ActualPaused = Find.TickManager.Paused,
                     ObservedSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed), NativeTickBoundary = TypedHooksReady(),
-                    DurableEvents = _state?.StopReason != "event_journal_error" && _state?.PendingKind != "event_journal_error",
                     NewestCursor = Journal.Newest, HoldSerial = HoldSerial.Current };
                 var s = _state;
                 if (s == null || !ReferenceEquals(s.Session, Current.Game))

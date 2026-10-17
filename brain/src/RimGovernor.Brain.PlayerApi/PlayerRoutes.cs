@@ -8,7 +8,7 @@ using PbClock = RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.PlayerApi;
 
 /// <summary>
-/// The player session, control and clock-review routes (Go <c>httpapi/player.go</c> and <c>clock_review.go</c>),
+/// The player session, control and clock-speed routes (Go <c>httpapi/player.go</c>),
 /// registered into the channel's <see cref="RouteTable"/>. The routes carry no token: the channel's request guard
 /// is the only access check (issue #3083). A route family whose provider is not given is not registered.
 /// </summary>
@@ -22,17 +22,13 @@ public static class PlayerRoutes
 
     public const string PausePath = "/api/player/control/pause";
 
-    public const string ClockPath = "/api/player/clock";
-
-    public const string AcknowledgePath = "/api/player/clock/acknowledge";
-
     /// <summary>Sets the speed the brain requests while it owns the clock: body <c>{"speed":"Normal|Fast|Superfast|Ultrafast"}</c>.</summary>
     public const string ClockSpeedPath = "/api/player/clock-speed";
 
     private static readonly RouteOptions Bounded = new() { MaxBodyBytes = StrictJson.Limit };
 
     /// <summary>Registers the session route and the routes of each provider given; dispose the result to remove them all.</summary>
-    public static IDisposable Register(RouteTable routes, IPlayerControl? player, IControlReader? controls, IClockReview? clock, IClockSpeedControl? speed = null)
+    public static IDisposable Register(RouteTable routes, IPlayerControl? player, IControlReader? controls, IClockSpeedControl? speed = null)
     {
         var registrations = new List<IDisposable>
         {
@@ -43,12 +39,6 @@ public static class PlayerRoutes
             registrations.Add(routes.Map("GET", ControlPath, (request, ct) => ReadControlAsync(controls, player, request, ct), Bounded));
             registrations.Add(routes.Map("POST", ResumePath, (request, ct) => WriteControlAsync(player, ControlKind.Resume, request, ct), Bounded));
             registrations.Add(routes.Map("POST", PausePath, (request, ct) => WriteControlAsync(player, ControlKind.Pause, request, ct), Bounded));
-        }
-
-        if (clock is not null)
-        {
-            registrations.Add(routes.Map("GET", ClockPath, (request, ct) => ClockAsync(clock, request, null, ct), Bounded));
-            registrations.Add(routes.Map("POST", AcknowledgePath, (request, ct) => ClockAsync(clock, request, request.Body, ct), Bounded));
         }
 
         if (speed is not null)
@@ -325,70 +315,6 @@ public static class PlayerRoutes
         }
 
         w.WriteEndObject();
-    }
-
-    private static async Task<ChannelResponse> ClockAsync(IClockReview clock, ChannelRequest request, byte[]? body, CancellationToken ct)
-    {
-        if (NoQuery(request) is { } refusal)
-        {
-            return refusal;
-        }
-
-        ClockReviewState value;
-        try
-        {
-            if (body is null)
-            {
-                value = await clock.ReadAsync(ct).ConfigureAwait(false);
-            }
-            else
-            {
-                ClockAcknowledgement acknowledgement;
-                try
-                {
-                    var fields = StrictJson.Object(body, "requestId", "expectedRevision", "throughCursor");
-                    var id = StrictJson.String(fields["requestId"]);
-                    if (!new PlanId(id).IsValid)
-                    {
-                        throw new StrictJsonException("invalid request id");
-                    }
-
-                    acknowledgement = new ClockAcknowledgement(id, StrictJson.CanonicalUInt64(fields["expectedRevision"]), StrictJson.CanonicalNonNegativeInt64(fields["throughCursor"]));
-                }
-                catch (StrictJsonException)
-                {
-                    return ChannelResponse.Failure(400, "invalid_request", "Provide a request ID and the displayed review revision and cursor");
-                }
-
-                value = await clock.AcknowledgeAsync(acknowledgement, ct).ConfigureAwait(false);
-            }
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            var (status, failure) = PlayerFailure(e);
-            return ChannelResponse.Failure(status, failure.Code, failure.Detail);
-        }
-
-        return Json(w =>
-        {
-            w.WriteStartObject();
-            w.WriteString("revision", value.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            w.WriteString("inboxCursor", value.InboxCursor.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            w.WriteString("reviewedCursor", value.ReviewedCursor.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            w.WriteString("acknowledgedCursor", value.AcknowledgedCursor.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            w.WriteStartArray("holds");
-            foreach (var hold in value.Holds)
-            {
-                w.WriteStartObject();
-                w.WriteString("kind", Wire.Name(hold.Kind));
-                w.WriteString("fromCursor", hold.FromCursor.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                w.WriteString("throughCursor", hold.ThroughCursor.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                w.WriteEndObject();
-            }
-
-            w.WriteEndArray();
-            w.WriteEndObject();
-        });
     }
 
     private static ChannelResponse Json(Action<Utf8JsonWriter> write) => Json(200, write);

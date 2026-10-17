@@ -9,8 +9,7 @@ public delegate Task<JsonObject> HttpGet(string method, string path, Cancellatio
 public static class Rounds
 {
     /// <summary>
-    /// Asserts the supervised clock is still in automate mode: a non-automate state is always an interruption, and
-    /// the player clock is fetched only to enrich that error, never to justify continuing.
+    /// Asserts the supervised clock is still in automate mode: a non-automate state is always an interruption.
     /// </summary>
     public static async Task AssertRoundsRunningAsync(HttpGet http, CancellationToken cancellationToken)
     {
@@ -21,7 +20,6 @@ public static class Rounds
             return;
         }
 
-        var clock = await http("GET", "/api/player/clock", cancellationToken).ConfigureAwait(false);
-        throw new AcceptanceException($"routine acceptance interrupted: state={state.ToJson()}, clock={clock.ToJson()}");
+        throw new AcceptanceException($"routine acceptance interrupted: state={state.ToJson()}");
     }
 }

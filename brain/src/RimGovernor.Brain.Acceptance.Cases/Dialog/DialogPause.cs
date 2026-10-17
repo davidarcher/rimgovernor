@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// finished research project's completion dialog or a caravan demand) no longer strands the native clock. Two dialogs are
 /// staged through the DialogFixture before the service attaches: one already open when the service acquires authority
 /// (the clock cannot start at all until it is answered), and one scheduled to open on a later game tick while a
-/// supervised clock is running (the HOLD_REASON_DIALOG_PAUSE hold, acknowledged like a letter pause). For each, the
+/// supervised clock is running (the HOLD_REASON_DIALOG_PAUSE hold, read off the native clock ring). For each, the
 /// people/dialog Need is unmet, its step picks the policy-preferred option ("OK" over "Research screen"), the
 /// executor activates it through a DialogIntent on Actions/Apply, and the clock runs again.
 /// </summary>
@@ -32,7 +32,7 @@ internal static class DialogPause
         Name = "dialog/pause",
         Scope = "Issue #156: a force-pausing Dialog_NodeTree the game opens by itself is read as the colony "
             + "facts dialog section, answered with the policy-preferred option through a DialogIntent on Actions/Apply under the "
-            + "people/dialog Need, its HOLD_REASON_DIALOG_PAUSE hold acknowledged like a letter pause, and the "
+            + "people/dialog Need, its HOLD_REASON_DIALOG_PAUSE hold on the native clock ring, and the "
             + "native clock runs again afterwards; both an already-open dialog at acquire and one opening mid-run.",
         Start = new LabStart(),
         RequiredOps = [FixtureTool],
@@ -182,7 +182,11 @@ internal static class DialogPause
         return output;
     }
 
-    /// <summary>What the durable clock inbox shows: every hold reason in order, the dialog-pause holds with their dialog window, and the cursor of the latest run.</summary>
+    /// <summary>
+    /// What the native clock ring showed after the cursor primed before the service started: every hold reason in
+    /// order, the dialog-pause holds with their dialog window, and the cursor of the latest run. Each read pages on
+    /// from where the last one ended, so the trace accumulates across the waits.
+    /// </summary>
     private sealed class ClockTrace
     {
         internal List<string> Stops { get; } = [];
@@ -195,6 +199,8 @@ internal static class DialogPause
 
         internal int Starts { get; set; }
 
+        internal long Cursor { get; set; }
+
         internal JsonObject ToJson() => new()
         {
             ["stops"] = new JsonArray([.. Stops.Select(x => (JsonNode?)x)]),
@@ -202,46 +208,61 @@ internal static class DialogPause
             ["last_dialog_pause_cursor"] = DialogCursor,
             ["last_start_cursor"] = StartCursor,
             ["starts"] = Starts,
+            ["cursor"] = Cursor,
         };
     }
 
-    private static async Task<ClockTrace> TraceClockAsync(Journal journal, string profile, CancellationToken cancellationToken)
+    // The ring's newest cursor before the service starts: the trace reads only what the service's run produced.
+    private static async Task<long> RingCursorAsync(Harness h, JsonObject identity, CancellationToken cancellationToken)
     {
-        var trace = new ClockTrace();
-        ClockInbox inbox;
-        try
-        {
-            inbox = await Task.Run(() => journal.LoadClockInbox(profile, ClockJournal.InboxCapacity, cancellationToken), cancellationToken).ConfigureAwait(false);
-        }
-        catch (DirectoryNotFoundException)
-        {
-            // The inbox binds on the service's first clock read; until then there is nothing to trace.
-            return trace;
-        }
+        var reply = await h.WireAsync("clock-prime", "clock_read_events", new JsonObject { ["identity"] = identity.DeepClone(), ["afterCursor"] = 0, ["limit"] = 1 }, cancellationToken).ConfigureAwait(false);
+        var (_, page) = Harness.Outcome(reply, "page");
+        return (long)ScenarioProjection.ScenarioInteger(page["newestCursor"]);
+    }
 
-        foreach (var page in inbox.Pages)
+    // Pages the native ring on from the trace's cursor to its newest event, folding each event into the trace.
+    private static async Task TraceClockAsync(Harness h, JsonObject identity, ClockTrace trace, CancellationToken cancellationToken)
+    {
+        while (true)
         {
-            foreach (var clockEvent in page.Page.Events)
+            var reply = await h.WireAsync("clock-trace", "clock_read_events", new JsonObject { ["identity"] = identity.DeepClone(), ["afterCursor"] = trace.Cursor, ["limit"] = 128 }, cancellationToken).ConfigureAwait(false);
+            var (_, page) = Harness.Outcome(reply, "page");
+            if (page["gap"].AsBool() == true)
             {
-                if (clockEvent.Event?.Resumed is not null)
+                throw new AcceptanceException($"clock-trace: the native ring lost events after cursor {trace.Cursor}: {page.ToJson()}");
+            }
+
+            var events = page["events"].AsSlice();
+            foreach (var raw in events)
+            {
+                var evt = raw.AsMap() ?? [];
+                var cursor = (long)ScenarioProjection.ScenarioInteger(evt["cursor"]);
+                if (evt["resumed"] is not null)
                 {
                     trace.Starts++;
-                    trace.StartCursor = clockEvent.Cursor ?? 0;
+                    trace.StartCursor = cursor;
                 }
 
-                if (clockEvent.Event?.HoldEntered is { } stop)
+                if (evt["holdEntered"].AsMap() is { } stop)
                 {
-                    trace.Stops.Add(Wire.Name(stop.Reason ?? default));
-                    if (stop.Reason == RimGovernor.Contracts.Wire.Clock.HoldReason.DialogPause)
+                    var kind = ScenarioProjection.HoldKind(stop["reason"], "clock-trace");
+                    trace.Stops.Add(kind);
+                    if (kind == "dialog_pause")
                     {
-                        trace.DialogPauses.Add(stop.Evidence?.Pause?.Dialog?.WindowId ?? 0);
-                        trace.DialogCursor = clockEvent.Cursor ?? 0;
+                        trace.DialogPauses.Add((int)(stop["pause"].AsMap()?["dialog"].AsMap()?["windowId"].AsNumber() ?? 0));
+                        trace.DialogCursor = cursor;
                     }
                 }
             }
-        }
 
-        return trace;
+            var next = (long)ScenarioProjection.ScenarioInteger(page["nextCursor"]);
+            var more = next != trace.Cursor && events.Count == 128;
+            trace.Cursor = next;
+            if (!more)
+            {
+                return;
+            }
+        }
     }
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
@@ -257,6 +278,7 @@ internal static class DialogPause
             throw new AcceptanceException($"before service: {e.Message}", e);
         }
 
+        var trace = new ClockTrace { Cursor = await RingCursorAsync(s.Harness, s.Identity, cancellationToken).ConfigureAwait(false) };
         var service = await ObservedSession.Of(s).ServeAsync(s.Spec, cancellationToken).ConfigureAwait(false);
         var pausedWindow = 0;
         try
@@ -265,38 +287,34 @@ internal static class DialogPause
             service.KeepAuthority(cancellationToken);
             using var store = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
 
-            // The service's clock inbox is keyed by its profile directory (the serve puts it beside the state under the case's output).
-            var profile = s.Config.ServiceProfileDir();
             async Task<ClockTrace> WaitForAsync(string label, Func<Dictionary<int, Answered>, ClockTrace, bool> ready)
             {
                 Dictionary<int, Answered>? answers = null;
-                ClockTrace? trace = null;
                 try
                 {
                     await new Wait { Ceiling = Ceiling, Stall = Wait.StallBudget(), Terminal = service.Exited }.WaitProgressAsync(
                         async ct =>
                         {
                             var a = await DialogAnswersAsync(store, ct).ConfigureAwait(false);
-                            var t = await TraceClockAsync(store, profile, ct).ConfigureAwait(false);
+                            await TraceClockAsync(s.Harness, s.Identity, trace, ct).ConfigureAwait(false);
                             answers = a;
-                            trace = t;
-                            var done = ready(a, t);
+                            var done = ready(a, trace);
                             var shown = string.Join(",", a.OrderBy(kv => kv.Key).Select(kv => string.Create(CultureInfo.InvariantCulture, $"{kv.Key}:{kv.Value.Option}/{kv.Value.Index}/{Wire.Name(kv.Value.Stage)}")));
-                            return (Wait.Signature(a.Count, shown, t.Stops.Count, t.Starts), done);
+                            return (Wait.Signature(a.Count, shown, trace.Stops.Count, trace.Starts), done);
                         },
                         cancellationToken).ConfigureAwait(false);
                 }
                 catch (AcceptanceException e)
                 {
-                    Record(label, answers, trace);
+                    Record(label, answers);
                     throw new AcceptanceException($"{label}: {e.Message}", e);
                 }
 
-                Record(label, answers, trace);
-                return trace!;
+                Record(label, answers);
+                return trace;
             }
 
-            void Record(string label, Dictionary<int, Answered>? answers, ClockTrace? trace)
+            void Record(string label, Dictionary<int, Answered>? answers)
             {
                 var rows = new JsonObject();
                 foreach (var (window, answer) in (answers ?? []).OrderBy(kv => kv.Key))
@@ -305,7 +323,7 @@ internal static class DialogPause
                 }
 
                 report[label + "_answers"] = rows;
-                report[label + "_clock"] = trace?.ToJson();
+                report[label + "_clock"] = trace.ToJson();
             }
 
             // Phase 1: the dialog open at acquire is answered with "OK". The clock could not start while it was up (an
@@ -369,11 +387,6 @@ internal static class DialogPause
         finally
         {
             report["run_keepalive"] = (await service.StopAsync().ConfigureAwait(false))?.DeepClone();
-        }
-
-        if (report["run_keepalive"] is JsonObject keep && (int)keep["acknowledged"].AsNumber() == 0)
-        {
-            throw new AcceptanceException($"the dialog pause never surfaced as a clock hold for the player to acknowledge: {keep.ToJson()}");
         }
 
         // Independent native read after the service releases the game slot: the fixture's last dialog is closed, OK was

@@ -43,12 +43,6 @@ public sealed class Checkpoint
     /// <summary>The case's declared serve spec at capture, for the record.</summary>
     public JsonObject? Serve { get; set; }
 
-    /// <summary>
-    /// The service profile directory the store is bound to (its clock inbox binds to the path); a resumed run's
-    /// services keep using it, since the store refuses any other.
-    /// </summary>
-    public string ServiceProfile { get; set; } = "";
-
     public string SourceRevision { get; set; } = "";
 
     /// <summary>Hashes the installed native package's files (<see cref="Checkpoints.PackageHash"/>).</summary>
@@ -92,11 +86,6 @@ public sealed class Checkpoint
         Put(o, "prepared", Prepared);
         Put(o, "state", State);
         Put(o, "serve", Serve);
-        if (ServiceProfile.Length > 0)
-        {
-            o["service_profile"] = ServiceProfile;
-        }
-
         o["source_revision"] = SourceRevision;
         o["package"] = Package;
         o["start"] = Start;
@@ -129,7 +118,6 @@ public sealed class Checkpoint
         Prepared = o["prepared"].AsMap()?.DeepCloneObject(),
         State = o["state"].AsMap()?.DeepCloneObject(),
         Serve = o["serve"].AsMap()?.DeepCloneObject(),
-        ServiceProfile = o["service_profile"].AsString(),
         SourceRevision = o["source_revision"].AsString(),
         Package = o["package"].AsString(),
         Start = o["start"].AsString(),

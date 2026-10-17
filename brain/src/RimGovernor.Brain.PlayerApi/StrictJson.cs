@@ -105,33 +105,6 @@ internal static class StrictJson
         return value;
     }
 
-    /// <summary>A canonical decimal uint64 string: digits only, no sign, no leading zero.</summary>
-    internal static ulong CanonicalUInt64(JsonElement element)
-    {
-        var text = String(element);
-        if (!ulong.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var value)
-            || text != value.ToString(CultureInfo.InvariantCulture))
-        {
-            throw new StrictJsonException("expected a canonical decimal uint64 string");
-        }
-
-        return value;
-    }
-
-    /// <summary>A canonical, non-negative decimal int64 string.</summary>
-    internal static long CanonicalNonNegativeInt64(JsonElement element)
-    {
-        var text = String(element);
-        if (!long.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value)
-            || value < 0
-            || text != value.ToString(CultureInfo.InvariantCulture))
-        {
-            throw new StrictJsonException("expected a canonical non-negative decimal int64 string");
-        }
-
-        return value;
-    }
-
     private static void CheckUnique(byte[] body)
     {
         var reader = new Utf8JsonReader(body, new JsonReaderOptions { MaxDepth = MaxDepth });

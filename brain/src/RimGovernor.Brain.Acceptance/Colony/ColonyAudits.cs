@@ -115,7 +115,7 @@ public static class ColonyAudits
         {
             throw new AcceptanceException(string.Create(
                 CultureInfo.InvariantCulture,
-                $"{over} of {keep["reacquired"].ToJson()} keep-alive resumes cost more than one native generation (advance {keep["generation_advance"].ToJson()} over {keep["attempts"].ToJson()} attempts, {keep["acknowledged"].ToJson()} holds acknowledged)"));
+                $"{over} of {keep["reacquired"].ToJson()} keep-alive resumes cost more than one native generation (advance {keep["generation_advance"].ToJson()} over {keep["attempts"].ToJson()} attempts)"));
         }
     }
 

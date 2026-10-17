@@ -2,14 +2,12 @@ namespace RimGovernor.Brain.Host;
 
 /// <summary>
 /// What the mod resolves from the launch environment before it starts the host (#3115): the paths and switches the Go
-/// controller took as <c>--state</c>, <c>--profile</c>, <c>--resume</c> and <c>--layout-overlay</c>. A pure function of
+/// controller took as <c>--state</c>, <c>--resume</c> and <c>--layout-overlay</c>. A pure function of
 /// the environment variables and the game's save-data folder, so the mod's bootstrap holds no parsing of its own.
 /// </summary>
 public sealed record InProcInputs
 {
     public required string StatePath { get; init; }
-
-    public required string ProfileDirectory { get; init; }
 
     public required string OtlpDirectory { get; init; }
 
@@ -28,7 +26,6 @@ public sealed record InProcInputs
 /// <item><c>RIMGOVERNOR_STATE</c>: the state database; default <c>&lt;save-data&gt;/RimGovernor/brain-state.db</c>, or a
 /// stamped <c>brain-state-yyyyMMdd-HHmmss.db</c> beside it when <c>RIMGOVERNOR_CONTINUE_STATE</c> is off. An explicit
 /// path wins over the switch.</item>
-/// <item><c>RIMGOVERNOR_PROFILE</c>: the shared game profile directory; default the game's save-data folder.</item>
 /// <item><c>RIMGOVERNOR_OTLP_DIR</c> and <c>RIMGOVERNOR_RUN_ID</c>: the Bridge's existing variables; defaults
 /// <c>&lt;save-data&gt;/RimGovernor/otlp</c> and a fresh GUID.</item>
 /// <item>The launcher's settings: <c>RIMGOVERNOR_OBSERVE</c> (observe only: no auto-resume, no layout overlay),
@@ -40,7 +37,6 @@ public sealed record InProcInputs
 public static class InProcEnvironment
 {
     public const string State = "RIMGOVERNOR_STATE";
-    public const string Profile = "RIMGOVERNOR_PROFILE";
     public const string OtlpDirectory = "RIMGOVERNOR_OTLP_DIR";
     public const string RunId = "RIMGOVERNOR_RUN_ID";
     public const string Observe = "RIMGOVERNOR_OBSERVE";
@@ -68,7 +64,6 @@ public static class InProcEnvironment
             || !TryFlag(get, ContinueState, true, out var continueState, out error)
             || !TryFlag(get, LayoutOverlay, true, out var overlay, out error)
             || !TryPath(get, State, null, out var state, out error)
-            || !TryPath(get, Profile, saveDataFolder, out var profile, out error)
             || !TryPath(get, OtlpDirectory, Path.Combine(saveDataFolder, DefaultFolder, "otlp"), out var otlp, out error))
         {
             return false;
@@ -80,7 +75,6 @@ public static class InProcEnvironment
         inputs = new InProcInputs
         {
             StatePath = state,
-            ProfileDirectory = profile!,
             OtlpDirectory = otlp!,
             RunId = string.IsNullOrWhiteSpace(runId) ? Guid.NewGuid().ToString("N") : runId.Trim(),
             AutoResume = !observe,
