@@ -43,15 +43,15 @@ public static class GiveJobRules
     /// <summary>Go's <c>giveJobTo</c>: <paramref name="self"/> admits the pawn among the targets, for the one job that may target its own user (UseItem).</summary>
     private static Op.Action GiveJobTo(PawnId pawn, string job, bool self, params string[] targets)
     {
-        if (!WireValidation.IsValidId(pawn.Value) || !WireValidation.IsValidId(job) || targets.Length == 0)
+        if (targets.Length == 0)
         {
-            throw BridgeContractException.Contract("give job intent requires a pawn, a job and a target");
+            throw BridgeContractException.Contract("give job intent requires a target");
         }
         foreach (var target in targets)
         {
-            if (!WireValidation.IsValidId(target) || (target == pawn.Value && !self))
+            if (target == pawn.Value && !self)
             {
-                throw BridgeContractException.Contract("give job intent requires valid targets distinct from the pawn");
+                throw BridgeContractException.Contract("give job intent requires targets distinct from the pawn");
             }
         }
         return new Op.Action
@@ -79,7 +79,7 @@ public static class GiveJobRules
     /// <summary>Go's <c>draftAction</c>: drafts one plan-owned pawn.</summary>
     internal static Op.Action DraftAction(DomainAction action)
     {
-        if (action.OwnedDraft is not { } v || !WireValidation.IsValidId(v.Pawn.Value))
+        if (action.OwnedDraft is not { } v)
         {
             throw BridgeContractException.Contract("not a draft action");
         }
@@ -140,11 +140,11 @@ public static class GiveJobRules
         {
             return GiveJob(v.Capturer, JobCapture, v.Patient.Value);
         }
-        if (!WireValidation.IsValidId(v.Bed!))
+        if (v.Bed is not { } bed)
         {
-            throw BridgeContractException.Contract("arrest intent requires a valid bed");
+            throw BridgeContractException.Contract("arrest intent requires a bed");
         }
-        return GiveJob(v.Capturer, JobArrest, v.Patient.Value, v.Bed!);
+        return GiveJob(v.Capturer, JobArrest, v.Patient.Value, bed);
     }
 
     /// <summary>Go's <c>wearAction</c>: orders a pawn to wear one loose apparel item as ordered work, not a forced outfit entry.</summary>

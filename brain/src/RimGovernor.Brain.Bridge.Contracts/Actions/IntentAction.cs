@@ -110,16 +110,12 @@ public static class IntentActionRules
     }
 
     /// <summary>Go's <c>IntentAction</c>: the wire action for an intent-mode domain action, sent under <paramref name="key"/>.</summary>
-    /// <exception cref="BridgeContractException">The kind is not intent-mode, the key is invalid, or the action does not build.</exception>
+    /// <exception cref="BridgeContractException">The kind is not intent-mode or the action does not build.</exception>
     public static Op.Action IntentAction(string key, DomainAction action)
     {
         if (!IntentKinds.TryGetValue(action.Kind, out var build))
         {
             throw BridgeContractException.Contract($"{Domain.Wire.Name(action.Kind)} is not an intent-mode kind");
-        }
-        if (!WireValidation.IsValidId(key))
-        {
-            throw BridgeContractException.Contract("intent key invalid");
         }
         var wire = build(action);
         wire = wire with { Key = key };

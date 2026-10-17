@@ -81,11 +81,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(IReadOnlyList<Policy.ResourceSource> Rows, Policy.ResourceStorage Storage)> ReadResourceSourcesAsync(PbCommon.Identity identity, string resource, CancellationToken cancellationToken)
     {
-        if (!WireValidation.IsValidId(resource))
-        {
-            throw BridgeContractException.Contract("invalid resource source definition");
-        }
-
         var request = new PbObservations.ResourceSourcesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Resource = resource };
         var reply = await Facade.ListResourceSourcesAsync(request, cancellationToken).ConfigureAwait(false);
         var outcome = reply.Outcome;

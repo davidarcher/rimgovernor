@@ -5840,7 +5840,7 @@ public sealed record PawnPsycast
 
 public sealed record NeuroformerStock
 {
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
     public int? Held { get; init; }
 
@@ -5877,11 +5877,11 @@ public sealed record PawnRoyalty
 /// </summary>
 public sealed record BestowingCeremony
 {
-    public string? Quest { get; init; }
+    public required string Quest { get; init; }
 
-    public Common.Ref? Pawn { get; init; }
+    public required Common.Ref Pawn { get; init; }
 
-    public string? FactionDef { get; init; }
+    public required string FactionDef { get; init; }
 
     public string? Title { get; init; }
 
@@ -5900,9 +5900,7 @@ public sealed record BestowingCeremony
 /// </summary>
 public sealed record RoyalThrone
 {
-    public Common.Ref? Thing { get; init; }
-
-    public string? DefName { get; init; }
+    public required Common.Ref Thing { get; init; }
 
     public Common.Ref? Owner { get; init; }
 }

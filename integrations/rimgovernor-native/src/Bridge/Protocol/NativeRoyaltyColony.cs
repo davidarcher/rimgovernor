@@ -39,7 +39,6 @@ namespace HomeBridge.BridgeTools
                 foreach (var throne in map.listerBuildings.AllBuildingsColonistOfClass<Building_Throne>().OrderBy(t => t.thingIDNumber))
                 {
                     var row = new Obs.RoyalThrone { Thing = new Common.Ref { Id = throne.GetUniqueLoadID() } };
-                    if (ProtoBoundary.IsIdentifier(throne.def.defName)) row = row with { DefName = throne.def.defName };
                     var owner = throne.AssignedPawn;
                     if (owner != null) row = row with { Owner = new Common.Ref { Id = owner.GetUniqueLoadID() } };
                     facts = facts with { Thrones = [.. facts.Thrones, row] };

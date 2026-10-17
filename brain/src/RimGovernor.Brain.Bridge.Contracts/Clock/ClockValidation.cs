@@ -57,9 +57,9 @@ public static class ClockValidation
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var id in ids)
             {
-                if (!WireValidation.IsValidId(id) || !seen.Add(id))
+                if (!seen.Add(id))
                 {
-                    throw BridgeContractException.Contract("invalid or duplicate clock pawn ID");
+                    throw BridgeContractException.Contract("duplicate clock pawn ID");
                 }
             }
         }

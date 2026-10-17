@@ -29,10 +29,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<ZoneDeleteTarget> ReadZoneDeleteTargetAsync(PbCommon.Identity identity, string zone, CancellationToken cancellationToken)
     {
-        if (!WireValidation.IsValidId(zone))
-        {
-            throw BridgeContractException.Contract("invalid zone delete target identity");
-        }
         var request = new PbObservations.ListZonesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Ids = [zone] };
         var reply = await Facade.ListZonesAsync(request, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
@@ -72,9 +68,9 @@ public sealed partial class FacadeNativeClient
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var id in ids)
         {
-            if (!WireValidation.IsValidId(id) || !seen.Add(id))
+            if (!seen.Add(id))
             {
-                throw BridgeContractException.Contract("invalid requested building identity");
+                throw BridgeContractException.Contract("duplicate requested building identity");
             }
         }
         var request = PlacementChecks.ConstructionBuildingsRequest(identity, ids);
@@ -89,10 +85,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<StorageBuildingTarget> ReadStorageBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        if (!WireValidation.IsValidId(thing))
-        {
-            throw BridgeContractException.Contract("invalid storage building identity");
-        }
         var request = new PbObservations.ListBuildingsRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
@@ -107,10 +99,6 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go's <c>ReadBedUseTarget</c>: observes one exact bed's medical flag, owners and CAS token via the existing building lookup.</summary>
     internal async Task<BedUseTarget> ReadBedUseTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        if (!WireValidation.IsValidId(thing))
-        {
-            throw BridgeContractException.Contract("invalid bed medical target identity");
-        }
         var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
         var v = reply.Outcome.Observed!;
         if (v.Buildings.Count != 1)
@@ -138,10 +126,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<ClaimBuildingTarget> ReadClaimBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        if (!WireValidation.IsValidId(thing))
-        {
-            throw BridgeContractException.Contract("invalid claim building target identity");
-        }
         var request = new PbObservations.ListBuildingsRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
@@ -166,10 +150,6 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go's <c>ReadGrowerCropTarget</c>: observes one exact grower's crop via the existing building lookup; the crop is empty when the grower has none.</summary>
     internal async Task<GrowerCropTarget> ReadGrowerCropTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        if (!WireValidation.IsValidId(thing))
-        {
-            throw BridgeContractException.Contract("invalid grower crop target identity");
-        }
         var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
         var v = reply.Outcome.Observed!;
         if (v.Buildings.Count != 1)
@@ -215,10 +195,6 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go's <c>ReadWallUpgradeSites</c>: lists current wall-upgrade candidate sites, optionally scoped to one original wall's identity.</summary>
     internal async Task<WallUpgradeSites> ReadWallUpgradeSitesAsync(PbCommon.Identity identity, string targetId, CancellationToken cancellationToken)
     {
-        if (targetId.Length != 0 && !WireValidation.IsValidId(targetId))
-        {
-            throw BridgeContractException.Contract("invalid wall upgrade target identity");
-        }
         var request = new PbObservations.WallUpgradeSitesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
         if (targetId.Length != 0)
         {

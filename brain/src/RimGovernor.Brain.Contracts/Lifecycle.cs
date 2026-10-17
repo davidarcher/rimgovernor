@@ -295,8 +295,6 @@ public sealed record LoadRequest
     /// Required when replacing a live map. Before-map admission uses owned instance+direction.
     /// </summary>
     public PlayerLifecycleContext? ExpectedPlayer { get; init; }
-
-    public string? ExpectedInstanceId { get; init; }
 }
 
 public sealed record LoadCompleted

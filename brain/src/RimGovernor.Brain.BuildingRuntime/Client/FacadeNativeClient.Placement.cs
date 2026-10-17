@@ -101,10 +101,6 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go's <c>PreviewZone</c>: a planner's siting preview of one zone; native checks the ground live, so no map census token rides along.</summary>
     internal async Task<PbOperations.ZonePreviewReply> PreviewZoneAsync(PbCommon.Identity identity, ZoneCreate zone, CancellationToken cancellationToken)
     {
-        if (!PlacementChecks.Passes(() => WireValidation.ValidateIdentity(identity)))
-        {
-            throw BridgeContractException.Contract("invalid zone preview");
-        }
         var request = new PbOperations.ZonePreviewRequest { Identity = identity, Zone = Zones.ZoneConfiguration(zone) };
         var reply = await Facade.PreviewZoneAsync(request, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
@@ -122,7 +118,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PbPresentation.OverlayApplied> DrawOverlayAsync(PbCommon.Identity identity, string layerId, LayoutOverlay overlay, bool enabled, CancellationToken cancellationToken)
     {
-        WireValidation.AuthorityIdentity(identity);
         var request = new PbPresentation.OverlayRequest { Identity = identity, LayerId = layerId, Enabled = enabled };
         if (enabled)
         {
@@ -170,11 +165,6 @@ public sealed partial class FacadeNativeClient
                     || v.Rotation.GetValueOrDefault() > PbPlacement.Rotation.All)
                 {
                     throw BridgeContractException.Contract("placement candidate presence/coordinates/rotation");
-                }
-                WireValidation.ValidId(v.DefName);
-                if (!string.IsNullOrEmpty(v.Stuff))
-                {
-                    WireValidation.ValidId(v.Stuff);
                 }
             }
         }

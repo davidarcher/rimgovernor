@@ -62,14 +62,10 @@ public sealed partial class FacadeNativeClient
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var id in request.HostileIds)
             {
-                if (!WireValidation.IsValidId(id) || !seen.Add(id))
+                if (!seen.Add(id))
                 {
-                    throw BridgeContractException.Contract("invalid duplicate combat detail ID");
+                    throw BridgeContractException.Contract("duplicate combat detail ID");
                 }
-            }
-            if (request.PawnId is not null && !WireValidation.IsValidId(request.PawnId))
-            {
-                throw BridgeContractException.Contract("combat geometry pawn id invalid");
             }
             if (request.Propose?.Role?.RescuePath is not null && request.PawnId is null)
             {
@@ -167,9 +163,9 @@ public sealed partial class FacadeNativeClient
         var crew = new HashSet<string>(StringComparer.Ordinal);
         foreach (var id in pawns)
         {
-            if (!WireValidation.IsValidId(id) || !crew.Add(id))
+            if (!crew.Add(id))
             {
-                throw BridgeContractException.Contract("invalid cargo crew");
+                throw BridgeContractException.Contract("duplicate cargo crew");
             }
         }
         var reply = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);

@@ -96,9 +96,9 @@ public sealed partial class FacadeNativeClient
         var seenId = new HashSet<string>(StringComparer.Ordinal);
         foreach (var id in pawnIds)
         {
-            if (!WireValidation.IsValidId(id) || !seenId.Add(id))
+            if (!seenId.Add(id))
             {
-                throw BridgeContractException.Contract("invalid spatial access pawn id");
+                throw BridgeContractException.Contract("duplicate spatial access pawn id");
             }
         }
         var request = new PbObservations.SpatialAccessRequest

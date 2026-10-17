@@ -59,10 +59,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PbLifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken)
     {
-        if (!WireValidation.IsValidId(requestId ?? ""))
-        {
-            throw BridgeContractException.Contract("read save requires a request id");
-        }
         var reply = await Facade.PollSaveAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
         LifecycleSaveInterpret(reply);
         return reply;
@@ -89,17 +85,9 @@ public sealed partial class FacadeNativeClient
             throw BridgeContractException.Contract("save request requires a player lifecycle context");
         }
         var player = request.Player;
-        if (player.RequestId is null || !WireValidation.IsValidId(player.RequestId))
-        {
-            throw BridgeContractException.Contract("save request requires a request id");
-        }
         if (player.PlayerDirection is null || player.PlayerDirection.GetValueOrDefault() == 0)
         {
             throw BridgeContractException.Contract("save request requires a nonzero player direction");
-        }
-        if (request.SaveName is null || !WireValidation.IsValidId(request.SaveName))
-        {
-            throw BridgeContractException.Contract("save request requires a save name");
         }
         if (request.ExpectedTick is not null && request.ExpectedTick.GetValueOrDefault() < 0)
         {

@@ -26,7 +26,7 @@ public static class Orders
     internal static Op.Action DialogAction(DomainAction action)
     {
         var v = action.DialogAnswer ?? throw BridgeContractException.Contract("not a dialog answer action");
-        if (v.WindowId < 0 || v.OptionIndex < 0 || !WireValidation.IsValidId(v.OptionLabel) || (v.LetterToken.Length != 0 && (v.OptionIndex != 0 || !WireValidation.IsValidId(v.LetterToken))))
+        if (v.WindowId < 0 || v.OptionIndex < 0 || (v.LetterToken.Length != 0 && v.OptionIndex != 0))
         {
             throw BridgeContractException.Contract("invalid dialog target");
         }
@@ -59,7 +59,7 @@ public static class Orders
     internal static Op.Action PrisonerInteractionAction(DomainAction action)
     {
         var v = action.PrisonerInteraction ?? throw BridgeContractException.Contract("not a prisoner interaction action");
-        if (PrisonerInteractionWire(v.Interaction) is not { } wire || !WireValidation.IsValidId(v.Pawn.Value))
+        if (PrisonerInteractionWire(v.Interaction) is not { } wire)
         {
             throw BridgeContractException.Contract("invalid prisoner interaction");
         }
@@ -73,9 +73,9 @@ public static class Orders
     internal static Op.Action QuestAcceptAction(DomainAction action)
     {
         var accept = action.QuestAccept ?? throw BridgeContractException.Contract("not a quest accept action");
-        if (!WireValidation.IsValidId(accept.Quest.Value) || (accept.AccepterPawn.Value.Length != 0 && !WireValidation.IsValidId(accept.AccepterPawn.Value)) || accept.RewardChoice < -1)
+        if (accept.RewardChoice < -1)
         {
-            throw BridgeContractException.Contract("quest accept requires a quest id");
+            throw BridgeContractException.Contract("quest accept reward choice invalid");
         }
         var intent = new Op.AcceptQuestIntent { QuestId = accept.Quest.Value, RewardChoice = accept.RewardChoice };
         if (accept.AccepterPawn.Value.Length != 0)
@@ -277,15 +277,11 @@ public static class Orders
         var intent = new Op.FormCaravanIntent { DestinationTile = departure.DestinationTile, Mode = (Op.CaravanMode)departure.Mode };
         foreach (var pawn in departure.Crew)
         {
-            if (!WireValidation.IsValidId(pawn.Value))
-            {
-                throw BridgeContractException.Contract("invalid caravan crew pawn");
-            }
             intent = intent with { PawnIds = [.. intent.PawnIds, pawn.Value] };
         }
         foreach (var item in departure.Cargo)
         {
-            if (!WireValidation.IsValidId(item.Definition) || item.Count == 0 || item.Count > int.MaxValue)
+            if (item.Count == 0 || item.Count > int.MaxValue)
             {
                 throw BridgeContractException.Contract("invalid caravan cargo item");
             }
@@ -336,7 +332,7 @@ public static class Orders
     internal static Op.Action HusbandryAction(DomainAction action)
     {
         var v = action.Husbandry ?? throw BridgeContractException.Contract("not a husbandry action");
-        if (HusbandryOrderWire(v.Method) is not { } order || !WireValidation.IsValidId(v.Animal.Value))
+        if (HusbandryOrderWire(v.Method) is not { } order)
         {
             throw BridgeContractException.Contract("invalid husbandry order");
         }

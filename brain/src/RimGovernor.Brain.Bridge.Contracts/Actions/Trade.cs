@@ -18,7 +18,7 @@ public static class TradeRules
         var t = action.Trade ?? throw BridgeContractException.Contract("not a trade action");
         var participant = t.Participant;
         var negotiator = t.Negotiator.Value;
-        if (!participant.IsValid || !WireValidation.IsValidId(negotiator) || (participant.Kind == TradeParticipantKind.Map && participant.Id == negotiator))
+        if (!participant.IsValid || (participant.Kind == TradeParticipantKind.Map && participant.Id == negotiator))
         {
             throw BridgeContractException.Contract("invalid trade participants");
         }
@@ -46,9 +46,9 @@ public static class TradeRules
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var line in t.Lines)
                 {
-                    if (!WireValidation.IsValidId(line.LineId) || !seen.Add(line.LineId))
+                    if (!seen.Add(line.LineId))
                     {
-                        throw BridgeContractException.Contract("invalid or duplicate trade line");
+                        throw BridgeContractException.Contract("duplicate trade line");
                     }
                     rows.Add(new Op.TradeLine { LineId = line.LineId, AbsoluteCount = line.AbsoluteCount });
                 }
@@ -59,10 +59,6 @@ public static class TradeRules
                 intent = intent with { Step = new Op.TradeIntentStep.SetLinesCase(new Op.SetTradeLines { Lines = [.. rows], AllowPawns = t.AllowPawns }) };
                 break;
             case TradeOperationKind.Accept:
-                if (!WireValidation.IsValidId(t.ExpectedDealSignature))
-                {
-                    throw BridgeContractException.Contract("accept trade requires a deal signature");
-                }
                 intent = intent with { Step = new Op.TradeIntentStep.AcceptCase(new Op.AcceptTrade { ExpectedDealSignature = t.ExpectedDealSignature, AllowEmpty = t.AllowEmpty, ReceiveQuest = t.ReceiveQuest }) };
                 break;
             case TradeOperationKind.End:

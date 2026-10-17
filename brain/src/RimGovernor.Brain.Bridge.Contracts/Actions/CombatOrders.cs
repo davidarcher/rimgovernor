@@ -132,12 +132,7 @@ public static class CombatOrdersRules
                 case Op.CombatOrderOrder.HoldPositionCase:
                 case Op.CombatOrderOrder.StopCase:
                 case Op.CombatOrderOrder.DraftCase:
-                    break;
-                case Op.CombatOrderOrder.CombatDrugCase { Value: var drug }:
-                    if (!WireValidation.IsValidId(drug ?? ""))
-                    {
-                        throw BridgeContractException.Contract($"combat order {i} combat_drug is not a def name");
-                    }
+                case Op.CombatOrderOrder.CombatDrugCase:
                     break;
                 default:
                     throw BridgeContractException.Contract($"combat order {i} has no order");

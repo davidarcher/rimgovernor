@@ -72,7 +72,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<EntityRows<PbObservations.ZoneState>> ReadZonesAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        WireValidation.AuthorityIdentity(identity);
         var reply = await Facade.ListZonesAsync(ZonesListRequest(identity), cancellationToken).ConfigureAwait(false);
         var outcome = reply.Outcome;
         if (outcome.Failure is { } failure)
@@ -98,7 +97,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<EntityRows<PbObservations.BuildingState>> ReadBuildingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        WireValidation.AuthorityIdentity(identity);
         if (UseFrames)
         {
             var held = await FrameHeldAsync(FrameBuildingsMethod, identity, view => view.Snapshot.Buildings is not null, cancellationToken).ConfigureAwait(false);
@@ -114,7 +112,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<EntityRows<PbObservations.BillStackRow>> ReadBillStacksAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        WireValidation.AuthorityIdentity(identity);
         PbObservations.BillsSnapshot snapshot;
         if (UseFrames)
         {

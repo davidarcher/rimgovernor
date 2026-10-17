@@ -24,7 +24,7 @@ internal sealed class FacadeActionsWriter(INativeFacade facade) : IActionsWriter
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var action in actions)
         {
-            if (action is null || !WireValidation.IsValidId(action.Key ?? "") || !seen.Add(action.Key ?? "") || action.Intent is null)
+            if (action is null || !seen.Add(action.Key ?? "") || action.Intent is null)
             {
                 throw BridgeContractException.Contract("action requires a unique key and an intent");
             }

@@ -20,13 +20,8 @@ public static class CombatCalls
     public const string PodsStrategy = "pods";
 
     /// <summary>Go's <c>UndraftAction</c>: the wire intent that undrafts one pawn no live plan needs.</summary>
-    /// <exception cref="BridgeContractException">The key or the pawn is not a valid identifier.</exception>
     public static RimGovernor.Contracts.Wire.Operations.Action UndraftAction(string key, PawnId pawn)
     {
-        if (!WireValidation.IsValidId(key) || !WireValidation.IsValidId(pawn.Value))
-        {
-            throw BridgeContractException.Contract("undraft requires a key and a pawn");
-        }
         return new RimGovernor.Contracts.Wire.Operations.Action { Key = key, Intent = new DraftIntent { PawnId = pawn.Value, Drafted = false } };
     }
 

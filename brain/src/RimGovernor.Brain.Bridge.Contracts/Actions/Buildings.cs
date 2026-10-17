@@ -22,7 +22,7 @@ public static class BuildingsRules
         var h = action.Haul ?? throw BridgeContractException.Contract("not a haul action");
         var pawn = h.Pawn.Value;
         var thing = h.Thing;
-        if (!WireValidation.IsValidId(pawn) || !WireValidation.IsValidId(thing) || pawn == thing)
+        if (pawn == thing)
         {
             throw BridgeContractException.Contract("haul intent requires a distinct pawn and item");
         }
@@ -84,9 +84,9 @@ public static class BuildingsRules
     internal static Op.Action BuildingAction(DomainAction action)
     {
         var b = action.Building ?? throw BridgeContractException.Contract("not a building action");
-        if (WireRotation(b.Rotation) is not { } rotation || !WireValidation.IsValidId(b.Definition))
+        if (WireRotation(b.Rotation) is not { } rotation)
         {
-            throw BridgeContractException.Contract("building intent requires a definition and a cardinal rotation");
+            throw BridgeContractException.Contract("building intent requires a cardinal rotation");
         }
         var candidate = new WireCandidate { DefName = b.Definition, Stuff = b.Stuff, X = b.Cell.X, Z = b.Cell.Z, Rotation = rotation };
         var intent = new Op.BuildingIntent { Placement = candidate };
@@ -136,10 +136,6 @@ public static class BuildingsRules
     // set, and the next building read confirms it.
     private static Op.Action BuildingPatch(string thing, Op.BuildingPatchIntentChange change)
     {
-        if (!WireValidation.IsValidId(thing))
-        {
-            throw BridgeContractException.Contract("building patch requires an exact building");
-        }
         return new Op.Action { Intent = new Op.BuildingPatchIntent { ThingId = thing, Change = change } };
     }
 
@@ -165,7 +161,7 @@ public static class BuildingsRules
 
     internal static Op.Action GrowerCropAction(DomainAction action)
     {
-        if (action.GrowerCrop is not { } v || !WireValidation.IsValidId(v.Crop))
+        if (action.GrowerCrop is not { } v)
         {
             throw BridgeContractException.Contract("not a grower crop action");
         }
@@ -195,10 +191,6 @@ public static class BuildingsRules
     internal static Op.Action DeconstructAction(DomainAction action)
     {
         var v = action.Deconstruction ?? throw BridgeContractException.Contract("not a deconstruction action");
-        if (!WireValidation.IsValidId(v.Target))
-        {
-            throw BridgeContractException.Contract("deconstruction target invalid");
-        }
         var intent = new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Target = IntentActionRules.NewRef(v.Target), Guard = Op.DesignationGuard.Enclosure };
         if (v.ReplacesWithWall)
         {
@@ -251,7 +243,7 @@ public static class BuildingsRules
             CoverClearanceDesignation.Deconstruct => (Op.ThingDesignation.Deconstruct, Op.DesignationGuard.Enclosure),
             _ => null,
         };
-        if (!WireValidation.IsValidId(v.Thing) || kind is not { } known)
+        if (kind is not { } known)
         {
             throw BridgeContractException.Contract("cover clearance target invalid");
         }
@@ -270,10 +262,6 @@ public static class BuildingsRules
     internal static Op.Action WastepackHaulAction(DomainAction action)
     {
         var v = action.WastepackHaul ?? throw BridgeContractException.Contract("not a wastepack haul action");
-        if (!WireValidation.IsValidId(v.Thing))
-        {
-            throw BridgeContractException.Contract("wastepack haul target invalid");
-        }
         return Designate(
             new Op.DesignateIntent
             {
@@ -290,10 +278,6 @@ public static class BuildingsRules
     internal static Op.Action CutPlantAction(DomainAction action)
     {
         var v = action.CutPlant ?? throw BridgeContractException.Contract("not a cut plant action");
-        if (!WireValidation.IsValidId(v.Plant))
-        {
-            throw BridgeContractException.Contract("cut plant target invalid");
-        }
         return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Plant, Designation = Op.ThingDesignation.CutPlant } };
     }
 
@@ -304,10 +288,6 @@ public static class BuildingsRules
     internal static Op.Action SupplyAction(DomainAction action)
     {
         var v = action.SupplyAllow ?? throw BridgeContractException.Contract("not a supply action");
-        if (!WireValidation.IsValidId(v.Thing))
-        {
-            throw BridgeContractException.Contract("supply target invalid");
-        }
         var designation = v.Forbidden ? Op.ThingDesignation.Forbid : Op.ThingDesignation.Allow;
         return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Thing, Designation = designation } };
     }
@@ -319,10 +299,6 @@ public static class BuildingsRules
     internal static Op.Action StripAction(DomainAction action)
     {
         var v = action.Strip ?? throw BridgeContractException.Contract("not a strip action");
-        if (!WireValidation.IsValidId(v.Target))
-        {
-            throw BridgeContractException.Contract("strip target invalid");
-        }
         return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Target, Designation = Op.ThingDesignation.Strip } };
     }
 

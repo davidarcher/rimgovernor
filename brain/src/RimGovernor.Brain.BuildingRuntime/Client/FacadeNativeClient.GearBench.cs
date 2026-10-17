@@ -67,9 +67,9 @@ public sealed partial class FacadeNativeClient
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var name in defNames)
         {
-            if (!WireValidation.IsValidId(name) || !names.Add(name))
+            if (!names.Add(name))
             {
-                throw BridgeContractException.Contract("invalid supply stock def name");
+                throw BridgeContractException.Contract("duplicate supply stock def name");
             }
         }
         var seenOut = new HashSet<string>(StringComparer.Ordinal);

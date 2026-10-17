@@ -22,8 +22,8 @@ public static class RoyaltyColonyProjectionReads
         var neuroformers = new Dictionary<string, Neuroformer>(StringComparer.Ordinal);
         foreach (var row in v.Neuroformers)
         {
-            var name = (row.DefName ?? "");
-            if (!WireValidation.IsValidId(name) || row.Held.GetValueOrDefault() < 0)
+            var name = row.DefName;
+            if (row.Held.GetValueOrDefault() < 0)
             {
                 throw new BridgeContractException("invalid royalty neuroformer");
             }
@@ -36,16 +36,14 @@ public static class RoyaltyColonyProjectionReads
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in v.Ceremonies)
         {
-            var pawn = row.Pawn?.Id ?? "";
-            var faction = row.FactionDef is not null ? (row.FactionDef ?? "") : "";
-            if (!WireValidation.IsValidId(pawn) || !WireValidation.IsValidId((row.Quest ?? ""))
-                || (row.FactionDef is not null && !WireValidation.IsValidId((row.FactionDef ?? ""))) || (row.Title is not null && !WireValidation.IsValidId((row.Title ?? ""))) || !seen.Add(pawn + "/" + faction))
+            var pawn = row.Pawn.Id;
+            if (!seen.Add(pawn + "/" + row.FactionDef))
             {
-                throw new BridgeContractException("invalid royalty ceremony");
+                throw new BridgeContractException("duplicate royalty ceremony");
             }
             ceremonies.Add(new BestowingCeremony
             {
-                Quest = new QuestId((row.Quest ?? "")),
+                Quest = new QuestId(row.Quest),
                 Pawn = new PawnId(pawn),
                 Title = row.Title is not null ? (row.Title ?? "") : "",
                 Accepted = ColonyDecodeReads.Optional(row.Accepted is not null, row.Accepted.GetValueOrDefault()),
@@ -57,11 +55,11 @@ public static class RoyaltyColonyProjectionReads
         var throneIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in v.Thrones)
         {
-            var id = row.Thing?.Id ?? "";
+            var id = row.Thing.Id;
             var owner = row.Owner?.Id ?? "";
-            if (!WireValidation.IsValidId(id) || (owner != "" && !WireValidation.IsValidId(owner)) || (row.DefName is not null && !WireValidation.IsValidId((row.DefName ?? ""))) || !throneIds.Add(id))
+            if (!throneIds.Add(id))
             {
-                throw new BridgeContractException("invalid royalty throne");
+                throw new BridgeContractException("duplicate royalty throne");
             }
             thrones.Add(new RoyalThrone { Id = id, Owner = new PawnId(owner) });
         }

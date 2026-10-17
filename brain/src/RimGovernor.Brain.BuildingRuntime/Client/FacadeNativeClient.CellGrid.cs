@@ -123,7 +123,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<MapBounds> ReadMapBoundsAsync(PbCommon.Identity identity, Cell anchor, CancellationToken cancellationToken)
     {
-        WireValidation.AuthorityIdentity(identity);
         if (anchor.X < 0 || anchor.Z < 0)
         {
             throw BridgeContractException.Contract("negative bounds anchor");
@@ -158,7 +157,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PlanningWindowRead> ReadPlanningWindowAsync(PbCommon.Identity identity, P.Rectangle rect, CancellationToken cancellationToken)
     {
-        WireValidation.AuthorityIdentity(identity);
         if (rect.X < 0 || rect.Z < 0 || rect.Width < 1 || rect.Height < 1)
         {
             throw BridgeContractException.Contract("invalid planning window rect");

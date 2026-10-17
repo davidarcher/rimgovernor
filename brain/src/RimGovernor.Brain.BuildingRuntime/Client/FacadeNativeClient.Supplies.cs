@@ -8,10 +8,6 @@ public sealed partial class FacadeNativeClient
     /// <summary>Go's <c>ReadPackedItems</c>: lists the colony's spawned, unheld packed items of one packed definition.</summary>
     internal async Task<IReadOnlyList<PackedItem>> ReadPackedItemsAsync(PbCommon.Identity identity, string packedDef, CancellationToken cancellationToken)
     {
-        if (!PlacementChecks.Passes(() => WireValidation.ValidateIdentity(identity)) || !WireValidation.IsValidId(packedDef))
-        {
-            throw BridgeContractException.Contract("invalid packed items read");
-        }
         var reply = await Facade.ListSuppliesAsync(SupplyRequests.OursUnheldSuppliesRequest(identity, packedDef), cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Unavailable is { } unavailable)
         {
@@ -49,10 +45,6 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<IReadOnlyList<string>> ReadNeuroformerItemsAsync(PbCommon.Identity identity, string def, CancellationToken cancellationToken)
     {
-        if (!PlacementChecks.Passes(() => WireValidation.ValidateIdentity(identity)) || !WireValidation.IsValidId(def))
-        {
-            throw BridgeContractException.Contract("invalid neuroformer scope");
-        }
         var reply = await Facade.ListSuppliesAsync(SupplyRequests.OursUnheldSuppliesRequest(identity, def), cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Unavailable is { } unavailable)
         {

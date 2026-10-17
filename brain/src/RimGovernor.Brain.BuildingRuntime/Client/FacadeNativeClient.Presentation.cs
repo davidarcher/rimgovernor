@@ -11,7 +11,6 @@ public sealed partial class FacadeNativeClient
     internal async Task<PbPresentation.CameraReply> ReadCameraAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        WireValidation.ValidateIdentity(request.Identity);
         var reply = await Facade.ReadCameraAsync(request, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
         {
@@ -25,7 +24,6 @@ public sealed partial class FacadeNativeClient
     internal async Task<PbPresentation.SelectionReply> ReadSelectionAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        WireValidation.ValidateIdentity(request.Identity);
         var reply = await Facade.ReadSelectionAsync(request, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
         {
@@ -39,7 +37,6 @@ public sealed partial class FacadeNativeClient
     internal async Task<PbPresentation.ColonistRosterReply> ReadColonistRosterAsync(PbPresentation.ColonistRosterRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        WireValidation.ValidateIdentity(request.Identity);
         if (request.CurrentMapOnly is null)
         {
             throw BridgeContractException.Contract("currentMapOnly presence required");
@@ -61,7 +58,6 @@ public sealed partial class FacadeNativeClient
     internal async Task<PbPresentation.RenderReply> ReadRenderStateAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        WireValidation.ValidateIdentity(request.Identity);
         var reply = await Facade.ReadRenderStateAsync(request, cancellationToken).ConfigureAwait(false);
         return PresentationRenderOutcome(reply);
     }
@@ -75,11 +71,6 @@ public sealed partial class FacadeNativeClient
         if (request is null || request.Viewer is null)
         {
             throw BridgeContractException.Contract("render demand viewer required");
-        }
-
-        if (request.Viewer.ViewerId is not null && !WireValidation.IsValidId(request.Viewer.ViewerId))
-        {
-            throw BridgeContractException.Contract("invalid viewer id");
         }
 
         if (request.LeaseSeconds.GetValueOrDefault() > 30)
