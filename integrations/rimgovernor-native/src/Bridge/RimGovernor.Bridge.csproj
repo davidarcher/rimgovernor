@@ -95,6 +95,7 @@
     <Compile Include="../../../../scripts/fixtures/LedgerFixture.cs" Condition="'$(LedgerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HuntLedgerFixture.cs" Condition="'$(HuntLedgerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MaintenancePracticeFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/NeedTargetCapacityFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/TrainingFixture.cs" Condition="'$(TrainingFixture)' == 'true' Or '$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SparringFixture.cs" Condition="'$(SparringFixture)' == 'true' Or '$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SparringWatchFixture.cs" Condition="'$(SparringWatchFixture)' == 'true'" />
