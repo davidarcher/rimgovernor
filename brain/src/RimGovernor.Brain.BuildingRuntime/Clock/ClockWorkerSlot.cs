@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Port of the clockWorkerSlot of internal/buildingruntime/clock_worker_session.go. The worker itself (the poll,
-// renew and step goroutines) is the brain host's scheduler thread and the run driver; what stays is the slot
+// Port of the clockWorkerSlot of internal/buildingruntime/clock_worker_session.go. The worker itself (the event,
+// renew and step goroutines) is the brain host's scheduler thread, the run driver and its colony event consumer; what stays is the slot
 // the session stops before it stops its clock coordinator.
 
 /// <summary>Whatever drives the clock runs of a session and must be joined before the session's clock stops (Go <c>clockWorkerStopper</c>).</summary>

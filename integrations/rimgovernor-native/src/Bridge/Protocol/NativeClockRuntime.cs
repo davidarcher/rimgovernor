@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
     internal static partial class Supervisor
     {
         /// What a run segment carries beyond the hazard state: the observation it
-        /// last journalled under, the authority generation Run named, the policy
+        /// last published under, the authority generation Run named, the policy
         /// it was last sent, and the hold's pause facts.
         private sealed class TypedEpoch
         {
@@ -80,12 +80,11 @@ namespace HomeBridge.BridgeTools
                 {
                     EnsurePatched(); LetterPauseHook.EnsurePatched();
                     if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Exact native clock hooks are unavailable.");
-                    if (Journal.Newest == long.MaxValue) return ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Native clock cursor is exhausted.");
                     var map = ProtoBoundary.ResolveMap(request.Identity ?? throw new InvalidOperationException("Missing identity")) ?? throw new InvalidOperationException("The requested map is not loaded.");
                     ResolveHostiles(map, request.Policy.AcknowledgedHostileIds);
                     foreach (var ids in PolicyIds(request.Policy).Skip(1)) ResolveIds(map, ids);
                 }
-                catch (Exception error) { ModLog.Error("clock", "Clock run preconditions failed: " + error); return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher, journal or exact policy pawn identity is unavailable."); }
+                catch (Exception error) { ModLog.Error("clock", "Clock run preconditions failed: " + error); return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher or exact policy pawn identity is unavailable."); }
                 return null;
             }
         }
@@ -278,8 +277,8 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        /// Hold: pauses and journals one HoldEntered for the brain's reason. While
-        /// already held the first reason stands (nothing is journalled), but a
+        /// Hold: pauses and publishes one HoldEntered for the brain's reason. While
+        /// already held the first reason stands (nothing is published), but a
         /// game someone un-paused is paused again. Needs only the loaded identity.
         internal static Clock.Status TypedHold(Clock.HoldRequest request, Common.ObservationContext context)
         {
@@ -295,7 +294,7 @@ namespace HomeBridge.BridgeTools
                 }
                 else if (s == null || !sameSession)
                 {
-                    // Never run (or another game's state): the hold still pauses and journals.
+                    // Never run (or another game's state): the hold still pauses and publishes.
                     if (Current.Game != null && Find.TickManager != null && Find.CurrentMap != null)
                     {
                         var shell = new State(Current.Game, Find.CurrentMap) {
@@ -336,7 +335,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        /// Heartbeat: the brain's contact for the one ceiling. Not journalled and
+        /// Heartbeat: the brain's contact for the one ceiling. Not published and
         /// not a hold; silence only lowers the ceiling. Reads are not contact.
         internal static Clock.HeartbeatAck TypedHeartbeat()
         {
@@ -359,8 +358,7 @@ namespace HomeBridge.BridgeTools
             {
                 EnsurePatched();
                 var result = new Clock.Status { Context = context, ActualPaused = Find.TickManager.Paused,
-                    NativeTickBoundary = TypedHooksReady(),
-                    NewestCursor = Journal.Newest, HoldSerial = HoldSerial.Current };
+                    NativeTickBoundary = TypedHooksReady(), HoldSerial = HoldSerial.Current };
                 var s = _state;
                 if (s == null || !ReferenceEquals(s.Session, Current.Game))
                     result = result with { State = Clock.ClockState.Held, Reason = Clock.HoldReason.NeverRun };
@@ -407,33 +405,12 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // The read never waits: the controller polls the page.
-        internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context)
-        {
-            lock (Gate) return TypedEventsPage(request, context);
-        }
-        private static Clock.EventsReply TypedEventsPage(Clock.EventsRequest request, Common.ObservationContext context)
-        {
-            lock (Gate)
-            {
-                try
-                {
-                    if (request.AfterCursor.GetValueOrDefault() > Journal.Newest) return new Clock.EventsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cursor exceeds the retained native journal.") };
-                    var began = System.Diagnostics.Stopwatch.GetTimestamp();
-                    var window = Journal.ReadWindow(request.AfterCursor.GetValueOrDefault(), (int)request.Limit.GetValueOrDefault());
-                    ObservationWork.Captured("clockEventsJournal", System.Diagnostics.Stopwatch.GetTimestamp() - began, window.Events.Count);
-                    return new Clock.EventsReply { Outcome = new Clock.EventsPage { Context = context, Events = EquatableArray.From(window.Events),
-                        NewestCursor = Journal.Newest, NextCursor = window.Next } };
-                }
-                catch (Exception error) { ModLog.Error("clock", "Clock event journal read failed: " + error); return new Clock.EventsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Clock event journal could not establish complete cursor continuity.") }; }
-            }
-        }
         private static ulong _publishedGeneration;
         private static void OnAuthorityChanged(NativeControlAuthority authority, NativeControlSnapshot snapshot, ulong previous)
         {
             lock (Gate)
             {
-                // Coalesce: the newest retained row already names this generation.
+                // Coalesce: the newest published event already names this generation.
                 if (snapshot.Generation == _publishedGeneration) return;
                 _publishedGeneration = snapshot.Generation;
                 Publish("authority_changed", "Native authority generation " + previous + " -> " + snapshot.Generation + " (" + snapshot.Reason + ").",
@@ -441,15 +418,16 @@ namespace HomeBridge.BridgeTools
                         { "reason", snapshot.Reason.ToString() }, { "active", snapshot.Active } });
             }
         }
-        // The only journal writer. An event takes its cursor after its context
+        // The only colony-event producer. An event is queued after its context
         // read, so a publication that read causes (a revoke through the
-        // authority seam) lands first and this event takes the next cursor.
-        // Each journalled event is also one OTLP row (ClockEventRows); a
-        // hold's row carries stopAtMs, the stamp Status reports as held-at.
+        // authority seam) is queued first. The queue never blocks: a full one
+        // drops the event and counts the loss (ColonyEventChannel). Each
+        // event is also one OTLP row (ClockEventRows), lost or not; a hold's
+        // row carries stopAtMs, the stamp Status reports as held-at.
         private static void Append(Clock.ClockEvent value, long? stopAtMs = null)
         {
             if (!ValidStoredEvent(value)) throw new InvalidOperationException("Clock event is incomplete");
-            Journal.Append(value);
+            ColonyEvents.Publish(value);
             EmitRow(value, stopAtMs);
         }
 
@@ -461,7 +439,7 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate) _rows = emitter;
         }
-        // Telemetry never fails the journal: a row that cannot be written is logged once and dropped.
+        // Telemetry never fails the publication: a row that cannot be written is logged once and dropped.
         private static void EmitRow(Clock.ClockEvent value, long? stopAtMs)
         {
             if (_rows is not { } emitter) return;

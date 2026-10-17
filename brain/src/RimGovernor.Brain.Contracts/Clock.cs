@@ -100,8 +100,6 @@ public enum HoldReason
     ExternalSpeedChanged = 10,
     [WireName("HOLD_REASON_WATCHER_ERROR")]
     WatcherError = 11,
-    [WireName("HOLD_REASON_EVENT_JOURNAL_ERROR")]
-    EventJournalError = 12,
     [WireName("HOLD_REASON_COLONY_NAMING")]
     ColonyNaming = 13,
     /// <summary>A force-pausing Verse.Dialog_NodeTree the game opened by itself; PauseEvidence.dialog names it.</summary>
@@ -393,8 +391,6 @@ public sealed record Status
     public Common.Unavailable? Unavailable { get; init; }
 
     public bool? NativeTickBoundary { get; init; }
-
-    public long? NewestCursor { get; init; }
 
     public bool? ActualPaused { get; init; }
 
@@ -860,55 +856,4 @@ public abstract record ClockEventEvent
     public sealed record ObservationInvalidatedCase(ObservationInvalidated Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(ObservationInvalidated value) => new ObservationInvalidatedCase(value);
-}
-
-public sealed record EventsRequest
-{
-    public Common.Identity? Identity { get; init; }
-
-    public long? AfterCursor { get; init; }
-
-    public uint? Limit { get; init; }
-}
-
-public sealed record EventsPage
-{
-    public Common.ObservationContext? Context { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ClockEvent>))]
-    public EquatableArray<ClockEvent> Events { get; init; }
-
-    public long? NewestCursor { get; init; }
-
-    public long? NextCursor { get; init; }
-}
-
-public sealed record EventsReply
-{
-    public EventsReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="EventsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(EventsReplyOutcome.PageCase), "page")]
-[JsonDerivedType(typeof(EventsReplyOutcome.FailureCase), "failure")]
-public abstract record EventsReplyOutcome
-{
-    private protected EventsReplyOutcome() { }
-
-    /// <summary>The <c>Page</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public EventsPage? Page => (this as PageCase)?.Value;
-
-    public sealed record PageCase(EventsPage Value) : EventsReplyOutcome;
-
-    public static implicit operator EventsReplyOutcome(EventsPage value) => new PageCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : EventsReplyOutcome;
-
-    public static implicit operator EventsReplyOutcome(Common.Failure value) => new FailureCase(value);
 }

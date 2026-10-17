@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
 /// What the run driver needs beyond the scheduler's own configuration: the speed it asks the clock to run at, the
-/// base watch policy every Run carries, the autosave and the poll cadence (Go <c>ClockSchedulerConfig</c> fields the
+/// base watch policy every Run carries, the autosave and the call bounds (Go <c>ClockSchedulerConfig</c> fields the
 /// planning step does not use, and <c>ClockWorkerConfig</c>).
 /// </summary>
 public sealed record ClockRunConfig
@@ -32,15 +32,9 @@ public sealed record ClockRunConfig
     /// <summary>The speed ceiling while a fight is open once the gate has tripped (unmeasured default, #3180).</summary>
     public PbClock.Speed CombatFallbackSpeed { get; init; } = ClockCombatStops.FallbackSpeed;
 
-    /// <summary>The most events one poll reads; 1 through 128.</summary>
-    public uint PageLimit { get; init; } = 128;
-
-    /// <summary>The poll cadence between captures.</summary>
-    public TimeSpan PollInterval { get; init; } = TimeSpan.FromMilliseconds(250);
-
     /// <summary>The longest the clock may go without a heartbeat before its ceiling drops to Normal is five seconds; the driver beats this often.</summary>
     public TimeSpan HeartbeatInterval { get; init; } = TimeSpan.FromSeconds(1);
 
-    /// <summary>The bound of one native call the poll and the driver make.</summary>
+    /// <summary>The bound of one native call the event consumer and the driver make.</summary>
     public TimeSpan CallTimeout { get; init; } = TimeSpan.FromSeconds(60);
 }

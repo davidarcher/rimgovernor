@@ -1,10 +1,10 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Port of the poll side of internal/buildingruntime/clock_worker.go (the poll loop and Stop). The Go scheduler planned
-// and sent Run in one step; the C# step only plans (ClockScheduler), and this driver runs after each step.
-// The clock is Running at the target speed or Held; the driver is the hold state machine that keeps it so.
+// Port of the worker side of internal/buildingruntime/clock_worker.go (Stop). The Go scheduler planned and sent Run in
+// one step; the C# step only plans (ClockScheduler), and this driver runs after each step. The clock is Running at the
+// target speed or Held; the driver is the hold state machine that keeps it so.
 
-/// <summary>What the run driver reads natively beyond the scheduler's own reads: the ring page and the emergency census.</summary>
+/// <summary>What the run driver reads natively beyond the scheduler's own reads: the colony events and the emergency census.</summary>
 public interface IClockDriverNative : IClockEventNative
 {
     /// <summary>The emergency census of the world <paramref name="identity"/> names.</summary>
@@ -13,15 +13,12 @@ public interface IClockDriverNative : IClockEventNative
 
 /// <summary>
 /// Runs the native clock of a session: sends Run at the target speed under the watch policy the facts imply, takes
-/// the brain's own holds (a coupled order, a review, an autosave), keeps the heartbeat, and polls the native ring
-/// for what held it. The host calls <see cref="AfterStepAsync"/> after every scheduler step and
+/// the brain's own holds (a coupled order, a review, an autosave), keeps the heartbeat, and consumes the colony events
+/// native pushes, which say what held it. The host calls <see cref="AfterStepAsync"/> after every scheduler step and
 /// <see cref="StopAsync"/> on shutdown.
 /// </summary>
 public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
 {
-    private static readonly TimeSpan PollBackoffMin = TimeSpan.FromMilliseconds(250);
-    private static readonly TimeSpan PollBackoffMax = TimeSpan.FromSeconds(2);
-
     private readonly Player _player;
     private readonly Session _session;
     private readonly ClockScheduler _scheduler;
@@ -29,13 +26,11 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
     private readonly IClockWriter _writer;
     private readonly ClockRunConfig _config;
     private readonly IClock _clock;
-    private readonly WakeSignal? _wake;
-    private readonly ClockEventPoll _poll;
+    private readonly ColonyEventConsumer _events;
     private readonly CombatStopMetrics _combatStops;
     private readonly CancellationTokenSource _cancel = new();
-    private readonly SemaphoreSlim _pollWake = new(0);
     private readonly SemaphoreSlim _stopGate = new(1, 1);
-    private Task _pollTask = Task.CompletedTask;
+    private Task _eventsTask = Task.CompletedTask;
     private Task _heartbeatTask = Task.CompletedTask;
     private bool _stopped;
 
@@ -62,14 +57,14 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
         _writer = writer;
         _config = config;
         _clock = clock;
-        _wake = wake;
         _combatStops = new CombatStopMetrics(config.CombatResumeBudget);
-        _poll = new ClockEventPoll(session, native, config);
+        _events = new ColonyEventConsumer(session, native, wake, config);
     }
 
     /// <summary>
     /// Builds the driver for <paramref name="scheduler"/>, attaches it to the session's clock worker slot and starts the
-    /// poll and heartbeat loops (Go <c>NewClockScheduler</c>'s policy validation and <c>NewClockWorker</c>).
+    /// colony event consumer and the heartbeat loop (Go <c>NewClockScheduler</c>'s policy validation and
+    /// <c>NewClockWorker</c>). Each scheduler step then records the consumer's evidence count at its clock read.
     /// </summary>
     public static ClockRunDriver Create(
         Player player,
@@ -96,7 +91,8 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
         Validated(config);
         var driver = new ClockRunDriver(player, session, scheduler, native, writer, config, clock, wake);
         session.AttachClockWorker(driver);
-        driver._pollTask = Task.Run(() => driver.PollLoopAsync(lifetime), CancellationToken.None);
+        scheduler.ColonyEventsSeen = () => driver._events.Seen;
+        driver._eventsTask = Task.Run(() => driver.EventsLoopAsync(lifetime), CancellationToken.None);
         driver._heartbeatTask = Task.Run(() => driver.HeartbeatLoopAsync(lifetime), CancellationToken.None);
         return driver;
     }
@@ -123,69 +119,23 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
         }
     }
 
-    // Reads the native ring: one unheld read per round, answered at once. A read that captured evidence is followed
-    // by the next at once; a failed call backs off from 250 ms to 2 s; otherwise the loop waits the cadence or until a
-    // completed step releases it. The cadence is a safety bound: a blocked step must not hide a hold from this
-    // independent loop.
-    private async Task PollLoopAsync(CancellationToken lifetime)
+    /// <summary>The colony event evidence the consumer has delivered (<see cref="ColonyEventConsumer.Seen"/>).</summary>
+    internal long EventsSeen => _events.Seen;
+
+    /// <summary>Whether the consumer has opened the native colony event queue.</summary>
+    internal bool EventsOpened => _events.Opened;
+
+    // Consumes the colony events until the driver stops; the consumer wakes the step loop itself.
+    private async Task EventsLoopAsync(CancellationToken lifetime)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime, _cancel.Token);
-        var ct = linked.Token;
-        var backoff = TimeSpan.Zero;
-        while (!ct.IsCancellationRequested)
-        {
-            var interval = _config.PollInterval;
-            ClockPollResult? result = null;
-            Exception? failure = null;
-            try
-            {
-                using var bounded = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                bounded.CancelAfter(_config.CallTimeout);
-                result = await _poll.PollAsync(bounded.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                return;
-            }
-            catch (Exception e)
-            {
-                failure = e;
-            }
-            if (result is not null && (result.Captured || result.Invalidated.Count > 0 || result.AuthorityChanged))
-            {
-                // The step loop reacts to the page: a hold native took wakes it; the hold itself is guarded by the Run's
-                // hold serial, not by the poll.
-                _wake?.NotifySections(result.Invalidated, result.InvalidatedSections, result.AuthorityChanged, result.Held, result.HeldAt);
-            }
-            if (result is not null && result.Captured)
-            {
-                backoff = TimeSpan.Zero;
-                continue;
-            }
-            if (failure is not null)
-            {
-                backoff = TimeSpan.FromTicks(Math.Min(PollBackoffMax.Ticks, Math.Max(PollBackoffMin.Ticks, backoff.Ticks * 2)));
-                interval = backoff;
-            }
-            else
-            {
-                backoff = TimeSpan.Zero;
-            }
-            try
-            {
-                await _pollWake.WaitAsync(interval, ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-        }
+        await _events.RunAsync(linked.Token).ConfigureAwait(false);
     }
 
-    // The brain's contact with the clock ceiling's heartbeat, independent of the poll and the steps so a slow step
-    // never lowers the ceiling. A beat that fails is only logged: heartbeat loss is native's to handle, not a hold.
-    // The same loop holds the clock when authority has ended under a Run this driver sent: a running clock with no
-    // brain behind it must not outlive its authority.
+    // The brain's contact with the clock ceiling's heartbeat, independent of the events and the steps so a slow step
+    // never lowers the ceiling. A beat that fails is only logged: heartbeat loss is native's to handle, not a hold; the
+    // identity it named is read again for the next beat. The same loop holds the clock when authority has ended under a
+    // Run this driver sent: a running clock with no brain behind it must not outlive its authority.
     private async Task HeartbeatLoopAsync(CancellationToken lifetime)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime, _cancel.Token);
@@ -195,16 +145,20 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
             try
             {
                 await Task.Delay(_config.HeartbeatInterval, ct).ConfigureAwait(false);
-                var identity = _poll.Identity;
-                if (identity is null)
-                {
-                    continue;
-                }
                 using var bounded = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 bounded.CancelAfter(_config.CallTimeout);
                 if (_session.State().Enabled)
                 {
-                    _ = await _writer.HeartbeatAsync(new PbClock.HeartbeatRequest { Identity = identity }, bounded.Token).ConfigureAwait(false);
+                    var identity = await _events.IdentityAsync(bounded.Token).ConfigureAwait(false);
+                    try
+                    {
+                        _ = await _writer.HeartbeatAsync(new PbClock.HeartbeatRequest { Identity = identity }, bounded.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception e) when (e is not OperationCanceledException)
+                    {
+                        _events.ForgetIdentity();
+                        throw;
+                    }
                 }
                 else if (Interlocked.Exchange(ref _ran, 0) != 0)
                 {
@@ -222,12 +176,9 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
         }
     }
 
-    // Releases the poll's wait on every completed step (and from a test that has just changed the ring): the poll reads again at once.
-    internal void WakePoll() => _pollWake.Release();
-
     /// <summary>
-    /// Stops the poll and heartbeat loops, drops authority and holds the clock (Go <c>ClockWorker.Stop</c>). It can be
-    /// retried after a deadline or hold failure. It does not take the player gate or close the player.
+    /// Stops the event consumer and the heartbeat loop, drops authority and holds the clock (Go <c>ClockWorker.Stop</c>).
+    /// It can be retried after a deadline or hold failure. It does not take the player gate or close the player.
     /// </summary>
     public async Task StopAsync(CancellationToken ct)
     {
@@ -249,7 +200,7 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
                 disabled = e;
             }
             // Both loops return on cancellation, so joining them only waits for a call in flight.
-            await Task.WhenAll(_pollTask, _heartbeatTask).WaitAsync(ct).ConfigureAwait(false);
+            await Task.WhenAll(_eventsTask, _heartbeatTask).WaitAsync(ct).ConfigureAwait(false);
             Exception? held = null;
             try
             {
@@ -277,8 +228,6 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
     public void Dispose()
     {
         _cancel.Cancel();
-        _poll.Dispose();
-        _pollWake.Dispose();
         _stopGate.Dispose();
         _cancel.Dispose();
     }

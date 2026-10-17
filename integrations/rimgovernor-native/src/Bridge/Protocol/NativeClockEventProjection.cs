@@ -75,7 +75,6 @@ namespace HomeBridge.BridgeTools
                 case "letter_pause": return Clock.HoldReason.LetterPause;
                 case "external_speed_changed": return Clock.HoldReason.ExternalSpeedChanged;
                 case "watcher_error": return Clock.HoldReason.WatcherError;
-                case "event_journal_error": return Clock.HoldReason.EventJournalError;
                 case "force_paused": return Clock.HoldReason.GameForced;
                 case "colony_naming": return Clock.HoldReason.ColonyNaming;
                 case "dialog_pause": return Clock.HoldReason.DialogPause;

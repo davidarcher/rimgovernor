@@ -18,14 +18,6 @@ namespace HomeBridge.BridgeTools
             return new Clock.StatusReply { Outcome = Read(context) };
         }
 
-        internal static Clock.EventsReply HandleReadEvents(Clock.EventsRequest parsed)
-        {
-            if (parsed.AfterCursor is null || parsed.AfterCursor.GetValueOrDefault() < 0 || parsed.Limit is null || parsed.Limit.GetValueOrDefault() < 1 || parsed.Limit.GetValueOrDefault() > 128)
-                return new Clock.EventsReply { Outcome = Invalid("Event reads require explicit cursor>=0 and limit1..128 (subscribe to rimgovernor.clock).") };
-            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.EventsReply { Outcome = failure };
-            return Supervisor.TypedEvents(parsed, context);
-        }
-
         internal static Clock.StatusReply HandleRun(Clock.RunRequest parsed)
         {
             if (parsed.ExpectedGeneration is null || parsed.ExpectedGeneration.GetValueOrDefault() == 0)

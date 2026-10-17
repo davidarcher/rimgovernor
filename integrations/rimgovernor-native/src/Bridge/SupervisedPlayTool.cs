@@ -23,7 +23,8 @@ namespace HomeBridge.BridgeTools
         // far short of anything a person would sit through.
         private const int ForcePauseGraceMs = 20000;
         private static readonly object Gate = new object();
-        private static readonly ClockEventJournal Journal = new ClockEventJournal();
+        // The colony events pushed to the brain (ColonyEventChannel): bounded, written without blocking, losses counted.
+        internal static readonly RimGovernor.Brain.NativeFacade.ColonyEventChannel ColonyEvents = new RimGovernor.Brain.NativeFacade.ColonyEventChannel();
         private static State? _state;
         // Bumped by every Stop that enters a hold; a resume must quote it (ClockHoldSerial.cs).
         private static readonly ClockHoldSerial HoldSerial = new ClockHoldSerial();
@@ -813,7 +814,7 @@ namespace HomeBridge.BridgeTools
                         // A new wound stops the run only past the native
                         // severity floor: bleeding out inside the policy's
                         // injury_severity_floor_ticks, or a life-threatening
-                        // hediff stage. Anything lighter is a journal row and a
+                        // hediff stage. Anything lighter is an event and a
                         // medical review under the running clock, which is
                         // what every stop bought anyway at the price of a
                         // stop-to-readmit pause. A combat threshold crossing
@@ -925,7 +926,7 @@ namespace HomeBridge.BridgeTools
             return remaining > 0 ? remaining : 0;
         }
 
-        /// Journals the medical facts as stale so the medical planner
+        /// Publishes the medical facts as stale so the medical planner
         /// reviews under the running clock, at most once per pawn per
         /// MedicalWakeIntervalTicks unless the caller forces it. This is the
         /// wake the demoted health tiers are worth: every reader of the pawn
@@ -1039,7 +1040,7 @@ namespace HomeBridge.BridgeTools
             return ours || prey == null;
         }
         private static int Distance(Pawn a, Pawn b) { return Math.Max(Math.Abs(a.Position.x - b.Position.x), Math.Abs(a.Position.z - b.Position.z)); }
-        /// Enters a hold: pauses (when asked) and journals one HoldEntered. The
+        /// Enters a hold: pauses (when asked) and publishes one HoldEntered. The
         /// native clock then stays held until the brain sends Run.
         private static void Stop(State? s, string kind, string? detail, bool pause,
             Dictionary<string, object?>? payload)
@@ -1050,7 +1051,7 @@ namespace HomeBridge.BridgeTools
             // same hold and does not bump the serial again.
             if (s.PendingKind == null) HoldSerial.Entered();
             // The tick the stop was first raised at; a failed pause retries
-            // per frame and keeps it, so the journaled stop tick can be later.
+            // per frame and keeps it, so the published stop tick can be later.
             if (s.PendingKind == null && Find.TickManager != null) s.DetectedTick = Find.TickManager.TicksGame;
             if (pause && Find.TickManager != null && Find.TickManager.CurTimeSpeed != TimeSpeed.Paused) Find.TickManager.Pause();
             s.PausedAtStop = Find.TickManager != null && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
@@ -1091,23 +1092,12 @@ namespace HomeBridge.BridgeTools
         }
         private static void Add(string kind, string? detail, State s, Dictionary<string, object?>? payload)
         {
+            // An event native cannot build is lost, not a hold: it is counted, and the brain plans Full on any loss.
             try { Append(TypedEvent(kind, detail, s, payload), s.StopAtMs); }
-            catch
+            catch (Exception error)
             {
-                var sameContext = ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map);
-                if (sameContext && Find.TickManager != null)
-                    Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
-                RestoreBoost(s);
-                s.Active = false; s.StopReason = "event_journal_error"; ClockPauseAccounting.Stopped();
-                if (s.Typed != null)
-                {
-                    s.PausedAtStop = sameContext && Find.TickManager != null && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
-                    s.PauseVerified = s.PausedAtStop;
-                    s.Typed.StopPauseVerified = s.PausedAtStop;
-                    s.StopAtMs = NowMs(); s.StopDetail = "Canonical event publication failed.";
-                    if (sameContext && !s.PausedAtStop) { s.Active = true; s.PendingKind = "event_journal_error"; s.PendingDetail = s.StopDetail; }
-                }
-                throw;
+                ColonyEvents.CountLost();
+                ModLog.Warn("clock", "Clock event " + kind + " was lost: " + error.GetType().Name);
             }
         }
         // Epoch-less producers (authority changes observed while no epoch is
@@ -1125,7 +1115,7 @@ namespace HomeBridge.BridgeTools
                     Append(value);
                     return true;
                 }
-                catch (Exception error) { ModLog.Warn("clock", "clock publication of " + kind + " failed: " + error.GetType().Name); return false; }
+                catch (Exception error) { ColonyEvents.CountLost(); ModLog.Warn("clock", "clock publication of " + kind + " failed: " + error.GetType().Name); return false; }
             }
         }
         private static HashSet<string> Csv(string value) { return new HashSet<string>((value ?? "").Split(',').Select(x => x.Trim()).Where(x => x.Length > 0), StringComparer.OrdinalIgnoreCase); }

@@ -195,8 +195,8 @@ Kept, reason recorded:
 | NativeClearCover.cs | 47 | state | Classifies a map thing as plant/mineable/chunk/building cover and reads standing removal designations. | Mine/CutPlant/Haul/Deconstruct const strings (4 entries) | none needed; designation names are protocol tokens |
 | NativeClearanceObservationTools.cs | 428 | mixed | Clearance target census with salvage evidence cache, ancient-danger and hive-danger checks; mostly live state. | Classify() ThingDefOf.ShipChunk/Wall checks (3 defs); HiveDangerRadius=14; salvageSignatureEveryTicks=60 | Go rule over ThingDef rows (ShipChunk/Wall by defName/thingClass); HiveDangerRadius into GameConstants (#2626) |
 | NativeClockEventProjection.cs | 212 | code | Projects clock-journal event rows into typed Clock.Event protos; clock transport infrastructure. |  |  |
-| NativeClockRuntime.cs | 549 | state | Clock epoch runtime: leases, speed, pause holds, event journal pages and authority. |  |  |
-| NativeClockTools.cs | 150 | state | Tool handlers for clock start/change-speed/read-events. |  |  |
+| NativeClockRuntime.cs | 549 | state | Clock epoch runtime: leases, speed, pause holds, colony event publishing and authority. |  |  |
+| NativeClockTools.cs | 150 | state | Tool handlers for clock start/change-speed/status. |  |  |
 | NativeColonyObservationTools.cs | 558 | mixed | Reads the whole colony facts frame (food, power, wealth, crops, conditions) from live game state. | CropDefs DefDatabase enumeration (conduit list deleted, #2657) | kept, see the #2657 disposition |
 | NativeCombatGeometryTools.cs | 234 | code | Combat geometry read: cover, line of fire and path ticks via CoverUtility/GenSight/pathfinder. |  |  |
 | NativeCombatOperations.cs | 47 | code | Attack rules: picks melee or ranged attack job per vanilla float-menu logic. |  |  |

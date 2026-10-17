@@ -162,8 +162,14 @@ namespace HomeBridge.BridgeTools
         public Task<Clock.StatusReply> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadClockStatus, request, () => NativeClockTools.HandleReadStatus(request), cancellationToken);
 
-        public Task<Clock.EventsReply> ReadClockEventsAsync(Clock.EventsRequest request, CancellationToken cancellationToken)
-            => Read(NativeOps.ReadClockEvents, request, () => NativeClockTools.HandleReadEvents(request), cancellationToken);
+        // The queue is lock-free and native-owned: opening it needs no game-thread hop.
+        public Task<ChannelReader<Clock.ClockEvent>> OpenColonyEventsAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(Supervisor.ColonyEvents.Open());
+        }
+
+        public long ColonyEventsLost => Supervisor.ColonyEvents.Lost;
 
         // Presentation reads.
 

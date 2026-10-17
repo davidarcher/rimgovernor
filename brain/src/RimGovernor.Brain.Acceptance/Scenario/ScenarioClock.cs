@@ -54,7 +54,6 @@ public sealed class ScenarioClock
         "unavailable",
         "watcher_error",
         "run_refused",
-        "event_journal_error",
         "hunting_route_unsafe",
     };
 

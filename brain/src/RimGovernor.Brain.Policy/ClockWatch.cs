@@ -163,19 +163,15 @@ public static partial class PolicyFunctions
         }
 
         Check(f.Status.NativeTickBoundary, true, ClockWatchReason.Unknown);
-        if (f.Captured < 0)
+        if (!f.EventsOpen)
         {
             Hold(ClockWatchReason.Unreviewed);
         }
-
-        if (!f.Status.NewestCursor.TryGetValue(out var newest))
+        else if (f.Status.State == ClockWatchState.Held && f.EventsSinceStep)
         {
-            Hold(ClockWatchReason.Unknown);
-        }
-        else if (newest < 0 || (f.Status.State == ClockWatchState.Held && newest > f.Captured))
-        {
-            // A held clock resumes only once the poll has read the events up to the hold; a running one keeps
-            // producing them, so its cursor runs ahead of the poll by design.
+            // A held clock resumes only from a step that planned against every event and loss delivered so far; a
+            // running one keeps producing them, so they arrive under its steps by design. The Run's hold serial is
+            // the guard behind this one: a hold whose event has not arrived yet still refuses the resume.
             Hold(ClockWatchReason.Unreviewed);
         }
 

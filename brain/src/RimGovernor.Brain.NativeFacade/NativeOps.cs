@@ -153,7 +153,6 @@ public static class NativeOps
     public static readonly NativeOp<Clock.HoldRequest, Clock.StatusReply> HoldClock = Op<Clock.HoldRequest, Clock.StatusReply>("clock_hold", (f, r, c) => f.HoldClockAsync(r, c));
     public static readonly NativeOp<Clock.HeartbeatRequest, Clock.HeartbeatReply> HeartbeatClock = Op<Clock.HeartbeatRequest, Clock.HeartbeatReply>("clock_heartbeat", (f, r, c) => f.HeartbeatClockAsync(r, c));
     public static readonly NativeOp<Clock.StatusRequest, Clock.StatusReply> ReadClockStatus = Op<Clock.StatusRequest, Clock.StatusReply>("clock_read_status", (f, r, c) => f.ReadClockStatusAsync(r, c));
-    public static readonly NativeOp<Clock.EventsRequest, Clock.EventsReply> ReadClockEvents = Op<Clock.EventsRequest, Clock.EventsReply>("clock_read_events", (f, r, c) => f.ReadClockEventsAsync(r, c));
 
     // Presentation.
     public static readonly NativeOp<Presentation.ReadRequest, Presentation.CameraReply> ReadCamera = Op<Presentation.ReadRequest, Presentation.CameraReply>("presentation_camera", (f, r, c) => f.ReadCameraAsync(r, c));

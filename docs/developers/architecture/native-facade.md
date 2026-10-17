@@ -12,7 +12,7 @@ source-generated `System.Text.Json` context; nothing is generated at build time.
 
 | Assembly | Holds | Depends on |
 | --- | --- | --- |
-| `RimGovernor.Brain.NativeFacade` | `INativeFacade`, `NativeFrame`, `FrameHandoff`, `NativeFacadeRegistry` | Contracts |
+| `RimGovernor.Brain.NativeFacade` | `INativeFacade`, `NativeFrame`, `FrameHandoff`, `ColonyEventChannel`, `NativeFacadeRegistry` | Contracts |
 | `RimGovernor.Bridge` (mod) | `InProcessNativeFacade`, `NativeStatTable`, the typed cores | all three, plus the game |
 
 The native build (`NativeModBuild`, `RimGovernor.cmd native-build`) copies the inputs
@@ -44,7 +44,7 @@ refusals and replies are identical.
 - A call that touches game state runs on the game thread through `ProtoBoundary.OnGameThread`, which takes an
   admission class (`control` for writes, `observation` for reads), the per-frame allowance and a watchdog line, and the
   host's game-thread access from `RimBridgeMainThreadAccess.Current`.
-- Not on the game thread: `WaitSaveSignalAsync`, `FlushDoneAsync`, `FlushFramesAsync`, and
+- Not on the game thread: `WaitSaveSignalAsync`, `FlushDoneAsync`, `FlushFramesAsync`, `OpenColonyEventsAsync`, and
   `PutGovernorStateBatchAsync` unless a save that predates the component needs it attached.
 - Callers must not be on the game thread (they would wait on themselves).
 - A refusal is the reply's `Failure` or `Unavailable` arm, exactly as before. A bug inside the hop faults the task.
@@ -61,6 +61,14 @@ game thread as one typed grid (`CellGridReader`: an array per cell fact, thing r
 immutable once published. The acceptance harness pulls the newest frame
 over `POST /native/observations_read_snapshot` (`SnapshotStream.Read`), which subscribes the same capture
 schedule; there is no shared-memory ring.
+
+## Colony event handoff
+
+`OpenColonyEventsAsync` opens the supervisor's `ColonyEventChannel` in process and returns its reader; it has no
+`NativeOps` entry and no `/native` route. Native writes each clock event with a non-blocking `TryWrite` on the game
+thread into a queue of 1024; a write that finds it full, or an event native fails to build, is dropped and counted in
+`ColonyEventsLost`. The open drops what is queued and clears the counter, so the brain starts empty and plans its first
+step Full; any later change in the counter makes the next step Full too.
 
 ## Def stat table
 

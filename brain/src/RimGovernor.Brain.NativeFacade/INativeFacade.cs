@@ -105,7 +105,15 @@ public interface INativeFacade
 
     Task<Clock.StatusReply> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken);
 
-    Task<Clock.EventsReply> ReadClockEventsAsync(Clock.EventsRequest request, CancellationToken cancellationToken);
+    /// <summary>
+    /// Opens the colony events native pushes (<see cref="ColonyEventChannel"/>): drops every queued event, clears
+    /// <see cref="ColonyEventsLost"/> and returns the reading side, so a started or reloaded brain begins empty. In
+    /// process only, so no op routes it; it does not need the game thread.
+    /// </summary>
+    Task<ChannelReader<Clock.ClockEvent>> OpenColonyEventsAsync(CancellationToken cancellationToken);
+
+    /// <summary>The colony events dropped since the last <see cref="OpenColonyEventsAsync"/>; any change forces a Full step.</summary>
+    long ColonyEventsLost { get; }
 
     // Presentation reads.
 

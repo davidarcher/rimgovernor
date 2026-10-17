@@ -46,7 +46,6 @@ public sealed partial class ClockRunDriver
         ArgumentNullException.ThrowIfNull(step);
         if (step.Deferred)
         {
-            WakePoll();
             return false;
         }
         var note = new RunNote();
@@ -65,7 +64,6 @@ public sealed partial class ClockRunDriver
         finally
         {
             Finish(step, note, failure, Stopwatch.GetElapsedTime(began));
-            WakePoll();
         }
     }
 
@@ -299,14 +297,15 @@ public sealed partial class ClockRunDriver
             SinceStarted = _clock.Now() - started,
             SinceObserved = _clock.Now() - observedAt,
             Emergency = emergencyFacts,
-            Captured = _poll.Cursor,
+            EventsOpen = _events.Opened,
+            // A step that recorded no count is treated as one that missed evidence.
+            EventsSinceStep = step.EventsSeen is not { } seen || _events.Seen != seen,
             Status = new ClockWatchStatus
             {
                 Snapshot = state.Snapshot,
                 Tick = tick,
                 State = running ? ClockWatchState.Running : ClockWatchState.Held,
                 NativeTickBoundary = Boundary.FactBool(status.NativeTickBoundary is not null, status.NativeTickBoundary.GetValueOrDefault()),
-                NewestCursor = status.NewestCursor is not null ? Known((long)status.NewestCursor.GetValueOrDefault()) : Unknown<long>(),
             },
             CombatPlan = Known(combatPlan),
             HuntPrey = huntPrey,

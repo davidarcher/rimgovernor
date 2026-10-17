@@ -7,7 +7,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// <see cref="NativeOps"/> is the one name table of the native operations (the facade's hop labels, the read tally,
 /// the acceptance harness's HTTP route). Every <see cref="INativeFacade"/> call is bound by exactly one op, and names
-/// are unique, so a facade method cannot go unrouted or two methods share a label.
+/// are unique, so a facade method cannot go unrouted or two methods share a label. The one exception is
+/// <see cref="INativeFacade.OpenColonyEventsAsync"/>, whose reply is an in-process channel reader.
 /// </summary>
 public sealed class NativeOpsTests
 {
@@ -21,7 +22,10 @@ public sealed class NativeOpsTests
             _ = op.InvokeJsonAsync(facade, "{}", CancellationToken.None);
         }
 
-        var calls = typeof(INativeFacade).GetMethods().Where(m => typeof(Task).IsAssignableFrom(m.ReturnType)).ToList();
+        // Opening the colony events hands over an in-process reader, so no op routes it.
+        var calls = typeof(INativeFacade).GetMethods()
+            .Where(m => typeof(Task).IsAssignableFrom(m.ReturnType) && m.Name != nameof(INativeFacade.OpenColonyEventsAsync))
+            .ToList();
         Assert.Equal(calls.Count, NativeOps.All.Count(op => op.OnFacade));
         Assert.Equal([.. calls.Select(m => m.Name).Order(StringComparer.Ordinal)], [.. recorder.Called.Order(StringComparer.Ordinal)]);
         Assert.Equal([NativeOps.ReadSnapshot], NativeOps.All.Where(op => !op.OnFacade));

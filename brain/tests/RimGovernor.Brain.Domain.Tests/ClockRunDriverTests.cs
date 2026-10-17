@@ -19,9 +19,10 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The hold state machine of the clock run driver (#3203, epic #3168). The driver, session, player, scheduler and
 /// journal are real; the native game is one fake that answers the facade (through the real
-/// <see cref="FacadeClockWriter"/>), the driver's reads, the event journal and the authority. The fake models the
+/// <see cref="FacadeClockWriter"/>), the driver's reads, the colony event queue and the authority. The fake models the
 /// native Supervisor contract: Run resumes a held clock or changes its speed, Hold keeps the first reason, a hazard
-/// takes a hold by itself, and every transition lands in the event journal the poll reads.
+/// takes a hold by itself, and every transition is pushed to the real <see cref="ColonyEventChannel"/> the driver's
+/// consumer reads.
 /// </summary>
 public sealed class ClockRunDriverTests
 {
@@ -76,13 +77,16 @@ public sealed class ClockRunDriverTests
 #pragma warning restore CA1852
 
     /// <summary>
-    /// One native game. It is held (never run) at first, authority is an Auto grant, and the clock events are a
-    /// journal of cursor-numbered rows that the driver's poll reads page by page.
+    /// One native game. It is held (never run) at first, authority is an Auto grant, and the clock events are pushed
+    /// to a native-owned queue the driver's consumer opens.
     /// </summary>
     private sealed class FakeGame : IClockDriverNative, INativeAuthority
     {
         private readonly Lock _mu = new();
-        private readonly List<PbClock.ClockEvent> _events = [];
+        private readonly ColonyEventChannel _channel = new();
+        private int _appended;
+        private long _pushed;
+        private int _blockedContextReads;
         private ulong _generation = StartGeneration;
         private bool _active;
         private bool _held = true;
@@ -95,8 +99,6 @@ public sealed class ClockRunDriverTests
         private readonly List<ulong> _staleSerials = [];
         private int _holds;
         private int _heartbeats;
-        private int _eventReads;
-        private readonly List<long> _readAfter = [];
         private readonly List<PbClock.RunRequest> _runRequests = [];
         private readonly List<PbClock.HoldRequest> _holdRequests = [];
 
@@ -130,14 +132,27 @@ public sealed class ClockRunDriverTests
         /// <summary>The planned serials of the resumes the hold-serial guard refused.</summary>
         public IReadOnlyList<ulong> StaleSerials => Read(() => (IReadOnlyList<ulong>)[.. _staleSerials]);
 
-        public long Newest => Read(() => (long)_events.Count);
+        /// <summary>The events pushed since the consumer opened the queue, the dropped ones included.</summary>
+        public long Pushed => Read(() => _pushed);
 
         public IReadOnlyList<PbClock.RunRequest> RunRequests => Read(() => (IReadOnlyList<PbClock.RunRequest>)[.. _runRequests]);
 
         public IReadOnlyList<PbClock.HoldRequest> HoldRequests => Read(() => (IReadOnlyList<PbClock.HoldRequest>)[.. _holdRequests]);
 
-        /// <summary>The number of journal reads that asked for rows after <paramref name="cursor"/>: the poll has consumed through it.</summary>
-        public int ReadsAfter(long cursor) => Read(() => _readAfter.Count(a => a >= cursor));
+        /// <summary>Set to hold every bare context read (the consumer's per-batch read) until it completes.</summary>
+        public TaskCompletionSource? ContextGate { get; set; }
+
+        /// <summary>The bare context reads waiting on <see cref="ContextGate"/>.</summary>
+        public int BlockedContextReads => Volatile.Read(ref _blockedContextReads);
+
+        /// <summary>Pushes an invalidation of <paramref name="family"/>, observed in <paramref name="world"/> (this one by default).</summary>
+        public void Invalidate(PbClock.FactFamily family, PbCommon.Identity? world = null)
+        {
+            lock (_mu)
+            {
+                Append(new PbClock.ClockEventEvent.ObservationInvalidatedCase(new PbClock.ObservationInvalidated { Families = [family], Reason = "test" }), world);
+            }
+        }
 
         private T Read<T>(Func<T> read)
         {
@@ -157,9 +172,12 @@ public sealed class ClockRunDriverTests
 
         private PbCommon.ObservationContext Context() => new() { Identity = WorldIdentity, Tick = _tick, NativeGeneration = _generation };
 
-        private void Append(PbClock.ClockEventEvent row)
+        private void Append(PbClock.ClockEventEvent row, PbCommon.Identity? world = null)
         {
-            _events.Add(new PbClock.ClockEvent { Context = Context(), ObservedAtUnixMs = _tick, Event = row });
+            _appended++;
+            _pushed++;
+            var context = Context() with { Identity = world ?? WorldIdentity };
+            _channel.Publish(new PbClock.ClockEvent { Context = context, ObservedAtUnixMs = _tick, Event = row });
         }
 
         private PbClock.Status Status() => new()
@@ -171,7 +189,6 @@ public sealed class ClockRunDriverTests
             PauseVerified = _held ? true : null,
             HeldAtUnixMs = _held ? _heldAtMs : null,
             NativeTickBoundary = true,
-            NewestCursor = _events.Count,
             HoldSerial = _holdSerial,
             ActualPaused = _held,
             CombatEvent = _held && _reason == PbClock.HoldReason.CombatEvent ? PbClock.CombatEvent.Downed : null,
@@ -250,7 +267,7 @@ public sealed class ClockRunDriverTests
             _held = true;
             _holdSerial++;
             _reason = reason;
-            _heldAtMs = 1_000_000 + _events.Count;
+            _heldAtMs = 1_000_000 + _appended;
             Append(new PbClock.ClockEventEvent.HoldEnteredCase(new PbClock.HoldEntered { Reason = reason, Evidence = evidence, DetectedTick = _tick }));
         }
 
@@ -269,11 +286,16 @@ public sealed class ClockRunDriverTests
         private PbClock.StatusReply Failure(PbCommon.FailureCode code) =>
             new() { Outcome = new PbClock.StatusReplyOutcome.FailureCase(new PbCommon.Failure { Code = code, Detail = "refused by the fake native", ObservedContext = Context() }) };
 
-        public Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct)
+        public async Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct)
         {
+            if (!request.ClockStatus && ContextGate is { } gate)
+            {
+                Interlocked.Increment(ref _blockedContextReads);
+                await gate.Task.WaitAsync(ct);
+            }
             lock (_mu)
             {
-                return Task.FromResult<PbObservations.BundleSnapshot?>(new PbObservations.BundleSnapshot { Context = Context(), ClockStatus = request.ClockStatus ? Status() : null });
+                return new PbObservations.BundleSnapshot { Context = Context(), ClockStatus = request.ClockStatus ? Status() : null };
             }
         }
 
@@ -286,26 +308,16 @@ public sealed class ClockRunDriverTests
             }
         }
 
-        public Task<PbClock.EventsReply> ReadClockEventsAsync(PbClock.EventsRequest request, CancellationToken ct)
+        public Task<System.Threading.Channels.ChannelReader<PbClock.ClockEvent>> OpenColonyEventsAsync(CancellationToken ct)
         {
             lock (_mu)
             {
-                _eventReads++;
-                var after = request.AfterCursor.GetValueOrDefault();
-                _readAfter.Add(after);
-                var limit = (int)request.Limit.GetValueOrDefault();
-                var rows = _events.Skip((int)after).Take(limit).ToList();
-                var next = after + rows.Count;
-                var page = new PbClock.EventsPage
-                {
-                    Context = Context(),
-                    Events = EquatableArray.From(rows),
-                    NewestCursor = _events.Count,
-                    NextCursor = next,
-                };
-                return Task.FromResult(new PbClock.EventsReply { Outcome = new PbClock.EventsReplyOutcome.PageCase(page) });
+                _pushed = 0;
+                return Task.FromResult(_channel.Open());
             }
         }
+
+        public long ColonyEventsLost => _channel.Lost;
 
         public Task<PbAuthority.StatusReply> ReadAuthorityAsync(PbCommon.Identity identity, CancellationToken ct)
         {
@@ -356,6 +368,9 @@ public sealed class ClockRunDriverTests
 
         /// <summary>Gives the root plan a coupled action whose prerequisite has not completed yet.</summary>
         public bool CoupledPlan { get; init; }
+
+        /// <summary>The signal the driver's event consumer wakes; none by default.</summary>
+        public WakeSignal? Wake { get; init; }
     }
 
     /// <summary>The real stack over one fake game, resumed and with the run driver started.</summary>
@@ -441,12 +456,11 @@ public sealed class ClockRunDriverTests
                 }),
                 Autosave = options.Autosave,
                 AutosaveEveryTicks = options.AutosaveEveryTicks,
-                // The driver beats often so a test waits milliseconds for a heartbeat; the poll waits for a step's wake.
+                // The driver beats often so a test waits milliseconds for a heartbeat.
                 HeartbeatInterval = TimeSpan.FromMilliseconds(10),
-                PollInterval = TimeSpan.FromMinutes(10),
                 CallTimeout = timeout,
             };
-            rig.Driver = ClockRunDriver.Create(rig.Player, rig.Session, rig.Scheduler, rig.Game, writer, config, rig.Time, null, lifetime);
+            rig.Driver = ClockRunDriver.Create(rig.Player, rig.Session, rig.Scheduler, rig.Game, writer, config, rig.Time, options.Wake, lifetime);
             return rig;
         }
 
@@ -469,26 +483,14 @@ public sealed class ClockRunDriverTests
             }
         }
 
-        /// <summary>One scheduler step has finished, and the driver acts on it. The step read the game's current hold serial.</summary>
-        public Task<bool> StepAsync() => Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = Game.HoldSerial }, Ct);
-
         /// <summary>
-        /// Waits until the poll's cursor has reached every ring row the game holds: a read after the newest row is only
-        /// issued once the cursor stands there. At an empty ring the poll's first read (from 0, before it adopts the
-        /// newest cursor) also asks after 0, so a second read is the one that proves the cursor. The poll sleeps its
-        /// cadence between a step's wakes, so a row the game took after the last wake is read only when the poll is woken
-        /// here; waiting on a step's wake alone races the poll's read against the row.
+        /// One scheduler step has finished, and the driver acts on it. The step read the game's current hold serial
+        /// and the evidence the consumer had delivered by then.
         /// </summary>
-        public async Task PolledAsync()
-        {
-            var newest = Game.Newest;
-            var reads = newest == 0 ? 2 : 1;
-            if (Game.ReadsAfter(newest) < reads)
-            {
-                Driver.WakePoll();
-            }
-            await UntilAsync(() => Game.ReadsAfter(newest) >= reads);
-        }
+        public Task<bool> StepAsync() => Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = Game.HoldSerial, EventsSeen = Driver.EventsSeen }, Ct);
+
+        /// <summary>Waits until the consumer has opened the queue and delivered every event the game pushed since.</summary>
+        public Task DeliveredAsync() => UntilAsync(() => Driver.EventsOpened && Driver.EventsSeen >= Game.Pushed);
 
         public async Task StopAsync()
         {
@@ -541,7 +543,7 @@ public sealed class ClockRunDriverTests
     public async Task RunsAtTheTargetSpeedUnderAColonyWatchAndResendsOnlyWhenItChanges()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
         // A clock never run is held for NeverRun: the first step Runs it at the target speed under the base colony watch.
         Assert.True(await rig.StepAsync());
@@ -569,7 +571,7 @@ public sealed class ClockRunDriverTests
     public async Task ADeferredStepNeverTouchesTheClock()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
         Assert.False(await rig.Driver.AfterStepAsync(new ClockSchedulerResult { Deferred = true }, Ct));
         Assert.Equal(0, rig.Game.Runs);
@@ -580,11 +582,11 @@ public sealed class ClockRunDriverTests
     public async Task ANativeHazardHoldResumesAtTheNextStepThatReadItsSerial()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
         rig.Game.HostileHazard();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.Equal(PbClock.HoldReason.Hostile, rig.Game.Reason);
 
         // The step read the hold's serial, so it planned against the held world and Run resumes the clock.
@@ -598,7 +600,7 @@ public sealed class ClockRunDriverTests
     public async Task ARefusedRunIsRetriedAtTheNextStepNotAFault()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
         rig.Game.RefuseRun = PbCommon.FailureCode.NativeFailure;
         var refused = await Assert.ThrowsAsync<HeldException>(() => rig.StepAsync());
@@ -611,15 +613,15 @@ public sealed class ClockRunDriverTests
         Assert.Equal(1, rig.Game.Runs);
     }
 
-    // A step read the running clock; a hazard held it after that read and before the driver decided, and the poll has
-    // already read it, so the decision itself would resume. Returns the serial the step read.
+    // A step read the running clock; a hazard held it after that read and before the driver decided, and the consumer has
+    // already delivered it, so the decision itself would resume. Returns the serial the step read.
     private static async Task<ulong> HeldAfterTheStepReadAsync(Rig rig)
     {
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         var stepRead = rig.Game.HoldSerial;
         rig.Game.HostileHazard();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.NotEqual(stepRead, rig.Game.HoldSerial);
         return stepRead;
     }
@@ -630,7 +632,7 @@ public sealed class ClockRunDriverTests
         using var rig = await Rig.StartAsync();
         var stepRead = await HeldAfterTheStepReadAsync(rig);
 
-        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = stepRead }, Ct));
+        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = stepRead, EventsSeen = rig.Driver.EventsSeen }, Ct));
         Assert.Equal([stepRead], rig.Game.StaleSerials);
         Assert.Equal(1, rig.Game.Runs);
     }
@@ -641,7 +643,7 @@ public sealed class ClockRunDriverTests
         using var rig = await Rig.StartAsync();
         var stepRead = await HeldAfterTheStepReadAsync(rig);
 
-        var refused = await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = stepRead }, Ct));
+        var refused = await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = stepRead, EventsSeen = rig.Driver.EventsSeen }, Ct));
         Assert.Contains("clock run refused", refused.Message, StringComparison.Ordinal);
         Assert.True(rig.Game.Held);
         Assert.Equal(PbClock.HoldReason.Hostile, rig.Game.Reason);
@@ -670,7 +672,7 @@ public sealed class ClockRunDriverTests
             },
         });
         current = rig;
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
         // The first step finds the clock held before it ever ran and Runs it without a save: only a due autosave saves.
         // The first running step only marks where the save interval starts, and a short run is not due.
@@ -687,7 +689,7 @@ public sealed class ClockRunDriverTests
         Assert.Empty(saved);
 
         // The held step saves at the held tick, then resumes.
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         Assert.Equal([rig.Game.Tick], saved);
         Assert.False(rig.Game.Held);
@@ -702,7 +704,7 @@ public sealed class ClockRunDriverTests
         rig.Game.Advance(600);
         Assert.True(await rig.StepAsync());
         Assert.Single(saved);
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         Assert.Equal(2, saved.Count);
         Assert.All(heldWhenSaving, held => Assert.True(held));
@@ -723,13 +725,13 @@ public sealed class ClockRunDriverTests
                 return Task.CompletedTask;
             },
         });
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
         // The coupled-order hold is not an autosave: nothing is saved, though the clock is held and paused.
         Assert.True(await rig.StepAsync());
         Assert.Equal(PbClock.HoldReason.CoupledOrder, rig.Game.Reason);
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         Assert.Empty(saved);
 
@@ -741,7 +743,7 @@ public sealed class ClockRunDriverTests
         rig.Game.BeforeHold = rig.Game.HostileHazard;
         Assert.True(await rig.StepAsync());
         Assert.Equal(PbClock.HoldReason.Hostile, rig.Game.Reason);
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         Assert.Equal([rig.Game.Tick], saved);
     }
@@ -754,13 +756,13 @@ public sealed class ClockRunDriverTests
             AutosaveEveryTicks = 500,
             Autosave = (_, _, _) => throw new InvalidOperationException("disk full"),
         });
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         rig.Game.Advance(100);
         Assert.False(await rig.StepAsync());
         rig.Game.Advance(500);
         Assert.True(await rig.StepAsync());
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
@@ -770,13 +772,13 @@ public sealed class ClockRunDriverTests
     public async Task AReviewHoldTheBrainTookIsReleasedByTheNextRun()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
         // A checkpoint save or the player's pause holds the clock for review through the session.
         await rig.Session.HoldClockAsync(PbClock.HoldReason.Review, "checkpoint", Ct);
         Assert.Equal(PbClock.HoldReason.Review, rig.Game.Reason);
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
@@ -787,7 +789,7 @@ public sealed class ClockRunDriverTests
     public async Task ACoupledOrderTakesABrainHoldOnceAndRunReleasesItWithoutHoldingAgain()
     {
         using var rig = await Rig.StartAsync(new RigOptions { CoupledPlan = true });
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
         // The clock was held, so the first step Runs it; the coupled order is then newly ready under the running clock.
         Assert.True(await rig.StepAsync());
@@ -799,7 +801,7 @@ public sealed class ClockRunDriverTests
         Assert.Equal(1, rig.Game.Holds);
 
         // The step the hold asked for has planned against the held world: Run resumes, and the same order does not hold again.
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
         Assert.Equal(2, rig.Game.Runs);
@@ -811,7 +813,7 @@ public sealed class ClockRunDriverTests
     public async Task TheFirstHoldReasonWinsWhenTheBrainHoldsAClockNativeAlreadyHeld()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
         rig.Game.HostileHazard();
@@ -822,7 +824,7 @@ public sealed class ClockRunDriverTests
         Assert.Equal(0, rig.Game.Holds);
         Assert.Single(rig.Game.HoldRequests);
 
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
     }
@@ -831,22 +833,22 @@ public sealed class ClockRunDriverTests
     public async Task AHazardThatFiresBeforeTheBrainsAutosaveHoldKeepsItsReason()
     {
         using var rig = await Rig.StartAsync(new RigOptions { AutosaveEveryTicks = 500, Autosave = (_, _, _) => Task.CompletedTask });
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         rig.Game.Advance(100);
         Assert.False(await rig.StepAsync());
         rig.Game.Advance(500);
 
         // A step that read the hold serial before the hazard is refused. The hazard fires inside the next step, so the
-        // serial read before that step predates it, whenever the poll gets to read.
+        // serial read before that step predates it, whenever the consumer delivers it.
         var earlySerial = rig.Game.HoldSerial;
         rig.Game.BeforeHold = rig.Game.HostileHazard;
         Assert.True(await rig.StepAsync());
         Assert.Equal(PbClock.HoldReason.Hostile, rig.Game.Reason);
         Assert.Equal(0, rig.Game.Holds);
 
-        await rig.PolledAsync();
-        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = earlySerial }, Ct));
+        await rig.DeliveredAsync();
+        await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = earlySerial, EventsSeen = rig.Driver.EventsSeen }, Ct));
         Assert.True(rig.Game.Held);
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
@@ -856,11 +858,11 @@ public sealed class ClockRunDriverTests
     public async Task ARunLandingWhileANewHazardFiresLeavesTheClockHeldUntilTheNextStep()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
         rig.Game.HostileHazard();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
         // The Run resumes the clock and a second hazard holds it again before the driver sees the reply.
         rig.Game.AfterResume = () =>
@@ -875,7 +877,7 @@ public sealed class ClockRunDriverTests
         Assert.Equal(2, rig.Game.Runs);
 
         // The new hold leaves the clock held until a step plans against it.
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.Equal(PbClock.HoldReason.ColonistDowned, rig.Game.Reason);
 
         Assert.True(await rig.StepAsync());
@@ -887,9 +889,9 @@ public sealed class ClockRunDriverTests
     public async Task TheHeartbeatIsSentWhileRunningAndWhileHeld()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
-        // The heartbeat starts once the poll knows the world, held or not.
+        // The heartbeat starts once the consumer knows the world, held or not.
         await UntilAsync(() => rig.Game.Heartbeats >= 2);
         Assert.True(rig.Game.Held);
 
@@ -908,7 +910,7 @@ public sealed class ClockRunDriverTests
     public async Task LosingAuthorityUnderARunHoldsTheClockOnceFromTheHeartbeatLoop()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
         rig.Session.Disable();
@@ -928,7 +930,7 @@ public sealed class ClockRunDriverTests
     public async Task LosingAuthorityBeforeTheDriverEverRanHoldsNothing()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
         rig.Session.Disable();
         await Task.Delay(100, Ct);
@@ -940,7 +942,7 @@ public sealed class ClockRunDriverTests
     public async Task StoppingHoldsTheClockForReviewAndDropsAuthority()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
         await rig.StopAsync();
@@ -954,7 +956,7 @@ public sealed class ClockRunDriverTests
     public async Task ACombatEventHoldIsMarkedForTheDefensePlannerOnceBeforeRunResumes()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
         // An admitted fight plan owns the combat: the driver's combat-stop metrics are active. The fight itself is the
@@ -964,7 +966,7 @@ public sealed class ClockRunDriverTests
         Assert.True(metrics.Active);
 
         rig.Game.Hazard(PbClock.HoldReason.CombatEvent, new PbClock.HoldEvidence.CombatCase(new PbClock.CombatEventHold { Event = PbClock.CombatEvent.Downed, ThingId = "colonist-1" }));
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
         // The stop is the fight's next decision: the defense planner is marked and the clock stays held.
         var marks = rig.Scheduler.Queue.Seq;
@@ -984,11 +986,11 @@ public sealed class ClockRunDriverTests
     public async Task ACombatEventHoldWithNoOpenFightResumesAtOnce()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
         rig.Game.Hazard(PbClock.HoldReason.CombatEvent, new PbClock.HoldEvidence.CombatCase(new PbClock.CombatEventHold { Event = PbClock.CombatEvent.Downed }));
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
 
         var marks = rig.Scheduler.Queue.Seq;
         Assert.True(await rig.StepAsync());
@@ -1000,7 +1002,7 @@ public sealed class ClockRunDriverTests
     public async Task ALongRunWithNoHoldsStaysRunningAndSendsRunOnce()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
         for (var i = 0; i < 300; i++)
@@ -1069,13 +1071,13 @@ public sealed class ClockRunDriverTests
     public async Task ASlowCombatResumeWithNoOpenFightKeepsTheTargetSpeed()
     {
         using var rig = await Rig.StartAsync();
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
 
         var metrics = (CombatStopMetrics)typeof(ClockRunDriver).GetField("_combatStops", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(rig.Driver)!;
         metrics.Admitted(null, rig.Game.Tick, rig.Time.Now(), true);
         rig.Game.Hazard(PbClock.HoldReason.CombatEvent, new PbClock.HoldEvidence.CombatCase(new PbClock.CombatEventHold { Event = PbClock.CombatEvent.Downed }));
-        await rig.PolledAsync();
+        await rig.DeliveredAsync();
         Assert.True(await rig.StepAsync());
         Assert.True(await rig.StepAsync());
         Assert.False(rig.Game.Held);
@@ -1084,5 +1086,115 @@ public sealed class ClockRunDriverTests
         // does not apply (and the colony Run closes the combat) and the Run keeps the target speed.
         Assert.False(metrics.Tripped);
         Assert.Equal(PbClock.Speed.Ultrafast, rig.Game.TargetSpeed);
+    }
+
+    [Fact]
+    public async Task APushedInvalidationWakesItsFamilyAndSections()
+    {
+        var wake = new WakeSignal();
+        using var rig = await Rig.StartAsync(new RigOptions { Wake = wake });
+        await rig.DeliveredAsync();
+        _ = wake.TakeInvalidated();
+
+        rig.Game.Invalidate(PbClock.FactFamily.Research);
+        await rig.DeliveredAsync();
+
+        var reason = wake.TakeInvalidated();
+        Assert.Equal(StepCause.Wake, reason.Cause);
+        Assert.Equal(new[] { FactFamily.Research }, reason.Families);
+        Assert.NotEmpty(reason.Sections);
+    }
+
+    [Fact]
+    public async Task AnEventFromAnotherWorldIsIgnored()
+    {
+        var wake = new WakeSignal();
+        using var rig = await Rig.StartAsync(new RigOptions { Wake = wake });
+        await rig.DeliveredAsync();
+        _ = wake.TakeInvalidated();
+        var before = rig.Driver.EventsSeen;
+
+        // The other world's event is pushed first: once this world's has arrived, the other one has been read too.
+        rig.Game.Invalidate(PbClock.FactFamily.Research, new PbCommon.Identity { ColonyId = Colony, LoadToken = "load-2", MapId = Map });
+        rig.Game.Invalidate(PbClock.FactFamily.Pawns);
+        await UntilAsync(() => rig.Driver.EventsSeen > before);
+
+        Assert.Equal(before + 1, rig.Driver.EventsSeen);
+        Assert.Equal(new[] { FactFamily.Pawns }, wake.TakeInvalidated().Families);
+    }
+
+    [Fact]
+    public async Task AFullQueueCountsTheLossAndTheNextStepPlansFull()
+    {
+        var wake = new WakeSignal();
+        using var rig = await Rig.StartAsync(new RigOptions { Wake = wake });
+        // One delivered event lets the consumer know the world, so only its own batch read waits on the gate below.
+        rig.Game.Invalidate(PbClock.FactFamily.Colony);
+        await rig.DeliveredAsync();
+        _ = wake.TakeInvalidated();
+        var before = rig.Driver.EventsSeen;
+
+        // The consumer holds one event while its context read waits; native fills the queue and drops one more.
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        rig.Game.ContextGate = gate;
+        rig.Game.Invalidate(PbClock.FactFamily.Colony);
+        await UntilAsync(() => rig.Game.BlockedContextReads > 0);
+        for (var i = 0; i <= ColonyEventChannel.Capacity; i++)
+        {
+            rig.Game.Invalidate(PbClock.FactFamily.Colony);
+        }
+        Assert.Equal(1, rig.Game.ColonyEventsLost);
+        rig.Game.ContextGate = null;
+        gate.SetResult();
+
+        // Every queued event and the one loss are delivered; the loss makes the next step's reason Full, once.
+        await UntilAsync(() => rig.Driver.EventsSeen >= before + 1 + ColonyEventChannel.Capacity + 1);
+        Assert.Equal(StepCause.Full, wake.TakeInvalidated().Cause);
+        Assert.Equal(StepCause.Wake, wake.TakeInvalidated().Cause);
+    }
+
+    [Fact]
+    public async Task AHeldClockWithEventsSinceTheStepReadIsNotResumed()
+    {
+        using var rig = await Rig.StartAsync();
+        await rig.DeliveredAsync();
+        Assert.True(await rig.StepAsync());
+        rig.Game.HostileHazard();
+        await rig.DeliveredAsync();
+        var stepRead = rig.Driver.EventsSeen;
+
+        // An event arrives after the step read the held clock: that step did not plan against it.
+        rig.Game.Invalidate(PbClock.FactFamily.Colony);
+        await rig.DeliveredAsync();
+        var refused = await Assert.ThrowsAsync<HeldException>(() => rig.Driver.AfterStepAsync(new ClockSchedulerResult { HoldSerial = rig.Game.HoldSerial, EventsSeen = stepRead }, Ct));
+        Assert.Contains("clock run refused", refused.Message, StringComparison.Ordinal);
+        Assert.True(rig.Game.Held);
+        Assert.Equal(1, rig.Game.Runs);
+
+        // A step that read the clock after it resumes.
+        Assert.True(await rig.StepAsync());
+        Assert.False(rig.Game.Held);
+    }
+
+    [Fact]
+    public async Task TheColonyEventChannelDropsAndCountsPastItsCapacityAndOpensEmpty()
+    {
+        var channel = new ColonyEventChannel();
+        var reader = channel.Open();
+        for (var i = 0; i <= ColonyEventChannel.Capacity; i++)
+        {
+            channel.Publish(new PbClock.ClockEvent());
+        }
+        Assert.Equal(1, channel.Lost);
+        channel.CountLost();
+        Assert.Equal(2, channel.Lost);
+
+        // A reopen (a restarted or reloaded brain) begins with no backlog and no loss.
+        reader = channel.Open();
+        Assert.False(reader.TryRead(out _));
+        Assert.Equal(0, channel.Lost);
+        channel.Publish(new PbClock.ClockEvent());
+        Assert.True(await reader.WaitToReadAsync(Ct));
+        Assert.True(reader.TryRead(out _));
     }
 }

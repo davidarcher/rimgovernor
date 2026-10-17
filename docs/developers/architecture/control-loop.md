@@ -791,9 +791,9 @@ stateDiagram-v2
 
 | Piece | Owns |
 | --- | --- |
-| Native clock (`NativeClockRuntime`, the supervisor) | The game's speed, the hazard probe, the event journal, the hold itself and the one ceiling. Hazard holds happen on a tick boundary within the [declared bounds](hazard-detection-bounds.md). |
+| Native clock (`NativeClockRuntime`, the supervisor) | The game's speed, the hazard probe, the colony event queue, the hold itself and the one ceiling. Hazard holds happen on a tick boundary within the [declared bounds](hazard-detection-bounds.md). |
 | `ClockScheduler` step | Planning only: one coherent bundle read, the planner wave and the result. It starts and stops nothing. |
-| `ClockRunDriver` | The hold state machine, run after every step. It sends `Run`, takes the brain's own holds, keeps the heartbeat and polls the native journal from an in-memory cursor. |
+| `ClockRunDriver` | The hold state machine, run after every step. It sends `Run`, takes the brain's own holds, keeps the heartbeat and consumes the colony events native pushes. |
 | Hands and the Worker | Order dispatch under the running clock. |
 
 The brain only ever asks for a speed. It does not manage a rate, a frame budget
@@ -820,8 +820,8 @@ After each planning step the driver reads the clock status and decides:
 
 - A held clock resumes with `Run` when the watch decision
   (`policy.EvaluateClockWatch`) allows it: facts fresh and same-authority, the
-  event poll caught up with a held clock's newest journal cursor, no unknown
-  threat. A refused decision leaves the clock held and the next step
+  colony event queue open and no event or loss delivered since the step read
+  a held clock, no unknown threat. A refused decision leaves the clock held and the next step
   retries (`HeldException`).
 - The `Run` quotes the hold serial of the step's own read
   (`ClockSchedulerResult.HoldSerial`), never the driver's later status read.
@@ -931,11 +931,20 @@ the one ceiling, the target speed and named holds replace them.
 
 ### Event delivery
 
-The native journal is authoritative. Each append announces its cursor to the
-in-process brain; the brain reads after its own cursor through an unheld
-`clock_read_events`. A bounded poll (250 ms, backing off to 2 s after a failure)
-catches missed announcements. A load triggers a tail read, and page loss remains
-explicit.
+Native pushes each colony event onto a bounded queue it owns
+(`ColonyEventChannel`, 1024 events) with a non-blocking `TryWrite` on the game
+thread. A full queue drops the event and counts it; any change in the loss
+counter makes the next step plan `full`. The brain's consumer opens the queue
+through `INativeFacade.OpenColonyEventsAsync`, which empties it and clears the
+counter, so a started or reloaded brain replays no backlog and plans `full`
+first. There is no ring, cursor or poll. Each batch is read against the current
+world's context: another world's event is ignored, and a context that does not
+match the held authority ends it. The OpenTelemetry event rows are written at
+the append, independent of the queue.
+
+A held clock resumes only from a step that read the clock after every event and
+loss delivered so far, and only once the consumer has opened the queue. The
+Run's planned hold serial backs this up for a hold whose event has not arrived.
 
 Events wake the scheduler and worker. Named action outcomes reconcile first.
 A hold may warm admission observations, reusable only when tick, identity,
@@ -948,14 +957,12 @@ are evidence only. Coupled orders wake when their prerequisite outcome arrives.
 ```mermaid
 sequenceDiagram
     participant N as Native clock
-    participant P as Event reader
+    participant P as Event consumer
     participant S as Brain scheduler
     participant D as Run driver
     participant H as Hands
-    N->>P: Announce journal advance
-    P->>N: Read after cursor
-    N-->>P: Events and outcomes
-    P->>S: Wake affected work
+    N-->>P: Push events and outcomes (bounded queue)
+    P->>S: Wake affected work (Full after a loss)
     S->>H: Reconcile and dispatch
     H->>N: Guarded native operations
     S->>D: Step result

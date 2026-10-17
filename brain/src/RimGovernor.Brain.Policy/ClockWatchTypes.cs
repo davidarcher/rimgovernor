@@ -23,8 +23,6 @@ public sealed record ClockWatchStatus
     public ClockWatchState State { get; init; }
 
     public Fact<bool> NativeTickBoundary { get; init; }
-
-    public Fact<long> NewestCursor { get; init; }
 }
 
 public sealed record ClockWatchFacts
@@ -40,8 +38,11 @@ public sealed record ClockWatchFacts
 
     public required EmergencySnapshot Emergency { get; init; }
 
-    /// <summary>The ring cursor the event poll has read through (its in-memory cursor); -1 before its first page.</summary>
-    public long Captured { get; init; }
+    /// <summary>Whether the brain has opened the colony events native pushes; before it, nothing it plans has seen them.</summary>
+    public bool EventsOpen { get; init; }
+
+    /// <summary>Whether colony events or a loss of them arrived after the step being decided read the clock.</summary>
+    public bool EventsSinceStep { get; init; }
 
     public ClockWatchStatus Status { get; init; } = new();
 

@@ -169,8 +169,10 @@ internal sealed partial class FacadeNativeClient :
     Task<WorldProgressionRead> IClockStepNative.ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct) =>
         ReadWorldProgressionAsync(identity, ct);
 
-    Task<PbClock.EventsReply> IClockEventNative.ReadClockEventsAsync(PbClock.EventsRequest request, CancellationToken ct) =>
-        ReadClockEventsAsync(request, ct);
+    Task<System.Threading.Channels.ChannelReader<PbClock.ClockEvent>> IClockEventNative.OpenColonyEventsAsync(CancellationToken ct) =>
+        OpenColonyEventsAsync(ct);
+
+    long IClockEventNative.ColonyEventsLost => ColonyEventsLost;
 
     Task<Bridge.Contracts.PlanningWindow> IPlanningWindowNative.ReadPlanningWindowAsync(C.Identity identity, Policy.Rectangle region, CancellationToken ct) =>
         ReadPlanningWindowAsync(identity, region, ct);

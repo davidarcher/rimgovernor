@@ -8,8 +8,8 @@ validation never restores permission after restart.
 
 The clock is continuous run with named holds: `Run(target speed, policy)`, `Hold(reason)` and an explicit
 heartbeat ([Execute under supervision](../architecture/control-loop.md#execute-under-supervision) and the
-[clock wire contract](../../../contracts/wire/clock-lifecycle.md)). This page owns what the brain does with the native
-journal and with each run decision: the event poll, the run decision, the scheduler step and the run driver. The brain
+[clock wire contract](../../../contracts/wire/clock-lifecycle.md)). This page owns what the brain does with the colony
+events native pushes and with each run decision: the event consumer, the run decision, the scheduler step and the run driver. The brain
 persists no clock state: there is no clock event inbox, review log, attempt, receipt or lease store (#3417).
 
 ## Immediate protection and ordinary review
@@ -23,9 +23,9 @@ ordinary fact. Ordinary review retains its own inspection tick.
 Protective actions yield the scheduler gate to the existing Worker before
 unrelated development reads. Pending actions remain ahead of ordinary review
 until dispatch or an explicit current hold; a hold does not permanently veto
-ordinary work. A running clock keeps its own native safety, authority and journal checks, and ordinary review runs while it runs. Relevant invalidations select planners through catalog dependencies;
+ordinary work. A running clock keeps its own native safety, authority and event checks, and ordinary review runs while it runs. Relevant invalidations select planners through catalog dependencies;
 unrelated section changes do not invalidate a protective decision.
-The independent event poll cancels an in-flight ordinary review when it captures
+The independent event consumer cancels an in-flight ordinary review when it receives
 a native stop, releasing the same gate for fresh protection. It does not cancel
 the immediate scope or revoke valid authority merely to interrupt development.
 
@@ -44,26 +44,17 @@ sends no `Run`; no constructor starts time or acquires native authority. Manual 
 (`HOLD_REASON_REVIEW`) once, under the Control gate; a hold of an already held clock keeps the first reason. Nothing
 about the clock is persisted: a restart finds native held (`NEVER_RUN` or the last reason) until the brain sends `Run`.
 
-## Process event cursors
+## Colony event queue
 
-The native clock journal is an in-memory ring of typed `ClockEvent` records in the
-game process; the brain keeps no copy.
-Its cursors are a plain sequence from 1: the brain is hosted in the same process, so
-no cursor it holds predates the journal. A page's observation context matches the
-requested current world; each event retains its original world. A load or map change
-does not reset the cursor or rewrite old event contexts. Status reads initialize the
-tick watchers. Neither read advances time or acquires authority.
+Native pushes typed `ClockEvent` records onto `ColonyEventChannel`, a bounded queue
+of 1024 it owns in the game process, with a non-blocking `TryWrite` on the game
+thread. A write that finds the queue full, or an event native fails to build, is
+dropped and counted in `ColonyEventsLost`; it never pauses the game. The brain
+keeps no copy and there is no cursor: each event carries its own world's context,
+and a load or map change rewrites none. Status reads initialize the tick watchers.
+Neither the queue nor a read advances time or acquires authority.
 
-`ValidateClockEventsPage` checks the typed request and page together. The native
-reader scans at most the requested limit of cursor positions after `after_cursor`,
-skipping events overwritten in the ring; `next_cursor` is the last position scanned.
-Returned events are strictly ordered within the scanned window. An empty journal
-reports `newest_cursor = 0`.
-
-Reads are never held: `EventsRequest` has no wait field.
-The poll loop reads the page after its cursor unheld at `ClockRunConfig.PollInterval`.
-
-Native journal events are `HoldEntered` (reason, evidence, detected and occurrence tick) and `Resumed` (speed, from),
+Native events are `HoldEntered` (reason, evidence, detected and occurrence tick) and `Resumed` (speed, from),
 plus the facts below. A brain-requested hold does not wake the step loop; a hold native took does.
 `ObservationInvalidated` rows name one to eight distinct `FactFamily` values (never
 unspecified) that changed under a running clock without a brain write or a
@@ -73,12 +64,15 @@ bounds; past the id bound the family alone is named, and a native that cannot
 attribute a change omits both. Like outcomes and authority changes they are facts,
 not holds.
 
-## Event poll
+## Event consumer
 
-`ClockEventPoll` keeps only an in-memory cursor. Its first read finds the ring's newest cursor and starts there, so a
-started or restarted brain replays no backlog and its first step plans Full. Each later read pages on from the cursor;
-a page wakes the step loop with its invalidated families and sections, an authority change, or a native hold (a hold
-the brain requested is not a wake). Reading an event acknowledges nothing and never resumes time.
+`ColonyEventConsumer` opens the queue through `INativeFacade.OpenColonyEventsAsync`, an in-process call with no wire op.
+The open drops whatever was queued and clears the loss counter, so a started or restarted brain replays no backlog and
+its first step plans Full. Each batch is read against the current world's context: another world's event is ignored,
+and a context that does not match the held authority ends it. A batch wakes the step loop with its invalidated families
+and sections, an authority change, or a native hold (a hold the brain requested is not a wake). A change in the loss
+counter, or a batch that could not be read against a context, writes a `colony_events_lost` row and makes the next step
+Full. Reading an event acknowledges nothing and never resumes time.
 
 Nothing reviews or acknowledges holds. A held clock resumes only through a `Run` whose `planned_hold_serial` is the
 serial the step read (#3414): a hold native took after that read bumps the serial, native refuses the stale `Run`, and
@@ -86,8 +80,8 @@ the next step re-plans against the held world.
 
 ## Run decision
 
-`policy.EvaluateClockWatch` requires fresh same-authority status and emergency facts and a complete catalog. The poll
-must have read its first page, and a held clock's native newest cursor must not run ahead of the poll's cursor. Native
+`policy.EvaluateClockWatch` requires fresh same-authority status and emergency facts and a complete catalog. The event
+consumer must have opened the queue, and no colony event or loss may have arrived since the step read a held clock. Native
 tick boundaries must be known (a never-run clock reports `HOLD_REASON_NEVER_RUN`). The decision names the watch mode
 and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `unknown_facts`, `unsafe_colony` or
 `unreviewed_events`) only keeps a held clock held; it never stops a running one.
@@ -209,9 +203,9 @@ bracket: CAS evidence on every write refuses a decision the world moved past.
 
 ## Run driver
 
-`ClockRunDriver` runs three loops separately: the native journal poll, the heartbeat and the step loop. The step loop
-calls `AfterStepAsync` after every scheduler step. Polling never takes the Player gate; a page whose world is not the
-one authority was granted for disables authority. No event is acknowledged or persisted.
+`ClockRunDriver` runs three loops separately: the colony event consumer, the heartbeat and the step loop. The step loop
+calls `AfterStepAsync` after every scheduler step. The consumer never takes the Player gate; a batch read in a world that
+is not the one authority was granted for disables authority. No event is acknowledged or persisted.
 
 The driver is the hold state machine. Native is Running at the target speed or Held for a named reason, and only a
 `Run` ends a hold. After each step the driver diffs the watch policy the facts imply against the last one sent and

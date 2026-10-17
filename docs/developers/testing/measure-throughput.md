@@ -27,7 +27,7 @@ Row kinds a phase report reads:
   hold-to-step latency, budgets against use: `budget`,
   `critical_wave_ms`, `missed_cutoff`, `held_by`).
 - `clock_run`: one row per Run, Hold or refusal the brain made (verdict, reason, `coupled_orders`, `held_for`).
-- `clock_read_events` replies: the ticks and paused status behind wall TPS and
+- `clock_read_status` replies: the ticks and paused status behind wall TPS and
   the paused fraction.
 
 There is no text log or debug flag: everything is a log record in `otlp/logs.jsonl`.
@@ -74,8 +74,8 @@ Traps in the numbers:
   `clock_samples` is a sampling diagnostic that over-represents pauses, because
   the service reads mostly while the clock is held.
 - `step reasons`: a healthy running clock is mostly `wake`; mostly `timer`
-  means the poll loop is not seeing events. `timer` runs only planners due on
-  the queue, `wake` is committed journal evidence, `settled` and `full` re-plan
+  means the colony event consumer is not seeing events. `timer` runs only planners due on
+  the queue, `wake` is pushed colony event evidence, `settled` and `full` re-plan
   everything.
 - `resume_latency_ms_*` is the native time a hold lasted before a Run resumed it, the stall a held colony waits on the brain; it
   should sit well under one `StepInterval`. Rows without a native stamp count

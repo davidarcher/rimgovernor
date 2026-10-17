@@ -183,7 +183,7 @@ introducing a universal short expiry that prevents development from finishing.
 
 ```mermaid
 flowchart TD
-    Native[Native facts and event journal] --> Facts[Typed facts with scope and dependency versions]
+    Native[Native facts and colony events] --> Facts[Typed facts with scope and dependency versions]
     Facts --> Protect[Immediate protection decisions]
     Facts --> Operate[Current work and recovery decisions]
     Facts --> Develop[Development proposals]

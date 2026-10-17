@@ -9,9 +9,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public readonly record struct WakeOutcome(ActionId Action, AttemptId Attempt, bool Terminal = false);
 
 /// <summary>
-/// Carries clock evidence from the poll loop to the scheduler step loop and the Worker. Only a page the poll has
-/// read and validated wakes anyone; a wake is a hint to act now, never a fact by itself. A caller that has no
-/// signal holds null and uses <see cref="Wait"/>, which never completes for it.
+/// Carries clock evidence from the colony event consumer to the scheduler step loop and the Worker. Only events the
+/// consumer has read against the current world wake anyone; a wake is a hint to act now, never a fact by itself. A
+/// caller that has no signal holds null and uses <see cref="Wait"/>, which never completes for it.
 /// </summary>
 public sealed class WakeSignal
 {
@@ -19,12 +19,15 @@ public sealed class WakeSignal
     private readonly Channel<bool> _ch = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
     private readonly HashSet<FactFamily> _families = [];
 
-    // The store sections the pages' invalidations made stale, as narrowed as native attributed them; the
+    // The store sections the events' invalidations made stale, as narrowed as native attributed them; the
     // families stay the byte cache's whole-family view of the same events.
     private readonly HashSet<Facts.Section> _sections = [];
     private bool _authority;
 
-    // The native stamp of the earliest stop still pending for the step loop, null when the page carried none;
+    // Set when colony events were lost: the step that takes the evidence plans Full.
+    private bool _full;
+
+    // The native stamp of the earliest stop still pending for the step loop, null when the events carried none;
     // the step that acts on it publishes the stop-to-step latency.
     private DateTimeOffset? _stopAt;
 
@@ -37,11 +40,11 @@ public sealed class WakeSignal
     public void Notify(bool authority) =>
         NotifyInvalidated([], authority);
 
-    /// <summary>Notify carrying the fact families the committed page's ObservationInvalidated events named as well.</summary>
+    /// <summary>Notify carrying the fact families the events' ObservationInvalidated named as well.</summary>
     public void NotifyInvalidated(IReadOnlyList<FactFamily> families, bool authority) =>
         NotifyStopped(families, authority, false);
 
-    /// <summary>NotifyInvalidated that also records whether the page stopped the clock.</summary>
+    /// <summary>NotifyInvalidated that also records whether the events stopped the clock.</summary>
     public void NotifyStopped(IReadOnlyList<FactFamily> families, bool authority, bool stopped) =>
         NotifyStopAt(families, authority, stopped, null);
 
@@ -50,7 +53,7 @@ public sealed class WakeSignal
         NotifySections(families, [], authority, stopped, stopAt);
 
     /// <summary>
-    /// NotifyStopAt carrying the sections the page's invalidations narrowed to (ClockPageSections).
+    /// NotifyStopAt carrying the sections the events' invalidations narrowed to (EventSections).
     /// Invalidations coalesce into one set; authority stays set until taken.
     /// </summary>
     public void NotifySections(IReadOnlyList<FactFamily> families, IReadOnlyList<Facts.Section> sections, bool authority, bool stopped, DateTimeOffset? stopAt)
@@ -78,6 +81,16 @@ public sealed class WakeSignal
         _ch.Writer.TryWrite(true);
     }
 
+    /// <summary>Signals that colony events were lost: what they would have invalidated is unknown, so the next step plans Full.</summary>
+    public void NotifyLost()
+    {
+        lock (_mu)
+        {
+            _full = true;
+        }
+        _ch.Writer.TryWrite(true);
+    }
+
     /// <summary>
     /// Completes when a wake is signalled or <paramref name="ct"/> is cancelled. A null signal never fires, so
     /// loops that also wait on a timer need no special case.
@@ -92,14 +105,14 @@ public sealed class WakeSignal
         await signal._ch.Reader.ReadAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>Drains the invalidated families, the authority flag and the pending stop into one step reason.</summary>
+    /// <summary>Drains the invalidated families, the authority flag and a loss into one step reason: Full after a loss.</summary>
     public StepReason TakeInvalidated()
     {
         lock (_mu)
         {
             var reason = new StepReason
             {
-                Cause = StepCause.Wake,
+                Cause = _full ? StepCause.Full : StepCause.Wake,
                 Families = [.. _families.Order()],
                 Sections = [.. _sections.Order()],
                 Authority = _authority,
@@ -107,37 +120,34 @@ public sealed class WakeSignal
             _families.Clear();
             _sections.Clear();
             _authority = false;
+            _full = false;
             return reason;
         }
     }
 }
 
-/// <summary>What one committed clock page says that should wake the step loop (Go's five return values of clockPageWakeStopped).</summary>
-internal sealed record ClockPageWake(IReadOnlyList<FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt);
+/// <summary>What one batch of colony events says that should wake the step loop (Go's five return values of clockPageWakeStopped).</summary>
+internal sealed record ColonyEventWake(IReadOnlyList<FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt);
 
 internal static partial class Pkg
 {
     /// <summary>
-    /// Reads the wake-relevant facts out of one committed page: the families its
-    /// ObservationInvalidated events named, whether authority changed, and whether the page carried a native hold
+    /// Reads the wake-relevant facts out of one batch of this world's events: the families its
+    /// ObservationInvalidated events named, whether authority changed, and whether the batch carried a native hold
     /// with the earliest such event's native stamp (null when the event carried none).
     /// </summary>
-    internal static ClockPageWake PageWake(ClockPb.EventsPage page)
+    internal static ColonyEventWake EventsWake(IReadOnlyList<ClockPb.ClockEvent> events)
     {
         var families = new List<FactFamily>();
         var seen = new HashSet<FactFamily>();
         var authority = false;
         var stopped = false;
         DateTimeOffset? stopAt = null;
-        foreach (var @event in page.Events)
+        foreach (var @event in events)
         {
             switch (@event.Event)
             {
                 case ClockPb.ClockEventEvent.HoldEnteredCase { Value: var held }:
-                    if (OtherWorld(@event, page))
-                    {
-                        continue; // a previous load's hold
-                    }
                     // The brain's own holds are not wakes: the driver that took them plans again itself.
                     if (!BrainRequestedHold(held.Reason))
                     {
@@ -172,20 +182,20 @@ internal static partial class Pkg
                     break;
             }
         }
-        return new ClockPageWake(families, authority, stopped, stopAt);
+        return new ColonyEventWake(families, authority, stopped, stopAt);
     }
 
     /// <summary>
-    /// Names the store sections the page's ObservationInvalidated events made stale
+    /// Names the store sections the batch's ObservationInvalidated events made stale
     /// (Facts.Invalidation.Sections): the routing key for the planners a wake re-runs. An event whose family
-    /// the controller does not know names nothing here; the wake's authority flag (PageWake)
+    /// the controller does not know names nothing here; the wake's authority flag (EventsWake)
     /// already re-runs everything.
     /// </summary>
-    internal static IReadOnlyList<Facts.Section> ClockPageSections(ClockPb.EventsPage page)
+    internal static IReadOnlyList<Facts.Section> EventSections(IReadOnlyList<ClockPb.ClockEvent> events)
     {
         var output = new List<Facts.Section>();
         var seen = new HashSet<Facts.Section>();
-        foreach (var @event in page.Events)
+        foreach (var @event in events)
         {
             if (@event.Event is not ClockPb.ClockEventEvent.ObservationInvalidatedCase { Value: var invalidated })
             {
@@ -206,16 +216,15 @@ internal static partial class Pkg
         return output;
     }
 
-    /// <summary>Go <c>OtherWorld</c>: whether the event was observed in another world (colony, load or map) than the page's current context.</summary>
-    private static bool OtherWorld(ClockPb.ClockEvent @event, ClockPb.EventsPage page)
+    /// <summary>Go <c>OtherWorld</c>: whether the event was observed in another world (colony, load or map) than <paramref name="current"/>, the world loaded now.</summary>
+    internal static bool OtherWorld(ClockPb.ClockEvent @event, CommonPb.Identity? current)
     {
         var a = @event.Context?.Identity;
-        var b = page.Context?.Identity;
-        if (a is null || b is null)
+        if (a is null || current is null)
         {
             return false;
         }
-        return !string.Equals(a.ColonyId, b.ColonyId ?? "", StringComparison.Ordinal) || !string.Equals(a.LoadToken, b.LoadToken ?? "", StringComparison.Ordinal) || a.MapId != b.MapId;
+        return !string.Equals(a.ColonyId, current.ColonyId ?? "", StringComparison.Ordinal) || !string.Equals(a.LoadToken, current.LoadToken ?? "", StringComparison.Ordinal) || a.MapId != current.MapId;
     }
 
     /// <summary>Whether the hold was the brain's own request (a coupled order, a review or an autosave) rather than native's.</summary>

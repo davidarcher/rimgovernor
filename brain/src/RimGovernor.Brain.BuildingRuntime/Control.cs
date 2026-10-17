@@ -252,7 +252,7 @@ public sealed partial class Control : IDisposable
             _granted = false;
         }
         // The write runs under the caller's context and the call timeout, not the epoch: the SetMode itself is
-        // the AuthorityChanged the clock poll ingested, and the poll's Disable on it cancelled the in-flight
+        // the AuthorityChanged the colony event consumer read, and the consumer's Disable on it cancelled the in-flight
         // call and left the resume uncertain. The gate stays held.
         using var writeSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
         writeSource.CancelAfter(_config.CallTimeout);

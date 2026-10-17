@@ -82,7 +82,6 @@ public sealed class ResumePauseClockOwnerTests
             State = Held ? PbClock.ClockState.Held : PbClock.ClockState.Running,
             Reason = Held ? Reason : null,
             NativeTickBoundary = true,
-            NewestCursor = 0,
             HoldSerial = 0,
             ActualPaused = Held,
         };

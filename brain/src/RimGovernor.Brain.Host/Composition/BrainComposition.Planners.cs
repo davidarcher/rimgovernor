@@ -369,7 +369,7 @@ public sealed partial class BrainComposition
         };
     }
 
-    // The run driver's configuration: the base colony watch policy every Run carries, the poll cadence and the
+    // The run driver's configuration: the base colony watch policy every Run carries, the call bound and the
     // autosave hold.
     private ClockRunHostDriver CreateClock(PlannerContext context, FacadeNativeClient client, ClockScheduler scheduler, IClockWriter clockWriter)
     {
@@ -391,8 +391,6 @@ public sealed partial class BrainComposition
             // The host's autosaver: saves while the clock is held for it, flushing governor state first.
             Autosave = context.Autosave,
             AutosaveEveryTicks = ClockRunConfig.DefaultAutosaveEveryTicks,
-            PageLimit = 128,
-            PollInterval = TimeSpan.FromSeconds(1),
             CallTimeout = lease,
         };
         var driver = ClockRunDriver.Create(context.Player, context.Session, scheduler, client, clockWriter, config, SystemClock.Instance, context.Wake, CancellationToken.None);

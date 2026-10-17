@@ -124,7 +124,7 @@ public sealed class PlannerParts
 
     /// <summary>
     /// Runs the native clock from a step's result: Run at the target speed, native hazard holds and the brain's own
-    /// (coupled order, review, autosave), the heartbeat and the journal poll. Null steps the planners without ever
+    /// (coupled order, review, autosave), the heartbeat and the colony event consumer. Null steps the planners without ever
     /// running the clock.
     /// </summary>
     public IClockRunDriver? Clock { get; init; }
@@ -147,7 +147,7 @@ public interface IClockRunDriver : IDisposable
     Task<bool> AfterStepAsync(ClockSchedulerResult result, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Stops the poll and heartbeat loops and holds the clock; called on shutdown after the last step. The session's
+    /// Stops the colony event and heartbeat loops and holds the clock; called on shutdown after the last step. The session's
     /// close stops it again, so it stays usable until <see cref="IDisposable.Dispose"/>, which the host calls once the
     /// session has drained.
     /// </summary>
