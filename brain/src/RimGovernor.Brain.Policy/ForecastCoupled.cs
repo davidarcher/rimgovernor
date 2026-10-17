@@ -55,6 +55,8 @@ public sealed record ForecastCoupledContext
     /// <summary>The planned sites generated as construction activities (#3276), and the room alternatives they make up.</summary>
     public EquatableArray<ForecastPlannedSite> PlannedSites { get; init; }
     public EquatableArray<PlannedRoomAlternative> PlannedRooms { get; init; }
+    /// <summary>The closed-room predictions of the planned rooms (#3339): what each room is once its ring of one stuff stands.</summary>
+    public EquatableArray<ForecastPlannedClosure> Closures { get; init; }
     public EquatableArray<ForecastMaterialLot> InitialLots { get; init; }
     public EquatableArray<ForecastNeedTask> NeedTasks { get; init; }
     /// <summary>Observed retained waiting occupies time but is not productive labor or a need service.</summary>
@@ -296,16 +298,38 @@ public static partial class PolicyFunctions
                     Refuse("external_stock_shortfall", item.Owner, change.Day.Value * GameTime.TicksPerDay);
             }
         }
+        // Observed food stacks that deteriorate (#3339), and the completion tick of every completed activity, which places the
+        // planned rooms this schedule closes and roofs.
+        var decaying = context.Needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Kind == "food" && t.Deterioration is not null)
+            .GroupBy(t => t.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        var finishedAt = new Dictionary<string, double>(StringComparer.Ordinal);
+        var decayed = new HashSet<string>(StringComparer.Ordinal);
+        if (decaying.Count > 0) Finding("deterioration_rain_and_other_stat_parts_held", "deterioration", 0);
+        void Lose((string Lot, string Location, Resource Resource) lot, double at, string reason)
+        {
+            if (!lots[lot].TryGetValue(out var count) || count <= 0) return;
+            lots[lot] = Known(0.0);
+            var before = balance.GetValueOrDefault(lot.Resource, Known(0.0));
+            balance[lot.Resource] = before.IsKnown ? Known(before.Value - count) : default;
+            effects.Add(new(lot.Resource, Known(at / GameTime.TicksPerDay), Known(-count)));
+            Finding(reason, lot.Lot, at, lot.Resource, Known(count));
+        }
         void Expire(double time)
         {
             foreach (var lot in lots.Keys.Where(k => expiry.TryGetValue(k.Lot, out var until) && until.IsKnown && until.Value <= time).ToArray())
+                Lose(lot, expiry[lot.Lot].Value, "observed_lot_expired");
+            if (decaying.Count == 0) return;
+            // Expected deterioration, from the planned rooms closed and roofed by completions so far (a later completion
+            // changes the rate only after its own tick).
+            var rooms = PlannedClosedRooms(context, finishedAt);
+            foreach (var (id, stack) in decaying)
             {
-                if (!lots[lot].TryGetValue(out var count) || count <= 0) continue;
-                lots[lot] = Known(0.0);
-                var before = balance.GetValueOrDefault(lot.Resource, Known(0.0));
-                balance[lot.Resource] = before.IsKnown ? Known(before.Value - count) : default;
-                effects.Add(new(lot.Resource, Known(expiry[lot.Lot].Value / GameTime.TicksPerDay), Known(-count)));
-                Finding("observed_lot_expired", lot.Lot, expiry[lot.Lot].Value, lot.Resource, Known(count));
+                if (decayed.Contains(id)) continue;
+                var at = DeterioratedAt(stack, context.Needs, rooms, time);
+                if (at is null) { decayed.Add(id); Finding("food_deterioration_unassessed", id, 0); continue; }
+                if (!double.IsFinite(at.Value)) continue;
+                decayed.Add(id);
+                foreach (var lot in lots.Keys.Where(k => k.Lot == id).ToArray()) Lose(lot, at.Value, "observed_lot_deteriorated");
             }
         }
         // Completion precedes dependent start for positive-duration work; zero-duration tasks cannot finance themselves.
@@ -337,7 +361,11 @@ public static partial class PolicyFunctions
                     { completed[task.Id] = default; Uncertain("unknown_food_access_or_expiry", task.Id, e.Time); continue; }
                     if (foodExpiry.Any(t => e.Allocation.End >= t.Value))
                     { completed[task.Id] = Known(false); Refuse("food_unavailable_at_ingestion", task.Id, e.Time); continue; }
-
+                    // Nor may it deteriorate away before the meal ends, at the rate the completions so far leave it (#3339).
+                    var rooms = PlannedClosedRooms(context, finishedAt);
+                    if (task.Inputs.Where(i => i.Resource == ingestion.Resource && decaying.ContainsKey(i.Lot))
+                        .Any(i => DeterioratedAt(decaying[i.Lot], context.Needs, rooms, e.Allocation.End) is { } gone && gone <= e.Allocation.End))
+                    { completed[task.Id] = Known(false); Refuse("food_deteriorated_before_ingestion", task.Id, e.Time); continue; }
                 }
                 var inputs = task.Inputs.GroupBy(i => i.Resource).ToArray();
                 if (!physicalKnown && inputs.Length != 0 || inputs.Any(g => g.Any(i => !i.Units.IsKnown)
@@ -366,6 +394,7 @@ public static partial class PolicyFunctions
             }
             else if (completed.GetValueOrDefault(task.Id) == Known(true))
             {
+                finishedAt[task.Id] = e.Time;
                 foreach (var output in task.Outputs)
                 {
                     if (output.Lot.Length != 0)
@@ -422,6 +451,7 @@ public static partial class PolicyFunctions
         // Temperature mood (#3327): each Live temperature card along the pawn's assessed exposure spans, comfort shifts included.
         var temperatureCards = (context.Cards ?? MechanicCards.ByDef).Values.Where(TemperatureCard).OrderBy(c => c.Def, StringComparer.Ordinal).ToArray();
         var needs = new Dictionary<string, ForecastNeedsResult>(StringComparer.Ordinal);
+        var closedRooms = PlannedClosedRooms(context, finishedAt);
         var rejectedWork = new HashSet<string>(unavailableWork, StringComparer.Ordinal);
         foreach (var pawn in context.Needs.Pawns)
         {
@@ -465,18 +495,23 @@ public static partial class PolicyFunctions
                 if (!able.Any(w => w.Start <= work.Depart && w.End >= work.End))
                 { rejectedWork.Add(work.Activity); completed[work.Activity] = Known(false); Refuse("work_outside_recovered_capacity", work.Activity, work.Start); }
             var spans = exposure.Single(t => t.Pawn == pawn.Pawn).Spans;
+            // Room and roof thoughts (#3339): bed thoughts at the wake, weather, the outdoors need and undergrounder thoughts.
+            var roof = RoofMoodOf(pawn, context.Needs, choices, closedRooms, context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), horizon);
             var projected = ForecastNeedsTimeline(pawn, input, choices, granted: granted.GetValueOrDefault(pawn.Pawn),
                 situational: situational.GetValueOrDefault(pawn.Pawn),
                 banded: temperatureCards.Select(card => TemperatureThought(card, context.CardPawns.GetValueOrDefault(pawn.Pawn),
-                    context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), spans)).ToArray());
+                    context.ObservedThoughts.GetValueOrDefault(pawn.Pawn), spans)).Concat(roof.Banded).ToArray(),
+                renewals: roof.Renewals);
+            if (roof.Findings.Count > 0) projected = projected with { Findings = EquatableArray.From(projected.Findings.Concat(roof.Findings).Distinct().Order(StringComparer.Ordinal)) };
             var mealsUnknown = context.NeedTasks.Any(n => n.Pawn == pawn.Pawn && !n.ThoughtsComplete && allocations.ContainsKey(n.Task));
-            if (mealsUnknown || grantUnknown.Contains(pawn.Pawn))
+            if (mealsUnknown || grantUnknown.Contains(pawn.Pawn) || roof.Unassessed.Length != 0)
                 projected = projected with
                 {
                     ThoughtOffsetAtHorizon = default,
                     MemoryAdjustedMoodTarget = default,
                     Mood = null,
-                    Findings = [.. projected.Findings, mealsUnknown ? "future_meal_thoughts_unassessed" : "commitment_mood_memory_unassessed"]
+                    Findings = [.. projected.Findings, mealsUnknown ? "future_meal_thoughts_unassessed"
+                        : grantUnknown.Contains(pawn.Pawn) ? "commitment_mood_memory_unassessed" : roof.Unassessed]
                 };
             needs[pawn.Pawn] = projected;
         }

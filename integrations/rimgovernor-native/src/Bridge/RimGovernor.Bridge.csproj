@@ -92,6 +92,7 @@
     <Compile Include="../../../../scripts/fixtures/PlannedRoomFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LargeColonyReadsFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PlannedShelterThermalFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/PlannedRoomPredictionFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ClothingActivityFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PawnActivityFixture.cs" Condition="'$(PawnActivityFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ForecastFixture.cs" Condition="'$(ForecastFixture)' == 'true'" />

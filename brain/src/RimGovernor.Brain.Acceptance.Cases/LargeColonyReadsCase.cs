@@ -11,7 +11,7 @@ internal static class LargeColonyReadsCase
         Name = "observations/large-colony-reads",
         Scope = "32 free colonists, five unplaced rooms (four 3x3 and one 12x12, a 144-cell floor), twenty wood stacks, eight meal stacks and eight beds "
             + "are injected; the one planned-site read, the one planned-route read, the needs read and the coupled read each answer every colonist "
-            + "(the coupled read with routes), and each call's main-thread milliseconds are reported cold and warm. Records the time; does not assert a budget.",
+            + "(the coupled read with routes), the closed-room prediction read predicts a known stage for each of the five rooms, and each call's main-thread milliseconds are reported cold and warm. Records the time; does not assert a budget.",
         Start = new FixtureStart { Op = "test/large_colony_reads_prepare", On = new LabStart { Colonists = 1 } },
         RequiredOps = ["test/large_colony_reads_prepare", "test/large_colony_reads"],
         QuietWorld = true,

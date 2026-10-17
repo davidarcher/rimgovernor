@@ -142,8 +142,9 @@ thresholds, obligations and completion events. Native Night Owl workers supply
 day/night awake-only effects; the planner has no trait timetable template.
 Mood target and actual mood remain distinct. Actual response uses observed
 seeker rise/fall and sleep-freeze mechanics; unclamped target preserves overflow.
-Unknown thought mechanics, meal thoughts, future health and memory renewal are
-explicit boundaries. Sleep activation respects native thresholds, disturbance,
+Unknown thought mechanics, meal thoughts and future health are explicit
+boundaries; memory renewal is modeled only for the bed thoughts at each wake
+(`ForecastMemoryRenewal`, #3339). Sleep activation respects native thresholds, disturbance,
 starvation and wake thresholds; occupied bed time is not automatically asleep.
 Current-rate projections beyond one day remain unassessed.
 
@@ -215,3 +216,14 @@ ring cells and natural rock do not count. The record is derived and not saved:
 after a restart unstarted assessed rooms place as before until the first
 comparison ([persistence](../contracts/persistence-contracts.md)). The forecast side is
 [planned room activities](colony-forecast.md#planned-room-activities).
+
+A room's closure and roof are valued through their consequences, not only as
+requested development (#3339,
+[roof and room consequences](colony-forecast.md#roof-and-room-consequences)): the
+owner's bed thought from the room's predicted role and stage, the outdoors need,
+undergrounder and weather thoughts, food deterioration under the roof, and the
+x0.8 bench speed lifted by closure. These move the mood (`BreakRisk`) and food
+tiers; the tier ordering is unchanged. Closing a walls-only room can therefore win
+on mood alone, and an awful barracks honestly loses to sleeping outside. A bench's
+closure-conditional variant (`{task}/closed/{room}/{stuff}`) waits for the ring and
+works faster, so a comparison sees the closure's productive value too.

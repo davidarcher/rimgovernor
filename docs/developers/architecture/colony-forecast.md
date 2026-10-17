@@ -250,6 +250,70 @@ not prove that a pawn wears it or gains physiological protection. The garment's
 comfort shift (#3330) applies to its wearer from the delivery's completion as a
 forecast assumption, which prices temperature mood only.
 
+### Roof and room consequences
+
+A planned room changes more than temperature once its ring and roof stand (#3339,
+`ForecastRoofConsequences.cs`). Rounds ask native, in the same construction activity
+read as the thermal read, for each unplaced planned room closed in each ring stuff
+(`PlannedRoomPredictionRequestOf`, the
+[room prediction read](../contracts/forecast-contracts.md#planned-room-prediction-read)).
+`PlannedClosuresOf` joins each answer to the room's ring (wall and door sites of that
+stuff) and roof sites. In a schedule a room closes when the last of its ring sites
+finishes, earliest stuff first, and is roofed when its roof site (or the planned
+shelter's roof cells) has finished. Between those times a cell's state is the
+mirrored `Room` formulas over the predicted cell and open-roof counts:
+PsychologicallyOutdoors (300 open roof cells, or half open at the map edge) and
+UsesOutdoorTemperature (a quarter open, or the map edge). Before closure the cell's
+observed state holds.
+
+- **Bed thoughts.** `ApplyBedThoughts` runs at each modeled rest's wake, as one
+  `ForecastMemoryRenewal`: it ends every slept\_\* memory and gains SleptOutside when
+  the bed's room is psychologically outdoors, and, for a non-Ascetic owner of a bed
+  not for prisoners, SleptInBedroom or SleptInBarracks at the impressiveness stage.
+  Role and stage come from the prediction when a room closed by the wake lists the bed,
+  else from the bed's observed room. A sleep shorter than 2500 ticks gains nothing;
+  one shorter than 10000 (the game's random onset window) is unassessed. SleptOnGround
+  and the temperature sleep thoughts are held at their observed contribution
+  (`sleep_ground_and_temperature_memories_constant`). An unknown role, stage or
+  outdoors leaves the pawn's mood unassessed; an unread room keeps the baseline with
+  `sleep_room_thoughts_unread`.
+- **Memory renewal.** The mood timeline ends an observed memory at the first renewal
+  that names its def and runs each gained memory from its renewal to the next renewal
+  of its def (or its duration). A renewal whose def is also a meal memory refuses with
+  `unsupported_memory_renewal_or_stacking`.
+- **Weather.** The weather thought (`Pawn_MindState`, every 120 ticks, asleep too)
+  applies at stage 0 unroofed or, for a two-stage thought, stage 1 under a roof. Each
+  joy or rest span takes the roof state at its start; the weather itself is held
+  (`weather_held_constant`), and stage changes replace rather than stack.
+- **Outdoors need.** `Need_Outdoors` is simulated over the awake joy and rest spans
+  with the mirrored per-interval deltas (no, thin or thick roof; indoors or outdoors),
+  frozen asleep and scaled in bed. Each category change from the observed one becomes
+  a banded span of the NeedOutdoors stage offset less the observed contribution. A
+  disabled need (PrefersIndoors) costs nothing. Spans with no known location, such as
+  food, hold the level (`outdoors_need_constant_outside_known_location`).
+- **Undergrounder.** The trait's indoors, underground and outdoors thoughts follow the
+  same spans' roof state as banded spans.
+- **Deterioration.** A food lot with deterioration inputs loses hit points at its
+  observed final rate (`SteadyEnvironmentEffects.FinalDeteriorationRate`): each tick
+  visits `ceil(area * 0.0006)` cells and a visited stack loses one point with chance
+  rate/36. A planned closure or roof over the lot rescales the rate by the
+  environmental part's factor (unroofed and outdoors offsets, rain from 1 to 5,
+  terrain, edifice protection). The lot is lost (`observed_lot_deteriorated`) when the
+  expected loss reaches its hit points; an ingestion after that refuses
+  (`food_deteriorated_before_ingestion`). Rain and the other stat parts are held
+  (`deterioration_rain_and_other_stat_parts_held`); an unknown input notes
+  `food_deterioration_unassessed`.
+- **Bench speed.** A bench inside an unclosed planned room that the closed room would
+  bring indoors (`StatPart_WorkTableOutdoors`, x0.8 outdoors) gets a closure-conditional
+  copy of each single-completion task root that uses it, `{task}/closed/{room}/{stuff}`:
+  the ring sites' finishes are prerequisites and the bench work takes 0.8 of the
+  observed ticks. The root copy excludes the room's other-stuff roots, as the `/after/`
+  variants do.
+
+The location is known only at joy and rest targets; travel, work and food spans hold
+the observed roof consequences. Bed thoughts land at the wake rather than at the
+game's random onset during sleep.
+
 ### Bounds and evidence
 
 The native census, family generation, recovery combinations and shared schedule

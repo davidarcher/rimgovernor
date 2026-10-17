@@ -57,6 +57,7 @@ public sealed class NativeConstructionActivity
         return new() { Context = context, Known = true,
             Options = EquatableArray.From(options), Planned = EquatableArray.From(answers), Routes = EquatableArray.From(routes),
             Thermal = request.Thermal is { } thermal ? NativeCoupledThermal.ReadPlanned(map, thermal) : null,
+            RoomPredictions = NativeRoomPrediction.Predict(map, request.RoomPredictions),
             Findings = EquatableArray.From(findings.OrderBy(s => s, StringComparer.Ordinal)) };
     }
 

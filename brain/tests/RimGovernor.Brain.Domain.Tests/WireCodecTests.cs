@@ -330,6 +330,54 @@ public sealed class WireCodecTests
         Assert.False(explicitNull[1].MaxPawns.IsKnown);
     }
 
+    [Fact]
+    public void NeedsRoofReadsRoundTripKnownAndUnknown()
+    {
+        var known = RimGovernor.Brain.Domain.Fact.Known(true);
+        var read = new RimGovernor.Contracts.Wire.Observations.NeedsForecastRead
+        {
+            Tick = 1, WeatherThought = "SoakingWet", WeatherThoughtStages = 1, RainRate = RimGovernor.Brain.Domain.Fact.Known(.5),
+            MapArea = RimGovernor.Brain.Domain.Fact.Known(62500), Deterioration = new(.5, .5, 0),
+            Pawns = [new()
+            {
+                Pawn = "p", OutdoorsLevel = RimGovernor.Brain.Domain.Fact.Known(.7), OutdoorsDisabled = true, OwnedBed = "bed", Ascetic = true,
+                ThoughtStages = [new("SleptInBedroom", "slept_in_bedroom", 2, 3, RimGovernor.Brain.Domain.Fact.Known(60000d), false),
+                    new("NeedOutdoors", "need_outdoors", 4, -3, default, false)],
+                Targets = [
+                    new("stack", "food", "Meal", 4, default, default, default, default)
+                        { Cell = new(known, default, known, known, known), Deterioration = new(50, RimGovernor.Brain.Domain.Fact.Known(10d), true, .5, false) },
+                    new("bed", "rest", "", 1, default, default, default, default) { Bed = new("Bedroom", RimGovernor.Brain.Domain.Fact.Known(2), false, true) },
+                    new("pin", "joy", "", 1, default, default, default, default),
+                ],
+            }],
+        };
+        Assert.Equal(read, WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.NeedsForecastRead>(WireJson.Serialize(read)));
+        var unread = new RimGovernor.Contracts.Wire.Observations.NeedsForecastRead { Tick = 1 };
+        var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.NeedsForecastRead>(WireJson.Serialize(unread));
+        Assert.Equal(unread, decoded);
+        Assert.False(decoded.RainRate.IsKnown);
+        Assert.Null(decoded.Deterioration);
+    }
+
+    [Fact]
+    public void PlannedRoomPredictionsRoundTripRequestAndRead()
+    {
+        var request = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest(new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, default)
+        {
+            RoomPredictions = [new("1", "WoodLog", [new(1, 1), new(1, 2)], [new(new(0, 1), "Wall", "WoodLog"), new(new(2, 1), "Door", "WoodLog")])],
+        };
+        Assert.Equal(request.RoomPredictions, WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(WireJson.Serialize(request)).RoomPredictions);
+        var read = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead
+        {
+            RoomPredictions = [
+                new("1", "WoodLog", "Bedroom", RimGovernor.Brain.Domain.Fact.Known(31.5), RimGovernor.Brain.Domain.Fact.Known(2), 2, 0, false)
+                    { Beds = ["bed"], Benches = [new("stove", true)] },
+                new("1", "Steel", "None", default, default, 2, 2, true),
+            ],
+        };
+        Assert.Equal(read.RoomPredictions, WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead>(WireJson.Serialize(read)).RoomPredictions);
+    }
+
     // The largest case count of any choice reachable from the type: how many documents cover every case.
     private static IEnumerable<int> Choices(Type type, int depth, HashSet<Type> seen)
     {

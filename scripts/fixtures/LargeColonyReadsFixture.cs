@@ -18,8 +18,8 @@ namespace HomeBridge.BridgeTools;
 
 // Private disposable acceptance only (#3341): the main-thread time of the forecast's native reads on a large colony.
 // 32 free colonists, five planned rooms (one with a 144-cell floor), twenty wood stacks, eight meal stacks and eight beds
-// are injected; the planned-site read, the route read between the rooms' sites, the needs read and the coupled read are
-// each timed per call. The meals and beds are needs targets, so the coupled read has locations to route between.
+// are injected; the planned-site read, the route read between the rooms' sites, the needs read (with its #3339 roof,
+// thought-stage and deterioration reads), the coupled read and the closed-room prediction read (#3339) are each timed per call. The meals and beds are needs targets, so the coupled read has locations to route between.
 // Nothing is placed or ordered.
 public sealed partial class PawnControlFixture
 {
@@ -147,6 +147,14 @@ public sealed partial class PawnControlFixture
                 routeSearches = legs.Searches;
             }
             var facts = PolicyFunctions.JoinPlannedRoutes(joined, probes, routeRead);
+            // The closed-room prediction read (#3339): the five rooms closed by their wood rings, as Rounder.PlannedShelterReadsAsync asks it.
+            var plannedRooms = Enumerable.Range(0, 4).Select(i => new PlannedRoom { Id = i + 1, Region = PolicyFunctions.RectRegion(new(largeColonyOrigin.x + 2 + i * 7, largeColonyOrigin.z + 2, 3, 3)) })
+                .Append(new PlannedRoom { Id = 5, Region = PolicyFunctions.RectRegion(new(largeColonyOrigin.x + 2, largeColonyOrigin.z + 9, 12, 12)) }).ToList();
+            var shapes = PolicyFunctions.PlannedRoomPredictionRequestOf(plannedRooms, sites);
+            var predictionMs = new List<double>();
+            Obs.ConstructionActivityRead predictionRead = null!;
+            for (var pass = 0; pass < 2; pass++)
+                predictionRead = Timed(() => NativeConstructionActivity.Read(new(identity, default) { RoomPredictions = shapes }), predictionMs);
             var needsMs = new List<double>();
             Obs.NeedsForecastRead needs = null!;
             for (var pass = 0; pass < 2; pass++) needs = Timed(() => NativeNeedsForecast.Read(map, colonists), needsMs);
@@ -162,9 +170,10 @@ public sealed partial class PawnControlFixture
             var routePawns = facts.Routes.Select(r => r.Pawn).Distinct().Count();
             var coupledRoutePawns = coupled.Routes.Select(r => r.Pawn).Where(ids.Contains).Distinct().Count();
             if (answered != sites.Count(s => s.Op != OpKind.RoofIn) || needsPawns != colonists.Count || !siteRead.Known || !routeRead.Known
-                || routePawns != colonists.Count || coupledRoutePawns != colonists.Count)
+                || routePawns != colonists.Count || coupledRoutePawns != colonists.Count
+                || shapes.Count != 5 || predictionRead.RoomPredictions.Count != 5 || predictionRead.RoomPredictions.Any(r => !r.Stage.IsKnown))
                 throw new InvalidOperationException("Incomplete reads: feasible sites " + answered + ", needs pawns " + needsPawns + "/" + colonists.Count
-                    + ", route pawns " + routePawns + ", coupled route pawns " + coupledRoutePawns + "; findings " + string.Join(",", facts.Findings));
+                    + ", route pawns " + routePawns + ", coupled route pawns " + coupledRoutePawns + ", room predictions " + string.Join(";", predictionRead.RoomPredictions) + "; findings " + string.Join(",", facts.Findings));
             return new
             {
                 success = true,
@@ -179,7 +188,11 @@ public sealed partial class PawnControlFixture
                 coupledRoutes = coupled.Routes.Count, coupledRoutePawns,
                 coupledLocations = coupled.Routes.Where(r => !r.FromStart).Select(r => r.From).Distinct().Count(),
                 coupled_ms = coupledMs,
-                round_ms = Enumerable.Range(0, 2).Select(i => Math.Round(siteMs[i] + routeMs[i] + needsMs[i] + coupledMs[i], 2)).ToArray(),
+                roomPredictions = predictionRead.RoomPredictions.Select(r => new { r.Room, r.Role, stage = r.Stage.Value, r.Cells }).ToArray(),
+                room_prediction_ms = predictionMs,
+                needsRoofReads = new { weather = needs.WeatherThought, rain = needs.RainRate.IsKnown, cells = needs.Pawns.Sum(p => p.Targets.Count(t => t.Cell != null)),
+                    decaying = needs.Pawns.Sum(p => p.Targets.Count(t => t.Deterioration != null)), stages = needs.Pawns.Sum(p => p.ThoughtStages.Count) },
+                round_ms = Enumerable.Range(0, 2).Select(i => Math.Round(siteMs[i] + routeMs[i] + needsMs[i] + coupledMs[i] + predictionMs[i], 2)).ToArray(),
                 findings = facts.Findings.ToArray(),
                 limitations = "Times one lab map's reads per call on the main thread (cold then warm); the coupled read's time includes its own construction, food, recipe, thermal, support, practice, hunt and route sub-reads, with the needs read passed in. A round makes each read once.",
             };

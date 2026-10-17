@@ -186,6 +186,13 @@ public sealed record RoundsFacts
     /// </summary>
     public RimGovernor.Contracts.Wire.Observations.CoupledThermalRead? PlannedThermal { get; init; }
 
+    /// <summary>
+    /// The native closed-room predictions of the planned shelters (PlannedRoomPredictionRequestOf, #3339): per room and ring
+    /// stuff, the game's role and impressiveness stage once its walls and doors stand; unknown when nothing was asked or
+    /// native did not answer.
+    /// </summary>
+    public Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.PlannedRoomPrediction>> PlannedRoomPredictions { get; init; }
+
     /// <summary>Live bill jobs' promised ingredients, per working pawn (MaterialBudget).</summary>
     public Fact<EquatableArray<IngredientReservation>> BillReservations { get; init; }
 

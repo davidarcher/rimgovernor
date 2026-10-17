@@ -216,6 +216,12 @@ public static partial class PolicyFunctions
             if (task == ancestor) return true;
             return tasks.Single(t => t.Id == task).Prerequisites.Any(p => Ancestor(p, ancestor));
         }
+        // A bench in an unclosed planned room works faster once the room closes (#3339): closure-conditional variants.
+        var closures = shelterEnabled ? PlannedClosuresOf(plannedSites, facts.PlannedShelters, facts.PlannedRoomPredictions) : [];
+        AddClosedBenchVariants(closures, productiveRoots, plannedRealized, tasks, options, bindings, alternatives,
+            planned.Sites.Where(s => s.Stuff.Length != 0).Select(s => (Id: s.Site, s.Room, s.Stuff))
+                .Concat(planned.Rooms.Where(a => a.Stuff.Length != 0).Select(a => (a.Id, a.Room, a.Stuff)))
+                .GroupBy(s => s.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => (g.First().Room, g.First().Stuff), StringComparer.Ordinal));
         var equipment = options.SelectMany(o => o.Equipment).Distinct().Order(StringComparer.Ordinal)
             .Select(id => new ForecastEquipmentCapacity(id, tasks.Single(t => t.Id == options.First(o => o.Equipment.Contains(id)).Activity) is var equipmentTask && equipmentTask.EquipmentLocation.Length != 0 ? equipmentTask.EquipmentLocation : equipmentTask.Location, resources.Claims.Targets.Contains(id)
                 ? Known<EquatableArray<ForecastTimeWindow>>([]) : Known<EquatableArray<ForecastTimeWindow>>([new(0, horizon)]))).ToArray();
@@ -254,6 +260,7 @@ public static partial class PolicyFunctions
             Shelters = EquatableArray.From(shelters),
             PlannedSites = plannedRealized,
             PlannedRooms = EquatableArray.From(planned.Rooms),
+            Closures = closures,
             InitialLots = EquatableArray.From(lots),
             Bindings = bindings,
             NeedTasks = EquatableArray.From(needTasks),

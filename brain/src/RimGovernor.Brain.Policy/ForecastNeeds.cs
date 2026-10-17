@@ -175,7 +175,8 @@ public static partial class PolicyFunctions
         IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
         IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
         IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null,
-        IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null)
+        IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null,
+        IReadOnlyList<ForecastMemoryRenewal>? renewals = null)
     {
         NeedHorizon(input.HorizonTicks);
         if (input.Pawn.Id.Value != pawn.Pawn || selected.Any(c => c.Pawn != pawn.Pawn)
@@ -286,9 +287,15 @@ public static partial class PolicyFunctions
                 : m.Fades ? m.Offset * (1 - elapsed / m.RemainingTicks.Value) : m.Offset;
             var complete = true;
             var mealIds = new HashSet<string>(StringComparer.Ordinal);
-            var delta = memories.Sum(m => Remaining(m, input.HorizonTicks) - m.Offset);
             var added = intervals.Where(r => r.Choice.Kind == "food" && r.End == r.Choice.End)
-                .SelectMany(r => r.Choice.Thoughts.Select(t => (Thought: t, Start: r.End))).Concat(granted ?? []);
+                .SelectMany(r => r.Choice.Thoughts.Select(t => (Thought: t, Start: r.End))).Concat(granted ?? []).ToArray();
+            var schedule = RenewalSchedule(memories, renewals, added.Select(a => a.Thought.Id));
+            if (schedule is null) { findings.Add("unsupported_memory_renewal_or_stacking"); complete = false; }
+            var horizonTicks = input.HorizonTicks;
+            var delta = memories.Sum(m => (schedule is { } s && s.ObservedEnds[m.Id] <= horizonTicks ? 0 : Remaining(m, horizonTicks)) - m.Offset);
+            if (schedule is { } renewedSchedule)
+                foreach (var gain in renewedSchedule.Gains.Where(g => g.Start <= horizonTicks && g.End > horizonTicks))
+                    delta += Remaining(gain.Thought, horizonTicks - gain.Start);
             foreach (var (thought, start) in added)
             {
                 if (!thought.Permanent && !thought.RemainingTicks.IsKnown) { findings.Add("unknown_meal_thought_duration"); complete = false; continue; }
@@ -305,7 +312,7 @@ public static partial class PolicyFunctions
         findings.UnionWith(capacity.Findings);
         findings.Add("need_rates_constant_current_conditions");
         findings.Add("need_category_and_room_mood_changes_unassessed");
-        var mood = ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted, situational, banded);
+        var mood = ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted, situational, banded, renewals);
         if (!mood.BreakRisk.IsKnown) findings.Add("mental_break_probability_unassessed");
         return new(EquatableArray.From(metrics), thoughtDelta, target, capacity, EquatableArray.From(findings))
         { Mood = mood, UsefulFoodGain = usefulFood };

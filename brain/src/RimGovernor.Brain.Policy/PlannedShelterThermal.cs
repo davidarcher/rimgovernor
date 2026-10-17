@@ -42,6 +42,37 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
+    /// The closed-room predictions one round asks native for (#3339): every enclosed planned room that still owes a wall or
+    /// door site, once per ring stuff (PlannedRoomAlternatives' stuffs), its interior the room's region and its pieces the
+    /// cells of its wall and door sites in that stuff (a stuff-less ring site in every stuff). Nothing is capped (#3341).
+    /// </summary>
+    public static EquatableArray<PlannedRoomShape> PlannedRoomPredictionRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites)
+    {
+        var shapes = new List<PlannedRoomShape>();
+        var closing = sites.Where(s => s.Room > 0 && s.Zone.Length == 0 && s.Op is OpKind.WallIn or OpKind.DoorIn).ToLookup(s => s.Room);
+        foreach (var room in rooms.Where(r => !r.Outdoor && r.Id > 0 && closing.Contains(r.Id)).OrderBy(r => r.Id))
+        {
+            var ring = closing[room.Id].ToList();
+            var interior = EquatableArray.From(room.Region.Cells().OrderBy(c => c.X).ThenBy(c => c.Z));
+            foreach (var stuff in RingStuffs(ring))
+            {
+                var pieces = ring.Where(s => s.Stuff.Length == 0 || s.Stuff == stuff)
+                    .SelectMany(s => s.Positions.Select(p => new PlannedRoomPiece(p, s.Definition, s.Stuff)))
+                    .OrderBy(p => p.Cell.X).ThenBy(p => p.Cell.Z);
+                shapes.Add(new PlannedRoomShape(room.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), stuff, interior, EquatableArray.From(pieces)));
+            }
+        }
+        return EquatableArray.From(shapes);
+    }
+
+    /// <summary>A planned room's ring stuffs in read order; one "" when its ring sites name none.</summary>
+    internal static IReadOnlyList<string> RingStuffs(IEnumerable<PlannedBuildSite> ring)
+    {
+        var stuffs = ring.Where(s => s.Stuff.Length > 0).Select(s => s.Stuff).Distinct().ToList();
+        return stuffs.Count == 0 ? [""] : stuffs;
+    }
+
+    /// <summary>
     /// The coupled thermal read with an unplaced shelter's planned read joined in (#3323): the coupled capture keeps
     /// every cell and source it has; planned rows and planned heaters fill only what it lacks. The planned read comes
     /// from the round's construction activity read, a later frame than the coupled capture. Its truncation carries over.

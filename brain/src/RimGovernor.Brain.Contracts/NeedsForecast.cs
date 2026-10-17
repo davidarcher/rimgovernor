@@ -9,7 +9,39 @@ public sealed record NeedsForecastRead
     public long Tick { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedsForecastPawn>))]
     public EquatableArray<NeedsForecastPawn> Pawns { get; init; }
+    /// <summary>The map's current weather (WeatherManager.CurWeatherLerped): its weatherThought def ("" none) and that def's stage count (#3339).</summary>
+    public string WeatherThought { get; init; } = "";
+    public int WeatherThoughtStages { get; init; }
+    /// <summary>WeatherManager.RainRate now; unknown when unread. Held over the horizon (#3339).</summary>
+    public Fact<double> RainRate { get; init; }
+    /// <summary>Map.Area, the cell count SteadyEnvironmentEffects cycles over (#3339).</summary>
+    public Fact<int> MapArea { get; init; }
+    /// <summary>The DeteriorationRate stat's StatPart_EnvironmentalEffects def data (#3339); null when the stat has no such part.</summary>
+    public NeedDeteriorationPart? Deterioration { get; init; }
 }
+/// <summary>StatPart_EnvironmentalEffects fields (factorOffsetUnroofed, factorOffsetOutdoors, protectedByEdificeFactor), def data.</summary>
+public sealed record NeedDeteriorationPart(double UnroofedOffset, double OutdoorsOffset, double ProtectedFactor);
+/// <summary>
+/// One cell's roof and room facts now (#3339): Roofed and the roof def's isThickRoof/isNatural, the cell room's
+/// UsesOutdoorTemperature and PsychologicallyOutdoors (no room reads as outdoors, as BeautyUtility does). Unknown when unread.
+/// </summary>
+public sealed record NeedCell(Fact<bool> Roofed, Fact<bool> ThickRoof, Fact<bool> NaturalRoof, Fact<bool> OutdoorTemperature, Fact<bool> PsychologicallyOutdoors);
+/// <summary>A bed's room now (#3339): its RoomRoleDef ("" none) and its Impressiveness score stage; ForPrisoners and an empty cost list (SleptOnGround).</summary>
+public sealed record NeedBedRoom(string Role, Fact<int> Stage, bool ForPrisoners, bool OnGround);
+/// <summary>
+/// A food stack's deterioration inputs (#3339): its HitPoints, SteadyEnvironmentEffects.FinalDeteriorationRate now (every
+/// DeteriorationRate part applied at its cell), whether StatPart_EnvironmentalEffects applies (deteriorateFromEnvironmentalEffects),
+/// the cell terrain's extraDeteriorationFactor and SteadyEnvironmentEffects.ProtectedByEdifice.
+/// </summary>
+public sealed record NeedDeterioration(double HitPoints, Fact<double> RatePerDay, bool Environmental, double TerrainFactor, bool Protected);
+/// <summary>
+/// A thought this pawn can get (ThoughtUtility.CanGetThought) at one stage, priced by the game's own MoodOffset for this
+/// pawn (#3339). Role names why it is read: slept_outside, slept_in_bedroom, slept_in_barracks, weather, need_outdoors,
+/// undergrounder_indoors (constructed roof), undergrounder_underground (natural roof), undergrounder_outdoors. A stage the
+/// game cannot price is left out. Memories carry their duration; situational thoughts none.
+/// </summary>
+public sealed record NeedThoughtStage(string Thought, string Role, int Stage, double Offset,
+    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> DurationTicks, bool Fades);
 public sealed record NeedRate(string Kind,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> Level,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> FallPerTick,
@@ -78,6 +110,14 @@ public sealed record NeedsForecastPawn
     public EquatableArray<NeedTarget> Targets { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Unsupported { get; init; }
+    /// <summary>Need_Outdoors.CurLevel; unknown without the need. Disabled (PrefersIndoors) holds it at 1 (#3339).</summary>
+    public Fact<double> OutdoorsLevel { get; init; }
+    public bool OutdoorsDisabled { get; init; }
+    /// <summary>ownership.OwnedBed's load id ("" none) and the Ascetic trait, the two pawn facts ApplyBedThoughts reads (#3339).</summary>
+    public string OwnedBed { get; init; } = "";
+    public bool Ascetic { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
+    public EquatableArray<NeedThoughtStage> ThoughtStages { get; init; }
 }
 /// <summary>Native legality and mechanics, not a selected need action. Travel is an observed route cost.</summary>
 public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount,
@@ -97,4 +137,10 @@ public sealed record NeedTarget(string Id, string Kind, string Resource, int Ava
     public Fact<double> FreshTicks { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Unsupported { get; init; }
+    /// <summary>The target cell's roof and room now (#3339); null when unread.</summary>
+    public NeedCell? Cell { get; init; }
+    /// <summary>A rest target's room role and stage (#3339).</summary>
+    public NeedBedRoom? Bed { get; init; }
+    /// <summary>A food target's deterioration inputs (#3339); null when it cannot deteriorate or is unread.</summary>
+    public NeedDeterioration? Deterioration { get; init; }
 }

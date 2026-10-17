@@ -12,8 +12,47 @@ public sealed record ForecastMoodResult(EquatableArray<ForecastMoodPoint> Trajec
     public Fact<double> BreakRisk { get; init; }
 }
 
+/// <summary>
+/// A memory renewal at one tick (#3339), as ApplyBedThoughts or the weather check makes one: every memory of the ended
+/// defs stops counting from At (an observed one and an earlier renewal's gain alike), then the gains start at At. A gain
+/// is itself ended by the next later renewal that ends its def. Ends names every gained def.
+/// </summary>
+public sealed record ForecastMemoryRenewal(double At, EquatableArray<string> Ends, EquatableArray<NeedMemory> Gains);
+
 public static partial class PolicyFunctions
 {
+    /// <summary>
+    /// The timed memories of a renewal list against the observed ones: the tick each observed memory is ended at
+    /// (infinity when no renewal ends it) and each gain with its start and end. Null when a renewal is malformed (a
+    /// gain its own Ends omits, a gain of unknown duration, a non-finite time) or a meal or granted memory shares a
+    /// renewed def, which is not additive evidence.
+    /// </summary>
+    internal static (Dictionary<string, double> ObservedEnds, List<(NeedMemory Thought, double Start, double End)> Gains)? RenewalSchedule(
+        IReadOnlyList<NeedMemory> observed, IReadOnlyList<ForecastMemoryRenewal>? renewals, IEnumerable<string> mealIds)
+    {
+        var ends = observed.ToDictionary(m => m.Id, _ => double.PositiveInfinity, StringComparer.Ordinal);
+        var gains = new List<(NeedMemory Thought, double Start, double End)>();
+        if (renewals is null || renewals.Count == 0) return (ends, gains);
+        var ordered = renewals.OrderBy(r => r.At).ToArray();
+        if (ordered.Any(r => !double.IsFinite(r.At) || r.At < 0 || r.Gains.Any(g => !r.Ends.Contains(g.Id)
+            || !g.Permanent && !g.RemainingTicks.IsKnown || !double.IsFinite(g.Offset))))
+            return null;
+        var renewed = ordered.SelectMany(r => r.Ends).ToHashSet(StringComparer.Ordinal);
+        if (mealIds.Any(renewed.Contains)) return null;
+        for (var i = 0; i < ordered.Length; i++)
+        {
+            var at = ordered[i].At;
+            foreach (var id in ordered[i].Ends)
+                if (ends.TryGetValue(id, out var end) && end > at) ends[id] = at;
+            foreach (var gain in ordered[i].Gains)
+            {
+                var stop = ordered.Skip(i + 1).FirstOrDefault(r => r.At > at && r.Ends.Contains(gain.Id))?.At ?? double.PositiveInfinity;
+                gains.Add((gain, at, stop));
+            }
+        }
+        return (ends, gains);
+    }
+
     /// <summary>Conditional thoughts are native mechanics, independent of candidate family or trait names.
     /// Target and actual mood remain separate; threshold exposure is not itself a break probability. Granted
     /// memories (a commitment's MoodMemories) start at their tick like a completed meal's thoughts. A situational
@@ -24,7 +63,8 @@ public static partial class PolicyFunctions
         IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
         IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
         IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null,
-        IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null)
+        IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null,
+        IReadOnlyList<ForecastMemoryRenewal>? renewals = null)
     {
         NeedHorizon(horizon);
         situational ??= [];
@@ -61,9 +101,20 @@ public static partial class PolicyFunctions
         if (meals.Select(m => m.Thought.Id).Distinct().Count() != meals.Length
             || meals.Any(m => memories.Any(old => old.Id == m.Thought.Id) || !m.Thought.Permanent && !m.Thought.RemainingTicks.IsKnown))
             return new([], default, default, default, default, default, ["unsupported_memory_renewal_or_stacking"]);
+        if (RenewalSchedule(memories, renewals, meals.Select(m => m.Thought.Id)) is not { } schedule)
+            return new([], default, default, default, default, default, ["unsupported_memory_renewal_or_stacking"]);
+        var (observedEnds, renewed) = schedule;
         foreach (var meal in meals)
             if (!meal.Thought.Permanent && meal.Start + meal.Thought.RemainingTicks.Value < horizon)
                 events.Add(meal.Start + meal.Thought.RemainingTicks.Value);
+        foreach (var gain in renewed)
+        {
+            events.Add(gain.Start);
+            if (gain.End < horizon) events.Add(gain.End);
+            if (!gain.Thought.Permanent && gain.Start + gain.Thought.RemainingTicks.Value < horizon)
+                events.Add(gain.Start + gain.Thought.RemainingTicks.Value);
+        }
+        foreach (var end in observedEnds.Values) if (end > 0 && end < horizon) events.Add(end);
         foreach (var change in situational) if (change.Start > 0 && change.Start < horizon) events.Add(change.Start);
         foreach (var bound in banded.SelectMany(b => b.Spans).SelectMany(s => new[] { s.Start, s.End }))
             if (bound > 0 && bound < horizon) events.Add(bound);
@@ -101,9 +152,11 @@ public static partial class PolicyFunctions
             double conditional = 0, changedMemories = 0, mealMemories = 0;
             foreach (var effect in effects)
                 conditional += (!effect.AwakeOnly || !asleep) && InHours(hour, effect.StartHour, effect.EndHour) ? effect.Offset : 0;
-            foreach (var memory in memories) changedMemories += Memory(memory, time) - memory.Offset;
+            foreach (var memory in memories) changedMemories += (time < observedEnds[memory.Id] ? Memory(memory, time) : 0) - memory.Offset;
             foreach (var meal in meals)
                 if (meal.Start <= time) mealMemories += Memory(meal.Thought, time - meal.Start);
+            foreach (var gain in renewed)
+                if (gain.Start <= time && time < gain.End) mealMemories += Memory(gain.Thought, time - gain.Start);
             changedMemories += mealMemories;
             foreach (var change in situational) if (change.Start <= time) changedMemories += change.OffsetDelta;
             foreach (var span in banded.SelectMany(b => b.Spans)) if (span.Start <= time && time < span.End) changedMemories += span.OffsetDelta;

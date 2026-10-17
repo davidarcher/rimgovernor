@@ -74,10 +74,12 @@ internal static class NativeNeedsForecast
                             targets.Add(new(target.GetUniqueLoadID(), "food", target.def.defName, target.def.ingestible.maxNumToIngestAtOnce > 0 ? Math.Min(target.stackCount, target.def.ingestible.maxNumToIngestAtOnce) : target.stackCount,
                                 travel, K(service), K(nutrition), default) { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), StockCount = K(target.stackCount), MaxPawns = Capacity(IngestMaxPawns),
                                 FreshTicks = K(target.TryGetComp<CompRottable>()?.TicksUntilRotAtCurrentTemp ?? RimGovernor.Brain.Domain.GameTime.TicksPerDay),
+                                Cell = CellAt(map, target.Position), Deterioration = DeteriorationOf(map, target),
                                 Unsupported = ["chew_spot_travel", "ingestion_outcomes_and_poisoning", "meal_memory_stacking"] });
                         }
                         else if (group.Key == "rest") targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel, default, default,
-                            K(Need_Rest.BaseRestGainPerTick * target.GetStatValue(StatDefOf.BedRestEffectiveness) * pawn.GetStatValue(StatDefOf.RestRateMultiplier))) { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(((Building_Bed)target).SleepingSlotsCount) });
+                            K(Need_Rest.BaseRestGainPerTick * target.GetStatValue(StatDefOf.BedRestEffectiveness) * pawn.GetStatValue(StatDefOf.RestRateMultiplier))) { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(((Building_Bed)target).SleepingSlotsCount),
+                                Cell = CellAt(map, target.Position), Bed = BedRoomOf((Building_Bed)target) });
                         else
                         {
                             var job = DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes").jobDef;
@@ -85,7 +87,8 @@ internal static class NativeNeedsForecast
                             var gain = job.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour * target.GetStatValue(StatDefOf.JoyGainFactor)
                                 * pawn.needs!.joy.tolerances.JoyFactorFromTolerance(job.joyKind);
                             targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, default, default, K(gain))
-                                { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(job.joyMaxParticipants), Unsupported = ["horseshoes_position_travel", "future_tolerance_changes"] });
+                                { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(job.joyMaxParticipants), Cell = CellAt(map, target.Position),
+                                    Unsupported = ["horseshoes_position_travel", "future_tolerance_changes"] });
                         }
                     }
                 }
@@ -104,9 +107,100 @@ internal static class NativeNeedsForecast
                 MoodTarget = pawn.needs?.mood is { } targetMood ? K(targetMood.CurInstantLevel) : default,
                 BreakThreshold = pawn.mindState?.mentalBreaker is { } breaker ? K(breaker.BreakThresholdMinor) : default,
                 Memories = memories is null ? default : Fact.Known(EquatableArray.From(memories)),
-                Targets = EquatableArray.From(targets), Unsupported = EquatableArray.From(unsupported), VoluntaryControlBlockers = blockers });
+                Targets = EquatableArray.From(targets), Unsupported = EquatableArray.From(unsupported), VoluntaryControlBlockers = blockers,
+                OutdoorsLevel = pawn.needs?.outdoors is { } outdoors ? K(outdoors.CurLevel) : default,
+                OutdoorsDisabled = pawn.needs?.outdoors != null && pawn.needs.PrefersIndoors,
+                OwnedBed = pawn.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
+                Ascetic = pawn.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true,
+                ThoughtStages = ThoughtStagesOf(pawn, map) });
         }
-        return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows) };
+        var weather = map.weatherManager.CurWeatherLerped;
+        return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows),
+            WeatherThought = weather?.weatherThought?.defName ?? "", WeatherThoughtStages = weather?.weatherThought?.stages?.Count ?? 0,
+            RainRate = K(map.weatherManager.RainRate), MapArea = Fact.Known(map.Area), Deterioration = DeteriorationPart() };
+    }
+    /// <summary>The cell's roof and room as Need_Outdoors, the undergrounder workers, ApplyBedThoughts and SteadyEnvironmentEffects read them (#3339).</summary>
+    internal static Obs.NeedCell CellAt(Map map, IntVec3 cell)
+    {
+        var roof = map.roofGrid.RoofAt(cell);
+        return new(Fact.Known(roof != null), Fact.Known(roof?.isThickRoof == true), Fact.Known(roof?.isNatural == true),
+            Fact.Known(cell.UsesOutdoorTemperature(map)), Fact.Known(cell.GetRoom(map)?.PsychologicallyOutdoors ?? true));
+    }
+    /// <summary>The bed's room as ApplyBedThoughts reads it: Room.Role and RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(Impressiveness)).</summary>
+    private static Obs.NeedBedRoom BedRoomOf(Building_Bed bed)
+    {
+        var room = bed.GetRoom();
+        var stage = room == null ? default : Fact.Known(RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(RoomStatDefOf.Impressiveness)));
+        return new(room?.Role?.defName ?? "", stage, bed.ForPrisoners, bed.CostListAdjusted().Count == 0);
+    }
+    /// <summary>StatPart_EnvironmentalEffects def data on the DeteriorationRate stat, read by reflection (private fields); null without the part.</summary>
+    private static Obs.NeedDeteriorationPart? DeteriorationPart()
+    {
+        var part = StatDefOf.DeteriorationRate.parts?.OfType<StatPart_EnvironmentalEffects>().FirstOrDefault();
+        if (part == null) return null;
+        float F(string name) => BridgeCommon.PrivateInstanceField(typeof(StatPart_EnvironmentalEffects), name)?.GetValue(part) is float f ? f : float.NaN;
+        var (unroofed, outdoors, protectedFactor) = (F("factorOffsetUnroofed"), F("factorOffsetOutdoors"), F("protectedByEdificeFactor"));
+        return float.IsNaN(unroofed) || float.IsNaN(outdoors) || float.IsNaN(protectedFactor) ? null : new(unroofed, outdoors, protectedFactor);
+    }
+    /// <summary>
+    /// A food stack's deterioration inputs; null when it cannot deteriorate (no hit points, CanEverDeteriorate false). The
+    /// rate is the game's own SteadyEnvironmentEffects.FinalDeteriorationRate now, every stat part applied at the stack's
+    /// cell; the brain rescales its StatPart_EnvironmentalEffects factor when a planned room changes the cell.
+    /// </summary>
+    private static Obs.NeedDeterioration? DeteriorationOf(Map map, Thing thing)
+    {
+        if (!thing.def.useHitPoints || !thing.def.CanEverDeteriorate) return null;
+        return new(thing.HitPoints, K(SteadyEnvironmentEffects.FinalDeteriorationRate(thing)), thing.def.deteriorateFromEnvironmentalEffects,
+            thing.Position.GetTerrain(map)?.extraDeteriorationFactor ?? 0, SteadyEnvironmentEffects.ProtectedByEdifice(thing.Position, map));
+    }
+    /// <summary>
+    /// The stage rows of the thoughts #3339 values, each priced by the game's MoodOffset for this pawn on an unattached thought
+    /// (zero when ThoughtUtility.CanGetThought refuses it, as the game would never give it).
+    /// </summary>
+    private static EquatableArray<Obs.NeedThoughtStage> ThoughtStagesOf(Pawn pawn, Map map)
+    {
+        var rows = new List<Obs.NeedThoughtStage>();
+        void Rows(ThoughtDef? def, string role)
+        {
+            if (def?.stages == null) return;
+            var can = ThoughtUtility.CanGetThought(pawn, def);
+            for (var stage = 0; stage < def.stages.Count; stage++)
+            {
+                if (def.stages[stage] == null) continue;
+                var offset = can ? StageOffset(pawn, def, stage) : 0;
+                if (!double.IsFinite(offset)) continue;
+                rows.Add(new(def.defName, role, stage, offset,
+                    def.IsMemory ? K(def.DurationTicks) : default, def.IsMemory && def.lerpMoodToZero));
+            }
+        }
+        Rows(ThoughtDefOf.SleptOutside, "slept_outside");
+        Rows(ThoughtDefOf.SleptInBedroom, "slept_in_bedroom");
+        Rows(ThoughtDefOf.SleptInBarracks, "slept_in_barracks");
+        Rows(map.weatherManager.CurWeatherLerped?.weatherThought, "weather");
+        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_NeedOutdoors)))
+            Rows(def, "need_outdoors");
+        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_IsIndoorsForUndergrounder)))
+            Rows(def, "undergrounder_indoors");
+        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_IsUndergroundForUndergrounder)))
+            Rows(def, "undergrounder_underground");
+        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_IsOutdoorsForUndergrounder)))
+            Rows(def, "undergrounder_outdoors");
+        return EquatableArray.From(rows);
+    }
+    private static readonly FieldInfo? SituationalStage = BridgeCommon.PrivateInstanceField(typeof(Thought_Situational), "curStageIndex");
+    /// <summary>Thought.MoodOffset of an unattached thought at one stage: a memory forced to the stage, a situational thought with its stage set.</summary>
+    private static double StageOffset(Pawn pawn, ThoughtDef def, int stage)
+    {
+        Thought thought;
+        if (def.IsMemory) thought = ThoughtMaker.MakeThought(def, stage);
+        else
+        {
+            thought = ThoughtMaker.MakeThought(def);
+            if (thought is not Thought_Situational || SituationalStage == null) return double.NaN;
+            SituationalStage.SetValue(thought, stage);
+        }
+        thought.pawn = pawn;
+        return thought.MoodOffset();
     }
     private static Obs.NeedCurrentService? CurrentService(Pawn pawn)
     {
