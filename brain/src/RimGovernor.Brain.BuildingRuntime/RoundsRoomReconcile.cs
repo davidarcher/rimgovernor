@@ -18,7 +18,7 @@ internal delegate (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok)
 /// One owner's room: the PlannedRoom, its furniture template and what the owner forbids in it. Name prefixes
 /// the methods, Reason is the admission's short why and Tags the title's floor tags (the throne room's).
 /// </summary>
-internal sealed class RoomReconcile
+internal sealed record RoomReconcile
 {
     public Pol.PlannedRoom Room { get; init; } = new();
     public IReadOnlyList<Pol.WantedPiece> Template { get; init; } = [];
@@ -140,6 +140,22 @@ internal static partial class BuildingRuntimePackage
             VentAvailable = vent && ventAvailable,
             Unroofed = unroofed,
         }, true);
+    }
+
+    /// <summary>
+    /// Whether room is started (PlannedRoomStarted, #3278) against the colony's construction census: its own ring
+    /// built, a blueprint or frame on its ground, or a template piece at its anchor; null while the census is unknown.
+    /// </summary>
+    internal static bool? PlannedRoomStartedOf(Observation.ColonyProjection facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
+    {
+        var (ground, known) = ColonyGround(facts);
+        if (!known || !facts.Facts.CurrentConstruction.TryGetValue(out var census))
+        {
+            return null;
+        }
+        var sites = census.Sites.Where(s => s.Building is not null).Select(s => s.Building!.Cell);
+        var standing = census.Buildings.Where(b => b.Building is not null).Select(b => (b.Building!.Definition, b.Building.Cell)).ToHashSet();
+        return PlannedRoomStarted(plan, room, ground, sites, standing);
     }
 
     /// <summary>The mirror cells inside ground: the room's foreign things are read from them.</summary>
@@ -428,6 +444,16 @@ public sealed partial class RoundsBuildingPlanner
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
         }
+        // An unstarted planned room the portfolio assessed is placed only as it selected (#3278).
+        var (gate, selected) = PlannedRoomGateOf(Reviewer.RoomSelection.Get(review.Snapshot), rr.Room.Id, PlannedRoomStartedOf(facts, plan, rr.Room) != false);
+        if (gate == Pol.PlannedRoomGate.Hold)
+        {
+            return new RoundsBuildingResult { Verdict = AwaitingPlan("portfolio_selection", rr.Name) };
+        }
+        if (gate == Pol.PlannedRoomGate.Selected && SelectedRingStuff(selected) is { } ring)
+        {
+            rr = rr with { Stuff = (_, _) => (ring.Wall, ring.Door, default, true) };
+        }
         if (!rr.RingOnly)
         {
             input = input with { Cells = CellsOn(facts.Cells, rr.Room.RoomGround()) };
@@ -464,6 +490,10 @@ public sealed partial class RoundsBuildingPlanner
             input = input with { Stock = left };
         }
         var (ops, holds) = ReconcileRoomHolds(input);
+        if (gate == Pol.PlannedRoomGate.Selected)
+        {
+            ops = SelectedPlannedOps(ops, selected);
+        }
         if (rr.ClimateOnly)
         {
             ops = EnvelopeOps(ops);

@@ -9,5 +9,6 @@ public static class SleepingCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(SleepingBedrooms.Case());
         registry.Register(SleepingSuites.Case());
+        registry.Register(SleepingSelectedBedroom.Case());
     }
 }

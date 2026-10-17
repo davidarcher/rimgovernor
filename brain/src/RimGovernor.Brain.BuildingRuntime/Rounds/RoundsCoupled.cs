@@ -35,7 +35,7 @@ public sealed partial class Rounder
         var activity = PolicyFunctions.StartCoupledActivity(selection, candidates, snapshot.Native.Value, method.Value, facts.Tick.Value);
         if (activity is null)
         {
-            // Selected planned sites start no order until placement (#3278); the selection itself stays observable.
+            // Selected planned sites start no order: the room reconcile places them from the review's RoomSelection (#3278).
             if (selection.Selected.PlannedRooms.Count > 0) RecordCoupledSelection(selection, facts.Tick.Value, "planned_unplaced");
             return;
         }
@@ -53,6 +53,19 @@ public sealed partial class Rounder
             // or interrupt the useful Methods whose current claims prevented it.
             RecordCoupledSelection(selection, facts.Tick.Value, method.Value, admissionFailure: refusal.Message);
         }
+    }
+
+    /// <summary>
+    /// The planned-room selection record after this review (#3278): the comparison's selected planned sites and assessed
+    /// rooms replace the previous record (kept when the review compared nothing), and a room observed started clears.
+    /// </summary>
+    internal static PlannedSelection PlannedSelectionReviewed(PlannedSelection previous, ColonyProjection colony, ForecastCoupledSelection? selection)
+    {
+        var facts = colony.Facts;
+        var latest = PolicyFunctions.PlannedSelectionOf(facts.CoupledAlternatives, selection, facts.PlannedSites, facts.Tick.Value);
+        var rooms = colony.LayoutPlan.TryGetValue(out var plan) ? plan.Rooms.DistinctBy(r => r.Id).ToDictionary(r => r.Id) : [];
+        return PolicyFunctions.PlannedSelectionMemory(previous, latest,
+            room => rooms.TryGetValue(room, out var planned) && PlannedRoomStartedOf(colony, plan!, planned) == true);
     }
 
     private static void RecordCoupledSelection(ForecastCoupledSelection selection, long tick, string method, bool protectedContinuation = false, string? admissionFailure = null)

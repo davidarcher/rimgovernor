@@ -220,6 +220,11 @@ version 216; a database of another version is moved aside, never migrated):
   the tick, faction def, royal title, host faction and guest status at which each humanlike pawn
   (colonist, visitor, envoy, lodger) first appeared in the pawn table. It is not saved: a
   restart or a world change empties it, and a pawn present at reload looks new once.
+- **Planned-room selection (memory only).** The Rounder remembers, per world, the latest known coupled
+  comparison's assessed planned rooms and selected planned sites (`Rounder.RoomSelection`); the room
+  reconcile gates unstarted rooms on it. It is not saved: a restart or a world change empties it, and
+  unstarted rooms place as before until the next comparison
+  ([planned rooms](../architecture/portfolio-selection.md#planned-rooms)).
 
 ## What is re-derived
 

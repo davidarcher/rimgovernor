@@ -7,9 +7,8 @@ coupled ColonyForecast consequences, then binds the selected graph through
 the WorkAssignments Concern and existing Method journal. Hands remains the
 only order writer. The path is enabled for observed food, needs, existing
 construction sites, planned shelter completion, planned rooms and clothing
-production. Planned rooms are compared and selected but not yet bound: their
-sites are unplaced until #3278, so binding skips their allocations
-([planned room activities](colony-forecast.md#planned-room-activities)).
+production. Planned rooms are compared and selected; binding skips their
+allocations and the room reconcile places them (see [planned rooms](#planned-rooms)).
 
 Supported cooking alternatives carry native learning and per-level work-rate
 evidence into the shared allocator. Subsequent demanded meals can take less time
@@ -161,3 +160,36 @@ prepared `production/coupled-needs` case consume these signals. Prepared
 `observations/conditional-mood` checks native thought windows and response laws.
 Registered cases require nightly execution for observed gameplay evidence;
 pure tests own preference, conservation and bounded-search claims.
+
+## Planned rooms
+
+A planned site has no action template until it is placed, so a selection of
+planned sites starts no order (`coupled_selection` target `planned_unplaced`).
+Instead each review keeps the latest known comparison's planned-room selection
+in memory (`Rounder.RoomSelection`, a `ReviewMemory<PlannedSelection>`): the
+rooms it assessed (a valued alternative in `Context.PlannedRooms`) and the
+selected sites with their op, def, stuff and cells. A review that compared
+nothing keeps the record; a room observed started drops its sites.
+
+`ReconcileRoomAsync` gates an unstarted planned room on that record
+(`PlannedRoomGateOf`):
+
+- **Place**: the room is started, or the latest comparison did not assess it.
+  It reconciles as before.
+- **Hold**: assessed, none of its sites selected. The verdict is
+  `AwaitingPlan`, subject `portfolio_selection`; nothing is placed, not even template
+  pieces, until a later comparison selects it. Planned sites rank as requested
+  development, below urgent needs, so a hungry colony holds its rooms.
+- **Selected**: the reconcile's operations narrow to the selected sites
+  (`SelectedPlannedOps`: their ring, floor and roof cells, pieces at their
+  anchors, and the clearing over them), and the ring is placed in the compared
+  stuff (`SelectedRingStuff`). The blueprints then start the room, and the rest
+  of it is placed as before.
+
+A room is started when a colony-built wall, door, fence or gate stands on a
+ring cell that belongs to it alone, a blueprint or frame stands on its ring or
+ground, or a template piece stands at its anchor (`PlannedRoomStarted`). Shared
+ring cells and natural rock do not count. The record is derived and not saved:
+after a restart unstarted assessed rooms place as before until the first
+comparison ([persistence](../contracts/persistence-contracts.md)). The forecast side is
+[planned room activities](colony-forecast.md#planned-room-activities).

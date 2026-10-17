@@ -17,6 +17,9 @@ How a room becomes admitted work (`RoundsRoomReconcile.cs`):
 
 1. An owning concern calls `ReconcileRoomAsync` for its `PlannedRoom`. The reconcile is a stateless diff of
    the plan against the world's walls, doors, floors and furniture, so "what is built" is re-read every pass.
+   An unstarted room the latest coupled comparison assessed is gated on that selection first
+   ([portfolio selection](portfolio-selection.md#planned-rooms)): held when none of its sites was selected,
+   otherwise narrowed to the selected sites in their compared stuff. Once started it reconciles as below.
 2. The diff's operations commit as waves: removals first, then installs from packed stock, then the on-site
    builds (`RoomBuildKinds`: door, wall, floor, furniture, vent).
 3. `CommitBuildsAsync` previews each ready piece natively and admits the accepted ones as one method:
@@ -175,5 +178,6 @@ while storage has room. That is intended; it should be watched in a playtest, no
   run on real whole-plan demand.
 
 Planned rooms also expose candidate Method alternatives per room (stuff, shell/floor/stations scope), `PlannedRoomAlternatives`; see
-[Planned room alternatives](colony-forecast.md#planned-room-alternatives). They are not yet outcomes the shared comparator can take; Rounds does not
-generate or choose among them yet.
+[Planned room alternatives](colony-forecast.md#planned-room-alternatives). The shared comparator takes them as requested development, and the
+room reconcile places an unstarted room only as the latest comparison selected
+([portfolio selection](portfolio-selection.md#planned-rooms)).

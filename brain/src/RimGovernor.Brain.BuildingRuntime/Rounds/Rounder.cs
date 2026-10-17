@@ -47,6 +47,12 @@ public sealed partial class Rounder
     /// <summary>The pawns whose outfit filter the latest review left allowing tainted apparel (GearFilterChoices; derived state, none until the first review after a restart).</summary>
     internal ReviewMemory<EquatableArray<string>> GearFilters = new([]);
 
+    /// <summary>
+    /// The latest known coupled comparison's planned-room selection (#3278; derived state, empty until the first comparison
+    /// after a restart): the room reconcile holds an assessed unstarted room it did not select and places only the sites it did.
+    /// </summary>
+    internal ReviewMemory<PlannedSelection> RoomSelection = new(new());
+
     /// <summary>The per-world first-seen record of humanlike pawns: derived, in memory only, empty after a restart.</summary>
     internal FirstSeenRecord FirstSeen = new();
 
@@ -663,6 +669,7 @@ public sealed partial class Rounder
         Demand.Set(result.Review.Snapshot, result.Needs.ResourceDemand);
         TradeMemory.Set(result.Review.Snapshot, result.Needs.Trade);
         GearFilters.Set(result.Review.Snapshot, PolicyApi.GearFilterChoices(reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection));
+        RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Projection, result.Needs.CoupledSelection));
         AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value), ("concerns", result.Standards.Count) };
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));

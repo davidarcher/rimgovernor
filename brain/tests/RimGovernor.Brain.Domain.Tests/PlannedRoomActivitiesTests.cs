@@ -153,6 +153,51 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Contains("planned_room_alternative_infeasible:planned/room1/WoodLog/Shell:planned/room1/wall/WoodLog", illegal.CoupledAlternatives!.Findings);
     }
 
+    /// <summary>
+    /// The handoff (#3278): the selection record names the selected sites with their stuff and the assessed room, so the
+    /// reconcile places the requested room without hunger and holds it while the one cook-builder must eat first.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UrgentHungerHoldsTheRequestedRoomThatRoundAndWithoutHungerItIsStarted(bool hungry)
+    {
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 270), Ring(OpKind.DoorIn, "WoodLog", 270)], level: hungry ? .2 : 1, fall: hungry ? .003 : 0);
+        var result = Select(facts);
+        var record = PlannedSelectionOf(facts.CoupledAlternatives, result, facts.PlannedSites, 100);
+        Assert.NotNull(record);
+        Assert.Equal([1], record.Assessed);
+        var (gate, sites) = PlannedRoomGateOf(record, 1, started: false);
+        if (hungry)
+        {
+            Assert.Equal(PlannedRoomGate.Hold, gate);
+            Assert.Empty(sites);
+            return;
+        }
+        Assert.Equal(PlannedRoomGate.Selected, gate);
+        Assert.NotEmpty(sites);
+        Assert.All(sites, s => Assert.Equal((1, "WoodLog"), (s.Room, s.Stuff)));
+        Assert.All(sites, s => Assert.True(PlannedSelected(result, s.Id), Why(facts, result)));
+        // A started room is placed as before, selected or not.
+        Assert.Equal(PlannedRoomGate.Place, PlannedRoomGateOf(record, 1, started: true).Gate);
+    }
+
+    [Fact]
+    public void ASelectedAlternativeRootSelectsAllItsSitesAndAnUnassessedRoomPlacesAsBefore()
+    {
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var candidates = facts.CoupledAlternatives!;
+        var root = Assert.Single(candidates.Alternatives, c => c.Id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal));
+        var result = Select(facts);
+        var only = result with { Selection = result.Selection with { Selected = [root.Id] } };
+        var record = PlannedSelectionOf(candidates, only, facts.PlannedSites, 100)!;
+        Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"], record.Sites.Select(s => s.Id));
+        Assert.Equal([OpKind.DoorIn, OpKind.WallIn], record.Sites.Select(s => s.Op));
+        Assert.Equal(PlannedRoomGate.Place, PlannedRoomGateOf(record, 2, started: false).Gate);
+        // A review that compared nothing leaves no record of its own.
+        Assert.Null(PlannedSelectionOf(candidates, null, facts.PlannedSites, 100));
+    }
+
     [Fact]
     public void ARoomLeftPartialInTheHorizonIsNamedUnassessed()
     {
