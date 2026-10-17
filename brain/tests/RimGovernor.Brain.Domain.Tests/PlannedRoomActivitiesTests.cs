@@ -122,7 +122,7 @@ public sealed class PlannedRoomActivitiesTests
                     Food = new() { Context = Context, Known = true, Options = EquatableArray.From(Plants.Select(source =>
                         new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, 10, 10)
                         { ApproachTicks = Known(0d), DeliveryTicks = Known(10d), HarvestAllowed = Known(true),
-                            SourceCount = Known(2d), NutritionPerUnit = Known(.2) })) },
+                            SourceCount = Known(2d) })) },
                     FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(1000d))],
                     Construction = new() { Context = Context, Known = true },
                     // A roof is worked cell by cell at the coupled read's RoofCellWorkTicks.

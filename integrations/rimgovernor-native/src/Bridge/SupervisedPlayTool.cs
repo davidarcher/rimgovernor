@@ -319,11 +319,7 @@ namespace HomeBridge.BridgeTools
                         : "The clock is force-paused with no window behind it")
                     + "; waiting up to " + (ForcePauseGraceMs / 1000)
                     + " s for it to clear. Play is NOT stopped and nothing needs dismissing. "
-                    + ClockState() + ".", s,
-                    new Dictionary<string, object?> {
-                        { "longEvent", LongEventHandler.AnyEventNowOrWaiting },
-                        { "graceMs", ForcePauseGraceMs },
-                        { "requestedSpeed", s.RequestedSpeed.ToString() } });
+                    + ClockState() + ".", s, null);
             }
             if (now - s.ForcePauseSinceMs < ForcePauseGraceMs) return;
             Stop(s, "force_paused", ForcePauseDetail() + " It did not clear in "
@@ -348,9 +344,7 @@ namespace HomeBridge.BridgeTools
             Add("force_pause_cleared", "The " + (kind == "long_event" ? "long event" : "transient force pause")
                 + " cleared after " + (waited / 1000) + "." + ((waited % 1000) / 100) + " s; speed "
                 + (restored ? "restored to " + s.RequestedSpeed : "could NOT be restored to " + s.RequestedSpeed)
-                + ". Play was never stopped.", s,
-                new Dictionary<string, object?> { { "waitedMs", waited },
-                    { "forcePauseKind", kind }, { "speedRestored", restored } });
+                + ". Play was never stopped.", s, null);
             if (restored) return true;
             Stop(s, "run_refused", "The requested speed did not take after a force pause cleared.", true, null);
             return false;
@@ -644,16 +638,13 @@ namespace HomeBridge.BridgeTools
                 var label = l.Label.ToString();
                 // Ordinary announcements -- neutral, positive AND negative (a
                 // short circuit, a dead crop, a departed visitor) -- inform
-                // Hands without interrupting time; `negative` marks the ones
-                // the relay wakes a parked Hands for. Threat, death, decision
-                // and unknown letter classes stop. (2026-09-07: each negative
-                // announcement had been costing a manual restart on stream.)
+                // Hands without interrupting time. Threat, death, decision
+                // and unknown letter classes stop.
                 if (l.GetType() == typeof(StandardLetter) && !l.ShouldAutomaticallyOpenLetter && l.def != null
                     && NonStoppingLetterDefs.Contains(l.def.defName))
                 {
                     Add("notification_new", label, s, new Dictionary<string, object?> {
-                        { "id", id }, { "label", label }, { "letterDef", l.def.defName },
-                        { "negative", l.def.defName == "NegativeEvent" } });
+                        { "id", id }, { "label", label }, { "letterDef", l.def.defName } });
                     continue;
                 }
                 newLetters.Add(new Dictionary<string, object?> { { "id", id }, { "label", label },
@@ -672,7 +663,6 @@ namespace HomeBridge.BridgeTools
                 // ThreatBig, ThreatSmall, PawnDeath and an unknown type stop.
                 if (type != null && NonStoppingMessageTypes.Contains(type))
                 {
-                    payload["negative"] = type == "NegativeEvent" || type == "NegativeHealthEvent";
                     Add("notification_new", text, s, payload);
                     continue;
                 }
@@ -823,7 +813,6 @@ namespace HomeBridge.BridgeTools
                         var suppressed = !threshold && (owedMs > 0 || acknowledged);
                         payload["suppressed"] = suppressed;
                         payload["suppressedBy"] = suppressed ? (acknowledged ? "acknowledged" : "cooldown") : null;
-                        payload["cooldownRemainingMs"] = owedMs;
                         payload["newWound"] = newWound;
                         if (after.Count > before.Count && after.NewestWoundAgeTicks != int.MaxValue && Find.TickManager != null)
                             payload["occurrenceTick"] = Find.TickManager.TicksGame - after.NewestWoundAgeTicks;
@@ -939,8 +928,7 @@ namespace HomeBridge.BridgeTools
                         { "x", p.Position.x }, { "z", p.Position.z } }).ToList() },
                     { "draftedColonists", drafted.Select(p => (object)new Dictionary<string, object?> {
                         { "thingId", p.thingIDNumber }, { "name", GameWatchReads.SafeName(p) } }).ToList() },
-                    { "consciousHostilesBefore", before },
-                    { "acrossResume", first } });
+                    { "consciousHostilesBefore", before } });
         }
 
         private static bool SafeDrafted(Pawn pawn) { try { return pawn.Drafted; } catch { return false; } }
@@ -1077,7 +1065,6 @@ namespace HomeBridge.BridgeTools
             // The tick the stop was first raised at; a failed pause retries
             // per frame and keeps it, so the journaled stop tick can be later.
             if (s.PendingKind == null && Find.TickManager != null) s.DetectedTick = Find.TickManager.TicksGame;
-            if (s.Typed != null) s.Typed.PauseRequested = pause;
             if (pause && Find.TickManager != null && Find.TickManager.CurTimeSpeed != TimeSpeed.Paused) Find.TickManager.Pause();
             s.PausedAtStop = Find.TickManager != null && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
             s.PauseVerified = !pause || s.PausedAtStop;
@@ -1127,7 +1114,6 @@ namespace HomeBridge.BridgeTools
                 s.Active = false; s.StopReason = "event_journal_error"; ClockPauseAccounting.Stopped();
                 if (s.Typed != null)
                 {
-                    s.Typed.PauseRequested = sameContext;
                     s.PausedAtStop = sameContext && Find.TickManager != null && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
                     s.PauseVerified = s.PausedAtStop;
                     s.Typed.StopPauseVerified = s.PausedAtStop;

@@ -12,7 +12,7 @@ public sealed class HuntPlanningTests
     };
     static HuntActorRead Prey(string id, int x) => new(id, "Boar", new(x, 10), 3)
     {
-        MeatDefinition = "Meat_Pig", Meat = Fact.Known(100.0), MeatNutrition = Fact.Known(0.05),
+        Meat = Fact.Known(100.0), MeatNutrition = Fact.Known(0.05),
     };
     static AcquisitionSource Source(string id, bool designated = false, bool downed = false) =>
         new() { Id = id, Food = true, Hunt = true, Designated = designated, Downed = downed };

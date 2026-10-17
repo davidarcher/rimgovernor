@@ -11,6 +11,4 @@ internal sealed partial class FacadeNativeClient : IActivityTaskSource
         Facade.ReadActivityTasksAsync(request, ct);
     Task<O.ConstructionActivityRead> IActivityTaskSource.ReadConstructionActivityAsync(O.ConstructionActivityRequest request, CancellationToken ct) =>
         Facade.ReadConstructionActivityAsync(request, ct);
-    Task<O.FoodActivityRead> IFoodActivitySource.ReadFoodActivityAsync(O.FoodActivityRequest request, CancellationToken ct) =>
-        Facade.ReadFoodActivityAsync(request, ct);
 }

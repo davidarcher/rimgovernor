@@ -118,8 +118,6 @@ public sealed record CombatPawn
 
     public Common.Ref? Faction { get; init; }
 
-    public string? LordId { get; init; }
-
     public Common.Cell? Cell { get; init; }
 
     public bool? Downed { get; init; }
@@ -151,11 +149,6 @@ public sealed record CombatPawn
     public CombatStance? Stance { get; init; }
 
     /// <summary>
-    /// warmup or cooldown ticks remaining
-    /// </summary>
-    public int? StanceTicksLeft { get; init; }
-
-    /// <summary>
     /// summary health fraction
     /// </summary>
     public double? Health { get; init; }
@@ -177,16 +170,10 @@ public sealed record CombatPawn
     /// </summary>
     public double? ShieldEnergy { get; init; }
 
-    public bool? ShieldBroken { get; init; }
-
     /// <summary>
     /// def name, absent when unarmed
     /// </summary>
     public string? Weapon { get; init; }
-
-    public int? WeaponWarmupTicks { get; init; }
-
-    public int? WeaponCooldownTicks { get; init; }
 
     /// <summary>
     /// Colonists: worn sharp armor, the stronger of natural armor and

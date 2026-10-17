@@ -42,14 +42,12 @@ namespace HomeBridge.BridgeTools
         {
             var result = new Clock.Letter { Id = Id(String(row, "id")), Label = String(row, "label") };
             object? value; if (row.TryGetValue("letterDef", out value) && value != null) result = result with { DefName = Id((string)value) };
-            if (row.TryGetValue("negative", out value) && value != null) result = result with { Negative = (bool)value };
             return result;
         }
         private static Clock.TransientMessage Message(Dictionary<string, object?> row)
         {
             var result = new Clock.TransientMessage { Id = Id(String(row, "id")), Text = String(row, "text"), StartingTick = Number(row, "startingTick") };
             object? value; if (row.TryGetValue("messageType", out value) && value != null) result = result with { TypeDef = Id((string)value) };
-            if (row.TryGetValue("negative", out value) && value != null) result = result with { Negative = (bool)value };
             return result;
         }
         private static Clock.PawnEvent Pawn(Dictionary<string, object?> row, Func<int, string> resolve, bool compact = false)
@@ -67,7 +65,7 @@ namespace HomeBridge.BridgeTools
         private static Clock.Injury Injury(Dictionary<string, object?> row, Func<int, string> resolve)
         {
             var result = new Clock.Injury { Pawn = Pawn(row, resolve), Before = Health(row, "Before"), After = Health(row, "After"),
-                Suppression = Clock.InjurySuppression.None, CooldownRemainingMs = checked((uint)Math.Max(0, Number(row, "cooldownRemainingMs"))), NewWound = Bool(row, "newWound") };
+                Suppression = Clock.InjurySuppression.None, NewWound = Bool(row, "newWound") };
             object? value; if (row.TryGetValue("suppressedBy", out value) && value != null)
                 result = result with { Suppression = (string)value == "acknowledged" ? Clock.InjurySuppression.Acknowledged : (string)value == "cooldown" ? Clock.InjurySuppression.Cooldown : throw new InvalidOperationException("Unknown injury suppression") };
             return result;
@@ -149,13 +147,13 @@ namespace HomeBridge.BridgeTools
                 case "alert_new": result = result with { Event = Alert(P()) }; break;
                 case "injury_observed": result = result with { Event = Injury(P(), resolvePawn) }; break;
                 case "hostiles_cleared":
-                    result = result with { Event = new Clock.HostilesCleared { ConsciousHostilesBefore = checked((int)Number(P(), "consciousHostilesBefore")), AcrossResume = Bool(P(), "acrossResume"),
+                    result = result with { Event = new Clock.HostilesCleared { ConsciousHostilesBefore = checked((int)Number(P(), "consciousHostilesBefore")),
                         DownedHostiles = EquatableArray.From(Rows(P(), "downedHostiles").Select(row => Pawn(row, resolvePawn, true)).ToList()),
                         DraftedColonists = EquatableArray.From(Rows(P(), "draftedColonists").Select(row => Pawn(row, resolvePawn, true)).ToList()) } };
                     break;
                 case "long_event": case "transient_force_pause":
-                    result = result with { Event = new Clock.ForcePauseWaiting { Pause = new Clock.PauseEvidence { LongEventPending = Bool(P(), "longEvent"), RequestedSpeed = ParseSpeed(String(P(), "requestedSpeed")) }, WaitedMs = 0, GraceMs = checked((uint)Number(P(), "graceMs")) } }; break;
-                case "force_pause_cleared": result = result with { Event = new Clock.ForcePauseCleared { WaitedMs = checked((ulong)Number(P(), "waitedMs")), ForcePauseKind = NativeEnums.ForcePause(String(P(), "forcePauseKind")), SpeedRestored = Bool(P(), "speedRestored") } }; break;
+                    result = result with { Event = new Clock.ForcePauseWaiting { Pause = new Clock.PauseEvidence() } }; break;
+                case "force_pause_cleared": result = result with { Event = new Clock.ForcePauseCleared() }; break;
                 case "pause_failed": result = result with { Event = new Clock.PauseFailed { Pending = new Clock.HoldEntered { Evidence = new Clock.HoldEvidence.UnavailableCase(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native pause did not take; the hold stays armed." }) } } }; break;
                 default:
                     var stop = new Clock.HoldEntered { Reason = HoldReason(kind) };

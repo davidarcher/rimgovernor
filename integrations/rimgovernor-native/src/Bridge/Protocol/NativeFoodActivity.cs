@@ -15,13 +15,19 @@ namespace HomeBridge.BridgeTools;
 /// <summary>Native legality and route observations. No orders, demand or economic selection.</summary>
 internal static class NativeFoodActivity
 {
+    /// <summary>One native-internal food read: the asked plants, or the one pawn's executing delivery in <paramref name="Existing"/>.</summary>
+    internal sealed record Request(RimGovernor.Contracts.Wire.Common.Identity Identity, EquatableArray<string> Plants, PawnActivityOrder? Existing = null)
+    {
+        internal bool AllowCooking { get; init; }
+    }
+
     internal static bool Available(Pawn pawn) => pawn.CurJob == null || pawn.CurJob.def == JobDefOf.Wait || pawn.CurJob.def == JobDefOf.Wait_Wander || pawn.CurJob.def == JobDefOf.GotoWander;
     /// <summary>
     /// Every free colonist's harvest and haul rows for the asked plants (or, executing, the one pawn's), one per
     /// accepting storage group: its cheapest flood-nearest exact cell (#3341). A source's route to a cell is searched once for every colonist (NativePathLegs).
     /// Only the cooking expansion of an executing delivery (NativeFoodCooking) keeps its route budget.
     /// </summary>
-    internal static Obs.FoodActivityRead Read(Obs.FoodActivityRequest request, NativePathLegs? legs = null)
+    internal static Obs.FoodActivityRead Read(Request request, NativePathLegs? legs = null)
     {
         if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out _)) return new();
         legs ??= new(map);
@@ -95,7 +101,7 @@ internal static class NativeFoodActivity
                     var (cell, route) = chosen;
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), product.defName,
                         new(source.Position.x, source.Position.z), new(cell.x, cell.z), giver?.defName ?? "", count,
-                        approach + route, work) { NutritionPerUnit = Fact.Known((double)product.GetStatValueAbstract(StatDefOf.Nutrition)),
+                        approach + route, work) {
                             ApproachTicks = Fact.Known((double)approach), DeliveryTicks = Fact.Known((double)route), HarvestAllowed = Fact.Known(harvestAllowed), SourceCount = Fact.Known((double)sourceCount) });
                 }
                 if (plant is null && existing is not null && (request.AllowCooking || existing.Steps[0].Kind == PawnActivityKind.Work))

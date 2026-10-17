@@ -14,7 +14,7 @@ public sealed class HuntAlternativesTests
     };
     static HuntActorRead Prey(string id, int x, string herd = "", bool known = true) => new(id, "Boar", new(x, 10), 3)
     {
-        Herd = herd, MeatDefinition = "Meat_Pig", Meat = known ? Fact.Known(100.0) : default, MeatNutrition = Fact.Known(0.05),
+        Herd = herd, Meat = known ? Fact.Known(100.0) : default, MeatNutrition = Fact.Known(0.05),
     };
     static HuntActivityRead Read(IEnumerable<HuntActorRead> hunters, IEnumerable<HuntActorRead> prey) =>
         new() { Known = true, Hunters = EquatableArray.From(hunters), Prey = EquatableArray.From(prey) };

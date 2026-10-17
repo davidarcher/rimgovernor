@@ -92,7 +92,7 @@ namespace HomeBridge.BridgeTools
                     // second load pass overlaps the first, and the engine can
                     // wedge hard enough to sever the channel).
                     if (activeRequestId == (request.RequestId ?? ""))
-                        return PendingReply(previous, mapReady: false, visualReady: false);
+                        return PendingReply(previous);
 
                     // A different request arrived while the actual engine load
                     // is still physically running (LongEventHandler still has
@@ -134,7 +134,7 @@ namespace HomeBridge.BridgeTools
                 activeRequestId = entry.RequestId;
             }
 
-            return PendingReply(entry, mapReady: false, visualReady: false);
+            return PendingReply(entry);
         }
 
         // Call only on the game thread.
@@ -158,14 +158,14 @@ namespace HomeBridge.BridgeTools
             // subsequent frames; while it (or anything else) is queued or
             // running, the load is not done.
             if (LongEventHandler.AnyEventNowOrWaiting)
-                return PendingReply(entry, mapReady: false, visualReady: false);
+                return PendingReply(entry);
 
             if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
             {
                 if (entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
                     return CompleteWith(entry, new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
                         "Native load did not reach a ready map within the requested timeout: " + (unavailable.Detail ?? "")) });
-                return PendingReply(entry, mapReady: false, visualReady: false);
+                return PendingReply(entry);
             }
 
             // Map is ready. A fresh load always issues a new load token; only
@@ -191,7 +191,7 @@ namespace HomeBridge.BridgeTools
                 if (entry.TimeoutMs.HasValue && DateTime.UtcNow - entry.StartedUtc > TimeSpan.FromMilliseconds(entry.TimeoutMs.Value))
                     return CompleteWith(entry, new Lifecycle.LoadReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NativeFailure,
                         "Native load reached MAP readiness but not VISUAL readiness within the requested timeout.") });
-                return PendingReply(entry, mapReady: true, visualReady: false);
+                return PendingReply(entry);
             }
 
             bool paused = Find.TickManager != null && Find.TickManager.Paused;
@@ -204,11 +204,10 @@ namespace HomeBridge.BridgeTools
             } });
         }
 
-        private static Lifecycle.LoadReply PendingReply(Entry entry, bool mapReady, bool visualReady) =>
+        private static Lifecycle.LoadReply PendingReply(Entry entry) =>
             new Lifecycle.LoadReply { Outcome = new Lifecycle.LoadPending
             {
                 RequestId = entry.RequestId, SaveName = entry.SaveName,
-                ProcessConnected = true, MapReady = mapReady, VisualReady = visualReady,
             } };
 
         private static Lifecycle.LoadReply CompleteWith(Entry entry, Lifecycle.LoadReply reply)

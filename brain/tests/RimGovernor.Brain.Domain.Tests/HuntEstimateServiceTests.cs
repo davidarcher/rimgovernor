@@ -24,7 +24,7 @@ public sealed class HuntEstimateServiceTests
     };
     static HuntActorRead Prey(string id, int x = 30) => new(id, "Boar", new(x, 10), 3)
     {
-        MeatDefinition = "Meat_Pig", Meat = Fact.Known(100.0), MeatNutrition = Fact.Known(0.05),
+        Meat = Fact.Known(100.0), MeatNutrition = Fact.Known(0.05),
     };
     static HuntActivityRead Read(int hunterX = 10, string health = "") => new()
     {

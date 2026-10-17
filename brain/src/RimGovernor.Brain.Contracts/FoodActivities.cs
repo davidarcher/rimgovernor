@@ -6,14 +6,9 @@ using System.Text.Json.Serialization;
 
 namespace RimGovernor.Contracts.Wire.Observations;
 
-public sealed record FoodActivityRequest(Identity Identity, EquatableArray<string> Plants, PawnActivityOrder? Existing = null)
-{
-    public bool AllowCooking { get; init; }
-}
 public sealed record FoodActivityOption(string Pawn, string Target, string Resource, Cell Origin, Cell Destination,
     string WorkGiver, int Count, double TravelTicks, double WorkTicks)
 {
-    public Fact<double> NutritionPerUnit { get; init; }
     public Fact<double> SourceCount { get; init; }
     public FoodCookingEstimate? Cooking { get; init; }
     public Fact<double> ApproachTicks { get; init; }
@@ -21,8 +16,7 @@ public sealed record FoodActivityOption(string Pawn, string Target, string Resou
     public Fact<bool> HarvestAllowed { get; init; }
 }
 /// <summary>One eligible recipe/source alternative, not a selected order. Route includes final product delivery.</summary>
-public sealed record FoodCookingEstimate(ActivityRecipeContinuation Continuation, int IngredientCount,
-    double CookTicks, double OutputTravelTicks, Fact<double> ProductNutrition, bool Supplied)
+public sealed record FoodCookingEstimate(ActivityRecipeContinuation Continuation, int IngredientCount)
 {
     public RecipeLearning? Learning { get; init; }
 }

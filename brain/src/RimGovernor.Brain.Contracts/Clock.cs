@@ -259,20 +259,6 @@ public enum FactFamily
     Research = 8,
 }
 
-/// <summary>
-/// ForcePauseKind is what held the clock: a long event (an autosave) or a pause with no window behind it.
-/// </summary>
-[JsonConverter(typeof(WireEnumConverter<ForcePauseKind>))]
-public enum ForcePauseKind
-{
-    [WireName("FORCE_PAUSE_KIND_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("FORCE_PAUSE_KIND_LONG_EVENT")]
-    LongEvent = 1,
-    [WireName("FORCE_PAUSE_KIND_TRANSIENT")]
-    Transient = 2,
-}
-
 public sealed record WatchPolicy
 {
     public WatchMode? Mode { get; init; }
@@ -428,15 +414,7 @@ public sealed record Status
 
     public long? NewestCursor { get; init; }
 
-    public string? WatcherError { get; init; }
-
-    public ulong? ForcePauseWaitingMs { get; init; }
-
-    public ForcePauseKind? ForcePauseKind { get; init; }
-
     public long? MaxProbeTickGap { get; init; }
-
-    public ulong? ProbeCount { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Alert>))]
     public EquatableArray<Alert> BaselineAlerts { get; init; }
@@ -447,12 +425,6 @@ public sealed record Status
     public ObservedSpeed? ObservedSpeed { get; init; }
 
     public bool? ActualPaused { get; init; }
-
-    /// <summary>
-    /// The game was launched with the acceptance test-acceleration flag; native
-    /// accounting only, Run(Ultrafast) is not gated by it.
-    /// </summary>
-    public bool? TestAccelerationAvailable { get; init; }
 
     /// <summary>
     /// Wall time the supervisor's own hold/run transitions account for in
@@ -563,8 +535,6 @@ public sealed record HeartbeatAck
     public ClockState? State { get; init; }
 
     public HoldReason? Reason { get; init; }
-
-    public uint? CeilingTicksPerSecond { get; init; }
 }
 
 public sealed record HeartbeatReply
@@ -604,8 +574,6 @@ public sealed record Letter
     public string? Label { get; init; }
 
     public string? DefName { get; init; }
-
-    public bool? Negative { get; init; }
 }
 
 public sealed record TransientMessage
@@ -617,8 +585,6 @@ public sealed record TransientMessage
     public string? Text { get; init; }
 
     public long? StartingTick { get; init; }
-
-    public bool? Negative { get; init; }
 }
 
 public sealed record Notification
@@ -703,8 +669,6 @@ public sealed record Injury
 
     public InjurySuppression? Suppression { get; init; }
 
-    public uint? CooldownRemainingMs { get; init; }
-
     public bool? NewWound { get; init; }
 }
 
@@ -730,29 +694,18 @@ public sealed record HostilesCleared
     public EquatableArray<PawnEvent> DraftedColonists { get; init; }
 
     public int? ConsciousHostilesBefore { get; init; }
-
-    /// <summary>The last hostile fell on the first probe after a resume, so the count before comes from before the hold.</summary>
-    public bool? AcrossResume { get; init; }
 }
 
 public sealed record PauseEvidence
 {
     public bool? ActualPaused { get; init; }
 
-    public bool? PauseRequested { get; init; }
-
     public bool? PauseVerified { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> ForcePausingWindowIds { get; init; }
 
-    public bool? LongEventPending { get; init; }
-
     public Letter? Letter { get; init; }
-
-    public Speed? RequestedSpeed { get; init; }
-
-    public ObservedSpeed? ActualSpeed { get; init; }
 
     public DialogPause? Dialog { get; init; }
 }
@@ -942,19 +895,10 @@ public sealed record PauseFailed
 public sealed record ForcePauseWaiting
 {
     public PauseEvidence? Pause { get; init; }
-
-    public ulong? WaitedMs { get; init; }
-
-    public uint? GraceMs { get; init; }
 }
 
 public sealed record ForcePauseCleared
 {
-    public ulong? WaitedMs { get; init; }
-
-    public ForcePauseKind? ForcePauseKind { get; init; }
-
-    public bool? SpeedRestored { get; init; }
 }
 
 public sealed record ClockEvent

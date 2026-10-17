@@ -272,7 +272,6 @@ namespace HomeBridge.BridgeTools
         {
             var row = new Mirror.CombatPawn { Id = LoadId(pawn), Side = side, Cell = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z }, Downed = pawn.Downed, Dead = pawn.Dead };
             try { if (pawn.Faction != null) row = row with { Faction = NativeRef.Of(pawn.Faction) }; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
-            try { var lord = pawn.GetLord(); if (lord != null) row = row with { LordId = lord.GetUniqueLoadID() }; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             if (pawn.MentalStateDef != null) row = row with { MentalState = pawn.MentalStateDef.defName };
             if (pawn.drafter != null)
             {
@@ -295,8 +294,8 @@ namespace HomeBridge.BridgeTools
             var stance = pawn.stances?.curStance;
             // A ranged pawn standing to shoot (Wait_Combat) holds no job target; the stance's focus is what it aims at.
             if (row.TargetId == null && stance is Stance_Busy busy && busy.focusTarg.Thing is { } aimed) row = row with { TargetId = LoadId(aimed) };
-            if (stance is Stance_Warmup warmup) { row = row with { Stance = Mirror.CombatStance.Warmup }; row = row with { StanceTicksLeft = warmup.ticksLeft }; }
-            else if (stance is Stance_Cooldown cooldown) { row = row with { Stance = Mirror.CombatStance.Cooldown }; row = row with { StanceTicksLeft = cooldown.ticksLeft }; }
+            if (stance is Stance_Warmup) row = row with { Stance = Mirror.CombatStance.Warmup };
+            else if (stance is Stance_Cooldown) row = row with { Stance = Mirror.CombatStance.Cooldown };
             else if (job != null && job.def == JobDefOf.AttackMelee) row = row with { Stance = Mirror.CombatStance.Melee };
             else if (pawn.pather != null && pawn.pather.Moving) row = row with { Stance = Mirror.CombatStance.Moving };
             else row = row with { Stance = Mirror.CombatStance.Idle };
@@ -328,7 +327,6 @@ namespace HomeBridge.BridgeTools
                 {
                     var max = shield.parent.GetStatValue(StatDefOf.EnergyShieldEnergyMax);
                     row = row with { ShieldEnergy = max > 0 ? Step(Math.Max(0, Math.Min(1, shield.Energy / max)), 0.05) : 0 };
-                    row = row with { ShieldBroken = shield.ShieldState == ShieldState.Resetting };
                 }
                 catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             }
@@ -345,9 +343,6 @@ namespace HomeBridge.BridgeTools
             if (weapon != null && verb != null)
             {
                 row = row with { Weapon = weapon.def.defName };
-                row = row with { WeaponWarmupTicks = verb.verbProps.warmupTime.SecondsToTicks() };
-                try { row = row with { WeaponCooldownTicks = weapon.GetStatValue(verb.IsMeleeAttack ? StatDefOf.MeleeWeapon_CooldownMultiplier : StatDefOf.RangedWeapon_Cooldown).SecondsToTicks() }; }
-                catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             }
             return row;
         }

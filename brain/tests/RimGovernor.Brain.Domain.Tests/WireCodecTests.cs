@@ -117,7 +117,7 @@ public sealed class WireCodecTests
         };
         var prey = new RimGovernor.Contracts.Wire.Observations.HuntActorRead("boar", "Boar", new(9, 9), 3)
         {
-            Sleeping = true, Herd = "wild-herd", MeatDefinition = "Meat_Pig", Meat = RimGovernor.Brain.Domain.Fact.Known(0.0),
+            Sleeping = true, Herd = "wild-herd", Meat = RimGovernor.Brain.Domain.Fact.Known(0.0),
         };
         var read = new RimGovernor.Contracts.Wire.Observations.CoupledForecastRead
         {
@@ -128,7 +128,6 @@ public sealed class WireCodecTests
         Assert.Equal(RimGovernor.Brain.Domain.Fact.Known(30.0), Assert.Single(decoded.Hunters).WeaponRange);
         Assert.Equal("left eye", Assert.Single(decoded.Hunters[0].MissingParts));
         Assert.Equal(RimGovernor.Brain.Domain.Fact.Known(0.0), Assert.Single(decoded.Prey).Meat);
-        Assert.False(decoded.Prey[0].Leather.IsKnown);
         Assert.False(decoded.Prey[0].WeaponRange.IsKnown);
         Assert.Equal("Sand", Assert.Single(decoded.Scene!.Ground).Terrain);
     }

@@ -199,7 +199,7 @@ internal static class NativeActivityTasks
         {
             var output = new ActivityOutputDelivery(pendingFood.Resource, pendingFood.Source!.Value,
                 pendingFood.Step.Destination!.Value, pendingFood.Step.Count, pendingFood.Step.Deadline, pendingFood.AttemptsLeft);
-            var reads = request.Batch.Orders.Select(o => NativeFoodActivity.Read(new(request.Identity, [], o with { OutputDelivery = output }) { AllowCooking = true })).ToArray();
+            var reads = request.Batch.Orders.Select(o => NativeFoodActivity.Read(new NativeFoodActivity.Request(request.Identity, [], o with { OutputDelivery = output }) { AllowCooking = true })).ToArray();
             food = new() { Context = context, Known = reads.All(r => r.Known), Truncated = reads.Any(r => r.Truncated),
                 Options = EquatableArray.From(reads.SelectMany(r => r.Options)) };
         }

@@ -45,15 +45,10 @@ public sealed record HuntActorRead(string Pawn, string Kind, Cell Location, doub
     public bool Mental { get; init; }
     /// <summary>Prey: the game's herd of this animal group, empty when it is alone.</summary>
     public string Herd { get; init; } = "";
-    /// <summary>Prey products if it is killed and butchered by a colonist, each unknown when native has no stat for it.</summary>
-    public string MeatDefinition { get; init; } = "";
+    /// <summary>Prey meat if it is killed and butchered by a colonist, unknown when native has no stat for it.</summary>
     public Fact<double> Meat { get; init; }
-    public string LeatherDefinition { get; init; } = "";
-    public Fact<double> Leather { get; init; }
     /// <summary>Prey: nutrition one unit of its meat gives when eaten.</summary>
     public Fact<double> MeatNutrition { get; init; }
-    /// <summary>Walking cost in ticks from the hunter's cell to the prey cell, hunters only; unknown when not probed.</summary>
-    public Fact<double> TravelTicksToNearestPrey { get; init; }
 }
 
 public sealed record HuntGearRead(string Definition, string Stuff, string Quality, int HitPoints);

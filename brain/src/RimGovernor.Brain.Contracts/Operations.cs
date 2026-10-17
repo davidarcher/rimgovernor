@@ -1614,10 +1614,6 @@ public abstract record AbilityIntentTarget
 {
     private protected AbilityIntentTarget() { }
 
-    /// <summary>The <c>NoTarget</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public AbilityNoTarget? NoTarget => (this as NoTargetCase)?.Value;
-
     public sealed record NoTargetCase(AbilityNoTarget Value) : AbilityIntentTarget;
 
     /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
@@ -2113,10 +2109,6 @@ public abstract record BuildingPatchIntentChange
 
     public sealed record MedicalCase(bool Value) : BuildingPatchIntentChange;
 
-    /// <summary>The <c>ForPrisoners</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Clear? ForPrisoners => (this as ForPrisonersCase)?.Value;
-
     public sealed record ForPrisonersCase(Clear Value) : BuildingPatchIntentChange;
 
     /// <summary>The <c>PlantDef</c> case's payload, null when another case is set.</summary>
@@ -2130,10 +2122,6 @@ public abstract record BuildingPatchIntentChange
     public Clear? Claim => (this as ClaimCase)?.Value;
 
     public sealed record ClaimCase(Clear Value) : BuildingPatchIntentChange;
-
-    /// <summary>The <c>ForSlaves</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Clear? ForSlaves => (this as ForSlavesCase)?.Value;
 
     public sealed record ForSlavesCase(Clear Value) : BuildingPatchIntentChange;
 

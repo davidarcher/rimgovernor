@@ -35,8 +35,6 @@ namespace HomeBridge.BridgeTools
 
         public ChannelReader<NativeFrame> Frames => SnapshotStream.Handoff.Reader;
 
-        public Task<Obs.FoodActivityRead> ReadFoodActivityAsync(Obs.FoodActivityRequest request, CancellationToken cancellationToken)
-            => Read(NativeOps.ReadFoodActivity, request, () => NativeFoodActivity.Read(request), cancellationToken);
         public Task<Obs.ActivityTaskRead> ReadActivityTasksAsync(Obs.ActivityTaskRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadActivityTasks, request, () => NativeActivityTasks.Read(request), cancellationToken);
         public Task<Obs.ConstructionActivityRead> ReadConstructionActivityAsync(Obs.ConstructionActivityRequest request, CancellationToken cancellationToken)

@@ -176,10 +176,11 @@ and explicit safety transitions. This is a sound base for forecasting.
 Two observation details deserve priority over new tactics:
 
 1. [CombatMirror.Project](../../../integrations/rimgovernor-native/src/Bridge/CombatMirror.cs)
-   writes `StanceTicksLeft`, `WeaponWarmupTicks` and `WeaponCooldownTicks`, but
-   `combatPawnStates` and `CombatPawnState` do not carry these timing fields into
-   tactical policy. Prefer completing this existing path over adding another
-   poller. Base weapon warmup is not necessarily actual remaining pawn warmup.
+   once wrote `StanceTicksLeft`, `WeaponWarmupTicks` and `WeaponCooldownTicks`, but
+   `combatPawnStates` and `CombatPawnState` never carried these timing fields into
+   tactical policy, so the orphaned wire members were deleted. A consumer that needs
+   them adds the member together with its reader. Base weapon warmup is not necessarily
+   actual remaining pawn warmup.
 2. `TargetId` is projected from `CurJob.targetA.Thing`. That is a job target,
    not a general contract for the verb's current attack target, warmup focus,
    or `mindState.enemyTarget`. The native shot event reads `Verb.CurrentTarget`

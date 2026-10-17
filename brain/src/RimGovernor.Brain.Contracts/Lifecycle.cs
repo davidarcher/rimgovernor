@@ -364,12 +364,6 @@ public sealed record LoadPending
 
     public string? SaveName { get; init; }
 
-    public bool? ProcessConnected { get; init; }
-
-    public bool? MapReady { get; init; }
-
-    public bool? VisualReady { get; init; }
-
     public string? Detail { get; init; }
 }
 
@@ -433,8 +427,6 @@ public abstract record LoadReplyOutcome
 public sealed record RequestStatus
 {
     public string? RequestId { get; init; }
-
-    public string? ExpectedInstanceId { get; init; }
 }
 
 /// <summary>
@@ -858,10 +850,6 @@ public abstract record WaitSaveSignalReplyOutcome
 {
     private protected WaitSaveSignalReplyOutcome() { }
 
-    /// <summary>The <c>Signal</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public SaveSignal? Signal => (this as SignalCase)?.Value;
-
     public sealed record SignalCase(SaveSignal Value) : WaitSaveSignalReplyOutcome;
 
     public static implicit operator WaitSaveSignalReplyOutcome(SaveSignal value) => new SignalCase(value);
@@ -902,10 +890,6 @@ public sealed record FlushDoneReply
 public abstract record FlushDoneReplyOutcome
 {
     private protected FlushDoneReplyOutcome() { }
-
-    /// <summary>The <c>Acked</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public FlushDoneAcked? Acked => (this as AckedCase)?.Value;
 
     public sealed record AckedCase(FlushDoneAcked Value) : FlushDoneReplyOutcome;
 

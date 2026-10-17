@@ -60,9 +60,7 @@ internal static class NativeHuntActivity
         return read with
         {
             Herd = herdSize > 1 ? "wild-herd" : "",
-            MeatDefinition = meat?.defName ?? "", Meat = Fact.Known(Math.Max(0d, p.GetStatValue(StatDefOf.MeatAmount))),
-            LeatherDefinition = p.RaceProps.leatherDef?.defName ?? "",
-            Leather = p.RaceProps.leatherDef == null ? default : Fact.Known(Math.Max(0d, p.GetStatValue(StatDefOf.LeatherAmount))),
+            Meat = Fact.Known(Math.Max(0d, p.GetStatValue(StatDefOf.MeatAmount))),
             MeatNutrition = meat == null ? default : Fact.Known((double)meat.GetStatValueAbstract(StatDefOf.Nutrition)),
         };
     }

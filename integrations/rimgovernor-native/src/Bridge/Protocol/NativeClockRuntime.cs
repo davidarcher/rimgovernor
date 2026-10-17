@@ -28,17 +28,15 @@ namespace HomeBridge.BridgeTools
             internal Clock.WatchPolicy Policy;
             internal TypedEpoch(Common.ObservationContext origin, ulong expectedGeneration, Clock.WatchPolicy policy)
             { LastObservation = origin; ExpectedGeneration = expectedGeneration; Policy = policy; }
-            internal bool PauseRequested;
             internal bool StopPauseVerified;
             // The armed combat event that held this segment, else unset.
             internal Clock.CombatEvent CombatEvent { get; set; }
         }
         // The native dev tick boost behind a Run(Ultrafast) is driven up to the one
         // ceiling with no launch gate. The acceptance launch flag only reports
-        // through Status.TestAccelerationAvailable and the timing log; it is
+        // through the timing log; it is
         // read once at startup and never toggled at runtime.
         internal static readonly bool TestAccelerationLaunch = Array.IndexOf(Environment.GetCommandLineArgs(), "-rimgovernor-test-acceleration") >= 0;
-        internal static bool TestAccelerationAvailable => TestAccelerationLaunch && BoostAvailable;
         private static bool BoostAvailable => BoostField != null && BoostField.FieldType == typeof(bool);
         private static TypedEpoch TypedOf(State s) => s.Typed ?? throw new InvalidOperationException("Clock run segment is not typed.");
         private static bool StopInvalidTypedAuthority(State s)
@@ -296,7 +294,6 @@ namespace HomeBridge.BridgeTools
                 var sameSession = s != null && ReferenceEquals(s.Session, Current.Game) && ReferenceEquals(s.Map, Find.CurrentMap);
                 if (s != null && s.Active && sameSession && s.PendingKind == null)
                 {
-                    TypedOf(s).PauseRequested = true;
                     Stop(s, kind, detail, true, null);
                 }
                 else if (s == null || !sameSession)
@@ -314,7 +311,6 @@ namespace HomeBridge.BridgeTools
                         _state = shell;
                         ClockPauseAccounting.Started(shell.Session);
                         ClockProbeAccounting.Started(shell.Session);
-                        TypedOf(shell).PauseRequested = true;
                         Stop(shell, kind, detail, true, null);
                     }
                 }
@@ -325,7 +321,7 @@ namespace HomeBridge.BridgeTools
                     Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
                     var paused = Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
                     s.PausedAtStop = paused; s.PauseVerified = paused;
-                    TypedOf(s).PauseRequested = true; TypedOf(s).StopPauseVerified = paused;
+                    TypedOf(s).StopPauseVerified = paused;
                 }
                 return TypedStatus(context);
             }
@@ -356,8 +352,7 @@ namespace HomeBridge.BridgeTools
                 var running = live && s!.Active && s.PendingKind == null;
                 return new Clock.HeartbeatAck {
                     State = running ? Clock.ClockState.Running : Clock.ClockState.Held,
-                    Reason = running ? null : live ? HoldReasonOf(s!.PendingKind ?? s.StopReason) : Clock.HoldReason.NeverRun,
-                    CeilingTicksPerSecond = checked((uint)ceiling.TicksPerSecond) };
+                    Reason = running ? null : live ? HoldReasonOf(s!.PendingKind ?? s.StopReason) : Clock.HoldReason.NeverRun };
             }
         }
 
@@ -368,7 +363,6 @@ namespace HomeBridge.BridgeTools
                 EnsurePatched();
                 var result = new Clock.Status { Context = context, ActualPaused = Find.TickManager.Paused,
                     ObservedSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed), NativeTickBoundary = TypedHooksReady(),
-                    TestAccelerationAvailable = TestAccelerationAvailable,
                     DurableEvents = _state?.StopReason != "event_journal_error" && _state?.PendingKind != "event_journal_error",
                     NewestCursor = Journal.Newest };
                 var s = _state;
@@ -388,8 +382,7 @@ namespace HomeBridge.BridgeTools
                         if (s.StopAtMs.HasValue && s.PendingKind == null) result = result with { HeldAtUnixMs = s.StopAtMs.Value };
                         if (TypedOf(s).CombatEvent != Clock.CombatEvent.Unspecified) result = result with { CombatEvent = TypedOf(s).CombatEvent };
                     }
-                    result = result with { MaxProbeTickGap = s.MaxProbeTickGap }; result = result with { ProbeCount = checked((ulong)s.ProbeCount) };
-                    if (s.ForcePauseSinceMs != 0) { result = result with { ForcePauseWaitingMs = checked((ulong)Math.Max(0, NowMs() - s.ForcePauseSinceMs)) }; result = result with { ForcePauseKind = NativeEnums.ForcePause(s.ForcePauseKind) }; }
+                    result = result with { MaxProbeTickGap = s.MaxProbeTickGap };
                     foreach (var row in s.BaselineAlerts) result = result with { BaselineAlerts = [.. result.BaselineAlerts, NativeClockEventProjection.Alert(row)] };
                     // Existing suppression baselines lack full injury before/after; report incomplete evidence, never fabricate it.
                 }
@@ -401,7 +394,6 @@ namespace HomeBridge.BridgeTools
                 result = ReportFrames(result);
                 foreach (var gap in ClockProbeAccounting.HazardGapsFor(Current.Game))
                     result = result with { HazardGaps = [.. result.HazardGaps, new Clock.HazardGap { HazardClass = gap.Key, MaxTickGap = gap.Value, BoundTicks = HazardBoundTicks(gap.Key), Hooked = HazardHooked(gap.Key) && HazardHooksInstalled }] };
-                if (_patchError != null) result = result with { WatcherError = Text(_patchError) };
                 return result;
             }
         }
@@ -480,9 +472,8 @@ namespace HomeBridge.BridgeTools
             {
                 var windows = ForcePausingWindows();
                 if (windows.Any(window => !ProtoBoundary.IsIdentifier(window))) throw new InvalidOperationException("Invalid pause window identity");
-                var pause = new Clock.PauseEvidence { ActualPaused = Find.TickManager.Paused, PauseRequested = typed.PauseRequested,
-                    PauseVerified = typed.StopPauseVerified, RequestedSpeed = WireSpeed(s.RequestedSpeed), ActualSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed),
-                    LongEventPending = LongEventHandler.AnyEventNowOrWaiting, ForcePausingWindowIds = EquatableArray.From(windows) };
+                var pause = new Clock.PauseEvidence { ActualPaused = Find.TickManager.Paused,
+                    PauseVerified = typed.StopPauseVerified, ForcePausingWindowIds = EquatableArray.From(windows) };
                 if (kind == "dialog_pause")
                 {
                     var dialog = ChoiceDialogTools.Pending();

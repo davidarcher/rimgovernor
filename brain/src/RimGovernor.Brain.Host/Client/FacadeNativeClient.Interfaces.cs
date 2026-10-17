@@ -34,7 +34,6 @@ internal sealed partial class FacadeNativeClient :
     IMapFocusNative,
     IPackedSource,
     IArrivalPawns,
-    IFoodActivitySource,
     IBoundaryNative,
     IHaulNative,
     IBreakResponseSource,
