@@ -1,12 +1,13 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Host;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>combatlab/hunt-squad</c> and <c>combatlab/hunt-door</c> (Go <c>hunt.go</c>), the squad hunt cases. Both start on
+/// <c>combatlab/hunt-squad</c> and <c>combatlab/hunt-door</c> (Go <c>hunt.go</c>), the roster hunt cases. Both start on
 /// the blank lab with four riflemen (lab-ranged's line) and no raiders, a group of calm wild animals north of them, and
-/// the planners a hunt and its aftermath compose: the squad hunt of the military/combat Need (defense), the butcher and haul flow
+/// the planners a hunt and its aftermath compose: the roster hunt of the military/combat Need (defense), the butcher and haul flow
 /// that takes the corpses (bill, haul, work, stockpiles).
 /// </summary>
 internal static class CombatLabHunt
@@ -45,7 +46,7 @@ internal static class CombatLabHunt
 
         // A checkpoint capture pauses the served game mid-hunt.
         NoCheckpoint = true,
-        Serve = new ServeSpec { Families = Families, ClockSpeed = CombatServe.MetricsSpeed, Prefix = "combatlab-hunt" },
+        Serve = new ServeSpec { Families = Families, ClockSpeed = CombatServe.MetricsSpeed, Prefix = "combatlab-hunt", Env = WorkerEnv() },
         Budget = Budget,
         Crew = new Crew { Size = 3 },
         Run = RunSquadAsync,
@@ -62,14 +63,50 @@ internal static class CombatLabHunt
         RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool, CombatServe.PauseModeTool],
         QuietWorld = true,
         NoCheckpoint = true,
-        Serve = new ServeSpec { Families = Families, ClockSpeed = CombatServe.MetricsSpeed, Prefix = "combatlab-hunt-door" },
+        Serve = new ServeSpec { Families = Families, ClockSpeed = CombatServe.MetricsSpeed, Prefix = "combatlab-hunt-door", Env = WorkerEnv() },
         Budget = Budget,
         Crew = new Crew { Size = 3 },
         Run = RunDoorAsync,
     };
 
+    // A hunt forms only from a roster the prediction worker has answered, so the game is launched with the built worker.
+    private static List<string> WorkerEnv()
+    {
+        var repo = NativeSourceInputs.FindRepo(Directory.GetCurrentDirectory());
+        var worker = repo is null ? "" : Path.Combine(repo, "integrations", "rimgovernor-realcombat", "src", "RealCombat.Host", "bin", "Release", "RimGovernor.RealCombat.Host.dll");
+        return worker.Length > 0 && File.Exists(worker) ? [HuntEstimateService.WorkerVariable + "=" + worker] : [];
+    }
+
+    private static void RequireWorker(ISession s)
+    {
+        if (!s.Spec.Env.Any(e => e.StartsWith(HuntEstimateService.WorkerVariable + "=", StringComparison.Ordinal)))
+            throw new AcceptanceException("Build the RealCombat.Host Release worker before this case: a hunt forms only from a roster the prediction worker has answered.");
+    }
+
+    // The hunt runs in steps until a roster is drafted: the estimates arrive in real time while the game runs.
+    private static async Task<(Harness? H, int Drafted)> LeadUntilDraftedAsync(ISession s, CancellationToken cancellationToken)
+    {
+        Harness? h = null;
+        var drafted = 0;
+        for (var lead = 0; drafted < 1 && lead < DoorLeadMax; lead += DoorLeadStep)
+        {
+            h = await CombatServe.ServedWindowAsync(s, DoorLeadStep, lead > 0, cancellationToken).ConfigureAwait(false);
+            var first = await CombatServe.RawReadAsync(h, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
+            drafted = 0;
+            foreach (var raw in first["pawns"].AsSlice())
+            {
+                var row = raw.AsMap() ?? [];
+                if (row["drafted"].AsBool() == true && row["side"].AsString() == CombatFixtures.Colonist)
+                {
+                    drafted++;
+                }
+            }
+        }
+
+        return (h, drafted);
+    }
     // huntKit turns lab-ranged into a hunt: the raiders go, three wild animals of two species stand 12 cells north of the
-    // centre (inside the squad's 12-cell group radius), and a butcher spot waits behind the line.
+    // centre and a butcher spot waits behind the line.
     private static void Kit(LabFixture f, int cx, int cz)
     {
         f.Name = "lab-hunt";
@@ -108,8 +145,16 @@ internal static class CombatLabHunt
             throw new AcceptanceException($"staged {CaseSupport.Tag(prey.Count)} prey and {CaseSupport.Tag(colonists.Count)} colonists, want 3 and 4");
         }
 
+        RequireWorker(s);
         await CombatServe.NeverPauseAsync(s.Harness, cancellationToken).ConfigureAwait(false);
-        var h = await CombatServe.ServedWindowAsync(s, Ticks, false, cancellationToken).ConfigureAwait(false);
+        var (lead, draftedAtLead) = await LeadUntilDraftedAsync(s, cancellationToken).ConfigureAwait(false);
+        s.Report["draftedBeforeWindow"] = draftedAtLead;
+        if (lead is null || draftedAtLead < 1)
+        {
+            throw new AcceptanceException($"no hunt roster was drafted after {CaseSupport.Tag(DoorLeadMax)} ticks: the prediction worker answered no roster or the comparison chose none");
+        }
+
+        var h = await CombatServe.ServedWindowAsync(s, Ticks, true, cancellationToken).ConfigureAwait(false);
         var (pawns, tick) = await CombatStage.ReadAsync(h, cancellationToken).ConfigureAwait(false);
         s.Report["tick"] = tick;
         foreach (var id in prey)
@@ -174,28 +219,13 @@ internal static class CombatLabHunt
             }
         }
 
+        RequireWorker(s);
         await CombatServe.NeverPauseAsync(s.Harness, cancellationToken).ConfigureAwait(false);
-        Harness? h = null;
-        var drafted = 0;
-        for (var lead = 0; drafted < 3 && lead < DoorLeadMax; lead += DoorLeadStep)
-        {
-            h = await CombatServe.ServedWindowAsync(s, DoorLeadStep, lead > 0, cancellationToken).ConfigureAwait(false);
-            var first = await CombatServe.RawReadAsync(h, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
-            drafted = 0;
-            foreach (var raw in first["pawns"].AsSlice())
-            {
-                var row = raw.AsMap() ?? [];
-                if (row["drafted"].AsBool() == true && row["side"].AsString() == CombatFixtures.Colonist)
-                {
-                    drafted++;
-                }
-            }
-        }
-
+        var (h, drafted) = await LeadUntilDraftedAsync(s, cancellationToken).ConfigureAwait(false);
         s.Report["draftedBeforeBear"] = drafted;
-        if (drafted < 3 || h is null)
+        if (drafted < 1 || h is null)
         {
-            throw new AcceptanceException($"{CaseSupport.Tag(drafted)} colonists drafted after {CaseSupport.Tag(DoorLeadMax)} ticks, want the hunt's squad of 3 or 4");
+            throw new AcceptanceException($"{CaseSupport.Tag(drafted)} colonists drafted after {CaseSupport.Tag(DoorLeadMax)} ticks, want the chosen roster");
         }
 
         // The bear charges from 25 cells beyond the prey; the squad is mid-hunt.
