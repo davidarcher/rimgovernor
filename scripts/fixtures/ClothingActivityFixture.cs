@@ -10,6 +10,7 @@ using Verse;
 using Verse.AI;
 using RimGovernor.Host.Sdk;
 using RimGovernor.Brain.Domain;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools;
 
@@ -19,8 +20,7 @@ public sealed partial class PawnControlFixture
     private static string clothingMethod = "", clothingProduct = "", clothingStuff = "";
     private static string clothingInterruptedUft = "";
     private static readonly Dictionary<string, PawnActivityOrder> clothingOrders = new(StringComparer.Ordinal);
-    private static int clothingStart, clothingBefore, clothingRequired;
-    private static readonly HashSet<string> clothingParticipants = new(StringComparer.Ordinal);
+    private static int clothingBefore, clothingRequired;
     private static readonly HashSet<string> clothingReleased = new(StringComparer.Ordinal);
     private static readonly HashSet<string> clothingResumed = new(StringComparer.Ordinal);
 
@@ -83,10 +83,10 @@ public sealed partial class PawnControlFixture
                 && c.GetEdifice(map) == null && c.GetZone(map) == null && c.DistanceTo(center) > 5);
             zone.AddCell(destination);
             clothingMethod = clothingProduct = clothingStuff = "";
-            clothingParticipants.Clear(); clothingReleased.Clear(); clothingResumed.Clear();
+            clothingReleased.Clear(); clothingResumed.Clear();
             clothingOrders.Clear(); clothingInterruptedUft = "";
             clothingInterrupted = clothingConserved = clothingProductObserved = false;
-            clothingInterrupt = interrupt; clothingStart = Find.TickManager.TicksGame;
+            clothingInterrupt = interrupt;
             if (!clothingPatched)
             {
                 var harmony = new Harmony("rimgovernor.fixture.clothing-activity");
@@ -95,7 +95,7 @@ public sealed partial class PawnControlFixture
                 clothingPatched = true;
             }
             clothingActive = true;
-            return new { success = true };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
 
     private static void ClothingApplied(PawnActivities batch)
@@ -129,7 +129,6 @@ public sealed partial class PawnControlFixture
                 clothingBefore = Find.CurrentMap.listerThings.AllThings.Where(t => t.def.defName == clothingStuff).Sum(t => t.stackCount);
                 clothingRequired = choice.Ingredients.Sum(i => i.Count);
             }
-            clothingParticipants.Add(order.Pawn);
             clothingOrders[order.Pawn] = order;
             clothingReleased.Remove(order.Pawn);
             if (choice.Unfinished.Length != 0 && choice.Unfinished == clothingInterruptedUft) clothingResumed.Add(choice.Unfinished);
@@ -184,24 +183,10 @@ public sealed partial class PawnControlFixture
                 || NativeProductionBills.BillRow(anchor, 0).BillClass != nameof(Bill_GovernorRecipe))
                 throw new InvalidOperationException("Interrupted garment lost its private nonautonomous activity bill anchor.");
         }
-        return
-        new { tick = Find.TickManager.TicksGame, elapsed = Find.TickManager.TicksGame - clothingStart, method = clothingMethod,
-            product = clothingProduct, stuff = clothingStuff, produced = clothingProductObserved, conserved = clothingConserved,
-            interrupted = clothingInterrupted, resumed = clothingResumed.Count, released = clothingReleased.Count,
-            participants = clothingParticipants.Count,
-            authorityActive = NativeControlAuthority.ForGame(Current.Game).Status().Active,
-            workers = Find.CurrentMap.mapPawns.FreeColonistsSpawned.Select(p => new
-            { pawn = p.GetUniqueLoadID(), job = p.CurJobDef?.defName, execution = NativePawnActivities.Read(p) }).ToArray(),
-            actualMatchingApparel = Find.CurrentMap.listerThings.AllThings.OfType<Apparel>()
-                .Concat(Find.CurrentMap.mapPawns.FreeColonistsSpawned.SelectMany(p => p.apparel.WornApparel))
-                .Concat(Find.CurrentMap.mapPawns.FreeColonistsSpawned.Select(p => p.carryTracker.CarriedThing).OfType<Apparel>())
-                .Where(a => a.def.defName == clothingProduct && a.Stuff?.defName == clothingStuff).Distinct()
-                .Select(a => new { thing = a.GetUniqueLoadID(), product = a.def.defName, stuff = a.Stuff?.defName }).ToArray(),
-            unfinished = Find.CurrentMap.listerThings.AllThings.OfType<UnfinishedThing>().Select(t => new
-            { thing = t.GetUniqueLoadID(), recipe = t.Recipe?.defName, stuff = t.Stuff?.defName, workLeft = t.workLeft, creator = t.Creator?.GetUniqueLoadID(),
-                bill = t.BoundBill?.GetUniqueLoadID(), bench = t.BoundWorkTable?.GetUniqueLoadID(),
-                inputs = t.ingredients.Select(i => new { resource = i.def.defName, count = i.stackCount }).ToArray(),
-                creatorCanReserve = t.Creator?.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None),
-                creatorCanUseBench = t.Creator != null && t.BoundWorkTable != null && t.Creator.CanReserveAndReach(t.BoundWorkTable, PathEndMode.InteractionCell, Danger.None) }).ToArray() };
+        return FixtureKit.Reply(new Fx.ClothingActivityRead
+        {
+            Tick = Find.TickManager.TicksGame, Produced = clothingProductObserved, Conserved = clothingConserved,
+            Interrupted = clothingInterrupted, Resumed = clothingResumed.Count, Released = clothingReleased.Count,
+        });
     }, ct).ConfigureAwait(false);
 }

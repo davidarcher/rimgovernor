@@ -48,6 +48,11 @@ namespace HomeBridge.BridgeTools
             return cells;
         }
 
+        // A fixture contract record as a tool reply: in the contract's System.Text.Json shape, since the host would
+        // re-serialise a record with Newtonsoft.
+        public static Newtonsoft.Json.Linq.JObject Reply<T>(T value) =>
+            Newtonsoft.Json.Linq.JObject.Parse(RimGovernor.Fixtures.Contracts.FixtureJson.Serialize(value));
+
         public static IntVec3 InBounds(Map map, IntVec3 cell) =>
             cell.InBounds(map) ? cell : throw new ArgumentException($"Cell {cell.x},{cell.z} is out of bounds.");
 

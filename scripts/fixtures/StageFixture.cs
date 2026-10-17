@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
-using Newtonsoft.Json.Linq;
 using RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
@@ -421,8 +420,7 @@ namespace HomeBridge.BridgeTools
                 var map = parsed.Paused ? FixtureKit.PausedMap() : FixtureKit.CurrentMap();
                 LabDamageLedger.Reset();
                 LabShotLedger.Reset();
-                // The reply keeps the contract's System.Text.Json shape: the host would re-serialise a record with Newtonsoft.
-                return JObject.Parse(FixtureJson.Serialize(Stager.Apply(map, parsed)));
+                return FixtureKit.Reply(Stager.Apply(map, parsed));
             }, cancellationToken).ConfigureAwait(false);
         }
     }

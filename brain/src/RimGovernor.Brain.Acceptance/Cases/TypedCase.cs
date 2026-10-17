@@ -56,7 +56,7 @@ public sealed record TypedCase
     /// <summary>A DLC profile the claim requires; the case then owns a fresh process.</summary>
     public IReadOnlyList<string> Expansions { get; init; } = [];
 
-    /// <summary>The service the body starts with <see cref="ITypedSession.ServeAsync"/>; null for a native-only case.</summary>
+    /// <summary>The service <see cref="ITypedSession.ServeUntilAsync"/> hands the clock to; null for a native-only case.</summary>
     public ServeSpec? Serve { get; init; }
 
     /// <summary>The assertion: production ops and reads over the staged precondition.</summary>

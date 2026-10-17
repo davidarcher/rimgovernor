@@ -9,17 +9,17 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools;
 
 public sealed partial class PawnControlFixture
 {
     private static bool productiveActive, productivePatched, productiveOutput;
-    private static int productiveStart, productiveInitialRaw, productiveUrgeTick = -1, productiveUrgeCompletions;
+    private static int productiveUrgeTick = -1;
     private static bool productiveSlept;
     private static int productiveCommitted;
     private static string? productiveReassigned;
-    private static int productiveReassignTick = -1;
     private static readonly HashSet<string> productiveTiredCooks = new(StringComparer.Ordinal), productiveRestedCooks = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, int> productiveCompletions = new(StringComparer.Ordinal);
     private static readonly HashSet<string> productiveMethods = new(StringComparer.Ordinal);
@@ -73,9 +73,8 @@ public sealed partial class PawnControlFixture
                 }
             }
             productiveCompletions.Clear(); productiveMethods.Clear(); productiveOutput = false;
-            productiveUrgeTick = -1; productiveUrgeCompletions = 0; productiveSlept = false; productiveTiredCooks.Clear(); productiveRestedCooks.Clear();
-            productiveReassigned = null; productiveReassignTick = -1;
-            productiveStart = Find.TickManager.TicksGame; productiveInitialRaw = RawCount();
+            productiveUrgeTick = -1; productiveSlept = false; productiveTiredCooks.Clear(); productiveRestedCooks.Clear();
+            productiveReassigned = null;
             SkillLearningVerifier.Start();
             if (!productivePatched)
             {
@@ -87,7 +86,7 @@ public sealed partial class PawnControlFixture
                 productivePatched = true;
             }
             productiveActive = true;
-            return new { success = true, tick = productiveStart, nativeRatesVerified = true };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
     }
     private static void ProductiveLearned(SkillRecord __instance, float xp)
@@ -119,17 +118,10 @@ public sealed partial class PawnControlFixture
                 var bedCell = GenRadial.RadialCellsAround(worker.Position, 10, false).First(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null && c.GetThingList(map).Count == 0 && c.DistanceTo(worker.Position) > 3);
                 GenSpawn.Spawn(ThingDefOf.Bed, bedCell, map).SetFaction(Faction.OfPlayer);
             }
-            productiveUrgeTick = Find.TickManager.TicksGame; productiveUrgeCompletions = productiveCompletions.Values.Sum(); productiveSlept = false; productiveTiredCooks.Clear(); productiveRestedCooks.Clear();
+            productiveUrgeTick = Find.TickManager.TicksGame; productiveSlept = false; productiveTiredCooks.Clear(); productiveRestedCooks.Clear();
             productiveCommitted = worker!.Map.mapPawns.FreeColonistsSpawned.Count(p => NativePawnActivities.Read(p) != null); // tasks already handed out may finish
             selectedBill.repeatCount = Math.Min(selectedBill.repeatCount, 4); // finite demand: tasks already handed out may use up to 3, leaving one to resume and retire
-            return new { success = true, tick = productiveUrgeTick, completions = productiveUrgeCompletions };
-        }, ct).ConfigureAwait(false);
-    [Tool("test/productive_cooking_recover", Description="UNSAFE FOR MODEL EXECUTION. Restore colonist rest after sleep was observed, standing in for hours of natural recovery so the case does not wait them out. Issues no work.")]
-    public async Task<object> ProductiveCookingRecover(IRimBridgeContext ctx, CancellationToken ct)
-        => await ctx.MainThread.InvokeAsync<object>(() =>
-        {
-            foreach (var pawn in worker!.Map.mapPawns.FreeColonistsSpawned) pawn.needs.rest.CurLevelPercentage = .9f;
-            return new { success = true, tick = Find.TickManager.TicksGame };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
     [Tool("test/productive_cooking_reassign", Description="UNSAFE FOR MODEL EXECUTION. Withdraw the Cooking assignment from the colonist the running development currently owns, as a player changing work priorities would. Issues no work.")]
     public async Task<object> ProductiveCookingReassign(IRimBridgeContext ctx, CancellationToken ct)
@@ -138,34 +130,34 @@ public sealed partial class PawnControlFixture
             var pawn = worker!.Map.mapPawns.FreeColonistsSpawned.OrderByDescending(p => p.CurJob?.bill == selectedBill).FirstOrDefault(p => NativePawnActivities.Read(p) != null)
                 ?? throw new InvalidOperationException("No colonist is owned by the running development.");
             pawn.workSettings.SetPriority(ExtraWorkTypeDefOf.Cooking, 0);
-            productiveReassigned = pawn.GetUniqueLoadID(); productiveReassignTick = Find.TickManager.TicksGame;
-            return new { success = true, tick = productiveReassignTick, pawn = productiveReassigned };
+            productiveReassigned = pawn.GetUniqueLoadID();
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
     [Tool("test/productive_cooking_satisfy", Description="UNSAFE FOR MODEL EXECUTION. Withdraw the colony's remaining meal demand (the finite bill is deleted) after resumed development was observed, so retirement of the Method can be observed without waiting for the last repeat. Issues no work.")]
     public async Task<object> ProductiveCookingSatisfy(IRimBridgeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             if (cookingBench.BillStack.Bills.Contains(selectedBill)) cookingBench.BillStack.Delete(selectedBill);
-            return new { success = true, tick = Find.TickManager.TicksGame };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
     [Tool("test/productive_cooking_read", Description="Read observed normal-planner recipe completions, food output, input consumption and actual Cooking skill. No work is issued.")]
     public async Task<object> ProductiveCookingRead(IRimBridgeContext ctx, CancellationToken ct)
-        => await ctx.MainThread.InvokeAsync<object>(() => new
+        => await ctx.MainThread.InvokeAsync<object>(() =>
         {
-            success = true, tick = Find.TickManager.TicksGame, elapsed = Find.TickManager.TicksGame - productiveStart,
-            methods = productiveMethods.OrderBy(m => m).ToArray(), completions = productiveCompletions.Values.Sum(),
-            subsequentWork = productiveCompletions.Values.Any(count => count >= 2), output = productiveOutput,
-            rawConsumed = productiveInitialRaw - RawCount(), required = firstCount + secondCount,
-            skills = worker!.Map.mapPawns.FreeColonistsSpawned.Select(p => new { pawn = p.GetUniqueLoadID(), level = p.skills.GetSkill(SkillDefOf.Cooking).Level,
-                xp = p.skills.GetSkill(SkillDefOf.Cooking).xpSinceLastLevel }).ToArray(),
-            urgeTick = productiveUrgeTick, urgeCompletions = productiveUrgeCompletions, slept = productiveSlept, tiredCooks = productiveTiredCooks.Count, committedAtUrge = productiveCommitted, restedCooksAfterUrge = productiveRestedCooks.Count,
-            minRest = worker!.Map.mapPawns.FreeColonistsSpawned.Min(p => p.needs.rest.CurLevel),
-            billActive = cookingBench.BillStack.Bills.Contains(selectedBill), repeatLeft = selectedBill.repeatCount,
-            owned = worker!.Map.mapPawns.FreeColonistsSpawned.Count(p => NativePawnActivities.Read(p) != null),
-            cooking = worker!.Map.mapPawns.FreeColonistsSpawned.Count(p => p.CurJob?.bill == selectedBill),
-            reassignTick = productiveReassignTick, reassignedPriority = worker!.Map.mapPawns.FreeColonistsSpawned.Where(p => p.GetUniqueLoadID() == productiveReassigned).Select(p => p.workSettings.GetPriority(ExtraWorkTypeDefOf.Cooking)).DefaultIfEmpty(-1).First(),
-            reassignedOwned = worker!.Map.mapPawns.FreeColonistsSpawned.Any(p => p.GetUniqueLoadID() == productiveReassigned && NativePawnActivities.Read(p) != null),
-            reassignedCooking = worker!.Map.mapPawns.FreeColonistsSpawned.Any(p => p.GetUniqueLoadID() == productiveReassigned && p.CurJob?.bill == selectedBill),
-            learningFailures = SkillLearningVerifier.Failures.ToArray()
+            var people = worker!.Map.mapPawns.FreeColonistsSpawned;
+            var reassigned = people.FirstOrDefault(p => p.GetUniqueLoadID() == productiveReassigned);
+            return FixtureKit.Reply(new Fx.ProductiveCookingRead
+            {
+                Tick = Find.TickManager.TicksGame, Methods = productiveMethods.OrderBy(m => m).ToArray(), Completions = productiveCompletions.Values.Sum(),
+                SubsequentWork = productiveCompletions.Values.Any(count => count >= 2), Output = productiveOutput,
+                MaxCookingLevel = people.Max(p => p.skills.GetSkill(SkillDefOf.Cooking).Level),
+                Slept = productiveSlept, TiredCooks = productiveTiredCooks.Count, CommittedAtUrge = productiveCommitted, RestedCooksAfterUrge = productiveRestedCooks.Count,
+                BillActive = cookingBench.BillStack.Bills.Contains(selectedBill),
+                Owned = people.Count(p => NativePawnActivities.Read(p) != null), Cooking = people.Count(p => p.CurJob?.bill == selectedBill),
+                ReassignedPriority = reassigned?.workSettings.GetPriority(ExtraWorkTypeDefOf.Cooking) ?? -1,
+                ReassignedOwned = reassigned != null && NativePawnActivities.Read(reassigned) != null,
+                ReassignedCooking = reassigned?.CurJob?.bill == selectedBill,
+                LearningFailures = SkillLearningVerifier.Failures.ToArray(),
+            });
         }, ct).ConfigureAwait(false);
 }

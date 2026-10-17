@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
                         subject.apparel.Wear(shirt); subject.outfits.forcedHandler.SetForced(shirt, true); subject.apparel.Lock(shirt);
                     }
                     else subject.outfits.CurrentApparelPolicy.filter.SetAllow(SpecialThingFilterDefOf.AllowDeadmansApparel, true);
-                    return new GearPolicyReply { Success = true, Pawn = subject.GetUniqueLoadID(), ShortName = NativeApparelPolicyOperations.ShortName(subject) };
+                    return FixtureKit.Reply(new GearPolicyReply { Success = true, Pawn = subject.GetUniqueLoadID(), ShortName = NativeApparelPolicyOperations.ShortName(subject) });
                 }
                 if (mode == "weapon_setup" || mode == "weapon_assigned" || mode == "weapon_damage") {
                     var map = Find.CurrentMap;

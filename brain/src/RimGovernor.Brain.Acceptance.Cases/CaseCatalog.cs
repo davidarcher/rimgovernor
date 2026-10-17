@@ -14,24 +14,24 @@ public static class CaseCatalog
         HostSeams.Install();
         registry.Register(PawnActivityCase.Case());
         registry.Register(PlannedRoomPredictionCase.Case());
-        registry.Register(PortfolioNeedsCase.Case());
-        registry.Register(NeedTargetCapacityCase.Case());
-        registry.Register(PortfolioThermalCase.Case());
-        registry.Register(ProductiveCookingCase.Case());
-        registry.Register(DevelopmentLifecycleCase.Case());
-        registry.Register(DevelopmentReassignmentCase.Case());
-        registry.Register(MaintenancePracticeCase.Case(false));
-        registry.Register(MaintenancePracticeCase.Case(true));
-        registry.Register(ServiceInvestmentCase.Case());
+        registry.Register(ProductionCoupledNeeds.Case());
+        registry.Register(NeedsTargetCapacity.Case());
+        registry.Register(ProductionCoupledThermal.Case());
+        registry.Register(ProductionCookingDevelopment.Productive());
+        registry.Register(ProductionCookingDevelopment.Lifecycle());
+        registry.Register(ProductionCookingDevelopment.Reassignment());
+        registry.Register(ProductionMaintenancePractice.Case(false));
+        registry.Register(ProductionMaintenancePractice.Case(true));
+        registry.Register(ShelterServiceInvestment.Case());
         registry.Register(PawnControlCase.Case());
         registry.Register(PawnControlCase.LifecycleCase());
         registry.Register(PawnDeliveryCase.Case());
         registry.Register(PawnCookingCase.Case());
-        registry.Register(ClothingActivityCase.Case());
-        registry.Register(ClothingActivityCase.Case(interrupted: true));
-        registry.Register(CoordinatedWorkCase.Case("food"));
-        registry.Register(CoordinatedWorkCase.Case("food", interrupted: true));
-        registry.Register(CoordinatedWorkCase.Case("construction"));
+        registry.Register(ProductionClothingActivity.Case());
+        registry.Register(ProductionClothingActivity.Case(interrupted: true));
+        registry.Register(CoordinatedWork.Case("food"));
+        registry.Register(CoordinatedWork.Case("food", interrupted: true));
+        registry.Register(CoordinatedWork.Case("construction"));
 
         // The case areas land with #3090 and #3093; each area adds one line below (sorted by area).
         ApparelCases.Register(registry);

@@ -10,16 +10,16 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools;
 
 public sealed partial class PawnControlFixture
 {
     private static bool portfolioPatched, portfolioActive, portfolioRebound, portfolioAte, portfolioSlept, portfolioWoke, portfolioPlayed;
-    private static int portfolioStart, portfolioLastEatingTick;
+    private static int portfolioLastEatingTick;
     private static float portfolioFood, portfolioRestAtSleep;
     private static readonly HashSet<string> portfolioMethods = new(StringComparer.Ordinal);
-    private static readonly HashSet<string> portfolioOutputIds = new(StringComparer.Ordinal);
 
     [Tool("test/portfolio_needs_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare scarce food, ripe rice, a stockpile and tired pawn for normal shared selection. Install no chosen task, bill, Method or assignment.")]
     public async Task<object> PortfolioNeedsPrepare(IRimBridgeContext ctx, CancellationToken ct)
@@ -57,9 +57,9 @@ public sealed partial class PawnControlFixture
             var pinCell = GenRadial.RadialCellsAround(worker.Position, 8, false).First(c => c.InBounds(map)
                 && c.Standable(map) && c.GetEdifice(map) == null && c.DistanceTo(worker.Position) > 3);
             var pin = GenSpawn.Spawn(ThingDef.Named("HorseshoesPin"), pinCell, map); pin.SetFaction(Faction.OfPlayer);
-            portfolioMethods.Clear(); portfolioOutputIds.Clear();
+            portfolioMethods.Clear();
             portfolioRebound = portfolioAte = portfolioSlept = portfolioWoke = portfolioPlayed = false;
-            portfolioStart = Find.TickManager.TicksGame; portfolioLastEatingTick = -1000;
+            portfolioLastEatingTick = -1000;
             portfolioFood = worker.needs.food.CurLevelPercentage; portfolioRestAtSleep = -1;
             if (!portfolioPatched)
             {
@@ -69,7 +69,7 @@ public sealed partial class PawnControlFixture
                 portfolioPatched = true;
             }
             portfolioActive = true;
-            return new { success = true, pawn = worker.GetUniqueLoadID(), tick = portfolioStart };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
     }
 
@@ -83,7 +83,7 @@ public sealed partial class PawnControlFixture
             {
                 var actual = RefIndex.Thing(Find.CurrentMap, step.Target);
                 if (actual?.def == ThingDef.Named("RawRice") && (crop!.Destroyed || ((Plant)crop).Growth < 1))
-                { portfolioRebound = true; portfolioOutputIds.Add(actual.GetUniqueLoadID()); }
+                    portfolioRebound = true;
             }
         }
     }
@@ -119,22 +119,20 @@ public sealed partial class PawnControlFixture
                     && !c.GetThingList(map).Any(t => t.def.IsNutritionGivingIngestible))
                 .Take(count).ToArray();
             if (cells.Length != count) throw new InvalidOperationException("Repeat-cycle independent food lots need distinct legal cells.");
-            var foods = new List<string>();
             foreach (var cell in cells)
             {
                 var rice = ThingMaker.MakeThing(ThingDef.Named("RawRice")); rice.stackCount = 20;
-                GenSpawn.Spawn(rice, cell, map); foods.Add(rice.GetUniqueLoadID());
+                GenSpawn.Spawn(rice, cell, map);
             }
             worker.needs.food.CurLevelPercentage = .2f;
             portfolioFood = .2f; portfolioAte = false; portfolioLastEatingTick = -1000;
-            return new { success = true, tick = Find.TickManager.TicksGame, foods = foods.ToArray() };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
     [Tool("test/portfolio_needs_read", Description="UNSAFE FOR MODEL EXECUTION. Observe actual normal-planner coupled batches, harvested output rebinding, ingestion and sleep/wake; writes no orders.")]
     public async Task<object> PortfolioNeedsRead(IRimBridgeContext ctx, CancellationToken ct)
-        => await ctx.MainThread.InvokeAsync<object>(() => new { success = true, tick = Find.TickManager.TicksGame,
-            elapsed = Find.TickManager.TicksGame - portfolioStart, methods = portfolioMethods.OrderBy(x => x).ToArray(),
-            outputIds = portfolioOutputIds.OrderBy(x => x).ToArray(), rebound = portfolioRebound, ate = portfolioAte,
-            slept = portfolioSlept, woke = portfolioWoke, played = portfolioPlayed, food = worker!.needs.food.CurLevelPercentage,
-            rest = worker.needs.rest.CurLevelPercentage, execution = NativePawnActivities.Read(worker),
-            legacyWork = worker.timetable.GetAssignment(GenLocalDate.HourInteger(worker)) == TimeAssignmentDefOf.Work }, ct).ConfigureAwait(false);
+        => await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new Fx.PortfolioNeedsRead
+        {
+            Tick = Find.TickManager.TicksGame, Methods = portfolioMethods.OrderBy(x => x).ToArray(), Rebound = portfolioRebound,
+            Ate = portfolioAte, Slept = portfolioSlept, Woke = portfolioWoke, Played = portfolioPlayed,
+        }), ct).ConfigureAwait(false);
 }

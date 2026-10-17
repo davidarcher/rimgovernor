@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
 using RimGovernor.Brain.Domain;
+using Fx = RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -20,14 +21,12 @@ public sealed partial class PawnControlFixture
     private static bool capacityPatched, capacityActive;
     private static string capacityPhase = "";
     private static Thing? capacityStack, capacityBed;
-    private static int capacityStart, capacityObservedTick, capacityBothTiredTick;
+    private static int capacityObservedTick, capacityBothTiredTick;
     private static int capacityMaxStackReservers, capacityMaxBedReservers, capacityMaxBedSleepers;
     private static readonly Dictionary<string, float> capacityFoodStart = new(StringComparer.Ordinal);
     private static readonly HashSet<string> capacityAte = new(StringComparer.Ordinal);
     private static readonly HashSet<string> capacityOwnedIngest = new(StringComparer.Ordinal);
-    private static readonly HashSet<string> capacityBedPlanned = new(StringComparer.Ordinal);
     private static readonly HashSet<string> capacityBedSlept = new(StringComparer.Ordinal);
-    private static readonly HashSet<string> capacityMethods = new(StringComparer.Ordinal);
 
     private static void CapacityQuiet(Map map, float food, float rest)
     {
@@ -47,14 +46,13 @@ public sealed partial class PawnControlFixture
     {
         capacityActive = false; capacityPhase = phase;
         capacityMaxStackReservers = capacityMaxBedReservers = capacityMaxBedSleepers = 0;
-        capacityFoodStart.Clear(); capacityAte.Clear(); capacityOwnedIngest.Clear(); capacityBedPlanned.Clear(); capacityBedSlept.Clear();
-        capacityStart = Find.TickManager.TicksGame; capacityObservedTick = -1; capacityBothTiredTick = -1;
-        if (phase == "food") { capacityMethods.Clear(); capacityBed = null; }
+        capacityFoodStart.Clear(); capacityAte.Clear(); capacityOwnedIngest.Clear(); capacityBedSlept.Clear();
+        capacityObservedTick = -1; capacityBothTiredTick = -1;
+        if (phase == "food") capacityBed = null;
         else capacityStack = null;
         if (!capacityPatched)
         {
             var harmony = new Harmony("rimgovernor.fixture.need-capacity");
-            harmony.Patch(AccessTools.Method(typeof(NativePawnActivities), "Apply"), postfix: new HarmonyMethod(typeof(PawnControlFixture), nameof(CapacityApplied)));
             harmony.Patch(AccessTools.Method(typeof(Pawn_JobTracker), "JobTrackerTick"), postfix: new HarmonyMethod(typeof(PawnControlFixture), nameof(CapacityTick)));
             capacityPatched = true;
         }
@@ -75,7 +73,7 @@ public sealed partial class PawnControlFixture
             GenSpawn.Spawn(capacityStack, cell, map);
             foreach (var pawn in pawns) capacityFoodStart[pawn.GetUniqueLoadID()] = pawn.needs.food.CurLevelPercentage;
             capacityActive = true;
-            return new { success = true, tick = capacityStart, stack = capacityStack.GetUniqueLoadID(), stackCount = capacityStack.stackCount, pawns = pawns.Select(p => p.GetUniqueLoadID()).ToArray() };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
 
     [Tool("test/need_capacity_bed", Description="UNSAFE FOR MODEL EXECUTION. Replace the meal stack with one single-slot bed and tire both pawns. Install no chosen task, Method or assignment.")]
@@ -91,18 +89,8 @@ public sealed partial class PawnControlFixture
             var cell = GenRadial.RadialCellsAround(anchor, 6, false).First(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null && c.DistanceTo(anchor) > 2);
             capacityBed = GenSpawn.Spawn(ThingDefOf.Bed, cell, map); capacityBed.SetFaction(Faction.OfPlayer);
             capacityActive = true;
-            return new { success = true, tick = capacityStart, bed = capacityBed.GetUniqueLoadID(), slots = ((Building_Bed)capacityBed).SleepingSlotsCount, pawns = pawns.Select(p => p.GetUniqueLoadID()).ToArray() };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
-
-    private static void CapacityApplied(PawnActivities batch)
-    {
-        if (!capacityActive) return;
-        foreach (var order in batch.Orders.Where(o => !o.Release && o.Method.StartsWith("coupled-", StringComparison.Ordinal)))
-        {
-            capacityMethods.Add(order.Method);
-            if (capacityBed != null && order.Steps.Any(s => s.Kind == PawnActivityKind.Sleep && s.Target == capacityBed.GetUniqueLoadID())) capacityBedPlanned.Add(order.Pawn);
-        }
-    }
 
     private static void CapacityTick(Pawn ___pawn)
     {
@@ -132,15 +120,11 @@ public sealed partial class PawnControlFixture
 
     [Tool("test/need_capacity_read", Description="UNSAFE FOR MODEL EXECUTION. Observe concurrent reservations and completed ingestion/sleep from normal-planner batches; writes no orders.")]
     public async Task<object> NeedCapacityRead(IRimBridgeContext ctx, CancellationToken ct)
-        => await ctx.MainThread.InvokeAsync<object>(() => new
+        => await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new Fx.NeedCapacityRead
         {
-            success = true, phase = capacityPhase, tick = Find.TickManager.TicksGame, elapsed = Find.TickManager.TicksGame - capacityStart,
-            methods = capacityMethods.OrderBy(x => x).ToArray(),
-            stackRemaining = capacityStack is { Destroyed: false } ? capacityStack.stackCount : 0,
-            maxStackReservers = capacityMaxStackReservers, ate = capacityAte.Count, ownedIngest = capacityOwnedIngest.Count,
-            bedSlots = capacityBed is Building_Bed bed ? bed.SleepingSlotsCount : 0,
-            maxBedReservers = capacityMaxBedReservers, maxBedSleepers = capacityMaxBedSleepers,
-            bedPlanned = capacityBedPlanned.Count, bedSlept = capacityBedSlept.Count,
-            sinceBothTired = capacityBothTiredTick < 0 ? -1 : Find.TickManager.TicksGame - capacityBothTiredTick,
-        }, ct).ConfigureAwait(false);
+            Tick = Find.TickManager.TicksGame, MaxStackReservers = capacityMaxStackReservers, Ate = capacityAte.Count,
+            BedSlots = capacityBed is Building_Bed bed ? bed.SleepingSlotsCount : 0,
+            MaxBedReservers = capacityMaxBedReservers, MaxBedSleepers = capacityMaxBedSleepers, BedSlept = capacityBedSlept.Count,
+            SinceBothTired = capacityBothTiredTick < 0 ? -1 : Find.TickManager.TicksGame - capacityBothTiredTick,
+        }), ct).ConfigureAwait(false);
 }

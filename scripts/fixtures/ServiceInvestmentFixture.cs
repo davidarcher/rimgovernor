@@ -10,6 +10,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools;
 
@@ -19,8 +20,6 @@ public sealed class ServiceInvestmentFixture
     private static Frame? heater, spare;
     private static FixtureHut.Result? hut;
     private static bool patched, active, worked;
-    private static int started;
-    private static readonly HashSet<string> methods = new(StringComparer.Ordinal);
 
     [Tool("test/service_shelter_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Prepare a cold occupied room, partly funded heater and unrelated lower-tier wall competing for five steel. No chosen task or assignment.")]
     public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken ct)
@@ -67,7 +66,7 @@ public sealed class ServiceInvestmentFixture
                 GenSpawn.Spawn(conduit, cell, map);
             }
             map.powerNetManager.UpdatePowerNetsAndConnections_First();
-            methods.Clear(); worked = false; started = Find.TickManager.TicksGame;
+            worked = false;
             if (!patched)
             {
                 new Harmony("rimgovernor.fixture.service-investment").Patch(AccessTools.Method(typeof(Pawn_JobTracker), "JobTrackerTick"),
@@ -75,8 +74,7 @@ public sealed class ServiceInvestmentFixture
                 patched = true;
             }
             active = true;
-            return new { success = true, x = hut.Origin.x + 1, z = hut.Origin.z + 1, width = 3, height = 3,
-                doorX = hut.Door.x, doorZ = hut.Door.z, heater = heater.GetUniqueLoadID(), spare = spare.GetUniqueLoadID() };
+            return FixtureKit.Reply(new Fx.ServiceShelterPrepared { Success = true, X = hut.Origin.x + 1, Z = hut.Origin.z + 1, DoorX = hut.Door.x, DoorZ = hut.Door.z });
         }, ct).ConfigureAwait(false);
 
     private static void ObserveWork(Pawn ___pawn)
@@ -84,7 +82,6 @@ public sealed class ServiceInvestmentFixture
         if (!active || heater == null || ___pawn.CurJob?.targetA.Thing != heater) return;
         var execution = NativePawnActivities.Read(___pawn);
         if (execution?.Method.StartsWith("coupled-", StringComparison.Ordinal) != true) return;
-        methods.Add(execution.Method);
         if (___pawn.CurJobDef?.defName == "FinishFrame") worked = true;
     }
 
@@ -95,10 +92,12 @@ public sealed class ServiceInvestmentFixture
             if (hut == null || heater == null || spare == null) throw new InvalidOperationException("Prepare shelter first.");
             var map = Find.CurrentMap;
             var complete = hut.Interior.Select(c => c.GetEdifice(map)).OfType<Building_Heater>().SingleOrDefault();
-            return new { success = true, tick = Find.TickManager.TicksGame, elapsed = Find.TickManager.TicksGame - started,
-                methods = methods.OrderBy(m => m).ToArray(), worked, completed = complete != null,
-                powered = complete?.TryGetComp<CompPowerTrader>()?.PowerOn == true,
-                temperature = hut.Interior[0].GetTemperature(map), sparePresent = spare.Spawned,
-                spareRemainingWork = spare.Spawned ? spare.WorkToBuild - spare.workDone : 0 };
+            return FixtureKit.Reply(new Fx.ServiceShelterRead
+            {
+                Tick = Find.TickManager.TicksGame, Worked = worked, Completed = complete != null,
+                Powered = complete?.TryGetComp<CompPowerTrader>()?.PowerOn == true,
+                Temperature = hut.Interior[0].GetTemperature(map), SparePresent = spare.Spawned,
+                SpareRemainingWork = spare.Spawned ? spare.WorkToBuild - spare.workDone : 0,
+            });
         }, ct).ConfigureAwait(false);
 }

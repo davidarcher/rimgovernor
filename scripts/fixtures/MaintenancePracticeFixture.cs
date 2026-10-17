@@ -10,6 +10,7 @@ using RimGovernor.Runtime;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Fx = RimGovernor.Fixtures.Contracts;
 namespace HomeBridge.BridgeTools;
 
 public sealed class MaintenancePracticeFixture
@@ -17,7 +18,7 @@ public sealed class MaintenancePracticeFixture
     private static Pawn? holder;
     private static Precept_Role? role;
     private static SkillDef skill = null!;
-    private static int floor, started;
+    private static int floor;
     private static bool patched, earned, interrupt, drafted, restored, released;
     private static readonly HashSet<string> methods = new(StringComparer.Ordinal);
     private static string realWeapon = "";
@@ -56,7 +57,7 @@ public sealed class MaintenancePracticeFixture
             SetDeficit();
             var hour = GenLocalDate.DayPercent(holder) * 24;
             Find.TickManager.DebugSetTicksGame(Find.TickManager.TicksGame + (int)Math.Round(((12 - hour + 24) % 24) * GenDate.TicksPerHour));
-            started = Find.TickManager.TicksGame; realWeapon = holder.equipment.Primary?.def.defName ?? "";
+            realWeapon = holder.equipment.Primary?.def.defName ?? "";
             methods.Clear(); earned = interrupt = drafted = restored = released = false;
             if (!patched)
             {
@@ -66,7 +67,7 @@ public sealed class MaintenancePracticeFixture
                     new Harmony("rimgovernor.fixture.maintenance.role").Patch(AccessTools.Method(type, "RecacheActivity"), prefix: new HarmonyMethod(typeof(MaintenancePracticeFixture), nameof(KeepRole)));
                 patched = true;
             }
-            return new { success = true, ready = true, pawn = holder.GetUniqueLoadID(), role = role.GetUniqueLoadID(), skill = skill.defName, floor };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct);
     }
     // Test-only: the game drops a role holder below the requirement on the same tick; this is the state under test.
@@ -96,9 +97,11 @@ public sealed class MaintenancePracticeFixture
     {
         if (holder == null) throw new InvalidOperationException("Prepare first.");
         if (drafted && holder.equipment.Primary?.def.defName == realWeapon) restored = true;
-        return new { tick = Find.TickManager.TicksGame, elapsed = Find.TickManager.TicksGame - started,
-            methods = methods.ToArray(), assigned = role != null && role.ChosenPawns().Contains(holder), earned, level = holder.skills.GetSkill(skill).Level, floor, drafted, restored,
-            released, activity = NativePawnActivities.Read(holder)?.State ?? "unowned", job = holder.CurJobDef?.defName ?? "" };
+        return FixtureKit.Reply(new Fx.MaintenanceRead
+        {
+            Tick = Find.TickManager.TicksGame, Methods = methods.ToArray(), Earned = earned, Drafted = drafted, Restored = restored,
+            Released = released, Activity = NativePawnActivities.Read(holder)?.State ?? "unowned", Job = holder.CurJobDef?.defName ?? "",
+        });
     }, ct);
     [Tool("test/maintenance_disturb", Description="UNSAFE FOR MODEL EXECUTION. Rearm below-floor maintenance and draft during native gear swap, or remove the assigned role. No work is selected. Test builds only.")]
     public async Task<object> Disturb(IRimBridgeContext ctx, CancellationToken ct, string action) => await ctx.MainThread.InvokeAsync<object>(() =>
@@ -107,6 +110,6 @@ public sealed class MaintenancePracticeFixture
         if (action == "interrupt") { SetDeficit(); interrupt = true; }
         else if (action == "release") { role.Unassign(holder, true); role.ideo.RemovePrecept(role); holder.drafter.Drafted = false; released = true; }
         else throw new ArgumentException("Unknown disturbance.");
-        return new { success = true };
+        return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
     }, ct);
 }

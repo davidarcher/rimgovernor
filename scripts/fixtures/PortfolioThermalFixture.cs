@@ -10,6 +10,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools;
 
@@ -21,7 +22,6 @@ public sealed partial class PawnControlFixture
     private static Building_Bed? thermalBed;
     private static Pawn? thermalSleeper;
     private static float thermalBaseline, thermalPeak;
-    private static int thermalStart, thermalRoofTick;
     private static bool thermalActive, thermalPatched, thermalSlept;
     private static readonly HashSet<string> thermalMethods = new(StringComparer.Ordinal);
 
@@ -44,7 +44,8 @@ public sealed partial class PawnControlFixture
                 throw new InvalidOperationException("Native furniture footprints do not fit the unchanged planned interior.");
             var shell = thermalInterior.ExpandedBy(1);
             if (!shell.Cells.All(c => c.InBounds(map))) throw new InvalidOperationException("Planned room is outside map.");
-            var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+            // The sleeper is the first colonist by thing id: test/stage's Colonist 0.
+            var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToArray();
             thermalSleeper = people.First();
             foreach (var pawn in people)
             {
@@ -100,7 +101,6 @@ public sealed partial class PawnControlFixture
             }
             thermalSleeper.Position = new IntVec3(x + 1, 0, z + height - 2);
             thermalSleeper.Notify_Teleported(true, true);
-            thermalStart = Find.TickManager.TicksGame; thermalRoofTick = -1;
             thermalPeak = thermalBaseline; thermalSlept = false; thermalMethods.Clear();
             if (!thermalPatched)
             {
@@ -126,7 +126,6 @@ public sealed partial class PawnControlFixture
         var map = ___pawn.Map;
         if (thermalMissing.All(c => c.Roofed(map)))
         {
-            if (thermalRoofTick < 0) thermalRoofTick = Find.TickManager.TicksGame;
             var execution = NativePawnActivities.Read(___pawn);
             if (execution?.Method.StartsWith("coupled-", StringComparison.Ordinal) == true && ___pawn.CurJobDef == JobDefOf.LayDown
                 && !___pawn.Awake() && ___pawn.CurrentBed() == thermalBed)
@@ -136,14 +135,13 @@ public sealed partial class PawnControlFixture
             }
         }
     }
-    private static object ThermalStatus() => new
+    private static object ThermalStatus() => FixtureKit.Reply(new Fx.ThermalRead
     {
-        success = true, tick = Find.TickManager.TicksGame, elapsed = Find.TickManager.TicksGame - thermalStart,
-        baseline = thermalBaseline, temperature = thermalBed!.Position.GetTemperature(thermalBed.Map), occupiedPeak = thermalPeak,
-        roofComplete = thermalMissing.All(c => c.Roofed(thermalBed.Map)), openRoof = thermalBed.GetRoom().OpenRoofCount,
-        slept = thermalSlept, roofTick = thermalRoofTick, methods = thermalMethods.Order(StringComparer.Ordinal).ToArray(),
-        powered = thermalHeater!.TryGetComp<CompPowerTrader>().PowerOn
-    };
+        Tick = Find.TickManager.TicksGame, Baseline = thermalBaseline, OccupiedPeak = thermalPeak,
+        RoofComplete = thermalMissing.All(c => c.Roofed(thermalBed!.Map)), OpenRoof = thermalBed!.GetRoom().OpenRoofCount,
+        Slept = thermalSlept, Methods = thermalMethods.OrderBy(m => m, StringComparer.Ordinal).ToArray(),
+        Powered = thermalHeater!.TryGetComp<CompPowerTrader>().PowerOn,
+    });
     [Tool("test/portfolio_thermal_read", Description="UNSAFE FOR MODEL EXECUTION. Observe native roof completion and occupied room warming after normal planner work; writes nothing.")]
     public async Task<object> PortfolioThermalRead(IRimBridgeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(ThermalStatus, ct).ConfigureAwait(false);

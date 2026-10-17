@@ -10,6 +10,7 @@ using Verse;
 using Verse.AI;
 using RimGovernor.Host.Sdk;
 using RimGovernor.Brain.Domain;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace HomeBridge.BridgeTools;
 
@@ -23,11 +24,9 @@ public sealed partial class PawnControlFixture
     private static readonly HashSet<string> coordinationCompleted = new(StringComparer.Ordinal);
     private static readonly HashSet<string> coordinationParticipants = new(StringComparer.Ordinal);
     private static readonly HashSet<string> coordinationReleased = new(StringComparer.Ordinal);
-    private static readonly HashSet<string> coordinationKinds = new(StringComparer.Ordinal);
     private static readonly HashSet<string> coordinationFinishedKinds = new(StringComparer.Ordinal);
-    private static SelectedActivityTask[] coordinationTasks = [];
     private static bool coordinationJoint, coordinationRecovered, coordinationForced;
-    private static int coordinationStart, coordinationDelivered, coordinationRevision;
+    private static int coordinationDelivered, coordinationRevision;
 
     [Tool("test/coordinated_work_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Prepare a quiet food or shelter deficit and specialist/helper physical facts; no plans, orders or task assignments are installed.")]
     public async Task<object> PrepareCoordination(IRimBridgeContext ctx, CancellationToken ct,
@@ -78,12 +77,11 @@ public sealed partial class PawnControlFixture
                 foreach (var t in map.listerThings.ThingsOfDef(ThingDefOf.WoodLog).ToArray()) t.Destroy();
                 var wood = GenSpawn.Spawn(ThingDefOf.WoodLog, CellFinder.RandomClosewalkCellNear(anchor, map, 3), map); wood.stackCount = 75;
             }
-            coordinationOrders.Clear(); coordinationCompleted.Clear(); coordinationParticipants.Clear(); coordinationReleased.Clear(); coordinationKinds.Clear(); coordinationFinishedKinds.Clear();
+            coordinationOrders.Clear(); coordinationCompleted.Clear(); coordinationParticipants.Clear(); coordinationReleased.Clear(); coordinationFinishedKinds.Clear();
             coordinationMethod = coordinationInterruptedPawn = coordinationInterruptedAssignment = "";
-            coordinationTasks = [];
             coordinationMode = mode; coordinationInterrupt = interrupt; coordinationInterrupted = false;
             coordinationJoint = coordinationRecovered = coordinationForced = false;
-            coordinationStart = Find.TickManager.TicksGame; coordinationDelivered = coordinationRevision = 0;
+            coordinationDelivered = coordinationRevision = 0;
             if (!coordinationPatched)
             {
                 var h = new Harmony("rimgovernor.fixture.coordinated-work");
@@ -92,7 +90,7 @@ public sealed partial class PawnControlFixture
                 coordinationPatched = true;
             }
             coordinationActive = true;
-            return new { success = true, mode, interrupt, pawns = people.Select(p => p.GetUniqueLoadID()).ToArray() };
+            return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
 
     private static void CoordinationApplied(PawnActivities batch)
@@ -106,12 +104,7 @@ public sealed partial class PawnControlFixture
         if (coordinationMethod.Length == 0 && batch.Tasks.Any(t => coordinationMode == "food" ? t.Step.Job == "Harvest" : t.Step.Kind == PawnActivityKind.Supply))
             coordinationMethod = batch.Orders[0].Method;
         if (coordinationMethod.Length == 0 || batch.Orders.Any(o => o.Method != coordinationMethod)) return;
-        coordinationTasks = batch.Tasks.ToArray();
-        if (batch.Tasks.Count != 0)
-        {
-            coordinationJoint |= batch.Tasks.Select(t => t.Pawn).Distinct().Count() > 1;
-            foreach (var task in batch.Tasks) coordinationKinds.Add(task.Step.Kind + ":" + task.Step.Job);
-        }
+        coordinationJoint |= batch.Tasks.Select(t => t.Pawn).Distinct().Count() > 1;
         foreach (var order in batch.Orders)
         {
             if (order.Task.Length == 0 && !coordinationParticipants.Contains(order.Pawn)) continue;
@@ -146,15 +139,15 @@ public sealed partial class PawnControlFixture
     public async Task<object> ReadCoordination(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
     {
         var map = Find.CurrentMap;
-        return new { tick = Find.TickManager.TicksGame, elapsed = Find.TickManager.TicksGame - coordinationStart,
-            mode = coordinationMode, joint = coordinationJoint, interrupted = coordinationInterrupted, recovered = coordinationRecovered,
-            forced = coordinationForced, completedOperations = coordinationCompleted.Count, delivered = coordinationDelivered,
-            participants = coordinationParticipants.OrderBy(s => s).ToArray(), released = coordinationReleased.OrderBy(s => s).ToArray(), kinds = coordinationKinds.OrderBy(s => s).ToArray(),
-            finishedKinds = coordinationFinishedKinds.OrderBy(s => s).ToArray(), method = coordinationMethod,
-            unmet = coordinationTasks.Select(t => new { task = t.Id, pawn = t.Pawn, kind = t.Step.Kind.ToString(),
-                count = t.Step.Count, prerequisites = t.Prerequisites.ToArray(), deadline = t.Step.Deadline }).ToArray(),
-            physicalFood = coordinationMode == "food" ? deliveryCell.GetThingList(map).Where(t => t.def == harvestProduct).Sum(t => t.stackCount) : 0,
-            physicalBuildings = map.listerThings.AllThings.OfType<Verse.Building>().Count(b => b.Faction == Faction.OfPlayer && (b is Building_Bed || b.def == ThingDefOf.Wall)),
-            active = coordinationParticipants.Count(id => map.mapPawns.AllPawnsSpawned.Any(p => p.GetUniqueLoadID() == id && NativePawnActivities.Read(p)?.Method == coordinationMethod)) };
+        return FixtureKit.Reply(new Fx.CoordinationRead
+        {
+            Tick = Find.TickManager.TicksGame, Joint = coordinationJoint, Interrupted = coordinationInterrupted, Recovered = coordinationRecovered,
+            Forced = coordinationForced, Delivered = coordinationDelivered,
+            Participants = coordinationParticipants.OrderBy(s => s).ToArray(), Released = coordinationReleased.OrderBy(s => s).ToArray(),
+            FinishedKinds = coordinationFinishedKinds.OrderBy(s => s).ToArray(),
+            PhysicalFood = coordinationMode == "food" ? deliveryCell.GetThingList(map).Where(t => t.def == harvestProduct).Sum(t => t.stackCount) : 0,
+            PhysicalBuildings = map.listerThings.AllThings.OfType<Verse.Building>().Count(b => b.Faction == Faction.OfPlayer && (b is Building_Bed || b.def == ThingDefOf.Wall)),
+            Active = coordinationParticipants.Count(id => map.mapPawns.AllPawnsSpawned.Any(p => p.GetUniqueLoadID() == id && NativePawnActivities.Read(p)?.Method == coordinationMethod)),
+        });
     }, ct).ConfigureAwait(false);
 }

@@ -63,9 +63,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Clearance/ClearanceSalvageRemote.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/ClothingActivityCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Combat/CombatCases.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -174,16 +171,7 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/CombatLab/Wild.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/CoordinatedWorkCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Custody/CustodyPopulation.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/DevelopmentLifecycleCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/DevelopmentReassignmentCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Dialog/DialogPause.cs]
@@ -369,9 +357,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Light/LightDark.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/MaintenancePracticeCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Mapscope/MapscopeIsolation.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -424,9 +409,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Needs/NeedsFreeze.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/NeedTargetCapacityCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Odyssey/OdysseyLavaField.cs]
@@ -483,16 +465,7 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/PawnDeliveryCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/PortfolioNeedsCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/PortfolioThermalCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Presentation/PresentationRoster.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/ProductiveCookingCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Quest/QuestAccept.cs]
@@ -544,9 +517,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Service/ServiceRestart.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/ServiceInvestmentCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Shared/CaseJournal.cs]
