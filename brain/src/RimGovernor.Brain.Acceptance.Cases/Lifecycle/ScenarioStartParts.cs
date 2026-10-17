@@ -43,7 +43,7 @@ internal static class LifecycleScenarioStartParts
         },
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await NewColonyStart.ForcedTraitAsync(s, "Jogger", cancellationToken).ConfigureAwait(false);
         var save = await s.ReadSaveFileAsync(Save, cancellationToken).ConfigureAwait(false);

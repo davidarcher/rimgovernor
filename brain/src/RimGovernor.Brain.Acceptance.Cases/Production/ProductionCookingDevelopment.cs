@@ -93,7 +93,7 @@ internal static class ProductionCookingDevelopment
         Run = ReassignmentAsync,
     };
 
-    private static async Task LifecycleAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task LifecycleAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("cooking-prepare", Prepared, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         bool urged = false, recovered = false, satisfied = false;
@@ -133,7 +133,7 @@ internal static class ProductionCookingDevelopment
         }, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task ReassignmentAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task ReassignmentAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("cooking-prepare", Prepared, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         bool reassigned = false, satisfied = false;
@@ -183,7 +183,7 @@ internal static class ProductionCookingDevelopment
         }, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<Fx.ProductiveCookingRead> ObserveAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task<Fx.ProductiveCookingRead> ObserveAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var read = await s.FixtureAsync("cooking-observe", Read, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         s.Record("observed", ServedOps.Json(read));

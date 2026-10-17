@@ -20,7 +20,7 @@ internal static class TendGates
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var rows = await TypedPawns.ListAsync(s, "tend-gates", new Observations.PawnFilter { Colonist = true }, new Observations.PawnDetails { Tend = true }, cancellationToken).ConfigureAwait(false);
         var reach = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);

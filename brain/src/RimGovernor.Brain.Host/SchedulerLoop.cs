@@ -22,7 +22,7 @@ internal sealed class SchedulerLoop
     private readonly Player _player;
     private readonly Session _session;
     private readonly ClockScheduler _scheduler;
-    private readonly IClockRunDriver? _clock;
+    private readonly ClockRunDriver? _clock;
     private readonly WakeSignal _wake;
     private readonly BrainTimings _timings;
     private readonly BrainWatchdog _watchdog;
@@ -37,7 +37,7 @@ internal sealed class SchedulerLoop
         Player player,
         Session session,
         ClockScheduler scheduler,
-        IClockRunDriver? clock,
+        ClockRunDriver? clock,
         WakeSignal wake,
         BrainTimings timings,
         BrainWatchdog watchdog,

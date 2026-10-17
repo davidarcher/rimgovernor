@@ -52,7 +52,7 @@ internal static class CombatLabNativeHold
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var lab = new StagedLab(Fixture, s.Staged!);
         var defender = lab.Colonists()[0];

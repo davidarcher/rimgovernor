@@ -50,9 +50,9 @@ the brain's `rimgovernor/*` tool names), which is how a scheduler step reports i
 `ClockRunDriver` (#3178) is the hold state machine of the clock: after each planning step it keeps the clock Running at the target
 speed under the watch policy the facts imply (`Run`), takes the brain's own holds (a coupled order, a review, an autosave),
 keeps the heartbeat and consumes the colony events native pushes (`ColonyEventConsumer`). The composition builds it with `ClockRunDriver.Create` over a
-`ClockCapabilities` session and an `IClockDriverNative`, wraps it in `ClockRunHostDriver` and returns it as
+`ClockCapabilities` session and an `IClockDriverNative` and returns it as
 `PlannerParts.Clock`. The composition (`startServiceClock` and
-`roundsCapabilities`) is `IBrainComposition`; its family flags are all on by default and
+`roundsCapabilities`) is `BrainComposition`; its family flags are all on by default and
 `RIMGOVERNOR_ROUTINE_FAMILIES` narrows them.
 
 The player providers (#3114) are the client's `IPresentationReader`, `IPresentationMediaWriter`, `INotificationReader`

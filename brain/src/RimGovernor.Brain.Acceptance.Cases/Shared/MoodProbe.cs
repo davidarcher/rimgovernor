@@ -16,7 +16,7 @@ internal static class MoodProbe
     /// Runs <see cref="Settle"/> ticks at a time until the pawn's situational cache is clean, then returns
     /// the thought's total offset (0 when absent), the raw situational row, the ticks run and the pawn read.
     /// </summary>
-    internal static async Task<(double Offset, Thought? Row, int Ticks, PawnState Pawn)> ReadAsync(ITypedSession s, string label, string pawn, string thought, CancellationToken cancellationToken)
+    internal static async Task<(double Offset, Thought? Row, int Ticks, PawnState Pawn)> ReadAsync(TypedSession s, string label, string pawn, string thought, CancellationToken cancellationToken)
     {
         var details = new PawnDetails
         {

@@ -96,7 +96,7 @@ internal static class ControlDelivery
     }
 
     // Runs until the stage's terminal state; any other failure or a player-forced job fails the case.
-    private static async Task<Fx.DeliveryRead> WaitAsync(ITypedSession s, string stage, string expected, CancellationToken cancellationToken)
+    private static async Task<Fx.DeliveryRead> WaitAsync(TypedSession s, string stage, string expected, CancellationToken cancellationToken)
     {
         Fx.DeliveryRead? last = null;
         _ = await s.RunUntilAsync(stage, StageTicks, async ct =>

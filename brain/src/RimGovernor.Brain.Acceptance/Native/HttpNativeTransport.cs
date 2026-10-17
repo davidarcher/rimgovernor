@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// <see cref="EndpointFile"/>). <c>POST /native/&lt;op&gt;</c> carries the op's JSON request record (or, for a host or
 /// fixture tool, a JSON object of its arguments) and answers its reply body; a body the op cannot read is a 400.
 /// </summary>
-public sealed class HttpNativeTransport : INativeTransport
+public sealed class HttpNativeTransport : IAsyncDisposable
 {
     /// <summary>The longest a call may be asked to wait (Go <c>bridge.MaxCallTimeout</c>).</summary>
     public static readonly TimeSpan MaxCallTimeout = TimeSpan.FromMinutes(10);
@@ -53,6 +53,13 @@ public sealed class HttpNativeTransport : INativeTransport
     /// </summary>
     public Func<string?>? Gone { get; init; }
 
+    /// <summary>
+    /// Runs <paramref name="tool"/> (a name such as <c>rimgovernor/observations_read_status</c>) with its JSON
+    /// arguments. A native op is called with an object holding only the string member <c>request</c> (its JSON
+    /// request record), and its reply's structured content is <c>{"payload": "&lt;JSON reply record&gt;"}</c>.
+    /// </summary>
+    /// <exception cref="NativeRefusedException">The game refused the call.</exception>
+    /// <exception cref="NativeTransportException">The call did not reach the game or the channel does not route the tool.</exception>
     public async Task<NativeResult> CallAsync(string tool, JsonObject arguments, NativeCallOptions options, CancellationToken cancellationToken)
     {
         if (Gone?.Invoke() is { } gone)

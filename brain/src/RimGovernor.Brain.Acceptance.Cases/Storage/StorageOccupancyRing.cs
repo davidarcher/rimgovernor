@@ -42,7 +42,7 @@ internal static class StorageOccupancyRing
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var zone = s.Staged!.Zones["store"];
         await s.RunTicksAsync("hours", 6000, cancellationToken).ConfigureAwait(false);
@@ -61,7 +61,7 @@ internal static class StorageOccupancyRing
         }
     }
 
-    private static async Task<List<Observations.StorageOccupancySample>> SamplesAsync(ITypedSession s, string zone, string label, CancellationToken cancellationToken)
+    private static async Task<List<Observations.StorageOccupancySample>> SamplesAsync(TypedSession s, string zone, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadStorageOccupancy, new Observations.StorageOccupancyRequest { Groups = [new Common.Ref { Id = zone }] }, cancellationToken).ConfigureAwait(false);
         var snapshot = TypedReads.Observed(label, NativeOps.ReadStorageOccupancy, reply, reply.Outcome?.Observed);

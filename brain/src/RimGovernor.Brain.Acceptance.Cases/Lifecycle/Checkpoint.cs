@@ -23,7 +23,7 @@ internal static class LifecycleCheckpoint
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var (identity, tick, paused) = await TypedLifecycle.IdentityAsync(s, "identity-before", cancellationToken).ConfigureAwait(false);
         if (!paused)

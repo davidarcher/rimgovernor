@@ -38,7 +38,7 @@ internal static class WallRemotePickup
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 

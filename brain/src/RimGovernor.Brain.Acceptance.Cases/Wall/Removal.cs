@@ -33,7 +33,7 @@ internal static class WallRemoval
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         // A straight site with three open backup cells on one of the room's walls.
         (string Wall, Observations.WallUpgradeSite Row)? found = null;
@@ -134,7 +134,7 @@ internal static class WallRemoval
     }
 
     /// <summary>Applies one guarded removal and checks its admission evidence: target, removal id, site tokens, nothing demolished yet.</summary>
-    private static async Task<Operations.ActionResultOutcome> ExecuteAsync(ITypedSession s, string key, string wall, Operations.DesignateIntent intent, CancellationToken cancellationToken)
+    private static async Task<Operations.ActionResultOutcome> ExecuteAsync(TypedSession s, string key, string wall, Operations.DesignateIntent intent, CancellationToken cancellationToken)
     {
         var outcome = await TypedApply.AppliedAsync(s, key, intent, cancellationToken).ConfigureAwait(false);
         var effect = outcome.Effect()?.Wall;
@@ -148,7 +148,7 @@ internal static class WallRemoval
     }
 
     /// <summary>Runs until the building census no longer lists <paramref name="wall"/>.</summary>
-    private static async Task GoneAsync(ITypedSession s, string label, string wall, int ticks, CancellationToken cancellationToken)
+    private static async Task GoneAsync(TypedSession s, string label, string wall, int ticks, CancellationToken cancellationToken)
     {
         var spent = await s.RunUntilAsync(label, ticks, async ct =>
         {
@@ -159,14 +159,14 @@ internal static class WallRemoval
     }
 
     /// <summary>The cell a building stands on, from the building census.</summary>
-    private static async Task<Common.Cell> CellAsync(ITypedSession s, string label, string id, CancellationToken cancellationToken)
+    private static async Task<Common.Cell> CellAsync(TypedSession s, string label, string id, CancellationToken cancellationToken)
     {
         var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [id] }, cancellationToken).ConfigureAwait(false);
         return rows.FirstOrDefault(r => r.Building.Id == id)?.Building.Position ?? throw new AcceptanceException($"{label}: {id} is not on the building census");
     }
 
     /// <summary>Stages finished player granite walls at absolute cells (clearing the leftovers there) and returns their ids in order.</summary>
-    private static async Task<IReadOnlyList<string>> StageWallsAsync(ITypedSession s, string name, IEnumerable<Common.Cell> cells, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<string>> StageWallsAsync(TypedSession s, string name, IEnumerable<Common.Cell> cells, CancellationToken cancellationToken)
     {
         var at = cells.Select(c => new Fx.StageCell(c.X, c.Z)).ToList();
         var reply = await s.StageAsync(name, new Fx.StageSpec

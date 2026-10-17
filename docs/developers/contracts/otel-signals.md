@@ -87,7 +87,7 @@ are their C# names (`LetterPause`, `Fast`, `Research`).
 
 | Kind | Shape and fields |
 |---|---|
-| `clock_hold` | the clock entered a hold: a native hazard, a game pause, an armed combat event or a brain hold. `reason` (the `HoldReason`), `stop_at_ms` (the stamp `Status` reports as held-at), the legs `detected_tick`, `occurrence_tick`, `hold_ticks`, `detect_ticks`, and `evidence` (`pawn`, `injury`, `health`, `pause`, `notifications`, `unavailable`, `combat`) with its fields: `pawn`, `pawn_name`, `x`, `z`, `pawn_reason`; `before`/`after` health maps (`severity`); `min_health_fraction`, `health_drop_fraction`; `actual_paused`, `pause_verified`, `letter_id`, `letter_label`, `letter_def`, `dialog_title`; `letters`; `combat_event`, `thing`, `combat_reason`. Readers: `StopSummaries` (speed matrix), the launcher Observe tab, and the acceptance cases (`combatlab/stops` and `hazard/*` through `ITypedSession.HoldRowAsync`) |
+| `clock_hold` | the clock entered a hold: a native hazard, a game pause, an armed combat event or a brain hold. `reason` (the `HoldReason`), `stop_at_ms` (the stamp `Status` reports as held-at), the legs `detected_tick`, `occurrence_tick`, `hold_ticks`, `detect_ticks`, and `evidence` (`pawn`, `injury`, `health`, `pause`, `notifications`, `unavailable`, `combat`) with its fields: `pawn`, `pawn_name`, `x`, `z`, `pawn_reason`; `before`/`after` health maps (`severity`); `min_health_fraction`, `health_drop_fraction`; `actual_paused`, `pause_verified`, `letter_id`, `letter_label`, `letter_def`, `dialog_title`; `letters`; `combat_event`, `thing`, `combat_reason`. Readers: `StopSummaries` (speed matrix), the launcher Observe tab, and the acceptance cases (`combatlab/stops` and `hazard/*` through `TypedSession.HoldRowAsync`) |
 | `clock_resume` | a Run resumed a held clock. `from` (the hold reason it ended), `speed`; `observed_at_unix_ms` is the resume time. Readers: `StopSummaries`, the launcher Observe tab |
 | `clock_authority` | the native authority generation moved. `generation`, `reason`, `active`. Readers: the postmortem's authority generations, the launcher Observe tab |
 | `clock_alert` | a new game alert. `key`, `label`, `priority` |
@@ -211,7 +211,7 @@ helpers expect from the typed log reader (`OtlpReader.ReadLogs`, see
 [OTEL core](otel-core.md)); `ServiceLogs.ReadLogs`, `LogTail` and
 `LogMessages` sit on top. Cases that assert on a live game's rows (native's
 clock and colony events, the pawn-activity rows) read the game's own ring in
-its channel directory through `Harness.Telemetry` or `ITypedSession.Telemetry`.
+its channel directory through `Harness.Telemetry` or `TypedSession.Telemetry`.
 A null attribute is absent in a record, not present as nil. Postmortem evidence is `otlp/logs.jsonl.2#77`: the segment and its
 1-based line (what `grep -n` prints).
 

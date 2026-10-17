@@ -47,7 +47,7 @@ internal static class FarmPlantation
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var oakId = s.Staged!.Plants[Oak].Ids.Single();
         var riceId = s.Staged.Plants[Rice].Ids.Single();

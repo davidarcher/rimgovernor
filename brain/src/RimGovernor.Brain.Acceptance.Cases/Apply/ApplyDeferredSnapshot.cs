@@ -32,13 +32,13 @@ internal static class ApplyDeferredSnapshot
     };
 
     /// <summary>The stream's counters, with the newest frame (and the writes it was captured at) when it is numbered past <paramref name="after"/>.</summary>
-    private static async Task<Observations.SnapshotRead> ReadAsync(ITypedSession s, string label, ulong after, CancellationToken cancellationToken)
+    private static async Task<Observations.SnapshotRead> ReadAsync(TypedSession s, string label, ulong after, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadSnapshot, new Observations.SnapshotReadRequest { AfterNumber = after }, cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Read ?? throw new AcceptanceException($"{label}: {reply.Outcome}");
     }
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         // The first read subscribes the stream; each burst sends refused applies (a refusal is still an applied write).
         _ = await ReadAsync(s, "subscribe", ulong.MaxValue, cancellationToken).ConfigureAwait(false);

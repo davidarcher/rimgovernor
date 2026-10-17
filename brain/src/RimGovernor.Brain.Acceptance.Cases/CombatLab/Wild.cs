@@ -29,7 +29,7 @@ internal static class CombatLabWild
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var wild = new StagedLab(Fixture, s.Staged!).Ids(CombatFixtures.Wild);
         var frame = await new LabFrames(s).CombatAsync("frame", cancellationToken).ConfigureAwait(false);

@@ -59,7 +59,7 @@ internal static class WasteBurnable
         _ => "",
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var staged = await s.FixtureAsync("burnable-stage", Staged, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         var items = staged.Items;

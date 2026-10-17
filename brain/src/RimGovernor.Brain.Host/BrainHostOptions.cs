@@ -196,8 +196,8 @@ public sealed record BrainHostOptions
 
     public required BrainWatchdog Watchdog { get; init; }
 
-    /// <summary>Builds everything that needs a native client over the facade (see <see cref="IBrainComposition"/>).</summary>
-    public required IBrainComposition Composition { get; init; }
+    /// <summary>Builds everything that needs a native client over the facade (see <see cref="BrainComposition"/>).</summary>
+    public required BrainComposition Composition { get; init; }
 
     /// <summary>Whether the rounds methods run (Go <c>serveConfig.roundsMethods</c>).</summary>
     public bool RoundsMethods { get; init; } = true;

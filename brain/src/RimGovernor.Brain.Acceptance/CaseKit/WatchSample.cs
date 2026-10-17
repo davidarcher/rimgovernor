@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Acceptance;
 // the metrics and the colony outcome from these fields and written to the report in the timeline's own JSON shape.
 
 /// <summary>
-/// One Need's journal sample (<see cref="IWatchStore.SampleNeedAsync"/>): its progress row and its owner's unretired
+/// One Need's journal sample (<see cref="CaseStore.SampleNeedAsync"/>): its progress row and its owner's unretired
 /// Methods' plan stages in the review's world. A key that is not a NeedId is never bound.
 /// </summary>
 public sealed record NeedSample

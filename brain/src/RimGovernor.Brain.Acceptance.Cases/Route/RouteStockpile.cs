@@ -57,7 +57,7 @@ internal static class RouteStockpile
     private static Fx.StageCell[] Interior(Fx.StageRect r) =>
         [.. from x in Enumerable.Range(r.X + 1, r.Width - 2) from z in Enumerable.Range(r.Z + 1, r.Height - 2) select new Fx.StageCell(x, z)];
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var staged = s.Staged!;
         var site = staged.Site ?? throw new AcceptanceException("stage: no site");

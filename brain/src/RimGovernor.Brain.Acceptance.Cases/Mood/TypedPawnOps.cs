@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal static class TypedPawnOps
 {
     /// <summary>Applies <paramref name="intent"/> as the one action <paramref name="key"/>; anything but Applied fails the case.</summary>
-    public static async Task<Operations.ActionResult> ApplyAsync(ITypedSession s, string key, Operations.ActionIntent intent, CancellationToken cancellationToken)
+    public static async Task<Operations.ActionResult> ApplyAsync(TypedSession s, string key, Operations.ActionIntent intent, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
@@ -30,7 +30,7 @@ internal static class TypedPawnOps
     /// Applies <paramref name="intent"/> as the one action <paramref name="key"/> and requires a native refusal whose reason
     /// names <paramref name="reason"/>.
     /// </summary>
-    public static async Task RefusedAsync(ITypedSession s, string key, Operations.ActionIntent intent, string reason, CancellationToken cancellationToken)
+    public static async Task RefusedAsync(TypedSession s, string key, Operations.ActionIntent intent, string reason, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
@@ -58,7 +58,7 @@ internal static class TypedPawnOps
     };
 
     /// <summary>The one <c>observations_list_pawns</c> row of <paramref name="pawnId"/>, dead included, with health; no row is null.</summary>
-    public static async Task<Observations.PawnState?> PawnAsync(ITypedSession s, string label, string pawnId, CancellationToken cancellationToken)
+    public static async Task<Observations.PawnState?> PawnAsync(TypedSession s, string label, string pawnId, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest
         {

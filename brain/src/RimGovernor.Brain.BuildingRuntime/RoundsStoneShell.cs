@@ -88,7 +88,7 @@ public sealed partial class LayoutRounds
     /// the next candidate (no site, no material, unsupported backup geometry); any other outcome, admitted or
     /// refused, is this tick's final result: the first candidate whose bundle fully builds wins.
     /// </summary>
-    private async Task<(Verdict Verdict, bool Ok)> ProposeAsync(Sto.IWorkOwner goal, ControlState state, Observation.RoundsReading read, string wall, CancellationToken call, CancellationToken epoch)
+    private async Task<(Verdict Verdict, bool Ok)> ProposeAsync(Sto.NeedOwner goal, ControlState state, Observation.RoundsReading read, string wall, CancellationToken call, CancellationToken epoch)
     {
         var none = (default(Verdict), false);
         var p = _reviewer.Player;

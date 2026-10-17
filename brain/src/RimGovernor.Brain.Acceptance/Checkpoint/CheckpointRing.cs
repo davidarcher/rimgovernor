@@ -71,7 +71,7 @@ public sealed partial class CheckpointRing
     public Func<Harness?>? Bridge { get; set; }
 
     /// <summary>Returns the running service holding the game, null otherwise. Consulted at every capture.</summary>
-    public Func<ICheckpointService?>? Service { get; set; }
+    public Func<ServiceProcess?>? Service { get; set; }
 
     /// <summary>The case's service.sqlite, copied when it exists (through <see cref="SnapshotStore"/>).</summary>
     public string StorePath { get; set; } = "";

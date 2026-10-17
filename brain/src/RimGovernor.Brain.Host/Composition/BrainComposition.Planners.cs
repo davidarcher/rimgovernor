@@ -13,7 +13,7 @@ public sealed partial class BrainComposition
     // Budgets census and composed planner reads independently of epoch renewal (Go serviceClockStepTimeout).
     private static readonly TimeSpan StepTimeout = TimeSpan.FromMinutes(1);
 
-    /// <inheritdoc />
+    /// <summary>Called once, after the player exists and before the Worker does.</summary>
     public PlannerParts ComposePlanners(PlannerContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -371,7 +371,7 @@ public sealed partial class BrainComposition
 
     // The run driver's configuration: the base colony watch policy every Run carries, the call bound and the
     // autosave hold.
-    private ClockRunHostDriver CreateClock(PlannerContext context, FacadeNativeClient client, ClockScheduler scheduler, IClockWriter clockWriter)
+    private ClockRunDriver CreateClock(PlannerContext context, FacadeNativeClient client, ClockScheduler scheduler, IClockWriter clockWriter)
     {
         var testAcceleration = _options.ClockTestAcceleration;
         var lease = TimeSpan.FromTicks(Math.Min(Math.Min(_options.NativeTimeout.Ticks, TimeSpan.FromSeconds(10).Ticks), TimeSpan.FromSeconds(7).Ticks));
@@ -393,8 +393,7 @@ public sealed partial class BrainComposition
             AutosaveEveryTicks = ClockRunConfig.DefaultAutosaveEveryTicks,
             CallTimeout = lease,
         };
-        var driver = ClockRunDriver.Create(context.Player, context.Session, scheduler, client, clockWriter, config, SystemClock.Instance, context.Wake, CancellationToken.None);
-        return new ClockRunHostDriver(driver);
+        return ClockRunDriver.Create(context.Player, context.Session, scheduler, client, clockWriter, config, SystemClock.Instance, context.Wake, CancellationToken.None);
     }
 
     // Go roundsCapabilities: the routine policy thresholds and the method capabilities a composed serve declares from

@@ -32,7 +32,7 @@ internal static class HusbandryDispatch
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         // The fixture spawns and despawns pawns outside any authority scope, so it runs before Auto is granted.
         var herd = await s.FixtureAsync("prepare", Setup, NoArgs.Value, cancellationToken).ConfigureAwait(false);

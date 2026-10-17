@@ -140,7 +140,7 @@ public static class DebugGame
     /// Starts the acceptance debug colony through the production new-colony op (a Crashlanded start of
     /// <see cref="DebugColonists"/> colonists, Rough, paused, names confirmed) with the default size.
     /// </summary>
-    public static Task<JsonObject?> StartDebugGameAsync(Harness harness, IStartCache cache, IReadOnlyList<string>? names, QuietMode mode, CancellationToken cancellationToken) =>
+    public static Task<JsonObject?> StartDebugGameAsync(Harness harness, ProfileStartCache cache, IReadOnlyList<string>? names, QuietMode mode, CancellationToken cancellationToken) =>
         StartDebugGameSizedAsync(harness, cache, names, mode, DebugStartSize.Default(), cancellationToken);
 
     /// <summary>
@@ -152,7 +152,7 @@ public static class DebugGame
     /// </summary>
     public static async Task<JsonObject?> StartDebugGameSizedAsync(
         Harness harness,
-        IStartCache cache,
+        ProfileStartCache cache,
         IReadOnlyList<string>? names,
         QuietMode mode,
         DebugStartSize start,
@@ -170,7 +170,7 @@ public static class DebugGame
         cache.Save = "";
         if (cache.TryGetPath(name, out var path) && cached && !cache.IsStale(path, name))
         {
-            await cache.LoadAsync(harness, name, cancellationToken).ConfigureAwait(false);
+            await ProfileStartCache.LoadAsync(harness, name, cancellationToken).ConfigureAwait(false);
             cache.Save = name;
             return await ApplyQuietAsync(harness, apply, cancellationToken).ConfigureAwait(false);
         }
@@ -299,10 +299,10 @@ public static class DebugGame
     /// used. The op needs a seed, so an unpinned start draws one here and the record knows it even when no cached
     /// save is kept.
     /// </summary>
-    internal static async Task GenerateDebugStartAsync(Harness harness, IStartCache cache, DebugStartSize start, bool quiet, string saveName, CancellationToken cancellationToken)
+    internal static async Task GenerateDebugStartAsync(Harness harness, ProfileStartCache cache, DebugStartSize start, bool quiet, string saveName, CancellationToken cancellationToken)
     {
         start.Validate();
-        var seed = start.Seed.Length > 0 ? start.Seed : cache.RandomSeed();
+        var seed = start.Seed.Length > 0 ? start.Seed : ProfileStartCache.RandomSeed();
         cache.Seed = seed;
         await ScenarioStarts.RunAsync(ScenarioStartOf(start, seed, saveName), harness, quiet, cancellationToken).ConfigureAwait(false);
     }

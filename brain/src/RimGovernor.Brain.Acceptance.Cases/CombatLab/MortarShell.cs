@@ -30,7 +30,7 @@ internal static class CombatLabMortarShell
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var lab = new StagedLab(Fixture, s.Staged!);
         var crew = lab.Colonists()[0];
@@ -62,7 +62,7 @@ internal static class CombatLabMortarShell
     }
 
     // Runs until a frame's combat_mortars row for the mortar shows the shell loaded.
-    private static async Task LoadedAsync(ITypedSession s, LabFrames frames, Common.Cell mortar, string shell, CancellationToken cancellationToken)
+    private static async Task LoadedAsync(TypedSession s, LabFrames frames, Common.Cell mortar, string shell, CancellationToken cancellationToken)
     {
         var frame = await frames.UntilAsync("loaded-" + shell, LoadTicks, 0, f => f.CombatMortars.Any(m => m.Cell == mortar && m.LoadedShell == shell), cancellationToken).ConfigureAwait(false);
         s.RecordWire("loaded_" + shell, frame.CombatMortars.First(m => m.Cell == mortar));

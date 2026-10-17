@@ -43,14 +43,14 @@ Every case uses the typed case API, and the compiler enforces the charter. A cas
 | `Tier` | Required. A `CaseTier`: `Smoke`, `Nightly`, `OnDemand` or `Off` (rule 8). |
 | `Start` | `LabStart` (the default), `DebugStart`, `SaveStart` or `ScenarioStart`; `OwnedStart` only with `ClaimsStart`. |
 | `ClaimsStart` | A `StartClaim`, set only when the start itself is the claim (a new colony from the main menu, a reused game's lifecycle). On an `OwnedStart` it declares `Launches`, the fresh games the body opens through `LaunchAsync` (at least 1), and implies `NoKeep`; the tick cap stays `TickCap`. On a `ScenarioStart` it declares `KeepsStoryteller`, so the runner keeps the scenario's storyteller instead of requiring the quiet one. Registration and the catalog test reject any other combination. |
-| `Stage` | A `Fixtures.Contracts` `StageSpec` applied by `test/stage` on the opened start (rule 2). Its reply is `ITypedSession.Staged`. |
+| `Stage` | A `Fixtures.Contracts` `StageSpec` applied by `test/stage` on the opened start (rule 2). Its reply is `TypedSession.Staged`. |
 | `Ops` | The fixture ops the body calls. |
 | `Crew`, `Keep`, `QuietWorld`, `Expansions`, `Serve` | The defaults' departures (rule 7). |
 | `NoKeep` | The body leaves the process on a game the next case did not open (an unload, a reload, unpatched process state), so the runner does not keep the game. An expansion profile implies it. |
-| `Run`, `Postmortem` | The body, over an `ITypedSession` (rules 4–6). |
+| `Run`, `Postmortem` | The body, over an `TypedSession` (rules 4–6). |
 | Variants | There is no member for variants. A data-driven case registers one `TypedCase` per row. A variant that duplicates another's claim is deleted. |
 
-The body's `ITypedSession` (`Cases/ITypedSession.cs`) carries `Identity`, `Scope` (a read scope pinned to the
+The body's `TypedSession` (`Runner/TypedSession.cs`) carries `Identity`, `Scope` (a read scope pinned to the
 identity), `Staged` and `TicksLeft`. Its members:
 
 - **Calls:** `CallAsync(label, NativeOps.<Op>, request)` takes a Contracts request record and returns the reply

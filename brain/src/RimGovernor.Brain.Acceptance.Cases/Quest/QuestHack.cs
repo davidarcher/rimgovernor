@@ -25,7 +25,7 @@ internal static class QuestHack
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var prepared = await s.FixtureAsync("prepare", QuestKit.HackPrepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         var terminal = prepared.TerminalId;

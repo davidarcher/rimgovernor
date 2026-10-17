@@ -35,10 +35,9 @@ public static class ProfileCaptureCommand
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    public static async Task<int> RunAsync(IReadOnlyList<string> args, IProfileFixtureHost host, TextWriter stdout, TextWriter stderr, CancellationToken cancellationToken)
+    public static async Task<int> RunAsync(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(args);
-        ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(stdout);
         ArgumentNullException.ThrowIfNull(stderr);
         ProfileOptions p;
@@ -98,7 +97,7 @@ public static class ProfileCaptureCommand
             Op = ProfileOp,
             Args = FixtureRecordJson.Args(new Fx.ProfileCaptureRequest { Count = p.Count, Equality = p.Equality }),
         };
-        if (!await host.PreflightAsync(call, info, cancellationToken).ConfigureAwait(false))
+        if (!await ProfileFixtureHost.PreflightAsync(call, info, cancellationToken).ConfigureAwait(false))
         {
             return 2;
         }
@@ -114,7 +113,7 @@ public static class ProfileCaptureCommand
         };
         try
         {
-            await host.ExecuteAsync(call, result, timeout.Token).ConfigureAwait(false);
+            await ProfileFixtureHost.ExecuteAsync(call, result, timeout.Token).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {
@@ -127,7 +126,7 @@ public static class ProfileCaptureCommand
 
         if (result.Error.Length > 0 || !result.Success)
         {
-            await host.PrintFailureAsync(info, result, cancellationToken).ConfigureAwait(false);
+            await ProfileFixtureHost.PrintFailureAsync(info, result, cancellationToken).ConfigureAwait(false);
             return 1;
         }
 

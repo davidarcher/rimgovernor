@@ -70,7 +70,7 @@ internal static class ProductionCoupledThermal
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var site = s.Staged?.Site ?? throw new AcceptanceException("thermal: the stage found no site");
         var room = new Fx.StageRect(site.X + InteriorX, site.Z + InteriorZ, Side, Side);

@@ -87,7 +87,7 @@ public static class HazardCases
 
     // One class: how it is injected and the hold it must raise (with whether a game hook lands it), or -- for a demoted
     // tier, Reason null -- the invalidation wake it must raise instead while the run goes on.
-    private sealed record HazardCase(string Name, string Class, Clock.HoldReason? Reason, bool Hooked, long Bound, string Scope, Func<ITypedSession, CancellationToken, Task<Injection>> Inject);
+    private sealed record HazardCase(string Name, string Class, Clock.HoldReason? Reason, bool Hooked, long Bound, string Scope, Func<TypedSession, CancellationToken, Task<Injection>> Inject);
 
     // The tick the fixture acted on, the injury's bleed-out estimate (0: not bleeding out, or not an injury) and the reply as evidence.
     private sealed record Injection(long Tick, long BleedOutTicks, JsonNode? Evidence);
@@ -112,20 +112,20 @@ public static class HazardCases
     ];
 
     // Calls test/hazard_inject with the op.
-    private static Func<ITypedSession, CancellationToken, Task<Injection>> InjectOp(string op) =>
+    private static Func<TypedSession, CancellationToken, Task<Injection>> InjectOp(string op) =>
         async (s, cancellationToken) =>
         {
             var reply = await s.FixtureAsync("inject-" + op, Inject, op, cancellationToken).ConfigureAwait(false);
             return new Injection(reply.Tick, reply.BleedOutTicks, ServedOps.Json(reply));
         };
 
-    private static async Task<Injection> InjectLetterAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task<Injection> InjectLetterAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var reply = await s.FixtureAsync("inject-letter", Deliver, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         return new Injection(reply.Tick, 0, ServedOps.Json(reply));
     }
 
-    private static async Task SetPauseModeAsync(ITypedSession s, string mode, CancellationToken cancellationToken)
+    private static async Task SetPauseModeAsync(TypedSession s, string mode, CancellationToken cancellationToken)
     {
         var reply = await s.FixtureAsync("pause-mode-" + mode, PauseMode, mode, cancellationToken).ConfigureAwait(false);
         if (reply.Mode != mode)
@@ -134,7 +134,7 @@ public static class HazardCases
         }
     }
 
-    private static async Task RunAsync(ITypedSession s, HazardCase hc, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, HazardCase hc, CancellationToken cancellationToken)
     {
         // No letter pauses the clock on its own: the hold under test is the supervisor's, not LetterPauseHook's. Prefs are
         // process-wide; put the mode back for the next case.
@@ -168,7 +168,7 @@ public static class HazardCases
         }
     }
 
-    private static async Task RunHazardAsync(ITypedSession s, HazardCase hc, CancellationToken cancellationToken)
+    private static async Task RunHazardAsync(TypedSession s, HazardCase hc, CancellationToken cancellationToken)
     {
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
         var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Ultrafast, Policy = Policy };
@@ -223,7 +223,7 @@ public static class HazardCases
         }
     }
 
-    private static async Task AssertHoldAsync(ITypedSession s, HazardCase hc, Clock.HoldReason reason, Injection injected, Clock.Status held, CancellationToken cancellationToken)
+    private static async Task AssertHoldAsync(TypedSession s, HazardCase hc, Clock.HoldReason reason, Injection injected, Clock.Status held, CancellationToken cancellationToken)
     {
         // The hold row carries what the status does not: the event's detected and occurrence ticks.
         var row = await s.HoldRowAsync("hold", held, cancellationToken).ConfigureAwait(false);
@@ -313,7 +313,7 @@ public static class HazardCases
     // Proves a tier the supervisor no longer holds for: the hazard is detected within the class's bound and published as a
     // clock_invalidation wake naming the pawn and emergency families, and the clock keeps running -- the review the hold
     // used to buy, without the hold-to-readmit pause.
-    private static void AssertDemoted(ITypedSession s, HazardCase hc, Injection injected, Clock.Status ended, LogRow? wake)
+    private static void AssertDemoted(TypedSession s, HazardCase hc, Injection injected, Clock.Status ended, LogRow? wake)
     {
         var wakeTick = wake is null ? (long?)null : ClockRows.Tick(wake);
         var families = wake is null ? "" : string.Join(",", ClockRows.Strings(wake, "families"));

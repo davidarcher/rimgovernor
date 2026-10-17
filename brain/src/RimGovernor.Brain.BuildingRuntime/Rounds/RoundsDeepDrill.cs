@@ -40,7 +40,7 @@ internal sealed class DeepDrillReading
 public sealed partial class RoundsResourcePlanner
 {
     /// <summary>Deconstructs the first exhausted, undesignated deep drill that has no method yet.</summary>
-    internal (RoundsResourceResult Result, bool Handled) RemoveExhaustedDrill(ControlState state, IWorkOwner goal, ColonyProjection f, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal (RoundsResourceResult Result, bool Handled) RemoveExhaustedDrill(ControlState state, NeedOwner goal, ColonyProjection f, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         if (!f.DeepResources.TryGetValue(out var deep))
         {
@@ -194,7 +194,7 @@ public sealed partial class RoundsResourcePlanner
     }
 
     /// <summary>Admits the deep drill placement the supply plan opens, once per site; handled when the planner settled the step.</summary>
-    internal async Task<(RoundsResourceResult Result, bool Handled)> DeepDrillAsync(ControlState state, IWorkOwner goal, RoundsReview review, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsResourceResult Result, bool Handled)> DeepDrillAsync(ControlState state, NeedOwner goal, RoundsReview review, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var items = await reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
         if (PolicyApi.DeepDrillingResearch([], review.ResourceRunwayState(), items).Count == 0)

@@ -51,7 +51,7 @@ internal static class CaravanDeparture
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var pawns = s.Staged!.Pawns;
         var crew = pawns["crew"].Id;
@@ -118,7 +118,7 @@ internal static class CaravanDeparture
     }
 
     /// <summary>A non-hostile settlement the crew's pack can reach, by the trade-acquisition pack estimate.</summary>
-    private static async Task<int> DestinationAsync(ITypedSession s, string crew, Operations.DefCount[] cargo, CancellationToken cancellationToken)
+    private static async Task<int> DestinationAsync(TypedSession s, string crew, Operations.DefCount[] cargo, CancellationToken cancellationToken)
     {
         var progression = await s.CallAsync("home-tile", NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var home = TypedReads.Observed("home-tile", NativeOps.ReadWorldProgression, progression, progression.Outcome?.Observed).Maps.FirstOrDefault(m => m.Home == true)?.Tile

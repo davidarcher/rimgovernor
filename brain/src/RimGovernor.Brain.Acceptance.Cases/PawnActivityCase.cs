@@ -52,7 +52,7 @@ internal static class PawnActivityCase
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var grower = s.Staged!.Pawns["grower"].Id;
         var crop = s.Staged!.Plants["crop"].Ids.Single();

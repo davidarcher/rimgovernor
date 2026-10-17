@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal static class TypedApply
 {
     /// <summary>Applies one action under <paramref name="key"/> and returns its outcome; a batch failure or a missing result fails the case.</summary>
-    internal static async Task<Operations.ActionResultOutcome> OneAsync(ITypedSession s, string key, Operations.ActionIntent intent, CancellationToken cancellationToken)
+    internal static async Task<Operations.ActionResultOutcome> OneAsync(TypedSession s, string key, Operations.ActionIntent intent, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
@@ -23,21 +23,21 @@ internal static class TypedApply
     }
 
     /// <summary>Applies one action that must apply (or match), returning its receipt.</summary>
-    internal static async Task<Operations.ActionResultOutcome> AppliedAsync(ITypedSession s, string key, Operations.ActionIntent intent, CancellationToken cancellationToken)
+    internal static async Task<Operations.ActionResultOutcome> AppliedAsync(TypedSession s, string key, Operations.ActionIntent intent, CancellationToken cancellationToken)
     {
         var outcome = await OneAsync(s, key, intent, cancellationToken).ConfigureAwait(false);
         return outcome.Applied is not null ? outcome : throw new AcceptanceException($"{key}: want applied, got {outcome}");
     }
 
     /// <summary>Applies one action that native must refuse, returning the refusal.</summary>
-    internal static async Task<Operations.Refusal> RefusedAsync(ITypedSession s, string key, Operations.ActionIntent intent, CancellationToken cancellationToken)
+    internal static async Task<Operations.Refusal> RefusedAsync(TypedSession s, string key, Operations.ActionIntent intent, CancellationToken cancellationToken)
     {
         var outcome = await OneAsync(s, key, intent, cancellationToken).ConfigureAwait(false);
         return outcome.Refused ?? throw new AcceptanceException($"{key}: want refused, got {outcome}");
     }
 
     /// <summary>The observations_list_pawns row of pawn <paramref name="id"/>.</summary>
-    internal static async Task<Observations.PawnState> PawnAsync(ITypedSession s, string label, string id, CancellationToken cancellationToken)
+    internal static async Task<Observations.PawnState> PawnAsync(TypedSession s, string label, string id, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest
         {
@@ -49,7 +49,7 @@ internal static class TypedApply
     }
 
     /// <summary>The colony facts' upkeep section (observations_read_colony_facts, planning off); an unread section fails the case.</summary>
-    internal static async Task<Observations.UpkeepFacts> UpkeepAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    internal static async Task<Observations.UpkeepFacts> UpkeepAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
@@ -57,7 +57,7 @@ internal static class TypedApply
     }
 
     /// <summary>The observations_get_cells grid over the inclusive staged-site rectangle <paramref name="rect"/> (absolute cells).</summary>
-    internal static async Task<MapCellGrid> CellsAsync(ITypedSession s, string label, Fx.StageRect rect, CancellationToken cancellationToken)
+    internal static async Task<MapCellGrid> CellsAsync(TypedSession s, string label, Fx.StageRect rect, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.GetCells, new Observations.GetCellsRequest
         {

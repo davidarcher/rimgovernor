@@ -149,7 +149,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// on site only when none is stored. A vacant bed left in the starter shell is packed to become that stock;
     /// a placement native refuses means wait.
     /// </summary>
-    internal async Task<RoundsBuildingResult> ReconcileBedroomAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Observation.RoundsReading reading, Pol.BedroomStep step, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> ReconcileBedroomAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.BedroomStep step, CancellationToken call, CancellationToken epoch)
     {
         var facts = reading.Projection;
         // A suite is only started with its whole ring in stock.

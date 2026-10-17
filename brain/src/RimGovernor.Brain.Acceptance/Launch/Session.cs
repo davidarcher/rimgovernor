@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// <summary>
 /// Starting, attaching to and connecting to the configured game (Go <c>session.go</c>'s OpenBridgeSession and friends).
 /// The brain runs in the mod and the harness talks to
-/// its local HTTP channel, so the session is an <see cref="INativeTransport"/> and the launch is
+/// its local HTTP channel, so the session is an <see cref="HttpNativeTransport"/> and the launch is
 /// <see cref="GameProcess.StartDetached"/> with the channel's directory in the environment. The game records its channel
 /// in <c>http-endpoint.json</c> under that directory (<see cref="EndpointDirectory"/>), which also tells a later
 /// controller which process serves it.
@@ -78,7 +78,7 @@ public static class GameSessions
     /// <paramref name="configDir"/>), then connects and waits for the channel to answer. On any failure the session is
     /// disposed before the exception leaves, so callers never leak a half-open one.
     /// </summary>
-    public static async Task<INativeTransport> OpenBridgeSessionAsync(string configDir, string gameId, TimeSpan timeout, CancellationToken cancellationToken, IReadOnlyDictionary<string, string>? launchEnv = null)
+    public static async Task<HttpNativeTransport> OpenBridgeSessionAsync(string configDir, string gameId, TimeSpan timeout, CancellationToken cancellationToken, IReadOnlyDictionary<string, string>? launchEnv = null)
     {
         var transport = CreateTransport(configDir, gameId, timeout);
         var ok = false;
@@ -111,7 +111,7 @@ public static class GameSessions
     /// Connects to the running game without starting one. Only for stopping a game whose controller stalled; with no
     /// owner lease any session may connect, so it is a plain connect.
     /// </summary>
-    public static async Task<INativeTransport> OpenRunningSessionAsync(string configDir, string gameId, TimeSpan timeout, CancellationToken cancellationToken)
+    public static async Task<HttpNativeTransport> OpenRunningSessionAsync(string configDir, string gameId, TimeSpan timeout, CancellationToken cancellationToken)
     {
         var transport = CreateTransport(configDir, gameId, timeout);
         var ok = false;
@@ -199,7 +199,7 @@ public static class GameSessions
     /// file names it, <c>GET /api/health</c> answers and a first native read gets a reply (a refusal counts: the game
     /// answered). A process that exits meanwhile fails the connect at once with its exit code and the end of its log.
     /// </summary>
-    public static async Task ConnectAsync(INativeTransport transport, GameProcess game, string configDir, string gameId, TimeSpan budget, CancellationToken cancellationToken)
+    public static async Task ConnectAsync(HttpNativeTransport transport, GameProcess game, string configDir, string gameId, TimeSpan budget, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(transport);
         ArgumentNullException.ThrowIfNull(game);
@@ -237,7 +237,7 @@ public static class GameSessions
     }
 
     /// <summary>One readiness round: null when the channel answers, else why not.</summary>
-    private static async Task<string?> ProbeAsync(INativeTransport transport, HttpClient http, string address, CancellationToken cancellationToken)
+    private static async Task<string?> ProbeAsync(HttpNativeTransport transport, HttpClient http, string address, CancellationToken cancellationToken)
     {
         try
         {

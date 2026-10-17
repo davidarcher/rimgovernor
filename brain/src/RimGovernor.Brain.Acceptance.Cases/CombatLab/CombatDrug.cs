@@ -31,7 +31,7 @@ internal static class CombatLabCombatDrug
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var colonists = new StagedLab(Fixture, s.Staged!).Colonists();
         if (colonists.Count != 3)

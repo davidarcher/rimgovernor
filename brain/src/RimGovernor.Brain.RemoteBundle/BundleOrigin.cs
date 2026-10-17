@@ -5,22 +5,13 @@ namespace RimGovernor.Brain.RemoteBundle;
 
 /// <summary>
 /// The authenticated metadata and download boundary of the pinned release. The GitHub CLI owns token handling; tokens
-/// are never serialized or passed to child build processes (Go <c>OriginClient</c>).
+/// are never serialized or passed to child build processes (Go <c>OriginClient</c>), over the <c>gh</c> CLI (Go
+/// <c>GitHub</c>).
 /// </summary>
-public interface IOriginClient
+public static class GitHubOriginClient
 {
     /// <summary>Reads the pinned public repository's release and all of its assets.</summary>
-    Task<Release> ReleaseAsync(Origin origin, CancellationToken cancellationToken);
-
-    /// <summary>Streams one part's release asset into <paramref name="destination"/>.</summary>
-    Task DownloadAsync(Origin origin, Part part, Stream destination, CancellationToken cancellationToken);
-}
-
-/// <summary>The origin client over the <c>gh</c> CLI (Go <c>GitHub</c>).</summary>
-public sealed class GitHubOriginClient : IOriginClient
-{
-    /// <inheritdoc />
-    public async Task<Release> ReleaseAsync(Origin origin, CancellationToken cancellationToken)
+    public static async Task<Release> ReleaseAsync(Origin origin, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(origin);
         BundleException.Require(BundleFiles.IsRepository(origin.Repository) && origin.ReleaseId > 0, "invalid origin");
@@ -40,8 +31,8 @@ public sealed class GitHubOriginClient : IOriginClient
         return release with { Assets = [.. pages.SelectMany(page => page)] };
     }
 
-    /// <inheritdoc />
-    public Task DownloadAsync(Origin origin, Part part, Stream destination, CancellationToken cancellationToken)
+    /// <summary>Streams one part's release asset into <paramref name="destination"/>.</summary>
+    public static Task DownloadAsync(Origin origin, Part part, Stream destination, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(origin);
         ArgumentNullException.ThrowIfNull(part);
@@ -69,11 +60,10 @@ public static class BundleOrigin
     public static string CacheKey(string digest) => "rimgovernor-bundle-v1-windows-x64-" + digest;
 
     /// <summary>Confirms the pinned release is published and carries every part with its expected size.</summary>
-    public static async Task VerifyOriginAsync(IOriginClient client, Manifest manifest, CancellationToken cancellationToken)
+    public static async Task VerifyOriginAsync(Manifest manifest, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(manifest);
-        var release = await client.ReleaseAsync(manifest.Origin, cancellationToken).ConfigureAwait(false);
+        var release = await GitHubOriginClient.ReleaseAsync(manifest.Origin, cancellationToken).ConfigureAwait(false);
         BundleException.Require(release.Id == manifest.Origin.ReleaseId && !release.Draft, "release identity mismatch or unpublished release");
         foreach (var part in manifest.Parts)
         {
@@ -88,12 +78,11 @@ public static class BundleOrigin
     /// cache directory; manifest and inventory stay in the trusted input directory and plaintext goes to a separate
     /// per-job layout. Returns whether the cache already held the parts (Go <c>Restore</c>).
     /// </summary>
-    public static async Task<bool> RestoreAsync(IOriginClient client, string cache, string digest, Manifest manifest, CancellationToken cancellationToken)
+    public static async Task<bool> RestoreAsync(string cache, string digest, Manifest manifest, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(manifest);
         BundleException.Require(BundleFiles.IsDigest(digest), "invalid cache identity");
-        await VerifyOriginAsync(client, manifest, cancellationToken).ConfigureAwait(false);
+        await VerifyOriginAsync(manifest, cancellationToken).ConfigureAwait(false);
         var directory = Path.Combine(cache, CacheKey(digest));
         if (BundleFiles.Exists(directory))
         {
@@ -111,7 +100,7 @@ public static class BundleOrigin
                 var target = Path.Combine(temporary, part.Name);
                 await using (var file = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 20, useAsync: true))
                 {
-                    await client.DownloadAsync(manifest.Origin, part, new LimitedStream(file, part.Bytes), cancellationToken).ConfigureAwait(false);
+                    await GitHubOriginClient.DownloadAsync(manifest.Origin, part, new LimitedStream(file, part.Bytes), cancellationToken).ConfigureAwait(false);
                 }
 
                 BundleFiles.VerifyFile(target, part.Bytes, part.Sha256);
@@ -140,8 +129,7 @@ public static class BundleOrigin
         manifest.Validate(published: false);
         BundleArchive.VerifyParts(directory, manifest);
         ManifestRules.ReadInventory(directory, manifest);
-        var client = new GitHubOriginClient();
-        var release = await client.ReleaseAsync(manifest.Origin, cancellationToken).ConfigureAwait(false);
+        var release = await GitHubOriginClient.ReleaseAsync(manifest.Origin, cancellationToken).ConfigureAwait(false);
 
         async Task Upload(string file)
         {
@@ -158,7 +146,7 @@ public static class BundleOrigin
         BundleArchive.Materialize(Path.Combine(directory, manifest.Inventory.Path), Path.Combine(directory, inventoryName));
         manifest = manifest with { Inventory = manifest.Inventory with { Path = inventoryName } };
         await Upload(Path.Combine(directory, inventoryName)).ConfigureAwait(false);
-        release = await client.ReleaseAsync(manifest.Origin, cancellationToken).ConfigureAwait(false);
+        release = await GitHubOriginClient.ReleaseAsync(manifest.Origin, cancellationToken).ConfigureAwait(false);
         var parts = new List<Part>();
         foreach (var part in manifest.Parts)
         {

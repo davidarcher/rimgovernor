@@ -29,7 +29,7 @@ internal static class FoodLedger
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         _ = await s.RunUntilAsync("ledger-deliveries", s.TicksLeft, async ct =>
@@ -85,7 +85,7 @@ internal static class FoodLedger
         ledger.Rows.Where(r => r.SourceKind == kind && (def.Length == 0 || r.DefName == def)).Sum(r => r.Units ?? 0);
 
     /// <summary>The colony facts' observed delivery ledger.</summary>
-    internal static async Task<Observations.DeliveryLedgerFacts> ReadAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    internal static async Task<Observations.DeliveryLedgerFacts> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);

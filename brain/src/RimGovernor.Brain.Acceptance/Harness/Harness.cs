@@ -19,14 +19,14 @@ public sealed partial class Harness : IAsyncDisposable
 
     private int _closed;
 
-    public Harness(INativeTransport transport, string output)
+    public Harness(HttpNativeTransport transport, string output)
     {
         Transport = transport;
         Output = output;
     }
 
     /// <summary>How the harness reaches the game (Go <c>Harness.Client</c>).</summary>
-    public INativeTransport Transport { get; }
+    public HttpNativeTransport Transport { get; }
 
     public string Output { get; }
 

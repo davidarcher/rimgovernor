@@ -14,7 +14,7 @@ internal static class PawnSettings
 {
     private static readonly Observations.PawnDetails SettingsDetails = new() { Settings = true, Work = true };
 
-    private sealed record Row(string Name, string Scope, Func<ITypedSession, CancellationToken, Task> Run);
+    private sealed record Row(string Name, string Scope, Func<TypedSession, CancellationToken, Task> Run);
 
     private static readonly Row[] Rows =
     [
@@ -55,14 +55,14 @@ internal static class PawnSettings
     });
 
     /// <summary>Applies one setting arm and returns its field outcomes.</summary>
-    private static async Task<IReadOnlyList<Receipts.FieldOutcome>> ApplyAsync(ITypedSession s, string key, string pawn, Operations.PawnSettingsIntentSetting setting, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<Receipts.FieldOutcome>> ApplyAsync(TypedSession s, string key, string pawn, Operations.PawnSettingsIntentSetting setting, CancellationToken cancellationToken)
     {
         var effect = await TypedPawns.AppliedAsync(s, key, new Operations.PawnSettingsIntent { PawnId = pawn, Setting = setting }, cancellationToken).ConfigureAwait(false);
         var fields = effect?.Settings?.Fields.Select(f => f.Outcome).ToList();
         return fields is { Count: > 0 } ? fields : throw new AcceptanceException($"{key}: no settings field in {effect}");
     }
 
-    private static async Task ExpectUnchangedAsync(ITypedSession s, string key, string pawn, Operations.PawnSettingsIntentSetting setting, CancellationToken cancellationToken)
+    private static async Task ExpectUnchangedAsync(TypedSession s, string key, string pawn, Operations.PawnSettingsIntentSetting setting, CancellationToken cancellationToken)
     {
         var again = await ApplyAsync(s, key, pawn, setting, cancellationToken).ConfigureAwait(false);
         if (again.Any(o => o != Receipts.FieldOutcome.Unchanged))
@@ -71,10 +71,10 @@ internal static class PawnSettings
         }
     }
 
-    private static Task<Observations.PawnState> ReadAsync(ITypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
+    private static Task<Observations.PawnState> ReadAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
         TypedPawns.OneAsync(s, label, pawn, SettingsDetails, cancellationToken);
 
-    private static async Task HostilityAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task HostilityAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var pawn = await TypedPawns.FirstColonistAsync(s, "colonist", SettingsDetails, cancellationToken).ConfigureAwait(false);
         var id = pawn.Pawn.Id;
@@ -95,7 +95,7 @@ internal static class PawnSettings
         await ExpectUnchangedAsync(s, "flee-again", id, flee, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task SelfTendAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task SelfTendAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var colonists = await TypedPawns.ListAsync(s, "colonists", new Observations.PawnFilter { Colonist = true, Downed = false }, SettingsDetails, cancellationToken).ConfigureAwait(false);
         var doctor = colonists.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal)
@@ -124,7 +124,7 @@ internal static class PawnSettings
         }
     }
 
-    private static async Task MedicineCarryAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task MedicineCarryAsync(TypedSession s, CancellationToken cancellationToken)
     {
         const int Count = 2;
         var pawn = await TypedPawns.FirstColonistAsync(s, "colonist", SettingsDetails, cancellationToken).ConfigureAwait(false);
@@ -142,7 +142,7 @@ internal static class PawnSettings
         await ExpectUnchangedAsync(s, "medicine-carry-again", id, carry, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task NicknameAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task NicknameAsync(TypedSession s, CancellationToken cancellationToken)
     {
         async Task<Dictionary<string, string>> NamesAsync(string label)
         {

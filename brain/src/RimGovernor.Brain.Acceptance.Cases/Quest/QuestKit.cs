@@ -33,7 +33,7 @@ internal static class QuestKit
     internal static readonly FixtureOp<NoArgs, Fx.QuestShuttlePrepared> Shuttle = new(ShuttleTool, _ => [], ServedOps.Succeeded<Fx.QuestShuttlePrepared>(ShuttleTool, r => r.Success));
 
     /// <summary>The world-progression row of <paramref name="questId"/>, null when native lists no such quest.</summary>
-    internal static async Task<Observations.QuestState?> QuestAsync(ITypedSession s, string label, string questId, CancellationToken cancellationToken)
+    internal static async Task<Observations.QuestState?> QuestAsync(TypedSession s, string label, string questId, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return TypedReads.Observed(label, NativeOps.ReadWorldProgression, reply, reply.Outcome?.Observed).Quests.LastOrDefault(q => q.Id == questId);

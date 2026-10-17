@@ -23,7 +23,7 @@ internal static class CombatLabHiveTemperature
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var frame = await new LabFrames(s).UntilAsync("frame", CombatLabKit.ProbeTicks, 0, f => f.CombatHiveTemperatureC is not null, cancellationToken).ConfigureAwait(false);
         var temp = frame.CombatHiveTemperatureC!.Value;

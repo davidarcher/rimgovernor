@@ -38,7 +38,7 @@ internal static class ProductionApparelPolicy
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var subject = await s.FixtureAsync("policy-setup", Gear, "policy_setup", cancellationToken).ConfigureAwait(false);
 

@@ -53,7 +53,7 @@ internal static class Gathering
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var organizer = s.Staged!.Pawns["organizer"].Id;
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);

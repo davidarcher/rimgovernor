@@ -292,20 +292,17 @@ public static class FixtureCommand
     // The world stays loaded for the next call whatever the environment says about keeping the process.
     private sealed class KeepHost(ISessionHost inner) : ISessionHost
     {
-        public IStartCache StartCache => inner.StartCache;
+        public ProfileStartCache StartCache => inner.StartCache;
 
         public Task PrepareAsync(Config config, IReadOnlyList<string> saves, CancellationToken cancellationToken) =>
             inner.PrepareAsync(config, saves, cancellationToken);
 
         public JsonObject PackageFiles(Config config) => inner.PackageFiles(config);
 
-        public async Task<IGameHold> OpenGameAsync(Config config, Report report, CancellationToken cancellationToken)
+        public async Task<Game> OpenGameAsync(Config config, Report report, CancellationToken cancellationToken)
         {
             var hold = await inner.OpenGameAsync(config, report, cancellationToken).ConfigureAwait(false);
-            if (hold is Game game)
-            {
-                game.Keep = true;
-            }
+            hold.Keep = true;
 
             return hold;
         }

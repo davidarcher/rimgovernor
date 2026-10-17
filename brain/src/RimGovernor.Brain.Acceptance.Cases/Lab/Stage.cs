@@ -102,7 +102,7 @@ internal static class LabStage
         Run = RunAsync,
     };
 
-    private static Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var reply = s.Staged!;
         var site = reply.Site ?? throw new AcceptanceException("test/stage replied no site");

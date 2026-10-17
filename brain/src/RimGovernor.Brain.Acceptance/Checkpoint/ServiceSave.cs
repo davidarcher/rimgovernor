@@ -17,35 +17,13 @@ public sealed record ServiceApiReply(JsonObject? Body, int Status);
 /// </summary>
 public delegate Task<ServiceApiReply> ServiceApiCall(string method, string path, JsonObject? body, string token, CancellationToken cancellationToken);
 
-/// <summary>What a checkpoint capture needs from the running service that holds the game (Go <c>*ServiceProcess</c>).</summary>
-public interface ICheckpointService
-{
-    /// <summary>The prefix of the request ids the capture sends.</summary>
-    string Label { get; }
-
-    /// <summary>The player identity the service acts under.</summary>
-    JsonObject? Identity { get; }
-
-    /// <summary>The service's API token.</summary>
-    string Token { get; }
-
-    /// <summary>The service's exit as an error once it has ended, null while it runs.</summary>
-    Exception? Exited();
-
-    /// <summary>Holds (or releases) the keep-alive so it does not re-acquire authority under a save.</summary>
-    void HoldAuthority(bool hold);
-
-    /// <summary>One API call (Go <c>ServiceProcess.API</c>).</summary>
-    Task<ServiceApiReply> ApiAsync(string method, string path, JsonObject? body, string token, CancellationToken cancellationToken);
-}
-
 public sealed partial class CheckpointRing
 {
     /// <summary>
     /// Saves through the running service (<see cref="ServiceSaveAsync"/>), which pauses to manual control and
     /// resumes afterwards.
     /// </summary>
-    private async Task<SaveResult> ServiceSaveCoreAsync(ICheckpointService service, string name, string label, bool force, CancellationToken cancellationToken)
+    private async Task<SaveResult> ServiceSaveCoreAsync(ServiceProcess service, string name, string label, bool force, CancellationToken cancellationToken)
     {
         if (service.Exited() is { } exited)
         {

@@ -80,7 +80,7 @@ internal static class ProductionLadder
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var before = await CountAsync(s, "before", cancellationToken).ConfigureAwait(false);
         s.Record("components_before", before);
@@ -99,7 +99,7 @@ internal static class ProductionLadder
     }
 
     // The colony's ComponentIndustrial units, held stock included (a crafter carrying the product to storage).
-    private static async Task<long> CountAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    private static async Task<long> CountAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(
             label,

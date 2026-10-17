@@ -105,7 +105,7 @@ public sealed partial class RoundsBuildingPlanner
     /// The owner the step works under, loaded fresh: the <see cref="Need"/>'s in the review's world when one owns
     /// the planner (its family already judged it unmet); a planner without a Need has no owner.
     /// </summary>
-    internal (Sto.IWorkOwner? Owner, bool Workable) WorkOwner(Sto.Rounds review, CancellationToken call)
+    internal (Sto.NeedOwner? Owner, bool Workable) WorkOwner(Sto.Rounds review, CancellationToken call)
     {
         if (Need.IsValid)
         {
@@ -563,7 +563,7 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
         var planner = r;
-        async Task<RoundsBuildingResult> AdmitRingAsync(Sto.IWorkOwner owner, RoomReconcile ring) =>
+        async Task<RoundsBuildingResult> AdmitRingAsync(Sto.NeedOwner owner, RoomReconcile ring) =>
             await planner.ReconcileRoomAsync(state, review, owner, new Observation.RoundsReading { Reading = reading, Frame = new BridgeRoundsFrame(), Emergency = new EmergencyFacts() }, null, ring, call, epoch).ConfigureAwait(false);
         var (plannedModule, plannedModuleOk) = r.PlannedRoomModule();
         if (plannedModuleOk)
@@ -867,7 +867,7 @@ internal sealed record RoundsAdmission
 {
     public ControlState State { get; init; }
     public Sto.Rounds Review { get; init; } = null!;
-    public Sto.IWorkOwner Owner { get; init; } = null!;
+    public Sto.NeedOwner Owner { get; init; } = null!;
     public Observation.ColonyProjection Facts { get; init; } = null!;
     public MethodId Method { get; init; }
 
@@ -1497,7 +1497,7 @@ public sealed partial class RoundsBuildingPlanner
     /// building gone from the census (a campfire that burnt out, a bed that disappeared) and one never built both
     /// mean try again.
     /// </summary>
-    internal MethodId NextSleepingBedMethod(Sto.IWorkOwner goal, MethodId method, Fact<Pol.CurrentConstruction> census, CancellationToken call)
+    internal MethodId NextSleepingBedMethod(Sto.NeedOwner goal, MethodId method, Fact<Pol.CurrentConstruction> census, CancellationToken call)
     {
         var p = Reviewer.Player;
         var baseMethod = method;

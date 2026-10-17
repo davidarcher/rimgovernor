@@ -28,7 +28,7 @@ internal sealed class ShelterSite
 {
     public ControlState State { get; init; }
     public Sto.Rounds Review { get; init; } = new();
-    public required Sto.IWorkOwner Owner { get; init; }
+    public required Sto.NeedOwner Owner { get; init; }
     public Observation.ColonyProjection Facts { get; init; } = new();
     public Observation.ColonyReading Read { get; init; } = new();
     public Action Check { get; init; } = () => { };
@@ -161,7 +161,7 @@ partial class RoundsBuildingPlanner
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>Reads the bunk methods the owner bound.</summary>
-    internal ShelterBunkRecord ShelterBunks(Sto.IWorkOwner goal, Fact<Pol.CurrentConstruction> census, CancellationToken call)
+    internal ShelterBunkRecord ShelterBunks(Sto.NeedOwner goal, Fact<Pol.CurrentConstruction> census, CancellationToken call)
     {
         var journal = Reviewer.Player.Journal;
         var record = new ShelterBunkRecord();
@@ -276,7 +276,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>The plans of the ring's build waves the owner bound, retired ones included: the record of a ring begun.</summary>
-    internal List<Sto.PlanState> ShelterRingMethods(Sto.IWorkOwner goal, string name, CancellationToken call)
+    internal List<Sto.PlanState> ShelterRingMethods(Sto.NeedOwner goal, string name, CancellationToken call)
     {
         var ring = new List<Sto.PlanState>();
         var seen = new HashSet<PlanId>();

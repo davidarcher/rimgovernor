@@ -31,7 +31,7 @@ internal static class AuthorityWarm
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var reuse = await s.LaunchAsync("launch", cancellationToken).ConfigureAwait(false);
         try
@@ -97,7 +97,7 @@ internal static class AuthorityWarm
     }
 
     /// <summary>Grants Auto and requires every status read through <see cref="HoldTicks"/> of running time to stay Active(Auto) at that generation; then revokes.</summary>
-    private static async Task HoldAsync(ITypedSession s, Common.Identity identity, CancellationToken cancellationToken)
+    private static async Task HoldAsync(TypedSession s, Common.Identity identity, CancellationToken cancellationToken)
     {
         var expected = await TypedAuthority.ExpectedGenerationAsync(s, "p2-status", identity, cancellationToken).ConfigureAwait(false);
         var generation = await TypedAuthority.GrantAsync(s, "p2-grant", identity, expected, cancellationToken).ConfigureAwait(false);
@@ -130,7 +130,7 @@ internal static class AuthorityWarm
         }
     }
 
-    private static async Task<Clock.Status> ClockStatusAsync(ITypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
+    private static async Task<Clock.Status> ClockStatusAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Status ?? throw new AcceptanceException($"{label}: expected a clock status, got {reply.Outcome}");

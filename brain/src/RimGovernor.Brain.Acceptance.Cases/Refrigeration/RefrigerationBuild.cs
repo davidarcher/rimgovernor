@@ -51,7 +51,7 @@ internal static class RefrigerationBuild
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var policy = PolicyFunctions.DefaultFoodStoragePolicy();
         var room = await s.FixtureAsync("prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
@@ -106,7 +106,7 @@ internal static class RefrigerationBuild
     private static bool Inside(Fx.RoomInterior r, Cell c) => c.X >= r.MinX && c.X <= r.MaxX && c.Z >= r.MinZ && c.Z <= r.MaxZ;
 
     /// <summary>The warmest standing meat stack's ambient temperature; null when every stack is gone.</summary>
-    private static async Task<double?> WarmestAsync(ITypedSession s, Fx.RefrigerationPrepared room, string label, CancellationToken cancellationToken)
+    private static async Task<double?> WarmestAsync(TypedSession s, Fx.RefrigerationPrepared room, string label, CancellationToken cancellationToken)
     {
         double? warmest = null;
         foreach (var id in room.Meat)

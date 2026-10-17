@@ -31,7 +31,7 @@ internal static class ServiceRestart
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var world = new GenerationSnapshot(new ColonyId(s.Identity.ColonyId), new MapId(s.Identity.MapId), new LoadId(s.Identity.LoadToken), default, default, default);
 

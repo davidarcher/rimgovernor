@@ -51,8 +51,7 @@ public sealed partial class Store
         if (!review.Enabled || review.Snapshot != current)
             throw new NotAdmittedException($"need {need.Value} has no current enabled review");
         var owner = LoadNeedIn(tx, need, current);
-        IMethodOwner held = owner;
-        if (held.BoundPlan(tx, method) is not null) return new(ClaimOutcome.Continued, owner);
+        if (owner.BoundPlan(tx, method) is not null) return new(ClaimOutcome.Continued, owner);
         AdmitRoundsSafeguards(tx, owner);
         if (ClaimOverlapIn(tx, current, plan) is { } conflict) return new(ClaimOutcome.Conflict, owner, conflict);
         BindOwnerMethod(tx, owner, method, reason, plan);

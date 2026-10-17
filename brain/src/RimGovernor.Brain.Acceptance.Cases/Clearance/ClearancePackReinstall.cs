@@ -54,7 +54,7 @@ internal static class ClearancePackReinstall
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var site = s.Staged!.Site ?? throw new AcceptanceException("stage: no site");
         var bed = s.Staged.Buildings["bed"].Ids.Single();

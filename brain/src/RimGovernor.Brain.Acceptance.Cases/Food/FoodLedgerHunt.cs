@@ -28,7 +28,7 @@ internal static class FoodLedgerHunt
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         _ = await s.RunUntilAsync("ledger-hunt-kill", s.TicksLeft / 2, async ct =>

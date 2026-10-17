@@ -40,7 +40,7 @@ internal static class LifecycleNewColony
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var first = "";
         await NewColonyStart.MenuAsync(s, "first", async () => first = await FirstAsync(s, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
@@ -74,7 +74,7 @@ internal static class LifecycleNewColony
     }
 
     /// <summary>The refusals, the real start and its save, the refusal over the live colony and the reload; returns the colony digest.</summary>
-    private static async Task<string> FirstAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task<string> FirstAsync(TypedSession s, CancellationToken cancellationToken)
     {
         await RefusalsAsync(s, cancellationToken).ConfigureAwait(false);
         var spec = NewColonyStart.Spec();
@@ -127,7 +127,7 @@ internal static class LifecycleNewColony
     /// Bad defNames are refused before generation; an unsatisfiable temperature band passes validation and fails once
     /// the tiles are known, and the menu must stay usable for the real start that follows.
     /// </summary>
-    private static async Task RefusalsAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RefusalsAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var bad = new (string Field, Lifecycle.NewColonySpec Spec)[]
         {
@@ -152,7 +152,7 @@ internal static class LifecycleNewColony
     }
 
     /// <summary>A directory squats the save path: the save cannot be written, and the start must fail in SAVING.</summary>
-    private static async Task SaveFailureAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task SaveFailureAsync(TypedSession s, CancellationToken cancellationToken)
     {
         const string Save = "newcolony-accept-savefail";
         var squat = SavePath(s, Save);
@@ -187,13 +187,13 @@ internal static class LifecycleNewColony
     private static Common.Identity Identity(Lifecycle.NewColonyCompleted completed) =>
         completed.Context?.Identity ?? throw new AcceptanceException($"the completed start names no identity: {completed}");
 
-    private static string SavePath(ITypedSession s, string saveName) => s.ProfileSave(saveName);
+    private static string SavePath(TypedSession s, string saveName) => s.ProfileSave(saveName);
 
     /// <summary>
     /// Asserts the live map matches the spec and returns a digest of what a pinned seed must reproduce: the tile, biome
     /// and hilliness, and each colonist's name and skill levels.
     /// </summary>
-    private static async Task<string> DigestAsync(ITypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
+    private static async Task<string> DigestAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
     {
         var scope = TypedReads.Scope(identity);
         var factsReply = await s.CallAsync(label + "-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);

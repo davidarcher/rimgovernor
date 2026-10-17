@@ -108,13 +108,13 @@ internal static class LabSparring
     });
 
     /// <summary>The ring cell on the staged site.</summary>
-    internal static Fx.StageCell RingCell(ITypedSession s)
+    internal static Fx.StageCell RingCell(TypedSession s)
     {
         var site = s.Staged?.Site ?? throw new AcceptanceException("test/stage replied no site");
         return new Fx.StageCell(site.X, site.Z + RingZ);
     }
 
-    private static async Task RunAsync(ITypedSession s, Row row, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, Row row, CancellationToken cancellationToken)
     {
         // A freshly loaded world has no bouts: the registry is runtime only.
         var fresh = await s.FixtureAsync("sparring-inspect-fresh", Inspect, NoArgs.Value, cancellationToken).ConfigureAwait(false);

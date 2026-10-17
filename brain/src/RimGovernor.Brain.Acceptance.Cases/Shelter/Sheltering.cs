@@ -92,7 +92,7 @@ internal static class ShelterSheltering
         return pawns;
     }
 
-    private static async Task RunAsync(ITypedSession s, Row row, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, Row row, CancellationToken cancellationToken)
     {
         var staged = s.Staged!;
         var hut = staged.Rooms["hut"].Interior.Select(c => (c.X, c.Z)).ToHashSet();
@@ -140,7 +140,7 @@ internal static class ShelterSheltering
     }
 
     /// <summary>The pawns the colony facts list as restricted to the Safe area; none when the area is gone.</summary>
-    private static async Task<HashSet<string>> SafePawnsAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    private static async Task<HashSet<string>> SafePawnsAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);

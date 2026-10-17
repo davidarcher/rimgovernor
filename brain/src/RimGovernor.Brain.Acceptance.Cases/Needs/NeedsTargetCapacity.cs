@@ -40,7 +40,7 @@ internal static class NeedsTargetCapacity
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("capacity-prepare", Prepared, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         var bed = false;

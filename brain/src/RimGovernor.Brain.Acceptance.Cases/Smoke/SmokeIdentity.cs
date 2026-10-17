@@ -21,7 +21,7 @@ internal static class SmokeIdentity
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         if (s.Identity.ColonyId.Length == 0 || s.Identity.LoadToken.Length == 0)
         {

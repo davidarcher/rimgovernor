@@ -44,7 +44,7 @@ internal static class LabSkillLearning
     };
 
     /// <summary>Stops the verifier and requires at least one checked <paramref name="kind"/> callback (recipe or sparring) and no failure.</summary>
-    internal static async Task VerifyCallbacksAsync(ITypedSession s, string kind, CancellationToken ct)
+    internal static async Task VerifyCallbacksAsync(TypedSession s, string kind, CancellationToken ct)
     {
         var result = await s.FixtureAsync("learning-stop", Verify, "stop", ct).ConfigureAwait(false);
         s.Record("learning-callbacks", ServedOps.Json(result));

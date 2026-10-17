@@ -25,7 +25,7 @@ internal static class LifecycleLoad
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var (identity, _, paused) = await TypedLifecycle.IdentityAsync(s, "identity-before", cancellationToken).ConfigureAwait(false);
         if (!paused || identity.ColonyId.Length == 0 || identity.LoadToken.Length == 0)
@@ -100,7 +100,7 @@ internal static class LifecycleLoad
         TypedLifecycle.ExpectFailure("read-load-unknown", unknown.Outcome?.Failure, Common.FailureCode.NotFound, unknown.Outcome);
     }
 
-    private static async Task PutAsync(ITypedSession s, string label, Dictionary<string, string> blobs, CancellationToken cancellationToken)
+    private static async Task PutAsync(TypedSession s, string label, Dictionary<string, string> blobs, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.PutGovernorStateBatch, new Lifecycle.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome?.Loaded is null)
@@ -109,7 +109,7 @@ internal static class LifecycleLoad
         }
     }
 
-    private static async Task<IReadOnlyDictionary<string, string>> GovernorStateAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyDictionary<string, string>> GovernorStateAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadGovernorState, new Lifecycle.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Loaded?.Blobs ?? throw new AcceptanceException($"{label}: no governor state: {reply.Outcome}");

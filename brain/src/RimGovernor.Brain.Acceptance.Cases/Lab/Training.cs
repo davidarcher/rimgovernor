@@ -90,7 +90,7 @@ internal static class LabTraining
         }
     }
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var t = await TrainingRun.PrepareAsync(s, new TrainingOptions(), cancellationToken).ConfigureAwait(false);
         var (last, _) = await t.UntilTrainedWithAsync(0, cancellationToken).ConfigureAwait(false);
@@ -156,10 +156,10 @@ internal sealed class TrainingRun
         q => ServedOps.Args(("pawnId", q.Pawn), ("dummyId", q.Dummy), ("sentinels", q.Sentinels), ("otherId", q.Other), ("bystanderId", q.Bystander)),
         ServedOps.Reply<Fx.TrainingRead>(LabTraining.InspectTool));
 
-    private readonly ITypedSession _s;
+    private readonly TypedSession _s;
     private readonly Query _query;
 
-    private TrainingRun(ITypedSession s, Fx.TrainingPrepared prepared, Query query)
+    private TrainingRun(TypedSession s, Fx.TrainingPrepared prepared, Query query)
     {
         _s = s;
         Prepared = prepared;
@@ -169,7 +169,7 @@ internal sealed class TrainingRun
     internal Fx.TrainingPrepared Prepared { get; }
 
     /// <summary>Stands the column at the staged site's (8, 2).</summary>
-    internal static async Task<TrainingRun> PrepareAsync(ITypedSession s, TrainingOptions options, CancellationToken cancellationToken)
+    internal static async Task<TrainingRun> PrepareAsync(TypedSession s, TrainingOptions options, CancellationToken cancellationToken)
     {
         var site = s.Staged?.Site ?? throw new AcceptanceException("test/stage replied no site");
         var prepared = await s.FixtureAsync("training-prepare", PrepareOp, new PrepareArgs(new Fx.StageCell(site.X + 8, site.Z + 2), options), cancellationToken).ConfigureAwait(false);

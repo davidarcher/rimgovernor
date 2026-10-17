@@ -55,7 +55,7 @@ internal static class RecoveryService
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var wallId = s.Staged!.Buildings[Wall].Ids.Single();
         var builderId = s.Staged.Pawns[Builder].Id;

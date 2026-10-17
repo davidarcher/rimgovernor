@@ -50,28 +50,3 @@ public sealed class ProfileFixtureResult
 
     public string Error { get; set; } = "";
 }
-
-/// <summary>
-/// The fixture machinery profile-capture borrows from the `acceptance fixture` command and the run preflight (Go
-/// <c>executeFixture</c>, <c>printFixture</c> and <c>preflight</c> of <c>cmd/acceptance</c>), which another slice owns: a
-/// game as the root's kept process, healed like a run's when the installed mod is stale, loading a save and calling
-/// one native fixture op.
-/// </summary>
-public interface IProfileFixtureHost
-{
-    /// <summary>
-    /// The doctor/heal pass over a case whose start is the fixture op (Go <c>preflight</c> with one
-    /// <c>cases.Fixture{Op}</c> case); false means the preflight refused and has printed why to <paramref name="info"/>.
-    /// </summary>
-    Task<bool> PreflightAsync(ProfileFixtureCall request, TextWriter info, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Loads the save, calls the op and fills <paramref name="result"/>. A failure to run the call at all throws
-    /// <see cref="AcceptanceException"/>; an op that ran and failed returns with Success false.
-    /// </summary>
-    Task ExecuteAsync(ProfileFixtureCall request, ProfileFixtureResult result, CancellationToken cancellationToken);
-
-    /// <summary>Prints a failed call's result (Go <c>printFixture</c>).</summary>
-    Task PrintFailureAsync(TextWriter writer, ProfileFixtureResult result, CancellationToken cancellationToken);
-}
-

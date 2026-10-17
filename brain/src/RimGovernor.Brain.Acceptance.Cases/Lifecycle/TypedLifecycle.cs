@@ -23,7 +23,7 @@ internal static class TypedLifecycle
         new() { Identity = identity, PlayerDirection = Direction, RequestId = requestId };
 
     /// <summary>The loaded game's identity, tick and pause state from <c>lifecycle_read_identity</c>.</summary>
-    internal static async Task<(Common.Identity Identity, long Tick, bool Paused)> IdentityAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    internal static async Task<(Common.Identity Identity, long Tick, bool Paused)> IdentityAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadIdentity, new Lifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
         var context = reply.Outcome?.Loaded?.Context ?? throw new AcceptanceException($"{label}: no loaded game: {reply.Outcome}");
@@ -31,7 +31,7 @@ internal static class TypedLifecycle
     }
 
     /// <summary>A trusted checkpoint save of the paused game; anything but a completed save fails <paramref name="label"/>.</summary>
-    internal static async Task<Lifecycle.SaveCompleted> SaveAsync(ITypedSession s, string label, Common.Identity identity, string saveName, CancellationToken cancellationToken)
+    internal static async Task<Lifecycle.SaveCompleted> SaveAsync(TypedSession s, string label, Common.Identity identity, string saveName, CancellationToken cancellationToken)
     {
         var request = new Lifecycle.SaveRequest { Player = Player(identity, Stamp(label)), SaveName = saveName };
         var reply = await s.CallAsync(label, NativeOps.SaveGame, request, cancellationToken).ConfigureAwait(false);
@@ -39,7 +39,7 @@ internal static class TypedLifecycle
     }
 
     /// <summary>Starts a load of <paramref name="saveName"/> replacing <paramref name="identity"/>'s map and polls it to a completed outcome.</summary>
-    internal static async Task<Lifecycle.LoadCompleted> LoadAsync(ITypedSession s, string label, Common.Identity identity, string saveName, Lifecycle.Readiness readiness, CancellationToken cancellationToken)
+    internal static async Task<Lifecycle.LoadCompleted> LoadAsync(TypedSession s, string label, Common.Identity identity, string saveName, Lifecycle.Readiness readiness, CancellationToken cancellationToken)
     {
         var requestId = Stamp(label);
         var request = new Lifecycle.LoadRequest

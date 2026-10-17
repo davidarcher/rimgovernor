@@ -182,7 +182,7 @@ internal static class DeepDrillReadingExtensions
 
 public sealed partial class Rounder
 {
-    internal async Task<ResourceSupplyState> ResourceSupplyAsync(ControlState state, Rounds review, IWorkOwner goal, CancellationToken call)
+    internal async Task<ResourceSupplyState> ResourceSupplyAsync(ControlState state, Rounds review, NeedOwner goal, CancellationToken call)
     {
         var s = Census;
         var key = new ResourceSupplyKey(state.Snapshot, review.Tick, 0, review.Revision, goal.OwnerKey + ":" + string.Join(",", goal.OpenMethods.Select(m => m.Plan.Value)), TradeOffers.Version());
@@ -205,7 +205,7 @@ public sealed partial class Rounder
         return built;
     }
 
-    internal async Task<ResourceSupplyState> BuildResourceSupplyAsync(ControlState state, Rounds review, IWorkOwner goal, CancellationToken call)
+    internal async Task<ResourceSupplyState> BuildResourceSupplyAsync(ControlState state, Rounds review, NeedOwner goal, CancellationToken call)
     {
         var (expected, projection) = await AcquisitionReadingAsync(state, review, call).ConfigureAwait(false);
         var stock = projection.Facts.Resources;

@@ -34,7 +34,7 @@ internal static class ToolsDeepResources
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var seed = await s.FixtureAsync("seed", Seed, "", cancellationToken).ConfigureAwait(false);
         var (ex, ez) = (seed.X, seed.Z);

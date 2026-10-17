@@ -50,7 +50,7 @@ internal static class ZoneDelete
 
     private static Operations.FilterSelector Def(string def) => new() { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(def) };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var interior = s.Staged!.Rooms["hut"].Interior;
         var corner = new Common.Cell { X = interior.Min(c => c.X), Z = interior.Min(c => c.Z) };

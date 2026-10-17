@@ -38,7 +38,7 @@ internal static class CoordinatedWork
         Run = (s, ct) => RunAsync(s, mode, interrupted, ct),
     };
 
-    private static async Task RunAsync(ITypedSession s, string mode, bool interrupted, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, string mode, bool interrupted, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("coordination-prepare", Prepared, (mode, interrupted), cancellationToken).ConfigureAwait(false);
         _ = await s.ServeUntilAsync("coordination", s.TicksLeft, async ct =>

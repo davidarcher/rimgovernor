@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class PawnPolicies
 {
-    private sealed record Row(string Name, string Scope, Fx.StageSpec Stage, Func<ITypedSession, CancellationToken, Task> Run);
+    private sealed record Row(string Name, string Scope, Fx.StageSpec Stage, Func<TypedSession, CancellationToken, Task> Run);
 
     private static readonly Row[] Rows =
     [
@@ -63,20 +63,20 @@ internal static class PawnPolicies
         },
     });
 
-    private static string Pawn(ITypedSession s, string name) => s.Staged?.Pawns[name].Id ?? throw new AcceptanceException($"the stage made no {name}");
+    private static string Pawn(TypedSession s, string name) => s.Staged?.Pawns[name].Id ?? throw new AcceptanceException($"the stage made no {name}");
 
-    private static async Task<Observations.ColonyFactsSnapshot> FactsAsync(ITypedSession s, string label, bool planning, CancellationToken cancellationToken)
+    private static async Task<Observations.ColonyFactsSnapshot> FactsAsync(TypedSession s, string label, bool planning, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = planning }, cancellationToken).ConfigureAwait(false);
         return TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
     }
 
-    private static async Task<Observations.PolicyFacts> PoliciesAsync(ITypedSession s, string label, CancellationToken cancellationToken) =>
+    private static async Task<Observations.PolicyFacts> PoliciesAsync(TypedSession s, string label, CancellationToken cancellationToken) =>
         (await FactsAsync(s, label, false, cancellationToken).ConfigureAwait(false)).Policies?.Outcome?.Observed
             ?? throw new AcceptanceException($"{label}: policy facts unavailable");
 
     /// <summary>Writes a policy's contents, then assigns it to each pawn.</summary>
-    private static async Task WriteAsync(ITypedSession s, string key, Operations.ActionIntent policy, IEnumerable<(string Pawn, Operations.PawnSettingsIntentSetting Setting)> assignments, CancellationToken cancellationToken)
+    private static async Task WriteAsync(TypedSession s, string key, Operations.ActionIntent policy, IEnumerable<(string Pawn, Operations.PawnSettingsIntentSetting Setting)> assignments, CancellationToken cancellationToken)
     {
         _ = await TypedPawns.AppliedAsync(s, key + "-write", policy, cancellationToken).ConfigureAwait(false);
         foreach (var (pawn, setting) in assignments)
@@ -100,7 +100,7 @@ internal static class PawnPolicies
         }
     }
 
-    private static async Task FoodAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task FoodAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var colonist = Pawn(s, "colonist");
         var dog = Pawn(s, "dog");
@@ -115,7 +115,7 @@ internal static class PawnPolicies
         Allows(Held(facts.Food, "Kibble only", dog), "Kibble");
     }
 
-    private static async Task DrugAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task DrugAsync(TypedSession s, CancellationToken cancellationToken)
     {
         const string Label = "Explicit drugs";
         var colonist = Pawn(s, "colonist");
@@ -150,7 +150,7 @@ internal static class PawnPolicies
         }
     }
 
-    private static async Task ReadingAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task ReadingAsync(TypedSession s, CancellationToken cancellationToken)
     {
         const string Label = "Textbooks only";
         var colonist = Pawn(s, "colonist");

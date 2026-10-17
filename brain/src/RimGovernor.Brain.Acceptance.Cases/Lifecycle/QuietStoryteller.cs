@@ -37,7 +37,7 @@ internal static class LifecycleQuietStoryteller
         Run = RunAsync,
     };
 
-    private static Task RunAsync(ITypedSession s, CancellationToken cancellationToken) =>
+    private static Task RunAsync(TypedSession s, CancellationToken cancellationToken) =>
         NewColonyStart.MenuAsync(
             s,
             "quiet",
@@ -83,7 +83,7 @@ internal static class LifecycleQuietStoryteller
             cancellationToken);
 
     /// <summary>Asserts the loaded game's storyteller is RimGovernorQuiet with no comps, through the fixture op's read-only inspect action.</summary>
-    private static async Task InspectAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    private static async Task InspectAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var read = await s.FixtureAsync("inspect-" + label, Inspect, "inspect", cancellationToken).ConfigureAwait(false);
         s.Record("quiet_" + label, read.Storyteller + "/" + read.Comps.ToString(CultureInfo.InvariantCulture));

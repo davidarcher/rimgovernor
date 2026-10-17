@@ -62,7 +62,7 @@ internal static class LabTrainingRange
     private static JsonObject ArgsOf(Act a) =>
         ServedOps.Args(("action", a.Action), ("pawnId", a.Pawn), ("otherId", a.Other), ("thingId", a.Thing), ("level", a.Level));
 
-    private static TypedCase Lab(string name, string scope, int ticks, Func<ITypedSession, CancellationToken, Task> run) => new()
+    private static TypedCase Lab(string name, string scope, int ticks, Func<TypedSession, CancellationToken, Task> run) => new()
     {
         Name = name,
         Scope = scope,
@@ -75,7 +75,7 @@ internal static class LabTrainingRange
         Run = run,
     };
 
-    private static async Task MidlaneAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task MidlaneAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var t = await TrainingRun.PrepareAsync(s, new TrainingOptions(Bystander: true), cancellationToken).ConfigureAwait(false);
         var (last, _) = await t.UntilTrainedWithAsync(0, cancellationToken).ConfigureAwait(false);
@@ -91,7 +91,7 @@ internal static class LabTrainingRange
         }
     }
 
-    private static async Task ChatAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task ChatAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var t = await TrainingRun.PrepareAsync(s, new TrainingOptions(Neighbour: true), cancellationToken).ConfigureAwait(false);
         _ = await s.RunUntilAsync("training-both", 9000, async ct =>
@@ -112,7 +112,7 @@ internal static class LabTrainingRange
         }
     }
 
-    private static async Task TiersAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task TiersAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var low = await TrainingRun.PrepareAsync(s, new TrainingOptions(Level: 8, Neighbour: true), cancellationToken).ConfigureAwait(false);
         var high = low.Neighbour();
@@ -160,7 +160,7 @@ internal static class LabTrainingRange
         }
     }
 
-    private static async Task CompanyAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task CompanyAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var t = await TrainingRun.PrepareAsync(s, new TrainingOptions(Neighbour: true), cancellationToken).ConfigureAwait(false);
         var second = t.Neighbour();
@@ -180,7 +180,7 @@ internal static class LabTrainingRange
         }
     }
 
-    private static async Task InterruptAsync(ITypedSession s, string action, CancellationToken cancellationToken)
+    private static async Task InterruptAsync(TypedSession s, string action, CancellationToken cancellationToken)
     {
         // A drafted shooter has a neighbour drilling beside it (#2710): company, yet an interrupted session earns no thought.
         var t = await TrainingRun.PrepareAsync(s, new TrainingOptions(Neighbour: action == "draft"), cancellationToken).ConfigureAwait(false);

@@ -35,7 +35,7 @@ public sealed partial class RoundsAcquisitionPlanner
     /// One step under <paramref name="owner"/>, the planner's own Need its family's work step passes: its Methods
     /// are admitted by their claims beside the Need's other work.
     /// </summary>
-    internal async Task<RoundsAcquisitionResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch, IWorkOwner? owner = null)
+    internal async Task<RoundsAcquisitionResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch, NeedOwner? owner = null)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();

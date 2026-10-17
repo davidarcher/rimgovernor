@@ -93,8 +93,8 @@ logic: the comparator and its adoption belong to #3124, #3160 and #3166.
 ### Method journal: claim admission
 
 Every Method has one journal owner: `plan_owner` kind `need`, the
-`need_methods` table keyed by NeedId and MethodId, and `NeedOwner : IMethodOwner`
-(`Owners/MethodOwner.cs` holds the owner contract and the plan guard). The journal
+`need_methods` table keyed by NeedId and MethodId, and `NeedOwner`
+(`Owners/MethodOwner.cs` holds the plan guard). The journal
 is replaced on a `Store.SchemaVersion` change, so there is no migration. Claim
 admission applies to every owner. Combat keeps one rule of its own: a second fight
 is refused while one is open or held (`CombatOpenWork`,
@@ -127,7 +127,7 @@ deadline or deficit fraction: the family owns rotation through its refusal budge
 A new family needs no progress code.
 
 **Implemented (#3279).** The shared building planner works under the Need owner:
-Store `IWorkOwner` (`NeedOwner`) with `OwnerMethodPlan`,
+Store `NeedOwner` with `OwnerMethodPlan`,
 `OwnerMethodHistory` and `CommitOwnerWork`; a Need commits through
 `CommitClaimedMethod`.
 A claim conflict or continued MethodId is a verdict (`claim`, open work), never an

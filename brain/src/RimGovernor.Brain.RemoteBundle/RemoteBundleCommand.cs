@@ -137,7 +137,6 @@ public static class RemoteBundleCommand
         Bootstrapper.CheckAuthorizationPath(repo, trustPath);
         var trust = BundleJson.DecodeTrust(await File.ReadAllBytesAsync(trustPath, cancellationToken).ConfigureAwait(false));
         var report = await Bootstrapper.RunAsync(
-            new GitHubOriginClient(),
             new BootstrapOptions
             {
                 Repo = repo,

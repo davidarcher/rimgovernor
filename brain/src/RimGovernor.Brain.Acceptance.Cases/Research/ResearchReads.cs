@@ -34,7 +34,7 @@ internal static class ResearchReads
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         async Task<Observations.ResearchSnapshot> ReadAsync(string label, string? nameContains)
         {

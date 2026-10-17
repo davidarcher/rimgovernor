@@ -14,10 +14,13 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The typed session over the runner's <see cref="CaseSession"/>: what <see cref="TypedCase.ToCase"/> hands a typed body.
-/// Every wait spends from the case's declared ticks, and a wait past them fails before the game runs.
+/// The typed session over the runner's <see cref="CaseSession"/>: what <see cref="TypedCase.ToCase"/> hands a typed body,
+/// the opened, staged game behind typed calls. Contracts records go in and come out (no flat JSON view), waits spend the
+/// case's declared ticks and end on a tick count, a probe's signature or a telemetry event (never on wall time), and
+/// telemetry is selected by a registered kind. Every wait spends from the case's declared ticks, and a wait past them
+/// fails before the game runs.
 /// </summary>
-public sealed class TypedSession : ITypedSession
+public sealed class TypedSession
 {
     private readonly CaseSession _s;
     private readonly TypedCase _case;
@@ -57,19 +60,25 @@ public sealed class TypedSession : ITypedSession
         ? _s.Harness
         : _launched.Live ?? throw new AcceptanceException($"case {_case.Name}: the launched game's session is released or retired");
 
+    /// <summary>The loaded colony's identity.</summary>
     public Common.Identity Identity { get; private set; }
 
+    /// <summary>A read scope pinned to <see cref="Identity"/>, for a request's <c>Scope</c>.</summary>
     public Observations.ReadScope Scope { get; private set; }
 
+    /// <summary>The typed reply of the case's <see cref="TypedCase.Stage"/>, null when it declared none.</summary>
     public Fx.StageReply? Staged { get; }
 
+    /// <summary>The declared ticks the waits have not spent yet.</summary>
     public int TicksLeft => _case.Ticks - _spent;
 
+    /// <summary>Calls the production op <paramref name="op"/> with its request record and returns its reply record.</summary>
     public Task<TReply> CallAsync<TRequest, TReply>(string label, NativeOp<TRequest, TReply> op, TRequest request, CancellationToken cancellationToken)
         where TRequest : class
         where TReply : class =>
         H.CallAsync(label, op, request, cancellationToken);
 
+    /// <summary>Calls the fixture op <paramref name="op"/>, which the case declares in <see cref="TypedCase.Ops"/>, and returns its typed reply.</summary>
     public Task<TReply> FixtureAsync<TRequest, TReply>(string label, FixtureOp<TRequest, TReply> op, TRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(op);
@@ -81,27 +90,33 @@ public sealed class TypedSession : ITypedSession
         return op.CallAsync(H, label, request, cancellationToken);
     }
 
+    /// <summary>Stages <paramref name="spec"/> on the running game (<c>test/stage</c>, declared in <see cref="TypedCase.Ops"/>) and returns its typed reply.</summary>
     public Task<Fx.StageReply> StageAsync(string label, Fx.StageSpec spec, CancellationToken cancellationToken) =>
         FixtureAsync(label, FixtureStage.Op, spec, cancellationToken);
 
+    /// <summary>The <c>observations_list_buildings</c> rows <paramref name="request"/> selects; its Scope defaults to <see cref="Scope"/>.</summary>
     public Task<IReadOnlyList<Observations.BuildingState>> BuildingsAsync(string label, Observations.ListBuildingsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         return H.BuildingsAsync(label, request.Scope is null ? request with { Scope = Scope } : request, cancellationToken);
     }
 
+    /// <summary>Every zone row <c>observations_list_zones</c> answers.</summary>
     public Task<IReadOnlyList<Observations.ZoneState>> ZonesAsync(string label, CancellationToken cancellationToken) =>
         H.ZonesAsync(label, Scope, cancellationToken);
 
+    /// <summary>Each growing zone with its crop, cells and planted cells (the zones read joined to the cells read).</summary>
     public Task<IReadOnlyList<GrowingZone>> GrowingZonesAsync(string label, CancellationToken cancellationToken) =>
         H.GrowingZonesAsync(label, Identity, cancellationToken);
 
+    /// <summary>Every row of the registered <paramref name="kind"/> the game's log ring holds, oldest first.</summary>
     public IReadOnlyList<LogRow> Telemetry(TelemetryKind kind)
     {
         ArgumentNullException.ThrowIfNull(kind);
         return [.. ServiceLogs.ReadLogs(LogsPath()).Where(row => row.Kind == kind.Name)];
     }
 
+    /// <summary>Runs the game <paramref name="ticks"/> ticks from <see cref="TicksLeft"/>, then pauses.</summary>
     public async Task RunTicksAsync(string label, int ticks, CancellationToken cancellationToken)
     {
         var target = await H.TickAsync(cancellationToken).ConfigureAwait(false) + (ulong)Math.Max(ticks, 0);
@@ -112,12 +127,20 @@ public sealed class TypedSession : ITypedSession
             cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Runs the game until <paramref name="probe"/> is done, at most <paramref name="ticks"/> ticks from <see cref="TicksLeft"/>,
+    /// then pauses; a signature that stops changing stalls the wait. Returns the ticks it ran.
+    /// </summary>
     public Task<int> RunUntilAsync(string label, int ticks, Probe probe, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(probe);
         return RunAsync(label, ticks, probe, cancellationToken);
     }
 
+    /// <summary>
+    /// Runs the game until a row of <paramref name="kind"/> written after the call satisfies <paramref name="match"/>, at
+    /// most <paramref name="ticks"/> ticks from <see cref="TicksLeft"/>, then pauses; returns the matching row.
+    /// </summary>
     public async Task<LogRow> RunUntilEventAsync(string label, int ticks, TelemetryKind kind, Func<LogRow, bool> match, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(kind);
@@ -148,9 +171,21 @@ public sealed class TypedSession : ITypedSession
         return found ?? throw new AcceptanceException($"{label}: no matching {kind.Name} row");
     }
 
+    /// <summary>
+    /// Runs the native clock under <paramref name="request"/> (its watch policy decides what holds it) until the clock
+    /// holds itself, at most <paramref name="ticks"/> ticks from <see cref="TicksLeft"/>, beating while it runs; returns
+    /// the held status. A wait that ends otherwise holds the clock before it throws.
+    /// </summary>
     public Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, Clock.RunRequest request, CancellationToken cancellationToken) =>
         RunClockUntilHeldAsync(label, ticks, request, static (_, _) => Task.FromResult(false), cancellationToken);
 
+    /// <summary>
+    /// <see cref="RunClockUntilHeldAsync(string, int, Clock.RunRequest, CancellationToken)"/> that calls
+    /// <paramref name="whileRunning"/> once per round the clock still runs, before the heartbeat: the hook that acts
+    /// mid-run (an injection at a tick) and can end the wait without a hold by returning true. Returns the held status, or
+    /// the running status of the round that ended the wait (<see cref="Clock.ClockState.Running"/>); either way the clock
+    /// is held when it returns.
+    /// </summary>
     public async Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, Clock.RunRequest request, ClockRound whileRunning, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -203,6 +238,11 @@ public sealed class TypedSession : ITypedSession
         }
     }
 
+    /// <summary>
+    /// The <c>clock_hold</c> row of the hold <paramref name="held"/> reports (a held status, as
+    /// <see cref="RunClockUntilHeldAsync"/> returns): the row whose <c>stop_at_ms</c> is its <c>HeldAtUnixMs</c>. The
+    /// game is held, so the wait spends no ticks; it ends when the row reaches the log ring, under the hang guard.
+    /// </summary>
     public async Task<LogRow> HoldRowAsync(string label, Clock.Status held, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(held);
@@ -225,16 +265,29 @@ public sealed class TypedSession : ITypedSession
         }
     }
 
+    /// <summary>
+    /// The native clock's acceptance-only accounting now (<see cref="ClockAccounting"/>): the supervisor's declared hazard
+    /// bounds beside the widest gap it observed. A read; it spends no ticks.
+    /// </summary>
     public Task<ClockAccounting> ClockAccountingAsync(string label, CancellationToken cancellationToken) =>
         ClockAccounting.ReadAsync(H, label, cancellationToken);
 
     // The game is held while a hold row is awaited: only the log sink's batch flush stands between the hold and its row.
     private static readonly TimeSpan HoldRowWait = TimeSpan.FromSeconds(30);
 
+    /// <summary>Records <paramref name="value"/> in the report under <paramref name="key"/>: the evidence a reviewer reads.</summary>
     public void Record(string key, JsonNode? value) => _s.Report[key] = value;
 
+    /// <summary>Records the Contracts record <paramref name="value"/> in the report under <paramref name="key"/>.</summary>
     public void RecordWire<T>(string key, T value) => _s.Report[key] = JsonNode.Parse(WireJson.Serialize(value));
 
+    /// <summary>
+    /// Hands the clock to the case's declared <see cref="TypedCase.Serve"/>: starts the brain service, resumes automatic
+    /// control under a kept authority and observes while the brain drives the game until <paramref name="probe"/> is done,
+    /// at most <paramref name="ticks"/> game ticks from <see cref="TicksLeft"/>; then stops the service and parks the brain.
+    /// The service's exit or a signature that stops changing ends the wait, and the hang guard is its wall-clock backstop.
+    /// Returns the ticks the game advanced.
+    /// </summary>
     public async Task<int> ServeUntilAsync(string label, int ticks, Probe probe, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(probe);
@@ -274,18 +327,29 @@ public sealed class TypedSession : ITypedSession
         }
     }
 
+    /// <summary>
+    /// The review the brain last persisted in the run's durable journal (its world, cursor tick, enabled flag and
+    /// progress records), null while none was persisted: what a served case's probe reads of the brain's own state.
+    /// Spends no ticks.
+    /// </summary>
     public async Task<Store.Rounds?> ReviewAsync(CancellationToken cancellationToken)
     {
         using var journal = await ServiceJournal.OpenWithRetryAsync(_s.Config, cancellationToken).ConfigureAwait(false);
         return await ServiceJournal.TryRoundsAsync(journal, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Every need_transitions row the run's durable journal holds, oldest first. Spends no ticks.</summary>
     public async Task<IReadOnlyList<Store.NeedTransition>> NeedTransitionsAsync(CancellationToken cancellationToken)
     {
         using var journal = await ServiceJournal.OpenWithRetryAsync(_s.Config, cancellationToken).ConfigureAwait(false);
         return await journal.NeedTransitionsAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// A real reload: saves the paused game under a fresh name (<c>lifecycle_save</c>) and loads that save back to map
+    /// readiness (<c>lifecycle_load</c>, polled through <c>lifecycle_read_load</c>). <see cref="Identity"/> and
+    /// <see cref="Scope"/> follow the loaded game. Spends no ticks.
+    /// </summary>
     public async Task ReloadAsync(string label, CancellationToken cancellationToken)
     {
         var name = label + "-" + Guid.NewGuid().ToString("N");
@@ -329,6 +393,12 @@ public sealed class TypedSession : ITypedSession
         Scope = TypedReads.Scope(Identity);
     }
 
+    /// <summary>
+    /// <see cref="OwnedStart"/> only (<see cref="TypedCase.ClaimsStart"/>): launches a fresh game at the main menu on the
+    /// case's prepared profile, at most <see cref="StartClaim.Launches"/> times, and returns its reusable-game lifecycle.
+    /// Until the next launch every call, read and wait of this session goes to that game (to its open reuse case while
+    /// one is open). The case retires it.
+    /// </summary>
     public async Task<GameReuse> LaunchAsync(string label, CancellationToken cancellationToken)
     {
         if (_case.Start is not OwnedStart || _case.ClaimsStart is not { } claim)
@@ -358,6 +428,13 @@ public sealed class TypedSession : ITypedSession
         return reuse;
     }
 
+    /// <summary>
+    /// Starts a colony from the launched game's main menu (<c>lifecycle_new_colony</c>) and polls it
+    /// (<c>lifecycle_read_new_colony</c>) to its terminal outcome. Each phase is one long event outside the tick loop, so
+    /// the wait ends on the outcome or a stalled phase, not on ticks, and spends none. Phases must not go backwards, and a
+    /// completed start must have reported SAVING. A completed start moves <see cref="Identity"/> and <see cref="Scope"/>
+    /// to the new colony.
+    /// </summary>
     public async Task<NewColonyResult> NewColonyAsync(string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -422,8 +499,13 @@ public sealed class TypedSession : ITypedSession
         }
     }
 
+    /// <summary>The profile path of save <c>&lt;saveName&gt;.rws</c>: where a start claim checks the file a start wrote, or squats it.</summary>
     public string ProfileSave(string saveName) => _s.Config.ProfileSave(saveName);
 
+    /// <summary>
+    /// The profile save <c>&lt;saveName&gt;.rws</c> parsed as XML: the evidence a start claim reads for what no
+    /// observation reports (a scenario part, the saved storyteller). Spends no ticks.
+    /// </summary>
     public async Task<XDocument> ReadSaveFileAsync(string saveName, CancellationToken cancellationToken)
     {
         var path = ProfileSave(saveName);

@@ -42,7 +42,7 @@ internal static class OdysseyLavaField
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var site = s.Staged!.Site ?? throw new AcceptanceException($"stage: no site: {ServedOps.Json(s.Staged)}");
 

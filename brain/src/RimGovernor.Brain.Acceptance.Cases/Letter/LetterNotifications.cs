@@ -30,7 +30,7 @@ internal static class LetterNotifications
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var letterId = (await s.FixtureAsync("deliver", Deliver, NoArgs.Value, cancellationToken).ConfigureAwait(false)).LetterId;
 

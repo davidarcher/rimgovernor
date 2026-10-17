@@ -58,7 +58,7 @@ internal static class CombatLabMirror
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var lab = new StagedLab(Fixture, s.Staged!);
 
@@ -82,7 +82,7 @@ internal static class CombatLabMirror
     }
 
     // The lab-ranged answers on the rifleman's, an open and a behind cell, then a read at the caps timed.
-    private static async Task GeometryAsync(ITypedSession s, StagedLab lab, CancellationToken cancellationToken)
+    private static async Task GeometryAsync(TypedSession s, StagedLab lab, CancellationToken cancellationToken)
     {
         // Spec order: colonist i then its raider straight north.
         var rifleman = Fixture.Pawns.First(p => p.Side == CombatFixtures.Colonist);
@@ -130,7 +130,7 @@ internal static class CombatLabMirror
 
     // cover_behind_line on the sandbag line proposes every cell behind it (the riflemen's row), and a firing_cells
     // proposal at the radius cap, 64 cells scored against every staged pawn, stays in budget.
-    private static async Task ProposeAsync(ITypedSession s, StagedLab lab, CancellationToken cancellationToken)
+    private static async Task ProposeAsync(TypedSession s, StagedLab lab, CancellationToken cancellationToken)
     {
         var line = Fixture.Things.Where(t => t.Def == "Sandbags").Select(t => lab.At(t.X, t.Z)).ToList();
         var cover = await CombatLabKit.GeometryAsync(s, "propose-cover", new Mirror.CombatGeometryRequest
@@ -180,7 +180,7 @@ internal static class CombatLabMirror
 
     // adjacent_to_choke on the room's gap, our side three cells inside, proposes exactly the three floor cells inside the
     // gap, the one straight behind it first; the walls either side and the cells outside are not proposed.
-    private static async Task ChokeAsync(ITypedSession s, StagedLab lab, CancellationToken cancellationToken)
+    private static async Task ChokeAsync(TypedSession s, StagedLab lab, CancellationToken cancellationToken)
     {
         var gap = lab.Cell(ChokeDx, ChokeDz + CombatFixtures.ChokeHalf);
         var g = await CombatLabKit.GeometryAsync(s, "propose-choke", new Mirror.CombatGeometryRequest
@@ -198,7 +198,7 @@ internal static class CombatLabMirror
     }
 
     // Reads request Samples times, each checked by check, and returns the worst main-thread time.
-    private static async Task<double> WorstMsAsync(ITypedSession s, string label, Mirror.CombatGeometryRequest request, Action<Mirror.CombatGeometry> check, CancellationToken cancellationToken)
+    private static async Task<double> WorstMsAsync(TypedSession s, string label, Mirror.CombatGeometryRequest request, Action<Mirror.CombatGeometry> check, CancellationToken cancellationToken)
     {
         var worst = 0.0;
         for (var i = 0; i < Samples; i++)
@@ -213,7 +213,7 @@ internal static class CombatLabMirror
 
     // Runs the lab until a pawn goes down or dies: the frame that first carries the event carries the pawn's row
     // downed (changed at or after the event) or, for a death or a downing then death between frames, no row.
-    private static async Task FightAsync(ITypedSession s, LabFrames frames, CancellationToken cancellationToken)
+    private static async Task FightAsync(TypedSession s, LabFrames frames, CancellationToken cancellationToken)
     {
         Mirror.CombatEventRow? down = null;
         var frame = await frames.UntilAsync("fight", FightTicks, 0, f =>

@@ -48,7 +48,7 @@ internal static class MapscopeIsolation
             ? read
             : throw new AcceptanceException($"{label}: {tool} refused: {reply?.ToJsonString()}");
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var home = s.Identity;
         var expected = await TypedAuthority.ExpectedGenerationAsync(s, "status-fresh", home, cancellationToken).ConfigureAwait(false);
@@ -141,7 +141,7 @@ internal static class MapscopeIsolation
         }
     }
 
-    private static async Task<IReadOnlyList<Presentation.ColonistReference>> RosterAsync(ITypedSession s, string label, Presentation.ColonistRosterRequest request, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<Presentation.ColonistReference>> RosterAsync(TypedSession s, string label, Presentation.ColonistRosterRequest request, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonists, request, cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Roster?.Colonists.ToList() ?? throw new AcceptanceException($"{label}: want a roster, got {reply.Outcome}");
@@ -157,7 +157,7 @@ internal static class MapscopeIsolation
     }
 
     // observations_read_status for identity answers with that identity's map in its context, whichever map is viewed.
-    private static async Task StatusOnAsync(ITypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
+    private static async Task StatusOnAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(
             label,

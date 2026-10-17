@@ -38,7 +38,7 @@ internal sealed partial class StockpileZones(Rounder reviewer, FacadeNativeClien
     /// zones still open continue, and once released they are created again only if the review still finds them
     /// missing.
     /// </summary>
-    public async Task<Verdict> CreateAsync(ControlState state, Sto.IWorkOwner owner, Observation.ColonyProjection projection, DateTimeOffset started, IReadOnlyList<Pol.StockpileEdit> edits, CancellationToken call, CancellationToken epoch)
+    public async Task<Verdict> CreateAsync(ControlState state, Sto.NeedOwner owner, Observation.ColonyProjection projection, DateTimeOffset started, IReadOnlyList<Pol.StockpileEdit> edits, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         if (native is not FacadeNativeClient preview)
@@ -223,7 +223,7 @@ partial class StockpileZones
     /// Reports whether one of the owner's methods holds a zone-edit plan still open. A room shell is building
     /// work that takes days; zoning is instant, so only an open zone-edit plan holds the next edits.
     /// </summary>
-    internal static bool OpenEditPlan(StoreJournal journal, Sto.IWorkOwner owner, CancellationToken ct)
+    internal static bool OpenEditPlan(StoreJournal journal, Sto.NeedOwner owner, CancellationToken ct)
     {
         foreach (var method in owner.OpenMethods)
         {

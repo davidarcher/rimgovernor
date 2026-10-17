@@ -41,7 +41,7 @@ internal static class BillsCensus
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var id = s.Staged!.Buildings[Bench].Ids.Single();
         var problems = new List<string>();

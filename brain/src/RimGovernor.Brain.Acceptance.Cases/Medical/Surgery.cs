@@ -29,7 +29,7 @@ internal static class MedicalSurgery
         condition => ServedOps.Args(("disease", false), ("condition", condition)),
         ServedOps.Reply<Fx.MedicalSetup>(SetupTool));
 
-    private sealed record Row(string Name, string Condition, int Ticks, string Scope, Func<ITypedSession, Fx.MedicalSetup, CancellationToken, Task> Run);
+    private sealed record Row(string Name, string Condition, int Ticks, string Scope, Func<TypedSession, Fx.MedicalSetup, CancellationToken, Task> Run);
 
     private static readonly Row[] Rows =
     [
@@ -105,7 +105,7 @@ internal static class MedicalSurgery
         },
     });
 
-    private static async Task<Observations.PawnHealth> HealthAsync(ITypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
+    private static async Task<Observations.PawnHealth> HealthAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
         (await TypedPawns.OneAsync(s, label, pawn, HealthDetails, cancellationToken).ConfigureAwait(false)).Health
             ?? throw new AcceptanceException($"{label}: {pawn} read no health detail");
 
@@ -125,7 +125,7 @@ internal static class MedicalSurgery
     private static string Prisoner(Fx.MedicalSetup setup) =>
         setup.PrisonerId is { Length: > 0 } prisoner ? prisoner : throw new AcceptanceException($"medical-setup held no prisoner: {ServedOps.Json(setup)}");
 
-    private static async Task FactsAsync(ITypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
+    private static async Task FactsAsync(TypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
     {
         var health = await HealthAsync(s, "surgery-facts", setup.Surgical, cancellationToken).ConfigureAwait(false);
         s.RecordWire("surgery", health.Surgery);
@@ -148,7 +148,7 @@ internal static class MedicalSurgery
         Surgeon = surgeon is null ? null : new Common.Ref { Id = surgeon },
     };
 
-    private static async Task<string> QueuedAsync(ITypedSession s, string key, Operations.ProductionBillIntent bill, CancellationToken cancellationToken)
+    private static async Task<string> QueuedAsync(TypedSession s, string key, Operations.ProductionBillIntent bill, CancellationToken cancellationToken)
     {
         var effect = (await TypedPawns.AppliedAsync(s, key, bill, cancellationToken).ConfigureAwait(false))?.SurgeryBill;
         return effect is { State: Receipts.SurgeryState.Queued, Bill.Id: { Length: > 0 } id } && effect.PawnId == bill.Patient?.Id && effect.PartIndex == bill.PartIndex
@@ -156,7 +156,7 @@ internal static class MedicalSurgery
             : throw new AcceptanceException($"{key}: want a QUEUED surgery bill on {bill.Patient?.Id} part {bill.PartIndex}, got {effect}");
     }
 
-    private static async Task IntentAsync(ITypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
+    private static async Task IntentAsync(TypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
     {
         var prisoner = Prisoner(setup);
         _ = Condition(setup);
@@ -194,7 +194,7 @@ internal static class MedicalSurgery
         }
     }
 
-    private static async Task RestoreAsync(ITypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
+    private static async Task RestoreAsync(TypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
     {
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         _ = await QueuedAsync(s, "restore-queue", Bill(setup.Surgical, "InstallSimpleProstheticLeg", setup.Part), cancellationToken).ConfigureAwait(false);
@@ -207,7 +207,7 @@ internal static class MedicalSurgery
         s.Record("restore_ticks", elapsed);
     }
 
-    private static async Task CataractAsync(ITypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
+    private static async Task CataractAsync(TypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
     {
         var patient = Condition(setup);
         var health = await HealthAsync(s, "cataract-health", patient, cancellationToken).ConfigureAwait(false);
@@ -223,7 +223,7 @@ internal static class MedicalSurgery
         }
     }
 
-    private static async Task AmputationAsync(ITypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
+    private static async Task AmputationAsync(TypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
     {
         var patient = Condition(setup);
         var health = await HealthAsync(s, "amputation-health", patient, cancellationToken).ConfigureAwait(false);
@@ -239,7 +239,7 @@ internal static class MedicalSurgery
         }
     }
 
-    private static async Task<(Observations.PopulationPerson Person, Observations.SurgeryOperation Harvest)> KidneyHarvestAsync(ITypedSession s, string label, string prisoner, CancellationToken cancellationToken)
+    private static async Task<(Observations.PopulationPerson Person, Observations.SurgeryOperation Harvest)> KidneyHarvestAsync(TypedSession s, string label, string prisoner, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var population = TypedReads.Observed(label, NativeOps.ReadPopulation, reply, reply.Outcome?.Observed);
@@ -250,7 +250,7 @@ internal static class MedicalSurgery
         return (person, harvest);
     }
 
-    private static async Task HarvestAsync(ITypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
+    private static async Task HarvestAsync(TypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
     {
         var prisoner = Prisoner(setup);
         var (person, _) = await KidneyHarvestAsync(s, "harvest-population", prisoner, cancellationToken).ConfigureAwait(false);
@@ -266,7 +266,7 @@ internal static class MedicalSurgery
         }
     }
 
-    private static async Task HarvestCareLimitAsync(ITypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
+    private static async Task HarvestCareLimitAsync(TypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
     {
         var prisoner = Prisoner(setup);
         var (person, harvest) = await KidneyHarvestAsync(s, "care-limit-population", prisoner, cancellationToken).ConfigureAwait(false);

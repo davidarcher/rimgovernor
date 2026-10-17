@@ -23,7 +23,7 @@ internal static class ApplyAreaIntent
 
     private static Operations.AreaRect Cell(int x, int z) => new() { MinX = x, MinZ = z, MaxX = x, MaxZ = z };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 

@@ -28,7 +28,7 @@ internal static class PlagueReadback
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var setup = await s.FixtureAsync("plague-prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         if (!setup.Success || setup.Patients.Count != 2)

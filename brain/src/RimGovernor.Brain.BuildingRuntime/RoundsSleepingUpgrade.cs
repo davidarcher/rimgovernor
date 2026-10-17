@@ -149,7 +149,7 @@ partial class RoundsSleepingUpkeepPlanner
 public sealed partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>Deconstructs a replaced bed, once per bed per Episode.</summary>
-    internal async Task<RoundsBuildingResult> RemoveOldBedAsync(ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Observation.RoundsReading reading, Pol.BedReplacement rep, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> RemoveOldBedAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.BedReplacement rep, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var method = new MethodId("bedroom-replace-remove-" + RoundsBuildingPlanner.DigestHex(rep.Bed, 8));
@@ -170,7 +170,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>Previews and admits one upgrade piece, once per room and slot per Episode.</summary>
-    internal async Task<RoundsBuildingResult> UpgradeBedroomAsync(ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> UpgradeBedroomAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var facts = reading.Projection;

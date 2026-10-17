@@ -40,7 +40,7 @@ internal static class RecoveryArea
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         // The fixture writes the map outside any authority scope, so it runs before the grant.
         var prepared = await s.FixtureAsync("prepare", Prepare, "", cancellationToken).ConfigureAwait(false);

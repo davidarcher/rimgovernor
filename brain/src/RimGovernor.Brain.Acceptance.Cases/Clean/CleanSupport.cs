@@ -64,7 +64,7 @@ internal static class CleanSupport
         };
     }
 
-    private static async Task RunAsync(ITypedSession s, Scenario scenario, FixtureOp<NoArgs, Fx.FixtureDone> prepare, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, Scenario scenario, FixtureOp<NoArgs, Fx.FixtureDone> prepare, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("support-prepare", prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         Fx.SupportRead last = new();

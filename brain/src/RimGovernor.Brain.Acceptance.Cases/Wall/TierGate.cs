@@ -36,7 +36,7 @@ internal static class WallTierGate
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var prepared = await s.FixtureAsync("tier-prepare", Gate, "prepare", cancellationToken).ConfigureAwait(false);
         if (prepared.Sites.Count != 4)

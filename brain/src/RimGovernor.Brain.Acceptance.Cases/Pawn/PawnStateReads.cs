@@ -36,7 +36,7 @@ internal static class PawnStateReads
         Run = (s, ct) => RunAsync(s, row, ct),
     });
 
-    private static async Task RunAsync(ITypedSession s, Row row, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, Row row, CancellationToken cancellationToken)
     {
         var id = s.Staged?.Pawns["pawn"].Id ?? throw new AcceptanceException("the stage made no pawn");
         var pawn = await TypedPawns.OneAsync(s, "pawn", id, null, cancellationToken).ConfigureAwait(false);

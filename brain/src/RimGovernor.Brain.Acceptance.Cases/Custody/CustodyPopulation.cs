@@ -37,7 +37,7 @@ internal static class CustodyPopulation
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         // The fixture runs before authority is acquired: its direct spawns would revoke a held grant.
         var setup = await s.FixtureAsync("setup", Setup, NoArgs.Value, cancellationToken).ConfigureAwait(false);
@@ -102,7 +102,7 @@ internal static class CustodyPopulation
         new Operations.PrisonerInteractionIntent { PawnId = pawn, Interaction = mode };
 
     /// <summary>Applies one custody order, requires an issued <paramref name="job"/> job, then resends it and requires no second job.</summary>
-    private static async Task OrderedAsync(ITypedSession s, string key, string capturer, string target, string job, CancellationToken cancellationToken)
+    private static async Task OrderedAsync(TypedSession s, string key, string capturer, string target, string job, CancellationToken cancellationToken)
     {
         var issued = (await TypedPawns.AppliedAsync(s, key, TypedPawnOps.GiveJob(capturer, job, target), cancellationToken).ConfigureAwait(false))?.Job;
         if (issued is not { Issued: true } || issued.PawnId != capturer || issued.JobDef != job)
@@ -118,7 +118,7 @@ internal static class CustodyPopulation
     }
 
     /// <summary>Applies one prisoner interaction, requires held <paramref name="def"/> evidence and the census to read it back.</summary>
-    private static async Task InteractionAsync(ITypedSession s, string key, string pawn, Operations.PrisonerInteraction mode, string def, CancellationToken cancellationToken)
+    private static async Task InteractionAsync(TypedSession s, string key, string pawn, Operations.PrisonerInteraction mode, string def, CancellationToken cancellationToken)
     {
         var effect = (await TypedPawns.AppliedAsync(s, key, Interaction(pawn, mode), cancellationToken).ConfigureAwait(false))?.Prisoner;
         if (effect is not { Outcome: "held" } || effect.InteractionDef != def)
@@ -134,7 +134,7 @@ internal static class CustodyPopulation
     }
 
     /// <summary>Applies <paramref name="intent"/> and requires a refusal <paramref name="want"/> accepts.</summary>
-    private static async Task RefusedAsync(ITypedSession s, string key, Operations.ActionIntent intent, Func<Operations.Refusal, bool> want, CancellationToken cancellationToken)
+    private static async Task RefusedAsync(TypedSession s, string key, Operations.ActionIntent intent, Func<Operations.Refusal, bool> want, CancellationToken cancellationToken)
     {
         var result = await TypedPawns.ApplyAsync(s, key, intent, cancellationToken).ConfigureAwait(false);
         s.RecordWire(key, result);
@@ -144,17 +144,17 @@ internal static class CustodyPopulation
         }
     }
 
-    private static Probe Until(ITypedSession s, string pawn, Func<Observations.PawnState, bool> done) => async ct =>
+    private static Probe Until(TypedSession s, string pawn, Func<Observations.PawnState, bool> done) => async ct =>
     {
         var row = await PawnAsync(s, "custody-" + pawn, pawn, ct).ConfigureAwait(false);
         return ($"{row.Prisoner} {row.InBed} {row.Downed}", done(row));
     };
 
-    private static Task<Observations.PawnState> PawnAsync(ITypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
+    private static Task<Observations.PawnState> PawnAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
         TypedPawns.OneAsync(s, label, pawn, null, cancellationToken);
 
     /// <summary>The population census row of <paramref name="pawn"/>.</summary>
-    private static async Task<Observations.PopulationPerson> PersonAsync(ITypedSession s, string label, string pawn, CancellationToken cancellationToken)
+    private static async Task<Observations.PopulationPerson> PersonAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var population = TypedReads.Observed(label, NativeOps.ReadPopulation, reply, reply.Outcome?.Observed);

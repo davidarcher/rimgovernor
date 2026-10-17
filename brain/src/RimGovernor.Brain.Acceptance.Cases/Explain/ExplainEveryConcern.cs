@@ -37,7 +37,7 @@ internal static class ExplainEveryConcern
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         // The active set: every concern the review held a progress record for at any poll of the window, with the last
         // planner cause filed on it.

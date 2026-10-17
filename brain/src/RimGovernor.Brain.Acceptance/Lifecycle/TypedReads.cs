@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// Production observation reads over typed requests and replies: the reads a case checks game state through instead of
-/// a private test probe. The typed session (<see cref="ITypedSession"/>) reads through these.
+/// a private test probe. The typed session (<see cref="TypedSession"/>) reads through these.
 /// </summary>
 public static class TypedReads
 {

@@ -127,42 +127,11 @@ public sealed class PlannerParts
     /// (coupled order, review, autosave), the heartbeat and the colony event consumer. Null steps the planners without ever
     /// running the clock.
     /// </summary>
-    public IClockRunDriver? Clock { get; init; }
+    public ClockRunDriver? Clock { get; init; }
 
     /// <summary>The live target speed behind <c>POST /api/player/clock-speed</c>; null registers no such route.</summary>
     public ClockTargetSpeed? TargetSpeed { get; init; }
 
     /// <summary>The routine diagnostics behind <c>/api/routines</c> (Go <c>serviceRoundsDiagnostics</c>); null registers no such route.</summary>
     public IRoundsProvider? Rounds { get; init; }
-}
-
-/// <summary>The clock's run state machine, driven from the host after each step.</summary>
-public interface IClockRunDriver : IDisposable
-{
-    /// <summary>
-    /// Acts on one finished step: runs a held clock, changes its speed or policy in place, or takes a brain hold.
-    /// Returns true when it left the planners work to do at once (a hold it took, a resume after a review), so the
-    /// next step is a settled one rather than a timer's.
-    /// </summary>
-    Task<bool> AfterStepAsync(ClockSchedulerResult result, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Stops the colony event and heartbeat loops and holds the clock; called on shutdown after the last step. The session's
-    /// close stops it again, so it stays usable until <see cref="IDisposable.Dispose"/>, which the host calls once the
-    /// session has drained.
-    /// </summary>
-    Task StopAsync(CancellationToken cancellationToken);
-}
-
-/// <summary>
-/// Builds the parts of the brain that need a native client over <see cref="INativeFacade"/>. The host owns when
-/// they are built and torn down; the composition owns what they are made of.
-/// </summary>
-public interface IBrainComposition
-{
-    /// <summary>Called once, before the session exists.</summary>
-    SessionParts ComposeSession(INativeFacade facade, TelemetryEmitter telemetry);
-
-    /// <summary>Called once, after the player exists and before the Worker does.</summary>
-    PlannerParts ComposePlanners(PlannerContext context);
 }

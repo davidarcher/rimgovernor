@@ -60,7 +60,7 @@ internal static class FarmLattice
     private static List<Fx.StageCell> Rect(int x0, int z0) =>
         [.. Enumerable.Range(0, Width).SelectMany(x => Enumerable.Range(0, Height).Select(z => new Fx.StageCell(x0 + x, z0 + z)))];
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var oakId = s.Staged!.Zones[OakZone];
         var riceId = s.Staged.Zones[RiceZone];

@@ -39,7 +39,7 @@ internal static class UpkeepHomeCoverage
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var prepared = await s.FixtureAsync("sleeping-setup", Prepared, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         s.Record("prepared", ServedOps.Json(prepared));
@@ -92,7 +92,7 @@ internal static class UpkeepHomeCoverage
     }
 
     /// <summary>The cells read over the corridor, the margin cell and the cell beyond it.</summary>
-    private static async Task<MapCellGrid> ReadHomeAsync(ITypedSession s, string label, IReadOnlyList<Cell> corridor, Cell margin, Cell beyond, CancellationToken cancellationToken)
+    private static async Task<MapCellGrid> ReadHomeAsync(TypedSession s, string label, IReadOnlyList<Cell> corridor, Cell margin, Cell beyond, CancellationToken cancellationToken)
     {
         var cells = corridor.Append(margin).Append(beyond).ToList();
         var reply = await s.CallAsync(label, NativeOps.GetCells, new Observations.GetCellsRequest

@@ -57,7 +57,7 @@ internal static class LifecycleNewColonyParts
         ArrivalMethod = Lifecycle.ScenarioArrivalMethod.Standing,
     };
 
-    private static Task RunAsync(ITypedSession s, CancellationToken cancellationToken) =>
+    private static Task RunAsync(TypedSession s, CancellationToken cancellationToken) =>
         NewColonyStart.MenuAsync(
             s,
             "parts",
@@ -71,7 +71,7 @@ internal static class LifecycleNewColonyParts
             cancellationToken);
 
     /// <summary>An unknown name in each part kind, and parts the game cannot use, are refused before generation.</summary>
-    private static async Task RefusalsAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RefusalsAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var spec = PartsSpec();
         var bad = new (string Name, Lifecycle.NewColonySpec Spec)[]
@@ -95,7 +95,7 @@ internal static class LifecycleNewColonyParts
     }
 
     /// <summary>Asserts, from the saved game, that each part took effect.</summary>
-    private static void CheckSave(ITypedSession s, XDocument save)
+    private static void CheckSave(TypedSession s, XDocument save)
     {
         foreach (var (placement, def, want) in Things)
         {

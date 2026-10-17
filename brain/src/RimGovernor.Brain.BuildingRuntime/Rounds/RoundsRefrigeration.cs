@@ -66,7 +66,7 @@ public sealed partial class RoundsBuildingPlanner
         var p = Reviewer.Player;
         var state = work.State;
         var epoch = work.Epoch;
-        IWorkOwner goal = work.Owner;
+        NeedOwner goal = work.Owner;
         var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         if (!review.Enabled || !review.Snapshot.Matches(state.Snapshot))
         {
@@ -188,7 +188,7 @@ public sealed partial class RoundsBuildingPlanner
     /// Whether the cooling window of the Need's coolers has run out, and whether the Need has committed any method
     /// in its world. With none no cooler is known to be settling, so no second cooler is lent time (decision 16).
     /// </summary>
-    internal static (bool Exhausted, bool Committed) RefrigerationCooling(StoreJournal journal, IWorkOwner goal, GenerationSnapshot current, Tick tick, CancellationToken ct)
+    internal static (bool Exhausted, bool Committed) RefrigerationCooling(StoreJournal journal, NeedOwner goal, GenerationSnapshot current, Tick tick, CancellationToken ct)
     {
         var methods = journal.OwnerMethodHistory(goal, ct);
         if (methods.Count == 0)
@@ -328,7 +328,7 @@ public sealed partial class RoundsBuildingPlanner
         return ([p], stock, default);
     }
 
-    internal RoundsBuildingResult CommitRefrigerationTarget(IWorkOwner goal, Action check, CancellationToken call)
+    internal RoundsBuildingResult CommitRefrigerationTarget(NeedOwner goal, Action check, CancellationToken call)
     {
         var p = Reviewer.Player;
         var proposal = Refrigeration;

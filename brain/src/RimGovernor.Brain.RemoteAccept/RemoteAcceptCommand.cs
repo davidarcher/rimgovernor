@@ -146,7 +146,7 @@ public static class RemoteAcceptCommand
 
                     var trust = await RemoteImport.LocalTrustAsync(repo.Value, cancellationToken).ConfigureAwait(false);
                     var provenance = new Provenance(trust, id.Value, "", runId.Value, attempt.Value);
-                    await RemoteImport.DownloadAsync(new GhCliApi(), provenance, output.Value, cancellationToken).ConfigureAwait(false);
+                    await RemoteImport.DownloadAsync(provenance, output.Value, cancellationToken).ConfigureAwait(false);
                     await stdout.WriteLineAsync($"verified import: {Path.Combine(output.Value, "evidence", "result.json")}").ConfigureAwait(false);
                     break;
                 }

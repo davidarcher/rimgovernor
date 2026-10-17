@@ -40,7 +40,7 @@ internal static class TradeExecute
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var incident = s.Staged!.Incidents["trader"];
         var traderId = incident.Traders.Count > 0 ? incident.Traders[0] : throw new AcceptanceException($"stage: no trader pawn was spawned: {incident}");

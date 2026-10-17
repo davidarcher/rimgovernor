@@ -163,7 +163,7 @@ internal static class LayoutFieldShrink
 public sealed partial class RoundsFieldPlanner
 {
     /// <summary>Gives up one surplus zone's bare cells with remove-cells, committed directly like a grow. Returns null when nothing was shrunk (no surplus, no bare cell, the method already committed).</summary>
-    internal async Task<RoundsFieldResult?> ShrinkAsync(ControlState state, IWorkOwner goal, ColonyProjection projection, RoundsReading read, FieldRequest field, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsFieldResult?> ShrinkAsync(ControlState state, NeedOwner goal, ColonyProjection projection, RoundsReading read, FieldRequest field, CancellationToken call, CancellationToken epoch)
     {
         if (LayoutFieldShrink.PlanFieldShrink(projection, LayoutFieldShrink.FieldTargets(projection, field)) is not { } plan)
         {

@@ -7,17 +7,6 @@ namespace RimGovernor.Brain.Acceptance;
 /// refuses the run before any game opens, except a stale or fixture-less install (<see cref="DoctorCheck.Code"/>), which
 /// the run heals unless <see cref="RunOptions.NoHeal"/>; the checks then run again.
 /// </summary>
-public sealed class RunPreflight : IRunPreflight
-{
-    /// <summary>The shared instance the host wires into <see cref="RunDependencies.Preflight"/>.</summary>
-    public static RunPreflight Instance { get; } = new();
-
-    /// <inheritdoc />
-    public Task<PreflightResult> RunAsync(IReadOnlyList<AcceptanceCase> selected, RunOptions options, TextWriter stdout, CancellationToken cancellationToken) =>
-        PreflightPass.RunAsync(selected, options, stdout, cancellationToken);
-}
-
-/// <summary>The preflight pass itself (see <see cref="RunPreflight"/>).</summary>
 public static class PreflightPass
 {
     /// <summary>The healed-list entry for a root whose kept game the heal stopped.</summary>
@@ -65,9 +54,8 @@ public static class PreflightPass
         ArgumentNullException.ThrowIfNull(ops);
         ArgumentNullException.ThrowIfNull(opts);
         ArgumentNullException.ThrowIfNull(stdout);
-        var setup = AcceptanceDoctor.Setup ?? new FileDoctorSetup();
         var o = new DoctorOptions { Root = opts.Root, Output = opts.Output, Cases = names, GameId = opts.GameId, FixtureOps = ops };
-        var checks = await DoctorChecks.RunAsync(o, setup, cancellationToken).ConfigureAwait(false);
+        var checks = await DoctorChecks.RunAsync(o, cancellationToken).ConfigureAwait(false);
         await DoctorChecks.WriteAsync(stdout, checks, onlyFailing: true).ConfigureAwait(false);
         var healed = new List<string>();
         if (!opts.NoHeal && await DoctorHeal.StopOrphansAsync(checks, stdout, cancellationToken).ConfigureAwait(false) > 0)
@@ -91,7 +79,7 @@ public static class PreflightPass
 
         try
         {
-            healed.AddRange(await HealAsync(setup, codes, ops, opts, stdout, cancellationToken).ConfigureAwait(false));
+            healed.AddRange(await HealAsync(codes, ops, opts, stdout, cancellationToken).ConfigureAwait(false));
         }
         catch (AcceptanceException e)
         {
@@ -99,7 +87,7 @@ public static class PreflightPass
             return new PreflightResult(false, []);
         }
 
-        checks = await DoctorChecks.RunAsync(o, setup, cancellationToken).ConfigureAwait(false);
+        checks = await DoctorChecks.RunAsync(o, cancellationToken).ConfigureAwait(false);
         await DoctorChecks.WriteAsync(stdout, checks, onlyFailing: true).ConfigureAwait(false);
         if (DoctorChecks.Failed(checks))
         {
@@ -119,15 +107,13 @@ public static class PreflightPass
     /// launch. The next game open launches fresh. Returns the codes plus <see cref="Relaunched"/> when a game was
     /// stopped, for the report's healed list.
     /// </summary>
-    public static async Task<IReadOnlyList<string>> HealAsync(
-        IDoctorSetup setup,
+    public static async Task<IReadOnlyList<string>> HealAsync(
         IReadOnlyList<string> codes,
         IReadOnlyList<string> ops,
         RunOptions opts,
         TextWriter log,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(setup);
         ArgumentNullException.ThrowIfNull(codes);
         ArgumentNullException.ThrowIfNull(ops);
         ArgumentNullException.ThrowIfNull(opts);
@@ -136,7 +122,7 @@ public static class PreflightPass
         var repo = NativeSourceInputs.FindRepo(cwd)
             ?? throw new AcceptanceException($"no checkout encloses {cwd}; run from the worktree");
         var layout = SetupLayout.For(repo);
-        var gameCopy = RootGameCopy(setup, opts);
+        var gameCopy = RootGameCopy(opts);
         if (!string.Equals(Path.GetFullPath(gameCopy).TrimEnd('\\', '/'), Path.GetFullPath(layout.GameCopy).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
         {
             throw new AcceptanceException(
@@ -145,12 +131,12 @@ public static class PreflightPass
 
         var installed = Path.Combine(gameCopy, "Mods", "RimGovernor");
         IReadOnlyList<string> installedFixtures = [];
-        if (setup.ReadPackageManifest(installed) is { } manifest)
+        if (FileDoctorSetup.ReadPackageManifest(installed) is { } manifest)
         {
             installedFixtures = manifest.Fixtures;
         }
 
-        var fixtures = setup.FixtureFlags(repo, installedFixtures, ops);
+        var fixtures = FileDoctorSetup.FixtureFlags(repo, installedFixtures, ops);
 
         // An install with nothing recorded takes every class.
         await log.WriteLineAsync(string.Create(CultureInfo.InvariantCulture, $"heal\t{string.Join(',', codes)}\trebuilding the mod (fixtures [{string.Join(' ', fixtures)}])")).ConfigureAwait(false);
@@ -208,11 +194,10 @@ public static class PreflightPass
     }
 
     /// <summary>The game copy the root's configuration launches.</summary>
-    public static string RootGameCopy(IDoctorSetup setup, RunOptions opts)
+    public static string RootGameCopy(RunOptions opts)
     {
-        ArgumentNullException.ThrowIfNull(setup);
         ArgumentNullException.ThrowIfNull(opts);
-        var game = setup.ReadGameSection(opts.Root, opts.GameId);
+        var game = FileDoctorSetup.ReadGameSection(opts.Root, opts.GameId);
         if (game.WorkingDir.Length == 0)
         {
             throw new AcceptanceException($"{Path.Combine(opts.Root, "config", "config.json")}: the game has no workingDir");

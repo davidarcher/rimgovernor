@@ -49,7 +49,7 @@ internal static class StatsEvaluateStat
         Run = RunAsync,
     };
 
-    private static async Task<Observations.EvaluateStatReplyOutcome?> ReadAsync(ITypedSession s, string label, string def, string stuff, string stat, CancellationToken cancellationToken)
+    private static async Task<Observations.EvaluateStatReplyOutcome?> ReadAsync(TypedSession s, string label, string def, string stuff, string stat, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.EvaluateStat, new Observations.EvaluateStatRequest
         {
@@ -63,7 +63,7 @@ internal static class StatsEvaluateStat
         return reply.Outcome;
     }
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var problems = new List<string>();
         foreach (var (def, stuff, stat) in Sample)

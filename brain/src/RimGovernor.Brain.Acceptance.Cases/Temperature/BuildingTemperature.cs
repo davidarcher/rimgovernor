@@ -40,7 +40,7 @@ internal static class BuildingTemperature
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var thingId = s.Staged!.Buildings["heater"].Ids.Single();
 

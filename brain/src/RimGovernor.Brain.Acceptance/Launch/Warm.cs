@@ -18,7 +18,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// one that must see a first-boot process, runs with <c>RIMGOVERNOR_ACCEPT_KEEP_GAME=0</c>.
 /// </para>
 /// </summary>
-public sealed class Game : IGameHold
+public sealed class Game
 {
     /// <summary>Controls whether the RimWorld process stays alive between harness binaries.</summary>
     public const string KeepGameEnv = "RIMGOVERNOR_ACCEPT_KEEP_GAME";

@@ -41,7 +41,7 @@ internal static class CombatLabStrip
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var hostiles = new StagedLab(Fixture, s.Staged!).Hostiles();
         if (hostiles.Count != 1)
@@ -82,7 +82,7 @@ internal static class CombatLabStrip
         }, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<Operations.ActionResult> StripAsync(ITypedSession s, string key, string raider, CancellationToken cancellationToken)
+    private static async Task<Operations.ActionResult> StripAsync(TypedSession s, string key, string raider, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
@@ -95,6 +95,6 @@ internal static class CombatLabStrip
     }
 
     // The ids of the pawn's worn apparel.
-    private static async Task<List<string>> WornAsync(ITypedSession s, string label, string id, CancellationToken cancellationToken) =>
+    private static async Task<List<string>> WornAsync(TypedSession s, string label, string id, CancellationToken cancellationToken) =>
         [.. (await CombatLabKit.PawnAsync(s, label, id, cancellationToken).ConfigureAwait(false)).Equipment?.Apparel.Select(a => a.Thing.Id ?? "") ?? []];
 }

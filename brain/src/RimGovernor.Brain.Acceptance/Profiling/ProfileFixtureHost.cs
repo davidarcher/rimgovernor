@@ -7,13 +7,10 @@ namespace RimGovernor.Brain.Acceptance;
 /// <c>cmd/acceptance</c>): the doctor/heal pass over a case whose start is the fixture op, then the same save-load and op
 /// call <c>acceptance fixture</c> makes, on the root's kept game.
 /// </summary>
-public sealed class ProfileFixtureHost : IProfileFixtureHost
+public static class ProfileFixtureHost
 {
-    /// <summary>The shared instance <see cref="AcceptanceCommand"/> hands profile-capture.</summary>
-    public static ProfileFixtureHost Instance { get; } = new();
-
-    /// <inheritdoc />
-    public async Task<bool> PreflightAsync(ProfileFixtureCall request, TextWriter info, CancellationToken cancellationToken)
+    /// <summary>The doctor/heal pass over a case whose start is the fixture op (Go <c>preflight</c> with one <c>cases.Fixture{Op}</c> case); false means the preflight refused and has printed why to <paramref name="info"/>.</summary>
+    public static async Task<bool> PreflightAsync(ProfileFixtureCall request, TextWriter info, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(info);
@@ -29,8 +26,8 @@ public sealed class ProfileFixtureHost : IProfileFixtureHost
         return result.Ok;
     }
 
-    /// <inheritdoc />
-    public async Task ExecuteAsync(ProfileFixtureCall request, ProfileFixtureResult result, CancellationToken cancellationToken)
+    /// <summary>Loads the save, calls the op and fills <paramref name="result"/>. A failure to run the call at all throws <see cref="AcceptanceException"/>; an op that ran and failed returns with Success false.</summary>
+    public static async Task ExecuteAsync(ProfileFixtureCall request, ProfileFixtureResult result, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(result);
@@ -58,8 +55,8 @@ public sealed class ProfileFixtureHost : IProfileFixtureHost
         }
     }
 
-    /// <inheritdoc />
-    public Task PrintFailureAsync(TextWriter writer, ProfileFixtureResult result, CancellationToken cancellationToken)
+    /// <summary>Prints a failed call's result (Go <c>printFixture</c>).</summary>
+    public static Task PrintFailureAsync(TextWriter writer, ProfileFixtureResult result, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(result);

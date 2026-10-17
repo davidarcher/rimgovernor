@@ -38,7 +38,7 @@ internal static class TradeKit
         ServedOps.Succeeded<Fx.TradeRequestPrepared>(Tool, r => r.Success));
 
     /// <summary>Applies one action under <paramref name="key"/> and returns its result.</summary>
-    internal static async Task<Operations.ActionResult> ApplyAsync(ITypedSession s, string key, Operations.ActionIntent intent, CancellationToken cancellationToken)
+    internal static async Task<Operations.ActionResult> ApplyAsync(TypedSession s, string key, Operations.ActionIntent intent, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
@@ -63,21 +63,21 @@ internal static class TradeKit
     internal static Common.FailureCode? RefusedCode(Operations.ActionResult result) => result.Outcome?.Refused?.Code;
 
     /// <summary>The live trade session.</summary>
-    internal static async Task<Observations.TradeSession> SessionAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    internal static async Task<Observations.TradeSession> SessionAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadTradeSession, new Observations.TradeSessionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return TypedReads.Observed(label, NativeOps.ReadTradeSession, reply, reply.Outcome?.Observed);
     }
 
     /// <summary>The open session's sheet.</summary>
-    internal static async Task<Observations.TradeSheet> SheetAsync(ITypedSession s, string label, string sessionId, CancellationToken cancellationToken)
+    internal static async Task<Observations.TradeSheet> SheetAsync(TypedSession s, string label, string sessionId, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadTradeSheet, new Observations.TradeSheetRequest { Scope = s.Scope, SessionId = sessionId }, cancellationToken).ConfigureAwait(false);
         return TypedReads.Observed(label, NativeOps.ReadTradeSheet, reply, reply.Outcome?.Observed);
     }
 
     /// <summary>The trade-acquisition read, with an optional caravan pack to estimate.</summary>
-    internal static async Task<Observations.TradeAcquisition> AcquisitionAsync(ITypedSession s, string label, Operations.FormCaravanIntent? pack, CancellationToken cancellationToken)
+    internal static async Task<Observations.TradeAcquisition> AcquisitionAsync(TypedSession s, string label, Operations.FormCaravanIntent? pack, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadTradeAcquisition, new Observations.TradeAcquisitionRequest { Scope = s.Scope, Pack = pack }, cancellationToken).ConfigureAwait(false);
         return TypedReads.Observed(label, NativeOps.ReadTradeAcquisition, reply, reply.Outcome?.Observed);

@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>Commits the auto-refuel switch of a heat campfire as one owner method.</summary>
-    internal RoundsBuildingResult CommitCampfireRefuel(IWorkOwner goal, Action check, CancellationToken call)
+    internal RoundsBuildingResult CommitCampfireRefuel(NeedOwner goal, Action check, CancellationToken call)
     {
         var p = Reviewer.Player;
         var proposal = Temperature;
@@ -25,11 +25,11 @@ public sealed partial class RoundsBuildingPlanner
         return new RoundsBuildingResult { Verdict = OwnerCommitVerdict(p.Journal.CommitOwnerWork(goal, proposal.Key, "", spec, call)) };
     }
 
-    internal async Task<RoundsBuildingResult> RetireCampfireAsync(ControlState state, RoundsReview review, IWorkOwner goal, ColonyReading reading, CurrentBuilding campfire, CancellationToken call, CancellationToken epoch) =>
+    internal async Task<RoundsBuildingResult> RetireCampfireAsync(ControlState state, RoundsReview review, NeedOwner goal, ColonyReading reading, CurrentBuilding campfire, CancellationToken call, CancellationToken epoch) =>
         await RetireBuildingAsync(state, review, goal, reading, campfire.Id, (campfire.Building ?? throw new ControlException("campfire retire: current building carries no building")).Definition, campfire.Cells[0], "campfire-retire", "building_retire_method", call, epoch).ConfigureAwait(false);
 
     /// <summary>Deconstructs one standing building through an excavation-style admission, once per building.</summary>
-    internal async Task<RoundsBuildingResult> RetireBuildingAsync(ControlState state, RoundsReview review, IWorkOwner goal, ColonyReading reading, string id, string def, Cell cell, string prefix, string reason, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> RetireBuildingAsync(ControlState state, RoundsReview review, NeedOwner goal, ColonyReading reading, string id, string def, Cell cell, string prefix, string reason, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var method = RetireMethodId(prefix, id);

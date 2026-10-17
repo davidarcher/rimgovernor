@@ -41,7 +41,7 @@ internal static class LifecycleIdeoligionDesign
         Run = RunAsync,
     };
 
-    private static Task RunAsync(ITypedSession s, CancellationToken cancellationToken) =>
+    private static Task RunAsync(TypedSession s, CancellationToken cancellationToken) =>
         NewColonyStart.MenuAsync(
             s,
             "ideoligion",

@@ -10,9 +10,9 @@ namespace RimGovernor.Brain.Acceptance;
 /// <summary>
 /// The case-side reader of the in-mod brain's state database (the file the harness points the game at with
 /// <c>RIMGOVERNOR_STATE</c>, <see cref="ServiceJournal.PathOf"/>): one store handle serving the watch's projections
-/// (<see cref="IWatchStore"/>). Every read is a snapshot of committed rows; nothing here writes.
+/// (<see cref="WatchSample"/>). Every read is a snapshot of committed rows; nothing here writes.
 /// </summary>
-internal sealed class CaseStore : IWatchStore, IDisposable
+internal sealed class CaseStore : IDisposable
 {
     private readonly Journal _store;
 

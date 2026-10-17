@@ -35,7 +35,7 @@ internal static class TradeRequest
         Run = (s, ct) => RunAsync(s, row, ct),
     });
 
-    private static async Task RunAsync(ITypedSession s, Row row, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, Row row, CancellationToken cancellationToken)
     {
         Task<Fx.TradeRequestPrepared> Control(string action, Fx.TradeRequestPrepared? setup) =>
             s.FixtureAsync(action, TradeKit.Request, (action, row.Channel, setup), cancellationToken);

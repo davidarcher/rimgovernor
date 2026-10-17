@@ -42,7 +42,7 @@ internal static class GraveOverMorgue
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var staged = await s.FixtureAsync("burial-stage", Staged, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         _ = await s.FixtureAsync("vanilla-colonists", VanillaColonists, NoArgs.Value, cancellationToken).ConfigureAwait(false);

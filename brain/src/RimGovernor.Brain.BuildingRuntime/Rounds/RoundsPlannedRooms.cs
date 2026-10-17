@@ -25,7 +25,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>Furnishes a planned facility room: reconciles its shell first when owed, then resolves to the interior cells.</summary>
-    internal async Task<(RoundsBuildingPlanner? Planner, RoundsBuildingResult Result, bool Done)> PlannedFacilityFurnishingAsync(ControlState state, Rounds review, IWorkOwner goal, ColonyReading reading, ColonyProjection facts, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingPlanner? Planner, RoundsBuildingResult Result, bool Done)> PlannedFacilityFurnishingAsync(ControlState state, Rounds review, NeedOwner goal, ColonyReading reading, ColonyProjection facts, CancellationToken call, CancellationToken epoch)
     {
         if (Facility is null || Cells is not null || !FacilityFurnishingRoles.Contains(Facility.Role))
         {

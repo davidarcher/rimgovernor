@@ -13,33 +13,32 @@ namespace RimGovernor.Brain.Acceptance;
 public static class DoctorChecks
 {
     /// <summary>Performs every check and returns them in report order.</summary>
-    public static async Task<IReadOnlyList<DoctorCheck>> RunAsync(DoctorOptions o, IDoctorSetup setup, CancellationToken cancellationToken)
+    public static async Task<IReadOnlyList<DoctorCheck>> RunAsync(DoctorOptions o, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(o);
-        ArgumentNullException.ThrowIfNull(setup);
         if (o.GameId.Length == 0)
         {
-            o.GameId = setup.GameId;
+            o.GameId = FileDoctorSetup.GameId;
         }
 
         o.Root = MustAbs(o.Root);
         if (o.Repo.Length == 0)
         {
-            o.Repo = setup.FindRepo(Directory.GetCurrentDirectory()) ?? setup.FindRepo(o.Root) ?? "";
+            o.Repo = FileDoctorSetup.FindRepo(Directory.GetCurrentDirectory()) ?? FileDoctorSetup.FindRepo(o.Root) ?? "";
         }
 
         var checks = new List<DoctorCheck>();
-        (DoctorGameSection? game, DoctorCheck rootCheck) = Root(o, setup);
+        (DoctorGameSection? game, DoctorCheck rootCheck) = Root(o);
         string gameCopy = game?.WorkingDir ?? "";
         checks.Add(rootCheck);
         if (game is not null)
         {
-            checks.Add(GameCopyPath(gameCopy, setup));
-            checks.Add(Mod(o, gameCopy, setup));
+            checks.Add(GameCopyPath(gameCopy));
+            checks.Add(Mod(o, gameCopy));
         }
 
-        checks.Add(Baseline(o, gameCopy, setup));
-        checks.Add(ModsConfig(o, setup));
+        checks.Add(Baseline(o, gameCopy));
+        checks.Add(ModsConfig(o));
         if (gameCopy.Length > 0)
         {
             checks.Add(await Process(o, gameCopy, cancellationToken).ConfigureAwait(false));
@@ -47,7 +46,7 @@ public static class DoctorChecks
 
         checks.Add(await Orphans.CheckAsync(o, cancellationToken).ConfigureAwait(false));
         checks.Add(await RunBinary(o, cancellationToken).ConfigureAwait(false));
-        checks.Add(Output(o, setup));
+        checks.Add(Output(o));
         return checks;
     }
 
@@ -79,9 +78,8 @@ public static class DoctorChecks
     }
 
     /// <summary>Lists, sorted, the fixture classes registering any of <paramref name="fixtureOps"/> that <paramref name="installed"/> lacks; empty when the repo is unknown or every class is installed.</summary>
-    public static IReadOnlyList<string> MissingFixtures(IDoctorSetup setup, string repo, IReadOnlyList<string> installed, IReadOnlyList<string> fixtureOps)
+    public static IReadOnlyList<string> MissingFixtures(string repo, IReadOnlyList<string> installed, IReadOnlyList<string> fixtureOps)
     {
-        ArgumentNullException.ThrowIfNull(setup);
         ArgumentNullException.ThrowIfNull(installed);
         ArgumentNullException.ThrowIfNull(fixtureOps);
         if (repo.Length == 0 || fixtureOps.Count == 0)
@@ -90,7 +88,7 @@ public static class DoctorChecks
         }
 
         var have = new HashSet<string>(installed, StringComparer.Ordinal);
-        return [.. setup.FixtureFlags(repo, [], fixtureOps).Where(f => !have.Contains(f)).OrderBy(f => f, StringComparer.Ordinal)];
+        return [.. FileDoctorSetup.FixtureFlags(repo, [], fixtureOps).Where(f => !have.Contains(f)).OrderBy(f => f, StringComparer.Ordinal)];
     }
 
     private static string StatusText(DoctorStatus s) => s switch
@@ -121,7 +119,7 @@ public static class DoctorChecks
     }
 
     /// <summary>Reads the root's config and the game it launches; the game section and its workingDir (the game copy) feed the later checks.</summary>
-    private static (DoctorGameSection? Game, DoctorCheck Check) Root(DoctorOptions o, IDoctorSetup setup)
+    private static (DoctorGameSection? Game, DoctorCheck Check) Root(DoctorOptions o)
     {
         var c = new DoctorCheck("root") { Detail = o.Root };
         string configPath = Path.Combine(o.Root, "config", "config.json");
@@ -134,7 +132,7 @@ public static class DoctorChecks
         DoctorGameSection game;
         try
         {
-            game = setup.ReadGameSection(o.Root, o.GameId);
+            game = FileDoctorSetup.ReadGameSection(o.Root, o.GameId);
         }
         catch (AcceptanceException e)
         {
@@ -159,14 +157,14 @@ public static class DoctorChecks
     }
 
     /// <summary>Setup's MAX_PATH bound: a copy past it boots but cannot open any Defs XML.</summary>
-    private static DoctorCheck GameCopyPath(string gameCopy, IDoctorSetup setup)
+    private static DoctorCheck GameCopyPath(string gameCopy)
     {
         var c = new DoctorCheck("game-copy") { Detail = string.Create(CultureInfo.InvariantCulture, $"{gameCopy.Length} chars: {gameCopy}") };
-        if (gameCopy.Length > setup.MaxGameCopyPath)
+        if (gameCopy.Length > FileDoctorSetup.MaxGameCopyPath)
         {
             c.Status = DoctorStatus.Fail;
-            c.Detail = string.Create(CultureInfo.InvariantCulture, $"path is {gameCopy.Length} characters (limit {setup.MaxGameCopyPath}): RimWorld cannot open its own Defs XML from it");
-            int headroom = setup.MaxGameCopyPath - Path.Combine(".rimgovernor", "native-rimworld").Length - 1;
+            c.Detail = string.Create(CultureInfo.InvariantCulture, $"path is {gameCopy.Length} characters (limit {FileDoctorSetup.MaxGameCopyPath}): RimWorld cannot open its own Defs XML from it");
+            int headroom = FileDoctorSetup.MaxGameCopyPath - Path.Combine(".rimgovernor", "native-rimworld").Length - 1;
             c.Fix = string.Create(CultureInfo.InvariantCulture, $"move the worktree under a path at most {headroom} characters (e.g. .claude/worktrees/<name>) and rerun setup");
         }
 
@@ -177,13 +175,13 @@ public static class DoctorChecks
     /// Prepare's own package checks (the package is complete, then the stale-build comparison) run early, with the
     /// manifest's role and fixtures on the Ok line.
     /// </summary>
-    private static DoctorCheck Mod(DoctorOptions o, string gameCopy, IDoctorSetup setup)
+    private static DoctorCheck Mod(DoctorOptions o, string gameCopy)
     {
         var c = new DoctorCheck("mod");
         string mods = Path.Combine(gameCopy, "Mods");
         try
         {
-            setup.RequireNativePackage(mods);
+            FileDoctorSetup.RequireNativePackage(mods);
         }
         catch (AcceptanceException e)
         {
@@ -192,11 +190,11 @@ public static class DoctorChecks
         }
 
         string pkg = Path.Combine(mods, "RimGovernor");
-        DoctorPackageManifest? manifest = setup.ReadPackageManifest(pkg);
+        DoctorPackageManifest? manifest = FileDoctorSetup.ReadPackageManifest(pkg);
         if (manifest is null)
         {
             c.Status = DoctorStatus.Warn;
-            c.Detail = "installed package has no " + setup.PackageManifestName + "; the stale check cannot run";
+            c.Detail = "installed package has no " + FileDoctorSetup.PackageManifestName + "; the stale check cannot run";
             c.Fix = "rebuild through setup so the manifest records the sources";
             return c;
         }
@@ -211,7 +209,7 @@ public static class DoctorChecks
         string skipped;
         try
         {
-            skipped = setup.RequireCurrentPackage(pkg, o.FixtureOps);
+            skipped = FileDoctorSetup.RequireCurrentPackage(pkg, o.FixtureOps);
         }
         catch (AcceptanceException e)
         {
@@ -220,7 +218,7 @@ public static class DoctorChecks
             c.Status = DoctorStatus.Fail;
             c.Detail = cut >= 0 ? e.Message[..cut] : e.Message;
             c.Code = DoctorHealCodes.StaleMod;
-            c.Fix = SetupHint(o.Repo, FixtureFlag(setup, o.Repo, manifest.Fixtures, o.FixtureOps)) + ", -rebuild if it says the build is current";
+            c.Fix = SetupHint(o.Repo, FixtureFlag(o.Repo, manifest.Fixtures, o.FixtureOps)) + ", -rebuild if it says the build is current";
             return c;
         }
 
@@ -228,28 +226,28 @@ public static class DoctorChecks
         {
             c.Status = DoctorStatus.Warn;
             c.Detail += "; stale check skipped: " + skipped;
-            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(setup.AllowStaleModEnv)))
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(FileDoctorSetup.AllowStaleModEnv)))
             {
-                c.Fix = "unset " + setup.AllowStaleModEnv + " unless you mean to run against an older native build";
+                c.Fix = "unset " + FileDoctorSetup.AllowStaleModEnv + " unless you mean to run against an older native build";
             }
         }
 
-        IReadOnlyList<string> missing = MissingFixtures(setup, o.Repo, manifest.Fixtures, o.FixtureOps);
+        IReadOnlyList<string> missing = MissingFixtures(o.Repo, manifest.Fixtures, o.FixtureOps);
         if (missing.Count > 0)
         {
             c.Status = DoctorStatus.Fail;
             c.Code = DoctorHealCodes.MissingFixture;
             c.Detail += "; the run's cases call ops of fixtures the build lacks: " + DoctorText.Join(missing);
-            c.Fix = SetupHint(o.Repo, FixtureFlag(setup, o.Repo, manifest.Fixtures, o.FixtureOps));
+            c.Fix = SetupHint(o.Repo, FixtureFlag(o.Repo, manifest.Fixtures, o.FixtureOps));
         }
 
         return c;
     }
 
     /// <summary>The -fixture flag a setup rebuild for the run takes (installed plus the run's), empty when there is nothing to name.</summary>
-    private static string FixtureFlag(IDoctorSetup setup, string repo, IReadOnlyList<string> installed, IReadOnlyList<string> fixtureOps)
+    private static string FixtureFlag(string repo, IReadOnlyList<string> installed, IReadOnlyList<string> fixtureOps)
     {
-        IReadOnlyList<string> flags = setup.FixtureFlags(repo, installed, fixtureOps);
+        IReadOnlyList<string> flags = FileDoctorSetup.FixtureFlags(repo, installed, fixtureOps);
         return flags.Count == 0 ? "" : "-fixture " + string.Join(',', flags);
     }
 
@@ -257,13 +255,13 @@ public static class DoctorChecks
     /// The generated baseline save: missing, the first save-driven case generates it through the new-colony op; present,
     /// an expansion in its modIds the game copy does not ship fails save.missing_mods at load.
     /// </summary>
-    private static DoctorCheck Baseline(DoctorOptions o, string gameCopy, IDoctorSetup setup)
+    private static DoctorCheck Baseline(DoctorOptions o, string gameCopy)
     {
         var c = new DoctorCheck("baseline");
-        string effective = Path.Combine(o.Root, "profile", "Saves", setup.BaselineSave);
+        string effective = Path.Combine(o.Root, "profile", "Saves", FileDoctorSetup.BaselineSave);
         if (!File.Exists(effective))
         {
-            c.Detail = "not generated yet; the first case that loads " + setup.BaselineName + " generates it";
+            c.Detail = "not generated yet; the first case that loads " + FileDoctorSetup.BaselineName + " generates it";
             return c;
         }
 
@@ -286,7 +284,7 @@ public static class DoctorChecks
         IReadOnlyList<string> installed;
         try
         {
-            installed = setup.InstalledExpansions(gameCopy);
+            installed = FileDoctorSetup.InstalledExpansions(gameCopy);
         }
         catch (AcceptanceException e)
         {
@@ -337,14 +335,14 @@ public static class DoctorChecks
     /// The profile's ModsConfig.xml Prepare rewrites: it must exist and parse with a core entry; and a kept process
     /// launched with a different list or package is relaunched by the next run.
     /// </summary>
-    private static DoctorCheck ModsConfig(DoctorOptions o, IDoctorSetup setup)
+    private static DoctorCheck ModsConfig(DoctorOptions o)
     {
         var c = new DoctorCheck("mods-config");
         string path = Path.Combine(o.Root, "profile", "Config", "ModsConfig.xml");
         IReadOnlyList<string> active;
         try
         {
-            active = setup.ActiveMods(path);
+            active = FileDoctorSetup.ActiveMods(path);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or AcceptanceException)
         {
@@ -368,7 +366,7 @@ public static class DoctorChecks
         string reason;
         try
         {
-            reason = setup.LaunchedMismatch(headless);
+            reason = FileDoctorSetup.LaunchedMismatch(headless);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or AcceptanceException)
         {
@@ -518,7 +516,7 @@ public static class DoctorChecks
     /// The run's output directory: a case whose directory already holds anything is refused (every run needs a fresh
     /// one), and a service.sqlite there from an older schema is unreadable except raw (acceptance why).
     /// </summary>
-    private static DoctorCheck Output(DoctorOptions o, IDoctorSetup setup)
+    private static DoctorCheck Output(DoctorOptions o)
     {
         var c = new DoctorCheck("output");
         string dir = o.Output.Length == 0 ? Path.Combine(o.Root, "acceptance") : o.Output;
@@ -569,7 +567,7 @@ public static class DoctorChecks
         foreach (string r in results)
         {
             int? version = StoreVersion(Path.Combine(Path.GetDirectoryName(r) ?? "", "service.sqlite"));
-            if (version is { } v && v != setup.StoreSchemaVersion)
+            if (version is { } v && v != FileDoctorSetup.StoreSchemaVersion)
             {
                 stale++;
             }

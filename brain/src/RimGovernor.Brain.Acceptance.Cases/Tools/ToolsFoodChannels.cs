@@ -38,7 +38,7 @@ internal static class ToolsFoodChannels
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var cow = s.Staged!.Pawns[Cow].Id;
         var reply = await s.CallAsync("food-channels", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);

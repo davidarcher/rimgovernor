@@ -44,7 +44,7 @@ internal static class RoomsReads
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var interior = s.Staged!.Rooms["hut"].Interior;
         var inside = interior[interior.Count / 2];

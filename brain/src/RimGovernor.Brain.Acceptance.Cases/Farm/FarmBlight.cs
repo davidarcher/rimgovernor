@@ -38,7 +38,7 @@ internal static class FarmBlight
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var prepared = await s.FixtureAsync("prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         var fixture = prepared.Plants.Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
@@ -81,7 +81,7 @@ internal static class FarmBlight
     }
 
     /// <summary>The zone's bounding rectangle widened by the spread radius, clamped to the map.</summary>
-    private static async Task<Observations.Rectangle> RectAsync(ITypedSession s, IReadOnlyList<Fx.StageCell> zone, CancellationToken cancellationToken)
+    private static async Task<Observations.Rectangle> RectAsync(TypedSession s, IReadOnlyList<Fx.StageCell> zone, CancellationToken cancellationToken)
     {
         var anchor = await ReadAsync(s, "map-size", Rect(0, 0, 0, 0), cancellationToken).ConfigureAwait(false);
         var width = checked((int)anchor.MapSize.Width);
@@ -99,13 +99,13 @@ internal static class FarmBlight
         Maximum = new Common.Cell { X = maxX, Z = maxZ },
     };
 
-    private static async Task<Observations.CellsSnapshot> ReadAsync(ITypedSession s, string label, Observations.Rectangle rect, CancellationToken cancellationToken)
+    private static async Task<Observations.CellsSnapshot> ReadAsync(TypedSession s, string label, Observations.Rectangle rect, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.GetCells, new Observations.GetCellsRequest { Scope = s.Scope, Rectangle = rect }, cancellationToken).ConfigureAwait(false);
         return TypedReads.Observed(label, NativeOps.GetCells, reply, reply.Outcome?.Observed);
     }
 
-    private static async Task<Census> CensusAsync(ITypedSession s, string label, Observations.Rectangle rect, CancellationToken cancellationToken)
+    private static async Task<Census> CensusAsync(TypedSession s, string label, Observations.Rectangle rect, CancellationToken cancellationToken)
     {
         var grid = MapCellGrid.Of((await ReadAsync(s, label, rect, cancellationToken).ConfigureAwait(false)).Grid);
         var plants = grid.Things().SelectMany(t => t).Where(t => t.Def == "Plant_Rice").ToList();

@@ -57,7 +57,7 @@ public sealed partial class Rounder
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>Retires a stale party spot, or resolves the planner to place a new one; the planner is null when the step is already decided.</summary>
-    internal async Task<(RoundsBuildingResult Result, RoundsBuildingPlanner? Placing)> PartySpotStepAsync(ControlState state, Rounds review, IWorkOwner goal, ColonyReading reading, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingResult Result, RoundsBuildingPlanner? Placing)> PartySpotStepAsync(ControlState state, Rounds review, NeedOwner goal, ColonyReading reading, CancellationToken call, CancellationToken epoch)
     {
         if (!RoundsBuildingPlanner.PartySpotReview(reading.Projection, RoundsBuildingPlanner.PartySpotSpent(goal.OpenMethods.Select(m => m.Method))).TryGetValue(out var need) || !need.Owed)
         {

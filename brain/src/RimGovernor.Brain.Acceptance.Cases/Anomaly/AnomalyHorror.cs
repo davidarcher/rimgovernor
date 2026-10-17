@@ -65,7 +65,7 @@ internal static class AnomalyHorror
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("pause-mode-never", PauseNever, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         var fired = await s.FixtureAsync("horror-incident", Fire, NoArgs.Value, cancellationToken).ConfigureAwait(false);

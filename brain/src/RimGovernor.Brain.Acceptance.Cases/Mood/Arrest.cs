@@ -88,7 +88,7 @@ internal static class Arrest
         ],
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var staged = s.Staged!;
         var warden = staged.Pawns["warden"].Id;

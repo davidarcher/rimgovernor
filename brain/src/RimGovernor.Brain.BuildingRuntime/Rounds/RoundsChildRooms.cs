@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsSleepingUpkeepPlanner
 {
-    internal async Task<RoundsBuildingResult> StageChildRoomAsync(PackedStock stock, ControlState state, RoundsReview review, Sto.IWorkOwner goal, RoundsReading reading, ChildRoomStep step, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> StageChildRoomAsync(PackedStock stock, ControlState state, RoundsReview review, Sto.NeedOwner goal, RoundsReading reading, ChildRoomStep step, CancellationToken call, CancellationToken epoch)
     {
         if (step.Room is not { } room || step.Need is not { } need)
         {

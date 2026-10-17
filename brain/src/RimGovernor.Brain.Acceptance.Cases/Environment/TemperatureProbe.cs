@@ -57,7 +57,7 @@ internal static class TemperatureProbe
         };
     }
 
-    private static async Task RunAsync(ITypedSession s, string side, string thought, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, string side, string thought, CancellationToken cancellationToken)
     {
         var card = MechanicCards.ByDef[thought];
         var observed = new JsonArray();

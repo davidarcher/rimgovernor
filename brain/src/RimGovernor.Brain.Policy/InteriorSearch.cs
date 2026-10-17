@@ -32,7 +32,7 @@ public sealed record InteriorSearch
     public DiningFurniture Dining { get; init; } = new();
 
     /// <summary>Weights the walks between stations; null leaves the walk terms zero, so only free floor and facility links can improve.</summary>
-    public IInteriorFlows? Flows { get; init; }
+    public GraphFlows? Flows { get; init; }
 
     public IReadOnlyDictionary<string, double> Beauty { get; init; } = new Dictionary<string, double>();
 

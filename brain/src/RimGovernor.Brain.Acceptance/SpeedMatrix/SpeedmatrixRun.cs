@@ -279,12 +279,6 @@ internal sealed partial class SpeedmatrixRun
         }
     }
 
-    private sealed class StateSource(ServiceProcess service) : IServiceStateSource
-    {
-        public async Task<int> GetStateAsync(CancellationToken cancellationToken) =>
-            (await service.ApiAsync("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false)).Status;
-    }
-
     // Reloads the stage, hands the game to one serve process at the case's speed, waits out the tick target and reads
     // the outcome back.
     private async Task<SpeedOutcome> RunCaseAsync(SpeedCase c, CancellationToken cancellationToken)
@@ -356,7 +350,7 @@ internal sealed partial class SpeedmatrixRun
             // The observation-load row: concurrent state readers.
             if (c.ObservationLoad)
             {
-                readers = ObservationReaders.Start(new StateSource(service), SpeedMatrix.ObservationLoadReaders, SpeedMatrix.ObservationLoadInterval, cancellationToken);
+                readers = ObservationReaders.Start(service, SpeedMatrix.ObservationLoadReaders, SpeedMatrix.ObservationLoadInterval, cancellationToken);
             }
 
             // The row's native clock accounting is the difference between this read and the one when the wait ends.

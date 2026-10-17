@@ -40,9 +40,9 @@ public sealed partial class RoundsFieldPlanner
     /// One step under <paramref name="owner"/>: the economy/resource Need's owner places only the other resources'
     /// fields; the food/supply Need's owner places only the Need's food work.
     /// </summary>
-    internal async Task<RoundsFieldResult> StepAsync(StepArbiter arbiter, IWorkOwner owner, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsFieldResult> StepAsync(StepArbiter arbiter, NeedOwner owner, CancellationToken call, CancellationToken epoch)
     {
-        IWorkOwner? food = owner switch
+        NeedOwner? food = owner switch
         {
             NeedOwner { Need: var n } when n == PolicyFunctions.FoodSupplyNeed => owner,
             NeedOwner { Need: var n } when n == EconomyFamily.Resource => null,
@@ -166,7 +166,7 @@ public sealed partial class RoundsFieldPlanner
     /// the Need's field Methods is still open the next waits for it, as the field's growth is what the next shortfall
     /// reads; the Need's other work (mines, chops, bills) runs beside it.
     /// </summary>
-    internal async Task<List<FieldShortfall>> OtherFieldShortfallsAsync(ControlState state, RoundsReview review, ColonyProjection projection, IWorkOwner rgoal, CancellationToken call)
+    internal async Task<List<FieldShortfall>> OtherFieldShortfallsAsync(ControlState state, RoundsReview review, ColonyProjection projection, NeedOwner rgoal, CancellationToken call)
     {
         var p = _reviewer.Player;
         var output = new List<FieldShortfall>();
@@ -221,7 +221,7 @@ public sealed partial class RoundsFieldPlanner
         return (result, false);
     }
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactAsync(ControlState state, IWorkOwner goal, ColonyProjection projection, RoundsReading read, SiteTypeCandidate candidate, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactAsync(ControlState state, NeedOwner goal, ColonyProjection projection, RoundsReading read, SiteTypeCandidate candidate, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var crop = candidate.Crop;
@@ -339,7 +339,7 @@ public sealed partial class RoundsFieldPlanner
         Costs = Known(EquatableArray.From(new List<Amount>())),
     };
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> AdmitAsync(ControlState state, IWorkOwner goal, ColonyProjection projection, RoundsReading read, MethodId method, PlanId id, GenerationSnapshot snapshot, StockObservation stock, IReadOnlyList<DomainAction> actions, IReadOnlyList<Preview> previews, string what, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> AdmitAsync(ControlState state, NeedOwner goal, ColonyProjection projection, RoundsReading read, MethodId method, PlanId id, GenerationSnapshot snapshot, StockObservation stock, IReadOnlyList<DomainAction> actions, IReadOnlyList<Preview> previews, string what, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
@@ -385,7 +385,7 @@ public sealed partial class RoundsFieldPlanner
         return (new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactBlockAsync(ControlState state, IWorkOwner goal, ColonyProjection projection, RoundsReading read, SiteTypeCandidate candidate, IReadOnlyList<FieldBlockOption> options, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactBlockAsync(ControlState state, NeedOwner goal, ColonyProjection projection, RoundsReading read, SiteTypeCandidate candidate, IReadOnlyList<FieldBlockOption> options, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var (planned, reason) = LayoutFieldPlanning.PlanFieldBlock(projection, anchor, options, protectedCells);
@@ -447,7 +447,7 @@ public sealed partial class RoundsFieldPlanner
         return await AdmitAsync(state, goal, projection, read, method, id, snapshot, stock, [action], [preview], "block " + edit.Crop, call, epoch).ConfigureAwait(false);
     }
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> RecropAsync(ControlState state, IWorkOwner goal, ColonyProjection projection, RoundsReading read, GrowerCropChoice choice, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> RecropAsync(ControlState state, NeedOwner goal, ColonyProjection projection, RoundsReading read, GrowerCropChoice choice, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         if (_native is not FacadeNativeClient native)
         {

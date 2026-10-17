@@ -197,7 +197,7 @@ public sealed partial class RoundsHospitalPlanner
 public sealed partial class Player
 {
     /// <summary>Commits one bed-use plan under a method id; the guard, when given, runs after the session check and may throw to abort.</summary>
-    internal Sto.WorkCommit CommitBedPatch(ControlState state, Sto.IWorkOwner owner, MethodId method, BedUse patch, Action? guard, CancellationToken call, CancellationToken epoch)
+    internal Sto.WorkCommit CommitBedPatch(ControlState state, Sto.NeedOwner owner, MethodId method, BedUse patch, Action? guard, CancellationToken call, CancellationToken epoch)
     {
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewBedUseAction(new ActionId($"{id}-0"), patch);

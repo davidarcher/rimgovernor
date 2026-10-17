@@ -49,7 +49,7 @@ internal static class CombatLabKit
     /// Sends one combat_orders batch through operations_apply and returns its per-order results; a refused or failed
     /// action, or a result count off the batch, fails the label.
     /// </summary>
-    internal static async Task<IReadOnlyList<Receipts.CombatOrderResult>> OrdersAsync(ITypedSession s, string label, CancellationToken cancellationToken, params Operations.CombatOrder[] orders)
+    internal static async Task<IReadOnlyList<Receipts.CombatOrderResult>> OrdersAsync(TypedSession s, string label, CancellationToken cancellationToken, params Operations.CombatOrder[] orders)
     {
         var reply = await s.CallAsync(label, NativeOps.Apply, new Operations.ApplyRequest
         {
@@ -70,7 +70,7 @@ internal static class CombatLabKit
     }
 
     /// <summary>Drafts <paramref name="pawns"/> in one batch; an order that does not apply fails.</summary>
-    internal static async Task DraftAsync(ITypedSession s, IEnumerable<string> pawns, CancellationToken cancellationToken)
+    internal static async Task DraftAsync(TypedSession s, IEnumerable<string> pawns, CancellationToken cancellationToken)
     {
         foreach (var r in await OrdersAsync(s, "draft", cancellationToken, [.. pawns.Select(p => Order(p, new Operations.CombatOrderOrder.DraftCase(new Operations.Clear())))]).ConfigureAwait(false))
         {
@@ -79,7 +79,7 @@ internal static class CombatLabKit
     }
 
     /// <summary>Sends one order and returns its result.</summary>
-    internal static async Task<Receipts.CombatOrderResult> OrderAsync(ITypedSession s, string label, string? pawn, Operations.CombatOrderOrder order, CancellationToken cancellationToken) =>
+    internal static async Task<Receipts.CombatOrderResult> OrderAsync(TypedSession s, string label, string? pawn, Operations.CombatOrderOrder order, CancellationToken cancellationToken) =>
         (await OrdersAsync(s, label, cancellationToken, Order(pawn, order)).ConfigureAwait(false))[0];
 
     /// <summary>Checks an order applied (with <paramref name="job"/> when given).</summary>
@@ -101,7 +101,7 @@ internal static class CombatLabKit
     }
 
     /// <summary>The production pawn rows of <paramref name="ids"/> (dead ones included) by id, with health, gear and settings.</summary>
-    internal static async Task<Dictionary<string, Observations.PawnState>> PawnsAsync(ITypedSession s, string label, IEnumerable<string> ids, CancellationToken cancellationToken)
+    internal static async Task<Dictionary<string, Observations.PawnState>> PawnsAsync(TypedSession s, string label, IEnumerable<string> ids, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest
         {
@@ -114,7 +114,7 @@ internal static class CombatLabKit
     }
 
     /// <summary>The production pawn row of <paramref name="id"/>; a pawn the read does not list fails the label.</summary>
-    internal static async Task<Observations.PawnState> PawnAsync(ITypedSession s, string label, string id, CancellationToken cancellationToken) =>
+    internal static async Task<Observations.PawnState> PawnAsync(TypedSession s, string label, string id, CancellationToken cancellationToken) =>
         (await PawnsAsync(s, label, [id], cancellationToken).ConfigureAwait(false)).GetValueOrDefault(id)
             ?? throw new AcceptanceException($"{label}: pawn {id} not listed");
 
@@ -125,7 +125,7 @@ internal static class CombatLabKit
     internal static string? JobThing(Observations.PawnState p) => p.Job?.TargetA?.Target?.Entity?.Id;
 
     /// <summary>The colony's allowed areas (the typed colony read's policy section).</summary>
-    internal static async Task<IReadOnlyList<Observations.AllowedAreaEntry>> AreasAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    internal static async Task<IReadOnlyList<Observations.AllowedAreaEntry>> AreasAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
@@ -134,7 +134,7 @@ internal static class CombatLabKit
     }
 
     /// <summary>The player building at <paramref name="cell"/> (a door, a mortar), from the production building read.</summary>
-    internal static async Task<Observations.BuildingState> BuildingAtAsync(ITypedSession s, string label, Common.Cell cell, CancellationToken cancellationToken)
+    internal static async Task<Observations.BuildingState> BuildingAtAsync(TypedSession s, string label, Common.Cell cell, CancellationToken cancellationToken)
     {
         var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest(), cancellationToken).ConfigureAwait(false);
         return rows.FirstOrDefault(b => b.Building.Position == cell)
@@ -142,7 +142,7 @@ internal static class CombatLabKit
     }
 
     /// <summary>A geometry read of <paramref name="request"/> (its identity filled in), checked against its request.</summary>
-    internal static async Task<Mirror.CombatGeometry> GeometryAsync(ITypedSession s, string label, Mirror.CombatGeometryRequest request, CancellationToken cancellationToken)
+    internal static async Task<Mirror.CombatGeometry> GeometryAsync(TypedSession s, string label, Mirror.CombatGeometryRequest request, CancellationToken cancellationToken)
     {
         var asked = request with { Identity = s.Identity };
         var reply = await s.CallAsync(label, NativeOps.ReadCombatGeometry, asked, cancellationToken).ConfigureAwait(false);
@@ -153,7 +153,7 @@ internal static class CombatLabKit
     }
 
     /// <summary>The loaded game's tick.</summary>
-    internal static async Task<long> TickAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    internal static async Task<long> TickAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadTick, new Lifecycle.TickRequest(), cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Loaded?.Context?.Tick ?? throw new AcceptanceException($"{label}: no loaded tick: {reply.Outcome}");
@@ -255,12 +255,12 @@ internal sealed class StagedLab
 /// </summary>
 internal sealed class LabFrames
 {
-    private readonly ITypedSession _s;
+    private readonly TypedSession _s;
     private readonly HashSet<(long, uint)> _seen = [];
     private ulong _head;
     private int _reads;
 
-    public LabFrames(ITypedSession s) => _s = s;
+    public LabFrames(TypedSession s) => _s = s;
 
     /// <summary>The newest frame read so far.</summary>
     public Observations.BundleSnapshot? Last { get; private set; }

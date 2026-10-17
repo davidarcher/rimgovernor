@@ -7,7 +7,7 @@ internal sealed class ExcavationStep
 {
     public ControlState State;
     public RoundsReview Review = new();
-    public required IWorkOwner Owner;
+    public required NeedOwner Owner;
     public ColonyProjection Facts = new();
     public ColonyReading Read = new();
     public ExcavationTarget Target = new();
@@ -20,7 +20,7 @@ public sealed partial class RoundsBuildingPlanner
     internal const long ExcavationStallTicks = GameTime.TicksPerHour;
     internal const int ExcavationCandidates = 4;
 
-    internal ExcavationTarget? ExcavationProject(IWorkOwner goal, CancellationToken call)
+    internal ExcavationTarget? ExcavationProject(NeedOwner goal, CancellationToken call)
     {
         var methods = Reviewer.Player.Journal.OwnerMethodHistory(goal, call);
         var (latest, _) = ExcavationProgress(methods);
@@ -284,7 +284,7 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>Cancels the pending excavation actions held for an hour or more by an unsupported roof, a changed geometry or a not-ready hold.</summary>
-    internal static void CancelStalledExcavation(StoreJournal journal, IWorkOwner goal, Tick now, CancellationToken ct)
+    internal static void CancelStalledExcavation(StoreJournal journal, NeedOwner goal, Tick now, CancellationToken ct)
     {
         foreach (var method in goal.OpenMethods)
         {

@@ -5,7 +5,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     private const string CouplePackMethod = "sleeping-couple-pack-";
 
     /// <summary>The cells of the beds this epoch's completed couple pack steps uninstalled, each plan's first (the couple's room's) first.</summary>
-    internal List<Cell> CouplePacked(Sto.IWorkOwner goal, CancellationToken call)
+    internal List<Cell> CouplePacked(Sto.NeedOwner goal, CancellationToken call)
     {
         var p = Reviewer.Player;
         var methods = p.Journal.OwnerMethodHistory(goal, call);
@@ -34,7 +34,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// the couple's room's bedroom slot; each step once per Episode. due is false when nothing is to do, so the
     /// ordinary sleeping choice goes on.
     /// </summary>
-    internal async Task<(RoundsBuildingResult Result, bool Due)> CoupleBedAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Observation.RoundsReading reading, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingResult Result, bool Due)> CoupleBedAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, CancellationToken call, CancellationToken epoch)
     {
         var none = (new RoundsBuildingResult(), false);
         var facts = reading.Projection;
@@ -101,7 +101,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// bed spot of a hosting room; once per packed bed per Episode. due is false when none is stored or none
     /// fits, so the build goes on.
     /// </summary>
-    internal async Task<(RoundsBuildingResult Result, bool Due)> ReinstallStoredBedAsync(PackedStock stock, ControlState state, Sto.IWorkOwner goal, Observation.RoundsReading reading, Pol.SleepingChoice choice, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingResult Result, bool Due)> ReinstallStoredBedAsync(PackedStock stock, ControlState state, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.SleepingChoice choice, CancellationToken call, CancellationToken epoch)
     {
         var none = (new RoundsBuildingResult(), false);
         var facts = reading.Projection;
@@ -136,7 +136,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         return none;
     }
 
-    internal (RoundsBuildingResult Result, bool Due) CommitCouple(ControlState state, Sto.IWorkOwner goal, MethodId method, PlanId id, IReadOnlyList<DomainAction> actions, CancellationToken call, CancellationToken epoch)
+    internal (RoundsBuildingResult Result, bool Due) CommitCouple(ControlState state, Sto.NeedOwner goal, MethodId method, PlanId id, IReadOnlyList<DomainAction> actions, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var plan = new PlanSpec(id, new PlanRevision(1), actions);

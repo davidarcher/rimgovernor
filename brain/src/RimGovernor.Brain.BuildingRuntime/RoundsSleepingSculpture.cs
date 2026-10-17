@@ -81,7 +81,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// installed (a RelocateIntent on the packed item's inner building) on free floor in the room, once per
     /// Episode. due is false when the lever has nothing to do.
     /// </summary>
-    internal async Task<(RoundsBuildingResult Result, bool Due)> SculptBedroomAsync(PackedStock stock, ControlState state, Sto.IWorkOwner goal, Observation.RoundsReading reading, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingResult Result, bool Due)> SculptBedroomAsync(PackedStock stock, ControlState state, Sto.NeedOwner goal, Observation.RoundsReading reading, CancellationToken call, CancellationToken epoch)
     {
         var none = (new RoundsBuildingResult(), false);
         var facts = reading.Projection;

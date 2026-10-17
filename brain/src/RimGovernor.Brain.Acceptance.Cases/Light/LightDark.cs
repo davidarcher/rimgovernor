@@ -61,7 +61,7 @@ internal static class LightDark
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var staged = s.Staged!;
         var site = staged.Site ?? throw new AcceptanceException("light/dark: the stage found no site");
@@ -126,7 +126,7 @@ internal static class LightDark
     private static Observations.WorkLightCell Bench(Observations.LightingFacts facts, string stoveId) =>
         facts.WorkCells.FirstOrDefault(c => c.Bench?.Id == stoveId) ?? throw new AcceptanceException($"the lighting census lists no work cell for the stove {stoveId}");
 
-    private static async Task<Observations.LightingFacts> ReadAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    private static async Task<Observations.LightingFacts> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);

@@ -4,31 +4,31 @@ using System.Xml.Linq;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The self-contained <see cref="IDoctorSetup"/>: reads the root's <c>config/config.json</c>, the package manifest, the
-/// ModsConfig.xml and the installed expansions straight from disk. The stale-package comparison, the fixture catalogue
-/// and the launched-state comparison need the Setup/Lifecycle code; here the stale check reports itself skipped, the
-/// fixture list is the installed one and a launch is never reported as mismatched. The Setup layer supplies a fuller
-/// implementation through <see cref="AcceptanceDoctor.Setup"/>.
+/// What the doctor needs from the setup and launch layers (Go <c>setup.*</c> and the <c>nativeaccept</c> package install
+/// helpers): reads the root's <c>config/config.json</c>, the package manifest, the ModsConfig.xml and the installed
+/// expansions straight from disk. The stale-package comparison, the fixture catalogue and the launched-state comparison
+/// need the Setup/Lifecycle code; here the stale check reports itself skipped, the fixture list is the installed one and
+/// a launch is never reported as mismatched.
 /// </summary>
-public sealed class FileDoctorSetup : IDoctorSetup
+public static class FileDoctorSetup
 {
-    public string GameId => "rimgovernor-trial";
+    public static string GameId => "rimgovernor-trial";
 
-    public int MaxGameCopyPath => 140;
+    public static int MaxGameCopyPath => 140;
 
-    public int StoreSchemaVersion { get; init; } = 3;
+    public const int StoreSchemaVersion = 3;
 
-    public string BaselineSave => "RimGovernor-tribal8-baseline.rws";
+    public static string BaselineSave => "RimGovernor-tribal8-baseline.rws";
 
-    public string BaselineName => "RimGovernor-tribal8-baseline";
+    public static string BaselineName => "RimGovernor-tribal8-baseline";
 
-    public string AllowStaleModEnv => "RIMGOVERNOR_ACCEPT_ALLOW_STALE_MOD";
+    public static string AllowStaleModEnv => "RIMGOVERNOR_ACCEPT_ALLOW_STALE_MOD";
 
-    public string PackageManifestName => "native-manifest.json";
+    public static string PackageManifestName => "native-manifest.json";
 
-    public string? FindRepo(string dir) => NativeSourceInputs.FindRepo(dir);
+    public static string? FindRepo(string dir) => NativeSourceInputs.FindRepo(dir);
 
-    public DoctorGameSection ReadGameSection(string root, string gameId)
+    public static DoctorGameSection ReadGameSection(string root, string gameId)
     {
         string path = Path.Combine(root, "config", "config.json");
         try
@@ -52,7 +52,7 @@ public sealed class FileDoctorSetup : IDoctorSetup
         }
     }
 
-    public void RequireNativePackage(string mods)
+    public static void RequireNativePackage(string mods)
     {
         ArgumentNullException.ThrowIfNull(mods);
         string pkg = Path.Combine(mods, "RimGovernor");
@@ -65,7 +65,7 @@ public sealed class FileDoctorSetup : IDoctorSetup
         }
     }
 
-    public DoctorPackageManifest? ReadPackageManifest(string package)
+    public static DoctorPackageManifest? ReadPackageManifest(string package)
     {
         try
         {
@@ -79,15 +79,15 @@ public sealed class FileDoctorSetup : IDoctorSetup
         }
     }
 
-    public string RequireCurrentPackage(string package, IReadOnlyList<string> fixtureOps) => "stale-package comparison is not available in the standalone doctor";
+    public static string RequireCurrentPackage(string package, IReadOnlyList<string> fixtureOps) => "stale-package comparison is not available in the standalone doctor";
 
-    public IReadOnlyList<string> FixtureFlags(string repo, IReadOnlyList<string> installed, IReadOnlyList<string> fixtureOps)
+    public static IReadOnlyList<string> FixtureFlags(string repo, IReadOnlyList<string> installed, IReadOnlyList<string> fixtureOps)
     {
         ArgumentNullException.ThrowIfNull(installed);
         return [.. installed.Distinct(StringComparer.Ordinal).OrderBy(f => f, StringComparer.Ordinal)];
     }
 
-    public IReadOnlyList<string> InstalledExpansions(string gameCopy)
+    public static IReadOnlyList<string> InstalledExpansions(string gameCopy)
     {
         string data = Path.Combine(gameCopy, "Data");
         var ids = new List<string>();
@@ -113,7 +113,7 @@ public sealed class FileDoctorSetup : IDoctorSetup
         return ids;
     }
 
-    public IReadOnlyList<string> ActiveMods(string modsConfigPath)
+    public static IReadOnlyList<string> ActiveMods(string modsConfigPath)
     {
         XElement root;
         try
@@ -129,7 +129,7 @@ public sealed class FileDoctorSetup : IDoctorSetup
         return [.. active.Elements("li").Select(li => li.Value.Trim().ToLowerInvariant())];
     }
 
-    public string LaunchedMismatch(string headlessConfigDir) => "";
+    public static string LaunchedMismatch(string headlessConfigDir) => "";
 
     private static string PackageId(string aboutXml)
     {

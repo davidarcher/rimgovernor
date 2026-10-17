@@ -34,7 +34,7 @@ internal static class ApplyPolicyPrune
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var before = await s.FixtureAsync("prune-setup", Setup, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         s.Record("setup", ServedOps.Json(before));

@@ -51,7 +51,7 @@ internal static class FoodReserve
 
     private static int Held(Fx.ReserveProbe probe) => probe.Pemmican.Where(p => p.Forbidden).Sum(p => p.Units);
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("empty-channels", FoodOps.EmptyChannels, new FoodStock("MealSimple", 200), cancellationToken).ConfigureAwait(false);
         var prepared = await s.FixtureAsync("reserve-prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);

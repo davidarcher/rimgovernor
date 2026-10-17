@@ -20,7 +20,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// plain roll's world and a repeat under the seed loads instead of generating.
 /// </para>
 /// </summary>
-public sealed class ProfileStartCache : IStartCache
+public sealed class ProfileStartCache
 {
     /// <summary>Controls whether the debug start loads a saved copy of itself; on unless set to 0, false or no.</summary>
     public const string CachedStartEnv = "RIMGOVERNOR_ACCEPT_CACHED_START";
@@ -165,7 +165,7 @@ public sealed class ProfileStartCache : IStartCache
     private static string NormalizeExpansion(string name) => Brain.Acceptance.Expansions.ExpansionPackage(name);
 
     /// <summary>Loads the save and waits for it the way a quick start is waited for.</summary>
-    public async Task LoadAsync(Harness harness, string name, CancellationToken cancellationToken)
+    public static async Task LoadAsync(Harness harness, string name, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
         using var phase = LaunchTrace.Span("start.load");
@@ -213,7 +213,7 @@ public sealed class ProfileStartCache : IStartCache
     public void PersistSave(string name) => Baselines.PersistSave(_root, _headless, name);
 
     /// <summary>Draws a world seed for a debug start nothing pinned: ten lowercase letters, a save-name-safe token the record and a later -seed can carry verbatim.</summary>
-    public string RandomSeed() => RandomToken();
+    public static string RandomSeed() => RandomToken();
 
     private static string RandomToken()
     {

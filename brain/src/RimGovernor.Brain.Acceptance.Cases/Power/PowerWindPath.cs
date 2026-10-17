@@ -46,7 +46,7 @@ internal static class PowerWindPath
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var clearId = s.Staged!.Buildings[Clear].Ids.Single();
         var roofedId = s.Staged.Buildings[Roofed].Ids.Single();

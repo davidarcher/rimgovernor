@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal sealed record FieldBlockEdit(string Zone, string Crop, IReadOnlyList<Cell> Cells);
 
 /// <summary>One goal's open field-block demand in the cross-crop ledger: options lead with the goal's own crop and cells.</summary>
-internal sealed record FieldShortfall(IWorkOwner Owner, IReadOnlyList<FieldBlockOption> Options, string What);
+internal sealed record FieldShortfall(NeedOwner Owner, IReadOnlyList<FieldBlockOption> Options, string What);
 
 internal static class LayoutFieldPlanning
 {

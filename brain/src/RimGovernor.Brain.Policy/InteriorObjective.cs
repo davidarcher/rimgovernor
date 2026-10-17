@@ -33,7 +33,7 @@ public sealed record InteriorObjective
     public PieceShapes Shapes { get; init; } = new();
 
     /// <summary>Weights the walks between stations; null has no walk term.</summary>
-    public IInteriorFlows? Flows { get; init; }
+    public GraphFlows? Flows { get; init; }
 
     /// <summary>
     /// The Beauty stat of each definition, from the game's defs (the station catalog does not carry it yet,
@@ -55,14 +55,8 @@ public readonly record struct FlowEnd(bool Door, string Slot);
 /// </summary>
 public readonly record struct FlowEdge(FlowEnd From, FlowEnd To, double Weight, bool Informational);
 
-/// <summary>Says which stations colonists walk between.</summary>
-public interface IInteriorFlows
-{
-    IReadOnlyList<FlowEdge> Edges(IReadOnlyList<InteriorPiece> pieces);
-}
-
 /// <summary>
-/// Reads the flows from the station graph (#2870): each graph edge is the daily movements between two station
+/// Says which stations colonists walk between. Reads the flows from the station graph (#2870): each graph edge is the daily movements between two station
 /// nodes (ingredients store to stove, meals stove to table and bed to table, products to the store). A node's
 /// pieces in the room are those of its definition. An edge between two nodes both in the room is a walk between
 /// their pieces, the weight shared over the piece pairs. An edge whose far node has no piece in the room is
@@ -79,7 +73,7 @@ public interface IInteriorFlows
 /// <param name="Graph">The station graph.</param>
 /// <param name="Sleep">The purpose of this room's beds; None when it holds none.</param>
 /// <param name="Furniture">Says which definitions are beds.</param>
-public sealed record GraphFlows(StationGraph Graph, StationPurpose Sleep, RoomFurniture Furniture) : IInteriorFlows
+public sealed record GraphFlows(StationGraph Graph, StationPurpose Sleep, RoomFurniture Furniture)
 {
     public IReadOnlyList<FlowEdge> Edges(IReadOnlyList<InteriorPiece> pieces)
     {

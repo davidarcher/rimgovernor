@@ -7,18 +7,11 @@ using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.RemoteAccept;
 
-/// <summary>Reads authenticated GitHub endpoints (Go <c>API</c>); tests provide recorded metadata.</summary>
-public interface IGitHubApi
+/// <summary>Reads authenticated GitHub endpoints (Go <c>API</c>) through the <c>gh api</c> CLI (Go <c>GitHub</c>): the operator's own authenticated session.</summary>
+public static class GhCliApi
 {
     /// <summary>GETs <paramref name="endpoint"/> (a path such as <c>repos/o/r/actions/runs/1</c>) and streams the body to <paramref name="destination"/>.</summary>
-    Task GetAsync(string endpoint, Stream destination, CancellationToken cancellationToken);
-}
-
-/// <summary>The <c>gh api</c> CLI as an <see cref="IGitHubApi"/> (Go <c>GitHub</c>): the operator's own authenticated session.</summary>
-public sealed class GhCliApi : IGitHubApi
-{
-    /// <inheritdoc />
-    public async Task GetAsync(string endpoint, Stream destination, CancellationToken cancellationToken)
+    public static async Task GetAsync(string endpoint, Stream destination, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
         ArgumentNullException.ThrowIfNull(destination);
@@ -66,11 +59,10 @@ public static class RemoteImport
     }
 
     /// <summary>Authenticates the artifact against the pinned completed workflow run and returns its archive digest (Go <c>Authenticate</c>).</summary>
-    public static async Task<string> AuthenticateAsync(IGitHubApi api, Provenance provenance, CancellationToken cancellationToken)
+    public static async Task<string> AuthenticateAsync(Provenance provenance, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(provenance);
-        return (await AuthenticateArtifactAsync(api, provenance, cancellationToken).ConfigureAwait(false)).Digest;
+        return (await AuthenticateArtifactAsync(provenance, cancellationToken).ConfigureAwait(false)).Digest;
     }
 
     /// <summary>
@@ -78,12 +70,11 @@ public static class RemoteImport
     /// regular diagnostic files), verifies the whole graph and writes <c>evidence/result.json</c> with the import
     /// provenance. A failing verdict throws after the result is written.
     /// </summary>
-    public static async Task DownloadAsync(IGitHubApi api, Provenance provenance, string output, CancellationToken cancellationToken)
+    public static async Task DownloadAsync(Provenance provenance, string output, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(provenance);
         ArgumentNullException.ThrowIfNull(output);
-        var identity = await AuthenticateArtifactAsync(api, provenance, cancellationToken).ConfigureAwait(false);
+        var identity = await AuthenticateArtifactAsync(provenance, cancellationToken).ConfigureAwait(false);
         var p = provenance with { ArchiveSha256 = identity.Digest };
         if (Directory.Exists(output) || File.Exists(output))
         {
@@ -101,7 +92,7 @@ public static class RemoteImport
         await using (var file = new FileStream(archive, FileMode.CreateNew, FileAccess.Write, FileShare.None))
         {
             await using var limited = new BoundedStream(file, identity.Size);
-            await api.GetAsync($"repos/{p.Trust.Repository}/actions/artifacts/{p.ArtifactId.ToString(CultureInfo.InvariantCulture)}/zip", limited, cancellationToken).ConfigureAwait(false);
+            await GhCliApi.GetAsync($"repos/{p.Trust.Repository}/actions/artifacts/{p.ArtifactId.ToString(CultureInfo.InvariantCulture)}/zip", limited, cancellationToken).ConfigureAwait(false);
         }
 
         if (EvidenceRules.HashFile(archive) != identity.Digest)
@@ -126,7 +117,7 @@ public static class RemoteImport
         }
     }
 
-    private static async Task<ArtifactIdentity> AuthenticateArtifactAsync(IGitHubApi api, Provenance p, CancellationToken cancellationToken)
+    private static async Task<ArtifactIdentity> AuthenticateArtifactAsync(Provenance p, CancellationToken cancellationToken)
     {
         var t = p.Trust;
         if (!EvidenceRules.IsRepository(t.Repository) || !EvidenceRules.ValidPath(t.Workflow) || !t.Workflow.StartsWith(".github/workflows/", StringComparison.Ordinal)
@@ -135,7 +126,7 @@ public static class RemoteImport
             throw new RemoteAcceptException("missing/invalid operator trust pins or Actions identity");
         }
 
-        var run = await ApiJsonAsync(api, $"repos/{t.Repository}/actions/runs/{p.RunId.ToString(CultureInfo.InvariantCulture)}/attempts/{p.Attempt.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
+        var run = await ApiJsonAsync($"repos/{t.Repository}/actions/runs/{p.RunId.ToString(CultureInfo.InvariantCulture)}/attempts/{p.Attempt.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
         var runRepository = StrictJson.LooseObj(run, "repository");
         var runHeadRepository = StrictJson.LooseObj(run, "head_repository");
         var runEvent = StrictJson.LooseStr(run, "event");
@@ -154,7 +145,7 @@ public static class RemoteImport
             throw new RemoteAcceptException("actions run was cancelled, timed out, or has an unknown conclusion");
         }
 
-        var artifact = await ApiJsonAsync(api, $"repos/{t.Repository}/actions/artifacts/{p.ArtifactId.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
+        var artifact = await ApiJsonAsync($"repos/{t.Repository}/actions/artifacts/{p.ArtifactId.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
         var fullDigest = StrictJson.LooseStr(artifact, "digest");
         var digest = fullDigest.StartsWith("sha256:", StringComparison.Ordinal) ? fullDigest["sha256:".Length..] : fullDigest;
         var size = StrictJson.LooseInt64(artifact, "size_in_bytes");
@@ -175,10 +166,10 @@ public static class RemoteImport
         return new ArtifactIdentity(digest, size);
     }
 
-    private static async Task<JsonObject> ApiJsonAsync(IGitHubApi api, string endpoint, CancellationToken cancellationToken)
+    private static async Task<JsonObject> ApiJsonAsync(string endpoint, CancellationToken cancellationToken)
     {
         using var body = new MemoryStream();
-        await api.GetAsync(endpoint, body, cancellationToken).ConfigureAwait(false);
+        await GhCliApi.GetAsync(endpoint, body, cancellationToken).ConfigureAwait(false);
         return StrictJson.ParseLoose(body.ToArray());
     }
 

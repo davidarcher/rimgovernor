@@ -31,7 +31,7 @@ internal static class QuestShuttle
         Run = (s, ct) => RunAsync(s, named, ct),
     };
 
-    private static async Task RunAsync(ITypedSession s, bool named, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, bool named, CancellationToken cancellationToken)
     {
         var prepared = await s.FixtureAsync("prepare", QuestKit.Shuttle, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         var (quest, pawn) = named ? (prepared.NamedQuest, prepared.NamedPawn) : (prepared.CountedQuest, prepared.CountedPawn);

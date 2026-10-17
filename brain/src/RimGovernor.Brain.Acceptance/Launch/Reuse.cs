@@ -243,7 +243,7 @@ public sealed class GameReuse : IAsyncDisposable
             return _harness;
         }
 
-        INativeTransport transport;
+        HttpNativeTransport transport;
         try
         {
             transport = await GameSessions.OpenBridgeSessionAsync(Config.Configuration, GameIdOf(Config), SessionTimeout, cancellationToken, Config.LaunchEnv).ConfigureAwait(false);

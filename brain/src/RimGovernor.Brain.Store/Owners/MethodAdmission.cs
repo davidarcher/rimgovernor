@@ -17,21 +17,21 @@ public sealed partial class Store
     /// The per-family admission checks every owner shares, then the plan itself; the caller then writes the
     /// methods row (Go <c>admitOwnerMethod</c>).
     /// </summary>
-    internal static void AdmitOwnerMethod(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
+    internal static void AdmitOwnerMethod(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
         // Self-treatment is an observed permission, not a local assignment winner.
-        if (owner is NeedOwner { Need: var assigning } && assigning == AdminFamily.WorkAssignments
+        if (owner.Need == AdminFamily.WorkAssignments
             && plan.Actions.Any(a => a.PawnSettings is { Kind: SettingKind.SelfTend }))
             throw new NotAdmittedException("unsupported_assignment_self_tend_policy");
         // A visiting trader's session draws a negotiator off the shared forecast; only a mission's settlement trade is ours.
-        if (owner is NeedOwner { Need: var held } && held == EconomyFamily.Caravan && plan.Actions.Any(a => a.Trade is
+        if (owner.Need == EconomyFamily.Caravan && plan.Actions.Any(a => a.Trade is
             { Kind: TradeOperationKind.Open, Participant.Kind: not TradeParticipantKind.Settlement }))
             throw new NotAdmittedException("unsupported_shared_trade_labor");
         // A people/mood Need casts nothing: a preventative cast needs shared caster time and psyfocus (#3304).
-        if (owner is NeedOwner { Need: var mood } && PeopleFamily.IsMood(mood) && plan.Actions.Any(a => a.Kind == ActionKind.Ability))
+        if (PeopleFamily.IsMood(owner.Need) && plan.Actions.Any(a => a.Kind == ActionKind.Ability))
             throw new NotAdmittedException("unsupported_forecast_mood_cast");
         // A window answer is the people/dialog Need's alone (#3304); another Need answers only its own letters.
-        if (owner is NeedOwner { Need: var answering } && answering != PeopleFamily.Dialog
+        if (owner.Need != PeopleFamily.Dialog
             && plan.Actions.Any(a => a.DialogAnswer is { LetterToken.Length: 0 }))
             throw new NotAdmittedException("dialog_answer_not_owned");
         AdmitBillMethod(tx, owner, plan);
@@ -46,7 +46,7 @@ public sealed partial class Store
 
     // While the initial shelter is owed its builders are its own. An owner the review does not bind (a player
     // goal) is outside the rule, as it is outside the routine Safeguards.
-    private static void AdmitConstructionLabor(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
+    private static void AdmitConstructionLabor(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
         if (!plan.Actions.Any(a => DrawsConstructionLabor(a.Kind)))
         {
@@ -54,8 +54,7 @@ public sealed partial class Store
         }
         var review = LoadRounds(tx);
         // A Need owner is checked by its NeedId: the shelter housing Needs keep their builders.
-        if (owner.OwnerNeed(review, out var need)
-            && ConstructionLaborHeld(review.Latches, owner is NeedOwner { Need: var held } ? held.FilingKey : need, plan.Actions.Select(a => a.Kind)))
+        if (ConstructionLaborHeld(review.Latches, owner.Need.FilingKey, plan.Actions.Select(a => a.Kind)))
         {
             throw new ConstructionLaborException();
         }
@@ -65,7 +64,7 @@ public sealed partial class Store
     /// The tail every owner's commit shares: refuse a method the owner already binds in its epoch, run the family
     /// admission and store the plan, then write the methods row and name the plan's method.
     /// </summary>
-    internal static void BindOwnerMethod(StoreTransaction tx, IMethodOwner owner, MethodId method, string reason, PlanSpec plan)
+    internal static void BindOwnerMethod(StoreTransaction tx, NeedOwner owner, MethodId method, string reason, PlanSpec plan)
     {
         // Plan ids are minted; the real double-admission key is the owner table's primary key (owner, [episode,] method).
         if (owner.BoundPlan(tx, method) is { } bound)
@@ -97,35 +96,31 @@ public sealed partial class Store
     /// <see cref="NotAdmittedException"/> with the Safeguard's reason. An owner the review does not bind (a player
     /// goal) is outside the routine Safeguards.
     /// </summary>
-    internal static void AdmitRoundsSafeguards(StoreTransaction tx, IMethodOwner owner)
+    internal static void AdmitRoundsSafeguards(StoreTransaction tx, NeedOwner owner)
     {
         var review = LoadRounds(tx);
-        if (!owner.OwnerNeed(review, out var need))
-        {
-            return;
-        }
-        var (refusal, vetoed) = review.Refuse(new SafeguardProposal { Need = need });
+        var (refusal, vetoed) = review.Refuse(new SafeguardProposal());
         if (vetoed)
         {
             throw new NotAdmittedException($"{owner.OwnerLabel}: {refusal.Safeguard}: {refusal.Reason}");
         }
     }
 
-    private static void AdmitBillMethod(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
+    private static void AdmitBillMethod(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
         if (!plan.Actions.Any(a => a.Kind == ActionKind.ProductionBill))
         {
             return;
         }
         var review = LoadRounds(tx);
-        if (!review.Enabled || review.Snapshot != owner.OwnerSnapshot || plan.Actions.Count > MaxBillPlanActions)
+        if (!review.Enabled || review.Snapshot != owner.Snapshot || plan.Actions.Count > MaxBillPlanActions)
         {
             throw new ConflictException($"bill method needs a current autopilot review and at most {MaxBillPlanActions} actions");
         }
         // Bills are the admin/work-ledger Need's: it commits the round's reconcile plan (the economy/resource Need's
         // stock bills, the medical Needs' bills and the biotech/mechs Need's gestation bill among them): places and
         // removals together.
-        var bound = owner is NeedOwner { Need: var held } && held == AdminFamily.WorkLedger;
+        var bound = owner.Need == AdminFamily.WorkLedger;
         if (!bound)
         {
             throw new ConflictException($"{owner.OwnerLabel} does not admit production bills");
@@ -144,7 +139,7 @@ public sealed partial class Store
         }
     }
 
-    private static void AdmitZoneMethod(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
+    private static void AdmitZoneMethod(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
         var hasWork = false;
         var stockpile = false;
@@ -166,24 +161,22 @@ public sealed partial class Store
         // A stockpile zone is admitted for the admin/stockpiles Need alone, which applies every store the departments
         // declare in one batch (decision 20).
         var limit = 32;
-        if (!review.Enabled || review.Snapshot != owner.OwnerSnapshot)
+        if (!review.Enabled || review.Snapshot != owner.Snapshot)
         {
             throw new ConflictException();
         }
         var bound = false;
         var resource = false;
-        if (owner is NeedOwner { Need: var held })
+        var held = owner.Need;
+        resource = held == EconomyFamily.Resource;
+        if (stockpile)
         {
-            resource = held == EconomyFamily.Resource;
-            if (stockpile)
-            {
-                bound = held == AdminFamily.Stockpiles;
-                limit = MaxStockpileCreates;
-            }
-            else
-            {
-                bound = held == FoodSupplyNeed || held == JoinersFamily.Decrees || resource;
-            }
+            bound = held == AdminFamily.Stockpiles;
+            limit = MaxStockpileCreates;
+        }
+        else
+        {
+            bound = held == FoodSupplyNeed || held == JoinersFamily.Decrees || resource;
         }
         if (!bound || plan.Actions.Count > limit)
         {
@@ -211,22 +204,22 @@ public sealed partial class Store
         }
     }
 
-    private static void AdmitAcquisitionMethod(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
+    private static void AdmitAcquisitionMethod(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
         if (!plan.Actions.Any(a => a.Kind == ActionKind.Acquisition))
         {
             return;
         }
         var review = LoadRounds(tx);
-        if (!review.Enabled || review.Snapshot != owner.OwnerSnapshot || plan.Actions.Count > MaxCatalogSelection + PolicyConstants.MaxHuntRows)
+        if (!review.Enabled || review.Snapshot != owner.Snapshot || plan.Actions.Count > MaxCatalogSelection + PolicyConstants.MaxHuntRows)
         {
             throw new ConflictException();
         }
         // The military pests Need hunts its pests (#3259), the food/supply Need forages and hunts (#3254) and the
         // joiners/decrees Need hunts a royal decree's animals (#3302), the economy/resource Need chops, forages and
         // hunts toward its floors (#3303) and the medical/reserves Need harvests healroot (#3258).
-        var bound = owner is NeedOwner { Need: var held }
-            && (held == MilitaryFamily.Pests || held == FoodSupplyNeed || held == JoinersFamily.Decrees || held == EconomyFamily.Resource
+        var held = owner.Need;
+        var bound = (held == MilitaryFamily.Pests || held == FoodSupplyNeed || held == JoinersFamily.Decrees || held == EconomyFamily.Resource
                 || held == MedicalReservesNeed);
         if (!bound)
         {
@@ -242,14 +235,14 @@ public sealed partial class Store
         }
     }
 
-    private static void AdmitWorkMethod(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
+    private static void AdmitWorkMethod(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
         if (!plan.Actions.Any(a => a.Kind == ActionKind.WorkAssignment))
         {
             return;
         }
         var review = LoadRounds(tx);
-        if (!review.Enabled || review.Snapshot != owner.OwnerSnapshot)
+        if (!review.Enabled || review.Snapshot != owner.Snapshot)
         {
             throw new ConflictException();
         }
@@ -257,11 +250,9 @@ public sealed partial class Store
         // A creepjoiner's isolation (the admin/creep-joiners Need) and a sheltering move (disaster/sheltering) are
         // area moves: each assignment is area-only.
         var isolation = false;
-        if (owner is NeedOwner { Need: var held })
-        {
-            bound = held == AdminFamily.WorkAssignments;
-            isolation = held == AdminFamily.CreepJoiners || held == DisasterFamily.Sheltering;
-        }
+        var held = owner.Need;
+        bound = held == AdminFamily.WorkAssignments;
+        isolation = held == AdminFamily.CreepJoiners || held == DisasterFamily.Sheltering;
         if (!bound && !isolation)
         {
             throw new ConflictException();
@@ -291,36 +282,34 @@ public sealed partial class Store
     /// Admits only stacks the review's cohort still lists, each at the cell the census last reported: the event loot
     /// for the admin/supply-safety Need, and the larder corpse and reserve stacks for the food-stores/storage Need.
     /// </summary>
-    private static void AdmitSupplyMethod(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
+    private static void AdmitSupplyMethod(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
         if (!plan.Actions.Any(a => a.Kind is ActionKind.SupplyAllow or ActionKind.SupplyForbid))
         {
             return;
         }
         var review = LoadRounds(tx);
-        if (!review.Enabled || review.Snapshot != owner.OwnerSnapshot)
+        if (!review.Enabled || review.Snapshot != owner.Snapshot)
         {
             throw new ConflictException();
         }
         var bound = false;
         var reserve = new Dictionary<string, ReserveSupply>(StringComparer.Ordinal);
         IReadOnlyList<StartingSupply> cohort = [];
-        if (owner is NeedOwner { Need: var held })
+        var held = owner.Need;
+        if (held == FoodStorageNeed)
         {
-            if (held == FoodStorageNeed)
+            bound = true;
+            cohort = review.LarderSupplies;
+            foreach (var row in review.ReserveSupplies)
             {
-                bound = true;
-                cohort = review.LarderSupplies;
-                foreach (var row in review.ReserveSupplies)
-                {
-                    reserve[row.Thing] = row;
-                }
+                reserve[row.Thing] = row;
             }
-            else if (held == AdminFamily.SupplySafety)
-            {
-                bound = true;
-                cohort = review.EventLoot.Pending;
-            }
+        }
+        else if (held == AdminFamily.SupplySafety)
+        {
+            bound = true;
+            cohort = review.EventLoot.Pending;
         }
         if (!bound)
         {

@@ -34,7 +34,7 @@ internal static class ProductionClothingActivity
         Run = (s, ct) => RunAsync(s, interrupted, ct),
     };
 
-    private static async Task RunAsync(ITypedSession s, bool interrupted, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, bool interrupted, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("clothing-prepare", Prepared, interrupted, cancellationToken).ConfigureAwait(false);
         _ = await s.ServeUntilAsync("clothing", s.TicksLeft, async ct =>

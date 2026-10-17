@@ -132,19 +132,11 @@ public sealed record ExportCandidate
 /// <summary>
 /// Decides how much of a draw on the colony's stock an export may take. Admit grants up to want pieces of unit,
 /// counting every draw it has granted before (the orders declared this Round, placed or not) and the standing
-/// bills'. It is replaceable by a finite-versus-renewable classification of the resource without changing a
-/// caller. (Go <c>ExportRunwayGuard</c>.)
+/// bills'. The level-1 guard: every resource is treated as finite, so an export keeps the reserve and
+/// <see cref="PolicyFunctions.ExportRunwayHorizonDays"/> of the colony's own observed use. (Go <c>ExportRunwayGuard</c>
+/// and <c>horizonGuard</c>.)
 /// </summary>
-public interface IExportRunwayGuard
-{
-    (long Granted, bool Known) Admit(IReadOnlyList<Amount> unit, long want);
-}
-
-/// <summary>
-/// The level-1 guard: every resource is treated as finite, so an export keeps the reserve and
-/// <see cref="PolicyFunctions.ExportRunwayHorizonDays"/> of the colony's own observed use. (Go <c>horizonGuard</c>.)
-/// </summary>
-internal sealed class HorizonGuard : IExportRunwayGuard
+internal sealed class HorizonGuard
 {
     private readonly IReadOnlyList<ResourceRunway> _runways;
     private readonly Dictionary<Resource, long> _have = [];
@@ -265,14 +257,6 @@ public static partial class PolicyFunctions
         }
         drops[why] = drops.GetValueOrDefault(why) + n;
     }
-
-    /// <summary>
-    /// Go <c>NewExportGuard</c>: the level-1 guard over the usable census, holding the
-    /// <see cref="ExportRunwayHorizonDays"/> line of every ingredient the runways forecast; draws holds the units
-    /// already committed to standing and declared bills.
-    /// </summary>
-    public static IExportRunwayGuard NewExportGuard(IReadOnlyList<ResourceRunway> runways, IReadOnlyList<Stock> supply, IReadOnlyDictionary<Resource, long> draws) =>
-        new HorizonGuard(runways, supply, draws);
 
     /// <summary>
     /// The planning prior for the quality a worker of a skill level turns out, as an index into the quality
@@ -792,7 +776,9 @@ public static partial class PolicyFunctions
                 draws[a.Resource] = draws.GetValueOrDefault(a.Resource) + a.Count;
             }
         }
-        var guard = NewExportGuard(r.Runways, r.Supply, draws);
+        // The level-1 guard over the usable census, holding the ExportRunwayHorizonDays line of every ingredient the
+        // runways forecast; draws holds the units already committed to standing and declared bills.
+        var guard = new HorizonGuard(r.Runways, r.Supply, draws);
         var pairs = new List<ExportCandidate>();
         var usable = new Dictionary<Resource, long>();
         foreach (var q in UsableIngredients(r.Runways, r.Supply))

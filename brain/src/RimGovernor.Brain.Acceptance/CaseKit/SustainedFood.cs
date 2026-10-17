@@ -58,74 +58,6 @@ public sealed record WatchConfig
 }
 
 /// <summary>
-/// The durable-state reads a watch makes of the service it observes (Go <c>*store.Store</c>: LoadRounds and the plan
-/// loaders). The brain's store lives with the in-mod service, so the slice that owns the service launch supplies the
-/// reader; this project declares only the narrow surface the watch needs.
-/// </summary>
-public interface IWatchStore
-{
-    /// <summary>The revision of the persisted Rounds record; zero when none was persisted yet. Throws <see cref="AcceptanceException"/> when it cannot be read.</summary>
-    Task<ulong> RoundsRevisionAsync(CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Reads one Need's progress row and its owner's unretired Methods' plan stages in the review's world (see
-    /// <see cref="NeedSample"/>). A key that is not a NeedId is never bound. Throws <see cref="AcceptanceException"/>
-    /// on a read failure.
-    /// </summary>
-    Task<NeedSample> SampleNeedAsync(string concern, CancellationToken cancellationToken);
-}
-
-/// <summary>
-/// What a watch needs from the running service (Go <c>*na.ServiceProcess</c>), on top of what a checkpoint capture
-/// needs. The brain is in-process in the mod, so there is no child process: an implementation talks to the player API
-/// over HTTP.
-/// </summary>
-public interface IWatchedService : ICheckpointService
-{
-    /// <summary>The service's OTLP log ring (otlp/logs.jsonl), tailed for wakes and read for the step failures.</summary>
-    string LogPath { get; }
-
-    /// <summary>Acquires player authority.</summary>
-    Task AcquireAsync(CancellationToken cancellationToken);
-
-    /// <summary>The store the watch samples.</summary>
-    Task<IWatchStore> StoreAsync(CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Keeps player authority granted for the whole watch: native authority is a bounded generation that legitimately
-    /// lapses (tick budget exhaustion, an unrecognized native clock event), and nothing re-acquires it automatically.
-    /// </summary>
-    void KeepAuthority(CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Whether a scheduler step has run a clock step since <paramref name="since"/>; throws
-    /// <see cref="StepStallException"/> once the service's step-stall budget elapsed without one.
-    /// </summary>
-    Task<bool> StepAdmittedAsync(DateTimeOffset since, CancellationToken cancellationToken);
-
-    /// <summary>Stops the service; returns the authority re-acquisition record, null when there is none to report.</summary>
-    Task<JsonObject?> StopAsync();
-}
-
-/// <summary>The slice of a registry case's session <see cref="SustainedFood.ObserveAsync"/> drives: the loaded, paused, frozen game the shared runner opened (Go <c>sustainedfood.Observed</c>).</summary>
-public interface IObservedSession
-{
-    Harness Harness { get; }
-
-    Config Config { get; }
-
-    Report Report { get; }
-
-    ServeSpec Spec { get; }
-
-    /// <summary>Starts the in-mod service under <paramref name="spec"/>.</summary>
-    Task<IWatchedService> ServeAsync(ServeSpec spec, CancellationToken cancellationToken);
-
-    /// <summary>Re-opens the harness after the service stopped (trivial in the in-process brain: there is no sole bridge slot to give back).</summary>
-    Task<Harness> ReattachAsync(CancellationToken cancellationToken);
-}
-
-/// <summary>
 /// One serve-driven case's shape over the watch: Prepare runs against the loaded game before the service starts (the
 /// place to record a live baseline), the service declared on the case is started and watched, then stopped, and Audit
 /// runs against the reattached session so the durable journal can be compared with live native facts. Spec, when set,
@@ -164,7 +96,7 @@ public static partial class SustainedFood
     /// and timeline_samples on <paramref name="report"/> (also when it fails) and appends every sample to
     /// <paramref name="timeline"/>; the caller stops the service.
     /// </summary>
-    internal static async Task WatchAsync(IWatchedService service, WatchConfig cfg, Report report, ICollection<WatchSample> timeline, CancellationToken cancellationToken)
+    internal static async Task WatchAsync(ServiceProcess service, Config config, WatchConfig cfg, Report report, ICollection<WatchSample> timeline, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(service);
         ArgumentNullException.ThrowIfNull(cfg);
@@ -186,7 +118,7 @@ public static partial class SustainedFood
         var window = new TickWindow(cfg.Window);
         report["window"] = window.ToJson();
 
-        var verifyStore = await service.StoreAsync(cancellationToken).ConfigureAwait(false);
+        var verifyStore = await CaseStore.OpenAsync(config, cancellationToken).ConfigureAwait(false);
 
         // Keeps player authority granted for the full watch window.
         service.KeepAuthority(cancellationToken);
@@ -432,7 +364,7 @@ public static partial class SustainedFood
     /// Runs one <paramref name="o"/> on <paramref name="session"/>; the service is stopped and the session reattached
     /// before Audit, on every path.
     /// </summary>
-    public static async Task ObserveAsync(IObservedSession session, SustainedObservation o, CancellationToken cancellationToken)
+    public static async Task ObserveAsync(ObservedSession session, SustainedObservation o, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(o);
@@ -476,7 +408,7 @@ public static partial class SustainedFood
         {
             try
             {
-                await WatchAsync(service, o.Watch, report, timeline, cancellationToken).ConfigureAwait(false);
+                await WatchAsync(service, session.Config, o.Watch, report, timeline, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

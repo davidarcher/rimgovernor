@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal static class TypedLayoutPlan
 {
     /// <summary>Replaces the save's layout plan blob with <paramref name="plan"/> (the service reads it at start), keeping every other blob.</summary>
-    public static async Task InjectAsync(ITypedSession s, LayoutPlan plan, CancellationToken cancellationToken)
+    public static async Task InjectAsync(TypedSession s, LayoutPlan plan, CancellationToken cancellationToken)
     {
         // The batch put replaces the whole set, so read the save's blobs and add the plan to them.
         var read = await s.CallAsync("read-governor-state", NativeOps.ReadGovernorState, new Lifecycle.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);

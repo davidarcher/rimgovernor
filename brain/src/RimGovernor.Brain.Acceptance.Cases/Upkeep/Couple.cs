@@ -33,7 +33,7 @@ internal static class UpkeepCouple
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var prepared = await s.FixtureAsync("sleeping-setup", Prepared, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         s.Record("prepared", ServedOps.Json(prepared));

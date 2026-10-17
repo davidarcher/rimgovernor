@@ -118,7 +118,7 @@ internal static class ControlActivities
         [ProbeTool],
         async (s, ct) => _ = await s.FixtureAsync(probe, Probe, probe, ct).ConfigureAwait(false));
 
-    private static TypedCase Case(string name, string scope, int ticks, IReadOnlyList<string> ops, Func<ITypedSession, CancellationToken, Task> claim) => new()
+    private static TypedCase Case(string name, string scope, int ticks, IReadOnlyList<string> ops, Func<TypedSession, CancellationToken, Task> claim) => new()
     {
         Name = "control/" + name,
         Scope = scope,
@@ -137,7 +137,7 @@ internal static class ControlActivities
         },
     };
 
-    private static async Task RunSequenceAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunSequenceAsync(TypedSession s, CancellationToken cancellationToken)
     {
         await s.RunTicksAsync("settle", SettleTicks, cancellationToken).ConfigureAwait(false);
         var held = false;
@@ -175,7 +175,7 @@ internal static class ControlActivities
         }
     }
 
-    private static async Task ReadWorkResourcesAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task ReadWorkResourcesAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var rows = TypedReads.Observed("colony-facts", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed).WorkResources?.ToList() ?? [];

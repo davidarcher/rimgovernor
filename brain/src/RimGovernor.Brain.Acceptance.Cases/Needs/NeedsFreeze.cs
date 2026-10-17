@@ -35,7 +35,7 @@ internal static class NeedsFreeze
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         async Task<Dictionary<(string Pawn, string Def), double>> LevelsAsync(string label, string action)
         {

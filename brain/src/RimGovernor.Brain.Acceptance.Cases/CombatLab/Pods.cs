@@ -26,7 +26,7 @@ internal static class CombatLabPods
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var raiders = new StagedLab(Fixture, s.Staged!).Hostiles();
         var frames = new LabFrames(s);

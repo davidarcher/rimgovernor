@@ -61,7 +61,7 @@ internal static class LabCaptureProfile
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var (profile, raw) = await s.FixtureAsync("capture-profile", Profile, 5, cancellationToken).ConfigureAwait(false);
         s.Record("capture_profile", raw);

@@ -61,7 +61,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         return await DecideAsync(arbiter, state, review, goal, call, epoch).ConfigureAwait(false);
     }
 
-    private async Task<RoundsBuildingResult> DecideAsync(StepArbiter arbiter, ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, CancellationToken call, CancellationToken epoch)
+    private async Task<RoundsBuildingResult> DecideAsync(StepArbiter arbiter, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var started = Reviewer.Clock.Now();
@@ -247,7 +247,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// The method ID for the next assignment attempt of this epoch under base, or "" when the pair was already
     /// applied, or the shared refusal budget bars another attempt (the verdict then says why).
     /// </summary>
-    internal (MethodId Method, Verdict Verdict) AssignMethod(Sto.IWorkOwner goal, string baseName, GenerationSnapshot world, CancellationToken call)
+    internal (MethodId Method, Verdict Verdict) AssignMethod(Sto.NeedOwner goal, string baseName, GenerationSnapshot world, CancellationToken call)
     {
         var p = Reviewer.Player;
         var refused = new List<PlanId>();
@@ -290,7 +290,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>Commits one patch setting bed for slaves, once per bed per Episode; the next review assigns the waiting slave to it.</summary>
-    internal RoundsBuildingResult MarkSlaveBed(ControlState state, Sto.IWorkOwner goal, string bed, CancellationToken call, CancellationToken epoch)
+    internal RoundsBuildingResult MarkSlaveBed(ControlState state, Sto.NeedOwner goal, string bed, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var method = new MethodId("sleeping-slave-bed-" + bed);

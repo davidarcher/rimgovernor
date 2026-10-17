@@ -38,7 +38,7 @@ internal static class WallLayers
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         var before = await s.FixtureAsync("layers-prepare", Ring, "prepare", cancellationToken).ConfigureAwait(false);

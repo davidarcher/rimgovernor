@@ -45,7 +45,7 @@ internal static class WallUpgrade
     };
 
     /// <summary>The census rows for <paramref name="target"/> (null: the cleanup census).</summary>
-    internal static async Task<Observations.WallUpgradeSnapshot> CensusAsync(ITypedSession s, string label, string? target, CancellationToken cancellationToken)
+    internal static async Task<Observations.WallUpgradeSnapshot> CensusAsync(TypedSession s, string label, string? target, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ListWallUpgradeSites, new Observations.WallUpgradeSitesRequest { Scope = s.Scope, TargetId = target }, cancellationToken).ConfigureAwait(false);
         var snapshot = TypedReads.Observed(label, NativeOps.ListWallUpgradeSites, reply, reply.Outcome?.Observed);
@@ -56,7 +56,7 @@ internal static class WallUpgrade
     /// <summary>Whether a site's normal is diagonal (a corner, replaced in place).</summary>
     internal static bool Corner(Observations.WallUpgradeSite site) => site.Normal is { X: not 0, Z: not 0 };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var walls = s.Staged!.Rooms["room"].Walls;
         var cleanup = await CensusAsync(s, "cleanup-census", null, cancellationToken).ConfigureAwait(false);

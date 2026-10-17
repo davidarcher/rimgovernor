@@ -44,9 +44,9 @@ public sealed record ServiceLaunch
 /// One handle on the brain's player API, obtained by <see cref="ServeAsync"/> (or <see cref="LaunchServiceAsync"/>)
 /// against the game the harness prepared. Its waits (<see cref="WaitAttachedAsync"/>, <see cref="WaitStepAsync"/>) end as soon as
 /// the brain's process, the game, exits on its own. It is also the running service a checkpoint capture saves
-/// through (<see cref="ICheckpointService"/>).
+/// through (<see cref="ServiceProcess"/>).
 /// </summary>
-public sealed partial class ServiceProcess : ICheckpointService
+public sealed partial class ServiceProcess
 {
     /// <summary>The player API's base address from the channel's endpoint file (the Go serve URL).</summary>
     public string Url { get; private set; } = "";

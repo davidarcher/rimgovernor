@@ -41,7 +41,7 @@ internal static class NewColonyStart
         new() { RequestId = id, Spec = spec, TimeoutMs = timeoutMs };
 
     /// <summary>Launches a game at the main menu, runs <paramref name="body"/> against it and retires it; retiring is best effort and the body's result stands.</summary>
-    internal static async Task MenuAsync(ITypedSession s, string label, Func<Task> body, CancellationToken cancellationToken)
+    internal static async Task MenuAsync(TypedSession s, string label, Func<Task> body, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(s);
         ArgumentNullException.ThrowIfNull(body);
@@ -70,7 +70,7 @@ internal static class NewColonyStart
 
     /// <summary>Starts <paramref name="request"/> and requires it to complete; a failed start fails <paramref name="label"/> with its code and phases.</summary>
     internal static async Task<(Lifecycle.NewColonyCompleted Completed, IReadOnlyList<Lifecycle.NewColonyPhase> Phases)> CompleteAsync(
-        ITypedSession s, string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
+        TypedSession s, string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
     {
         var result = await s.NewColonyAsync(label, request, cancellationToken).ConfigureAwait(false);
         return result.Completed is { } completed
@@ -80,7 +80,7 @@ internal static class NewColonyStart
 
     /// <summary>Starts <paramref name="request"/> and requires a failure with code <paramref name="want"/>; returns the phases reported before it.</summary>
     internal static async Task<IReadOnlyList<Lifecycle.NewColonyPhase>> FailsAsync(
-        ITypedSession s, string label, Lifecycle.NewColonyRequest request, Common.FailureCode want, CancellationToken cancellationToken)
+        TypedSession s, string label, Lifecycle.NewColonyRequest request, Common.FailureCode want, CancellationToken cancellationToken)
     {
         var result = await s.NewColonyAsync(label, request, cancellationToken).ConfigureAwait(false);
         return result.Failure?.Code == want
@@ -89,7 +89,7 @@ internal static class NewColonyStart
     }
 
     /// <summary>Requires <paramref name="request"/> refused with INVALID_REQUEST before generation: no phase reported.</summary>
-    internal static async Task RefusedAsync(ITypedSession s, string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
+    internal static async Task RefusedAsync(TypedSession s, string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
     {
         var phases = await FailsAsync(s, label, request, Common.FailureCode.InvalidRequest, cancellationToken).ConfigureAwait(false);
         if (phases.Count > 0)
@@ -99,7 +99,7 @@ internal static class NewColonyStart
     }
 
     /// <summary>The colonists <c>observations_list_pawns</c> reports for <paramref name="identity"/>, with biography.</summary>
-    internal static async Task<IReadOnlyList<Observations.PawnState>> ColonistsAsync(ITypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
+    internal static async Task<IReadOnlyList<Observations.PawnState>> ColonistsAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(
             label,
@@ -115,7 +115,7 @@ internal static class NewColonyStart
     }
 
     /// <summary>Requires the colony's one colonist to carry <paramref name="trait"/>; records and returns its traits.</summary>
-    internal static async Task<IReadOnlyList<string>> ForcedTraitAsync(ITypedSession s, string trait, CancellationToken cancellationToken)
+    internal static async Task<IReadOnlyList<string>> ForcedTraitAsync(TypedSession s, string trait, CancellationToken cancellationToken)
     {
         var (identity, _, _) = await TypedLifecycle.IdentityAsync(s, "trait-identity", cancellationToken).ConfigureAwait(false);
         var pawns = await ColonistsAsync(s, "trait-pawns", identity, cancellationToken).ConfigureAwait(false);

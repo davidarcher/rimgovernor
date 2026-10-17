@@ -46,7 +46,7 @@ internal static class LabGridThings
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var site = s.Staged?.Site ?? throw new AcceptanceException("test/stage replied no site");
         var reply = await s.FixtureAsync("grid-things", Grid, string.Create(CultureInfo.InvariantCulture, $"{site.X},{site.Z}"), cancellationToken).ConfigureAwait(false);

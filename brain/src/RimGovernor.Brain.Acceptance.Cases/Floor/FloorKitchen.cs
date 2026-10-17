@@ -44,7 +44,7 @@ internal static class FloorKitchen
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var interior = s.Staged!.Rooms["kitchen"].Interior.ToHashSet();
         var target = new Fx.StageCell(interior.Min(c => c.X), interior.Min(c => c.Z));

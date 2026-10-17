@@ -48,7 +48,7 @@ internal static class SuppliesReads
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var before = await IdentityAsync(s, "identity-before", cancellationToken).ConfigureAwait(false);
         if (before.Paused != true)
@@ -103,13 +103,13 @@ internal static class SuppliesReads
         }
     }
 
-    private static async Task<Lifecycle.LoadedIdentity> IdentityAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    private static async Task<Lifecycle.LoadedIdentity> IdentityAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadIdentity, new Lifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Loaded ?? throw new AcceptanceException($"{label}: identity not loaded: {reply.Outcome}");
     }
 
-    private static async Task<Observations.SuppliesSnapshot> CensusAsync(ITypedSession s, string label, Observations.StockFilter filter, CancellationToken cancellationToken)
+    private static async Task<Observations.SuppliesSnapshot> CensusAsync(TypedSession s, string label, Observations.StockFilter filter, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ListSupplies, new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = filter }, cancellationToken).ConfigureAwait(false);
         return TypedReads.Observed(label, NativeOps.ListSupplies, reply, reply.Outcome?.Observed);

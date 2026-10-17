@@ -49,7 +49,7 @@ internal static class ShelterRetirement
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var staged = s.Staged!;
         var site = staged.Site ?? throw new AcceptanceException("the stage found no site");

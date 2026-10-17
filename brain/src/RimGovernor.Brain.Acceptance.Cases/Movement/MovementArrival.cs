@@ -40,7 +40,7 @@ internal static class MovementArrival
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var pawnId = s.Staged!.Pawns["walker"].Id;
         var site = s.Staged.Site ?? throw new AcceptanceException("stage: no site");

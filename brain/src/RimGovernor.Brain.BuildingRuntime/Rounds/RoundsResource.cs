@@ -80,7 +80,7 @@ public sealed partial class RoundsResourcePlanner
     /// One step under <paramref name="owner"/>, the economy/resource Need its family's work step passes. Its mines,
     /// tunnels and deep drills are Methods of the Need, admitted by their claims beside the Need's other work.
     /// </summary>
-    internal async Task<RoundsResourceResult> StepAsync(StepArbiter arbiter, IWorkOwner owner, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsResourceResult> StepAsync(StepArbiter arbiter, NeedOwner owner, CancellationToken call, CancellationToken epoch)
     {
         if (owner is not NeedOwner { Need: var need } || need != EconomyFamily.Resource)
         {
@@ -121,7 +121,7 @@ public sealed partial class RoundsResourcePlanner
         }
     }
 
-    private async Task<RoundsResourceResult> StepRecordedAsync(ControlState state, RoundsReview review, IWorkOwner goal, CancellationToken call, CancellationToken epoch)
+    private async Task<RoundsResourceResult> StepRecordedAsync(ControlState state, RoundsReview review, NeedOwner goal, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         // A Need-owned step has no whole-owner guard: each mine, tunnel and drill is admitted by its own claims, and
@@ -217,7 +217,7 @@ public sealed partial class RoundsResourcePlanner
         return (PolicyFunctions.SelectResourceMethod(request), supply);
     }
 
-    internal async Task<RoundsResourceResult> DispatchResourceConcernAsync(ControlState state, IWorkOwner goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsResourceResult> DispatchResourceConcernAsync(ControlState state, NeedOwner goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         if (resource.Value == "Beer")
         {
@@ -242,7 +242,7 @@ public sealed partial class RoundsResourcePlanner
         return result;
     }
 
-    internal async Task<RoundsResourceResult> DispatchSuppliedAsync(ControlState state, IWorkOwner goal, Tick reviewTick, C.Identity identity, ResourceSupplyState supply, Resource resource, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsResourceResult> DispatchSuppliedAsync(ControlState state, NeedOwner goal, Tick reviewTick, C.Identity identity, ResourceSupplyState supply, Resource resource, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         if (!supply.Rows.TryGetValue(resource, out var row) || row is null)
         {
@@ -292,7 +292,7 @@ public sealed partial class RoundsResourcePlanner
         return result;
     }
 
-    internal async Task<(RoundsResourceResult Result, bool Dispatched)> AcquireFromSourcesAsync(ControlState state, IWorkOwner goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, SourceSelection? pre, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsResourceResult Result, bool Dispatched)> AcquireFromSourcesAsync(ControlState state, NeedOwner goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, SourceSelection? pre, CancellationToken call, CancellationToken epoch)
     {
         if (pre is null)
         {
@@ -419,7 +419,7 @@ public sealed partial class RoundsResourcePlanner
         return (new RoundsResourceResult { Verdict = Verdict.NoSpace("material_storage") }, true);
     }
 
-    internal (RoundsResourceResult Result, bool Dispatched) DispatchMineSource(ControlState state, IWorkOwner goal, Resource resource, IReadOnlyList<ResourceSource> sources, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal (RoundsResourceResult Result, bool Dispatched) DispatchMineSource(ControlState state, NeedOwner goal, Resource resource, IReadOnlyList<ResourceSource> sources, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         foreach (var source in sources)
         {

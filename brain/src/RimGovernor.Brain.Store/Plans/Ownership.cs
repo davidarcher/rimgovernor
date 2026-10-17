@@ -11,7 +11,7 @@ public sealed record BuildingMethodRequest
     /// <summary>
     /// The Need the method binds to, as loaded; it commits through claim admission (#3279).
     /// </summary>
-    public required IWorkOwner Owner { get; init; }
+    public required NeedOwner Owner { get; init; }
 
     public MethodId Method { get; init; }
 
@@ -38,7 +38,7 @@ public sealed record BuildingMethodRequest
 /// admitted because its MethodId is open work already is <see cref="Continued"/>, and one whose claims overlap an
 /// open Method's names the holder in <see cref="Conflict"/>; nothing was written for either.
 /// </summary>
-public sealed record BuildingMethodDecision(bool Admitted, IWorkOwner Owner, IReadOnlyList<Refusal> Refused)
+public sealed record BuildingMethodDecision(bool Admitted, NeedOwner Owner, IReadOnlyList<Refusal> Refused)
 {
     public bool Continued { get; init; }
 
@@ -89,16 +89,8 @@ public sealed partial class Store
             tx =>
             {
                 Floors.Guard(r.Current, r.Tick);
-                IMethodOwner owner;
-                switch (r.Owner)
-                {
-                    case NeedOwner scoped:
-                        owner = LoadNeedIn(tx, scoped.Need, scoped.Snapshot);
-                        break;
-                    default:
-                        throw new DomainException("unsupported work owner");
-                }
-                var old = owner.OwnerSnapshot;
+                var owner = LoadNeedIn(tx, r.Owner.Need, r.Owner.Snapshot);
+                var old = owner.Snapshot;
                 DomainException.Require(old.Colony == r.Current.Colony && old.Map == r.Current.Map, "method observation differs from reviewed standard");
                 var candidates = new List<Candidate>();
                 foreach (var a in actions)
@@ -154,7 +146,7 @@ public sealed partial class Store
                     decision = Admit(input);
                     if (decision.Refused.Count != 0 || decision.Admitted.Count != candidates.Count)
                     {
-                        return new BuildingMethodDecision(false, (IWorkOwner)owner, decision.Refused);
+                        return new BuildingMethodDecision(false, (NeedOwner)owner, decision.Refused);
                     }
                 }
                 var need = (NeedOwner)owner;
@@ -163,7 +155,7 @@ public sealed partial class Store
                 {
                     return new BuildingMethodDecision(false, claimed.Owner, []) { Continued = claimed.Outcome == ClaimOutcome.Continued, Conflict = claimed.Conflict };
                 }
-                IWorkOwner committed = claimed.Owner;
+                NeedOwner committed = claimed.Owner;
                 foreach (var h in decision.Admitted)
                 {
                     var admission = new Admission(h.Snapshot, r.Tick, h.Footprint);

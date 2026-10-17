@@ -374,10 +374,10 @@ internal sealed class RunState
 public sealed partial record World
 {
     /// <summary>
-    /// Simulates <paramref name="days"/> days under <paramref name="planner"/> (null opens nothing beyond each
+    /// Simulates <paramref name="days"/> days under <paramref name="planner"/>, which decides which sources to open or close (null opens nothing beyond each
     /// source's initial state). It is deterministic in <see cref="Seed"/> and never mutates the world.
     /// </summary>
-    public Report Run(IPlanner? planner, int days)
+    public Report Run(Func<WorldView, IReadOnlyList<Command>>? planner, int days)
     {
         var r = new RunState();
         foreach (var b in Builds)
@@ -414,7 +414,7 @@ public sealed partial record World
             r.Latch(this);
             if (planner is not null)
             {
-                r.Command(planner.Plan(r.View(this, day)), day);
+                r.Command(planner(r.View(this, day)), day);
             }
             foreach (var s in r.Sources)
             {

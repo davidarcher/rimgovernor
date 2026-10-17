@@ -4,38 +4,13 @@ using static RimGovernor.Brain.Store.StorePackage;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>
-/// What method admission reads of the Need a methods row binds to (Go <c>methodOwner</c>): the world it was last
-/// reviewed in, the routine need it serves and its open plans.
-/// </summary>
-internal interface IMethodOwner
-{
-    GenerationSnapshot OwnerSnapshot { get; }
-
-    /// <summary>The routine need the owner serves under this review; false when the review does not bind the owner.</summary>
-    bool OwnerNeed(Rounds rounds, out ConcernId need);
-
-    IReadOnlyList<PlanId> OwnerPlans { get; }
-
-    string OwnerLabel { get; }
-
-    /// <summary>The plan the owner binds <paramref name="method"/> to, retired plans included; null when none.</summary>
-    PlanId? BoundPlan(StoreTransaction tx, MethodId method);
-
-    /// <summary>Writes the owner's methods row and the plan_owner row that keeps plan_id unique.</summary>
-    void BindMethod(StoreTransaction tx, MethodId method, PlanId plan, string reason);
-
-    /// <summary>The owner's methods, retired plans included.</summary>
-    long ServedCount(StoreTransaction tx);
-}
-
 public sealed partial class Store
 {
     internal static void InsertPlanOwner(StoreTransaction tx, PlanId plan) =>
         tx.ExecuteOrConflict("INSERT INTO plan_owner(plan_id,kind) VALUES($plan,'need')", ("$plan", plan));
 
     /// <summary>Whether any plan of the owner is still open work, or a fight of one holds (Go <c>standardOpenWork</c>).</summary>
-    internal static bool CombatOpenWork(StoreTransaction tx, IMethodOwner owner)
+    internal static bool CombatOpenWork(StoreTransaction tx, NeedOwner owner)
     {
         foreach (var plan in owner.OwnerPlans)
         {
@@ -46,7 +21,7 @@ public sealed partial class Store
     }
 
     /// <summary><see cref="CombatOpenWork"/> without the fights: whether any of the owner's plans is still open.</summary>
-    internal static bool PlanOpenWork(StoreTransaction tx, IMethodOwner owner) => owner.OwnerPlans.Any(plan => PlanOpen(LoadIn(tx, plan)));
+    internal static bool PlanOpenWork(StoreTransaction tx, NeedOwner owner) => owner.OwnerPlans.Any(plan => PlanOpen(LoadIn(tx, plan)));
 
     /// <summary>
     /// The guard every prepare and dispatch runs: the plan is live, its world is not retired, and its owning
@@ -102,7 +77,7 @@ public sealed partial class Store
     /// Cancels the owner's plans whose every action is still undispatched, so a recovered situation leaves no
     /// work to start. Work already dispatched keeps its own settlement path.
     /// </summary>
-    internal static void CancelUndispatchedMethods(StoreTransaction tx, IMethodOwner owner)
+    internal static void CancelUndispatchedMethods(StoreTransaction tx, NeedOwner owner)
     {
         foreach (var plan in owner.OwnerPlans)
         {

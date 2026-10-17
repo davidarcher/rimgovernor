@@ -39,7 +39,7 @@ internal static class ProductionMaintenancePractice
         Run = (s, ct) => RunAsync(s, melee, ct),
     };
 
-    private static async Task RunAsync(ITypedSession s, bool melee, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, bool melee, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("maintenance-prepare", Prepared, melee, cancellationToken).ConfigureAwait(false);
         var stage = 0;

@@ -63,7 +63,7 @@ internal static class LabSparringWatch
         },
     ];
 
-    private static async Task WatchAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task WatchAsync(TypedSession s, CancellationToken cancellationToken)
     {
         // A fighting bout (painless, so it runs to the exchange cap), a free bystander, a drafted one and an all-work one.
         var ring = LabSparring.RingCell(s);
@@ -91,7 +91,7 @@ internal static class LabSparringWatch
         Check(prepared, watch, free, last!);
     }
 
-    private static async Task NoBoutAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task NoBoutAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var ring = LabSparring.RingCell(s);
         _ = await s.FixtureAsync("sparring-prepare", LabSparring.Prepare, new LabSparring.Ring(ring, 0, "5"), cancellationToken).ConfigureAwait(false);

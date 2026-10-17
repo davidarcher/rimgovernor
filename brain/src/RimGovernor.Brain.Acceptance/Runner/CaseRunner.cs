@@ -418,19 +418,19 @@ public sealed class CaseRunner
     // nothing to keep, so the hold it gets closes by stopping the game.
     private sealed class RunnerHost(ISessionHost inner, bool noKeep) : ISessionHost
     {
-        public IStartCache StartCache => inner.StartCache;
+        public ProfileStartCache StartCache => inner.StartCache;
 
         public Task PrepareAsync(Config config, IReadOnlyList<string> saves, CancellationToken cancellationToken) =>
             inner.PrepareAsync(config, saves, cancellationToken);
 
         public JsonObject PackageFiles(Config config) => inner.PackageFiles(config);
 
-        public async Task<IGameHold> OpenGameAsync(Config config, Report report, CancellationToken cancellationToken)
+        public async Task<Game> OpenGameAsync(Config config, Report report, CancellationToken cancellationToken)
         {
             var hold = await inner.OpenGameAsync(config, report, cancellationToken).ConfigureAwait(false);
-            if (noKeep && hold is Game game)
+            if (noKeep)
             {
-                game.Keep = false;
+                hold.Keep = false;
             }
 
             return hold;

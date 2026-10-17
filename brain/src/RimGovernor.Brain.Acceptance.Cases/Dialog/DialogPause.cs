@@ -51,7 +51,7 @@ internal static class DialogPause
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var scheduled = await s.FixtureAsync("schedule-dialog", Open, ("Scheduled choice dialog (#156).", ScheduledDelay), cancellationToken).ConfigureAwait(false);
         if (!scheduled.Scheduled)

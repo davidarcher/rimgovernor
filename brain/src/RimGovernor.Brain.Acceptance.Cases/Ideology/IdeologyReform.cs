@@ -60,7 +60,7 @@ internal static class IdeologyReform
         }
     }
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var prepared = await s.FixtureAsync("prepare-design", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         var expected = Decode("prepare-design", prepared.Expected);

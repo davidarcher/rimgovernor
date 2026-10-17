@@ -124,7 +124,7 @@ public sealed partial class RoundsFieldPlanner
     /// Fishing is the food/supply Need's work, committed under it through the ordinary zone Hands handler. The footprint offers access;
     /// native population-floor settings govern catches.
     /// </summary>
-    internal async Task<(RoundsFieldResult Result, bool Handled)> FishingAsync(ControlState state, IWorkOwner goal, RoundsReading read, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Handled)> FishingAsync(ControlState state, NeedOwner goal, RoundsReading read, CancellationToken call, CancellationToken epoch)
     {
         var p = read.Projection;
         var pk = p.Facts.FoodPlan.TryGetValue(out var plan);

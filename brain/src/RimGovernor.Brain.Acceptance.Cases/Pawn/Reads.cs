@@ -42,7 +42,7 @@ internal static class PawnReads
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var problems = new List<string>();
         Common.ObservationContext? context = null;

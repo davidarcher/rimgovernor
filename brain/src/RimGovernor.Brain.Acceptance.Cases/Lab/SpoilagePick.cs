@@ -28,7 +28,7 @@ internal static class LabSpoilagePick
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var reply = await s.FixtureAsync("spoilage-pick", Pick, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         s.Record("spoilage_pick", ServedOps.Json(reply));

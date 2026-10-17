@@ -6,16 +6,6 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// What the observation readers poll: the service's published view (<c>GET /api/state</c>) over whatever channel the
-/// service answers on. The in-mod player API implements it; the lifecycle only needs the HTTP status.
-/// </summary>
-public interface IServiceStateSource
-{
-    /// <summary>Reads the published state once and returns the HTTP status code; throws when the request itself fails.</summary>
-    Task<int> GetStateAsync(CancellationToken cancellationToken);
-}
-
-/// <summary>
 /// The observation-load row's concurrent readers (Go <c>ObservationReaders</c>): <c>count</c> clients each polling
 /// the state every <c>interval</c> for the whole row, the way several open clients read the service's published view.
 /// They add read pressure beside the controller's own reads and never change anything. Latencies are recorded so a
@@ -39,7 +29,7 @@ public sealed class ObservationReaders : IAsyncDisposable
     }
 
     /// <summary>Starts <paramref name="count"/> readers against the service.</summary>
-    public static ObservationReaders Start(IServiceStateSource service, int count, TimeSpan interval, CancellationToken cancellationToken)
+    public static ObservationReaders Start(ServiceProcess service, int count, TimeSpan interval, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(service);
         var readers = new ObservationReaders(count, CancellationTokenSource.CreateLinkedTokenSource(cancellationToken));
@@ -108,7 +98,7 @@ public sealed class ObservationReaders : IAsyncDisposable
         return sorted[Math.Clamp(i, 0, sorted.Length - 1)];
     }
 
-    private async Task ReadLoopAsync(IServiceStateSource service, TimeSpan interval, CancellationToken cancellationToken)
+    private async Task ReadLoopAsync(ServiceProcess service, TimeSpan interval, CancellationToken cancellationToken)
     {
         using var pace = Wait.Pace(interval);
         try
@@ -120,7 +110,7 @@ public sealed class ObservationReaders : IAsyncDisposable
                 var ok = false;
                 try
                 {
-                    ok = await service.GetStateAsync(cancellationToken).ConfigureAwait(false) == 200;
+                    ok = (await service.ApiAsync("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false)).Status == 200;
                 }
                 catch (HttpRequestException)
                 {

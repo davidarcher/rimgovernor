@@ -202,18 +202,6 @@ public sealed record WorldView
     public IReadOnlyDictionary<Good, Forecast> Forecast { get; init; } = new Dictionary<Good, Forecast>();
 }
 
-/// <summary>Decides which sources to open or close.</summary>
-public interface IPlanner
-{
-    IReadOnlyList<Command> Plan(WorldView view);
-}
-
-/// <summary>Adapts a function to <see cref="IPlanner"/> (Go <c>PlannerFunc</c>).</summary>
-public sealed class PlannerFunc(Func<WorldView, IReadOnlyList<Command>> plan) : IPlanner
-{
-    public IReadOnlyList<Command> Plan(WorldView view) => plan(view);
-}
-
 /// <summary>The simulator input. Run works on a copy; it never mutates it.</summary>
 public sealed partial record World
 {

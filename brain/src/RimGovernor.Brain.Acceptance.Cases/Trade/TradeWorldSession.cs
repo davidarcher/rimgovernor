@@ -32,7 +32,7 @@ internal static class TradeWorldSession
         Run = (s, ct) => RunAsync(s, channel, ct),
     });
 
-    private static async Task RunAsync(ITypedSession s, string channel, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, string channel, CancellationToken cancellationToken)
     {
         var prepared = await s.FixtureAsync("session-setup", TradeKit.Session, channel, cancellationToken).ConfigureAwait(false);
         s.Record("prepared", ServedOps.Json(prepared));

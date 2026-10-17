@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// <summary>
 /// One acceptance case on the typed API (the charter in docs/developers/testing/acceptance-guide.md): one native claim,
 /// a precondition staged by a typed stage spec, a budget in game ticks and a declared tier. The body receives an
-/// <see cref="ITypedSession"/>: typed calls and reads, waits on ticks, signatures and events, telemetry by kind. The
+/// <see cref="TypedSession"/>: typed calls and reads, waits on ticks, signatures and events, telemetry by kind. The
 /// runner drives it through <see cref="ToCase"/>.
 /// </summary>
 public sealed record TypedCase
@@ -43,14 +43,14 @@ public sealed record TypedCase
 
     /// <summary>
     /// Declares the start itself the case's claim (a new-colony or reusable-game claim): the only way a typed case owns its
-    /// process lifecycle (<see cref="OwnedStart"/>, through <see cref="ITypedSession.LaunchAsync"/>). Null for every other case.
+    /// process lifecycle (<see cref="OwnedStart"/>, through <see cref="TypedSession.LaunchAsync"/>). Null for every other case.
     /// </summary>
     public StartClaim? ClaimsStart { get; init; }
 
-    /// <summary>The precondition (rule 2), applied by <c>test/stage</c> on the opened <see cref="Start"/>; its reply is <see cref="ITypedSession.Staged"/>.</summary>
+    /// <summary>The precondition (rule 2), applied by <c>test/stage</c> on the opened <see cref="Start"/>; its reply is <see cref="TypedSession.Staged"/>.</summary>
     public Fx.StageSpec? Stage { get; init; }
 
-    /// <summary>The fixture ops the body calls (<see cref="ITypedSession.FixtureAsync"/>, or <c>test/stage</c> for <see cref="ITypedSession.StageAsync"/>).</summary>
+    /// <summary>The fixture ops the body calls (<see cref="TypedSession.FixtureAsync"/>, or <c>test/stage</c> for <see cref="TypedSession.StageAsync"/>).</summary>
     public IReadOnlyList<string> Ops { get; init; } = [];
 
     /// <summary>The colonists the case runs with: superpawns unless Ordinary, which the Scope's claim must need.</summary>
@@ -68,14 +68,14 @@ public sealed record TypedCase
     /// <summary>The body leaves the process on a game the next case did not open (an unload, a reload, unpatched process state), so the runner does not keep it; an expansion profile implies it.</summary>
     public bool NoKeep { get; init; }
 
-    /// <summary>The service <see cref="ITypedSession.ServeUntilAsync"/> hands the clock to; null for a native-only case.</summary>
+    /// <summary>The service <see cref="TypedSession.ServeUntilAsync"/> hands the clock to; null for a native-only case.</summary>
     public ServeSpec? Serve { get; init; }
 
     /// <summary>The assertion: production ops and reads over the staged precondition.</summary>
-    public required Func<ITypedSession, CancellationToken, Task> Run { get; init; }
+    public required Func<TypedSession, CancellationToken, Task> Run { get; init; }
 
     /// <summary>The read-and-assert phase, called after Run returns with every service stopped.</summary>
-    public Func<ITypedSession, CancellationToken, Task>? Postmortem { get; init; }
+    public Func<TypedSession, CancellationToken, Task>? Postmortem { get; init; }
 
     /// <summary>The tick cap for this case's start: <see cref="StagedTickCap"/> on the lab or a staged start, <see cref="TickCap"/> otherwise.</summary>
     public int Cap => Start is LabStart || Stage is not null ? StagedTickCap : TickCap;
@@ -154,7 +154,7 @@ public sealed record TypedCase
 /// </summary>
 public sealed record StartClaim
 {
-    /// <summary>The fresh games an owned body launches (<see cref="ITypedSession.LaunchAsync"/>); each adds <see cref="TypedCase.LaunchAllowance"/> to the hang guard. Zero on a ScenarioStart, which the runner opens.</summary>
+    /// <summary>The fresh games an owned body launches (<see cref="TypedSession.LaunchAsync"/>); each adds <see cref="TypedCase.LaunchAllowance"/> to the hang guard. Zero on a ScenarioStart, which the runner opens.</summary>
     public int Launches { get; init; }
 
     /// <summary>The scenario start's own storyteller is part of the claim, so the runner skips the quiet-storyteller swap.</summary>

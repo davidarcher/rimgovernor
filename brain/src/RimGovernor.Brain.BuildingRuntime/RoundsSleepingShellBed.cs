@@ -15,7 +15,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     internal async Task<(RoundsBuildingResult Result, bool Due)> PackShellBedAsync(
         PackedStock stock,
         ControlState state,
-        Sto.IWorkOwner goal,
+        Sto.NeedOwner goal,
         Observation.RoundsReading reading,
         string bed, CancellationToken call, CancellationToken epoch)
     {

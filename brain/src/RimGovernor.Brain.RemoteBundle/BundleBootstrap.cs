@@ -85,9 +85,8 @@ public static partial class Bootstrapper
     /// Runs the whole bootstrap and writes <c>bootstrap.json</c> into the job directory, pass or fail. The returned
     /// report is the same record; a failure throws after the report is written.
     /// </summary>
-    public static async Task<BootstrapReport> RunAsync(IOriginClient client, BootstrapOptions options, CancellationToken cancellationToken)
+    public static async Task<BootstrapReport> RunAsync(BootstrapOptions options, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(options);
         var started = Stopwatch.StartNew();
         await CheckTrustAsync(options.Repo, options.Trust, cancellationToken).ConfigureAwait(false); // before cache access
@@ -116,7 +115,7 @@ public static partial class Bootstrapper
             Environment.GetEnvironmentVariable("ImageVersion") ?? "", options.Role, "", 0, 0, 0, 0, "", "", false, "", 0);
         try
         {
-            report = await StepsAsync(client, options, report, cancellationToken).ConfigureAwait(false);
+            report = await StepsAsync(options, report, cancellationToken).ConfigureAwait(false);
             report = report with { Passed = true };
             return report;
         }
@@ -132,7 +131,7 @@ public static partial class Bootstrapper
         }
     }
 
-    private static async Task<BootstrapReport> StepsAsync(IOriginClient client, BootstrapOptions o, BootstrapReport report, CancellationToken cancellationToken)
+    private static async Task<BootstrapReport> StepsAsync(BootstrapOptions o, BootstrapReport report, CancellationToken cancellationToken)
     {
         var manifest = ManifestRules.ReadManifest(o.Manifest, o.ManifestSha256);
         BundleException.Require(manifest.Origin.Repository == o.Trust.Repository, "bundle origin must be the trusted public source repository");
@@ -147,7 +146,7 @@ public static partial class Bootstrapper
 
         BundleException.Require(free >= required, $"insufficient disk: need {required} bytes for verified extraction/build, have {free}");
         var timer = Stopwatch.StartNew();
-        var hit = await BundleOrigin.RestoreAsync(client, o.Cache, o.ManifestSha256, manifest, cancellationToken).ConfigureAwait(false);
+        var hit = await BundleOrigin.RestoreAsync(o.Cache, o.ManifestSha256, manifest, cancellationToken).ConfigureAwait(false);
         report = report with { CacheHit = hit, RestoreMs = timer.ElapsedMilliseconds };
         var tree = Path.Combine(o.Work, "dependencies");
         timer.Restart();

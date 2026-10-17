@@ -7,12 +7,6 @@ namespace RimGovernor.Brain.Acceptance;
 /// </summary>
 public static class AcceptanceDoctor
 {
-    /// <summary>
-    /// The setup layer the checks read the installed package through; the lead assigns the Setup-backed implementation
-    /// at startup, otherwise <see cref="FileDoctorSetup"/> is used.
-    /// </summary>
-    public static IDoctorSetup? Setup { get; set; }
-
     /// <summary>Usage line for the command's help text.</summary>
     public const string Usage = "  acceptance doctor -root <dir> [-output <dir> -game <id> -worktree <dir> -heal]";
 
@@ -22,8 +16,7 @@ public static class AcceptanceDoctor
         ArgumentNullException.ThrowIfNull(args);
         ArgumentNullException.ThrowIfNull(stdout);
         ArgumentNullException.ThrowIfNull(stderr);
-        IDoctorSetup setup = Setup ?? new FileDoctorSetup();
-        var o = new DoctorOptions { GameId = setup.GameId };
+        var o = new DoctorOptions { GameId = FileDoctorSetup.GameId };
         bool heal = false;
         for (int i = 0; i < args.Count; i++)
         {
@@ -63,11 +56,11 @@ public static class AcceptanceDoctor
             return 2;
         }
 
-        IReadOnlyList<DoctorCheck> checks = await DoctorChecks.RunAsync(o, setup, cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<DoctorCheck> checks = await DoctorChecks.RunAsync(o, cancellationToken).ConfigureAwait(false);
         await DoctorChecks.WriteAsync(stdout, checks, onlyFailing: false).ConfigureAwait(false);
         if (heal && await DoctorHeal.StopOrphansAsync(checks, stdout, cancellationToken).ConfigureAwait(false) > 0)
         {
-            checks = await DoctorChecks.RunAsync(o, setup, cancellationToken).ConfigureAwait(false);
+            checks = await DoctorChecks.RunAsync(o, cancellationToken).ConfigureAwait(false);
             await DoctorChecks.WriteAsync(stdout, checks, onlyFailing: true).ConfigureAwait(false);
         }
 
@@ -77,7 +70,7 @@ public static class AcceptanceDoctor
 
 /// <summary>
 /// The heal helpers a preflight shares with <c>doctor -heal</c> (Go <c>cmd/acceptance/heal.go</c>). The stale-mod
-/// rebuild itself (Go <c>heal</c>, which drove <c>setup.Run</c>) belongs to the Setup layer; <see cref="Healable"/> says
+/// rebuild itself (Go <c>heal</c>, which drove <c>FileDoctorSetup.Run</c>) belongs to the Setup layer; <see cref="Healable"/> says
 /// which failures it may act on.
 /// </summary>
 public static class DoctorHeal

@@ -41,63 +41,6 @@ public sealed record WorldSource
 }
 
 /// <summary>
-/// The harness's hold on the running game (Go <c>Game</c>): the harness that reaches it and the close that keeps
-/// the process at the main menu or stops it. The game-host slice implements it over its process management.
-/// </summary>
-public interface IGameHold
-{
-    /// <summary>The harness the opened game is driven through.</summary>
-    Harness Harness { get; }
-
-    /// <summary>Ends the hold: the process is kept at the main menu or stopped, and game_reuse lands on <paramref name="report"/>.</summary>
-    void Close(Report report);
-}
-
-/// <summary>
-/// The start cache the debug and lab starts consult (Go <c>startCache</c> and the cached-start functions of
-/// <c>startcache.go</c>): one per harness process, shared state beside the config. The start-cache slice implements
-/// it; the lifecycle only calls it.
-/// </summary>
-public interface IStartCache
-{
-    /// <summary>Whether the saved start is used: cached starts are on and the cache knows its root (Go <c>CachedStart() &amp;&amp; startCache.root != ""</c>).</summary>
-    bool Enabled { get; }
-
-    /// <summary>The disposable worker root the profile lives under.</summary>
-    string Root { get; }
-
-    /// <summary>The expansions the prepared profile keeps active.</summary>
-    IReadOnlyList<string> Expansions { get; }
-
-    /// <summary>The seed the last debug start generated with, empty when it loaded the cached save.</summary>
-    string Seed { get; set; }
-
-    /// <summary>The cached save the last debug start loaded, empty when it generated.</summary>
-    string Save { get; set; }
-
-    /// <summary>The save name a start caches as (Go <c>cachedStartName</c>).</summary>
-    string NameFor(DebugStartSize start, bool quiet);
-
-    /// <summary>Where the running profile would hold the save, and whether it is there (Go <c>cachedStartPath</c>).</summary>
-    bool TryGetPath(string name, out string path);
-
-    /// <summary>Whether the cached save requires different expansions from the active profile (Go <c>cachedStartStale</c>).</summary>
-    bool IsStale(string path, string name);
-
-    /// <summary>Loads the save and waits for it the way a quick start is waited for (Go <c>loadCachedStart</c>).</summary>
-    Task LoadAsync(Harness harness, string name, CancellationToken cancellationToken);
-
-    /// <summary>Writes the just-started game as <paramref name="name"/> and copies it into profile/Saves (Go <c>saveCachedStart</c>).</summary>
-    Task SaveAsync(Harness harness, string name, CancellationToken cancellationToken);
-
-    /// <summary>Copies the op's save into the durable profile location (Go <c>PersistSave</c>).</summary>
-    void PersistSave(string name);
-
-    /// <summary>Draws a world seed for a debug start nothing pinned (Go <c>RandomSeed</c>).</summary>
-    string RandomSeed();
-}
-
-/// <summary>
 /// Everything around the lifecycle that depends on the profile and the game process, which other slices own (Go
 /// <c>Config.EnsureSave</c>, <c>UseSaveExpansions</c>, <c>PrepareConfig</c>, <c>PackageFiles</c>, <c>OpenGame</c>,
 /// <c>RecordWorld</c>, <c>FixtureBuildHint</c>). The lifecycle calls it in the order Go did.
@@ -105,7 +48,7 @@ public interface IStartCache
 public interface ISessionHost
 {
     /// <summary>The start cache of this process.</summary>
-    IStartCache StartCache { get; }
+    ProfileStartCache StartCache { get; }
 
     /// <summary>
     /// Prepares the profile for a start: the saves are ensured present and, unless the config already names
@@ -117,7 +60,7 @@ public interface ISessionHost
     JsonObject PackageFiles(Config config);
 
     /// <summary>Opens the game (a kept process is reused) and returns the hold; <paramref name="report"/> receives its launch rows.</summary>
-    Task<IGameHold> OpenGameAsync(Config config, Report report, CancellationToken cancellationToken);
+    Task<Game> OpenGameAsync(Config config, Report report, CancellationToken cancellationToken);
 
     /// <summary>The report's world block for <paramref name="start"/> once it has loaded (Go <c>RecordWorld</c>); never fails the run.</summary>
     JsonObject RecordWorld(Config config, Start start, WorldSource source);
@@ -158,7 +101,7 @@ public static class StartOps
     };
 
     /// <summary>What the start contributes to the report's world block, once loaded.</summary>
-    public static WorldSource World(Start start, IStartCache cache)
+    public static WorldSource World(Start start, ProfileStartCache cache)
     {
         switch (start)
         {
@@ -329,9 +272,9 @@ public static class StartOps
 /// </summary>
 public sealed class Session
 {
-    private readonly IGameHold? _game;
+    private readonly Game? _game;
 
-    public Session(Config config, ISessionHost host, IGameHold? game, Harness harness, Report report, IReadOnlyList<string> names)
+    public Session(Config config, ISessionHost host, Game? game, Harness harness, Report report, IReadOnlyList<string> names)
     {
         Config = config;
         Host = host;

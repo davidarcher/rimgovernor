@@ -42,7 +42,7 @@ internal static class CombatLabRescue
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var lab = new StagedLab(Fixture, s.Staged!);
         var colonists = lab.Colonists();
@@ -80,7 +80,7 @@ internal static class CombatLabRescue
         await ForbiddenAsync(s, door, false, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task ForbiddenAsync(ITypedSession s, Common.Cell door, bool want, CancellationToken cancellationToken)
+    private static async Task ForbiddenAsync(TypedSession s, Common.Cell door, bool want, CancellationToken cancellationToken)
     {
         var forbidden = (await CombatLabKit.BuildingAtAsync(s, want ? "door-forbidden" : "door-allowed", door, cancellationToken).ConfigureAwait(false)).Settings.Forbidden;
         if (forbidden != want)
@@ -91,7 +91,7 @@ internal static class CombatLabRescue
 
     // The rescue_path role: a route from the rescuer to the downed colonist, ending next to it, whose every cell's hostile
     // line-of-fire flag is the OR of its lines; the second (warm) read fits the main-thread budget.
-    private static async Task RescuePathAsync(ITypedSession s, string rescuer, Common.Cell downed, IReadOnlyList<string> hostiles, CancellationToken cancellationToken)
+    private static async Task RescuePathAsync(TypedSession s, string rescuer, Common.Cell downed, IReadOnlyList<string> hostiles, CancellationToken cancellationToken)
     {
         var request = new Mirror.CombatGeometryRequest
         {

@@ -96,22 +96,3 @@ public sealed class HarnessClosedException : AcceptanceException
     {
     }
 }
-
-/// <summary>
-/// How the harness reaches the game: one call per native tool. The shipped implementation is
-/// <see cref="HttpNativeTransport"/> over the mod's local channel (#3083); tests and replays substitute their own.
-/// </summary>
-public interface INativeTransport : IAsyncDisposable
-{
-    /// <summary>
-    /// Runs <paramref name="tool"/> (a name such as <c>rimgovernor/observations_read_status</c>) with its JSON
-    /// arguments. A native op is called with an object holding only the string member <c>request</c> (its JSON
-    /// request record), and its reply's structured content is <c>{"payload": "&lt;JSON reply record&gt;"}</c>.
-    /// </summary>
-    /// <exception cref="NativeRefusedException">The game refused the call.</exception>
-    /// <exception cref="NativeTransportException">The call did not reach the game or the channel does not route the tool.</exception>
-    Task<NativeResult> CallAsync(string tool, JsonObject arguments, NativeCallOptions options, CancellationToken cancellationToken);
-
-    /// <summary>The tool names the game registers, or null when the transport cannot enumerate them (callers then assume a tool is present).</summary>
-    Task<IReadOnlyList<string>?> ToolNamesAsync(CancellationToken cancellationToken);
-}

@@ -67,7 +67,7 @@ public sealed class DoctorOptions
     /// <summary>The registry names the run would write under <see cref="Output"/>.</summary>
     public IReadOnlyList<string> Cases { get; set; } = [];
 
-    /// <summary>The configured game id (<see cref="IDoctorSetup.GameId"/> when empty).</summary>
+    /// <summary>The configured game id (<see cref="FileDoctorSetup.GameId"/> when empty).</summary>
     public string GameId { get; set; } = "";
 
     /// <summary>
@@ -88,68 +88,6 @@ public sealed record DoctorGameSection(string WorkingDir, string Target);
 
 /// <summary>The part of an installed package's <c>native-manifest.json</c> the doctor reads: what the build was made from.</summary>
 public sealed record DoctorPackageManifest(string Role, IReadOnlyList<string> Fixtures, string SourceRevision, bool SourceDirty);
-
-/// <summary>
-/// What the doctor needs from the setup and launch layers (Go <c>setup.*</c> and the <c>nativeaccept</c> package install
-/// helpers). Every member that reads or judges an installed package is here so the Setup/Lifecycle code owns its layout;
-/// <see cref="FileDoctorSetup"/> is the self-contained default.
-/// </summary>
-public interface IDoctorSetup
-{
-    /// <summary>The configured game id by default.</summary>
-    string GameId { get; }
-
-    /// <summary>Setup's MAX_PATH bound on the game copy path.</summary>
-    int MaxGameCopyPath { get; }
-
-    /// <summary>The current store schema version (<c>service.sqlite</c> user_version).</summary>
-    int StoreSchemaVersion { get; }
-
-    /// <summary>The generated baseline save's file name.</summary>
-    string BaselineSave { get; }
-
-    /// <summary>The generated baseline save's name.</summary>
-    string BaselineName { get; }
-
-    /// <summary>The environment variable that skips the stale-package check.</summary>
-    string AllowStaleModEnv { get; }
-
-    /// <summary>The manifest file name at the package root.</summary>
-    string PackageManifestName { get; }
-
-    /// <summary>The checkout root enclosing <paramref name="dir"/>, or null.</summary>
-    string? FindRepo(string dir);
-
-    /// <summary>The game section of the root's configuration; throws <see cref="AcceptanceException"/> when it cannot be read.</summary>
-    DoctorGameSection ReadGameSection(string root, string gameId);
-
-    /// <summary>Validates the unified package under <paramref name="mods"/>; throws <see cref="AcceptanceException"/> when it is incomplete.</summary>
-    void RequireNativePackage(string mods);
-
-    /// <summary>Reads the package's manifest, or null when there is none.</summary>
-    DoctorPackageManifest? ReadPackageManifest(string package);
-
-    /// <summary>
-    /// Fails (<see cref="AcceptanceException"/>) when the installed build's sources differ from the worktree's; returns
-    /// why the check was skipped, or an empty string when it ran.
-    /// </summary>
-    string RequireCurrentPackage(string package, IReadOnlyList<string> fixtureOps);
-
-    /// <summary>The sorted fixture list a rebuild for the run needs: installed plus those registering <paramref name="fixtureOps"/>.</summary>
-    IReadOnlyList<string> FixtureFlags(string repo, IReadOnlyList<string> installed, IReadOnlyList<string> fixtureOps);
-
-    /// <summary>The casefolded package ids of the expansions installed under the game copy.</summary>
-    IReadOnlyList<string> InstalledExpansions(string gameCopy);
-
-    /// <summary>The casefolded activeMods list of a ModsConfig.xml; throws when unreadable.</summary>
-    IReadOnlyList<string> ActiveMods(string modsConfigPath);
-
-    /// <summary>
-    /// Why a kept process's launch record differs from the prepared state ("unrecorded", "expansions", another word for
-    /// the package), or an empty string when it matches.
-    /// </summary>
-    string LaunchedMismatch(string headlessConfigDir);
-}
 
 /// <summary>Formatting shared by the doctor and prune output.</summary>
 internal static class DoctorText

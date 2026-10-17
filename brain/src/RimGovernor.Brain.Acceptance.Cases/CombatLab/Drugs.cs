@@ -39,7 +39,7 @@ internal static class CombatLabDrugs
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var lab = new StagedLab(Fixture, s.Staged!);
         var hostiles = lab.Hostiles();

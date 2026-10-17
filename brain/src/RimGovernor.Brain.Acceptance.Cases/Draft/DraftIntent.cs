@@ -31,7 +31,7 @@ internal static class DraftIntent
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var pawn = await TypedPawns.FirstColonistAsync(s, "initial", null, cancellationToken).ConfigureAwait(false);
         var id = pawn.Pawn.Id;
@@ -56,7 +56,7 @@ internal static class DraftIntent
         s.RecordWire("unknown", unknown);
     }
 
-    private static async Task ExpectDraftAsync(ITypedSession s, string key, string id, bool drafted, bool issued, CancellationToken cancellationToken)
+    private static async Task ExpectDraftAsync(TypedSession s, string key, string id, bool drafted, bool issued, CancellationToken cancellationToken)
     {
         var effect = await TypedPawns.AppliedAsync(s, key, new Operations.DraftIntent { PawnId = id, Drafted = drafted }, cancellationToken).ConfigureAwait(false);
         if (effect?.Job?.Issued != issued)
@@ -67,7 +67,7 @@ internal static class DraftIntent
         await ExpectDraftedAsync(s, key + "-readback", id, drafted, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task ExpectDraftedAsync(ITypedSession s, string label, string id, bool drafted, CancellationToken cancellationToken)
+    private static async Task ExpectDraftedAsync(TypedSession s, string label, string id, bool drafted, CancellationToken cancellationToken)
     {
         var row = await TypedPawns.OneAsync(s, label, id, null, cancellationToken).ConfigureAwait(false);
         if (row.Drafted != drafted)

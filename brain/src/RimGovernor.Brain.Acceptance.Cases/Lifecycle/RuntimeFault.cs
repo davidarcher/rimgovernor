@@ -39,7 +39,7 @@ internal static class LifecycleRuntimeFault
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         // A clock status read installs the clock watchers, as a controller's first call does; the authority seam publishes
         // journal rows only once they are.

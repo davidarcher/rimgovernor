@@ -165,9 +165,9 @@ public static class RunCommand
         ArgumentNullException.ThrowIfNull(stdout);
         var opts = run.Options;
         var selected = run.Cases;
-        if (!opts.NoDoctor && dependencies.Preflight is { } preflight)
+        if (!opts.NoDoctor)
         {
-            var result = await preflight.RunAsync(selected, opts, stdout, cancellationToken).ConfigureAwait(false);
+            var result = await PreflightPass.RunAsync(selected, opts, stdout, cancellationToken).ConfigureAwait(false);
             if (!result.Ok)
             {
                 return 2;

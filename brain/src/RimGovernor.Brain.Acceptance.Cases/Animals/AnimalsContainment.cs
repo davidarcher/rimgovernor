@@ -70,7 +70,7 @@ internal static class AnimalsContainment
             .Where(c => (c.x is 0 or Side - 1 || c.z is 0 or Side - 1) && c != (Side / 2, 0))
             .Select(c => new Fx.StageCell(2 + c.x, 2 + c.z))];
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var cowId = s.Staged!.Pawns[Cow].Id;
         var petId = s.Staged.Pawns[Pet].Id;

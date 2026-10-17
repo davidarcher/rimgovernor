@@ -7,38 +7,27 @@ namespace RimGovernor.Brain.Store;
 public sealed record NeedMethodBinding(MethodId Method, long Attempt, PlanId Plan);
 
 /// <summary>
-/// The journal owner of Need-owned Methods (#3250): a Need in one world (colony, load, map), keyed by its
+/// The journal owner a shared planner commits under (#3279) and that method admission reads (#3250): a Need in one world (colony, load, map), keyed by its
 /// <see cref="NeedId"/>. A Need is derived, never stored, so the owner is only that key and its
 /// <c>need_methods</c> rows. It has no episodes or revision: a MethodId whose plan is still open continues, and one
 /// whose plan was released (retired, or its work closed) is admitted again as the next attempt.
 /// </summary>
 /// <param name="Snapshot">The world the Need was derived in; only its colony, load and map key the rows.</param>
 /// <param name="Methods">The bound Methods whose plans are not retired, in admission order.</param>
-public sealed record NeedOwner(NeedId Need, GenerationSnapshot Snapshot, EquatableArray<NeedMethodBinding> Methods) : IMethodOwner, IWorkOwner
+public sealed record NeedOwner(NeedId Need, GenerationSnapshot Snapshot, EquatableArray<NeedMethodBinding> Methods)
 {
-    string IWorkOwner.OwnerKey => Need.Value;
+    /// <summary>The owner's id in telemetry: the NeedId.</summary>
+    public string OwnerKey => Need.Value;
 
-    IReadOnlyList<OwnedMethod> IWorkOwner.OpenMethods => [.. Methods.Select(m => new OwnedMethod(m.Method, m.Plan))];
+    /// <summary>The owner's Methods whose plans are not retired, in admission order.</summary>
+    public IReadOnlyList<OwnedMethod> OpenMethods => [.. Methods.Select(m => new OwnedMethod(m.Method, m.Plan))];
 
-    GenerationSnapshot IMethodOwner.OwnerSnapshot => Snapshot;
+    internal IReadOnlyList<PlanId> OwnerPlans => [.. Methods.Select(m => m.Plan)];
 
-    IReadOnlyList<PlanId> IMethodOwner.OwnerPlans => [.. Methods.Select(m => m.Plan)];
-
-    string IMethodOwner.OwnerLabel => "need " + Need.Value;
-
-    /// <summary>
-    /// A Need is routine work: the Safeguards apply to it as to any Concern, so it reports no Concern of its own. The
-    /// shelter construction latch reads the Need's filing key instead (AdmitConstructionLabor), which exempts the
-    /// shelter family's housing Needs.
-    /// </summary>
-    bool IMethodOwner.OwnerNeed(Rounds rounds, out ConcernId need)
-    {
-        need = default;
-        return true;
-    }
+    internal string OwnerLabel => "need " + Need.Value;
 
     /// <summary>The plan of <paramref name="method"/>'s latest attempt while it is still open work; null once released or never bound.</summary>
-    PlanId? IMethodOwner.BoundPlan(StoreTransaction tx, MethodId method)
+    internal PlanId? BoundPlan(StoreTransaction tx, MethodId method)
     {
         var (plan, found) = tx.QueryFirst(
             "SELECT plan_id FROM need_methods WHERE colony=$colony AND load_token=$load AND map_id=$map AND need_id=$need AND method_id=$method ORDER BY attempt DESC LIMIT 1",
@@ -52,7 +41,8 @@ public sealed record NeedOwner(NeedId Need, GenerationSnapshot Snapshot, Equatab
         return !held.Retired && WorkProgress.Open(held.Progress) ? plan : null;
     }
 
-    void IMethodOwner.BindMethod(StoreTransaction tx, MethodId method, PlanId plan, string reason)
+    /// <summary>Writes the owner's methods row and the plan_owner row that keeps plan_id unique.</summary>
+    internal void BindMethod(StoreTransaction tx, MethodId method, PlanId plan, string reason)
     {
         Store.InsertPlanOwner(tx, plan);
         var attempt = tx.Scalar(
@@ -71,7 +61,8 @@ public sealed record NeedOwner(NeedId Need, GenerationSnapshot Snapshot, Equatab
         );
     }
 
-    long IMethodOwner.ServedCount(StoreTransaction tx) =>
+    /// <summary>The owner's methods, retired plans included.</summary>
+    internal long ServedCount(StoreTransaction tx) =>
         tx.Scalar(
             "SELECT count(*) FROM need_methods WHERE colony=$colony AND load_token=$load AND map_id=$map AND need_id=$need",
             ("$colony", Snapshot.Colony), ("$load", Snapshot.Load), ("$map", Snapshot.Map), ("$need", Need.Value));

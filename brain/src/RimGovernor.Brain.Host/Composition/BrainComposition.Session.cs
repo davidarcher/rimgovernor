@@ -8,7 +8,7 @@ using RimGovernor.Brain.Telemetry;
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// The concrete <see cref="IBrainComposition"/>: Go's <c>serve_building.go</c> and <c>serve_clock.go</c> over the
+/// Builds the parts of the brain that need a native client over <see cref="INativeFacade"/>; the host owns when they are built and torn down. Go's <c>serve_building.go</c> and <c>serve_clock.go</c> over the
 /// in-process native client. <see cref="ComposeSession"/> is the part of <c>openBuildingService</c> and
 /// <c>serveBuildingWithBridge</c> that builds the session's capabilities; <see cref="ComposePlanners"/> is
 /// <c>startServiceClock</c>.
@@ -17,7 +17,7 @@ namespace RimGovernor.Brain.Host;
 /// The autosave at a run's paused start (Go <c>newGoAutosaver</c>) is the host's: it arrives as
 /// <see cref="PlannerContext.Autosave"/> because it must flush the governor state the host owns before it saves.
 /// </remarks>
-public sealed partial class BrainComposition(BrainCompositionOptions options) : IBrainComposition
+public sealed partial class BrainComposition(BrainCompositionOptions options)
 {
     private readonly BrainCompositionOptions _options = Validated(options);
 
@@ -35,7 +35,7 @@ public sealed partial class BrainComposition(BrainCompositionOptions options) : 
         return options;
     }
 
-    /// <inheritdoc />
+    /// <summary>Called once, before the session exists.</summary>
     public SessionParts ComposeSession(INativeFacade facade, TelemetryEmitter telemetry)
     {
         ArgumentNullException.ThrowIfNull(facade);

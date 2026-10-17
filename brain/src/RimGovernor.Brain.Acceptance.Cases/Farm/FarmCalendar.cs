@@ -23,7 +23,7 @@ internal static class FarmCalendar
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var facts = TypedReads.Observed("colony-facts", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);

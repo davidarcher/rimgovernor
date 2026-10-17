@@ -66,7 +66,7 @@ internal static class WallKit
     internal static RimGovernor.Contracts.Wire.Common.Cell Wire(Cell c) => new() { X = c.X, Z = c.Z };
 
     /// <summary>The ids among <paramref name="ids"/> the building census still lists, any faction.</summary>
-    internal static async Task<HashSet<string>> PresentAsync(ITypedSession s, string label, IReadOnlyList<string> ids, CancellationToken cancellationToken)
+    internal static async Task<HashSet<string>> PresentAsync(TypedSession s, string label, IReadOnlyList<string> ids, CancellationToken cancellationToken)
     {
         var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [.. ids], AnyFaction = true }, cancellationToken).ConfigureAwait(false);
         return [.. rows.Select(r => r.Building.Id).Where(ids.Contains)];

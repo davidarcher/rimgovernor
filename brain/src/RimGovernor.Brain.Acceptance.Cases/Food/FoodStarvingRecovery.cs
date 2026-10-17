@@ -36,7 +36,7 @@ internal static class FoodStarvingRecovery
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("empty-channels", FoodOps.EmptyChannels, new FoodStock("MealSurvivalPack", 0), cancellationToken).ConfigureAwait(false);
         _ = await s.FixtureAsync("starve", Starve, NoArgs.Value, cancellationToken).ConfigureAwait(false);

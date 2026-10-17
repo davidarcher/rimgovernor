@@ -42,7 +42,7 @@ internal static class ProductionCoupledNeeds
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("needs-prepare", Prepared, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         var rested = false;

@@ -55,7 +55,7 @@ internal static class DefenseThreat
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         async Task<Observations.ThreatFacts> ReadAsync(string label)
         {

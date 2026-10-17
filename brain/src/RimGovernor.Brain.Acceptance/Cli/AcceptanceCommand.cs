@@ -39,11 +39,7 @@ public static class AcceptanceCommand
             return args.Count == 0 ? 2 : 0;
         }
 
-        // The default wiring of the run machinery: the doctor/heal preflight.
-        RunDependencies.Current ??= new RunDependencies
-        {
-            Preflight = RunPreflight.Instance,
-        };
+        RunDependencies.Current ??= new RunDependencies();
         IReadOnlyList<string> rest = [.. args.Skip(1)];
         switch (args[0])
         {
@@ -70,7 +66,7 @@ public static class AcceptanceCommand
             case "fetch-fixture":
                 return await CiFixture.FetchFixtureAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "profile-capture":
-                return await ProfileCaptureCommand.RunAsync(rest, ProfileFixtureHost.Instance, stdout, stderr, cancellationToken).ConfigureAwait(false);
+                return await ProfileCaptureCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "sweep":
                 return await SweepCommand.RunAsync(rest, huntingPredictor, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "colony":

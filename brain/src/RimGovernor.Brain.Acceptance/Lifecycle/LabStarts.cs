@@ -41,7 +41,7 @@ public static class LabStarts
     };
 
     /// <summary>What the lab contributes to the report's world block.</summary>
-    public static WorldSource World(LabStart start, IStartCache cache)
+    public static WorldSource World(LabStart start, ProfileStartCache cache)
     {
         ArgumentNullException.ThrowIfNull(cache);
         var source = new WorldSource { Seed = LabWorld.LabSeed, Pinned = true };
@@ -50,7 +50,7 @@ public static class LabStarts
     }
 
     /// <summary>The lab save's profile name.</summary>
-    public static string LabCacheName(IStartCache cache, int colonists)
+    public static string LabCacheName(ProfileStartCache cache, int colonists)
     {
         ArgumentNullException.ThrowIfNull(cache);
         var name = string.Create(CultureInfo.InvariantCulture, $"{LabPrefix}{LabWorld.LabMapSize}");
@@ -103,7 +103,7 @@ public static class LabStarts
         var fresh = cached && LabCacheFresh(cache, name, stamp);
         if (fresh)
         {
-            await cache.LoadAsync(harness, name, cancellationToken).ConfigureAwait(false);
+            await ProfileStartCache.LoadAsync(harness, name, cancellationToken).ConfigureAwait(false);
             JsonObject lab;
             try
             {
@@ -174,15 +174,15 @@ public static class LabStarts
         return LabCacheName(host.StartCache, Colonists(start));
     }
 
-    private static string SavesDir(IStartCache cache) => Path.Combine(cache.Root, "profile", "Saves");
+    private static string SavesDir(ProfileStartCache cache) => Path.Combine(cache.Root, "profile", "Saves");
 
-    private static string LabStampPath(IStartCache cache, string name) => Path.Combine(SavesDir(cache), name + StampSuffix);
+    private static string LabStampPath(ProfileStartCache cache, string name) => Path.Combine(SavesDir(cache), name + StampSuffix);
 
     /// <summary>The test/lab_start reply (centre, colonist ids) the cached save was made with: a cached load replies it as the lab start's Prepared.</summary>
-    private static string LabReplyPath(IStartCache cache, string name) => Path.Combine(SavesDir(cache), name + ReplySuffix);
+    private static string LabReplyPath(ProfileStartCache cache, string name) => Path.Combine(SavesDir(cache), name + ReplySuffix);
 
     /// <summary>Whether the cached lab save exists, was recorded under the profile's expansions and carries <paramref name="stamp"/>.</summary>
-    private static bool LabCacheFresh(IStartCache cache, string name, string stamp)
+    private static bool LabCacheFresh(ProfileStartCache cache, string name, string stamp)
     {
         if (!cache.TryGetPath(name, out var path) || !File.Exists(LabReplyPath(cache, name)))
         {

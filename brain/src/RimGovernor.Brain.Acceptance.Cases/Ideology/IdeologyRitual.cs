@@ -40,7 +40,7 @@ internal static class IdeologyRitual
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var prepared = await s.FixtureAsync("prepare-ritual", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         s.Record("fixture", ServedOps.Json(prepared));

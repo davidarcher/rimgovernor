@@ -44,7 +44,7 @@ internal static class ShelterServiceInvestment
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var room = await s.FixtureAsync("service-prepare", Prepared, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         await TypedLayoutPlan.InjectAsync(s, new LayoutPlan

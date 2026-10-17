@@ -15,7 +15,7 @@ public static class FixtureStage
     /// <summary>The fixture op that applies a stage spec.</summary>
     public const string Tool = "test/stage";
 
-    /// <summary>The stage op as a typed fixture op, for <see cref="ITypedSession.FixtureAsync"/>.</summary>
+    /// <summary>The stage op as a typed fixture op, for <see cref="TypedSession.FixtureAsync"/>.</summary>
     public static readonly FixtureOp<Fx.StageSpec, Fx.StageReply> Op = new(Tool, Args, Read);
 
     /// <summary>A start that brings the game up through <paramref name="on"/> (null: the lab) and stages <paramref name="spec"/>; the reply is the session's Prepared.</summary>
@@ -41,7 +41,7 @@ public static class FixtureStage
 
 /// <summary>
 /// A bespoke fixture op (<c>test/*</c>) with a typed request and reply: its tool name and the codec between its records
-/// and the op's JSON arguments and reply. A typed case calls it through <see cref="ITypedSession.FixtureAsync"/>.
+/// and the op's JSON arguments and reply. A typed case calls it through <see cref="TypedSession.FixtureAsync"/>.
 /// </summary>
 public sealed class FixtureOp<TRequest, TReply>
 {

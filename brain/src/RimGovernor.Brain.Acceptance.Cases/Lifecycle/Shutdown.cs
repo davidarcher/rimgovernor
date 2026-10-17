@@ -27,7 +27,7 @@ internal static class LifecycleShutdown
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var identity = s.Identity;
         var expected = await TypedAuthority.ExpectedGenerationAsync(s, "status-fresh", identity, cancellationToken).ConfigureAwait(false);
@@ -93,7 +93,7 @@ internal static class LifecycleShutdown
     }
 
     /// <summary>Returns to the main menu through lifecycle_menu, naming the game it ends, and polls it to its completed outcome.</summary>
-    private static async Task<Lifecycle.MenuCompleted> MenuAsync(ITypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
+    private static async Task<Lifecycle.MenuCompleted> MenuAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
     {
         var requestId = TypedLifecycle.Stamp(label);
         var reply = await s.CallAsync(

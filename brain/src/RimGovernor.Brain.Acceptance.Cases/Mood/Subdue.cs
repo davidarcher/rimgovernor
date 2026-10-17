@@ -49,7 +49,7 @@ internal static class Subdue
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var subduer = s.Staged!.Pawns["subduer"].Id;
         var target = s.Staged.Pawns["target"].Id;

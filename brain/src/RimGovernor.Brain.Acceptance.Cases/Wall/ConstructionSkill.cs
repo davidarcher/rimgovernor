@@ -37,7 +37,7 @@ internal static class WallConstructionSkill
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var prepared = await s.FixtureAsync("skill-prepare", Skill, "prepare", cancellationToken).ConfigureAwait(false);
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);

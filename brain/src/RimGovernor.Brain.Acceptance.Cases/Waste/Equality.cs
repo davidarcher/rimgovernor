@@ -32,7 +32,7 @@ internal static class WasteEquality
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         _ = await s.FixtureAsync("waste", Waste, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         _ = await s.FixtureAsync("buried-steel", BuriedSteel, NoArgs.Value, cancellationToken).ConfigureAwait(false);

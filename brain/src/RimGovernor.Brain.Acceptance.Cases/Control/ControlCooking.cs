@@ -112,7 +112,7 @@ internal static class ControlCooking
     };
 
     // Runs until the attempt's terminal state: failed for the two injected refusals, completed for the revision.
-    private static async Task<Fx.CookingRead> WaitAsync(ITypedSession s, int attempt, CancellationToken cancellationToken)
+    private static async Task<Fx.CookingRead> WaitAsync(TypedSession s, int attempt, CancellationToken cancellationToken)
     {
         var expected = attempt < 3 ? "failed" : "completed";
         Fx.CookingRead? last = null;

@@ -36,7 +36,7 @@ internal static class LifecycleReuse
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var reuse = await s.LaunchAsync("launch", cancellationToken).ConfigureAwait(false);
         var cfg = reuse.Config;
@@ -168,7 +168,7 @@ internal static class LifecycleReuse
     }
 
     /// <summary>One well-behaved case: authority on, draft, release, authority off, then a service handle taken and stopped against this very load.</summary>
-    private static async Task CleanCaseAsync(ITypedSession s, GameReuse reuse, ReuseCase c, CancellationToken cancellationToken)
+    private static async Task CleanCaseAsync(TypedSession s, GameReuse reuse, ReuseCase c, CancellationToken cancellationToken)
     {
         var identity = Harness.IdentityOf(c.Identity);
         var pawn = await DraftColonistAsync(s, identity, c.Name, cancellationToken).ConfigureAwait(false);
@@ -238,7 +238,7 @@ internal static class LifecycleReuse
     }
 
     /// <summary>Sets authority to Auto and drafts the first standing colonist through the draft intent; returns the drafted pawn's id.</summary>
-    private static async Task<string> DraftColonistAsync(ITypedSession s, Common.Identity identity, string label, CancellationToken cancellationToken)
+    private static async Task<string> DraftColonistAsync(TypedSession s, Common.Identity identity, string label, CancellationToken cancellationToken)
     {
         var status = await TypedAuthority.StatusAsync(s, label + "-status", identity, cancellationToken).ConfigureAwait(false);
         _ = await TypedAuthority.GrantAsync(s, label + "-auto", identity, status.Context?.NativeGeneration ?? throw new AcceptanceException($"{label}-status: no generation: {status}"), cancellationToken).ConfigureAwait(false);
@@ -255,7 +255,7 @@ internal static class LifecycleReuse
     }
 
     // The first standing colonist, or the one ids names.
-    private static async Task<Observations.PawnState> StandingAsync(ITypedSession s, string label, Common.Identity identity, string[] ids, CancellationToken cancellationToken)
+    private static async Task<Observations.PawnState> StandingAsync(TypedSession s, string label, Common.Identity identity, string[] ids, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(
             label,
@@ -267,7 +267,7 @@ internal static class LifecycleReuse
     }
 
     // One draft intent through operations_apply; returns the applied receipt's effect.
-    private static async Task<Receipts.EffectEvidenceEffect> ApplyDraftAsync(ITypedSession s, string label, Common.Identity identity, string pawn, bool drafted, CancellationToken cancellationToken)
+    private static async Task<Receipts.EffectEvidenceEffect> ApplyDraftAsync(TypedSession s, string label, Common.Identity identity, string pawn, bool drafted, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(
             label,

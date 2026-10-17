@@ -86,7 +86,7 @@ internal static class ProductionBuriedSteel
         };
     }
 
-    private static async Task ReadBlockAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task ReadBlockAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var staged = s.Staged!;
         var site = staged.Site ?? throw new AcceptanceException("stage: no site");
@@ -177,7 +177,7 @@ internal static class ProductionBuriedSteel
         ],
     };
 
-    private static async Task MineBesideStockpileAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task MineBesideStockpileAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var ore = s.Staged!.Buildings["ore"];
         var at = ore.Cells.Single();

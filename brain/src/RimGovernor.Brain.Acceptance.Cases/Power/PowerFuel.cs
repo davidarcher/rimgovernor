@@ -59,7 +59,7 @@ internal static class PowerFuel
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var generatorId = s.Staged!.Buildings[Generator].Ids.Single();
         var stoveId = s.Staged.Buildings[Stove].Ids.Single();

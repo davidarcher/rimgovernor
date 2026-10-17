@@ -64,7 +64,7 @@ internal static class CombatLabAnimals
     private static Operations.CombatOrderOrder.AnimalAreaCase Zone(Operations.CombatAnimalAreaArea area) =>
         new Operations.CombatOrderOrder.AnimalAreaCase(new Operations.CombatAnimalArea { Area = area });
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var lab = new StagedLab(Fixture, s.Staged!);
         var animals = lab.Animals();
@@ -110,7 +110,7 @@ internal static class CombatLabAnimals
     }
 
     // The allowed area the pawn is restricted to: the area listing it, which its own settings name.
-    private static async Task<Observations.AllowedAreaEntry?> PupAreaAsync(ITypedSession s, string label, string pup, CancellationToken cancellationToken)
+    private static async Task<Observations.AllowedAreaEntry?> PupAreaAsync(TypedSession s, string label, string pup, CancellationToken cancellationToken)
     {
         var areas = await CombatLabKit.AreasAsync(s, label + "-areas", cancellationToken).ConfigureAwait(false);
         s.RecordWire(label + "_areas", areas);
@@ -124,7 +124,7 @@ internal static class CombatLabAnimals
         return listing.FirstOrDefault();
     }
 
-    private static async Task RunOrphanAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunOrphanAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var lab = new StagedLab(OrphanFixture, s.Staged!);
         var huskies = lab.Animals().Skip(2).ToList();

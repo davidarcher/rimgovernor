@@ -13,7 +13,7 @@ public sealed class SessionHost : ISessionHost
     public static SessionHost Default { get; } = new();
 
     /// <inheritdoc />
-    public IStartCache StartCache => ProfileStartCache.Current;
+    public ProfileStartCache StartCache => ProfileStartCache.Current;
 
     /// <inheritdoc />
     public async Task PrepareAsync(Config config, IReadOnlyList<string> saves, CancellationToken cancellationToken)
@@ -54,7 +54,7 @@ public sealed class SessionHost : ISessionHost
     }
 
     /// <inheritdoc />
-    public async Task<IGameHold> OpenGameAsync(Config config, Report report, CancellationToken cancellationToken) =>
+    public async Task<Game> OpenGameAsync(Config config, Report report, CancellationToken cancellationToken) =>
         await Game.OpenGameAsync(config, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc />

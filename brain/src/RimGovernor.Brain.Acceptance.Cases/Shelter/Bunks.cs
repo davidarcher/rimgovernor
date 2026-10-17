@@ -40,7 +40,7 @@ internal static class ShelterBunks
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var before = await HousedAsync(s, "rooms-before", cancellationToken).ConfigureAwait(false);
         if (before > 0)
@@ -60,7 +60,7 @@ internal static class ShelterBunks
     }
 
     /// <summary>The built Beds standing in the roofed proper rooms of the native room census.</summary>
-    private static async Task<int> HousedAsync(ITypedSession s, string label, CancellationToken cancellationToken)
+    private static async Task<int> HousedAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ListRooms, new Observations.ListRoomsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var rooms = TypedReads.Observed(label, NativeOps.ListRooms, reply, reply.Outcome?.Observed).Rooms.Items
