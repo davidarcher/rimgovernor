@@ -83,14 +83,14 @@ public static class ColonyAudits
                 }
             }
 
-            rows.Add(new JsonObject { ["pawn"] = pawn.Pawn.Id, ["malnutrition"] = worst });
+            rows.Add(new JsonObject { { "pawn", pawn.Pawn.Id }, { "malnutrition", worst } });
             if (worst > MalnutritionLimit)
             {
                 over.Add(string.Create(CultureInfo.InvariantCulture, $"{pawn.Pawn.Id} {worst:F2}"));
             }
         }
 
-        report["colonist_nutrition"] = new JsonObject { ["colonists"] = rows.Count, ["limit"] = MalnutritionLimit, ["rows"] = rows };
+        report["colonist_nutrition"] = new JsonObject { { "colonists", rows.Count }, { "limit", MalnutritionLimit }, { "rows", rows } };
         if (over.Count > 0)
         {
             throw new AcceptanceException(string.Create(
@@ -103,19 +103,13 @@ public static class ColonyAudits
     /// Every keep-alive resume from an acknowledged hold re-acquires in place, one native generation each, not the
     /// Manual-to-Auto pair that rebound every prepared action to a new generation. Reads the service's stop record.
     /// </summary>
-    internal static void AuditReacquisitions(JsonObject? keep)
+    internal static void AuditReacquisitions(ColonyReacquisitions? keep)
     {
-        if (keep is null)
-        {
-            return;
-        }
-
-        var over = keep["generations_over_one"].AsNumber();
-        if (over > 0)
+        if (keep is { GenerationsOverOne: > 0 })
         {
             throw new AcceptanceException(string.Create(
                 CultureInfo.InvariantCulture,
-                $"{over} of {keep["reacquired"].ToJson()} keep-alive resumes cost more than one native generation (advance {keep["generation_advance"].ToJson()} over {keep["attempts"].ToJson()} attempts)"));
+                $"{keep.GenerationsOverOne} of {keep.Reacquired} keep-alive resumes cost more than one native generation (advance {keep.GenerationAdvance} over {keep.Attempts} attempts)"));
         }
     }
 
@@ -146,12 +140,12 @@ public static class ColonyAudits
 
             rows.Add(new JsonObject
             {
-                ["allowed"] = new JsonArray([.. (zone.Filter?.AllowedDefNames ?? []).Select(d => (JsonNode?)JsonValue.Create(d))]),
-                ["id"] = zone.Id,
-                ["label"] = zone.Label,
-                ["priority"] = zone.Priority,
-                ["bounds"] = zone.Bounds is { } bounds ? JsonNode.Parse(WireJson.Serialize(bounds)) : null,
-                ["food_storage"] = isFood,
+                { "allowed", new JsonArray([.. (zone.Filter?.AllowedDefNames ?? []).Select(d => (JsonNode?)JsonValue.Create(d))]) },
+                { "id", zone.Id },
+                { "label", zone.Label },
+                { "priority", zone.Priority },
+                { "bounds", zone.Bounds is { } bounds ? JsonNode.Parse(WireJson.Serialize(bounds)) : null },
+                { "food_storage", isFood },
             });
         }
 
@@ -165,7 +159,7 @@ public static class ColonyAudits
         foreach (var stock in TypedReads.Observed("audit-supplies", NativeOps.ListSupplies, supplies, supplies.Outcome?.Observed).Stocks)
         {
             var name = stock.Definition.DefName ?? "";
-            stocks.Add(new JsonObject { ["def"] = name, ["ours"] = stock.Ours, ["ours_unforbidden"] = stock.OursUnforbidden });
+            stocks.Add(new JsonObject { { "def", name }, { "ours", stock.Ours }, { "ours_unforbidden", stock.OursUnforbidden } });
 
             // Wood stacks outside the base stay forbidden on purpose (admin/supply-safety, outside_base:insufficient_defense),
             // so wood is only reported.
@@ -179,18 +173,18 @@ public static class ColonyAudits
         var deletes = new JsonObject();
         foreach (var (role, count) in churn.Deletes.OrderBy(kv => kv.Key, StringComparer.Ordinal))
         {
-            deletes[role] = count;
+            deletes.Add(role, count);
         }
 
         report["stockpile_zones"] = new JsonObject
         {
-            ["stockpiles"] = stockpiles,
-            ["food"] = food,
-            ["limit"] = ColonyFoodZoneLimit,
-            ["rows"] = rows,
-            ["starting_supplies"] = stocks,
-            ["deletes"] = deletes,
-            ["creates"] = new JsonArray([.. churn.Creates]),
+            { "stockpiles", stockpiles },
+            { "food", food },
+            { "limit", ColonyFoodZoneLimit },
+            { "rows", rows },
+            { "starting_supplies", stocks },
+            { "deletes", deletes },
+            { "creates", new JsonArray([.. churn.Creates]) },
         };
         var failures = new List<string>();
         if (churn.Flagged.Count > 0)
@@ -267,9 +261,9 @@ public static class ColonyAudits
                     case "create":
                         churn.Creates.Add(new JsonObject
                         {
-                            ["role"] = role,
-                            ["tick"] = row.Tick,
-                            ["cells"] = JsonSerializer.SerializeToNode(attrs?.GetValueOrDefault("cells")),
+                            { "role", role },
+                            { "tick", row.Tick },
+                            { "cells", JsonSerializer.SerializeToNode(attrs?.GetValueOrDefault("cells")) },
                         });
                         if (deleted.Contains(role))
                         {

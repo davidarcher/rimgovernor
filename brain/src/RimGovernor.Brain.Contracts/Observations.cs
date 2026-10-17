@@ -7896,8 +7896,6 @@ public sealed record ColonyFactsSnapshot
 
     public uint WorkerCount { get; init; }
 
-    public Common.Cell Center { get; init; } = new();
-
     public MapSize MapSize { get; init; } = new();
 
     public string Biome { get; init; } = "";

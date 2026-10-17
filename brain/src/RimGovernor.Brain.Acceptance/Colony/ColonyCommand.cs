@@ -192,7 +192,7 @@ public static class ColonyCommand
         CancellationToken cancellationToken)
     {
         var (colonists, added) = await DebugGame.StaffCrewAsync(session.Harness, 3, cancellationToken).ConfigureAwait(false);
-        report["crew"] = new JsonObject { ["declared"] = 3, ["colonists"] = colonists, ["added"] = added };
+        report["crew"] = new JsonObject { { "declared", 3 }, { "colonists", colonists }, { "added", added } };
         var spec = new ServeSpec
         {
             NativeTimeout = TimeSpan.FromSeconds(15),
@@ -210,8 +210,8 @@ public static class ColonyCommand
             SourceRevision = MetricSeries.SourceRevision(),
             Bridge = () => session.Harness,
             Service = () => ServiceProcess.LatestService(),
-            Serve = new JsonObject { ["families"] = null, ["env"] = new JsonArray(), ["resume"] = spec.Resume },
-            Prepared = session.Prepared?.DeepCloneObject(),
+            Serve = new JsonObject { { "families", null }, { "env", new JsonArray() }, { "resume", spec.Resume } },
+            Prepared = session.Prepared?.DeepClone() as JsonObject,
         };
         report["checkpointing"] = string.Create(CultureInfo.InvariantCulture, $"every {GoDuration.Format(opts.Every)} into {ringDir}");
         ring.Activate();
@@ -236,7 +236,7 @@ public static class ColonyCommand
                         [
                             await SustainedFoodCase.CaptureAsync(() =>
                             {
-                                ColonyAudits.AuditReacquisitions(r["authority_reacquisitions"] as JsonObject);
+                                ColonyAudits.AuditReacquisitions(ColonyJsonContext.Reacquisitions(r["authority_reacquisitions"]));
                                 return Task.CompletedTask;
                             }).ConfigureAwait(false),
                             await SustainedFoodCase.CaptureAsync(() => ColonyAudits.AuditNutritionAsync(h, r, ct)).ConfigureAwait(false),
@@ -274,7 +274,7 @@ public static class ColonyCommand
             throw new FileNotFoundException($"{config} does not exist", config);
         }
 
-        var game = HeadlessProfile.GameSection(HeadlessProfile.LoadConfig(config))["workingDir"].AsString();
+        var game = ColonyJsonContext.WorkingDir(HeadlessProfile.GameSection(HeadlessProfile.LoadConfig(config)));
         if (game.Length == 0)
         {
             throw new AcceptanceException($"{config}: the game has no workingDir");

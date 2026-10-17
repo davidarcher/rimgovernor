@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
             var demand = people.Sum(p => p.needs?.food == null ? 0.0 : GameTime.PerDay((double)p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)));
             Span("cf.nutrition");
             var result = new Obs.ColonyFactsSnapshot { Context = context, ColonistCount = (uint)people.Count,
-                WorkerCount = (uint)workers.Count, Center = Cell(center), MapSize = Size(map), Biome = map.Biome.defName,
+                WorkerCount = (uint)workers.Count, MapSize = Size(map), Biome = map.Biome.defName,
                 PlayerTechLevel = (Defs.TechLevel)(int)player.def.techLevel,
                 FermentingBarrels = (uint)things.OfType<Building_FermentingBarrel>().Count(b => b.Faction == player && !b.IsForbidden(player) && reachable(b)),
                 BedCapacity = checked((uint)beds.Sum(b => b.SleepingSlotsCount)), IndoorSleepingCapacity = checked((uint)indoorBeds.Sum(b => b.SleepingSlotsCount)),

@@ -392,7 +392,7 @@ public sealed partial class CheckpointRing
             }
 
             entry.WallMs = (long)Stopwatch.GetElapsedTime(began).TotalMilliseconds;
-            File.WriteAllText(Path.Combine(dir, Checkpoints.CheckpointSidecar), entry.ToJson().ToJsonString(SidecarOptions));
+            File.WriteAllText(Path.Combine(dir, Checkpoints.CheckpointSidecar), entry.ToJsonText());
         }
         catch
         {
@@ -402,8 +402,6 @@ public sealed partial class CheckpointRing
 
         return entry;
     }
-
-    private static readonly JsonSerializerOptions SidecarOptions = new() { WriteIndented = true };
 
     /// <summary>
     /// Saves through lifecycle_save on the harness session: the game must be paused (force pauses it), and the

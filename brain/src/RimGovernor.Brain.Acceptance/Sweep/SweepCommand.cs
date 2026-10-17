@@ -377,18 +377,18 @@ public static partial class SweepCommand
     /// <summary>The tuning as the JSON object the service reads (the Go field names; every field, so the game does not depend on the default).</summary>
     internal static JsonObject TuningJson(CombatTuning t) => new()
     {
-        ["DoorCloseRange"] = t.DoorCloseRange,
-        ["DoorOpenRange"] = t.DoorOpenRange,
-        ["DoorGunners"] = t.DoorGunners,
-        ["FlankMinDefenders"] = t.FlankMinDefenders,
-        ["FlankSize"] = t.FlankSize,
-        ["FlankLateral"] = t.FlankLateral,
-        ["GroupGap"] = t.GroupGap,
-        ["KiteLeadRange"] = t.KiteLeadRange,
-        ["KiteSpeedRatio"] = t.KiteSpeedRatio,
-        ["ScatterCells"] = t.ScatterCells,
-        ["DoseMargin"] = t.DoseMargin,
-        ["RushRange"] = t.RushRange,
+        { "DoorCloseRange", t.DoorCloseRange },
+        { "DoorOpenRange", t.DoorOpenRange },
+        { "DoorGunners", t.DoorGunners },
+        { "FlankMinDefenders", t.FlankMinDefenders },
+        { "FlankSize", t.FlankSize },
+        { "FlankLateral", t.FlankLateral },
+        { "GroupGap", t.GroupGap },
+        { "KiteLeadRange", t.KiteLeadRange },
+        { "KiteSpeedRatio", t.KiteSpeedRatio },
+        { "ScatterCells", t.ScatterCells },
+        { "DoseMargin", t.DoseMargin },
+        { "RushRange", t.RushRange },
     };
 
     /// <summary>The explicit list or 1..n; seed 0 means no reseed and is refused.</summary>

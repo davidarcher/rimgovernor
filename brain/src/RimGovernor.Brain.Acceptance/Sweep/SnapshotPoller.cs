@@ -1,11 +1,10 @@
 using RimGovernor.Brain.NativeFacade;
-using RimGovernor.Contracts.Wire;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
 
-/// <summary>One snapshot frame pulled over the tool channel: its number, the applied-write count it was captured at, and its JSON.</summary>
-public sealed record SnapshotPulled(ulong Number, long Writes, byte[] Payload);
+/// <summary>One snapshot frame pulled over the tool channel: its number, the applied-write count it was captured at, and the frame.</summary>
+public sealed record SnapshotPulled(ulong Number, long Writes, Obs.BundleSnapshot Frame);
 
 /// <summary>
 /// Reads the native snapshot stream's frames over the tool channel (<c>observations_read_snapshot</c>): the newest
@@ -29,13 +28,15 @@ public sealed class SnapshotPoller
     public async Task<SnapshotPulled?> LatestAsync(ulong after, CancellationToken cancellationToken)
     {
         var read = await ReadAsync(after, cancellationToken).ConfigureAwait(false);
-        return read.Frame is { } frame ? new SnapshotPulled(read.Head, read.FrameWrites, WireJson.SerializeToUtf8Bytes(frame)) : null;
+        return read.Frame is { } frame ? new SnapshotPulled(read.Head, read.FrameWrites, frame) : null;
     }
 
     /// <summary>Waits until a frame past <paramref name="after"/> is committed, the token ends or <paramref name="timeout"/> passes; reports whether one was.</summary>
     public async Task<bool> WaitAsync(ulong after, TimeSpan timeout, CancellationToken cancellationToken)
     {
-        var deadline = DateTime.UtcNow + timeout;
+        using var bounded = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        bounded.CancelAfter(timeout);
+        using var pace = Wait.Pace(PollInterval);
         while (true)
         {
             if (await HeadAsync(cancellationToken).ConfigureAwait(false) > after)
@@ -43,15 +44,9 @@ public sealed class SnapshotPoller
                 return true;
             }
 
-            var left = deadline - DateTime.UtcNow;
-            if (left <= TimeSpan.Zero || cancellationToken.IsCancellationRequested)
-            {
-                return false;
-            }
-
             try
             {
-                await Task.Delay(left < PollInterval ? left : PollInterval, cancellationToken).ConfigureAwait(false);
+                await pace.NextAsync(bounded.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

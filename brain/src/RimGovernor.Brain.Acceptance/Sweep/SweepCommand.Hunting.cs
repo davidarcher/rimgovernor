@@ -107,22 +107,36 @@ public static partial class SweepCommand
     private static Task<JsonObject> NativeAsync(Harness h, (string Prey, string Animal, int Count) prey, int hunters, int seed, CancellationToken ct) =>
         h.CallAsync("hunting-native-trial", HuntingTool, new JsonObject
         {
-            ["seed"] = seed, ["stratum"] = "probe", ["horizon"] = 6000, ["animal"] = prey.Animal,
-            ["preyCount"] = prey.Count, ["hunters"] = hunters,
+            { "seed", seed }, { "stratum", "probe" }, { "horizon", 6000 }, { "animal", prey.Animal },
+            { "preyCount", prey.Count }, { "hunters", hunters },
         }, ct);
+
+    // The native trial reply as the collection reads it; the bundle keeps the reply itself.
+    private static HuntingNativeTrial ReadNative(JsonObject native)
+    {
+        try
+        {
+            return native.Deserialize<HuntingNativeTrial>(HuntingJson) ?? throw new AcceptanceException("missing native trial");
+        }
+        catch (JsonException e)
+        {
+            throw new AcceptanceException($"{HuntingTool}: the reply does not decode: {e.Message}", e);
+        }
+    }
 
     private static async Task TrialAsync(Harness h, string output, Report report, string cell, (string Prey, string Animal, int Count) prey, int hunters, int nativeSeed, CancellationToken ct)
     {
-        var native = await NativeAsync(h, prey, hunters, nativeSeed, ct).ConfigureAwait(false);
+        var raw = await NativeAsync(h, prey, hunters, nativeSeed, ct).ConfigureAwait(false);
 
         // Failed and unresolved native outcomes are retained.
-        await File.WriteAllTextAsync(Path.Combine(output, NativeTrialFile), native.ToJsonString(HuntingJson), ct).ConfigureAwait(false);
-        var request = native["request"].Deserialize<EncounterRequest>(HuntingJson) ?? throw new AcceptanceException("missing native request");
-        var observed = native["observed"].Deserialize<EncounterSample>(HuntingJson) ?? throw new AcceptanceException("missing native observed outcome");
-        var trial = new HuntingTrial(cell + ":" + nativeSeed.ToString(CultureInfo.InvariantCulture), HuntingQualification.Revision, cell, native["nativeRunId"].AsString(), nativeSeed,
-            native["nativeBuild"].AsString(), native["nativeMods"].AsString(), native["initialStateMatched"].AsBool() == true,
-            native["revengeFactor"].NumberOrZero() > 0, request, observed)
-        { RetaliationObserved = native["retaliation"].AsSlice().Any(state => state.AsString().EndsWith(":Manhunter", StringComparison.Ordinal)) };
+        await File.WriteAllTextAsync(Path.Combine(output, NativeTrialFile), raw.ToJsonString(HuntingJson), ct).ConfigureAwait(false);
+        var native = ReadNative(raw);
+        var request = native.Request ?? throw new AcceptanceException("missing native request");
+        var observed = native.Observed ?? throw new AcceptanceException("missing native observed outcome");
+        var trial = new HuntingTrial(cell + ":" + nativeSeed.ToString(CultureInfo.InvariantCulture), HuntingQualification.Revision, cell, native.NativeRunId ?? "", nativeSeed,
+            native.NativeBuild ?? "", native.NativeMods ?? "", native.InitialStateMatched,
+            native.RevengeFactor > 0, request, observed)
+        { RetaliationObserved = native.Retaliation.Any(state => (state ?? "").EndsWith(":Manhunter", StringComparison.Ordinal)) };
         await File.WriteAllTextAsync(Path.Combine(output, HuntingTrialFile), JsonSerializer.Serialize(trial, HuntingJson), ct).ConfigureAwait(false);
         report["native_seed"] = nativeSeed;
         if (!trial.InitialStateMatched || !trial.RevengeEnabled)
@@ -134,9 +148,9 @@ public static partial class SweepCommand
     private static async Task PredictAsync(Harness h, string output, Report report, HuntingPredictor predictor, string cell, (string Prey, string Animal, int Count) prey, int hunters, CancellationToken ct)
     {
         // The scene is observed once natively (seed 1, not collected); only its request is used.
-        var native = await NativeAsync(h, prey, hunters, 1, ct).ConfigureAwait(false);
-        var observed = native["request"].Deserialize<EncounterRequest>(HuntingJson) ?? throw new AcceptanceException("missing native request");
-        var run = await predictor(new HuntingPredictionInput(cell, observed, native["predictorMods"].AsString(), output), ct).ConfigureAwait(false);
+        var native = ReadNative(await NativeAsync(h, prey, hunters, 1, ct).ConfigureAwait(false));
+        var observed = native.Request ?? throw new AcceptanceException("missing native request");
+        var run = await predictor(new HuntingPredictionInput(cell, observed, native.PredictorMods ?? "", output), ct).ConfigureAwait(false);
         var record = run.Record;
         await File.WriteAllTextAsync(Path.Combine(output, HuntingPredictionFile), JsonSerializer.Serialize(record, HuntingJson), ct).ConfigureAwait(false);
         report["cancelled_prediction"] = JsonSerializer.SerializeToNode(run.Cancelled, HuntingJson);
@@ -210,4 +224,27 @@ public static partial class SweepCommand
         stdout.WriteLine(string.Create(CultureInfo.InvariantCulture, $"hunting trials={score.Trials}, cells={score.Cells.Count}, safe={score.SafeObservations}, false-safe={score.FalseSafe}, inversions={score.RankingInversions}; accuracy={score.AccuracyPassed}"));
         return score.AccuracyPassed ? 0 : 1;
     }
+}
+
+/// <summary>The hunting fixture's native trial reply (Web JSON) as the collection reads it.</summary>
+internal sealed record HuntingNativeTrial
+{
+    public EncounterRequest? Request { get; init; }
+
+    public EncounterSample? Observed { get; init; }
+
+    public string? NativeRunId { get; init; }
+
+    public string? NativeBuild { get; init; }
+
+    public string? NativeMods { get; init; }
+
+    public string? PredictorMods { get; init; }
+
+    public bool InitialStateMatched { get; init; }
+
+    public double RevengeFactor { get; init; }
+
+    /// <summary>The prey's mental states over the trial, "pawn:state".</summary>
+    public IReadOnlyList<string?> Retaliation { get; set; } = [];
 }

@@ -138,7 +138,7 @@ internal sealed class CombatStopMetrics(TimeSpan resumeBudget)
             }
             _lastStopTick = tick;
             _lastKnown = true;
-            Tel.Event(TelemetryLevel.Info, "clock-scheduler", "clock_stop", "combat window stopped", attrs);
+            Tel.Event(TelemetryLevel.Info, "clock-scheduler", TelemetryKinds.ClockStopKind, "combat window stopped", attrs);
         }
         if (_active && !combat)
         {
@@ -174,7 +174,7 @@ internal sealed class CombatStopMetrics(TimeSpan resumeBudget)
         Tel.Event(
             TelemetryLevel.Info,
             "clock-scheduler",
-            "combat_summary",
+            TelemetryKinds.CombatSummaryKind,
             "combat ended",
             [
                 ("stops", stops),

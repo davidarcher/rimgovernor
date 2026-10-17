@@ -95,9 +95,6 @@ public static class Dyn
     /// <summary>Whether <paramref name="values"/> holds <paramref name="want"/> (ordinal).</summary>
     public static bool Contains(IEnumerable<string> values, string want) => values.Contains(want, StringComparer.Ordinal);
 
-    /// <summary>Structural equality of two decoded-JSON values; object member order does not matter.</summary>
-    public static bool DeepEqual(JsonNode? a, JsonNode? b) => Canonical(a) == Canonical(b);
-
     /// <summary>The compact JSON text of <paramref name="value"/> with object members in ordinal key order.</summary>
     public static string Canonical(JsonNode? value)
     {

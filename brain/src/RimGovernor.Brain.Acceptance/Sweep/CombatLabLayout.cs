@@ -25,10 +25,8 @@ public static class CombatLabLayout
         ArgumentNullException.ThrowIfNull(h);
         ArgumentNullException.ThrowIfNull(identity);
         ArgumentNullException.ThrowIfNull(l);
-        var world = new World(
-            new ColonyId(identity["colonyId"].AsString()),
-            new LoadId(identity["loadToken"].AsString()),
-            new MapId((int)identity["mapId"].NumberOrZero()));
+        var wire = Harness.IdentityOf(identity);
+        var world = new World(new ColonyId(wire.ColonyId), new LoadId(wire.LoadToken), new MapId(wire.MapId));
         var record = new DefenseLayoutRecord
         {
             World = world,

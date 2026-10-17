@@ -4,7 +4,10 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Simulation.CombatMetrics;
+using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
+using Mirror = RimGovernor.Contracts.Wire.Mirror;
+using Fx = RimGovernor.Fixtures.Contracts;
 using SimMetrics = RimGovernor.Brain.Simulation.CombatMetrics.Metrics;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -152,15 +155,15 @@ internal static class SweepSeed
             : await CombatStage.StageAsync(h, name, cancellationToken).ConfigureAwait(false);
         report["staged_digest"] = staged.Digest;
         update(r => r with { StagedDigest = staged.Digest });
-        var first = await CombatServe.RawReadAsync(h, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
+        var first = await CombatServe.RawReadAsync(h, "read", cancellationToken).ConfigureAwait(false);
         var sides = new JsonObject();
         foreach (var (id, side) in CombatLabBundle.StagedSides(staged).OrderBy(p => p.Key, StringComparer.Ordinal))
         {
-            sides[id] = side;
+            sides.Add(id, side);
         }
 
-        first["staged"] = sides;
-        var start = (int)first["tick"].NumberOrZero();
+        first.Add("staged", sides);
+        var start = CombatServe.Typed<Fx.LabFightRead>(CombatFixtures.LabTool, first).Tick;
         if (staged.Fixture.Layout is { } layout)
         {
             report["layout"] = await CombatLabLayout.StoreAsync(h, session.Identity, layout, cancellationToken).ConfigureAwait(false);
@@ -207,10 +210,10 @@ internal static class SweepSeed
         }
 
         await CombatServe.PauseAfterAsync(h, cancellationToken).ConfigureAwait(false);
-        var last = await CombatServe.RawReadAsync(h, new JsonObject { ["action"] = "read" }, cancellationToken).ConfigureAwait(false);
+        var last = await CombatServe.RawReadAsync(h, "read", cancellationToken).ConfigureAwait(false);
         await WriteReadsAsync(dir, [first, last], cancellationToken).ConfigureAwait(false);
-        var shots = await CombatServe.RawReadAsync(h, new JsonObject { ["action"] = "shots" }, cancellationToken).ConfigureAwait(false);
-        await CombatLabShots.WriteShotsAsync(dir, shots, cancellationToken).ConfigureAwait(false);
+        var shots = await CombatServe.RawReadAsync(h, "shots", cancellationToken).ConfigureAwait(false);
+        await CombatLabShots.WriteShotsAsync(dir, CombatServe.Typed<Fx.LabShotsRead>(CombatFixtures.LabTool, shots), cancellationToken).ConfigureAwait(false);
         await WriteCombatRowsAsync(logPath, Path.Combine(dir, CombatLabBundle.CombatRowsFile), cancellationToken).ConfigureAwait(false);
         var aggregate = await CombatLabBundle.AggregateBundleAsync(dir, name, cancellationToken).ConfigureAwait(false);
         var text = CombatLabBundle.MetricsText(aggregate);
@@ -218,12 +221,11 @@ internal static class SweepSeed
         report["metrics"] = CombatLabBundle.MetricsJson(aggregate);
         var response = ResponseEvidence.Create(name, CombatServe.MetricsSpeed, start);
         response.ReadLogs(logPath);
-        foreach (var hit in last["damage"].AsSlice())
+        foreach (var row in CombatServe.Typed<Fx.LabFightRead>(CombatFixtures.LabTool, last).Damage)
         {
-            var row = hit.AsMap() ?? [];
-            if (row["instigatorSide"].AsString() == CombatFixtures.Colonist && row["victimSide"].AsString() == CombatFixtures.Hostile && row["dealt"].NumberOrZero() > 0)
+            if (row.InstigatorSide == CombatFixtures.Colonist && row.VictimSide == CombatFixtures.Hostile && row.Dealt > 0)
             {
-                response.ObserveEffect((long)row["tick"].NumberOrZero(), "colonist_damaged_hostile");
+                response.ObserveEffect(row.Tick, "colonist_damaged_hostile");
             }
         }
 
@@ -247,11 +249,11 @@ internal static class SweepSeed
         var frames = await CombatFrames.OpenAsync(h, identity, cancellationToken).ConfigureAwait(false);
         _ = await frames.NextAsync(0, cancellationToken).ConfigureAwait(false);
         var staged = await CombatStage.StageAsync(h, name, cancellationToken).ConfigureAwait(false);
-        var (_, tick) = await CombatStage.TickAsync(h, 1, cancellationToken).ConfigureAwait(false);
+        var tick = (await CombatStage.TickAsync(h, 1, cancellationToken).ConfigureAwait(false)).Tick;
         var state = await frames.NextAsync(tick, cancellationToken).ConfigureAwait(false);
         foreach (var row in state.Events)
         {
-            if (row["kind"].AsString() == "COMBAT_LOG_KIND_HOSTILE_ARRIVED" && row["raidStrategy"].AsString() == "pods" && row["openTick"].NumberOrZero() > tick)
+            if (row.Kind == Mirror.CombatLogKind.HostileArrived && row.RaidStrategy == "pods" && row.OpenTick > tick)
             {
                 return staged;
             }
@@ -280,7 +282,7 @@ internal static class SweepSeed
                 async ct =>
                 {
                     clock.Tick = await CombatServe.ServedTickAsync(service, clock.Tick, ct).ConfigureAwait(false);
-                    ended = ended || tail.Next().Any(row => row.Kind == "combat_summary");
+                    ended = ended || tail.Next().Any(row => row.Kind == TelemetryKinds.CombatSummary.Name);
                     return (SweepText.Tag(clock.Tick), ended || clock.Tick >= until);
                 },
                 cancellationToken).ConfigureAwait(false);

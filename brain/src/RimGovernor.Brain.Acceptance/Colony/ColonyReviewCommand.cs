@@ -174,11 +174,11 @@ public static class ColonyReviewCommand
         // What map this was, for colonyreview's header.
         report["review"] = new JsonObject
         {
-            ["seed"] = opts.Seed,
-            ["scenario"] = start.Spec.Scenario,
-            ["biome"] = start.Spec.Biome,
-            ["colonists"] = start.Spec.Count,
-            ["days"] = opts.Days,
+            { "seed", opts.Seed },
+            { "scenario", start.Spec.Scenario },
+            { "biome", start.Spec.Biome },
+            { "colonists", start.Spec.Count },
+            { "days", opts.Days },
         };
 
         // The headless profile, but the recorder renders through a graphics device: Graphics drops -Headless and always
@@ -227,7 +227,7 @@ public static class ColonyReviewCommand
     private static async Task ServeSeasonAsync(ColonyReviewOptions opts, Config cfg, Report report, Session session, CancellationToken cancellationToken)
     {
         var (colonists, added) = await DebugGame.StaffCrewAsync(session.Harness, 3, cancellationToken).ConfigureAwait(false);
-        report["crew"] = new JsonObject { ["declared"] = 3, ["colonists"] = colonists, ["added"] = added };
+        report["crew"] = new JsonObject { { "declared", 3 }, { "colonists", colonists }, { "added", added } };
         var spec = new ServeSpec { NativeTimeout = TimeSpan.FromSeconds(15), StepStall = TimeSpan.FromSeconds(90), Prefix = "colony-review" };
         var dir = Path.Combine(opts.Output, "review");
         await SustainedFood.ObserveAsync(
@@ -245,12 +245,12 @@ public static class ColonyReviewCommand
                 },
                 Prepare = async (h, r, ct) =>
                 {
-                    var status = await h.CallAsync("review-start", RecorderTool, new JsonObject { ["action"] = "start", ["dir"] = dir }, ct).ConfigureAwait(false);
+                    var status = await h.CallAsync("review-start", RecorderTool, new JsonObject { { "action", "start" }, { "dir", dir } }, ct).ConfigureAwait(false);
                     r["recorder"] = status.DeepClone();
                 },
                 Audit = async (h, r, ct) =>
                 {
-                    var status = await h.CallAsync("review-stop", RecorderTool, new JsonObject { ["action"] = "stop" }, ct).ConfigureAwait(false);
+                    var status = await h.CallAsync("review-stop", RecorderTool, new JsonObject { { "action", "stop" } }, ct).ConfigureAwait(false);
                     r["recorder"] = status.DeepClone();
                 },
             },

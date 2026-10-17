@@ -94,7 +94,7 @@ public static class Boundary
     private static void RecordCombatOrder(CombatOrderResult res) =>
         Tel.Decide(new Decision
         {
-            Kind = "combat_order",
+            Kind = TelemetryKinds.CombatOrderKind,
             Component = "combat-orders",
             Target = res.PawnId,
             Verdict = res.Applied ? "applied" : "refused",

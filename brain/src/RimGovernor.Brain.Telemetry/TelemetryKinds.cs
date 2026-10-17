@@ -82,4 +82,22 @@ public static class TelemetryKinds
 
     /// <summary>One action run that acted (<see cref="DispatchKind"/>).</summary>
     public static readonly TelemetryKind Dispatch = new(DispatchKind);
+
+    /// <summary>The clock scheduler's combat stop row's kind.</summary>
+    public const string ClockStopKind = "clock_stop";
+
+    /// <summary>A combat window stopped the clock, with its resume latency (<see cref="ClockStopKind"/>).</summary>
+    public static readonly TelemetryKind ClockStop = new(ClockStopKind);
+
+    /// <summary>A combat order result's decision row's kind.</summary>
+    public const string CombatOrderKind = "combat_order";
+
+    /// <summary>One combat order applied or refused (<see cref="CombatOrderKind"/>).</summary>
+    public static readonly TelemetryKind CombatOrder = new(CombatOrderKind);
+
+    /// <summary>The combat window's closing summary row's kind.</summary>
+    public const string CombatSummaryKind = "combat_summary";
+
+    /// <summary>A combat ended (<see cref="CombatSummaryKind"/>).</summary>
+    public static readonly TelemetryKind CombatSummary = new(CombatSummaryKind);
 }

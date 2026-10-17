@@ -98,8 +98,9 @@ public sealed class HttpNativeTransport : INativeTransport
     private async Task<NativeResult> SendAsync(string tool, JsonObject arguments, NativeCallOptions options, CancellationToken cancellationToken)
     {
         var path = RoutePath(tool);
-        var requestForm = arguments.Count == 1 && arguments.TryGetPropertyValue(RequestArgument, out var request) && request is JsonValue value && value.TryGetValue<string>(out _);
-        var body = requestForm ? arguments[RequestArgument]!.GetValue<string>() : arguments.ToJsonString();
+        string? requestText = null;
+        var requestForm = arguments.Count == 1 && arguments.TryGetPropertyValue(RequestArgument, out var request) && request is JsonValue value && value.TryGetValue(out requestText);
+        var body = requestForm ? requestText! : arguments.ToJsonString();
         var deadline = options.Timeout is { } asked && asked > _timeout ? (asked > MaxCallTimeout ? MaxCallTimeout : asked) : _timeout;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(deadline);
@@ -143,12 +144,12 @@ public sealed class HttpNativeTransport : INativeTransport
             }
 
             var text = await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
-            if (JsonNode.Parse(text) is not JsonObject { } reply || reply["tools"] is not JsonArray tools)
+            if (JsonSerializer.Deserialize(text, ChannelJsonContext.Default.ChannelTools) is not { Tools: { } tools })
             {
                 return null;
             }
 
-            return [.. tools.Select(t => t?.GetValue<string>() ?? "").Where(t => t.Length > 0).Select(ToolName)];
+            return [.. tools.Select(t => t ?? "").Where(t => t.Length > 0).Select(ToolName)];
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -192,7 +193,7 @@ public sealed class HttpNativeTransport : INativeTransport
             JsonObject? structured;
             if (requestForm)
             {
-                structured = new JsonObject { ["payload"] = text };
+                structured = new JsonObject { { "payload", text } };
             }
             else
             {
@@ -206,13 +207,7 @@ public sealed class HttpNativeTransport : INativeTransport
                 }
             }
 
-            var envelope = new JsonObject
-            {
-                ["isError"] = false,
-                ["content"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = text }),
-                ["structuredContent"] = structured?.DeepClone(),
-            };
-            return new NativeResult(envelope, structured);
+            return new NativeResult(Envelope(false, text, structured?.DeepClone()), structured);
         }
 
         var (code, detail) = ReadFailure(text);
@@ -226,25 +221,26 @@ public sealed class HttpNativeTransport : INativeTransport
             throw new NativeTransportException($"native transport failure: {tool}: {code}: {detail}");
         }
 
-        var refusal = new JsonObject { ["reason"] = detail, ["code"] = code, ["status"] = (int)status };
-        var failed = new NativeResult(
-            new JsonObject
-            {
-                ["isError"] = true,
-                ["content"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = text }),
-                ["structuredContent"] = refusal,
-            },
-            refusal);
+        var refusal = new JsonObject { { "reason", detail }, { "code", code }, { "status", (int)status } };
+        var failed = new NativeResult(Envelope(true, text, refusal), refusal);
         throw new NativeRefusedException(tool, Refusals.Cause(refusal), failed);
     }
+
+    /// <summary>The tool-call envelope of one reply: its error flag, the raw text as content and the structured body.</summary>
+    private static JsonObject Envelope(bool isError, string text, JsonNode? structured) => new()
+    {
+        { "isError", isError },
+        { "content", new JsonArray(new JsonObject { { "type", "text" }, { "text", text } }) },
+        { "structuredContent", structured },
+    };
 
     private static (string Code, string Detail) ReadFailure(string text)
     {
         try
         {
-            if (JsonNode.Parse(text) is JsonObject failure)
+            if (JsonNode.Parse(text) is JsonObject failure && failure.Deserialize(ChannelJsonContext.Default.ChannelFailure) is { } read)
             {
-                return (failure.Member("code").AsString(), failure.Member("detail").AsString());
+                return (ChannelJson.Text(read.Code), ChannelJson.Text(read.Detail));
             }
         }
         catch (JsonException)
@@ -292,9 +288,9 @@ internal static class Refusals
             return "";
         }
 
-        foreach (var key in new[] { "reason", "exception", "error", "message" })
+        foreach (var candidate in structured.Deserialize(ChannelJsonContext.Default.RefusalAccount)?.Candidates() ?? [])
         {
-            var line = FirstLine(structured.Member(key).AsString());
+            var line = FirstLine(candidate);
             if (line.Length > 0)
             {
                 return line;

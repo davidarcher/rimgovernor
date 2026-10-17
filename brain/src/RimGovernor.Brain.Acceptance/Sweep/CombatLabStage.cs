@@ -46,9 +46,6 @@ public sealed class StagedFixture
     }
 }
 
-/// <summary>One pawn as test/lab_stage action read reports it.</summary>
-public readonly record struct LabPosition(string Id, string Side, int X, int Z, bool Downed, bool Dead);
-
 /// <summary>
 /// Staging (Go <c>combatlab/stage.go</c>): wipes the lab to a fixture's colonists, builds it around the wipe's centre
 /// and stages it, then reads the lab back.
@@ -68,15 +65,14 @@ public static class CombatStage
             edit(probe, 0, 0);
         }
 
-        var wipe = await h.CallAsync("combatlab-wipe-" + name, DebugGame.LabStartTool, new JsonObject { ["colonists"] = probe.Colonists }, cancellationToken).ConfigureAwait(false);
-        if (wipe["success"].AsBool() != true)
+        var wipe = await h.CallAsync("combatlab-wipe-" + name, DebugGame.LabStartTool, new JsonObject { { "colonists", probe.Colonists } }, cancellationToken).ConfigureAwait(false);
+        var wiped = CombatServe.Typed<Fx.CombatLabWipe>(DebugGame.LabStartTool, wipe);
+        if (!wiped.Success)
         {
             throw new AcceptanceException($"{DebugGame.LabStartTool} wipe for {name} refused: {wipe.ToJson()}");
         }
 
-        var center = wipe["center"].AsMap() ?? [];
-        var cx = (int)center["x"].AsNumber();
-        var cz = (int)center["z"].AsNumber();
+        var (cx, cz) = (wiped.Center.X, wiped.Center.Z);
         var f = CombatFixtures.Build(name, cx, cz);
         foreach (var edit in edits)
         {
@@ -128,70 +124,37 @@ public static class CombatStage
             throw new AcceptanceException("reseed needs a non-zero seed");
         }
 
-        var spec = new JsonObject { ["seed"] = seed }.ToJsonString();
+        var spec = new JsonObject { { "seed", seed } }.ToJsonString();
         var reply = await h.CallAsync(
             "combatlab-reseed-" + seed.ToString(CultureInfo.InvariantCulture),
             CombatFixtures.LabTool,
-            new JsonObject { ["action"] = "reseed", ["spec"] = spec },
+            new JsonObject { { "action", "reseed" }, { "spec", spec } },
             cancellationToken).ConfigureAwait(false);
-        return ParseReseed(reply, seed);
-    }
-
-    /// <summary>Checks a reseed reply echoed the seed and carried draws.</summary>
-    public static List<int> ParseReseed(JsonObject reply, int seed)
-    {
-        if (reply["success"].AsBool() != true)
+        var read = CombatServe.Typed<Fx.LabReseedRead>(CombatFixtures.LabTool, reply);
+        if (!read.Success)
         {
             throw new AcceptanceException($"{CombatFixtures.LabTool} reseed {seed} refused: {reply.ToJson()}");
         }
 
-        var got = (int)reply["seed"].AsNumber();
-        if (got != seed)
+        if (read.Seed != seed)
         {
-            throw new AcceptanceException($"{CombatFixtures.LabTool} reseeded under {got}, want {seed}");
+            throw new AcceptanceException($"{CombatFixtures.LabTool} reseeded under {read.Seed}, want {seed}");
         }
 
-        var draws = new List<int>();
-        foreach (var d in reply["draws"].AsSlice())
-        {
-            draws.Add((int)d.AsNumber());
-        }
-
-        return draws.Count == 0
+        return read.Draws.Count == 0
             ? throw new AcceptanceException($"{CombatFixtures.LabTool} reseed {seed} read back no draws: {reply.ToJson()}")
-            : draws;
+            : [.. read.Draws];
     }
 
     /// <summary>
     /// Runs <paramref name="n"/> synchronous game ticks on the paused lab (no clock, no safety stops: the fixture's
     /// hostiles are the point), then reads.
     /// </summary>
-    public static Task<(Dictionary<string, LabPosition> Pawns, int Tick)> TickAsync(Harness h, int n, CancellationToken cancellationToken) =>
-        ReadCoreAsync(h, new JsonObject { ["action"] = "tick", ["ticks"] = n }, cancellationToken);
-
-    private static async Task<(Dictionary<string, LabPosition> Pawns, int Tick)> ReadCoreAsync(Harness h, JsonObject args, CancellationToken cancellationToken)
+    public static async Task<Fx.LabFightRead> TickAsync(Harness h, int n, CancellationToken cancellationToken)
     {
-        var reply = await h.CallAsync("combatlab-" + args["action"].AsString(), CombatFixtures.LabTool, args, cancellationToken).ConfigureAwait(false);
-        if (reply["success"].AsBool() != true)
-        {
-            throw new AcceptanceException($"{CombatFixtures.LabTool} read refused: {reply.ToJson()}");
-        }
-
-        var output = new Dictionary<string, LabPosition>(StringComparer.Ordinal);
-        foreach (var r in reply["pawns"].AsSlice())
-        {
-            var row = r.AsMap() ?? [];
-            var p = new LabPosition(
-                row["id"].AsString(),
-                row["side"].AsString(),
-                (int)row["x"].AsNumber(),
-                (int)row["z"].AsNumber(),
-                row["downed"].AsBool() == true,
-                row["dead"].AsBool() == true);
-            output[p.Id] = p;
-        }
-
-        return (output, (int)reply["tick"].AsNumber());
+        var reply = await h.CallAsync("combatlab-tick", CombatFixtures.LabTool, new JsonObject { { "action", "tick" }, { "ticks", n } }, cancellationToken).ConfigureAwait(false);
+        var read = CombatServe.Typed<Fx.LabFightRead>(CombatFixtures.LabTool, reply);
+        return read.Success ? read : throw new AcceptanceException($"{CombatFixtures.LabTool} read refused: {reply.ToJson()}");
     }
 
     private static void CheckPawn(LabPawn want, Fx.StagedPawn got, string lord)

@@ -188,6 +188,7 @@ public sealed partial class CheckpointRing
     {
         // The pause is acknowledged before the mode reads manual; wait for it.
         var manualDeadline = Now() + ToTimestamp(TimeSpan.FromSeconds(30));
+        using var pace = Wait.Pace(TimeSpan.FromMilliseconds(500));
         while (true)
         {
             ServiceApiReply? state = null;
@@ -212,10 +213,10 @@ public sealed partial class CheckpointRing
                 throw new AcceptanceException($"service did not reach manual control after pause: {state?.Body.ToJson() ?? "null"}");
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+            await pace.NextAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        var saved = await apiCall("POST", "/api/lifecycle/save", new JsonObject { ["requestId"] = $"{prefix}-save-{stamp}", ["saveName"] = name }, token, cancellationToken).ConfigureAwait(false);
+        var saved = await apiCall("POST", "/api/lifecycle/save", new JsonObject { { "requestId", $"{prefix}-save-{stamp}" }, { "saveName", name } }, token, cancellationToken).ConfigureAwait(false);
         if (saved.Status != 201)
         {
             throw new AcceptanceException($"save status={saved.Status} body={saved.Body.ToJson()}");
@@ -231,5 +232,5 @@ public sealed partial class CheckpointRing
     }
 
     private static JsonObject RequestBody(string requestId, JsonObject? identity) =>
-        new() { ["requestId"] = requestId, ["expected"] = identity?.DeepClone() };
+        new() { { "requestId", requestId }, { "expected", identity?.DeepClone() } };
 }

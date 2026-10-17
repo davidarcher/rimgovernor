@@ -1,21 +1,20 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Contracts.Wire;
+using Common = RimGovernor.Contracts.Wire.Common;
+using Mirror = RimGovernor.Contracts.Wire.Mirror;
+using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>The combat sections of one snapshot frame (Go <c>bridge.Combat</c> as the family reads it).</summary>
-public sealed record CombatState(JsonObject Frame)
+public sealed record CombatState(Obs.BundleSnapshot Frame)
 {
-    public JsonObject? Context => Frame["context"].AsMap();
-
-    /// <summary>The frame's <c>combatPawns</c> rows.</summary>
-    public IReadOnlyList<JsonObject> Pawns => [.. Frame["combatPawns"].AsSlice().Select(p => p.AsMap() ?? [])];
-
     /// <summary>The frame's <c>combatEvents</c> rows.</summary>
-    public IReadOnlyList<JsonObject> Events => [.. Frame["combatEvents"].AsSlice().Select(p => p.AsMap() ?? [])];
+    public IReadOnlyList<Mirror.CombatEventRow> Events => Frame.CombatEvents;
 
     /// <summary>The frame's tick.</summary>
-    public long Tick => Context is { } context ? (long)context["tick"].NumberOrZero() : 0;
+    public long Tick => Frame.Context?.Tick ?? 0;
 }
 
 /// <summary>
@@ -27,12 +26,12 @@ public sealed class CombatFrames
     /// <summary>Bounds the wait for a frame after a step.</summary>
     private static readonly TimeSpan FrameWait = TimeSpan.FromSeconds(10);
 
-    private readonly JsonObject _identity;
+    private readonly Common.Identity _identity;
     private readonly SnapshotPoller _poller;
     private ulong _last;
     private ulong _seen;
 
-    private CombatFrames(JsonObject identity, SnapshotPoller poller)
+    private CombatFrames(Common.Identity identity, SnapshotPoller poller)
     {
         _identity = identity;
         _poller = poller;
@@ -43,15 +42,11 @@ public sealed class CombatFrames
     {
         var poller = new SnapshotPoller(h);
         _ = await poller.HeadAsync(cancellationToken).ConfigureAwait(false);
-        return new CombatFrames(identity, poller);
+        return new CombatFrames(Harness.IdentityOf(identity), poller);
     }
 
     /// <summary>The combat state of the first frame published after the last one read and captured at or past <paramref name="tick"/>.</summary>
-    public async Task<CombatState> NextAsync(long tick, CancellationToken cancellationToken) =>
-        new(await SnapshotAsync(tick, cancellationToken).ConfigureAwait(false));
-
-    /// <summary>The first frame published after the last one read and captured at or past <paramref name="tick"/>.</summary>
-    public async Task<JsonObject> SnapshotAsync(long tick, CancellationToken cancellationToken)
+    public async Task<CombatState> NextAsync(long tick, CancellationToken cancellationToken)
     {
         var deadline = DateTime.UtcNow + FrameWait;
         while (true)
@@ -60,17 +55,17 @@ public sealed class CombatFrames
             if (frame is not null)
             {
                 _seen = frame.Number;
-                var v = JsonNode.Parse(frame.Payload)?.AsObject() ?? throw new AcceptanceException($"snapshot frame {frame.Number} is not a JSON object");
-                if (new CombatState(v).Tick >= tick)
+                var state = new CombatState(frame.Frame);
+                if (state.Tick >= tick)
                 {
                     _last = frame.Number;
-                    var identity = v["context"].AsMap()?["identity"];
-                    if (!Dyn.DeepEqual(identity, _identity))
+                    var identity = frame.Frame.Context?.Identity;
+                    if (identity != _identity)
                     {
-                        throw new AcceptanceException($"frame {SweepText.Tag((long)frame.Number)} describes another world: {identity.ToJson()}");
+                        throw new AcceptanceException($"frame {SweepText.Tag((long)frame.Number)} describes another world: {(identity is null ? "null" : WireJson.Serialize(identity))}");
                     }
 
-                    return v;
+                    return state;
                 }
             }
 

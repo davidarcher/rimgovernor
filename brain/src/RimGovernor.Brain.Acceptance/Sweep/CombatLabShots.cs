@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text;
-using System.Text.Json.Nodes;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using RimGovernor.Brain.Simulation.CombatMetrics;
+using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -14,33 +16,21 @@ internal static class CombatLabShots
     /// <summary>The bundle file next to the reads file holding the shot tap (scripts/fixtures/DebugStartFixture.cs, LabShotLedger; #2917).</summary>
     internal const string ShotsFile = "combat_shots.jsonl";
 
-    // The fields of each row kind, in the order the Go structs encode them: s string, i int, f float, b bool, a int array.
-    private static readonly Dictionary<string, (string Name, char Type)[]> Kinds = new(StringComparer.Ordinal)
-    {
-        ["shot"] = [("seed", 'i'), ("k", 's'), ("tick", 'i'), ("id", 'i'), ("shooter", 's'), ("side", 's'), ("x", 'i'), ("z", 'i'), ("target", 's'), ("tx", 'i'), ("tz", 'i'), ("dx", 'i'), ("dz", 'i'), ("burst", 'i'), ("of", 'i'), ("weapon", 's'), ("proj", 's'), ("tti", 'i')],
-        ["impact"] = [("seed", 'i'), ("k", 's'), ("tick", 'i'), ("id", 'i'), ("hit", 's'), ("x", 'i'), ("z", 'i'), ("dealt", 'f')],
-        ["job"] = [("seed", 'i'), ("k", 's'), ("tick", 'i'), ("pawn", 's'), ("side", 's'), ("job", 's'), ("forced", 'b'), ("thing", 's'), ("x", 'i'), ("z", 'i')],
-        ["stance"] = [("seed", 'i'), ("k", 's'), ("tick", 'i'), ("pawn", 's'), ("side", 's'), ("stance", 's'), ("left", 'i'), ("thing", 's'), ("x", 'i'), ("z", 'i')],
-        ["draft"] = [("seed", 'i'), ("k", 's'), ("tick", 'i'), ("pawn", 's'), ("drafted", 'b')],
-        ["think"] = [("seed", 'i'), ("k", 's'), ("pawn", 's'), ("ticks", 'a'), ("count", 'i')],
-    };
-
     /// <summary>
-    /// Saves the rows of a test/lab_stage shots reply to the bundle, one line each. A reply with dropped rows (the tap is
-    /// bounded) is an error: a truncated ledger would read as fewer shots.
+    /// Saves the rows of a test/lab_stage shots reply to the bundle, one line each as the tap wrote it. A reply with
+    /// dropped rows (the tap is bounded) is an error: a truncated ledger would read as fewer shots.
     /// </summary>
-    internal static async Task WriteShotsAsync(string dir, JsonObject reply, CancellationToken cancellationToken)
+    internal static async Task WriteShotsAsync(string dir, Fx.LabShotsRead reply, CancellationToken cancellationToken)
     {
-        var dropped = (int)reply["shotsDropped"].NumberOrZero();
-        if (dropped > 0)
+        if (reply.ShotsDropped > 0)
         {
-            throw new AcceptanceException($"shot tap dropped {SweepText.Tag(dropped)} rows");
+            throw new AcceptanceException($"shot tap dropped {SweepText.Tag(reply.ShotsDropped)} rows");
         }
 
         var text = new StringBuilder();
-        foreach (var row in reply["shots"].AsSlice())
+        foreach (var row in reply.Shots)
         {
-            _ = text.Append(row?.ToJsonString()).Append('\n');
+            _ = text.Append(row.GetRawText()).Append('\n');
         }
 
         await File.WriteAllTextAsync(Path.Combine(dir, ShotsFile), text.ToString(), new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
@@ -51,15 +41,7 @@ internal static class CombatLabShots
     {
         var data = await File.ReadAllTextAsync(Path.Combine(dir, CombatLabBundle.ReadsFile), Encoding.UTF8, cancellationToken).ConfigureAwait(false);
         var lines = data.Trim().Split('\n');
-        try
-        {
-            var last = JsonNode.Parse(lines[^1])?.AsObject() ?? throw new AcceptanceException($"{CombatLabBundle.ReadsFile}: last line is not an object");
-            return CombatLabBundle.ReadRows(last).Damage;
-        }
-        catch (System.Text.Json.JsonException e)
-        {
-            throw new AcceptanceException($"{CombatLabBundle.ReadsFile}: {e.Message}", e);
-        }
+        return [.. CombatLabBundle.ParseRead(lines[^1]).Damage.Select(CombatLabBundle.Hit)];
     }
 
     /// <summary>
@@ -70,7 +52,7 @@ internal static class CombatLabShots
     /// </summary>
     internal static void StampShots(TextWriter w, int seed, string bundle, IReadOnlyList<MetricsHit> damage)
     {
-        var rows = new List<(string Kind, JsonObject Row)>();
+        var rows = new List<object>();
         var line = 0;
         foreach (var raw in bundle.Split('\n'))
         {
@@ -80,77 +62,75 @@ internal static class CombatLabShots
                 continue;
             }
 
-            JsonObject row;
-            try
+            var kind = Row(raw, line, "", ShotTapJsonContext.Default.ShotTapKind).K;
+            rows.Add(kind switch
             {
-                row = JsonNode.Parse(raw)?.AsObject() ?? throw new AcceptanceException($"line {SweepText.Tag(line)}: not an object");
-            }
-            catch (System.Text.Json.JsonException e)
-            {
-                throw new AcceptanceException($"line {SweepText.Tag(line)}: {e.Message}", e);
-            }
-
-            var kind = row["k"].AsString();
-            if (!Kinds.TryGetValue(kind, out var fields))
-            {
-                throw new AcceptanceException($"line {SweepText.Tag(line)}: unknown kind \"{kind}\"");
-            }
-
-            foreach (var (name, _) in row)
-            {
-                if (!fields.Any(f => f.Name == name))
-                {
-                    throw new AcceptanceException($"line {SweepText.Tag(line)} ({kind}): unknown field \"{name}\"");
-                }
-            }
-
-            rows.Add((kind, row));
+                "shot" => Row(raw, line, kind, ShotTapJsonContext.Default.ShotTapShot),
+                "impact" => Row(raw, line, kind, ShotTapJsonContext.Default.ShotTapImpact),
+                "job" => Row(raw, line, kind, ShotTapJsonContext.Default.ShotTapJob),
+                "stance" => Row(raw, line, kind, ShotTapJsonContext.Default.ShotTapStance),
+                "draft" => Row(raw, line, kind, ShotTapJsonContext.Default.ShotTapDraft),
+                "think" => Row(raw, line, kind, ShotTapJsonContext.Default.ShotTapThink),
+                _ => throw new AcceptanceException($"line {SweepText.Tag(line)}: unknown kind \"{kind}\""),
+            });
         }
 
         var shooter = new Dictionary<int, string>();
-        foreach (var (kind, row) in rows)
+        foreach (var shot in rows.OfType<ShotTapShot>())
         {
-            if (kind == "shot")
-            {
-                shooter[(int)row["id"].NumberOrZero()] = row["shooter"].AsString();
-            }
+            shooter[shot.Id] = shot.Shooter;
         }
 
-        foreach (var (kind, row) in rows)
+        foreach (var row in rows)
         {
-            var output = new JsonObject();
-            foreach (var (name, type) in Kinds[kind])
+            w.Write(row switch
             {
-                output[name] = type switch
-                {
-                    's' => row[name].AsString(),
-                    'b' => row[name].AsBool() == true,
-                    'f' => row[name].NumberOrZero(),
-                    'a' => new JsonArray([.. row[name].AsSlice().Select(v => (JsonNode?)JsonValue.Create((int)v.NumberOrZero()))]),
-                    _ => (int)row[name].NumberOrZero(),
-                };
-            }
-
-            output["seed"] = seed;
-            if (kind == "impact" && output["hit"].AsString().Length > 0)
-            {
-                var dealt = output["dealt"].NumberOrZero();
-                var id = (int)output["id"].NumberOrZero();
-                var tick = (int)output["tick"].NumberOrZero();
-                foreach (var h in damage)
-                {
-                    if (h.Tick == tick && h.Victim == output["hit"].AsString() && h.Instigator == shooter.GetValueOrDefault(id, ""))
-                    {
-                        dealt += h.Dealt;
-                    }
-                }
-
-                output["dealt"] = dealt;
-            }
-
-            w.Write(output.ToJsonString());
+                ShotTapShot shot => JsonSerializer.Serialize(shot with { Seed = seed }, ShotTapJsonContext.Default.ShotTapShot),
+                ShotTapImpact impact => JsonSerializer.Serialize(Dealt(impact with { Seed = seed }, shooter, damage), ShotTapJsonContext.Default.ShotTapImpact),
+                ShotTapJob job => JsonSerializer.Serialize(job with { Seed = seed }, ShotTapJsonContext.Default.ShotTapJob),
+                ShotTapStance stance => JsonSerializer.Serialize(stance with { Seed = seed }, ShotTapJsonContext.Default.ShotTapStance),
+                ShotTapDraft draft => JsonSerializer.Serialize(draft with { Seed = seed }, ShotTapJsonContext.Default.ShotTapDraft),
+                ShotTapThink think => JsonSerializer.Serialize(think with { Seed = seed }, ShotTapJsonContext.Default.ShotTapThink),
+                _ => throw new InvalidOperationException($"unhandled shot tap row {row.GetType().Name}"),
+            });
             w.Write('\n');
         }
+    }
+
+    // One tap line as its kind's record; a malformed line or a field the kind does not declare names the line.
+    private static T Row<T>(string raw, int line, string kind, JsonTypeInfo<T> info)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(raw, info) ?? throw new AcceptanceException($"line {SweepText.Tag(line)}: not an object");
+        }
+        catch (JsonException e)
+        {
+            var at = kind.Length > 0 ? $"line {SweepText.Tag(line)} ({kind})" : $"line {SweepText.Tag(line)}";
+            throw new AcceptanceException($"{at}: {e.Message}", e);
+        }
+    }
+
+    // An impact on a thing with the damage its projectile dealt added: the ledger rows at its tick whose victim is the
+    // thing hit and whose instigator shot the projectile.
+    private static ShotTapImpact Dealt(ShotTapImpact impact, Dictionary<int, string> shooter, IReadOnlyList<MetricsHit> damage)
+    {
+        if (impact.Hit.Length == 0)
+        {
+            return impact;
+        }
+
+        var dealt = impact.Dealt;
+        var by = shooter.GetValueOrDefault(impact.Id, "");
+        foreach (var h in damage)
+        {
+            if (h.Tick == impact.Tick && h.Victim == impact.Hit && h.Instigator == by)
+            {
+                dealt += h.Dealt;
+            }
+        }
+
+        return impact with { Dealt = dealt };
     }
 
     /// <summary>
