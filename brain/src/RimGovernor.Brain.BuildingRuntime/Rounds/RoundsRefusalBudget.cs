@@ -4,12 +4,6 @@ internal static partial class BuildingRuntimePackage
 {
     internal static GenerationSnapshot BudgetWorld(GenerationSnapshot s) => s with { Plan = default, Revision = default };
 
-    internal static IReadOnlyList<PlanId> StandardMethodPlans(IReadOnlyList<Method> history, ulong episode, string prefix) =>
-        history.Where(m => m.Episode == episode && m.MethodId.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(m => m.Plan).ToList();
-
-    internal static IReadOnlyList<PlanId> IncidentPlans(IReadOnlyList<IncidentMethod> methods, string prefix) =>
-        methods.Where(m => m.Method.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(m => m.Plan).ToList();
-
     internal static RefusalBudget RefusalLedger(StoreJournal journal, IReadOnlyList<PlanId> plans, Func<Progress, string> subjectOf, CancellationToken ct)
     {
         var budget = new RefusalBudget();
@@ -88,23 +82,10 @@ internal static partial class BuildingRuntimePackage
         }
     }
 
-    internal static (MethodId Method, Verdict Verdict, bool Admitted) AdmitStandardMethod(StoreJournal journal, StandardState goal, string prefix, GenerationSnapshot world, CancellationToken ct)
-    {
-        var (verdict, ok) = AdmitStandardSubject(journal, goal, prefix, world, ct);
-        if (!ok)
-        {
-            return (default, verdict, false);
-        }
-
-        return (NextMethodId(prefix, HistoryMethodIds(goal.History, goal.Standard.Episode)), default, true);
-    }
-
-    internal static (Verdict Verdict, bool Admitted) AdmitStandardSubject(StoreJournal journal, StandardState goal, string prefix, GenerationSnapshot world, CancellationToken ct) =>
-        AdmitSubject(journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), world, ct);
-
-    internal static IReadOnlyList<MethodId> HistoryMethodIds(IReadOnlyList<Method> history, ulong episode) =>
-        history.Where(m => m.Episode == episode).Select(m => m.MethodId).ToList();
-
-    internal static IReadOnlyList<MethodId> IncidentMethodIds(IReadOnlyList<IncidentMethod> methods) =>
-        methods.Select(m => m.Method).ToList();
+    /// <summary>
+    /// The refusal budget of the subject <paramref name="prefix"/> over the latest attempt of every Method of
+    /// <paramref name="owner"/> whose MethodId starts with it (the layout/defense Need's tiers and cover clearing, #3314).
+    /// </summary>
+    internal static (Verdict Verdict, bool Admitted) AdmitOwnerSubject(StoreJournal journal, IWorkOwner owner, string prefix, GenerationSnapshot world, CancellationToken ct) =>
+        AdmitSubject(journal, prefix, [.. journal.OwnerMethodHistory(owner, ct).Where(m => m.Method.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(m => m.Plan)], world, ct);
 }

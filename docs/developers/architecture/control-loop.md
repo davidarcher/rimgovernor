@@ -353,7 +353,26 @@ clock order (envelope before stone shell) only implied. Either precondition appl
 only when the other Need is composed. The HomeCoverage and StoneShell latches and
 their codec fields, the inspections, facility detectors, labor rows,
 `UpkeepIssuedConcerns` rows, clock slots and the four planners are deleted.
-EnsureDefensiveLayout is still a Concern.
+
+**Layout family, defense (#3314).** `layout/defense` (Development) replaced
+EnsureDefensiveLayout, composed by the `defensive-layout` toggle. It is met while
+the stored layout (`family/defense_layout`) was verified complete in this load,
+at the map's latest fight and within the re-verify window, and no open fight
+waits in rooms to harden. Otherwise it is unmet; its deficit is 0 while every
+tier stands and 1 while a tier is owed. It is unknown while the journal facts
+are unread. The family reads combat as facts only (the military/combat Need's
+latest `engage-<map>` plan and the open fights); no combat Need is a
+precondition. The work step is the old planner run under the Need owner:
+fight-time room hardening, then the killbox proposal, re-verification and one
+tier at a time (`defense-<tier>-[r<n>-]<attempt>`, `defense-cover-<tick>`,
+`defense-wait-<tick>`, `defense-retier-<digest>`, `plan-dig-killbox`), each
+admitted by claims (FoundationRemoval claims `foundation/x/z`, Excavation
+`dig/x/z`). Tier attempts stay in the record and restart for unbuilt tiers when
+the record is from another load or map, as the Need's per-load Method history
+does. An older save's `Standard` and `Episode` record fields are read and
+ignored. The ConcernId, its inspection and detector, `RoundsPolicy.DefensiveLayout`,
+`RoundsFacts.DefensiveLayoutStanding`, the deficit branch and the clock slot are
+deleted.
 
 **Economy family, research (#3263).** `economy/research` (Development) replaced
 EnsureResearch: unmet while the first unfinished recorded research need (the
@@ -678,7 +697,7 @@ anomaly).
 | Food | `food`: Needs `supply`, `cooking`, `baby-feeding`, `blight` (#3254; EnsureFoodSupply, EnsureCooking, MaintainBabyFeeding, RemoveBlight deleted) |
 | Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
 | Rooms | `rooms`: Needs `lighting`, `flooring`, `art`, `comfort`, `hosting`, `party-spot`, `gatherings` (#3255; its five Concerns and the comfort phase latch deleted) |
-| Layout | `layout`: Needs `home-coverage`, `firebreak`, `stone-shell`, `climate-envelope` (#3256; MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope deleted); EnsureDefensiveLayout |
+| Layout | `layout`: Needs `home-coverage`, `firebreak`, `stone-shell`, `climate-envelope` (#3256; MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope deleted), `defense` (#3314; EnsureDefensiveLayout deleted) |
 | Shelter | `shelter`: Needs `starter`, `sleeping`, `expansion`, `temperature`, `safe-area` (#3257; MaintainHousing, MaintainShelter, EnsureTemperatureSafety deleted; the housing phase latch is the `sleeping` and `expansion` preconditions) |
 | Power | `power`: Need `basic` (#3257; EnsureBasicPower deleted) |
 | Medical | `medical`: Needs `critical/<pawn>`, `care`, `reserves`, `surgery` (#3258; CriticalMedical, MaintainMedicalReserves, MaintainSurgery deleted) |

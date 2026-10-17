@@ -325,7 +325,6 @@ internal static class CombatLabMetrics
         var record = new DefenseLayoutRecord
         {
             World = world,
-            Standard = new StandardId("combatlab-layout"),
             Firing = [.. l.Firing.Select(c => new Cell(c.X, c.Z))],
             Retreat = [.. l.Retreat.Select(c => new Cell(c.X, c.Z))],
 

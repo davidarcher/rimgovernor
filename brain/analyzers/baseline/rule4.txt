@@ -56,7 +56,6 @@ BuildingRuntime/Rounds/RoundsAcquisition.cs|RoundsAcquisitionPlanner.StepAsync
 BuildingRuntime/Rounds/RoundsAnimalContainment.cs|BuildingRuntimePackage.ShellSharedStuff
 BuildingRuntime/Rounds/RoundsBabyFeeding.cs|Rounder.ReviewBabyFeeding
 BuildingRuntime/Rounds/RoundsDefenseLayoutTiers.cs|RoundsDefenseLayoutPlanner.ProposeAsync
-BuildingRuntime/Rounds/RoundsDefenseTier.cs|RoundsDefenseLayoutPlanner.Retier
 BuildingRuntime/Rounds/RoundsDefenseTiers.cs|RoundsDefenseLayoutPlanner.AdviseBlocksAsync
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Rounder.ReviewReserve
 BuildingRuntime/Rounds/RoundsIdeoligion.cs|Rounder.ReformChoice

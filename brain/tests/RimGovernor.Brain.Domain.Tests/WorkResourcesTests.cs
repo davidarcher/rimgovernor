@@ -10,13 +10,12 @@ using Journal = RimGovernor.Brain.Store.Store;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// Facts that hold ordinary Standards unmet for store-level owner tests: MaintainRoutes (a store one colonist cannot
-/// reach) and, under <see cref="StandardTestFacts.LayoutOwed"/>, EnsureDefensiveLayout (a configured layout not yet standing).
+/// Facts that hold an ordinary Standard unmet for store-level owner tests: MaintainRoutes (a store one colonist cannot
+/// reach). A second owner beside it is a Need (EnsureDefensiveLayout, the other generic Standard, became the
+/// layout/defense Need in #3314).
 /// </summary>
 internal static class StandardTestFacts
 {
-    internal static RoundsPolicy LayoutOwed => DefaultRoundsPolicy() with { DefensiveLayout = true };
-
     internal static UpkeepObservation RouteOwed => new() { Routes = Known(new RoutesObservation { Pawns = ["a"],
         Facilities = [new() { Id = "test-store", Kind = "storage", Travel = [new() { Pawn = "a", Reachable = false }] }] }) };
 
@@ -259,10 +258,10 @@ public sealed class WorkResourcesTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-contested-proposal-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
-            Policy = StandardTestFacts.LayoutOwed, Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
-        var existing = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
-        var proposer = Assert.Single(review.Standards, s => s.Standard.Kind == EnsureDefensiveLayout);
-        journal.CommitMethod(existing.Standard.Id, existing.Revision, new("method"), Plan("held", Delivery("held")), ct);
+            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
+        var proposer = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
+        // The held work is a Need's, so the Standard's own open-work gate does not answer first.
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(FoodSupplyNeed, World, new("method"), "", Plan("held", Delivery("held")), ct).Outcome);
         var proposed = Delivery("proposed", "helper").PawnActivities!;
         proposed = proposed with { Orders = proposed.Orders.Select(o => o with { Method = "proposal" }).ToArray() };
         var refusal = Assert.Throws<NotAdmittedException>(() => journal.CommitMethod(proposer.Standard.Id,

@@ -11,7 +11,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The layout family (#3256): home coverage, firebreak, climate envelope and stone shell are plain thresholds over
 /// this review's censuses; the firebreak waits on home coverage and the stone shell on the envelope when those are
-/// composed; the pure Methods are admitted under the Need owner, side by side, held only by their claims.
+/// composed; the pure Methods are admitted under the Need owner, side by side, held only by their claims. The
+/// defensive layout (#3314) is met while its stored layout is verified and no fight waits; its record survives a
+/// reload, and an older save's Standard fields are ignored.
 /// </summary>
 public sealed class LayoutFamilyTests
 {
@@ -156,6 +158,80 @@ public sealed class LayoutFamilyTests
 
         // Nothing owed builds no order.
         Assert.Null(LayoutRounds.FirebreakCandidate(Ring(), none));
+    }
+
+    [Fact]
+    public void TheDefenseNeedIsMetOnlyWhileTheLayoutIsVerifiedAndNoFightWaits()
+    {
+        var composed = new LayoutNeeds { Defense = true };
+        Need Of(bool standing, bool verified, bool waiting) =>
+            Single(composed, new() { Defense = Known(new DefenseLayoutFacts { Standing = standing, Verified = verified, WaitingFight = waiting }) });
+
+        var met = Of(standing: true, verified: true, waiting: false);
+        Assert.Equal((LayoutFamily.Defense, NeedTier.Development, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
+        Assert.Contains(new NeedEvidence("verified", Known("true")), met.Evidence);
+
+        // A fight waiting in rooms to harden, or a verification that is not current, is work; a tier owed is the deficit.
+        Assert.Equal((Satisfaction.Unmet, Known(0.0)), (Of(true, true, true).Satisfaction, Of(true, true, true).Deficit));
+        Assert.Equal((Satisfaction.Unmet, Known(0.0)), (Of(true, false, false).Satisfaction, Of(true, false, false).Deficit));
+        Assert.Equal((Satisfaction.Unmet, Known(1.0)), (Of(false, false, false).Satisfaction, Of(false, false, false).Deficit));
+
+        // No hysteresis: the same facts give the same answer whatever came before.
+        Assert.Equal(Satisfaction.Met, Of(true, true, false).Satisfaction);
+
+        var unread = Single(composed, new() { Defense = Unknown<DefenseLayoutFacts>() });
+        Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
+        Assert.Equal(Satisfaction.Unknown, Single(composed, new()).Satisfaction);
+        Assert.DoesNotContain(new LayoutFamily(All).Derive(new()), n => n.Id == LayoutFamily.Defense);
+    }
+
+    [Fact]
+    public void FoundationRemovalsAndDigsClaimTheirCells()
+    {
+        var actions = new[]
+        {
+            DomainAction.NewFoundationRemovalAction(new("f"), new FoundationRemoval("TestBridge", new(3, 4))),
+            DomainAction.NewExcavationAction(new("d"), new Excavation(new(5, 6), "TestRock")),
+        };
+        var claims = MethodClaimsOf(new WorkAdmissionEvidence(), [.. actions.Select(a => new WorkAction(new("p"), a, new ProgressView { Action = a.Id, Stage = Stage.Pending }))]);
+        Assert.Contains("foundation/3/4", claims.Targets);
+        Assert.Contains("dig/5/6", claims.Targets);
+    }
+
+    [Fact]
+    public void TheDefenseLayoutRecordSurvivesAReloadAndAnOlderSavesStandardIsIgnored()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var world = new RimGovernor.Brain.Store.World(World.Colony, World.Load, World.Map);
+        using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-defense-layout-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        source.SaveDefenseLayout(new DefenseLayoutRecord
+        {
+            World = world,
+            Killbox = "killbox-1",
+            Firing = [new(1, 1)],
+            Retreat = [new(1, 2)],
+            Tiers = [new DefenseTierRecord { Name = TierFiringLine, Attempts = 2 }],
+            Complete = true,
+            VerifiedCombat = "plan-fight",
+        }, ct);
+        var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
+
+        // An older save's record carries the retired EnsureDefensiveLayout Standard and its episode (#3314).
+        var blob = System.Text.Json.Nodes.JsonNode.Parse(saved[Journal.GovernorDefenseLayoutKey])!;
+        blob["record"]!["Standard"] = "std-legacy";
+        blob["record"]!["Episode"] = 7;
+        saved[Journal.GovernorDefenseLayoutKey] = blob.ToJsonString();
+
+        using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-defense-layout-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        loaded.RebuildStandards(saved, null, ct);
+        loaded.RebuildFamilies(saved, ct);
+        var record = loaded.LoadDefenseLayout(world, ct);
+        Assert.NotNull(record);
+        Assert.Equal(("killbox-1", true, "plan-fight"), (record.Killbox, record.Complete, record.VerifiedCombat));
+        Assert.Equal(2, Assert.Single(record.Tiers).Attempts);
+        var written = loaded.GovernorStateBlobs(ct)[Journal.GovernorDefenseLayoutKey];
+        Assert.DoesNotContain("Standard", written, StringComparison.Ordinal);
+        Assert.DoesNotContain("Episode", written, StringComparison.Ordinal);
     }
 
     private sealed class Colony : IDisposable

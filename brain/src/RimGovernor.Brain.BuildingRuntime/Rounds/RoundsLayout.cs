@@ -5,9 +5,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
 /// The runtime half of the layout family (#3256): its full read (the owned census for home coverage and the stone
-/// shell, the rooms census for the climate envelope, and this tick's firebreak ring review) and the work steps of
-/// the Needs that preview and admit buildings (the envelope's room waves and the stone shell's wall bundles), each
-/// committing under the Need owner and admitted by claims. Home coverage and the firebreak are pure proposals.
+/// shell, the rooms census for the climate envelope, this tick's firebreak ring review, and the stored defensive
+/// layout with the map's fights, #3314) and the work steps of the Needs that preview and admit buildings (the
+/// envelope's room waves, the stone shell's wall bundles and the defensive layout's tiers), each committing under
+/// the Need owner and admitted by claims. Home coverage and the firebreak are pure proposals.
 /// </summary>
 public sealed partial class LayoutRounds
 {
@@ -16,13 +17,15 @@ public sealed partial class LayoutRounds
     private readonly FirebreakMemory? _firebreak;
     private readonly IRoundsStoneShellSource? _stone;
     private readonly RoundsBuildingPlanner? _building;
+    private readonly RoundsDefenseLayoutPlanner? _defense;
 
     /// <summary>
     /// The family with <paramref name="needs"/> composed. The firebreak reads its ring through
     /// <paramref name="firebreak"/>, which the review drives every tick (its dwell clock is the ring plan's); the
-    /// stone shell previews and lists wall sites through <paramref name="stone"/>.
+    /// stone shell previews and lists wall sites through <paramref name="stone"/>; the defensive layout reads its site,
+    /// access and pawns and previews its tiers through <paramref name="defense"/>.
     /// </summary>
-    public LayoutRounds(Rounder reviewer, LayoutNeeds needs, IRoundsFirebreakSource? firebreak, IRoundsStoneShellSource? stone)
+    public LayoutRounds(Rounder reviewer, LayoutNeeds needs, IRoundsFirebreakSource? firebreak, IRoundsStoneShellSource? stone, IRoundsDefenseLayoutSource? defense = null)
     {
         if (reviewer is null || reviewer.Native is null)
         {
@@ -39,6 +42,10 @@ public sealed partial class LayoutRounds
         {
             _stone = stone ?? throw new ControlException("LayoutRounds: the stone shell needs a wall site source");
         }
+        if (needs.Defense)
+        {
+            _defense = new RoundsDefenseLayoutPlanner(reviewer, defense ?? throw new ControlException("LayoutRounds: the defensive layout needs a defense site source"));
+        }
         if (needs.ClimateEnvelope && reviewer.Native is IRoundsBuildingSource source)
         {
             _building = new RoundsBuildingPlanner
@@ -51,11 +58,15 @@ public sealed partial class LayoutRounds
         }
     }
 
-    /// <summary>An optional entry woken by the outcomes of its area edits, ring cuts and clearances, buildings, roofs and wall removals.</summary>
+    /// <summary>
+    /// An optional entry woken by the outcomes of its area edits, ring cuts and clearances, buildings, roofs, wall and
+    /// foundation removals and the killbox dig.
+    /// </summary>
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Optional,
-        Kinds = [ActionKind.Area, ActionKind.AreaPlantCut, ActionKind.CoverClearance, ActionKind.Building, ActionKind.BuildRoof, ActionKind.WallRemoval],
+        Kinds = [ActionKind.Area, ActionKind.AreaPlantCut, ActionKind.CoverClearance, ActionKind.Building, ActionKind.BuildRoof, ActionKind.WallRemoval,
+            ActionKind.FoundationRemoval, ActionKind.Excavation],
     };
 
     /// <summary>The family's scheduler entry.</summary>
@@ -67,8 +78,8 @@ public sealed partial class LayoutRounds
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world: the home-area diff and the flammable owned walls
     /// from the owned census, the rooms owed a vent or a roof from the rooms census, and the ring work this tick's
-    /// review left, unknown when the review did not plan the ring this tick. Throws when the read is from another
-    /// world or older than the review.
+    /// review left, unknown when the review did not plan the ring this tick, and the defensive layout's journal facts.
+    /// Throws when the read is from another world or older than the review.
     /// </summary>
     internal async Task<LayoutFacts> ReadAsync(FamilyReadScope scope, CancellationToken ct)
     {
@@ -112,10 +123,17 @@ public sealed partial class LayoutRounds
                 ? facts with { Firebreak = Known(work), FirebreakStep = FirebreakCandidate(work, ruins ?? []) }
                 : facts with { Firebreak = Unknown<FirebreakWork>() };
         }
+        if (_defense is not null)
+        {
+            facts = facts with { Defense = Known(DefenseLayoutFactsOf(_reviewer.Player, review, ct)) };
+        }
         return facts;
     }
 
-    /// <summary>The asynchronous step of a ready Need: the envelope's room waves or the stone shell's wall bundles; the proposed Needs have none.</summary>
+    /// <summary>
+    /// The asynchronous step of a ready Need: the envelope's room waves, the stone shell's wall bundles or the
+    /// defensive layout's tiers; the proposed Needs have none.
+    /// </summary>
     internal async Task<Verdict> WorkAsync(NeedWork work, LayoutFacts facts, CancellationToken ct)
     {
         if (work.Need.Id == LayoutFamily.ClimateEnvelope && _needs.ClimateEnvelope)
@@ -125,6 +143,10 @@ public sealed partial class LayoutRounds
         if (work.Need.Id == LayoutFamily.StoneShell && _stone is not null)
         {
             return await StoneShellStepAsync(work, ct).ConfigureAwait(false);
+        }
+        if (work.Need.Id == LayoutFamily.Defense && _defense is not null)
+        {
+            return await _defense.StepAsync(work, ct).ConfigureAwait(false);
         }
         return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
     }

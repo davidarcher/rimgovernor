@@ -317,7 +317,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return buildings.Where(b => !census.Standing(b.Definition, b.Cell)).ToList();
     }
 
-    internal async Task<(DefenseLayout Layout, List<Cell> Entrances, Verdict Held, bool Ok)> ProposeAsync(StandardState goal, RoundsReview review, ControlState state, RoundsReading read, CancellationToken call, CancellationToken epoch)
+    internal async Task<(DefenseLayout Layout, List<Cell> Entrances, Verdict Held, bool Ok)> ProposeAsync(NeedOwner goal, RoundsReview review, ControlState state, RoundsReading read, CancellationToken call, CancellationToken epoch)
     {
         var projection = read.Projection;
         var (killbox, region, home, ok) = DefenseKillbox(projection);
@@ -368,13 +368,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return (layout, request.Entrances.ToList(), default, true);
     }
 
-    internal async Task<(RoundsBuildingResult Result, bool Handled)> DigKillboxAsync(StandardState goal, RoundsReview review, ControlState state, RoundsReading read, Cell access, IReadOnlyList<RoleCell> planned, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingResult Result, bool Handled)> DigKillboxAsync(NeedOwner goal, RoundsReview review, ControlState state, RoundsReading read, Cell access, IReadOnlyList<RoleCell> planned, CancellationToken call, CancellationToken epoch)
     {
         if (_native is not IRoundsExcavationSource source)
         {
             return (new RoundsBuildingResult(), false);
         }
-        var dig = new RoundsBuildingPlanner { Reviewer = _reviewer, Concern = PolicyApi.EnsureDefensiveLayout, Excavation = source };
+        var dig = new RoundsBuildingPlanner { Reviewer = _reviewer, Concern = LayoutFamily.Defense.FilingKey, Need = LayoutFamily.Defense, Excavation = source };
         var step = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = read.Projection, Read = read.Reading };
         var p = _reviewer.Player;
         void Check()
@@ -391,19 +391,22 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
 internal static partial class BuildingRuntimePackage
 {
-    /// <summary>Whether the colony's defensive layout stands, as a fact; unknown when the policy does not ask for one.</summary>
-    internal static Fact<bool> RoundsDefensiveLayoutStanding(StoreJournal journal, RoundsPolicy p, GenerationSnapshot snapshot, CancellationToken ct)
+    /// <summary>
+    /// The layout/defense Need's facts, read from the journal alone (#3314): the stored layout of this world, whether
+    /// it was verified complete at the map's latest fight within the re-verify window, and whether an open fight
+    /// waits in rooms to harden. Combat is read as facts only; no combat Need gates the layout.
+    /// </summary>
+    internal static DefenseLayoutFacts DefenseLayoutFactsOf(Player p, RoundsReview review, CancellationToken ct)
     {
-        if (!p.DefensiveLayout)
+        var world = new StoreWorld { Colony = review.Snapshot.Colony, Load = review.Snapshot.Load, Map = review.Snapshot.Map };
+        var record = p.Journal.LoadDefenseLayout(world, ct);
+        var current = record is not null && record.Killbox != "" && record.World == world;
+        var combat = RoundsDefenseLayoutPlanner.DefenseCombatKey(p, review, ct);
+        return new DefenseLayoutFacts
         {
-            return Unknown<bool>();
-        }
-        var world = new StoreWorld { Colony = snapshot.Colony, Load = snapshot.Load, Map = snapshot.Map };
-        var record = journal.LoadDefenseLayout(world, ct);
-        if (record is null || record.World != world)
-        {
-            return Known(false);
-        }
-        return Known(record.Standing());
+            Standing = current && record!.Standing(),
+            Verified = current && combat != "" && record!.Complete && !RoundsDefenseLayoutPlanner.DefenseReverifyDue(record, review.Tick, combat),
+            WaitingFight = DefenseWaitingFight(p.Journal, world, ct) is not null,
+        };
     }
 }

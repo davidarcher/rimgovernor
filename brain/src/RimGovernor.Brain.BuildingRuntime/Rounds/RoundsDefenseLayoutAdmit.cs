@@ -7,7 +7,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal const long DefenseWallStone = 5;
     internal const long DefenseDoorStone = 25;
 
-    internal async Task<RoundsDefenseLayoutResult> AdmitAsync(StandardState goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, DefenseTierRecord tier, List<Building> buildings, MethodId key, DefensePipeline pipe, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsDefenseLayoutResult> AdmitAsync(NeedOwner goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, DefenseTierRecord tier, List<Building> buildings, MethodId key, DefensePipeline pipe, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var projection = read.Projection;

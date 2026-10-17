@@ -30,7 +30,6 @@ public sealed partial class BrainComposition
         RoundsBuildingPlanner? roomsHosting = null;
         RoundsBuildingPlanner? roomsPartySpot = null;
         RoundsDefensePlanner? cfgDefense = null;
-        RoundsDefenseLayoutPlanner? cfgDefenseLayout = null;
         RoundsFieldPlanner? cfgFields = null;
         RoundsBuildingPlanner? roomsFlooring = null;
         RoundsAcquisitionPlanner? foodAcquisition = null;
@@ -278,17 +277,14 @@ public sealed partial class BrainComposition
             // The power toggle composes the power family's basic Need (#3257).
             families.Add(new PowerRounds(reviewer, client).Runner());
         }
-        var layout = new LayoutNeeds { HomeCoverage = homeCoverage, Firebreak = sc.Firebreak, StoneShell = stoneShell, ClimateEnvelope = envelope };
+        var layout = new LayoutNeeds { HomeCoverage = homeCoverage, Firebreak = sc.Firebreak, StoneShell = stoneShell, ClimateEnvelope = envelope, Defense = defensiveLayout };
         LayoutRounds? layoutRounds = null;
         if (layout.Any)
         {
-            // The home-coverage, firebreak, stone-shell and envelope toggles compose the layout family's Needs (#3256).
-            layoutRounds = new LayoutRounds(reviewer, layout, sc.Firebreak ? client : null, stoneShell ? client : null);
+            // The home-coverage, firebreak, stone-shell, envelope and defensive-layout toggles compose the layout
+            // family's Needs (#3256, #3314).
+            layoutRounds = new LayoutRounds(reviewer, layout, sc.Firebreak ? client : null, stoneShell ? client : null, defensiveLayout ? client : null);
             families.Add(layoutRounds.Runner());
-        }
-        if (defensiveLayout)
-        {
-            cfgDefenseLayout = new RoundsDefenseLayoutPlanner(reviewer, client);
         }
         if (dialog)
         {
@@ -361,7 +357,6 @@ public sealed partial class BrainComposition
             Faults = faults,
             Families = families,
             Defense = cfgDefense,
-            DefenseLayout = cfgDefenseLayout,
             MoodRelief = cfgMoodRelief,
             Recovery = cfgRecovery,
             Rounds = cfgRounds,
@@ -435,11 +430,6 @@ public sealed partial class BrainComposition
 
         Add(sc.Routes, MaintainRoutes);
         Add(sc.Recovery, RecoverDisasterServices);
-        if (sc.DefensiveLayout)
-        {
-            thresholds = thresholds with { DefensiveLayout = true };
-            methods.Add(EnsureDefensiveLayout);
-        }
         // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
         // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census, the
         // rooms family's room census, beauty definitions, floors and sculpture rooms, and psylink's royalty read and

@@ -65,14 +65,6 @@ public sealed record RoundsPolicy
     /// </summary>
     public double PrisonerReleaseAfterDays { get; init; }
 
-    /// <summary>
-    /// An operator-declared opt-in for EnsureDefensiveLayout: the staged chokepoint/firing-line/funnel/
-    /// trap-corridor construction RoundsDefenseLayoutPlanner proposes from a fresh native defense-site
-    /// census. It is config-only: the review does not derive layout completeness from a census, the planner
-    /// decides per tier from its own admitted plans.
-    /// </summary>
-    public bool DefensiveLayout { get; init; }
-
     /// <summary>Is the prisoners family's slice of this policy.</summary>
     public PrisonerPolicy Prisoners() => new() { ReleaseAfterDays = PrisonerReleaseAfterDays, FoodTargetDays = FoodTargetDays };
 
@@ -525,9 +517,6 @@ public sealed record RoundsFacts
     /// </summary>
     public IReadOnlyDictionary<Resource, long> ResourceNeeds { get; init; } = new Dictionary<Resource, long>();
 
-    /// <summary>Journal evidence for EnsureDefensiveLayout: known true while the stored layout was verified complete and every tier still stood at the last census, so a standing layout no longer outranks the upkeep goals (repairs, power) that keep it working.</summary>
-    public Fact<bool> DefensiveLayoutStanding { get; init; }
-
     public Fact<long> Hostiles { get; init; }
 
     public Fact<long> CriticalPatients { get; init; }
@@ -654,7 +643,6 @@ public sealed record RoundsAssessment
 
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
     /// <summary>Supplies the routine inspection targets and budgets. Individual planners bound their orders; vanilla priorities schedule pawn work.</summary>
     public static RoundsPolicy DefaultRoundsPolicy() => new()
     {

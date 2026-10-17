@@ -26,7 +26,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return (defenders, minRange, defenders > 0);
     }
 
-    internal async Task<(RoundsDefenseLayoutResult Result, bool Done)> ClearCoverAsync(StandardState goal, RoundsReview review, ControlState state, RoundsReading read, DefenseLayoutRecord record, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsDefenseLayoutResult Result, bool Done)> ClearCoverAsync(NeedOwner goal, RoundsReview review, ControlState state, RoundsReading read, DefenseLayoutRecord record, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var projection = read.Projection;
@@ -93,7 +93,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             clearances = clearances.GetRange(0, MaxDefenseCoverBatch);
         }
-        var (verdict, admitted) = AdmitStandardSubject(p.Journal, goal, DefenseCoverPrefix, state.Snapshot, call);
+        var (verdict, admitted) = AdmitOwnerSubject(p.Journal, goal, DefenseCoverPrefix, state.Snapshot, call);
         if (!admitted)
         {
             return (new RoundsDefenseLayoutResult { Verdict = verdict }, true);
@@ -112,7 +112,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             throw DefenseControlErr(360);
         }
-        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
+        var commit = p.Journal.CommitOwnerWork(goal, method, "", plan, call);
+        if (commit.Outcome != Sto.ClaimOutcome.Admitted)
+        {
+            return (new RoundsDefenseLayoutResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) }, true);
+        }
         DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "cover_clearance", method.Value, new Dictionary<string, object?> { ["things"] = clearances.Count }, call);
         return (new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }

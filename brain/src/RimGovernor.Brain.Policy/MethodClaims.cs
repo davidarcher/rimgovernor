@@ -24,7 +24,8 @@ public static partial class PolicyFunctions
     /// written policy (<c>policy/reading/&lt;name&gt;</c>, <c>policy/food/&lt;name&gt;</c>, <c>policy/drug/&lt;name&gt;</c>);</item>
     /// <item>work assignments and pawn settings: <c>settings/&lt;pawn&gt;</c>;</item>
     /// <item>deconstruction and uninstalling: the cell and the thing;</item>
-    /// <item>roof removal and roof building: each roof cell (<c>roof/x/z</c>); floor removal: its cell (<c>floor/x/z</c>);</item>
+    /// <item>roof removal and roof building: each roof cell (<c>roof/x/z</c>); floor removal: its cell (<c>floor/x/z</c>);
+    /// foundation removal: its cell (<c>foundation/x/z</c>); excavation: the dug cell (<c>dig/x/z</c>);</item>
     /// <item>area plant cuts: each cut cell (<c>cut/x/z</c>);</item>
     /// <item>cover clearance and wall removal: the cell and the thing (a backup wall's removal has no thing yet);</item>
     /// <item>assignments (a bed, a throne), bed use and building claims: the thing;</item>
@@ -134,6 +135,8 @@ public static partial class PolicyFunctions
         else if (a.CoverClearance is { } cover) { yield return CellClaimTarget(cover.Cell); yield return cover.Thing; }
         else if (a.WallRemoval is { } wall) { yield return CellClaimTarget(wall.Cell); yield return wall.Original; }
         else if (a.FloorRemoval is { } floor) yield return "floor/" + floor.Cell.X + "/" + floor.Cell.Z;
+        else if (a.FoundationRemoval is { } foundation) yield return "foundation/" + foundation.Cell.X + "/" + foundation.Cell.Z;
+        else if (a.Excavation is { } dig) yield return "dig/" + dig.Cell.X + "/" + dig.Cell.Z;
         else if (a.Assign is { } assign) yield return assign.Thing;
         else if (a.BedUse is { } bed) yield return bed.Thing;
         else if (a.ClaimBuilding is { } claimed) yield return claimed.Thing;

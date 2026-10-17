@@ -32,6 +32,28 @@ public sealed record LayoutFacts
 
     /// <summary>The flammable owned walls a stone upgrade is owed (ReviewStoneShell).</summary>
     public Fact<EquatableArray<string>>? StoneShell { get; init; }
+
+    /// <summary>The stored defensive layout and the map's fights (<c>family/defense_layout</c>, the military/combat Need's journal).</summary>
+    public Fact<DefenseLayoutFacts>? Defense { get; init; }
+}
+
+/// <summary>
+/// What the defensive layout Need reads (#3314): the colony's stored layout for this map and load, and the combat
+/// facts it is verified against. Nothing here is a combat precondition: an open fight only adds work.
+/// </summary>
+public sealed record DefenseLayoutFacts
+{
+    /// <summary>Every tier of the stored layout stood at its latest census (the record's Standing).</summary>
+    public bool Standing { get; init; }
+
+    /// <summary>
+    /// The stored layout was verified complete in this load, at the map's latest fight and within the re-verify
+    /// window; false before the map's first fight, which the step waits on (threat pending).
+    /// </summary>
+    public bool Verified { get; init; }
+
+    /// <summary>An open fight in this world waits in rooms the layout hardens.</summary>
+    public bool WaitingFight { get; init; }
 }
 
 /// <summary>Which of the layout family's Needs the runtime composes.</summary>
@@ -45,7 +67,10 @@ public sealed record LayoutNeeds
 
     public bool ClimateEnvelope { get; init; }
 
-    public bool Any => HomeCoverage || Firebreak || StoneShell || ClimateEnvelope;
+    /// <summary>The operator's defensive layout opt-in.</summary>
+    public bool Defense { get; init; }
+
+    public bool Any => HomeCoverage || Firebreak || StoneShell || ClimateEnvelope || Defense;
 }
 
 /// <summary>
@@ -65,6 +90,11 @@ public sealed record LayoutNeeds
 /// when that is composed: a wall upgrade demolishes the original once its interior is enclosed and roofed, so it
 /// does not run while a ring vent or roof is still owed. The runtime step admits one wall upgrade bundle per
 /// wall.</item>
+/// <item><c>layout/defense</c> (Development, #3314; it replaced EnsureDefensiveLayout): the operator's opt-in
+/// corridor layout was verified complete in this load, at the map's latest fight and within the re-verify window,
+/// and no open fight waits in rooms to harden. The runtime step proposes, builds and re-verifies the stored layout tier by
+/// tier, and hardens the waiting rooms during a fight; its attempts are counted per tier in the
+/// <c>family/defense_layout</c> record.</item>
 /// </list>
 /// A latch no longer holds a Need after its census recovers: each is a plain predicate over this review, and an
 /// unread census leaves it unknown.
@@ -81,6 +111,8 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
 
     public static readonly NeedId StoneShell = NeedId.Of(FamilyId, "stone-shell");
 
+    public static readonly NeedId Defense = NeedId.Of(FamilyId, "defense");
+
     public string Id => FamilyId;
 
     public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Colony, FactFamily.World, FactFamily.Rooms, FactFamily.Research];
@@ -89,7 +121,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
 
     public IReadOnlyList<Need> Derive(LayoutFacts facts)
     {
-        var needs = new List<Need>(4);
+        var needs = new List<Need>(5);
         if (composed.HomeCoverage)
         {
             needs.Add(HomeCoverageNeed(facts.HomeCoverage ?? Fact.Unknown<HomeAreaPlan>()));
@@ -111,6 +143,10 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             {
                 Preconditions = composed.ClimateEnvelope ? [ClimateEnvelope] : [],
             });
+        }
+        if (composed.Defense)
+        {
+            needs.Add(DefenseNeed(facts.Defense ?? Fact.Unknown<DefenseLayoutFacts>()));
         }
         return needs;
     }
@@ -224,6 +260,29 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
             Evidence = [new("flammable_walls", Count(rows.Count))],
         };
     }
+
+    /// <summary>
+    /// Unmet while the stored layout's verification is not current or an open fight waits in rooms to harden; unknown
+    /// while the layout facts are unread. The deficit is zero while every tier stands (a re-verification or a fight
+    /// only) and one while a tier is owed.
+    /// </summary>
+    public static Need DefenseNeed(Fact<DefenseLayoutFacts> layout)
+    {
+        if (!layout.TryGetValue(out var f))
+        {
+            return new Need { Id = Defense, Tier = NeedTier.Development, Evidence = [new("defense_layout", default)] };
+        }
+        return new Need
+        {
+            Id = Defense,
+            Tier = NeedTier.Development,
+            Satisfaction = f.Verified && !f.WaitingFight ? Satisfaction.Met : Satisfaction.Unmet,
+            Deficit = Fact.Known(f.Standing ? 0.0 : 1.0),
+            Evidence = [new("standing", Flag(f.Standing)), new("verified", Flag(f.Verified)), new("waiting_fight", Flag(f.WaitingFight))],
+        };
+    }
+
+    private static Fact<string> Flag(bool b) => Fact.Known(b ? "true" : "false");
 
     private static Fact<string> Count(int n) => Fact.Known(n.ToString(CultureInfo.InvariantCulture));
 }

@@ -571,7 +571,6 @@ internal static class DefensePerimeter
     /// </summary>
     internal static async Task<DefenseLayoutRecord> WaitLayoutCompleteAsync(JournalStore s, World world, Wait w, Report report, CancellationToken cancellationToken)
     {
-        StandardId projectId = default;
         var record = new DefenseLayoutRecord();
         var stored = false;
         var building = new DefenseBuildProgress();
@@ -581,36 +580,29 @@ internal static class DefensePerimeter
             await w.WaitProgressAsync(async ct =>
             {
                 var review = await s.LoadRoundsAsync(ct).ConfigureAwait(false);
-                if (projectId.Value.Length == 0 && review.StandardFor(PolicyFunctions.EnsureDefensiveLayout, out var id))
-                {
-                    projectId = id;
-                    report["layout_project"] = projectId.Value;
-                }
-
                 var open = new List<string>();
-                if (projectId.Value.Length != 0)
+                // The layout/defense Need's unretired Methods (#3314).
+                var owner = await Task.Run(() => s.LoadNeed(LayoutFamily.Defense, review.Snapshot, ct), ct).ConfigureAwait(false);
+                var methods = owner.Methods;
+                if (methods.Count > 0)
                 {
-                    var project = await TryLoadStandardAsync(s, projectId, ct).ConfigureAwait(false);
-                    if (project is not null)
+                    foreach (var m in methods)
                     {
-                        foreach (var m in project.Methods)
+                        var entry = new JsonObject { ["plan"] = m.Plan.Value };
+                        var plan = await TryLoadPlanAsync(s, m.Plan, ct).ConfigureAwait(false);
+                        if (plan is not null)
                         {
-                            var entry = new JsonObject { ["plan"] = m.Plan.Value };
-                            var plan = await TryLoadPlanAsync(s, m.Plan, ct).ConfigureAwait(false);
-                            if (plan is not null)
+                            entry["stages"] = StringsJson(Stages(plan));
+                            if (StorePackage.PlanOpen(plan))
                             {
-                                entry["stages"] = StringsJson(Stages(plan));
-                                if (StorePackage.PlanOpen(plan))
-                                {
-                                    open.Add(m.Plan.Value);
-                                }
+                                open.Add(m.Plan.Value);
                             }
-
-                            tiers[m.MethodId.Value] = entry;
                         }
 
-                        report["layout_tier_methods"] = tiers.DeepClone();
+                        tiers[m.Method.Value] = entry;
                     }
+
+                    report["layout_tier_methods"] = tiers.DeepClone();
                 }
 
                 var r = await s.LoadDefenseLayoutAsync(world, ct).ConfigureAwait(false);
@@ -628,12 +620,12 @@ internal static class DefensePerimeter
                 }
 
                 open.Sort(StringComparer.Ordinal);
-                return (Wait.Signature(projectId.Value, tiers.ToJson(), stored, record.Complete, building.Signature(open, record, review.Tick.Value)), false);
+                return (Wait.Signature(tiers.ToJson(), stored, record.Complete, building.Signature(open, record, review.Tick.Value)), false);
             }, cancellationToken).ConfigureAwait(false);
         }
         catch (WaitError e)
         {
-            throw new AcceptanceException($"layout not complete (project=\"{projectId.Value}\" stored={stored}): {e.Message}", e);
+            throw new AcceptanceException($"layout not complete (stored={stored}): {e.Message}", e);
         }
 
         return record;
@@ -900,22 +892,20 @@ internal static class DefensePerimeter
                     combat = latest.Value;
                 }
 
-                if (review.StandardFor(PolicyFunctions.EnsureDefensiveLayout, out var id))
+                // The layout/defense Need's unretired Methods (#3314): the tier rebuilds the planner admits after the raid.
+                var layoutOwner = await Task.Run(() => s.LoadNeed(LayoutFamily.Defense, review.Snapshot, ct), ct).ConfigureAwait(false);
+                foreach (var m in layoutOwner.Methods)
                 {
-                    var project = await TryLoadStandardAsync(s, id, ct).ConfigureAwait(false);
-                    foreach (var m in project?.Methods ?? [])
+                    if (methods.ContainsKey(m.Method.Value))
                     {
-                        if (methods.ContainsKey(m.MethodId.Value))
-                        {
-                            continue;
-                        }
-
-                        var plan = await s.LoadPlanAsync(m.Plan, ct).ConfigureAwait(false);
-                        var traps = plan.Spec.Actions.Count(a => a.Building is { } b && b.Definition == "TrapSpike");
-                        trapsRebuilt += traps;
-                        plans[m.MethodId.Value] = m.Plan;
-                        methods[m.MethodId.Value] = new JsonObject { ["plan"] = m.Plan.Value, ["actions"] = plan.Spec.Actions.Count, ["traps"] = traps };
+                        continue;
                     }
+
+                    var plan = await s.LoadPlanAsync(m.Plan, ct).ConfigureAwait(false);
+                    var traps = plan.Spec.Actions.Count(a => a.Building is { } b && b.Definition == "TrapSpike");
+                    trapsRebuilt += traps;
+                    plans[m.Method.Value] = m.Plan;
+                    methods[m.Method.Value] = new JsonObject { ["plan"] = m.Plan.Value, ["actions"] = plan.Spec.Actions.Count, ["traps"] = traps };
                 }
 
                 var record = await s.LoadDefenseLayoutAsync(world, ct).ConfigureAwait(false) ?? throw new AcceptanceException("stored layout gone after the raid");
@@ -971,19 +961,6 @@ internal static class DefensePerimeter
         }
 
         return true;
-    }
-
-    /// <summary>The goal's stored state; null while the journal does not hold it (Go ignored the not-found error).</summary>
-    private static async Task<StandardState?> TryLoadStandardAsync(JournalStore s, StandardId id, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await s.LoadStandardAsync(id, cancellationToken).ConfigureAwait(false);
-        }
-        catch (NotFoundException)
-        {
-            return null;
-        }
     }
 
     /// <summary>The plan's stored state; null while the journal does not hold it.</summary>

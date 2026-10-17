@@ -38,7 +38,7 @@ public sealed record DefenseTierRecord
 
     public List<Cell> Reserved { get; set; } = [];
 
-    /// <summary>The count of admitted methods for the tier; settled routine plans retire out of the goal's method list.</summary>
+    /// <summary>The count of the <c>layout/defense</c> Need's admitted Methods for the tier in the record's load: the tier's next MethodId.</summary>
     public int Attempts { get; set; }
 
     /// <summary>Every building of the tier was observed standing in the latest census.</summary>
@@ -61,19 +61,18 @@ public sealed record DefenseTierRecord
 }
 
 /// <summary>
-/// The one layout the colony committed to for one world and episode of its standard (Go
-/// <c>DefenseLayoutRecord</c>). The killbox it was proposed on is the plan's node, named by <see cref="Killbox"/>
-/// with a digest of its footprint.
+/// The one layout the colony committed to, the <c>layout/defense</c> Need's record (#3314), kept in the save as the
+/// <c>family/defense_layout</c> blob. The killbox it was proposed on is the plan's node, named by
+/// <see cref="Killbox"/> with a digest of its footprint. The Need's attempts are counted per tier
+/// (<see cref="DefenseTierRecord.Attempts"/>) for the load in <see cref="World"/>: a reload restarts the unbuilt
+/// tiers' count with the Need's Method history. An older save's <c>Standard</c> and <c>Episode</c> fields are read
+/// and ignored.
 /// </summary>
 public sealed record DefenseLayoutRecord
 {
     private const int MaxIdentity = 256;
 
     public World World { get; set; }
-
-    public StandardId Standard { get; set; }
-
-    public ulong Episode { get; set; }
 
     public string Killbox { get; set; } = "";
 
@@ -110,7 +109,7 @@ public sealed record DefenseLayoutRecord
     /// <summary>Rejects a record that could not have come from a policy layout (Go <c>Validate</c>).</summary>
     public void Validate()
     {
-        DomainException.Require(ValidIdentity(World.Colony.Value) && ValidIdentity(World.Load.Value) && World.Map.Value >= 0 && ValidIdentity(Standard.Value), "defense layout world or standard identity invalid");
+        DomainException.Require(ValidIdentity(World.Colony.Value) && ValidIdentity(World.Load.Value) && World.Map.Value >= 0, "defense layout world identity invalid");
         DomainException.Require(
             Firing.Count != 0 && Tiers.Count != 0 && Firing.Count <= 64 && (Retreat.Count == 0 || Retreat.Count == Firing.Count) && TrapLane.Count <= 512 && Entrances.Count <= 64,
             "defense layout geometry out of bounds"
@@ -223,14 +222,12 @@ public sealed record DefenseLayoutRecord
         }
     }
 
-    /// <summary>Captures a policy layout for one standard episode, proposed on the plan's killbox node (its id and footprint digest).</summary>
-    public static DefenseLayoutRecord From(World w, StandardId standard, ulong episode, DefenseLayout layout, IEnumerable<Cell> entrances, string killbox, string digest)
+    /// <summary>Captures a policy layout in world <paramref name="w"/>, proposed on the plan's killbox node (its id and footprint digest).</summary>
+    public static DefenseLayoutRecord From(World w, DefenseLayout layout, IEnumerable<Cell> entrances, string killbox, string digest)
     {
         var record = new DefenseLayoutRecord
         {
             World = w,
-            Standard = standard,
-            Episode = episode,
             Killbox = killbox,
             KillboxDigest = digest,
             TrapLane = [.. layout.TrapLane],

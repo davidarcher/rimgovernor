@@ -35,8 +35,6 @@ public sealed class ClockSchedulerConfig
     public RoundsRecoveryPlanner? Recovery { get; init; }
 
 
-    public RoundsDefenseLayoutPlanner? DefenseLayout { get; init; }
-
     public RoundsMoodReliefPlanner? MoodRelief { get; init; }
 
     /// <summary>The families (#3250), each one due-queue entry after the catalog planners; none is wired yet.</summary>

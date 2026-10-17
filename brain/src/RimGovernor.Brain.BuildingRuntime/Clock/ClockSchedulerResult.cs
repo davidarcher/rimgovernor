@@ -34,8 +34,6 @@ public sealed class ClockSchedulerResult
 
 
 
-    public RoundsDefenseLayoutResult? DefenseLayout { get; set; }
-
     public RoundsMoodReliefResult? MoodRelief { get; set; }
 
     /// <summary>Whether the step deferred its run to the Worker's turn.</summary>
@@ -71,7 +69,6 @@ public sealed class ClockSchedulerResult
         Routes = other.Routes ?? Routes;
         Defense = other.Defense ?? Defense;
         Recovery = other.Recovery ?? Recovery;
-        DefenseLayout = other.DefenseLayout ?? DefenseLayout;
         MoodRelief = other.MoodRelief ?? MoodRelief;
         foreach (var (family, run) in other.Families)
         {

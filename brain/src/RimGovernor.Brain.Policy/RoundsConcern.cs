@@ -56,27 +56,6 @@ public static partial class PolicyFunctions
         return Known(count);
     }
 
-    public static Fact<double> RoundsDeficit(ConcernId id, RoundsFacts f, RoundsPolicy p)
-    {
-        if (id == EnsureDefensiveLayout)
-        {
-            // A configured layout is owed until every tier is observed standing.
-            if (!p.DefensiveLayout)
-            {
-                return Unknown<double>();
-            }
-            if (Positive(f.DefensiveLayoutStanding))
-            {
-                return Known(0.0);
-            }
-            return Known(1.0);
-        }
-        else
-        {
-            return Unknown<double>();
-        }
-    }
-
     /// <summary>
     /// The project the research Need pursues: the configured target when one is set, else the first derived
     /// need the native research census lists and has not finished. Unknown facts keep the first derived

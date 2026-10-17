@@ -545,7 +545,6 @@ public sealed partial class Rounder
         var needs = RoundsResearchNeeds(p.Journal, Policy, reading.Projection.Facts.Items, state.Snapshot, EquipmentOwed(state.Snapshot), ct);
         needs = CensusResearchNeeds(needs);
         reading = reading.WithFacts(rf => rf with { ResearchNeeds = [.. needs] });
-        reading = reading.WithFacts(rf => rf with { DefensiveLayoutStanding = RoundsDefensiveLayoutStanding(p.Journal, Policy, state.Snapshot, ct) });
         var medicine = PolicyApi.ReviewMedicalReserve(reading.Projection.Facts.MedicalReserve, previous.Snapshot == state.Snapshot && previous.Latches.MedicalReserve, Policy.MedicalReserve);
         reading = reading.WithFacts(rf => rf with { MedicineCarryOwed = PolicyApi.MedicineCarryOwed(reading.Projection.WorkPawns, medicine) });
         // A prisoner surgery blocked only by the herbal care limit.

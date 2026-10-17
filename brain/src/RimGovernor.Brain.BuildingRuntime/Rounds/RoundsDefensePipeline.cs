@@ -63,8 +63,8 @@ internal static partial class BuildingRuntimePackage
         return false;
     }
 
-    /// <summary>The open defense methods of the standard; not pipelinable when an open plan is anything but a perimeter building plan.</summary>
-    internal static (DefensePipeline Pipe, bool Ok) DefenseOpenTiers(StandardState goal, Func<PlanId, PlanState> plans)
+    /// <summary>The open defense methods of the layout/defense Need; not pipelinable when an open plan is anything but a perimeter building plan.</summary>
+    internal static (DefensePipeline Pipe, bool Ok) DefenseOpenTiers(NeedOwner goal, Func<PlanId, PlanState> plans)
     {
         var pipe = new DefensePipeline();
         foreach (var method in goal.Methods)
@@ -74,7 +74,7 @@ internal static partial class BuildingRuntimePackage
             {
                 continue;
             }
-            if (!method.MethodId.Value.StartsWith("defense-" + PolicyConstants.TierPerimeterPrefix, StringComparison.Ordinal))
+            if (!method.Method.Value.StartsWith("defense-" + PolicyConstants.TierPerimeterPrefix, StringComparison.Ordinal))
             {
                 return (new DefensePipeline(), false);
             }
@@ -87,7 +87,7 @@ internal static partial class BuildingRuntimePackage
                 pipe.Cells.Add(b.Cell);
                 pipe.Unbuilt.Add(b);
             }
-            pipe.Open.Add(method.MethodId);
+            pipe.Open.Add(method.Method);
         }
         return (pipe, true);
     }

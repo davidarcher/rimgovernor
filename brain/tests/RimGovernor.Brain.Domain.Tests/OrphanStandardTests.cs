@@ -40,7 +40,14 @@ public sealed class OrphanStandardTests
         source.CommitMethodRecord(ledger.Standard.Id, ledger.Revision, new("record-method"), "",
             new PlanSpec(new("record-plan"), new(1), [delivery]), "{\"kept\":true}", ct);
 
-        var saved = source.GovernorStateBlobs(ct);
+        var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
+        // MaintainRoutes is the last routine Standard the review raises, so the routine row without a Record is an
+        // older save's (the retired EnsureWorkAssignments Standard, #3304; EnsureDefensiveLayout went in #3314).
+        var routine = JsonNode.Parse(saved[Journal.GovernorStandardKeyPrefix + ledger.Standard.Id.Value])!;
+        routine["standard"]!["ID"] = "std-routine";
+        routine["standard"]!["Kind"] = "EnsureWorkAssignments";
+        _ = routine["standard"]!.AsObject().Remove("Record");
+        saved[Journal.GovernorStandardKeyPrefix + "std-routine"] = routine.ToJsonString();
         var savedIds = saved.Keys.Where(k => k.StartsWith(Journal.GovernorStandardKeyPrefix, StringComparison.Ordinal))
             .Select(k => k[Journal.GovernorStandardKeyPrefix.Length..]).ToHashSet(StringComparer.Ordinal);
         Assert.Contains(ledger.Standard.Id.Value, savedIds);

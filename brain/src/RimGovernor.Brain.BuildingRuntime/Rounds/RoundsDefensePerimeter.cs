@@ -447,7 +447,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return true;
     }
 
-    internal RoundsDefenseLayoutResult Remove(StandardState goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, DefenseTierRecord tier, DefenseCensus? census, CancellationToken call, CancellationToken epoch)
+    internal RoundsDefenseLayoutResult Remove(NeedOwner goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, DefenseTierRecord tier, DefenseCensus? census, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var key = DefenseTierMethodId(tier);
@@ -475,7 +475,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             throw DefenseControlErr(1);
         }
-        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, key, "", plan, call);
+        var commit = p.Journal.CommitOwnerWork(goal, key, "", plan, call);
+        if (commit.Outcome != Sto.ClaimOutcome.Admitted)
+        {
+            return new RoundsDefenseLayoutResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Tier = tier.Name.Value };
+        }
         tier.Attempts++;
         record.SetTier(tier);
         p.Journal.SaveDefenseLayout(record, call);

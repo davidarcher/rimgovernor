@@ -709,14 +709,13 @@ internal sealed class DefenseBuildingConverter : ObjectCodec<DefenseBuilding>
     }
 }
 
+/// <summary>The defense layout record; an older save's <c>Standard</c> and <c>Episode</c> (the retired EnsureDefensiveLayout Standard, #3314) are ignored.</summary>
 internal sealed class DefenseLayoutRecordConverter : ObjectCodec<DefenseLayoutRecord>
 {
     protected override DefenseLayoutRecord Read(JsonElement e, Codecs o) =>
         new()
         {
             World = e.Get<World>("World", o),
-            Standard = e.Get<StandardId>("Standard", o),
-            Episode = e.U64("Episode"),
             Killbox = e.Str("Killbox"),
             KillboxDigest = e.Str("KillboxDigest"),
             TrapLane = e.Get<List<Cell>>("TrapLane", o),
@@ -736,8 +735,6 @@ internal sealed class DefenseLayoutRecordConverter : ObjectCodec<DefenseLayoutRe
     protected override void WriteFields(Utf8JsonWriter w, DefenseLayoutRecord v, Codecs o)
     {
         w.Put("World", v.World, o);
-        w.Put("Standard", v.Standard, o);
-        w.WriteNumber("Episode", v.Episode);
         w.WriteString("Killbox", v.Killbox);
         w.WriteString("KillboxDigest", v.KillboxDigest);
         w.Put("TrapLane", v.TrapLane, o);

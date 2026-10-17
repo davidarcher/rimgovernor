@@ -25,7 +25,7 @@ public sealed class ConstructionLaborTests
     public void BuildersAreHeldForTheShelterOnlyWhileItIsOwed()
     {
         Assert.True(Held(Shelter, AdminFamily.Stockpiles.FilingKey, ActionKind.ZoneCellEdit, ActionKind.Building));
-        Assert.True(Held(Shelter, EnsureDefensiveLayout, ActionKind.CoverClearance));
+        Assert.True(Held(Shelter, LayoutFamily.Defense.FilingKey, ActionKind.CoverClearance));
         // A Need owner reports no Concern of its own (the home-upkeep clearance Need, #3253).
         Assert.True(Held(Shelter, default, ActionKind.Deconstruction));
         Assert.False(Held(Standing, AdminFamily.Stockpiles.FilingKey, ActionKind.ZoneCellEdit, ActionKind.Building));

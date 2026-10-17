@@ -87,7 +87,7 @@ public static partial class PolicyFunctions
         {
             return ConstructionTier.Sustain;
         }
-        if (concern == EnsureDefensiveLayout)
+        if (concern == LayoutFamily.Defense.FilingKey)
         {
             return ConstructionTier.Secure;
         }

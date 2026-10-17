@@ -24,7 +24,7 @@ public static class OperationIntent
         [PowerFamily.Basic.FilingKey] = "Power",
         [MilitaryFamily.Defense.FilingKey] = "Defense",
         [MilitaryFamily.Pests.FilingKey] = "Clear pests",
-        [EnsureDefensiveLayout] = "Defense layout",
+        [LayoutFamily.Defense.FilingKey] = "Defense layout",
         [CriticalCensusNeed.FilingKey] = "Medical",
         [MedicalCareNeed.FilingKey] = "Medical care",
         [MedicalReservesNeed.FilingKey] = "Medicine",

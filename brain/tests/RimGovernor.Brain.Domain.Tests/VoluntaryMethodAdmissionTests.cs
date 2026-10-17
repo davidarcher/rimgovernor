@@ -38,14 +38,14 @@ public sealed class VoluntaryMethodAdmissionTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-voluntary-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
-            Policy = StandardTestFacts.LayoutOwed, Facts = WorkResourceTestFacts.Create("pawn") }, ct);
-        var labor = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
-        var other = Assert.Single(review.Standards, s => s.Standard.Kind == EnsureDefensiveLayout);
+            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
+        var other = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
         var held = new PlanSpec(new("coupled-plan"), new(1),
             [DomainAction.NewPawnActivitiesAction(new("coupled-action"), new(1,
                 [new("pawn", "assignment", "coupled-method", 0, 1, false,
                     [new(PawnActivityKind.Idle, "", "", "", 0, 500)])]))]);
-        journal.CommitMethod(labor.Standard.Id, labor.Revision, new("coupled-method"), held, ct);
+        // The coupled Method is a Need's, so the Standard's own open-work gate does not answer first.
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(FoodSupplyNeed, World, new("coupled-method"), "", held, ct).Outcome);
         var direct = new PlanSpec(new("direct-plan"), new(1), kind == "movement"
             ? [DomainAction.NewOwnedDraftAction(new("draft"), new(new("pawn"))), Direct(kind)] : [Direct(kind)]);
         var error = Assert.Throws<NotAdmittedException>(() =>

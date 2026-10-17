@@ -26,10 +26,10 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
 
     public RoutesReview Routes { get; set; } = default!;
 
-    /// <summary>Appends a Concern and returns it for the detector to adjust.</summary>
+    /// <summary>Appends a Concern, its deficit unknown, and returns it for the detector to adjust.</summary>
     public RoundsConcern Raise(ConcernId id)
     {
-        var concern = new RoundsConcern { Id = id, Deficit = PolicyFunctions.RoundsDeficit(id, F, P) };
+        var concern = new RoundsConcern { Id = id };
         R.Concerns.Add(concern);
         return concern;
     }
@@ -126,17 +126,6 @@ public static partial class PolicyFunctions
         var shortage = RoundsSilverShort(f, p, c.Medicine.Active).TryGetValue(out var silverShort) && silverShort;
         tradeNeed = FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(shortage));
         return TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity())));
-    }
-
-    /// <summary>EnsureDefensiveLayout is config-only: opt-in activates the goal at priority 3 (after the storage gate) and the planner reports no work once every tier stands.</summary>
-    internal static void InspectDefensiveLayout(RoundsRun c)
-    {
-        var recovered = Known(!c.P.DefensiveLayout);
-        if (!Positive(recovered))
-        {
-            c.Raise(EnsureDefensiveLayout);
-        }
-        c.Assess(EnsureDefensiveLayout, recovered);
     }
 
     /// <summary>A ranked development project: the deficit is the measured fraction of facilities no colonist reaches.</summary>

@@ -7,7 +7,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal const string DefenseWaitTier = "wait";
 
     /// <summary>The fight-time work of the layout planner: harden the waiting rooms.</summary>
-    internal async Task<RoundsDefenseLayoutResult> FightAsync(StandardState goal, ControlState state, CombatMemory m, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsDefenseLayoutResult> FightAsync(NeedOwner goal, ControlState state, CombatMemory m, CancellationToken call, CancellationToken epoch)
     {
         return await HardenAsync(goal, state, m, call, epoch).ConfigureAwait(false);
     }
@@ -23,7 +23,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return (read, DefenseFightCensus(site));
     }
 
-    internal async Task<RoundsDefenseLayoutResult> HardenAsync(StandardState goal, ControlState state, CombatMemory m, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsDefenseLayoutResult> HardenAsync(NeedOwner goal, ControlState state, CombatMemory m, CancellationToken call, CancellationToken epoch)
     {
         if (m.WaitRooms.Count == 0)
         {
@@ -40,7 +40,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return await AdmitFightBuildsAsync(goal, state, read, buildings, DefenseWaitTier, call, epoch).ConfigureAwait(false);
     }
 
-    internal async Task<RoundsDefenseLayoutResult> AdmitFightBuildsAsync(StandardState goal, ControlState state, RoundsReading read, IReadOnlyList<Building> buildings, string tier, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsDefenseLayoutResult> AdmitFightBuildsAsync(NeedOwner goal, ControlState state, RoundsReading read, IReadOnlyList<Building> buildings, string tier, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var tick = read.Projection.Identity.Tick;

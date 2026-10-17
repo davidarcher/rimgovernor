@@ -146,7 +146,7 @@ wall is admitted.
 
 ### Defensive layout
 
-`EnsureDefensiveLayout` (opt-in) commits one stored corridor layout per colony and builds
+`layout/defense` (opt-in, #3314; it replaced `EnsureDefensiveLayout`) commits one stored corridor layout per colony and builds
 it tier by tier; a tier is `Built` only while every building is observed in the defense-site
 census. Geometry is the `policy` layout planner's: a zigzag corridor kill zone with a single
 defenders' doorway, sized from defenders and turrets, no door on the raiders' route.
@@ -170,12 +170,12 @@ defenders' doorway, sized from defenders and turrets, no door on the raiders' ro
   Placement, spacing and conduit routing are the planner's; an unroutable turret is dropped.
   A layout without turrets re-probes once per game hour. A standing unpowered turret is a
   deficit (`unpowered`) owned by the `power/basic` Need's network; damage is
-  the `home-upkeep/repairs` Need's. While every tier stands the concern reports a known zero
-  deficit so other upkeep concerns take the free slot.
+  the `home-upkeep/repairs` Need's. While every tier stands the Need reports a known zero
+  deficit, and it is met while the verification is current and no fight waits.
 - An observed empty barrel (`unfuelled`) is a tier deficit. With fuel in stock the concern
-  issues one forced `recovery_service` refuel per step on an available Hauling-enabled
-  colonist (up to four attempts per turret and Episode). With none, the fuel runway
-  (below) already demands the refill. Unknown fuel state is neither deficit nor order.
+  waits (`unsupported_forecast_turret_refuel`): a routine refuel needs exact fuel, worker and
+  outcome alternatives. With none, the fuel runway (below) already demands the refill.
+  Unknown fuel state is neither deficit nor order.
 
 ### Fuel runway
 

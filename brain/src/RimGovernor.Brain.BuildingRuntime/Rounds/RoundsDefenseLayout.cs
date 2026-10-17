@@ -150,42 +150,28 @@ public sealed partial class RoundsDefenseLayoutPlanner
             ? DefenseTierPrefix(tier.Name.Value)
             : string.Create(CultureInfo.InvariantCulture, $"{DefenseTierPrefix(tier.Name.Value)}r{tier.Reopened}-");
 
-    internal static StandardState? DefenseLayoutProject(Player p, RoundsReview review, CancellationToken ct)
+    /// <summary>
+    /// The <c>layout/defense</c> Need's step (#3314), run while the Need is unmet: during an open fight it hardens the
+    /// waiting rooms; otherwise it proposes the layout, re-verifies it and admits one tier at a time, each tier a
+    /// Method of the Need owner. A stored layout from another load or map is re-verified and its unbuilt tiers' attempt
+    /// counts restart with the Need's per-load Method history.
+    /// </summary>
+    internal async Task<Verdict> StepAsync(NeedWork work, CancellationToken call)
     {
-        if (review.StandardFor(PolicyApi.EnsureDefensiveLayout, out var id))
-        {
-            return p.Journal.LoadStandard(id, ct);
-        }
-        return null;
+        var result = await TierStepAsync(work.Owner, work.State, work.Arbiter, call, work.Epoch).ConfigureAwait(false);
+        return result.Verdict;
     }
 
-    internal async Task<RoundsDefenseLayoutResult> StepAsync(StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
+    private async Task<RoundsDefenseLayoutResult> TierStepAsync(NeedOwner goal, ControlState state, StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
-        var state = p.Session.State();
-        if (!state.Enabled)
-        {
-            return new RoundsDefenseLayoutResult { Verdict = BuildingReasonDisabled };
-        }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid)
-        {
-            throw DefenseControlErr(113);
-        }
-        var review = p.Journal.LoadRounds(call);
+        var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoReview };
         }
         var world = new StoreWorld { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map };
-        if (DefenseLayoutProject(p, review, call) is not { } goal || goal.Standard.Status != StandardStatus.Open)
-        {
-            return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit };
-        }
         var wait = DefenseWaitingFight(p.Journal, world, call);
-        if (wait is null && (goal.Standard.Finding != Finding.Unmet || review.Veto(goal.Standard) != ""))
-        {
-            return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit };
-        }
         var (pipe, pipelinable) = DefenseOpenTiers(goal, id => p.Journal.LoadPlan(id, call));
         if (!pipelinable || (wait is not null && pipe.Piped()))
         {
@@ -204,14 +190,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var stored = record.Killbox != "";
         if (stored && record.World != world)
         {
+            // Another load or map: the Need's Method history (need_methods) is per load, so the unbuilt tiers'
+            // attempt counts restart with it, as they did with the retired Standard's per-load id.
             record.World = world;
             record.Complete = false;
-            p.Journal.SaveDefenseLayout(record, call);
-        }
-        if (stored && (record.Standard != goal.Standard.Id || record.Episode != goal.Standard.Episode))
-        {
-            record.Standard = goal.Standard.Id;
-            record.Episode = goal.Standard.Episode;
             foreach (var t in record.Tiers)
             {
                 if (!t.Built)
@@ -256,7 +238,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 return new RoundsDefenseLayoutResult { Verdict = held };
             }
             var (killbox, digest, _) = PolicyApi.KillboxNode(cut.Plan);
-            record = DefenseLayoutRecord.From(world, goal.Standard.Id, goal.Standard.Episode, layout, entrances, killbox, digest);
+            record = DefenseLayoutRecord.From(world, layout, entrances, killbox, digest);
             DefenseRecutPerimeter(record, cut);
             p.Journal.SaveDefenseLayout(record, call);
         }
@@ -296,7 +278,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 break;
             }
-            var (spent, ok) = AdmitStandardSubject(p.Journal, goal, DefenseTierSubject(tier), state.Snapshot, call);
+            var (spent, ok) = AdmitOwnerSubject(p.Journal, goal, DefenseTierSubject(tier), state.Snapshot, call);
             if (!ok && pipe.Piped())
             {
                 continue;
@@ -370,10 +352,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 record = reloaded;
             }
             DefenseHydrate(record, cut);
-            if (DefenseLayoutProject(p, review, call) is { } reproject)
-            {
-                goal = reproject;
-            }
+            goal = p.Journal.LoadNeed(LayoutFamily.Defense, state.Snapshot, call);
         }
         if (admitted is not null)
         {
@@ -406,7 +385,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit };
     }
 
-    internal static RoundsDefenseLayoutResult Rearm(StandardState goal, RoundsReview review, ControlState state,
+    internal static RoundsDefenseLayoutResult Rearm(NeedOwner goal, RoundsReview review, ControlState state,
         RoundsReading read, DefenseRearm order, StepArbiter? arbiter, CancellationToken call, CancellationToken epoch) =>
         new() { Verdict = Verdict.AwaitingPlan("unsupported_forecast_turret_refuel",
             "Routine turret refuel requires exact fuel, worker and outcome alternatives."), Tier = PolicyApi.TierTurrets.Value };

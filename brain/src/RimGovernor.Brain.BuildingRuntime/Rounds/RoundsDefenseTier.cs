@@ -9,7 +9,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal const string DefenseRetierTier = "retier";
 
     /// <summary>Re-tiers the standing colony buildings that the layout promotes to survive tier, once per site set.</summary>
-    internal (RoundsDefenseLayoutResult Result, bool Done) Retier(StandardState goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, CancellationToken call, CancellationToken epoch)
+    internal (RoundsDefenseLayoutResult Result, bool Done) Retier(NeedOwner goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, CancellationToken call, CancellationToken epoch)
     {
         if (!DefensePromoted(read.Projection))
         {
@@ -41,14 +41,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         var sum = SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString()));
         var method = new MethodId($"defense-{DefenseRetierTier}-{Convert.ToHexStringLower(sum.AsSpan(0, 8))}");
-        try
+        if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
-            p.Journal.LoadOwnerMethod(goal, method, call);
             return (new RoundsDefenseLayoutResult(), false);
-        }
-        catch (NotFoundException)
-        {
-            // Not yet committed: re-tier now.
         }
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>(sites.Count);
@@ -63,7 +58,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             throw DefenseControlErr(119);
         }
-        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
+        var commit = p.Journal.CommitOwnerWork(goal, method, "", plan, call);
+        if (commit.Outcome != Sto.ClaimOutcome.Admitted)
+        {
+            return (new RoundsDefenseLayoutResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Tier = DefenseRetierTier }, true);
+        }
         DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "retier", DefenseRetierTier, new Dictionary<string, object?> { ["sites"] = sites.Count, ["method"] = method.Value }, call);
         return (new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id, Tier = DefenseRetierTier }, true);
     }
