@@ -65,7 +65,13 @@ identity), `Staged` and `TicksLeft`. Its members:
   A kind is added to `TelemetryKinds` (`brain/src/RimGovernor.Brain.Telemetry/TelemetryKinds.cs`) with its row in
   the kinds table.
 - **Evidence:** `Record(key, value)` and `RecordWire(key, record)`.
-- **Service:** `ServeAsync` starts the declared `Serve`.
+- **Served wait:** `ServeUntilAsync(label, ticks, probe)` hands the clock to the declared `Serve`. It starts the
+  brain service, resumes automatic control under a kept authority, and observes while the brain runs the game until
+  the probe is done. Then it stops the service and parks the brain. The budget is game ticks read from the game and
+  spent from `Ticks` like the other waits; running past it fails, even when the probe finishes late. The service's
+  exit and the stall budget end a run that stops moving, and the hang guard is the wall-clock backstop. A served
+  case stages its precondition, and its probe reads the outcome through typed reads and telemetry. It may also
+  call a declared fixture op mid-wait to inject the next phase's precondition.
 
 `lab/stage`, `lab/spawn` and `upkeep/auto-home-area` are the reference ports.
 
@@ -126,8 +132,8 @@ JSON-looking values decode as JSON; other values are strings.
   explicitly with the case's expansions or `RIMGOVERNOR_ACCEPT_EXPANSIONS`.
 - Keep needs the case tests unfrozen; freeze the rest. Use `QuietWorld` only when wild-map
   simulation is irrelevant, not for farm, hunting or husbandry claims.
-- Service-driven waits use a progress signature that ends on service exit
-  (`WaitProgress`; `WaitReview`, `WaitPlan` and `WaitRounds` cover common cases).
+- Service-driven waits use a progress signature that ends on service exit: `ServeUntilAsync` on the typed
+  API (`WaitProgress`, `WaitReview`, `WaitPlan` and `WaitRounds` on the frozen legacy path).
 - Advance gameplay by ticks with `RunUntil`/tick waits. `AdvanceGame` plays the
   harness as the brain: `clock_run`, a heartbeat about every second, and a
   `REVIEW` hold at the tick target. It guarantees at least N ticks (the clock

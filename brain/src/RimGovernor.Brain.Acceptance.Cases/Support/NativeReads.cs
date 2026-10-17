@@ -152,15 +152,9 @@ internal sealed class BrainRun
         }
 
         keep = await Service.StopAsync().ConfigureAwait(false) ?? keep;
-        var body = new JsonObject
-        {
-            ["requestId"] = string.Create(CultureInfo.InvariantCulture, $"{_prefix}-park-{DateTimeOffset.UtcNow.Ticks}"),
-            ["expected"] = _session.Identity.DeepClone(),
-        };
         try
         {
-            var reply = await Service.ApiAsync("POST", "/api/player/control/pause", body, Token, cancellationToken).ConfigureAwait(false);
-            _session.Report[_prefix + "_park"] = reply.Status;
+            _session.Report[_prefix + "_park"] = await Service.ParkAsync(_prefix, _session.Identity, Token, cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {

@@ -126,11 +126,47 @@ public sealed class TypedSession : ITypedSession
 
     public void RecordWire<T>(string key, T value) => _s.Report[key] = JsonNode.Parse(WireJson.Serialize(value));
 
-    public Task<ServiceProcess> ServeAsync(CancellationToken cancellationToken) =>
-        _s.ServeAsync(_case.Serve ?? throw new AcceptanceException($"case {_case.Name} serves without declaring Serve"), cancellationToken);
+    public async Task<int> ServeUntilAsync(string label, int ticks, Probe probe, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(probe);
+        var spec = _case.Serve ?? throw new AcceptanceException($"{label}: case {_case.Name} serves without declaring Serve");
+        Budget(label, ticks);
+        var service = await _s.ServeAsync(spec, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (!spec.Resume)
+            {
+                _ = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
+            }
 
-    // One wait over the shared run loop: the game runs until the probe is done, at most ticks of the declared budget.
-    private async Task<int> RunAsync(string label, int ticks, Probe probe, CancellationToken cancellationToken)
+            service.KeepAuthority(cancellationToken);
+            var ran = await ServedWait.UntilAsync(
+                label,
+                ticks,
+                _s.Harness.TickAsync,
+                probe,
+                new Wait { Stall = Wait.StallBudget(), Terminal = service.Exited },
+                cancellationToken).ConfigureAwait(false);
+            _spent += ran;
+            return ran;
+        }
+        finally
+        {
+            // The in-mod brain outlives the handle: park it so the body's later reads see a paused game.
+            _ = await service.StopAsync().ConfigureAwait(false);
+            try
+            {
+                _s.Report[service.Label + "_park"] = await service.ParkAsync(service.Label, service.Identity!, service.Token, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (AcceptanceException e)
+            {
+                _s.Report[service.Label + "_park_error"] = e.Message;
+            }
+        }
+    }
+
+    // A wait must fit what is left of the declared ticks; it fails before the game runs otherwise.
+    private void Budget(string label, int ticks)
     {
         if (ticks <= 0 || ticks > TicksLeft)
         {
@@ -138,7 +174,12 @@ public sealed class TypedSession : ITypedSession
                 CultureInfo.InvariantCulture,
                 $"{label}: a wait of {ticks} ticks with {TicksLeft} of the case's {_case.Ticks} left"));
         }
+    }
 
+    // One wait over the shared run loop: the game runs until the probe is done, at most ticks of the declared budget.
+    private async Task<int> RunAsync(string label, int ticks, Probe probe, CancellationToken cancellationToken)
+    {
+        Budget(label, ticks);
         var ran = await RunAt.RunUntilAsync(
             _s.Harness,
             label,

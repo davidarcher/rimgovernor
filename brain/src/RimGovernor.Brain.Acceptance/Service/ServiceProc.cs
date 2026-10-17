@@ -237,6 +237,22 @@ public sealed partial class ServiceProcess
         return rootPlanId;
     }
 
+    /// <summary>
+    /// Parks the brain (manual control) for <paramref name="identity"/>, so nothing drives the clock afterwards, and
+    /// returns the reply status. The in-mod brain outlives the handle: a stopped handle leaves it running until parked.
+    /// </summary>
+    public async Task<int> ParkAsync(string prefix, JsonObject identity, string token, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        var body = new JsonObject
+        {
+            ["requestId"] = string.Create(CultureInfo.InvariantCulture, $"{prefix}-park-{UniqueStamp()}"),
+            ["expected"] = identity.DeepClone(),
+        };
+        var reply = await ApiAsync("POST", "/api/player/control/pause", body, token, cancellationToken).ConfigureAwait(false);
+        return reply.Status;
+    }
+
     // A request-id suffix unique per call (Go time.Now().UnixNano()).
     internal static string UniqueStamp() =>
         (DateTimeOffset.UtcNow.Ticks * 100 + Interlocked.Increment(ref s_stampSerial) % 100).ToString(CultureInfo.InvariantCulture);

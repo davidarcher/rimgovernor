@@ -71,6 +71,12 @@ public interface ITypedSession
     /// <summary>Records the Contracts record <paramref name="value"/> in the report under <paramref name="key"/>.</summary>
     void RecordWire<T>(string key, T value);
 
-    /// <summary>Starts the case's declared <see cref="TypedCase.Serve"/> over the game; the runner stops it when the body returns.</summary>
-    Task<ServiceProcess> ServeAsync(CancellationToken cancellationToken);
+    /// <summary>
+    /// Hands the clock to the case's declared <see cref="TypedCase.Serve"/>: starts the brain service, resumes automatic
+    /// control under a kept authority and observes while the brain drives the game until <paramref name="probe"/> is done,
+    /// at most <paramref name="ticks"/> game ticks from <see cref="TicksLeft"/>; then stops the service and parks the brain.
+    /// The service's exit or a signature that stops changing ends the wait, and the hang guard is its wall-clock backstop.
+    /// Returns the ticks the game advanced.
+    /// </summary>
+    Task<int> ServeUntilAsync(string label, int ticks, Probe probe, CancellationToken cancellationToken);
 }
