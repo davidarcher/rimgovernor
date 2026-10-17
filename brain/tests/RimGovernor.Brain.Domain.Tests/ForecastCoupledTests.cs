@@ -37,7 +37,7 @@ public sealed class ForecastCoupledTests
                     {
                         Context = Context,
                         Known = true,
-                        Options = [new("pawn", "plant", "Rice", new(1,1), new(1,1), "Harvest", 8, 10, harvest)
+                        Options = [new("pawn", "plant", "Rice", new(1,1), new(1,1), "Harvest", 8, harvest)
                     { ApproachTicks = Known(0.0), DeliveryTicks = Known(10.0), HarvestAllowed = Known(true), SourceCount = Known(8.0) }]
                     },
                     FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.1), Known(10.0), 4, Known(expiry))],

@@ -325,10 +325,7 @@ known results.
 
 `ForecastCoupledTests` uses ordinary review inputs to exercise conservation,
 recovery-dependent production and changing food, labor, material and thermal
-consequences. The prepared `observations/coupled-forecast` case checks native tick,
-stock, batch-count and unpowered-heater observations. Case registration and
-compilation are distinct from execution; neither is measured timing calibration
-or evidence of autonomous portfolio dispatch. The conditional estimates need
+consequences. Neither is measured timing calibration or evidence of autonomous portfolio dispatch. The conditional estimates need
 observed prediction/outcome evidence through #3125 and the operational acceptance
 of #3135.
 
@@ -542,8 +539,8 @@ Native answers a `CoupledRoute` per probe x free pawn, unknown where no path is 
 once for every colonist. `JoinPlannedRoutes` keeps the read's rows in `PlannedSiteFacts.Routes`; a missing or
 unknown read adds none (`planned_route_read_unknown`), so those routes stay unknown.
 
-The forecast's native reads cap nothing (#3341): every colonist, candidate and location pair. Measured on
-`observations/large-colony-reads` (32 free colonists; main-thread ms per call, one call each a round):
+The forecast's native reads cap nothing (#3341): every colonist, candidate and location pair. Measured once on
+a lab with 32 free colonists (2026-10-16; main-thread ms per call, one call each a round):
 
 | Read (one call a round) | Cold ms | Warm ms | Size |
 | --- | --- | --- | --- |
@@ -1416,11 +1413,7 @@ with an observed threshold. Unmodeled need-category/room changes remain unassess
 Existing Mood/comfort functions retain current diagnostics until their separate
 routine-writer retirement; they are not a second forecast scheduler.
 
-The registered `observations/needs-forecast` prepared scene observes physical food,
-bed and horseshoes recovery and correlates #3125 intervals with predictions. It
-reports signed residuals, service/travel and missing-history ticks for each family.
-The scene is registered/compiling; measured errors await nightly execution. It is
-not evidence of autonomous portfolio selection. Pure tests cover equal current
+Pure tests cover equal current
 mood with different thought expiry, meals, quantity waste, recovery, timing,
 interruption, unknowns, protected work, distance and bounded generation.
 

@@ -78,7 +78,7 @@ deletes its baseline section in the Cases project's `.editorconfig`.
 ### Staging
 
 The stage spec is a typed, declarative description of the precondition. It is built from a small set of
-primitives (spawn pawns, items and buildings, clear an area, set priorities and timetables, set needs, research,
+primitives (spawn pawns, items, plants and buildings, clear an area, set priorities and timetables, set needs, research,
 world, incident and quest state). The primitives live in the separate `Fixtures.Contracts` assembly. That assembly
 is compiled into fixture builds only, and production projects never reference it. A bespoke `test/*` op is
 added only for something the primitives cannot express: a fault hook, a recorder, an equality or benchmark check,
@@ -88,7 +88,7 @@ or a content flow. Read-only probes are not test ops: a missing read is promoted
 The spec is `StageSpec` (`brain/src/RimGovernor.Fixtures.Contracts`). Its primitives are research (`StageResearch`:
 finish a project, or set its progress), world (`StageWorld`: pinned outdoor temperature, clock hour), find site
 (`StageSite`), clear area (`StageClear`), set cells (`StageCells`: terrain, roof, home, fog), build room
-(`StageRoom`), place building (`StageBuilding`: complete, frame or blueprint), spawn thing (`StageThing`), spawn or
+(`StageRoom`), place building (`StageBuilding`: complete, frame or blueprint), spawn thing (`StageThing`), spawn plant (`StagePlant`: a plant def at a growth), spawn or
 set pawn (`StagePawn`: kind, faction, age, skill level, cleared traits, gear, hediffs, work, timetable, needs, mental
 state, inspiration), zone (`StageZone`), the raid that drives staged hostiles (`StageRaid`), fire incident
 (`StageIncident`: an IncidentDef through its own worker, optionally with a trader kind) and generate quest
@@ -105,7 +105,7 @@ prepared save or scenario is appropriate when history, biome or season is the pr
 A paused lab never advances the tick, and RimWorld's pathfinder gathers its map
 data once per tick. A fixture that spawns or changes buildings, rock or terrain
 and then reads routes without ticking must dirty that data first
-(`PathFinderMapData.Notify_MapDirtied`, as `test/planned_site_clearing` does);
+(`PathFinderMapData.Notify_MapDirtied`);
 otherwise `FindPathNow` paths over stale connectivity and finds nothing while
 `CanReach` still answers true.
 

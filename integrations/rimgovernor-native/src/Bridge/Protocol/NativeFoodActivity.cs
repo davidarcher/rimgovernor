@@ -77,7 +77,7 @@ internal static class NativeFoodActivity
                 if (legs.Cost(pawn, pawn.Position, source, PathEndMode.Touch) is not { } approach) continue;
                 if (existing?.OutputDelivery?.Recipe is not null)
                 {
-                    NativeFoodCooking.Add(pawn, source, count, approach, existing, options, ref budget, ref truncated);
+                    NativeFoodCooking.Add(pawn, source, count, existing, options, ref budget, ref truncated);
                     continue; // Supply was selected; rebind that exact recipe only.
                 }
                 // Each accepting storage group's cheapest exact, empty cell for this pawn: of the group's cells in flood
@@ -100,12 +100,11 @@ internal static class NativeFoodActivity
                     if (best is not { } chosen) continue;
                     var (cell, route) = chosen;
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), product.defName,
-                        new(source.Position.x, source.Position.z), new(cell.x, cell.z), giver?.defName ?? "", count,
-                        approach + route, work) {
+                        new(source.Position.x, source.Position.z), new(cell.x, cell.z), giver?.defName ?? "", count, work) {
                             ApproachTicks = Fact.Known((double)approach), DeliveryTicks = Fact.Known((double)route), HarvestAllowed = Fact.Known(harvestAllowed), SourceCount = Fact.Known((double)sourceCount) });
                 }
                 if (plant is null && existing is not null && (request.AllowCooking || existing.Steps[0].Kind == PawnActivityKind.Work))
-                    NativeFoodCooking.Add(pawn, source, count, approach, existing, options, ref budget, ref truncated);
+                    NativeFoodCooking.Add(pawn, source, count, existing, options, ref budget, ref truncated);
             }
         }
         return result with { Known = true, Truncated = truncated, Options = EquatableArray.From(options) };

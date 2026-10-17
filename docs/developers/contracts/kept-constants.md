@@ -32,7 +32,7 @@ not a silent exemption.
 The forecast's native reads (planned sites, planned routes, needs, and the coupled read with its construction,
 food, cooking, recipe, thermal, support, practice and hunt sub-reads) cap nothing: every colonist, candidate and
 location pair is read. Each read searches a path once (`NativePathLegs`) and re-prices it per colonist. The
-main-thread time on `observations/large-colony-reads` (32 free colonists, five planned rooms, twenty wood stacks,
+main-thread time on a lab measurement (32 free colonists, five planned rooms, twenty wood stacks,
 eight meal stacks, eight beds; one lab map, 2026-10-16) is a measured fact, not a bound:
 
 | Read (one call a round) | Cold ms | Warm ms | Size |

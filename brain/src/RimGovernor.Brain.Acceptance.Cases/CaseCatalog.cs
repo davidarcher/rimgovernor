@@ -13,14 +13,7 @@ public static class CaseCatalog
         ArgumentNullException.ThrowIfNull(registry);
         HostSeams.Install();
         registry.Register(PawnActivityCase.Case());
-        registry.Register(NeedsForecastCase.Case());
-        registry.Register(CoupledForecastCase.Case());
-        registry.Register(PlannedSiteCase.Case());
-        registry.Register(PlannedRoomCase.Case());
-        registry.Register(LargeColonyReadsCase.Case());
-        registry.Register(PlannedShelterThermalCase.Case());
         registry.Register(PlannedRoomPredictionCase.Case());
-        registry.Register(ConditionalMoodCase.Case());
         registry.Register(PortfolioNeedsCase.Case());
         registry.Register(NeedTargetCapacityCase.Case());
         registry.Register(PortfolioThermalCase.Case());

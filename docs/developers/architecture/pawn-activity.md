@@ -63,12 +63,7 @@ Successful job termination is never used as a substitute for physical output.
 ## Evidence
 
 Pure tests cover long event-free tasks, same-tick transitions, interruption, replacement, unknown jobs, bounds, missing records
-and timeline changes. observations/pawn-activity starts from a small prepared lab,
-walks a colonist to a mature crop, verifies travel/work intervals, actual produced
-items and a worker-attributed output event. It also checks that the activity owner has no game-tick hook. A snapshot cannot exercise native
-Harmony hooks or establish actual delivery. The case reports paired steady-state
-event-state reading/accounting timings on the same paused fixture. Those microbenchmarks
-exclude asynchronous disk export and do not certify whole-game TPS or cost on
-large colonies; no low-overhead claim follows from compilation alone.
-
-The case also benchmarks a disabled sink versus real OTLP enqueue/encoding/flush on the same captured fixture interval in the harness process. Its separate benchmark ring is test evidence and is never merged into colony history.
+and timeline changes. observations/pawn-activity stages a grower, one mature potato in a growing zone twelve cells away and
+two colonists with no work, lets vanilla work selection run, and requires travel and work intervals and a worker-attributed
+output event. A snapshot cannot exercise native Harmony hooks or establish actual delivery. No case measures the
+tracker's cost; no low-overhead claim follows from compilation alone.

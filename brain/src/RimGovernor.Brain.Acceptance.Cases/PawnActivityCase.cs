@@ -1,75 +1,96 @@
 using System.Globalization;
-using System.Diagnostics;
-using System.Text.Json.Nodes;
+using RimGovernor.Brain.NativeFacade;
 using RimGovernor.Brain.Telemetry;
-using RimGovernor.Brain.Telemetry.Otlp;
+using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
+/// <summary>
+/// <c>observations/pawn-activity</c>: the native activity tracker splits one grower's walk to a mature crop from the
+/// harvest work, and the delivery ledger attributes the harvested output to that grower.
+/// </summary>
 internal static class PawnActivityCase
 {
-    internal static AcceptanceCase Case() => new()
+    private const string Crop = "Plant_Potato";
+
+    // A 14x3 strip: the grower at its west end, one mature potato in a one-cell growing zone twelve cells east. The
+    // other two colonists have every work type off, so the harvest is the grower's.
+    private static readonly Fx.StageSpec Spec = new()
+    {
+        Paused = true,
+        Site = new Fx.StageSite
+        {
+            Width = 14,
+            Height = 3,
+            OffsetX = 4,
+            Radius = 15,
+            Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unzoned, Fx.StageGround.Unfogged],
+        },
+        Clear = [new Fx.StageClear { Rect = new Fx.StageRect(0, 0, 14, 3), Kinds = [Fx.StageClearKind.Things, Fx.StageClearKind.Zones, Fx.StageClearKind.Roofs] }],
+        Plants = [new Fx.StagePlant { Name = "crop", Def = Crop, Cells = [new(12, 1)], Growth = 1f }],
+        Pawns =
+        [
+            new Fx.StagePawn { Name = "grower", Colonist = 0, Cell = new(0, 1), AllWork = 0, Work = new Dictionary<string, int> { ["Growing"] = 1 } },
+            new Fx.StagePawn { Name = "idle1", Colonist = 1, AllWork = 0 },
+            new Fx.StagePawn { Name = "idle2", Colonist = 2, AllWork = 0 },
+        ],
+        Zones = [new Fx.StageZone { Name = "field", Kind = Fx.StageZoneKind.Growing, Cells = [new(12, 1)], Plant = Crop }],
+    };
+
+    internal static TypedCase Case() => new()
     {
         Name = "observations/pawn-activity",
-        Scope = "Native job transitions separate travel from harvest work and link an observed product to the worker. Pure snapshots cannot prove Harmony lifecycle hooks or physical delivery.",
-        Start = new FixtureStart { Op = "test/pawn_activity_prepare", On = new LabStart() },
-        RequiredOps = ["test/pawn_activity_prepare", "test/pawn_activity_read"],
-        QuietWorld = true, Budget = TimeSpan.FromMinutes(4), Crew = new Crew { Size = 3 },
+        Scope = "Native job transitions separate the grower's travel from its harvest work, and the delivery ledger links the "
+            + "harvested crop to that grower: one staged mature potato in a growing zone, read from the pawn_activity_interval "
+            + "and pawn_activity_output rows.",
+        Ticks = 3600,
+        Tier = CaseTier.OnDemand,
+        Start = new LabStart { Colonists = 3 },
+        Stage = Spec,
+        QuietWorld = true,
         Run = RunAsync,
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken ct)
+    private static async Task RunAsync(ITypedSession s, CancellationToken cancellationToken)
     {
-        var prepared = s.Prepared ?? throw new AcceptanceException("Missing activity fixture.");
-        var world = prepared["world"].AsString();
-        var pawn = prepared["pawn"].AsString();
-        var from = (long)prepared["start"].AsNumber();
-        var logs = Path.Combine(GameSessions.EndpointDirectory(s.Config.Configuration, s.Config.GameId), "logs.jsonl");
-        for (var ticks = 0; ticks < 3600; ticks += 120)
-        {
-            _ = await s.AdvanceAsync(120, null, ct).ConfigureAwait(false);
-            var state = await s.Harness.CallAsync("activity-" + ticks.ToString(CultureInfo.InvariantCulture),
-                "test/pawn_activity_read", [], ct).ConfigureAwait(false);
-            if (state["periodic_activity_hook"].AsBool() != false) throw new AcceptanceException("Activity tracker installed a periodic tick hook.");
-            var to = (long)state["tick"].AsNumber();
-            var rows = PawnActivityReport.Read(logs, world, pawn, from, to);
-            var delivered = OtlpTimeline.Read(logs).Any(r => r.Kind == PawnActivityTelemetry.OutputKind
-                && r.Payload.GetValueOrDefault("pawn") as string == pawn);
-            if (state["produced"].AsNumber() <= 0 || !delivered
-                || !rows.Any(r => r.Activity == "travel") || !rows.Any(r => r.Activity == "work")) continue;
-            var telemetryCost = await MeasureTelemetryAsync(s.Harness.Output, rows.First(r => !r.Gap), ct).ConfigureAwait(false);
-            s.Report["activity"] = new JsonObject
+        var grower = s.Staged!.Pawns["grower"].Id;
+        var crop = s.Staged!.Plants["crop"].Ids.Single();
+
+        // The facts read installs the delivery ledger's hooks and stamps the tick the run starts from.
+        var facts = await s.CallAsync("facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var from = TypedReads.Observed("facts", NativeOps.ReadColonyFacts, facts, facts.Outcome?.Observed).Context?.Tick
+            ?? throw new AcceptanceException("facts: no observation context");
+
+        IReadOnlyList<LogRow> intervals = [];
+        IReadOnlyList<LogRow> outputs = [];
+        bool Has(string activity) => intervals.Any(r => Text(r, PawnActivityTelemetry.ActivityKey) == activity);
+        bool Harvested() => intervals.Any(r => Text(r, PawnActivityTelemetry.ActivityKey) == "work" && Text(r, PawnActivityTelemetry.TargetsKey).Split('|').Contains(crop));
+        _ = await s.RunUntilAsync(
+            "harvest",
+            3600,
+            _ =>
             {
-                ["from"] = from, ["to"] = to, ["produced"] = state["produced"]?.DeepClone(),
-                ["baseline_sample_ms"] = state["baseline_sample_ms"]?.DeepClone(),
-                ["sample_and_accounting_ms"] = state["sample_and_accounting_ms"]?.DeepClone(),
-                ["benchmark_note"] = state["note"]?.DeepClone(),
-                ["telemetry_overhead"] = telemetryCost,
-                ["unknown_ticks"] = rows.Where(r => r.Gap || r.Activity == "unknown").Sum(r => r.End - r.Start),
-            };
-            return;
+                intervals = [.. s.Telemetry(TelemetryKinds.PawnActivityInterval).Where(r => Text(r, PawnActivityTelemetry.PawnKey) == grower
+                    && r.Payload.GetValueOrDefault(PawnActivityTelemetry.StartTickKey) is double start && start >= from)];
+                outputs = [.. s.Telemetry(TelemetryKinds.PawnActivityOutput).Where(r => Text(r, PawnActivityTelemetry.PawnKey) == grower)];
+                var signature = string.Create(CultureInfo.InvariantCulture, $"intervals={intervals.Count} outputs={outputs.Count}");
+                return Task.FromResult((signature, outputs.Count > 0 && Has("travel") && Harvested()));
+            },
+            cancellationToken).ConfigureAwait(false);
+
+        if (outputs.Count == 0 || !Has("travel") || !Harvested())
+        {
+            throw new AcceptanceException(string.Create(
+                CultureInfo.InvariantCulture,
+                $"grower {grower}: want travel, work on {crop} and a crop output, got activities [{string.Join(", ", intervals.Select(r => Text(r, PawnActivityTelemetry.ActivityKey)))}] and {outputs.Count} outputs"));
         }
-        throw new AcceptanceException("No complete travel/work/product evidence within 3600 ticks; inspect pawn_activity rows and tracker faults.");
+
+        s.Record("crop", crop);
+        s.Record("from", from);
+        s.Record("activities", string.Join(",", intervals.Select(r => Text(r, PawnActivityTelemetry.ActivityKey))));
+        s.Record("output", $"{Text(outputs[0], PawnActivityTelemetry.ResourceKey)} x{outputs[0].Payload.GetValueOrDefault(PawnActivityTelemetry.UnitsKey)}");
     }
-    private static async Task<JsonObject> MeasureTelemetryAsync(string output, PawnActivityReportRow observed, CancellationToken ct)
-    {
-        // Same observed fixture interval on both paths. The benchmark ring is an evidence artifact,
-        // never merged into the colony history. Includes enqueue, encoding and final file flush.
-        const int iterations = 512;
-        var sample = new PawnActivitySample(observed.World, observed.Pawn, observed.Start, observed.Job,
-            1, "benchmark", observed.Activity, observed.Purpose, "", "");
-        var baseline = new TelemetryEmitter(NullTelemetrySink.Instance);
-        var timer = Stopwatch.StartNew();
-        for (var i = 0; i < iterations; i++) PawnActivityTelemetry.Write(baseline, new(i + 1, sample, observed.End, "", observed.Outcome));
-        var baselineMs = timer.Elapsed.TotalMilliseconds;
-        await using var writer = OtlpFileWriter.Start(new() { Dir = Path.Combine(output, "activity-telemetry-benchmark") });
-        var emitter = new TelemetryEmitter(writer);
-        timer.Restart();
-        for (var i = 0; i < iterations; i++) PawnActivityTelemetry.Write(emitter, new(i + 1, sample, observed.End, "", observed.Outcome));
-        var enqueueMs = timer.Elapsed.TotalMilliseconds;
-        await writer.ShutdownAsync(ct).ConfigureAwait(false);
-        return new JsonObject { ["intervals"] = iterations, ["disabled_sink_ms"] = baselineMs,
-            ["enabled_enqueue_ms"] = enqueueMs, ["enabled_flush_ms"] = timer.Elapsed.TotalMilliseconds,
-            ["note"] = "Same captured native fixture interval; harness-process telemetry benchmark, not a whole-game TPS claim." };
-    }
+
+    private static string Text(LogRow row, string key) => row.Payload.GetValueOrDefault(key) as string ?? "";
 }

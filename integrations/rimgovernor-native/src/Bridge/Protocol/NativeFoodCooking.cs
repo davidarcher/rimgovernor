@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools;
 
 internal static class NativeFoodCooking
 {
-    internal static void Add(Pawn pawn, Thing source, int available, double approach, PawnActivityOrder existing,
+    internal static void Add(Pawn pawn, Thing source, int available, PawnActivityOrder existing,
         List<Obs.FoodActivityOption> options, ref int budget, ref bool truncated)
     {
         var map = pawn.Map;
@@ -69,7 +69,7 @@ internal static class NativeFoodCooking
                     var continuation = new ActivityRecipeContinuation(bench.GetUniqueLoadID(), bill.GetUniqueLoadID(), recipe.defName, giver.defName,
                         new(bench.InteractionCell.x, bench.InteractionCell.z), product.thingDef.defName, product.count, new(destination.x, destination.z));
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), source.def.defName, new(source.Position.x, source.Position.z),
-                        new(supply.x, supply.z), "", available, approach + toSupply.TotalCost + toBench.TotalCost, 0)
+                        new(supply.x, supply.z), "", available, 0)
                     { Cooking = new(continuation, (int)required) { Learning = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(recipe) } });
                 }
             }

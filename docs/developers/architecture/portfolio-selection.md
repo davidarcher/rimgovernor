@@ -170,8 +170,7 @@ work; they are not an additional normal production selector.
 `coupled_selection` records baseline, selected and rejected vectors, horizon,
 unknowns and generation/search counts. `coupled_observed` correlates the same
 Method with observed task completion and native states. The OTLP log reader and
-prepared `production/coupled-needs` case consume these signals. Prepared
-`observations/conditional-mood` checks native thought windows and response laws.
+prepared `production/coupled-needs` case consume these signals.
 Registered cases require nightly execution for observed gameplay evidence;
 pure tests own preference, conservation and bounded-search claims.
 

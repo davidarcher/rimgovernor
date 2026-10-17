@@ -82,8 +82,6 @@
     <Compile Include="../../../../scripts/fixtures/DraftFaultFixture.cs" Condition="'$(DraftFaultFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RuntimeFaultFixture.cs" Condition="'$(RuntimeFaultFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MapScopeFixture.cs" Condition="'$(MapScopeFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/NeedsForecastFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/ConditionalMoodFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SupportPortfolioFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PortfolioNeedsFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ServiceInvestmentFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
@@ -93,15 +91,8 @@
     <Compile Include="../../../../scripts/fixtures/PawnDeliveryFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CoordinatedWorkFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PawnCookingFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/CoupledForecastFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/PlannedSiteFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/PlannedRoomFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/LargeColonyReadsFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FoodStorageRoutesFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/PlannedShelterThermalFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/PlannedRoomPredictionFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ClothingActivityFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/PawnActivityFixture.cs" Condition="'$(PawnActivityFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ForecastFixture.cs" Condition="'$(ForecastFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BuildingTemperatureFixture.cs" Condition="'$(BuildingTemperatureFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CaravanDepartureFixture.cs" Condition="'$(CaravanDepartureFixture)' == 'true'" />

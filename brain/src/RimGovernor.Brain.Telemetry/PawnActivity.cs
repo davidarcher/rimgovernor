@@ -83,16 +83,33 @@ public static class PawnActivityTelemetry
     public const string IntervalKind = "pawn_activity_interval";
     public const string OutputKind = "pawn_activity_output";
 
+    /// <summary>The pawn's load id, on an interval and an output row.</summary>
+    public const string PawnKey = "pawn";
+
+    /// <summary>An interval's activity class (travel, work, needs, ...).</summary>
+    public const string ActivityKey = "activity";
+
+    /// <summary>An interval's job targets A, B and C, joined by '|': a thing's load id or a cell's x,z.</summary>
+    public const string TargetsKey = "targets";
+
+    /// <summary>The game tick an interval started at.</summary>
+    public const string StartTickKey = "start_tick";
+
+    /// <summary>An output row's produced def and unit count.</summary>
+    public const string ResourceKey = "resource";
+
+    public const string UnitsKey = "units";
+
     public static void Write(TelemetryEmitter emitter, PawnActivityInterval interval)
     {
         var s = interval.Start;
         emitter.EmitRow(IntervalKind, new RowContext { Component = "pawn-activity", Tick = interval.EndTick },
             new Dictionary<string, object?>
             {
-                ["sequence"] = interval.Sequence, ["world"] = s.World, ["pawn"] = s.Pawn,
-                ["start_tick"] = s.Tick, ["end_tick"] = interval.EndTick,
+                ["sequence"] = interval.Sequence, ["world"] = s.World, [PawnKey] = s.Pawn,
+                [StartTickKey] = s.Tick, ["end_tick"] = interval.EndTick,
                 ["job"] = s.Job, ["job_id"] = s.JobId, ["phase"] = s.Phase,
-                ["activity"] = s.Activity, ["purpose"] = s.Purpose, ["targets"] = s.Targets,
+                [ActivityKey] = s.Activity, ["purpose"] = s.Purpose, [TargetsKey] = s.Targets,
                 ["start_location"] = s.Location, ["end_location"] = interval.EndLocation,
                 ["end_reason"] = interval.EndReason,
                 ["method"] = s.Method, ["assignment"] = s.Assignment,

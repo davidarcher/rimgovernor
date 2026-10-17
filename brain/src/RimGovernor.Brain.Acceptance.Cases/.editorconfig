@@ -177,13 +177,7 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/CombatLab/Wild.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/ConditionalMoodCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/CoordinatedWorkCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/CoupledForecastCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/Custody/CustodyPopulation.cs]
@@ -315,9 +309,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Lab/TrainingRange.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/LargeColonyReadsCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/Layout/Fixture.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -447,9 +438,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Needs/NeedsFreeze.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/NeedsForecastCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/NeedTargetCapacityCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -498,9 +486,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 [/Pawn/SelfTend.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
-[/PawnActivityCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
 [/PawnControlCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
@@ -508,18 +493,6 @@ dotnet_diagnostic.RS0030.severity = suggestion
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/PawnDeliveryCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/PlannedRoomCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/PlannedRoomPredictionCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/PlannedShelterThermalCase.cs]
-dotnet_diagnostic.RS0030.severity = suggestion
-
-[/PlannedSiteCase.cs]
 dotnet_diagnostic.RS0030.severity = suggestion
 
 [/PortfolioNeedsCase.cs]

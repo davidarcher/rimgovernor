@@ -25,6 +25,8 @@ public sealed record StageReply
 
     public IReadOnlyDictionary<string, StagedThings> Things { get; init; } = new Dictionary<string, StagedThings>();
 
+    public IReadOnlyDictionary<string, StagedThings> Plants { get; init; } = new Dictionary<string, StagedThings>();
+
     public IReadOnlyDictionary<string, StagedPawn> Pawns { get; init; } = new Dictionary<string, StagedPawn>();
 
     /// <summary>Zone name to the game's zone id.</summary>

@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
         private static string Target(LocalTargetInfo target) => !target.IsValid ? "" :
             target.HasThing ? target.Thing.GetUniqueLoadID() : target.Cell.x + "," + target.Cell.z;
 
-        public static PawnActivitySample ReadSample(Pawn pawn)
+        private static PawnActivitySample ReadSample(Pawn pawn)
         {
             var job = pawn.CurJob;
             var driver = pawn.jobs?.curDriver;
@@ -188,9 +188,9 @@ namespace HomeBridge.BridgeTools
                     new Dictionary<string, object?>
                     {
                         ["colony"] = identity.ColonyId, ["load"] = identity.LoadToken,
-                        ["map"] = pawn?.Map?.uniqueID, ["pawn"] = pawn?.GetUniqueLoadID(), ["job_id"] = pawn?.CurJob?.loadID,
-                        ["source"] = source, ["output_kind"] = kind, ["resource"] = resource,
-                        ["units"] = units, ["tick"] = lastTick,
+                        ["map"] = pawn?.Map?.uniqueID, [PawnActivityTelemetry.PawnKey] = pawn?.GetUniqueLoadID(), ["job_id"] = pawn?.CurJob?.loadID,
+                        ["source"] = source, ["output_kind"] = kind, [PawnActivityTelemetry.ResourceKey] = resource,
+                        [PawnActivityTelemetry.UnitsKey] = units, ["tick"] = lastTick,
                     });
             }
             catch (Exception error) { Fail(error); }

@@ -299,11 +299,6 @@ never observed production. Existing inventory-only diagnostics remain conditiona
 accounting. Coupled consumers must inspect each schedule's feasibility, timings
 and uncertainty rather than treating a final balance as proof of execution.
 
-The prepared `observations/coupled-forecast` case checks native tick/stock capture,
-recipe batch counts and unpowered-source evidence. These native reads cannot be
-proved by a policy-only unit test. It does not dispatch a colony portfolio or
-establish prediction accuracy from registration/compilation alone.
-
 ### Planned construction sites
 
 `ConstructionActivityRequest.Planned` asks the construction activity read about
@@ -375,12 +370,6 @@ most 16 placed sites, 16 planned sites and 16 route probes; a longer list sets
 `Truncated` and the caller batches. Rows, sources, positions, rejections, blockers
 and colonists are not capped. The coupled census passes no planned sites; Rounds ask
 them per round ([planned-site facts](../architecture/colony-forecast.md#planned-site-facts)).
-The prepared `observations/planned-site` case checks open-ground walls, a door and a
-shelf; rejection on a standing wall (`Unestimable`) and on deep water (`Illegal`);
-and Cut, Haul and Mine ops over a tree, a steel stack and natural rock. The prepared
-`observations/planned-room-one-builder` case reads one builder's rows and routes for
-an unplaced 3x3 wood room and requires the coupled forecast over them to schedule the
-whole room for that builder within a day.
 
 ### Planned shelter thermal read
 
@@ -404,8 +393,6 @@ site id, definition and cell. `ConstructionActivityRead.Thermal` answers with a
 The caps are 4 rooms, 16 heaters and 1,024 cells; anything past them sets `Truncated`.
 Rounds ask once per round
 ([planned shelter](../architecture/colony-forecast.md#planned-shelter-and-occupancy)).
-The prepared `observations/planned-shelter-thermal` case reads an empty, unroofed
-3x3 room with a planned Heater beside a generator's conduit run, and a planned bed.
 
 ### Planned room prediction read
 
@@ -429,11 +416,12 @@ shape:
 - `Beds`: the beds inside; `Benches`: the bill-giving buildings inside, each with
   whether `StatPart_WorkTableOutdoors` applies to it now.
 
-The unregistered room is never added to the map. The prepared
+The unregistered room is never added to the map. The staged
 `observations/planned-room-prediction` case predicts an open 3x3 patch with a wooden
-bed closed by a wood ring and door, spawns that ring, and requires the prediction's
-role, impressiveness (within 0.001), stage, cell and open-roof counts to equal the
-game's own room.
+bed closed by a wood ring and door, stages that ring, and requires the prediction's
+role, impressiveness (within 0.001), cell and open-roof counts and bed to equal the
+game's own room as `observations_list_rooms` reads it (the room read has no stage, so
+the stage follows from the impressiveness).
 
 ## Food reserve components
 

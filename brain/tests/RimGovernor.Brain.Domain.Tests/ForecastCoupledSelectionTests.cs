@@ -53,7 +53,7 @@ public sealed class ForecastCoupledSelectionTests
                 {
                     Tick = 100,
                     Food = new() { Context = Context, Known = true, Options = EquatableArray.From(sources.Select(source =>
-                        new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, 10, harvest)
+                        new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, harvest)
                         { ApproachTicks = Known(0d), DeliveryTicks = Known(10d), HarvestAllowed = unknownHarvest ? default : Known(true),
                             SourceCount = Known(2d) })) },
                     FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(expiry))],

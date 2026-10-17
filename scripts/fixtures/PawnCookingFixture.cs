@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
                 var obligation = new PawnActivityOrder(worker.GetUniqueLoadID(), "candidate-probe", "food-method", 0, 1, false,
                     new[] { new PawnActivityStep(PawnActivityKind.Work, "observed-harvest", "harvest", "Harvest", 0, deadline) })
                     { OutputDelivery = new(raw.defName, new(center.x, center.z), new(destination.x, destination.z), 60, deadline, 3) };
-                NativeFoodCooking.Add(worker, unselectedIngredient, 60, 0, obligation, observations, ref budget, ref truncated);
+                NativeFoodCooking.Add(worker, unselectedIngredient, 60, obligation, observations, ref budget, ref truncated);
                 if (!observations.Any(o => o.Cooking?.Continuation.Bill == selectedBill.GetUniqueLoadID()
                     && o.Cooking.IngredientCount == needed))
                 {

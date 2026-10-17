@@ -5,7 +5,7 @@ namespace RimGovernor.Fixtures.Contracts;
 
 /// <summary>
 /// What <c>test/stage</c> builds on the loaded game in one call, primitive by primitive and in this order: research,
-/// world, find the site, clear areas, set cells, build rooms, place buildings, spawn things, spawn or set pawns (with
+/// world, find the site, clear areas, set cells, build rooms, place buildings, spawn things, spawn plants, spawn or set pawns (with
 /// the raid's arrival mode and lords), zones, fire incidents, then generate quests. Every cell and rect is relative to the found site's south-west corner, or absolute when
 /// there is no site. Def names are the game's; the fixture resolves each by name and refuses an unknown one. A name keys
 /// what an entry made in the <see cref="StageReply"/>.
@@ -42,6 +42,8 @@ public sealed record StageSpec
     public IReadOnlyList<StageBuilding> Buildings { get; init; } = [];
 
     public IReadOnlyList<StageThing> Things { get; init; } = [];
+
+    public IReadOnlyList<StagePlant> Plants { get; init; } = [];
 
     /// <summary>Generated pawns and existing colonists, handled in list order (the order the staging draws in).</summary>
     public IReadOnlyList<StagePawn> Pawns { get; init; } = [];
@@ -287,6 +289,18 @@ public sealed record StageThing
     public bool Near { get; init; }
 
     public bool Forbidden { get; init; }
+}
+
+/// <summary>Spawn plant: the plant Def at each cell, grown to Growth (0..1; 1 is mature), replacing any plant there.</summary>
+public sealed record StagePlant
+{
+    public required string Name { get; init; }
+
+    public required string Def { get; init; }
+
+    public required IReadOnlyList<StageCell> Cells { get; init; }
+
+    public float Growth { get; init; } = 1f;
 }
 
 /// <summary>

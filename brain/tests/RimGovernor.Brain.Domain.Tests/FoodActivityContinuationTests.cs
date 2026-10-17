@@ -15,7 +15,7 @@ public sealed class FoodActivityContinuationTests
 {
     private static readonly GenerationSnapshot Root = new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
     private static FoodActivityOption Option(string target = "crop", int count = 8, double travel = 20) =>
-        new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", count, travel, 30) { ApproachTicks = Known(travel), DeliveryTicks = Known(0.0), HarvestAllowed = Known(true) };
+        new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", count, 30) { ApproachTicks = Known(travel), DeliveryTicks = Known(0.0), HarvestAllowed = Known(true) };
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new()
     { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 110 }, Options = EquatableArray.From(options) };
     private static PawnActivities Harvest() => ActivityContinuationFixtures.Harvest();

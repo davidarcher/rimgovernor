@@ -68,7 +68,6 @@ namespace HomeBridge.BridgeTools
             if (kind != null) row = row with { SourceKind = kind.Value };
             return row;
         }
-        internal static bool EnsureInstalled() { Install(); return installed; }
 
         private static void Install()
         {

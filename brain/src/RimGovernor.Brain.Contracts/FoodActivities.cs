@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 namespace RimGovernor.Contracts.Wire.Observations;
 
 public sealed record FoodActivityOption(string Pawn, string Target, string Resource, Cell Origin, Cell Destination,
-    string WorkGiver, int Count, double TravelTicks, double WorkTicks)
+    string WorkGiver, int Count, double WorkTicks)
 {
     public Fact<double> SourceCount { get; init; }
     public FoodCookingEstimate? Cooking { get; init; }
