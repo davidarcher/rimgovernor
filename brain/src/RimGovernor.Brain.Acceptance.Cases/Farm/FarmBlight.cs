@@ -17,7 +17,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <remarks>
 /// Adaptations: the service is the serve lifecycle of <see cref="ISession.ServeAsync"/> (the brain is in-process), so the
 /// journal reads are the <see cref="IWatchStore"/> projections: one poll reads every plan (<c>PlanHistoryAsync("*")</c>) and
-/// the food/blight Need (<c>SampleStandardAsync</c>, met once its progress row is pruned)
+/// the food/blight Need (<c>SampleNeedAsync</c>, met once its progress row is pruned)
 /// instead of Go's per-plan waits; the checks on each plan (cut_plant rows only, 1 to 8 of them, fixture plants, each once)
 /// are the same. The blight census comes from <see cref="StarterSiteHost.BlightSurveyAsync"/> (the controller's projection
 /// is not buildable out of process).
@@ -229,7 +229,7 @@ internal static class FarmBlight
                         }
 
                         plansSeen = batches;
-                        var goal = await store.SampleStandardAsync(concern, ct).ConfigureAwait(false);
+                        var goal = await store.SampleNeedAsync(concern, ct).ConfigureAwait(false);
                         settled = goal;
                         var done = Settled(goal) && cut.Count > 0 && zoneCreated;
                         return (Wait.Signature(batches, cut.Count, zoneCreated, Settled(goal)), done);

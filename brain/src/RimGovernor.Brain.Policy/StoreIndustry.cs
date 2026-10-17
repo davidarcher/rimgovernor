@@ -7,8 +7,6 @@ namespace RimGovernor.Brain.Policy;
 // and retired only when its bench is gone.
 internal sealed class IndustryOwner : IStoreOwner
 {
-    public Department Department => Department.Industry;
-
     /// <summary>The side of a bench store's square patch.</summary>
     private const int BenchStoreSize = 2;
 

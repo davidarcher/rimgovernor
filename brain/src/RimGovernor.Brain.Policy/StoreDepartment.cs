@@ -45,8 +45,6 @@ public sealed record Store
 /// </summary>
 public interface IStoreOwner
 {
-    Department Department { get; }
-
     /// <summary>The department's declared stores, most important first.</summary>
     IReadOnlyList<Store> Stores(StoreView view);
 

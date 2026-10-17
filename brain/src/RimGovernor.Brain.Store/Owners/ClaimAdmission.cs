@@ -16,15 +16,12 @@ public enum ClaimOutcome
     Conflict,
 }
 
-/// <summary>The open Method holding a claim the candidate asked for: its owner (<c>standard &lt;id&gt;</c>, <c>incident &lt;id&gt;</c> or <c>need &lt;NeedId&gt;</c>), MethodId and the claim.</summary>
+/// <summary>The open Method holding a claim the candidate asked for: its owner (<c>need &lt;NeedId&gt;</c>), MethodId and the claim.</summary>
 public sealed record ClaimConflict(string Holder, MethodId Method, string Claim)
 {
     /// <summary>The planner reason a refusal files.</summary>
     public string Reason => "claim_conflict: " + Claim + " held by " + Holder + " method " + Method.Value;
 }
-
-/// <summary>A claimed commit's result: the owner after the commit and, on <see cref="ClaimOutcome.Conflict"/>, the holder.</summary>
-public sealed record ClaimCommit(ClaimOutcome Outcome, StandardState State, ClaimConflict? Conflict = null);
 
 /// <summary>A Need's claimed commit result (#3250): the Need's owner after the commit and, on <see cref="ClaimOutcome.Conflict"/>, the holder.</summary>
 public sealed record NeedCommit(ClaimOutcome Outcome, NeedOwner Owner, ClaimConflict? Conflict = null);
@@ -34,52 +31,11 @@ public sealed partial class Store
     private const int MaxClaimPlans = 1024;
 
     /// <summary>
-    /// Claim-overlap admission (#3249), the opt-in beside <see cref="CommitMethodReason"/>: a migrated owner commits
-    /// through here and skips the open-work gate and its exemptions. The revision compare-and-swap comes first; a
-    /// MethodId the owner already binds to open work then continues that Method (<see cref="ClaimOutcome.Continued"/>,
-    /// no new row). Otherwise the open-deficit check, Safeguards and current review run as for the gate, and the
-    /// candidate's claims (<see cref="PolicyFunctions.MethodClaimsOf"/>) are compared with every open Method in the
-    /// same world, any owner: an overlap is <see cref="ClaimOutcome.Conflict"/> naming the holder and the claim, with
-    /// nothing written. Family admission, work resources and binding are unchanged, so a MethodId whose plan was
-    /// released still raises <see cref="MethodBoundException"/>.
-    /// </summary>
-    public ClaimCommit CommitClaimedMethod(StandardId id, ulong revision, MethodId method, string reason, PlanSpec plan, CancellationToken cancellationToken)
-    {
-        if (plan.Actions.Count == 0) throw new DomainException("empty standard method");
-        return Run(tx => CommitClaimedMethodIn(tx, id, revision, method, reason, plan), cancellationToken);
-    }
-
-    private static ClaimCommit CommitClaimedMethodIn(StoreTransaction tx, StandardId id, ulong revision, MethodId method, string reason, PlanSpec plan)
-    {
-        var state = LoadStandard(tx, id);
-        IMethodOwner owner = state;
-        if (state.Revision != revision)
-            throw new StaleOwnerException($"{owner.OwnerLabel} is at revision {state.Revision}, not {revision}");
-        if (owner.BoundPlan(tx, method) is { } bound)
-        {
-            var held = LoadIn(tx, bound);
-            if (!held.Retired && Standard.WorkOpen(held.Progress)) return new(ClaimOutcome.Continued, state);
-        }
-        var summary = SummarizeOwner(state);
-        if (summary.Status != StandardStatus.Open || summary.Finding != Finding.Unmet)
-            throw new DomainException("standard does not admit a method");
-        AdmitRoundsSafeguards(tx, state);
-        AdmitRoundsReview(tx, summary);
-        if (ClaimOverlapIn(tx, owner.OwnerSnapshot, plan) is { } conflict) return new(ClaimOutcome.Conflict, state, conflict);
-        new Method(state.Standard.Id, summary.Episode, method, plan.Id).Validate();
-        if (state.Revision == ulong.MaxValue) throw new CapacityException();
-        BindOwnerMethod(tx, state, method, reason, plan);
-        BumpRevision(tx, state);
-        return new(ClaimOutcome.Admitted, LoadStandard(tx, id));
-    }
-
-    /// <summary>
-    /// A Need's claimed commit (#3250): every Need-owned Method is admitted through claim overlap, never the open-work
-    /// gate. The Need was derived from <paramref name="current"/>, which must be the current enabled review's world.
+    /// A Need's claimed commit (#3249, #3250): every Method is admitted through claim overlap. The Need was derived from <paramref name="current"/>, which must be the current enabled review's world.
     /// A MethodId whose latest attempt is still open work continues it (<see cref="ClaimOutcome.Continued"/>); one
     /// that was released is admitted again as the next attempt. Then the Safeguards, the claim overlap with every
     /// open Method in the world (<see cref="ClaimOutcome.Conflict"/>, nothing written), the family admission checks
-    /// and binding run as for a Standard.
+    /// and binding run.
     /// </summary>
     public NeedCommit CommitClaimedMethod(NeedId need, GenerationSnapshot current, MethodId method, string reason, PlanSpec plan, CancellationToken cancellationToken)
     {
@@ -116,13 +72,6 @@ public sealed partial class Store
             [.. plan.Actions.Select(a => new WorkAction(plan.Id, a, new ProgressView { Action = a.Id, Stage = Stage.Pending }))]);
         if (candidate.Pawns.Count == 0 && candidate.Targets.Count == 0) return null;
         var links = tx.Query("""
-            SELECT m.plan_id,m.kind||' '||m.owner_id,COALESCE(p.method_id,'') FROM plan_methods m
-            JOIN (SELECT id,payload,'standard' AS kind FROM standards UNION ALL SELECT id,payload,'incident' AS kind FROM incidents) g
-            ON g.id=m.owner_id AND g.kind=m.kind
-            JOIN plans p ON p.id=m.plan_id
-            WHERE p.retired=0 AND json_extract(g.payload,'$.Snapshot.Colony')=$colony
-              AND json_extract(g.payload,'$.Snapshot.Load')=$load AND json_extract(g.payload,'$.Snapshot.Map')=$map
-            UNION ALL
             SELECT n.plan_id,'need '||n.need_id,COALESCE(p.method_id,'') FROM need_methods n
             JOIN plans p ON p.id=n.plan_id
             WHERE p.retired=0 AND n.colony=$colony AND n.load_token=$load AND n.map_id=$map
@@ -133,7 +82,7 @@ public sealed partial class Store
         foreach (var link in links)
         {
             var held = LoadIn(tx, link.Plan);
-            if (held.Retired || !Standard.WorkOpen(held.Progress)) continue;
+            if (held.Retired || !WorkProgress.Open(held.Progress)) continue;
             var rows = held.Progress
                 // Native authority rollover ends activity assignments, as in the work resource census.
                 .Where(p => p.Action.PawnActivities is not { } activity || activity.AuthorityGeneration == current.Native.Value)

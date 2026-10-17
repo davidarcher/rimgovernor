@@ -20,8 +20,10 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 16 adds the ideology family's pending reform (#3260): the <c>ideology_reform</c> singleton table.
     /// Version 17 adds the economy family's trade missions (#3316): the <c>economy_trade_missions</c> singleton table.
     /// Version 18 drops the routes latch from the stored review (#3265): routes is the layout/routes Need.
+    /// Version 19 drops Standards and incidents (#3265): the <c>standards</c>, <c>incidents</c>, <c>standard_methods</c>
+    /// and <c>incident_methods</c> tables and the <c>plan_methods</c> view; <c>plan_owner</c> holds Needs only.
     /// </summary>
-    public const int SchemaVersion = 18;
+    public const int SchemaVersion = 19;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

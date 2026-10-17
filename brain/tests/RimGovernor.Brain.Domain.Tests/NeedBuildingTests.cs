@@ -382,8 +382,8 @@ public sealed class NeedBuildingTests
         Assert.Contains(run.Methods, m => m.Need == ColdRoom);
 
         // Both stay open together: neither Need's open work holds the other's.
-        Assert.True(Standard.WorkOpen(colony.Journal.LoadPlan(coolerMethod.Plan, ct).Progress));
-        Assert.All(run.Methods.Where(m => m.Need == ColdRoom), m => Assert.True(Standard.WorkOpen(colony.Journal.LoadPlan(m.Plan, ct).Progress)));
+        Assert.True(WorkProgress.Open(colony.Journal.LoadPlan(coolerMethod.Plan, ct).Progress));
+        Assert.All(run.Methods.Where(m => m.Need == ColdRoom), m => Assert.True(WorkProgress.Open(colony.Journal.LoadPlan(m.Plan, ct).Progress)));
         Assert.Single(colony.Journal.LoadNeed(RefrigerationNeed, World, ct).Methods);
     }
 

@@ -103,7 +103,7 @@ public sealed partial class RoundsBuildingPlanner
 
     /// <summary>
     /// The owner the step works under, loaded fresh: the <see cref="Need"/>'s in the review's world when one owns
-    /// the planner (its family already judged it unmet), else the Concern's Standard while the review finds it workable.
+    /// the planner (its family already judged it unmet); a planner without a Need has no owner.
     /// </summary>
     internal (Sto.IWorkOwner? Owner, bool Workable) WorkOwner(Sto.Rounds review, CancellationToken call)
     {
@@ -111,8 +111,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (Reviewer.Player.Journal.LoadNeed(Need, review.Snapshot, call), true);
         }
-        var (goal, workable) = Reviewer.Player.Journal.Workable(review, Concern, call);
-        return (goal, workable);
+        return (null, false);
     }
 
     /// <summary>A copy for a derived planner (Go's <c>spot := *r</c>); the proposals it holds stay shared, as the Go pointers do.</summary>
@@ -956,27 +955,6 @@ public sealed partial class RoundsBuildingPlanner
         if (decision.Admitted)
         {
             reason = BuildingReasonAdmitted;
-            // A shell admitted short of a material records each shortfall so the construction demand
-            // the economy/resource Need supplies covers it. The review keeps a record only while its actions stay open.
-            // A Need owner (the planned kitchen's shell under the food/cooking Need) has no Episodes: the record
-            // names them, so it records none until its family carries the demand (#3279).
-            if (a.Purpose == Pol.Purpose.Shelter && decision.Owner is Sto.StandardState { Standard.Id.IsEmpty: false } held)
-            {
-                foreach (var resource in PreviewResources(a.Selected))
-                {
-                    if (Sto.DependencyRecord.ShortfallDependency(Concern, held.Standard, a.Method, plan.Id, a.Selected, a.Stock, resource, a.Facts.Identity.Tick) is not { } rec)
-                    {
-                        continue;
-                    }
-                    try
-                    {
-                        p.Journal.RecordDependency(a.Review.Revision, rec, call);
-                    }
-                    catch (Sto.ConflictException)
-                    {
-                    }
-                }
-            }
         }
         return new RoundsBuildingResult { Verdict = reason, Decision = decision };
     }

@@ -27,9 +27,6 @@ public class ConflictException : DomainException
         : base("plan or action identity already exists: " + detail) { }
 }
 
-/// <summary>Go <c>ErrStaleOwner</c>: another planner changed the method's owner after this one read it.</summary>
-public sealed class StaleOwnerException(string detail) : ConflictException("owner changed since it was read: " + detail);
-
 /// <summary>Go <c>ErrMethodBound</c>: a commit refused because the owner already binds that method id.</summary>
 public sealed class MethodBoundException(string detail) : ConflictException("method already bound: " + detail);
 
@@ -60,7 +57,8 @@ public sealed class ActionVetoedException : DomainException
 }
 
 /// <summary>Go <c>ErrOpenMethod</c>: native postconditions must settle existing work before another method is admitted.</summary>
-public sealed class OpenMethodException() : DomainException("existing method requires observation");
+/// <summary>The combat Need admits no Method beside its own open work or a held fight.</summary>
+public sealed class CombatWorkOpenException() : DomainException("existing combat method requires observation");
 
 /// <summary>
 /// Go <c>ErrIncompatible</c>: <see cref="Store.Open"/> refuses a database another schema version or

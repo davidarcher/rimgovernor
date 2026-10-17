@@ -65,13 +65,13 @@ internal sealed class WorldRebuild(StoreJournal database, FacadeGovernorState na
             var read = Stopwatch.GetElapsedTime(began);
             try
             {
-                await database.RebuildStandardsAsync(saved, orphans, ct).ConfigureAwait(false);
+                await database.RebuildOwnersAsync(orphans, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                throw new InvalidOperationException("rebuild standards: " + e.Message, e);
+                throw new InvalidOperationException("rebuild owners: " + e.Message, e);
             }
-            var standards = Stopwatch.GetElapsedTime(began) - read;
+            var owners = Stopwatch.GetElapsedTime(began) - read;
             try
             {
                 await database.RebuildFamiliesAsync(saved, ct).ConfigureAwait(false);
@@ -80,7 +80,7 @@ internal sealed class WorldRebuild(StoreJournal database, FacadeGovernorState na
             {
                 throw new InvalidOperationException("rebuild families: " + e.Message, e);
             }
-            var families = Stopwatch.GetElapsedTime(began) - read - standards;
+            var families = Stopwatch.GetElapsedTime(began) - read - owners;
             try
             {
                 await database.ResetRoundsAsync(ct).ConfigureAwait(false);
@@ -97,7 +97,7 @@ internal sealed class WorldRebuild(StoreJournal database, FacadeGovernorState na
                 ("keys", saved.Count),
                 ("elapsed_ms", (long)Stopwatch.GetElapsedTime(began).TotalMilliseconds),
                 ("read_ms", (long)read.TotalMilliseconds),
-                ("standards_ms", (long)standards.TotalMilliseconds),
+                ("owners_ms", (long)owners.TotalMilliseconds),
                 ("families_ms", (long)families.TotalMilliseconds));
         }
         finally

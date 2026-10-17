@@ -520,6 +520,6 @@ public sealed partial class BrainComposition
             // The routes Need's room census and door definition (#3265).
             needs.Add(LayoutFamily.Routes);
         }
-        return (thresholds, new RoundsCapabilities { Methods = [], Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction });
+        return (thresholds, new RoundsCapabilities { Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction });
     }
 }

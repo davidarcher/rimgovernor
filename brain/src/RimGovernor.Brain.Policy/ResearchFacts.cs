@@ -1,19 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// An inspection's observed deficit and method availability. It does not reserve a worker; RimWorld
-/// schedules pawn work. Mutable because the inspections adjust a raised concern in place.
-/// </summary>
-public sealed record RoundsConcern
-{
-    public ConcernId Id { get; set; }
-
-    public Fact<double> Deficit { get; set; }
-
-    public bool MethodUnavailable { get; set; }
-}
-
-/// <summary>
 /// The review-time native research state the economy/research Need is measured against. Projects lists every
 /// native project the census exposes so a configured target absent from the game stays unknown rather
 /// than an unbounded deficit.

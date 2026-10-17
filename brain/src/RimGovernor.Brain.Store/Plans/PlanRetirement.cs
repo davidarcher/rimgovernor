@@ -48,22 +48,21 @@ public sealed partial class Store
     )
     {
         var links = tx.Query(
-            "SELECT p.id,m.kind,m.owner_id FROM plans p INDEXED BY active_plans CROSS JOIN plan_methods m ON m.plan_id=p.id WHERE p.retired=0 ORDER BY p.id LIMIT 257",
+            "SELECT p.id FROM plans p INDEXED BY active_plans CROSS JOIN need_methods m ON m.plan_id=p.id WHERE p.retired=0 ORDER BY p.id LIMIT 257",
             [],
-            r => (Plan: new PlanId(r.GetString(0)), Kind: r.GetString(1), Owner: r.GetString(2))
+            r => new PlanId(r.GetString(0))
         );
         if (links.Count > 256)
         {
             throw new CapacityException();
         }
-        foreach (var v in links)
+        foreach (var plan in links)
         {
-            if (v.Plan == current.Plan)
+            if (plan == current.Plan)
             {
                 continue;
             }
-            StandardState? g = v.Kind == "standard" ? LoadStandard(tx, new StandardId(v.Owner)) : null;
-            var p = LoadIn(tx, v.Plan);
+            var p = LoadIn(tx, plan);
             if (PlanWorkOpen(p, census))
             {
                 continue;
@@ -78,7 +77,7 @@ public sealed partial class Store
             }
             // A fight owns its empty plan while open or rostering a drafted defender: retiring it would hide the
             // fight from its goal, and the clock scheduler would stop admitting ticks mid-fight.
-            if (CombatFightHolds(tx, v.Plan))
+            if (CombatFightHolds(tx, plan))
             {
                 continue;
             }
@@ -104,10 +103,6 @@ public sealed partial class Store
             {
                 continue;
             }
-            if (g is { Revision: ulong.MaxValue })
-            {
-                throw new CapacityException();
-            }
             foreach (var progress in p.Progress)
             {
                 var w = progress.View;
@@ -117,11 +112,7 @@ public sealed partial class Store
                     floors[key] = floors.TryGetValue(key, out var floor) && floor > w.Tick ? floor : w.Tick;
                 }
             }
-            _ = tx.Execute("UPDATE plans SET retired=1 WHERE id=$id", ("$id", v.Plan));
-            if (g is not null)
-            {
-                BumpRevision(tx, g);
-            }
+            _ = tx.Execute("UPDATE plans SET retired=1 WHERE id=$id", ("$id", plan));
         }
     }
 }

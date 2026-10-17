@@ -10,8 +10,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The Shelter department.</summary>
 internal sealed class ShelterOwner : IStoreOwner
 {
-    public Department Department => Department.Shelter;
-
     /// <summary>
     /// The shelter rooms' general stores while no storage room stands. Nothing is declared while the layout
     /// plan is unread; a plan with no shelter or a standing storage room declares the role retired, which

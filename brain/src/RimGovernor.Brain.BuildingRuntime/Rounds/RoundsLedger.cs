@@ -12,8 +12,6 @@ internal readonly record struct PurposeReport
 {
     public Verdict Order { get; init; }
 
-    public Func<StoreJournal, StandardState, CancellationToken, bool>? OpenWork { get; init; }
-
     /// <summary>The Need a Need-keyed purpose serves, derived from the declaring projection; null when it could not be.</summary>
     public Need? Need { get; init; }
 }
@@ -307,10 +305,10 @@ public sealed partial class AdminRounds
             purposes = _reviewer.Ledger.ReportsWorld == world ? [.. _reviewer.Ledger.Reports] : [];
         }
 
-        return [.. purposes.Select(purpose => new LedgerReport(purpose.Key, PurposeVerdict(review, purpose, call)))];
+        return [.. purposes.Select(purpose => new LedgerReport(purpose.Key, PurposeVerdict(purpose)))];
     }
 
-    private Verdict PurposeVerdict(Rounds review, LedgerPurpose purpose, CancellationToken call)
+    private static Verdict PurposeVerdict(LedgerPurpose purpose)
     {
         // A purpose keyed by a NeedId reads its Need's standing: met is nothing to do, unknown is unmeasured, and
         // unmet is the order's own verdict. Its bills share the ledger, so no owner's open work gates it.
@@ -325,42 +323,8 @@ public sealed partial class AdminRounds
             };
         }
 
-        var journal = _reviewer.Player.Journal;
-        StandardState? owner;
-        bool workable;
-        try
-        {
-            (owner, workable) = journal.Workable(review, purpose.Need, call);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return Verdict.FieldUnavailable("purpose_owner");
-        }
-
-        if (!workable || owner is null)
-        {
-            return BuildingRuntimePackage.BuildingReasonNoDeficit;
-        }
-
-        if (purpose.Report.OpenWork is { } openWork)
-        {
-            bool open;
-            try
-            {
-                open = openWork(journal, owner, call);
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                return Verdict.FieldUnavailable("purpose_plans");
-            }
-
-            if (open)
-            {
-                return BuildingRuntimePackage.BuildingReasonExistingWork;
-            }
-        }
-
-        return purpose.Report.Order;
+        // A purpose keyed by anything else has no owner to work it.
+        return BuildingRuntimePackage.BuildingReasonNoDeficit;
     }
 
     /// <summary>

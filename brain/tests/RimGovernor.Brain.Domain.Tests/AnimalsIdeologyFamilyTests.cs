@@ -246,7 +246,7 @@ public sealed class AnimalsIdeologyFamilyTests
         Assert.Contains(Journal.GovernorIdeologyReformKey, saved.Keys);
 
         using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-reform-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        loaded.RebuildStandards(saved, null, ct);
+        loaded.RebuildOwners(null, ct);
         loaded.RebuildFamilies(saved, ct);
         Assert.Equal(intent, loaded.LoadIdeologyReform(world with { Load = new("load-2") }, ct)?.Reform);
 
@@ -263,7 +263,7 @@ public sealed class AnimalsIdeologyFamilyTests
         using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-legacy-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         source.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
-        var key = Journal.GovernorStandardKeyPrefix + "std-reform";
+        var key = Journal.LegacyStandardKeyPrefix + "std-reform";
 
         // The ImproveIdeoligion row an older save holds, its Record the Go-named intent.
         var blob = LegacyStandardBlob.Of("std-reform", "ImproveIdeoligion", World);
@@ -277,7 +277,7 @@ public sealed class AnimalsIdeologyFamilyTests
         saved[key] = blob.ToJsonString();
 
         using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-legacy-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        loaded.RebuildStandards(saved, null, ct);
+        loaded.RebuildOwners(null, ct);
         loaded.RebuildFamilies(saved, ct);
         var world = new StoreWorld(World.Colony, World.Load, World.Map);
         Assert.Equal(new IdeoligionReform("ideo-1", Current, Target, 4), loaded.LoadIdeologyReform(world, ct)?.Reform);

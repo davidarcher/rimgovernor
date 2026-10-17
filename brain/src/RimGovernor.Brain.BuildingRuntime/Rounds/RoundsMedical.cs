@@ -227,7 +227,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         {
             foreach (var progress in plan0.Progress)
             {
-                if (progress.Action.Acquisition is { } acquisition && Standard.WorkOpen([progress]))
+                if (progress.Action.Acquisition is { } acquisition && WorkProgress.Open([progress]))
                 {
                     held[acquisition.Thing] = true;
                 }

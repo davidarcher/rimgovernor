@@ -25,12 +25,6 @@ public sealed partial class Store
     private static Fact<EquatableArray<ProductionBatch>> ProductionBatchesIn(StoreTransaction tx, GenerationSnapshot current, Tick? tick)
     {
         var links = OwnedPlanLinks(tx, """
-            SELECT m.plan_id,m.owner_id FROM plan_methods m JOIN standards g ON g.id=m.owner_id AND m.kind='standard'
-            WHERE json_extract(g.payload,'$.Snapshot.Colony')=$colony
-            AND json_extract(g.payload,'$.Snapshot.Load')=$load AND json_extract(g.payload,'$.Snapshot.Map')=$map
-            AND EXISTS(SELECT 1 FROM actions a WHERE a.plan_id=m.plan_id AND a.kind='production_bill'
-                AND json_extract(a.body,'$.Payload.Mode')='gear_batch')
-            UNION ALL
             SELECT n.plan_id,n.need_id FROM need_methods n
             WHERE n.colony=$colony AND n.load_token=$load AND n.map_id=$map
               AND EXISTS(SELECT 1 FROM actions a WHERE a.plan_id=n.plan_id AND a.kind='production_bill'

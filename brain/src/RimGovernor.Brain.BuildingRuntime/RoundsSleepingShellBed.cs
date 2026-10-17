@@ -55,7 +55,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                 try
                 {
                     var prior = p.Journal.LoadPlan(existing, call);
-                    if (Standard.WorkOpen(prior.Progress))
+                    if (WorkProgress.Open(prior.Progress))
                     {
                         return (new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "shell_bed_pack") }, true);
                     }

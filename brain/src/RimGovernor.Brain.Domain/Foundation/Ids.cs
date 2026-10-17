@@ -112,33 +112,6 @@ public readonly record struct PlanId(string Value) : IComparable<PlanId>
     public static bool operator >=(PlanId left, PlanId right) => left.CompareTo(right) >= 0;
 }
 
-/// <summary>Names one occurrence of a Response.</summary>
-public readonly record struct IncidentId(string Value) : IComparable<IncidentId>
-{
-    public string Value { get => field ?? string.Empty; } = Value;
-
-    public bool IsEmpty => Value.Length == 0;
-
-    /// <summary>Go's <c>validID(string(id))</c>.</summary>
-    public bool IsValid => Identity.IsValidText(Value);
-
-    public bool Equals(IncidentId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
-
-    public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Value);
-
-    public int CompareTo(IncidentId other) => string.CompareOrdinal(Value, other.Value);
-
-    public override string ToString() => Value;
-
-    public static bool operator <(IncidentId left, IncidentId right) => left.CompareTo(right) < 0;
-
-    public static bool operator >(IncidentId left, IncidentId right) => left.CompareTo(right) > 0;
-
-    public static bool operator <=(IncidentId left, IncidentId right) => left.CompareTo(right) <= 0;
-
-    public static bool operator >=(IncidentId left, IncidentId right) => left.CompareTo(right) >= 0;
-}
-
 /// <summary>Names a pawn.</summary>
 public readonly record struct PawnId(string Value) : IComparable<PawnId>
 {
@@ -245,33 +218,6 @@ public readonly record struct ConcernId(string Value) : IComparable<ConcernId>
     public static bool operator <=(ConcernId left, ConcernId right) => left.CompareTo(right) <= 0;
 
     public static bool operator >=(ConcernId left, ConcernId right) => left.CompareTo(right) >= 0;
-}
-
-/// <summary>Names one Standard row: "routine-<hex16 world digest>-<concern>-<gen>".</summary>
-public readonly record struct StandardId(string Value) : IComparable<StandardId>
-{
-    public string Value { get => field ?? string.Empty; } = Value;
-
-    public bool IsEmpty => Value.Length == 0;
-
-    /// <summary>Go's <c>validID(string(id))</c>.</summary>
-    public bool IsValid => Identity.IsValidText(Value);
-
-    public bool Equals(StandardId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
-
-    public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Value);
-
-    public int CompareTo(StandardId other) => string.CompareOrdinal(Value, other.Value);
-
-    public override string ToString() => Value;
-
-    public static bool operator <(StandardId left, StandardId right) => left.CompareTo(right) < 0;
-
-    public static bool operator >(StandardId left, StandardId right) => left.CompareTo(right) > 0;
-
-    public static bool operator <=(StandardId left, StandardId right) => left.CompareTo(right) <= 0;
-
-    public static bool operator >=(StandardId left, StandardId right) => left.CompareTo(right) >= 0;
 }
 
 /// <summary>Names a selected method.</summary>

@@ -242,7 +242,7 @@ public sealed partial class Store
         var gated = ev.Kind is TransitionKind.Prepare or TransitionKind.Dispatch;
         if (gated)
         {
-            GuardStandardWork(tx, plan, ev.Snapshot, ev.Tick);
+            GuardPlanWork(tx, plan, ev.Snapshot, ev.Tick);
         }
         var state = LoadIn(tx, plan);
         if (state.Retired)

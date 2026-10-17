@@ -10,7 +10,7 @@ public sealed partial class Store
 {
     private const int MaxRoundsPayload = 1024 * 1024;
 
-    private const int MaxRoundsStandards = 306;
+    private const int MaxRoundsProgress = 306;
 
     /// <summary>Reads and validates the stored review; an empty journal has the zero review (Go <c>loadRounds</c>).</summary>
     internal static Rounds LoadRounds(StoreTransaction tx)
@@ -25,22 +25,14 @@ public sealed partial class Store
             throw new CapacityException();
         }
         var r = StoreJson.Deserialize<Rounds>(data!);
-        if (!string.Equals(StoreJson.Serialize(r), data, StringComparison.Ordinal) || r.Revision == 0 || !r.Snapshot.IsValid || r.Tick.Value < 0 || r.OrdinaryTick.Value < 0 || r.OrdinaryTick > r.Tick || r.Standards.Count > MaxRoundsStandards)
+        if (!string.Equals(StoreJson.Serialize(r), data, StringComparison.Ordinal) || r.Revision == 0 || !r.Snapshot.IsValid || r.Tick.Value < 0 || r.OrdinaryTick.Value < 0 || r.OrdinaryTick > r.Tick)
         {
             throw new StoreCorruptException("invalid rounds history");
         }
         r.MedicalCare.Validate();
-        if (r.Dependencies.Count > MaxDependencyRecords)
-        {
-            throw new StoreCorruptException("invalid routine dependencies");
-        }
         if (r.WallCells.Count > MaxWallCells)
         {
             throw new StoreCorruptException("invalid routine wall cells");
-        }
-        foreach (var d in r.Dependencies)
-        {
-            d.Validate();
         }
         r.MoodHistory().Validate();
         r.Disaster?.Validate();
@@ -99,7 +91,7 @@ public sealed partial class Store
         {
             throw new StoreCorruptException("invalid routine roster history");
         }
-        if (r.Progress.Count > MaxRoundsStandards)
+        if (r.Progress.Count > MaxRoundsProgress)
         {
             throw new StoreCorruptException("invalid routine progress history");
         }
@@ -111,24 +103,6 @@ public sealed partial class Store
                 throw new StoreCorruptException("invalid routine progress history");
             }
         }
-        // The stored review is the fact: a binding is valid when it names a routine goal the table knows, not
-        // when a second derivation from empty facts would also have assessed it. Response kinds live in the
-        // incidents table; Standards binds Standards only.
-        var seen = new HashSet<ConcernId>();
-        var identities = new HashSet<StandardId>();
-        foreach (var binding in r.Standards)
-        {
-            if (!PolicyFunctions.IsStandardKind(binding.Concern) || !seen.Add(binding.Concern) || !identities.Add(binding.Standard))
-            {
-                throw new StoreCorruptException("duplicate routine need");
-            }
-            var g = LoadStandard(tx, binding.Standard);
-            if (g.Standard.Kind != binding.Concern)
-            {
-                throw new StoreCorruptException("routine standard ownership mismatch");
-            }
-        }
-        ValidateRoundsIncidents(tx, r);
         return r;
     }
 
@@ -221,7 +195,6 @@ public sealed partial class Store
             {
                 ResourceRunways = ResourceRunways(request),
                 ConstructionClaims = ConstructionClaimsIn(tx, request.Current, request.Tick),
-                UpkeepIssued = RoundsUpkeepIssued(tx, request.Current),
             };
             var sleepingReview = PolicyFunctions.ReviewSleeping(facts.Sleeping, sleeping, request.Tick);
             sleeping = sleepingReview.History;
@@ -257,10 +230,6 @@ public sealed partial class Store
             facts = facts with { MedicalCareRecovered = medical.Recovered() };
             mood = PolicyFunctions.ReviewMood(facts.MoodPawns, mood);
             facts = facts with { Mood = mood, Disaster = disaster, DisasterTick = request.Tick };
-            if (!reset)
-            {
-                facts = facts with { Admitted = EquatableArray.From(PriorAdmitted(tx, previous, request.Tick)) };
-            }
             detection = new RoundsDetection(facts, latches, request.Policy);
             needs = PolicyFunctions.InspectRounds(facts, latches, request.Policy);
             disaster = needs.Disaster;
@@ -272,52 +241,9 @@ public sealed partial class Store
             needs = PolicyFunctions.InspectImmediateRounds(facts, latches, request.Policy);
         }
         request = request with { Facts = facts };
-        var old = new Dictionary<ConcernId, StandardState>();
-        var assessed = new HashSet<ConcernId>();
-        foreach (var n in needs.All())
-        {
-            _ = assessed.Add(n.Id);
-        }
         if (request.Enabled && !request.Immediate)
         {
             RetireRoundsPlans(tx, request.Current, request.Tick, request.Facts.CurrentConstruction, settled);
-        }
-        foreach (var binding in previous.Standards)
-        {
-            var g = LoadStandard(tx, binding.Standard);
-            if (changed || (request.Enabled && !assessed.Contains(binding.Concern) && !request.Immediate))
-            {
-                if (g.Standard.Status != StandardStatus.Voided)
-                {
-                    CancelMethods(tx, g);
-                    g = SaveStandard(tx, g, g.Standard with { Status = StandardStatus.Voided });
-                }
-            }
-            // Paused control keeps its goals active: the PauseSafeguard vetoes new work, native designations
-            // already issued keep progressing and the resumed goal adopts the result.
-            old[binding.Concern] = g;
-        }
-        // A replaced or rewound world ends its occurrences and their work, as it invalidates its goals.
-        if (changed)
-        {
-            foreach (var binding in previous.Incidents)
-            {
-                AbandonIncident(tx, binding.Incident, previous.Tick);
-            }
-        }
-        // Keep disabled bindings available for review. An enabled review replaces invalidated bindings, so their
-        // clean history can leave active capacity.
-        var retained = new HashSet<StandardId>();
-        foreach (var g in old.Values)
-        {
-            if (!request.Enabled || g.Standard.Status != StandardStatus.Voided)
-            {
-                _ = retained.Add(g.Standard.Id);
-            }
-        }
-        if (!request.Immediate || changed)
-        {
-            RetireRoundsStandards(tx, retained);
         }
         var r = new Rounds
         {
@@ -401,81 +327,26 @@ public sealed partial class Store
         {
             r = r with { MoodMethods = EquatableArray.From(MoodProposals(mood)) };
         }
-        var resultStandards = new List<StandardState>();
-        var resultIncidents = new List<IncidentState>();
-        // states is every assessment's row in assessment order, as the goal handles ranking and progress read.
-        var states = new List<StandardState>();
         if (!request.Enabled)
         {
-            r = r with { Standards = previous.Standards };
-            if (!changed)
-            {
-                r = r with { Incidents = previous.Incidents };
-                foreach (var binding in r.Incidents)
-                {
-                    resultIncidents.Add(LoadIncident(tx, binding.Incident));
-                }
-            }
             r = r with { Latches = latches };
-            // Manual control retains progress and prerequisites in the same world.
+            // Manual control retains progress in the same world.
             if (!reset)
             {
-                r = r with { Progress = previous.Progress, Dependencies = previous.Dependencies, NoOps = previous.NoOps };
-            }
-            foreach (var binding in r.Standards)
-            {
-                resultStandards.Add(old[binding.Concern]);
+                r = r with { Progress = previous.Progress };
             }
         }
         else
         {
-            foreach (var n in needs.NoOps)
-            {
-                n.Reason.Validate();
-            }
-            r = r with { NoOps = EquatableArray.From(needs.NoOps) };
-            var (bindings, incidentStates) = ReviewIncidents(tx, needs.Incidents, request);
-            r = r with { Incidents = bindings, Combat = ReviewCombat(tx, request) };
-            resultIncidents.AddRange(incidentStates);
-            var bound = new List<RoundsStandard>();
-            foreach (var n in needs.Assessments)
-            {
-                var g = old.TryGetValue(n.Id, out var existing) ? existing : null;
-                if (g is null || g.Standard.Status == StandardStatus.Voided)
-                {
-                    var id = MintRoundsStandardId(tx, new World(b.Colony, b.Load, b.Map), n.Id);
-                    var goal = Standard.NewStandard(id, n.Id, b) with { Once = PolicyFunctions.IsOnceKind(n.Id) };
-                    CreateStandard(tx, goal);
-                    g = new StandardState(goal, 0, default, 0, default, false);
-                }
-                if (n.Finding == Finding.Met)
-                {
-                    CancelUndispatchedMethods(tx, g);
-                }
-                var open = StandardOpenWork(tx, g);
-                var next = Standard.Review(g.Standard, b, n.Finding, open);
-                g = SaveStandard(tx, g, next);
-                bound.Add(new RoundsStandard(n.Id, g.Standard.Id));
-                resultStandards.Add(g);
-                states.Add(g);
-            }
-            r = r with { Standards = EquatableArray.From(bound) };
+            r = r with { Combat = ReviewCombat(tx, request) };
         }
         if (request.Enabled && !request.Immediate)
         {
-            r = r with { Progress = RoundsProgress(tx, request, previous, reset, needs, states) };
-            var records = reset ? default : previous.Dependencies;
-            var (ready, dependencies) = ReviewWork(tx, request, needs, states, records);
-            var unavailable = new Dictionary<ConcernId, bool>();
-            foreach (var n in needs.All())
+            r = r with
             {
-                unavailable[n.Id] = n.MethodUnavailable;
-            }
-            foreach (var n in needs.Concerns)
-            {
-                unavailable[n.Id] = (unavailable.TryGetValue(n.Id, out var prior) && prior) || n.MethodUnavailable;
-            }
-            r = r with { Dependencies = dependencies, Progress = EquatableArray.From(PolicyFunctions.HoldProgress(r.Progress, unavailable)), ReadyWork = ready };
+                Progress = EquatableArray.From(PolicyFunctions.HoldProgress(RoundsProgress(request, previous, reset))),
+                ReadyWork = ReadyWorkOf(request, RoundsPlans(tx, request.Current), []),
+            };
             r = r with { Recovery = RoundsRecoveryFor(tx, request.Facts, disaster, r, request.Tick) };
         }
         if (!request.Immediate && request.Facts.Upkeep.Clearance.TryGetValue(out var clearance))
@@ -492,12 +363,10 @@ public sealed partial class Store
         {
             Needs = needs,
             Detection = detection,
-            Standards = resultStandards,
-            Incidents = resultIncidents,
         };
         if (request.Enabled && request.Immediate && !reset)
         {
-            (r, result) = RetainOrdinaryRounds(tx, r, previous, result);
+            (r, result) = RetainOrdinaryRounds(r, previous, result);
         }
         var data = StoreJson.Serialize(r);
         if (System.Text.Encoding.UTF8.GetByteCount(data) > MaxRoundsPayload)

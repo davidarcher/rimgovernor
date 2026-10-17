@@ -13,15 +13,11 @@ public sealed class ActionIdConverter() : StringCodec<ActionId>(s => new ActionI
 
 public sealed class PlanIdConverter() : StringCodec<PlanId>(s => new PlanId(s), v => v.Value);
 
-public sealed class IncidentIdConverter() : StringCodec<IncidentId>(s => new IncidentId(s), v => v.Value);
-
 public sealed class PawnIdConverter() : StringCodec<PawnId>(s => new PawnId(s), v => v.Value);
 
 public sealed class QuestIdConverter() : StringCodec<QuestId>(s => new QuestId(s), v => v.Value);
 
 public sealed class ConcernIdConverter() : StringCodec<ConcernId>(s => new ConcernId(s), v => v.Value);
-
-public sealed class StandardIdConverter() : StringCodec<StandardId>(s => new StandardId(s), v => v.Value);
 
 public sealed class MethodIdConverter() : StringCodec<MethodId>(s => new MethodId(s), v => v.Value);
 

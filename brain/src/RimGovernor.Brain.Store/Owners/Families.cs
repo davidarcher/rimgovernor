@@ -328,7 +328,7 @@ internal static class Families
 
 public sealed partial class Store
 {
-    public const string GovernorStandardKeyPrefix = "standard/";
+    public const string LegacyStandardKeyPrefix = "standard/";
     public const string GovernorLayoutPlanKey = "family/layout_plan";
     public const string GovernorDefenseLayoutKey = "family/defense_layout";
     public const string GovernorProductionLadderKey = "family/production_ladder";

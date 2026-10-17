@@ -369,15 +369,10 @@ public sealed record RoundsFacts
     /// <summary>Counts the owned stockpile zones by role kind for the colony status census; unknown until the zone claims are read.</summary>
     public Fact<EquatableArray<StockpileRoleCount>> StockpileZones { get; init; }
 
-    /// <summary>Supplied by the configured runtime, never native facts.</summary>
-    public Fact<EquatableArray<ConcernId>> AvailableMethods { get; init; }
-
     /// <summary>The migrated families' Needs the runtime composes; supplied by the configured runtime, never native facts.</summary>
     public Fact<EquatableArray<NeedId>> AvailableNeeds { get; init; }
 
     public UpkeepObservation Upkeep { get; init; } = new();
-
-    public IReadOnlyDictionary<ConcernId, bool>? UpkeepIssued { get; init; }
 
     public Fact<GearObservation> Gear { get; init; }
 
@@ -585,10 +580,7 @@ public sealed record RoundsLatches
 
 }
 
-/// <summary>
-/// One review's findings. Concerns, Assessments, Incidents and NoOps are accumulators the
-/// inspections append to, so they stay lists; the Go slices share their backing arrays the same way.
-/// </summary>
+/// <summary>One review's findings: the latches, the disaster history and the derived facts the families read.</summary>
 public sealed record RoundsFindings
 {
     [System.Text.Json.Serialization.JsonIgnore]
@@ -596,17 +588,6 @@ public sealed record RoundsFindings
     public DisasterHistory? Disaster { get; set; }
 
     public RoundsLatches Latches { get; set; } = new();
-
-    public List<RoundsConcern> Concerns { get; set; } = [];
-
-    /// <summary>The Standard needs the review files rows for.</summary>
-    public List<RoundsAssessment> Assessments { get; set; } = [];
-
-    /// <summary>The incident kinds' assessments.</summary>
-    public List<RoundsAssessment> Incidents { get; set; } = [];
-
-    /// <summary>Every detector that raised nothing, with the typed reason, in registry order.</summary>
-    public List<NoOpRecord> NoOps { get; set; } = [];
 
     /// <summary>The review's one resource-demand value (Needs are the effective the economy/resource Need stock targets the review held the census to; the stock overlay tints stockpiles by them).</summary>
     public DerivedDemand ResourceDemand { get; set; } = new();
@@ -619,29 +600,6 @@ public sealed record RoundsFindings
     [System.Text.Json.Serialization.JsonIgnore]
     public Fact<bool> WorkAssignments { get; set; }
     public EssentialServiceReview? EssentialServices { get; set; }
-
-    /// <summary>Every assessment, goal needs then incident kinds.</summary>
-    public List<RoundsAssessment> All() => [.. Assessments, .. Incidents];
-}
-
-/// <summary>
-/// An Assessment covers recovered and unknown needs as well as actionable deficits. Absence from the
-/// scheduling list is never evidence of recovery.
-/// </summary>
-public sealed record RoundsAssessment
-{
-    public ConcernId Id { get; set; }
-
-    /// <summary>The subject a per-subject Response is assessed for; empty otherwise. (Id, Subject) keys its incident.</summary>
-    public PawnId Subject { get; set; }
-
-    public Finding Finding { get; set; }
-
-    /// <summary>
-    /// Marks a need whose method this runtime did not declare (or whose inspection holds it): the review still
-    /// records the need, and its progress reads held as unavailable rather than stalled.
-    /// </summary>
-    public bool MethodUnavailable { get; set; }
 }
 
 public static partial class PolicyFunctions
@@ -667,9 +625,6 @@ public static partial class PolicyFunctions
         AcquisitionStallTicks = GameTime.TicksPerDay,
         ConcernStallTicks = GameTime.TicksPerDay,
     };
-
-    /// <summary>Reads a Go-nil-map lookup of UpkeepIssued: absent is false.</summary>
-    public static bool IsIssued(this RoundsFacts f, ConcernId id) => f.UpkeepIssued is not null && f.UpkeepIssued.TryGetValue(id, out var issued) && issued;
 
     // The foothold facts below are read live from one review's facts: the foothold goals open on them
     // (InspectRounds), and the disaster services (DisasterServiceFacts)
@@ -807,9 +762,9 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Ports colony_policy.criteria/priority_nodes for the common survival goals: it reviews the facts once,
-    /// then runs every registered inspection in registry order (Inspections). Family-specific needs join
-    /// these same goals during review. Throws DomainException on invalid facts.
+    /// The full review: it validates the facts and derives once what the families read (the latches, the resource
+    /// demand, the coupled selection, the disaster history, the trade review, the work-assignments measure and the
+    /// essential services). It judges no Need. Throws DomainException on invalid facts.
     /// </summary>
     public static RoundsFindings InspectRounds(RoundsFacts f, RoundsLatches previous, RoundsPolicy p)
     {
@@ -818,9 +773,7 @@ public static partial class PolicyFunctions
             throw new DomainException("invalid calendar fact");
         }
         p = p.Seasonal(f.Calendar, f.DisasterConditions);
-        var c = new RoundsRun(f, previous, p);
-        var medicineFacts = f.MedicalReserve with { Colonists = f.Colonists };
-        c.Medicine = ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve);
+        var medicine = ReviewMedicalReserve(f.MedicalReserve with { Colonists = f.Colonists }, previous.MedicalReserve, p.MedicalReserve);
         p.Validate();
         foreach (var fact in new[] { f.Colonists, f.HousingTarget, f.BedCapacity, f.IndoorCapacity, f.GrowingCells, f.Armed, f.Unarmed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients })
         {
@@ -843,70 +796,22 @@ public static partial class PolicyFunctions
                 throw new DomainException("negative food fact");
             }
         }
-        c.L = new RoundsLatches
+        var latches = new RoundsLatches
         {
-            MedicalReserve = c.Medicine.Active,
+            MedicalReserve = medicine.Active,
             Dash = DashLatch(f.Dash),
             Housing = StarterShelterOwed(f) ? Phase.HousingShelter : Phase.None,
         };
-        c.R = new RoundsFindings { Latches = c.L with { } };
-        c.Demand = ResourceDemandOf(f, p, c.L);
-        c.R.ResourceDemand = c.Demand;
+        var demand = ResourceDemandOf(f, p, latches);
+        var r = new RoundsFindings { Latches = latches, ResourceDemand = demand };
         if (f.CoupledAlternatives is { } coupled)
-            c.R.CoupledSelection = CompareActivityOutcomes(CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
-                1, f, p, c.Demand, [], new()), coupled);
-        foreach (var d in InspectionRegistry.Inspections)
-        {
-            int goals = c.R.Concerns.Count, assessments = c.R.Assessments.Count;
-            d.Inspect(c);
-            if (NoOpOf(d.Concern, c.R.Concerns.Skip(goals).ToList(), c.R.Assessments.Skip(assessments).ToList()) is { } n)
-            {
-                c.R.NoOps.Add(n);
-            }
-        }
-        var r = c.R;
+            r.CoupledSelection = CompareActivityOutcomes(CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
+                1, f, p, demand, [], new()), coupled);
         // The disaster history the disaster family's Needs read (#3304).
         r.Disaster = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
-        if (f.AvailableMethods.TryGetValue(out var methods))
-        {
-            var available = new HashSet<ConcernId>();
-            var recognizedIds = new HashSet<ConcernId>();
-            foreach (var assessment in r.Assessments)
-            {
-                recognizedIds.Add(assessment.Id);
-            }
-            foreach (var id in methods)
-            {
-                if (!recognizedIds.Contains(id) || available.Contains(id))
-                {
-                    throw new DomainException("invalid routine method capability " + id.Value);
-                }
-                available.Add(id);
-            }
-            foreach (var concern in r.Concerns)
-            {
-                if (!available.Contains(concern.Id))
-                {
-                    concern.MethodUnavailable = true;
-                }
-            }
-        }
-        var all = r.Assessments;
-        r.Assessments = [];
-        foreach (var a in all)
-        {
-            if (IsIncidentKind(a.Id))
-            {
-                r.Incidents.Add(a);
-            }
-            else
-            {
-                r.Assessments.Add(a);
-            }
-        }
-        r.Trade = TradeReviewOf(c);
+        r.Trade = TradeReviewOf(f, p, medicine, demand);
         r.WorkAssignments = WorkAssignmentsOwed(f, r.CoupledSelection);
-        r.EssentialServices = ReviewEssentialServices(f, p, c.Demand, medicineActive: c.L.MedicalReserve);
+        r.EssentialServices = ReviewEssentialServices(f, p, demand, medicineActive: latches.MedicalReserve);
         return r;
     }
 

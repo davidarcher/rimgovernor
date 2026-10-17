@@ -17,21 +17,6 @@ public sealed partial class Rounder
         // shelter/safe-area: the Safe area covers the census's enclosed roofed rooms.
         TemperatureEnabled() || Needs.Contains(ShelterFamily.SafeArea) || HousingEnabled() || Needs.Contains(RoomsFamily.Comfort) || Needs.Contains(RefrigerationNeed) || Needs.Contains(RoomsFamily.Lighting) || Needs.Contains(RoomsFamily.Flooring) || Needs.Contains(LayoutFamily.Routes) || Needs.Contains(AdminFamily.Burial) || Needs.Contains(LayoutFamily.ClimateEnvelope) || Needs.Contains(MilitaryFamily.Training) || Needs.Contains(AdminFamily.Stockpiles);
 
-    internal bool MethodEnabled(ConcernId goal)
-    {
-        if (!Methods.TryGetValue(out var methods))
-        {
-            return false;
-        }
-        foreach (var method in methods)
-        {
-            if (method == goal)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
 }
 
 public sealed partial class RoundsBuildingPlanner

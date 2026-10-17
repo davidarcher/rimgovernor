@@ -23,34 +23,16 @@ public sealed partial class Store
         {
             ConcernId concern;
             World world;
-            var (method, found) = tx.QueryFirst("SELECT kind,owner_id FROM plan_methods WHERE plan_id=$plan", [("$plan", plan.Spec.Id)], r => (Kind: r.GetString(0), Owner: r.GetString(1)));
-            if (found && string.Equals(method.Kind, "incident", StringComparison.Ordinal))
-            {
-                // An incident's method serves its Response kind.
-                var i = LoadIncident(tx, new IncidentId(method.Owner));
-                concern = i.Incident.Kind;
-                world = new World(i.Incident.Snapshot.Colony, i.Incident.Snapshot.Load, i.Incident.Snapshot.Map);
-            }
-            else if (found && string.Equals(method.Kind, "need", StringComparison.Ordinal))
+            var (need, found) = tx.QueryFirst(
+                "SELECT need_id,colony,load_token,map_id FROM need_methods WHERE plan_id=$plan",
+                [("$plan", plan.Spec.Id)],
+                r => (Need: r.GetString(0), World: new World(new ColonyId(r.GetString(1)), new LoadId(r.GetString(2)), new MapId(r.GetInt32(3))))
+            );
+            if (found)
             {
                 // A Need's method serves its NeedId, filed as the concern key (#3250).
-                var (row, bound) = tx.QueryFirst(
-                    "SELECT colony,load_token,map_id FROM need_methods WHERE plan_id=$plan",
-                    [("$plan", plan.Spec.Id)],
-                    r => new World(new ColonyId(r.GetString(0)), new LoadId(r.GetString(1)), new MapId(r.GetInt32(2)))
-                );
-                if (!bound)
-                {
-                    continue;
-                }
-                concern = new NeedId(method.Owner).FilingKey;
-                world = row;
-            }
-            else if (found)
-            {
-                var g = LoadStandard(tx, new StandardId(method.Owner));
-                concern = g.Standard.Kind;
-                world = new World(g.Standard.Snapshot.Colony, g.Standard.Snapshot.Load, g.Standard.Snapshot.Map);
+                concern = new NeedId(need.Need).FilingKey;
+                world = need.World;
             }
             else
             {
@@ -92,58 +74,4 @@ public sealed partial class Store
                 Recipes = r.Facts.Recipes,
             }
         );
-
-    /// <summary>
-    /// Refuses work from a stale or disabled review, independently of pawn availability. Safety is enforced by the
-    /// shared Safeguards (Go <c>admitRoundsReview</c>).
-    /// </summary>
-    internal static void AdmitRoundsReview(StoreTransaction tx, OwnerSummary g)
-    {
-        var review = LoadRounds(tx);
-        var bound = false;
-        foreach (var b in review.Standards)
-        {
-            bound = bound || string.Equals(b.Standard.Value, g.Id, StringComparison.Ordinal);
-        }
-        if (!bound)
-        {
-            return;
-        }
-        if (!review.Enabled || review.Snapshot != g.Snapshot)
-        {
-            throw new NotAdmittedException($"standard {g.Id} has no current enabled review");
-        }
-    }
-
-    /// <summary>
-    /// The ready-work report of this review and the dependency records that survive it (Go <c>reviewWork</c>).
-    /// <paramref name="states"/> holds each assessment's row in assessment order.
-    /// </summary>
-    internal static (ReadyWorkReport Ready, EquatableArray<DependencyRecord> Dependencies) ReviewWork(
-        StoreTransaction tx,
-        RoundsRequest r,
-        RoundsFindings needs,
-        IReadOnlyList<StandardState> states,
-        EquatableArray<DependencyRecord> records
-    )
-    {
-        var bindings = new List<RoundsStandard>();
-        var unserved = new List<ConcernId>();
-        for (var i = 0; i < needs.Assessments.Count; i++)
-        {
-            var n = needs.Assessments[i];
-            bindings.Add(new RoundsStandard(n.Id, states[i].Standard.Id));
-            if (!states[i].OwnerActive || PolicyFunctions.ConcernLabor(n.Id).Count == 0)
-            {
-                continue;
-            }
-            if (((IMethodOwner)states[i]).ServedCount(tx) == 0)
-            {
-                unserved.Add(n.Id);
-            }
-        }
-        var plans = RoundsPlans(tx, r.Current);
-        var (kept, _) = RoundsDependencies(tx, records, bindings, states, r.Tick);
-        return (ReadyWorkOf(r, plans, unserved), EquatableArray.From(kept));
-    }
 }

@@ -88,15 +88,13 @@ public interface IWatchStore
     Task<ulong> RoundsRevisionAsync(CancellationToken cancellationToken);
 
     /// <summary>
-    /// Reads one maintained goal's current binding (if any) and its committed methods' plan stages, mirroring exactly
-    /// what a routine planner's step itself reads (Go <c>SampleStandard</c>): <c>at</c>, <c>method_count</c>,
-    /// <c>review_revision</c>, <c>review_tick</c>, <c>blocked</c>, <c>emergency</c> (array of
-    /// strings), <c>concern_bound</c>, <c>status</c>, <c>need</c>, <c>priority</c>, <c>vetoed</c>, <c>epoch</c>,
-    /// <c>plans</c> and <c>retired_plans</c> (each <c>{plan, method, actions, stages, kinds, unsuccessful}</c>, an
-    /// unsuccessful row <c>{action, kind, reason}</c>), or the incident shape for an incident kind. Throws
+    /// Reads one Need's progress row and its owner's unretired Methods' plan stages in the review's world: <c>at</c>,
+    /// <c>method_count</c>, <c>review_revision</c>, <c>review_tick</c>, <c>blocked</c>, <c>concern_bound</c> and
+    /// <c>plans</c> (each <c>{plan, method, actions, stages, kinds, unsuccessful}</c>, an unsuccessful row
+    /// <c>{action, kind, reason}</c>). A key that is not a NeedId is never bound. Throws
     /// <see cref="AcceptanceException"/> on a read failure.
     /// </summary>
-    Task<JsonObject> SampleStandardAsync(string concern, CancellationToken cancellationToken);
+    Task<JsonObject> SampleNeedAsync(string concern, CancellationToken cancellationToken);
 
     /// <summary>
     /// The persisted review's Need progress rows whose NeedId starts with <paramref name="prefix"/> (#3231 decision 18:
@@ -117,13 +115,6 @@ public interface IWatchStore
     /// are newest first, as the Go store lists them. Throws <see cref="AcceptanceException"/> on a read failure.
     /// </summary>
     Task<IReadOnlyList<JsonObject>> PlanHistoryAsync(int limit, string methodGlob, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// The journal's record of the goal or project bound to <paramref name="concern"/> in the persisted Rounds record (Go
-    /// <c>LoadRounds</c> then <c>LoadStandard</c>): <c>{status, need, methods}</c>, null when the concern was never bound.
-    /// Throws <see cref="AcceptanceException"/> on a read failure.
-    /// </summary>
-    Task<JsonObject?> StandardSummaryAsync(string concern, CancellationToken cancellationToken);
 
     /// <summary>
     /// The production ladder the journal recorded for the review's world (Go <c>LoadProductionLadder</c>):
@@ -327,7 +318,7 @@ public static partial class SustainedFood
                 var sampled = true;
                 try
                 {
-                    sample = await verifyStore.SampleStandardAsync(concernId, cancellationToken).ConfigureAwait(false);
+                    sample = await verifyStore.SampleNeedAsync(concernId, cancellationToken).ConfigureAwait(false);
                     // The timeline reader names the top-level row by its owner, a Concern id or a NeedId.
                     sample["concern"] = concernId;
                 }
@@ -347,7 +338,7 @@ public static partial class SustainedFood
                     JsonObject also;
                     try
                     {
-                        also = await verifyStore.SampleStandardAsync(extra, cancellationToken).ConfigureAwait(false);
+                        also = await verifyStore.SampleNeedAsync(extra, cancellationToken).ConfigureAwait(false);
                     }
                     catch (AcceptanceException e)
                     {

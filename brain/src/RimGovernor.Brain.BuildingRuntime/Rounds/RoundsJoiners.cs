@@ -141,7 +141,7 @@ public sealed partial class JoinersRounds
     private (Verdict Verdict, bool Admitted) AdmitMethod(NeedWork work, MethodId method, CancellationToken call)
     {
         var journal = reviewer.Player.Journal;
-        if (work.Owner.Methods.Any(m => m.Method == method && Standard.WorkOpen(journal.LoadPlan(m.Plan, call).Progress)))
+        if (work.Owner.Methods.Any(m => m.Method == method && WorkProgress.Open(journal.LoadPlan(m.Plan, call).Progress)))
         {
             return (default, true);
         }

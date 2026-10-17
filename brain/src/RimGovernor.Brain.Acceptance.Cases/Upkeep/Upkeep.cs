@@ -279,52 +279,6 @@ internal static class UpkeepSupport
         }
     }
 
-    /// <summary>Polls until need's goal binding reports state (deficit or recovered) and returns the goal.</summary>
-    internal static async Task<RimGovernor.Brain.Store.StandardState> WaitNeedAsync(ControllerJournal journal, ConcernId need, Finding state, CancellationToken cancellationToken)
-    {
-        RimGovernor.Brain.Store.StandardState? found = null;
-        try
-        {
-            await new Wait { Stall = NeedStall, Interval = TimeSpan.FromSeconds(1) }.WaitProgressAsync(async ct =>
-            {
-                var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-                foreach (var binding in review.Standards)
-                {
-                    if (binding.Concern != need)
-                    {
-                        continue;
-                    }
-
-                    RimGovernor.Brain.Store.StandardState? goal = null;
-                    try
-                    {
-                        goal = await journal.Store.LoadStandardAsync(binding.Standard, ct).ConfigureAwait(false);
-                    }
-                    catch (RimGovernor.Brain.Store.NotFoundException tolerated)
-                    {
-                        // The binding is ahead of the goal's row; read again next poll.
-                        Tolerated.Note("goal row not yet written", tolerated);
-                    }
-
-                    if (goal is not null && goal.Standard.Finding == state)
-                    {
-                        found = goal;
-                        return ("", true);
-                    }
-                }
-
-                // A parked or dead game stops producing reviews at new ticks.
-                return (string.Create(CultureInfo.InvariantCulture, $"tick={review.Tick.Value} revision={review.Revision}"), false);
-            }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (WaitError e)
-        {
-            throw new AcceptanceException($"{need.Value} never reported {JournalReads.FindingName(state)}: {e.Message}", e);
-        }
-
-        return found!;
-    }
-
     /// <summary>
     /// Waits for methods on <paramref name="need"/> whose plan's actions all satisfy <paramref name="accept"/> (a
     /// non-null reply is the reason an action is not acceptable), following the goal's method lineage across incidental
@@ -343,7 +297,7 @@ internal static class UpkeepSupport
     /// methods (a bed built, then that bed assigned) is followed method by method without revisiting the first.
     /// </summary>
     internal static Task FollowMethodsExcludingAsync(ControllerJournal journal, ConcernId need, string label, HashSet<string> seen, Func<DomainAction, string?> accept, Report report, CancellationToken cancellationToken) =>
-        FollowCoreAsync(journal, need.Value, ct => StandardMetAsync(journal, need, ct), label, seen, accept, report, cancellationToken);
+        FollowCoreAsync(journal, need.Value, ct => FiledNeedMetAsync(journal, need, ct), label, seen, accept, report, cancellationToken);
 
     /// <summary>The family Need's <see cref="FollowMethodsAsync"/>: its Methods file under its id, and it is met once its progress row is gone.</summary>
     internal static Task FollowMethodsAsync(ControllerJournal journal, NeedId need, string label, Func<DomainAction, string?> accept, Report report, CancellationToken cancellationToken) =>
@@ -391,37 +345,11 @@ internal static class UpkeepSupport
     private static bool NeedMet(RimGovernor.Brain.Store.Rounds review, NeedId need) =>
         review.Revision != 0 && !review.Progress.Any(p => p.Concern == need.FilingKey);
 
-    /// <summary>Whether a goal the review binds to <paramref name="need"/> is met.</summary>
-    private static async Task<bool> StandardMetAsync(ControllerJournal journal, ConcernId need, CancellationToken cancellationToken)
+    /// <summary>Whether the review files no progress row under <paramref name="need"/> (a family Need's filing key).</summary>
+    private static async Task<bool> FiledNeedMetAsync(ControllerJournal journal, ConcernId need, CancellationToken cancellationToken)
     {
-            var review = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
-            if (new NeedId(need.Value).IsValid)
-            {
-                // A Need (its filing key) is met once the review prunes its progress row.
-                return review.Revision != 0 && !review.Progress.Any(p => p.Concern == need);
-            }
-            foreach (var binding in review.Standards)
-            {
-                if (binding.Concern != need)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var goal = await journal.Store.LoadStandardAsync(binding.Standard, cancellationToken).ConfigureAwait(false);
-                    if (goal.Standard.Finding == Finding.Met)
-                    {
-                        return true;
-                    }
-                }
-                catch (RimGovernor.Brain.Store.NotFoundException)
-                {
-                    continue;
-                }
-            }
-
-            return false;
+        var review = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
+        return review.Revision != 0 && !review.Progress.Any(p => p.Concern == need);
     }
 
     private static async Task FollowCoreAsync(ControllerJournal journal, string concern, Func<CancellationToken, Task<bool>> met, string label, HashSet<string> seen, Func<DomainAction, string?> accept, Report report, CancellationToken cancellationToken)
@@ -621,7 +549,7 @@ internal static class UpkeepSupport
         using (var deficitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
         {
             deficitCts.CancelAfter(TimeSpan.FromMinutes(4));
-            _ = await WaitNeedAsync(journal, PolicyFunctions.MedicalReservesNeed.FilingKey, Finding.Unmet, deficitCts.Token).ConfigureAwait(false);
+            await WaitNeedAsync(journal, PolicyFunctions.MedicalReservesNeed, Finding.Unmet, deficitCts.Token).ConfigureAwait(false);
         }
 
         // The method is an ordinary resource acquisition of the native herbal-medicine definition; follow it to
@@ -633,7 +561,7 @@ internal static class UpkeepSupport
         }, report, cancellationToken).ConfigureAwait(false);
         using var recoverCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         recoverCts.CancelAfter(TimeSpan.FromMinutes(12));
-        _ = await WaitNeedAsync(journal, PolicyFunctions.MedicalReservesNeed.FilingKey, Finding.Met, recoverCts.Token).ConfigureAwait(false);
+        await WaitNeedAsync(journal, PolicyFunctions.MedicalReservesNeed, Finding.Met, recoverCts.Token).ConfigureAwait(false);
     }
 
     private static async Task VerifyMedicineAsync(Harness h, JsonObject identity, JsonObject prepared, UpkeepCensus after, Report report, CancellationToken cancellationToken)

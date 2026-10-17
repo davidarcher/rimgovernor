@@ -30,8 +30,8 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
     public async Task<ulong> RoundsRevisionAsync(CancellationToken cancellationToken) =>
         (await ReadAsync("read rounds", ct => _store.LoadRounds(ct), cancellationToken).ConfigureAwait(false)).Revision;
 
-    public Task<JsonObject> SampleStandardAsync(string concern, CancellationToken cancellationToken) =>
-        ReadAsync("sample " + concern, ct => SampleStandard(new ConcernId(concern), ct), cancellationToken);
+    public Task<JsonObject> SampleNeedAsync(string concern, CancellationToken cancellationToken) =>
+        ReadAsync("sample " + concern, ct => SampleNeed(new ConcernId(concern), ct), cancellationToken);
 
     public Task<JsonObject> NeedRowsAsync(string prefix, CancellationToken cancellationToken) =>
         ReadAsync(
@@ -73,27 +73,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
                 }
 
                 return (IReadOnlyList<JsonObject>)rows;
-            },
-            cancellationToken);
-
-    public Task<JsonObject?> StandardSummaryAsync(string concern, CancellationToken cancellationToken) =>
-        ReadAsync(
-            "standard summary " + concern,
-            ct =>
-            {
-                var review = _store.LoadRounds(ct);
-                if (BoundStandard(review, new ConcernId(concern)) is not { } id)
-                {
-                    return null;
-                }
-
-                var goal = _store.LoadStandard(id, ct);
-                return new JsonObject
-                {
-                    ["status"] = Wire.Name(goal.Standard.Status),
-                    ["need"] = Wire.Name(goal.Standard.Finding),
-                    ["methods"] = goal.Methods.Count,
-                };
             },
             cancellationToken);
 
@@ -213,22 +192,9 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
         }
     }
 
-    private static StandardId? BoundStandard(ReviewRecord review, ConcernId concern)
-    {
-        foreach (var binding in review.Standards)
-        {
-            if (binding.Concern == concern)
-            {
-                return binding.Standard;
-            }
-        }
-
-        return null;
-    }
-
     private static World WorldOf(ReviewRecord review) => new(review.Snapshot.Colony, review.Snapshot.Load, review.Snapshot.Map);
 
-    private JsonObject SampleStandard(ConcernId need, CancellationToken ct)
+    private JsonObject SampleNeed(ConcernId need, CancellationToken ct)
     {
         var sample = new JsonObject { ["at"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture), ["method_count"] = 0 };
         var review = _store.LoadRounds(ct);
@@ -242,64 +208,12 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
             }
         }
 
-        if (PolicyFunctions.IsIncidentKind(need))
-        {
-            return SampleIncident(review, need, sample, ct);
-        }
-
         if (new NeedId(need.Value) is { IsValid: true } needId)
         {
             return SampleNeed(review, needId, sample, ct);
         }
 
-        if (BoundStandard(review, need) is not { } standard)
-        {
-            sample["concern_bound"] = false;
-            return sample;
-        }
-
-        sample["concern_bound"] = true;
-        StandardState goal;
-        try
-        {
-            goal = _store.LoadStandard(standard, ct);
-        }
-        catch (NotFoundException)
-        {
-            return sample;
-        }
-
-        sample["status"] = Wire.Name(goal.Standard.Status);
-        sample["need"] = Wire.Name(goal.Standard.Finding);
-        sample["vetoed"] = review.Veto(goal.Standard).Length != 0;
-        sample["epoch"] = (long)goal.Standard.Episode;
-        sample["method_count"] = goal.Methods.Count;
-        var plans = new JsonArray();
-        var active = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var method in goal.Methods)
-        {
-            active.Add(method.Plan.Value);
-            plans.Add(DescribeMethod(method.MethodId, method.Plan, ct));
-        }
-
-        sample["plans"] = plans;
-        var retired = new JsonArray();
-        try
-        {
-            foreach (var method in _store.LoadMethods(standard, goal.Standard.Episode, ct))
-            {
-                if (!active.Contains(method.Plan.Value))
-                {
-                    retired.Add(DescribeMethod(method.MethodId, method.Plan, ct));
-                }
-            }
-        }
-        catch (Exception e) when (e is DomainException or NotFoundException)
-        {
-            _ = e;
-        }
-
-        sample["retired_plans"] = retired;
+        sample["concern_bound"] = false;
         return sample;
     }
 
@@ -321,34 +235,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
         {
             plans.Add(DescribeMethod(method.Method, method.Plan, ct));
         }
-        sample["plans"] = plans;
-        return sample;
-    }
-
-    private JsonObject SampleIncident(ReviewRecord review, ConcernId kind, JsonObject sample, CancellationToken ct)
-    {
-        var incident = review.Revision == 0 ? null : _store.LatestIncident(WorldOf(review), kind, ct);
-        if (incident is null)
-        {
-            sample["concern_bound"] = false;
-            return sample;
-        }
-
-        var binding = review.Incident(kind);
-        sample["concern_bound"] = binding is not null;
-        sample["incident"] = incident.Incident.Id.Value;
-        sample["status"] = incident.Incident.Closed ? "closed" : "open";
-        sample["need"] = binding is null ? "" : Wire.Name(binding.Situation);
-        sample["vetoed"] = review.VetoIncident(incident.Incident).Length != 0;
-        sample["method_count"] = incident.Methods.Count;
-        var plans = new JsonArray();
-        foreach (var method in incident.Methods)
-        {
-            var described = DescribeMethod(method.Method, method.Plan, ct);
-            described.Remove("kinds");
-            plans.Add(described);
-        }
-
         sample["plans"] = plans;
         return sample;
     }

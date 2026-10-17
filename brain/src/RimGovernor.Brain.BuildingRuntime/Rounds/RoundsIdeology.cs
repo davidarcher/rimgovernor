@@ -155,7 +155,7 @@ public sealed class IdeologyReader
         }
         var method = IdeologyFamily.ReformMethodId(intent);
         var journal = _reviewer.Player.Journal;
-        if (!work.Owner.Methods.Any(m => m.Method == method && Standard.WorkOpen(journal.LoadPlan(m.Plan, call).Progress)))
+        if (!work.Owner.Methods.Any(m => m.Method == method && WorkProgress.Open(journal.LoadPlan(m.Plan, call).Progress)))
         {
             return none;
         }

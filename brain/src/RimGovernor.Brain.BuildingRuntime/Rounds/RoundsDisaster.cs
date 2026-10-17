@@ -146,7 +146,7 @@ public sealed class DisasterRounds
         foreach (var method in work.Owner.Methods)
         {
             var plan = p.Journal.LoadPlan(method.Plan, call);
-            if (Standard.WorkOpen(plan.Progress))
+            if (WorkProgress.Open(plan.Progress))
             {
                 return BuildingReasonExistingWork;
             }

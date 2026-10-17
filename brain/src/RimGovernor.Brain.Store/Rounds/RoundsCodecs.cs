@@ -364,29 +364,6 @@ public sealed class RoundsMoodMethodConverter : ObjectCodec<RoundsMoodMethod>
     }
 }
 
-public sealed class RoundsIncidentConverter : ObjectCodec<RoundsIncident>
-{
-    protected override RoundsIncident Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Kind = e.Get<ConcernId>("Kind", o),
-            Subject = e.GetOr("Subject", default(PawnId), o),
-            Incident = e.Get<IncidentId>("Incident", o),
-            Situation = e.Get<Situation>("Situation", o),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, RoundsIncident v, Codecs o)
-    {
-        w.Put("Kind", v.Kind, o);
-        if (!v.Subject.IsEmpty)
-        {
-            w.Put("Subject", v.Subject, o);
-        }
-        w.Put("Incident", v.Incident, o);
-        w.Put("Situation", v.Situation, o);
-    }
-}
-
 public sealed class RoundsCombatConverter : ObjectCodec<RoundsCombat>
 {
     protected override RoundsCombat Read(JsonElement e, Codecs o) =>
@@ -397,47 +374,6 @@ public sealed class RoundsCombatConverter : ObjectCodec<RoundsCombat>
         w.Put("Situation", v.Situation, o);
         w.Put("Prey", v.Prey, o);
         w.Put("Hunters", v.Hunters, o);
-    }
-}
-
-public sealed class DependencyCostConverter : ObjectCodec<DependencyCost>
-{
-    protected override DependencyCost Read(JsonElement e, Codecs o) => new(e.Get<ActionId>("Action", o), e.I64("Count"));
-
-    protected override void WriteFields(Utf8JsonWriter w, DependencyCost v, Codecs o)
-    {
-        w.Put("Action", v.Action, o);
-        w.WriteNumber("Count", v.Count);
-    }
-}
-
-public sealed class DependencyRecordConverter : ObjectCodec<DependencyRecord>
-{
-    protected override DependencyRecord Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Need = e.Get<ConcernId>("Need", o),
-            Standard = e.Get<StandardId>("Standard", o),
-            Episode = e.U64("Episode"),
-            Method = e.Get<MethodId>("Method", o),
-            Plan = e.Get<PlanId>("Plan", o),
-            Resource = new Resource(e.Str("Resource")),
-            Costs = e.GetOr("Costs", default(EquatableArray<DependencyCost>), o),
-            Available = e.I64("Available"),
-            Observed = e.Get<Tick>("Observed", o),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, DependencyRecord v, Codecs o)
-    {
-        w.Put("Need", v.Need, o);
-        w.Put("Standard", v.Standard, o);
-        w.WriteNumber("Episode", v.Episode);
-        w.Put("Method", v.Method, o);
-        w.Put("Plan", v.Plan, o);
-        w.WriteString("Resource", v.Resource.Value);
-        w.Put("Costs", v.Costs, o);
-        w.WriteNumber("Available", v.Available);
-        w.Put("Observed", v.Observed, o);
     }
 }
 

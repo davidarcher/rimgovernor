@@ -73,29 +73,6 @@ internal sealed class SurgeryRun
     }
 
     /// <summary>Whether the review binds <paramref name="concern"/> to a goal whose finding is met.</summary>
-    internal async Task<bool> RecoveredAsync(string concern, CancellationToken cancellationToken)
-    {
-        if (ObservedSession.StoreOpener is not null)
-        {
-            var store = await ObservedSession.OpenStoreAsync(_session.Config, cancellationToken).ConfigureAwait(false);
-            try
-            {
-                var sample = await store.SampleStandardAsync(concern, cancellationToken).ConfigureAwait(false);
-                return sample["concern_bound"].AsBool() == true && sample["need"].AsString() == "met";
-            }
-            finally
-            {
-                if (store is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
-            }
-        }
-
-        var routines = await _run.GetAsync("/api/routines", cancellationToken).ConfigureAwait(false);
-        return routines["noOps"].Rows().Any(row => row["concern"].AsString() == concern && string.Equals(row["reason"].AsString(), "satisfied", StringComparison.OrdinalIgnoreCase));
-    }
-
     /// <summary>Polls the intent history and <paramref name="probe"/> until it reports done, within <paramref name="limit"/>.</summary>
     internal Task UntilAsync(TimeSpan limit, Func<IReadOnlyList<SurgeryIntent>, CancellationToken, Task<(string Signature, bool Done)>> probe, CancellationToken cancellationToken) =>
         NativeReads.WithinAsync(

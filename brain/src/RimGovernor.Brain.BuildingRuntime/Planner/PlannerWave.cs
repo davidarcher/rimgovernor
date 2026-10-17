@@ -88,13 +88,7 @@ internal sealed class PlannerWave : IDisposable
                     reason = await entry.Run(s, ct, epoch, priv, arbiter).ConfigureAwait(false);
                 }, ct).Invoke().ConfigureAwait(false);
             }
-            catch (StaleOwnerException)
-            {
-                // Planners share a standard (resourceAcquisition and fields), so a sibling's admission in the same
-                // wave moves the owner under a slow planner; it waits for the next round, not a failure.
-                reason = Verdict.AwaitingPlan("owner", "revision_changed");
-            }
-            catch (OpenMethodException)
+            catch (CombatWorkOpenException)
             {
                 reason = BuildingReasonExistingWork;
             }

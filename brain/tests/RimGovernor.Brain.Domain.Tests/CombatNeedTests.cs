@@ -42,7 +42,7 @@ public sealed class CombatNeedTests
         Assert.True(journal.LoadCombatFight(plan.Id, ct)!.Open);
 
         // A second fight while the first is held is refused.
-        _ = Assert.Throws<OpenMethodException>(() => journal.CommitCombatFight(World, new("subdue-b"), DraftPlan("fight-2"), new CombatMemory(), [new("b")], ct));
+        _ = Assert.Throws<CombatWorkOpenException>(() => journal.CommitCombatFight(World, new("subdue-b"), DraftPlan("fight-2"), new CombatMemory(), [new("b")], ct));
 
         // Clear with the fight still open: the standing stays filed so the defense step can wind the fight down.
         Assert.Equal(Situation.Clear, Reviewed(journal, World, 0, 120, ct).Review.Combat?.Situation);
@@ -52,18 +52,16 @@ public sealed class CombatNeedTests
     }
 
     [Fact]
-    public void AnOlderSavesIncidentOwnedFightClosesOnLoadAndItsRestorationIsKept()
+    public void AnOpenFightClosesOnLoadAndItsRestorationIsKept()
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Open("rg-combat-old-save-", ct);
         _ = Reviewed(journal, World, 1, 100, ct);
 
-        // An older save: the fight is an incident's Method and owns the saved restoration.
-        var incident = journal.OpenIncident(new(new ConcernId("RetiredIncident"), new("colony"), "observed_need", World, new(100)), ct);
+        // The fight owns the saved restoration.
         var plan = DraftPlan("old-fight");
-        _ = journal.CommitIncidentMethod(incident.Incident.Id, new("combat-1"), "", plan, ct);
+        _ = journal.CommitCombatFight(World, new("engage-1"), plan, new CombatMemory(), [new("a")], ct);
         var world = new Store.World(World.Colony, World.Load, World.Map);
-        journal.OpenCombatFight(plan.Id, new CombatMemory(), world, [new("a")], ct);
         var restoration = new CombatRestoration(world, plan.Id, [new CombatDoorRestoration(new(3, 4), false, true)], []);
         journal.SaveCombatRestoration(restoration, ct);
         Assert.Throws<ConflictException>(() => journal.CloseCombatFight(plan.Id, ct));
@@ -71,7 +69,7 @@ public sealed class CombatNeedTests
         // The load sequence (GovernorState.WorldRebuild) on the same journal.
         var saved = journal.GovernorStateBlobs(ct);
         Assert.Contains(Journal.GovernorCombatRestorationKey, saved.Keys);
-        journal.RebuildStandards(saved, null, ct);
+        journal.RebuildOwners(null, ct);
         journal.RebuildFamilies(saved, ct);
         journal.ResetRounds(ct);
 
@@ -85,7 +83,7 @@ public sealed class CombatNeedTests
         var restore = new PlanSpec(new("restore"), new(1), [.. Journal.CombatRestorationActions(restoration, new("restore"))]);
         journal.CommitCombatRestoration(reloaded, restore, ct);
         var fight = DraftPlan("new-fight");
-        _ = Assert.Throws<OpenMethodException>(() => journal.CommitCombatFight(reloaded, new("engage-1"), fight, new CombatMemory(), [new("a")], ct));
+        _ = Assert.Throws<CombatWorkOpenException>(() => journal.CommitCombatFight(reloaded, new("engage-1"), fight, new CombatMemory(), [new("a")], ct));
         Assert.Contains(journal.LoadNeed(MilitaryFamily.Combat, reloaded, ct).Methods, m => m.Method.Value == "restore-restore");
     }
 }

@@ -9,8 +9,6 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 internal sealed class FoodOwner : IStoreOwner
 {
-    public Department Department => Department.Food;
-
     public RoomDemand RoomDemand(StoreView v) => new();
 
     /// <summary>

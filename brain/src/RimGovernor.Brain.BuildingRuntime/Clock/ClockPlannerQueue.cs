@@ -298,7 +298,7 @@ internal sealed class PlannerQueue
     }
 
     /// <summary><c>StandardWorkOpen</c> for one progress row.</summary>
-    private static bool ProgressOpen(Progress progress) => Standard.WorkOpen([progress]);
+    private static bool ProgressOpen(Progress progress) => WorkProgress.Open([progress]);
 
     /// <summary>Indexes every open attempt across plans, for the waits' stillOpen check.</summary>
     public static Func<ActionId, bool> OpenWorkIndex(IEnumerable<PlanState> plans)

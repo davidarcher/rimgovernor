@@ -159,8 +159,8 @@ Draft and undraft through the draft intent are covered by native acceptance `dra
 
 ## Concern JSON names
 
-Read routes name the watched kind `concern` (a Concern id string such as `MaintainResource`, or a NeedId `family/kind[/subject]` for a family's Need):
-`GET /api/routines` carries `progress[].concern` and `noOps[].concern`;
+Read routes name the watched kind `concern`, a family Need's filing key (a NeedId `family/kind[/subject]`):
+`GET /api/routines` carries `progress[].concern` (the `noOps` list is gone since #3265);
 Other fields (`method`,
 `expected`, `lastProgress`, `nextReview`, `blocked`, `cooldowns`, `prerequisite`, ...) are as named.
 `blocked` is a `policy.Cause` wire value (or `prerequisite:<concern>`); `subject` is its optional bounded subject, and the client renders both through `policy.Wording`.

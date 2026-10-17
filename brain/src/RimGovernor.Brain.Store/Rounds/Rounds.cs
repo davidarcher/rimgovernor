@@ -3,9 +3,6 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>Binds the Concern a Standard serves to the Standard row the review filed for it (Go <c>RoundsStandard</c>).</summary>
-public sealed record RoundsStandard(ConcernId Concern, StandardId Standard);
-
 /// <summary>
 /// Binds identity and access direction. Its current position is resolved by the supply census and checked by
 /// Hands before a write (Go <c>ReserveSupply</c>).
@@ -22,8 +19,7 @@ public sealed record ReserveSupply(string Thing, string Definition, bool Forbid)
 public sealed record RoundsCombat(Situation Situation, EquatableArray<PawnId> Prey, EquatableArray<PawnId> Hunters);
 
 /// <summary>
-/// The durable review cursor and hysteresis history (Go <c>Rounds</c>). Standard bindings retain semantic needs
-/// while old executable plans keep their identity. A field Go omitted when empty is its empty value here.
+/// The durable review cursor and hysteresis history (Go <c>Rounds</c>). A field Go omitted when empty is its empty value here.
 /// </summary>
 public sealed record Rounds
 {
@@ -74,12 +70,6 @@ public sealed record Rounds
 
     public ComfortHistory Comfort { get; init; }
 
-    /// <summary>The Standards this review assessed.</summary>
-    public EquatableArray<RoundsStandard> Standards { get; init; }
-
-    /// <summary>Binds the Responses this review assessed to their open occurrences; those needs have no entry in <see cref="Standards"/>.</summary>
-    public EquatableArray<RoundsIncident> Incidents { get; init; }
-
     /// <summary>The combat standing this enabled review filed; null while combat has nothing to answer or settle.</summary>
     public RoundsCombat? Combat { get; init; }
 
@@ -97,12 +87,6 @@ public sealed record Rounds
 
     /// <summary>For every cell a live plan's wall removal names, whether the last complete construction census still had a colony Wall on it, sorted by cell.</summary>
     public EquatableArray<WallCell> WallCells { get; init; }
-
-    /// <summary>The live shortfall edges planners recorded (<c>RecordDependency</c>); each review drops the settled or stale ones.</summary>
-    public EquatableArray<DependencyRecord> Dependencies { get; init; }
-
-    /// <summary>Every inspection that raised nothing in the last enabled review, with its typed reason; a disabled review keeps the last.</summary>
-    public EquatableArray<NoOpRecord> NoOps { get; init; }
 }
 
 /// <summary>One requested inspection (Go <c>RoundsRequest</c>).</summary>
@@ -129,11 +113,6 @@ public sealed record RoundsResult
     public Rounds Review { get; init; } = new();
 
     public RoundsFindings Needs { get; init; } = new();
-
-    public IReadOnlyList<StandardState> Standards { get; init; } = [];
-
-    /// <summary>The occurrences <see cref="Rounds.Incidents"/> binds.</summary>
-    public IReadOnlyList<IncidentState> Incidents { get; init; } = [];
 
     /// <summary>What an enabled review passed <c>DetectRounds</c>: the journal-enriched facts, the prior latches and the staged policy. Not journalled.</summary>
     public RoundsDetection? Detection { get; init; }

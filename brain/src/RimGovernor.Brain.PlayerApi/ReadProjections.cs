@@ -131,7 +131,6 @@ internal static class ReadProjections
             [.. v.Progress.Select(ConcernProgressRow)],
             v.Roster is { } roster ? Roster(roster) : null,
             [.. v.Sections.Select(x => new RoundsSectionDto(Wire.Name(x.Section), Wire.Name(x.Family), x.AsOf, x.Complete, x.Source, x.StoredAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", CultureInfo.InvariantCulture)))],
-            [.. v.NoOps.Select(n => new NoOpDto(n.Concern.Value, Wire.Name(n.Reason)))],
             [.. v.LootHolds.Select(h => new LootHoldDto(h.Thing, h.Definition, h.Cell.X, h.Cell.Z, h.Reason))]);
     }
 

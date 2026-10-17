@@ -8,14 +8,15 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public sealed partial class Rounder
 {
-    internal Fact<EquatableArray<ConcernId>> Methods;
+    /// <summary>Whether the Rounder was composed with its capabilities; a bare Rounder knows no Needs.</summary>
+    private bool _composed;
 
     /// <summary>The migrated families' Needs the runtime composes (#3280); the review reads their facts as it read their Concerns'.</summary>
     internal IReadOnlySet<NeedId> Needs = new HashSet<NeedId>();
 
-    /// <summary>The composed Needs as the review's facts carry them: known whenever the method capabilities are.</summary>
+    /// <summary>The composed Needs as the review's facts carry them: known whenever the capabilities are.</summary>
     internal Fact<EquatableArray<NeedId>> AvailableNeeds =>
-        Methods.IsKnown ? Known<EquatableArray<NeedId>>([.. Needs.OrderBy(n => n.Value, StringComparer.Ordinal)]) : Unknown<EquatableArray<NeedId>>();
+        _composed ? Known<EquatableArray<NeedId>>([.. Needs.OrderBy(n => n.Value, StringComparer.Ordinal)]) : Unknown<EquatableArray<NeedId>>();
     internal Player Player;
     internal IRoundsSource Native;
     internal IClock Clock;
@@ -265,7 +266,6 @@ public sealed partial class Rounder
         {
             throw new ControlException("NewRounder: native lacks the bench census read");
         }
-        var methods = Unknown<EquatableArray<ConcernId>>();
         var reviewerOverlay = false;
         IActionsWriter? undraftWriter = null;
         var clearanceCensus = false;
@@ -280,11 +280,9 @@ public sealed partial class Rounder
             undraftWriter = capabilities[0].Undraft;
             clearanceCensus = capabilities[0].ClearanceCensus;
             jailShell = capabilities[0].JailShell;
-            methods = Known<EquatableArray<ConcernId>>([.. capabilities[0].Methods]);
-            PolicyApi.InspectRounds(new RoundsFacts { AvailableMethods = methods }, new RoundsLatches(), thresholds);
             Needs = capabilities[0].Needs.ToHashSet();
+            _composed = true;
         }
-        Methods = methods;
         Player = player;
         Native = native;
         Clock = clock;
@@ -639,7 +637,7 @@ public sealed partial class Rounder
                 reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
             }
         }
-        reading = reading.WithFacts(rf => rf with { AvailableMethods = Methods, AvailableNeeds = AvailableNeeds });
+        reading = reading.WithFacts(rf => rf with { AvailableNeeds = AvailableNeeds });
         // The admin/work-ledger Need reads the diff from the ledger's memory (LedgerOwedIn).
         var ledgerOwed = await ReviewLedgerAsync(state.Snapshot, expected, reading.Projection, ct).ConfigureAwait(false);
         lock (Ledger.Mu)
@@ -671,7 +669,7 @@ public sealed partial class Rounder
         NoteGearFilters(GearFilters, result.Review.Snapshot, reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection);
         RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Projection, result.Needs.CoupledSelection));
         AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
-        var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value), ("concerns", result.Standards.Count) };
+        var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value) };
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));
         ClockEvents.Event("routine", "rounds_review", "rounds ran", [.. attrs]);
         if (Needs.Contains(MilitaryFamily.Equipment))
@@ -724,11 +722,9 @@ internal static class RoundsReadingEdits
         r.Sections.Colony is { } held ? r with { Sections = r.Sections with { Colony = held with { Value = edit(held.Value) } } } : r;
 }
 
-/// <summary>The Rounder's configured capabilities: the runtime's complete configured method set.</summary>
+/// <summary>The Rounder's configured capabilities: the composed Needs and the optional native writers.</summary>
 public sealed record RoundsCapabilities
 {
-    public IReadOnlyList<ConcernId> Methods { get; init; } = [];
-
     /// <summary>The migrated families' Needs the runtime composes; a Need has no registry row to validate against.</summary>
     public IReadOnlyList<NeedId> Needs { get; init; } = [];
 

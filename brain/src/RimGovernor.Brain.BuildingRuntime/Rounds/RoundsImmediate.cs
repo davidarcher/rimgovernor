@@ -135,7 +135,7 @@ public sealed partial class Rounder
         f = f with { DangerHaulers = PolicyFunctions.DangerHaulers(projection.WorkPawns) };
         f = f with { Tick = expected.Tick };
         f = f with { Dash = PolicyFunctions.ReviewDash(previous.Latches.Dash, f, projection.WorkPawns, expected.Tick, PolicyFunctions.PublishedHypothermiaTuning) };
-        f = f with { AvailableMethods = Methods, AvailableNeeds = AvailableNeeds };
+        f = f with { AvailableNeeds = AvailableNeeds };
         // The immediate pass plans no food; the last full review's plan carries forward, so a squad hunt it opened
         // stays a combat deficit (#3311).
         f = f with { FoodPlan = HeldFoodPlan(state.Snapshot) };

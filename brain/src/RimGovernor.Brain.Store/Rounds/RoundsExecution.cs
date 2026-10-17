@@ -117,22 +117,11 @@ public sealed partial class Store
                 {
                     throw new ConflictException("no current enabled review");
                 }
-                var (owner, found) = tx.QueryFirst("SELECT kind,owner_id FROM plan_methods WHERE plan_id=$plan", [("$plan", target.Plan)], r => (Kind: r.GetString(0), OwnerId: r.GetString(1)));
-                if (!found)
+                if (tx.ScalarText("SELECT need_id FROM need_methods WHERE plan_id=$plan", ("$plan", target.Plan)) is null)
                 {
                     throw new NotFoundException();
                 }
-                if (owner.Kind == "incident")
-                {
-                    AuthorizeIncidentPlan(tx, review, new IncidentId(owner.OwnerId), root, target);
-                    return;
-                }
-                if (owner.Kind == "need")
-                {
-                    AuthorizeNeedPlan(tx, review, target.Plan, root, target);
-                    return;
-                }
-                AuthorizeStandardPlan(tx, review, LoadStandard(tx, new StandardId(owner.OwnerId)), root, target);
+                AuthorizeNeedPlan(tx, review, target.Plan, root, target);
             },
             cancellationToken
         );
@@ -140,39 +129,6 @@ public sealed partial class Store
 
     public Task AuthorizeRoundsPlanAsync(GenerationSnapshot root, GenerationSnapshot target, CancellationToken cancellationToken) =>
         Task.Run(() => AuthorizeRoundsPlan(root, target, cancellationToken), cancellationToken);
-
-    /// <summary>
-    /// <see cref="AuthorizeRoundsPlan"/> for an incident's method: the review binds the open occurrence in deficit,
-    /// no Safeguard vetoes it and the plan is its unretired method.
-    /// </summary>
-    internal static void AuthorizeIncidentPlan(StoreTransaction tx, Rounds review, IncidentId id, GenerationSnapshot root, GenerationSnapshot target)
-    {
-        var binding = review.IncidentBinding(id);
-        var state = LoadIncident(tx, id);
-        if (state.Incident.Closed || !SameRoot(state.Incident.Snapshot, root))
-        {
-            throw new ConflictException("incident is closed or belongs to another root");
-        }
-        var reason = review.VetoIncident(state.Incident);
-        if (reason.Length != 0)
-        {
-            throw new NotAdmittedException($"incident {id.Value}: {reason}");
-        }
-        if (!state.Methods.Any(m => m.Plan == target.Plan))
-        {
-            throw new ConflictException("plan is not a method of the incident");
-        }
-        var p = LoadIn(tx, target.Plan);
-        if (p.Retired || p.Spec.Revision != target.Revision)
-        {
-            throw new ConflictException("plan is retired or revised");
-        }
-        if ((binding is null || binding.Situation != Situation.Active) && !CombatRestorationPlan(tx, p.Spec))
-        {
-            throw new ConflictException("incident is not in deficit");
-        }
-        RoundsActionsSupported(p.Spec);
-    }
 
     /// <summary>
     /// <see cref="AuthorizeRoundsPlan"/> for a Need's method (#3250): the plan belongs to the root's world, no Safeguard
@@ -197,60 +153,6 @@ public sealed partial class Store
         RoundsActionsSupported(p.Spec);
     }
 
-    internal static void AuthorizeStandardPlan(StoreTransaction tx, Rounds review, StandardState owner, GenerationSnapshot root, GenerationSnapshot target)
-    {
-        if (ActivityReleaseContinuation(tx, target.Plan, root))
-        {
-            var release = LoadIn(tx, target.Plan);
-            if (release.Spec.Revision != target.Revision) throw new ConflictException("release plan revised");
-            return;
-        }
-        if (!review.Need(owner.Standard.Id, out _))
-        {
-            throw new ConflictException("standard is not bound by the review");
-        }
-        var g = SummarizeOwner(owner);
-        if (g.Retired || g.Status != StandardStatus.Open || g.Finding == Finding.Unclear || !SameRoot(g.Snapshot, root))
-        {
-            throw new ConflictException("standard is not open and measured under this root");
-        }
-        // A prepared plan does not dispatch while a Safeguard vetoes its goal.
-        var reason = review.Veto(owner.Standard);
-        if (reason.Length != 0)
-        {
-            throw new NotAdmittedException($"standard {g.Id}: {reason}");
-        }
-        if (!owner.Methods.Any(method => method.Plan == target.Plan && method.Episode == g.Episode))
-        {
-            throw new ConflictException("plan is not a method of the standard's episode");
-        }
-        var p = LoadIn(tx, target.Plan);
-        if (p.Retired || p.Spec.Revision != target.Revision)
-        {
-            throw new ConflictException("plan is retired or revised");
-        }
-        if (g.Finding == Finding.Met)
-        {
-            // A configured bill has recovered setup, but its already-issued first output
-            // still needs ordinary pawn time. This never permits another setup write.
-            var waiting = false;
-            foreach (var progress in p.Progress)
-            {
-                var v = progress.View;
-                if (progress.Action.Kind != ActionKind.ProductionBill || v.Attempt.Value == 0)
-                {
-                    throw new ConflictException("recovered standard has work beyond its issued bill");
-                }
-                waiting = waiting || v.Unresolved;
-            }
-            if (!waiting)
-            {
-                throw new ConflictException("recovered standard has no output waiting");
-            }
-        }
-        RoundsActionsSupported(p.Spec);
-    }
-
     /// <summary>Refuses a plan with an action kind routine execution does not dispatch.</summary>
     internal static void RoundsActionsSupported(PlanSpec spec)
     {
@@ -259,32 +161,6 @@ public sealed partial class Store
             DomainException.Require(RoundsSupportedKinds.Contains(action.Kind), "routine execution requires supported routine methods");
         }
     }
-
-    /// <summary>
-    /// Loads the Standard goal the review binds to <paramref name="need"/> and reports whether a planner may work
-    /// it: an active deficit the Safeguards admit. The goal is returned whenever the review binds one, workable or
-    /// not, and null when it binds none.
-    /// </summary>
-    public (StandardState? Goal, bool Workable) Workable(Rounds r, ConcernId need, CancellationToken cancellationToken)
-    {
-        var id = default(StandardId);
-        foreach (var binding in r.Standards)
-        {
-            if (binding.Concern == need)
-            {
-                id = binding.Standard;
-            }
-        }
-        if (id.IsEmpty)
-        {
-            return (null, false);
-        }
-        var goal = LoadStandard(id, cancellationToken);
-        return (goal, goal.Standard.Status == StandardStatus.Open && goal.Standard.Finding == Finding.Unmet && r.Veto(goal.Standard).Length == 0);
-    }
-
-    public Task<(StandardState? Goal, bool Workable)> WorkableAsync(Rounds r, ConcernId need, CancellationToken cancellationToken) =>
-        Task.Run(() => Workable(r, need, cancellationToken), cancellationToken);
 
     /// <summary>
     /// Asks the action Safeguards at dispatch: a vetoed action is <see cref="ActionVetoedException"/> with the

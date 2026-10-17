@@ -1352,21 +1352,6 @@ internal sealed class NativeRefusalConverter : ObjectCodec<NativeRefusal>
     }
 }
 
-internal sealed class NoOpRecordConverter : ObjectCodec<NoOpRecord>
-{
-    protected override NoOpRecord Read(JsonElement e, Codecs o) =>
-        new(
-            e.Get<ConcernId>("Concern", o),
-            e.Get<NoOpReason>("Reason", o)
-        );
-
-    protected override void WriteFields(Utf8JsonWriter w, NoOpRecord v, Codecs o)
-    {
-        w.Put("Concern", v.Concern, o);
-        w.Put("Reason", v.Reason, o);
-    }
-}
-
 internal sealed class ObservationConverter : ObjectCodec<Observation>
 {
     protected override Observation Read(JsonElement e, Codecs o) =>
@@ -2172,18 +2157,12 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             Latches = e.Get<RoundsLatches>("Latches", o),
             MedicalCare = e.Get<MedicalCareHistory>("MedicalCare", o),
             EventLoot = e.Get<EventLootHistory>("EventLoot", o),
-            Comfort = e.Get<ComfortHistory>("Comfort", o),
-            Standards = e.Get<EquatableArray<RoundsStandard>>("Standards", o),
-            Incidents = e.Get<EquatableArray<RoundsIncident>>("Incidents", o),
-            Combat = e.GetOr<RoundsCombat?>("Combat", null, o),
+            Comfort = e.Get<ComfortHistory>("Comfort", o),            Combat = e.GetOr<RoundsCombat?>("Combat", null, o),
             Roster = e.GetOr<WorkRosterReport?>("Roster", null, o),
             Progress = e.Get<EquatableArray<ConcernProgress>>("Progress", o),
             ReadyWork = e.GetOr<ReadyWorkReport?>("ReadyWork", null, o),
             Built = e.Get<EquatableArray<ActionId>>("Built", o),
-            WallCells = e.Get<EquatableArray<WallCell>>("WallCells", o),
-            Dependencies = e.Get<EquatableArray<DependencyRecord>>("Dependencies", o),
-            NoOps = e.Get<EquatableArray<NoOpRecord>>("NoOps", o),
-        };
+            WallCells = e.Get<EquatableArray<WallCell>>("WallCells", o),        };
 
     protected override void WriteFields(Utf8JsonWriter w, Rounds v, Codecs o)
     {
@@ -2220,10 +2199,7 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
         w.Put("Latches", v.Latches, o);
         w.Put("MedicalCare", v.MedicalCare, o);
         w.Put("EventLoot", v.EventLoot, o);
-        w.Put("Comfort", v.Comfort, o);
-        w.Put("Standards", v.Standards, o);
-        w.Put("Incidents", v.Incidents, o);
-        if (v.Combat is { } vCombat)
+        w.Put("Comfort", v.Comfort, o);        if (v.Combat is { } vCombat)
         {
             w.Put("Combat", vCombat, o);
         }
@@ -2237,10 +2213,7 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             w.Put("ReadyWork", vReadyWork, o);
         }
         w.Put("Built", v.Built, o);
-        w.Put("WallCells", v.WallCells, o);
-        w.Put("Dependencies", v.Dependencies, o);
-        w.Put("NoOps", v.NoOps, o);
-    }
+        w.Put("WallCells", v.WallCells, o);    }
 }
 
 internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
@@ -2258,21 +2231,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
         w.WriteBoolean("MedicalReserve", v.MedicalReserve);
         w.Put("Dash", v.Dash, o);
         w.Put("Housing", v.Housing, o);
-    }
-}
-
-internal sealed class RoundsStandardConverter : ObjectCodec<RoundsStandard>
-{
-    protected override RoundsStandard Read(JsonElement e, Codecs o) =>
-        new(
-            e.Get<ConcernId>("Concern", o),
-            e.Get<StandardId>("Standard", o)
-        );
-
-    protected override void WriteFields(Utf8JsonWriter w, RoundsStandard v, Codecs o)
-    {
-        w.Put("Concern", v.Concern, o);
-        w.Put("Standard", v.Standard, o);
     }
 }
 

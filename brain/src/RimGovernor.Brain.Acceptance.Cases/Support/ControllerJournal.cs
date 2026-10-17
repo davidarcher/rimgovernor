@@ -72,18 +72,4 @@ internal static class JournalReads
 
     /// <summary>A Finding as Go printed it (met, unmet, unclear).</summary>
     internal static string FindingName(Finding finding) => finding.ToString().ToLowerInvariant();
-
-    /// <summary>The goal bound to <paramref name="concern"/> in <paramref name="review"/>, or null when the review binds none.</summary>
-    internal static StandardId? BoundStandard(StoreRounds review, ConcernId concern)
-    {
-        foreach (var binding in review.Standards)
-        {
-            if (binding.Concern == concern)
-            {
-                return binding.Standard;
-            }
-        }
-
-        return null;
-    }
 }

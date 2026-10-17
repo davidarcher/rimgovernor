@@ -340,25 +340,17 @@ public sealed partial class Rounder
 
     /// <summary>
     /// The shelf plans of each owned stockpile zone (ZoneShelves under the admin/stockpiles Need in
-    /// <paramref name="snapshot"/>'s world, and a Standard-linked zone's Standard), built or in flight, and whether
+    /// <paramref name="snapshot"/>'s world), built or in flight, and whether
     /// the zone's shelf attempts are used up.
     /// </summary>
     internal (Dictionary<string, List<Pol.ShelfRecord>> Shelves, Dictionary<string, bool> Spent) ShelfPlans(GenerationSnapshot snapshot, IReadOnlyList<Sto.OwnedZone> owned, Observation.ColonyProjection projection, CancellationToken ct)
     {
-        var zoneGoal = new Dictionary<string, StandardId?>();
-        foreach (var z in owned)
-        {
-            if (z.Kind == Domain.ZoneKind.Stockpile)
-            {
-                zoneGoal[z.Id] = z.Standard;
-            }
-        }
         var need = StockpileNeedOwner(snapshot);
         var shelves = new Dictionary<string, List<Pol.ShelfRecord>>();
         var spent = new Dictionary<string, bool>();
-        foreach (var (zone, legacy) in zoneGoal)
+        foreach (var zone in owned.Where(z => z.Kind == Domain.ZoneKind.Stockpile).Select(z => z.Id).Distinct())
         {
-            var (records, next) = ZoneShelves(Player.Journal, need, legacy, zone, projection.Facts.CurrentConstruction, ct);
+            var (records, next) = ZoneShelves(Player.Journal, need, zone, projection.Facts.CurrentConstruction, ct);
             shelves[zone] = records;
             spent[zone] = next >= MaxShelvesPerZone;
         }

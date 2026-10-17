@@ -21,8 +21,6 @@ public static partial class PolicyFunctions
 /// </summary>
 public sealed class BurialOwner : IStoreOwner
 {
-    public Department Department => Policy.Department.People;
-
     public IReadOnlyList<Store> Stores(StoreView view)
     {
         if (view.Layout is null)

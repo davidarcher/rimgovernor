@@ -185,7 +185,7 @@ public static class ServiceJournal
 
     /// <summary>
     /// Polls the durable Rounds record under <paramref name="w"/> until <paramref name="ready"/> accepts it. The
-    /// progress signature is the review's latches and goal bindings, so a review that keeps revising without moving
+    /// progress signature is the review's latches and progress rows, so a review that keeps revising without moving
     /// either stalls.
     /// </summary>
     public static Task<ReviewRecord> WaitReviewAsync(Journal journal, Wait w, Func<ReviewRecord, bool> ready, CancellationToken cancellationToken) =>
@@ -193,7 +193,7 @@ public static class ServiceJournal
             journal,
             w,
             ready,
-            review => Wait.Signature(review.Latches.ToString(), string.Join(';', review.Standards.Select(b => b.Concern + "=" + b.Standard))),
+            review => Wait.Signature(review.Latches.ToString(), string.Join(';', review.Progress.Select(p => p.Concern.Value))),
             cancellationToken);
 
     /// <summary>

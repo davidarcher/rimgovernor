@@ -114,7 +114,7 @@ public sealed class DisasterFamilyTests
     }
 
     [Fact]
-    public void TheRecoveryReadbackIsKeyedByTheServicesNeedAndAnOlderJournalsIncidentRecordIsDroppedOnLoad()
+    public void TheRecoveryReadbackIsKeyedByTheServicesNeedAndAnOlderJournalsIncidentKeyedReviewIsResetOnLoad()
     {
         var ct = TestContext.Current.CancellationToken;
         var path = Path.Combine(Path.GetTempPath(), "rg-disaster-recovery-" + Guid.NewGuid().ToString("N") + ".db");
@@ -126,8 +126,6 @@ public sealed class DisasterFamilyTests
         {
             Current = World, Tick = new(tick), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts, Revision = journal.LoadRounds(ct).Revision,
         }, ct);
-        PlanId oldPlan;
-        IncidentId oldIncident;
         using (var journal = Journal.Open(path, ct))
         {
             var review = Review(journal, 100).Review;
@@ -136,19 +134,13 @@ public sealed class DisasterFamilyTests
             Assert.Equal(DisasterFamily.Services, recovery.Need);
             Assert.Equal(new RimGovernor.Brain.Store.World(World.Colony, World.Load, World.Map), recovery.World);
             Assert.Equal(recovery, journal.LoadRounds(ct).Recovery);
-
-            // An older journal: the services were a retired incident kind's Method.
-            var incident = journal.OpenIncident(new(new ConcernId("RetiredDisasterRecovery"), new("colony"), "observed_disaster", World, new(100)), ct);
-            var plan = Plan(id => DomainAction.NewRecoveryServiceAction(id, new(new("a"), "battery", RecoveryMethod.Repair)));
-            _ = journal.CommitIncidentMethod(incident.Incident.Id, new("recovery-old"), "", plan, ct);
-            (oldPlan, oldIncident) = (plan.Id, incident.Incident.Id);
         }
         SqliteConnection.ClearAllPools();
         using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
         {
             connection.Open();
             using var write = connection.CreateCommand();
-            // and its review keyed the recovery selection by that incident.
+            // An older journal's review keyed the recovery selection by an incident.
             write.CommandText = "UPDATE rounds SET payload=json_set(json_remove(payload,'$.Recovery.Need','$.Recovery.World'),'$.Recovery.Incident','incident-1')";
             Assert.Equal(1, write.ExecuteNonQuery());
         }
@@ -158,16 +150,14 @@ public sealed class DisasterFamilyTests
             Assert.ThrowsAny<Exception>(() => reopened.LoadRounds(ct));
             // The load sequence (GovernorState.EnsureAsync) resets the review before anything reads it.
             var saved = reopened.GovernorStateBlobs(ct);
-            reopened.RebuildStandards(saved, null, ct);
+            reopened.RebuildOwners(null, ct);
             reopened.RebuildFamilies(saved, ct);
             reopened.ResetRounds(ct);
             Assert.Null(reopened.LoadRounds(ct).Recovery);
 
-            // The next full review closes the unbound incident, cancelling its work, and selects under the Need.
+            // The next full review selects under the Need.
             var review = Review(reopened, 110).Review;
             Assert.Equal(DisasterFamily.Services, review.Recovery?.Need);
-            Assert.True(reopened.LoadIncident(oldIncident, ct).Incident.Closed);
-            Assert.False(Standard.WorkOpen(reopened.LoadPlan(oldPlan, ct).Progress));
         }
     }
 

@@ -86,7 +86,6 @@ internal sealed record RoundsStatusDto(
     IReadOnlyList<ConcernProgressDto> Progress,
     RoundsRosterDto? Roster,
     IReadOnlyList<RoundsSectionDto> Sections,
-    IReadOnlyList<NoOpDto> NoOps,
     IReadOnlyList<LootHoldDto> LootHolds);
 
 internal sealed record ExtentEligibilityDto(bool Known, string Reason, IReadOnlyList<ExtentRegionEligibilityDto> Regions);
@@ -116,8 +115,6 @@ internal sealed record ResourceRunwayDto(
     double? DaysLeft,
     bool? Deficit,
     long Target);
-
-internal sealed record NoOpDto(string Concern, string Reason);
 
 internal sealed record LootHoldDto(string Thing, string Definition, int X, int Z, string Reason);
 

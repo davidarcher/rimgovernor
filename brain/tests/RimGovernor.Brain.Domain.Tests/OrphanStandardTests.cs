@@ -57,7 +57,7 @@ public sealed class OrphanStandardTests
         Assert.Contains(Journal.GovernorTradeMissionsKey, saved.Keys);
 
         using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-missions-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        loaded.RebuildStandards(saved, null, ct);
+        loaded.RebuildOwners(null, ct);
         loaded.RebuildFamilies(saved, ct);
         var reloaded = home with { Load = new("load-2") };
         var record = loaded.LoadTradeMissions(reloaded, ct);
@@ -85,13 +85,13 @@ public sealed class OrphanStandardTests
         var blob = LegacyStandardBlob.Of("trade-mission-1", "trade-mission", World);
         var standard = blob["standard"]!;
         standard["Mission"] = new JsonObject { ["HomeColony"] = "colony", ["Settlement"] = "settlement", ["Phase"] = "outbound" };
-        saved[Journal.GovernorStandardKeyPrefix + "trade-mission-1"] = blob.ToJsonString();
+        saved[Journal.LegacyStandardKeyPrefix + "trade-mission-1"] = blob.ToJsonString();
 
         using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-old-mission-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        loaded.RebuildStandards(saved, null, ct);
+        loaded.RebuildOwners(null, ct);
         loaded.RebuildFamilies(saved, ct);
 
-        Assert.DoesNotContain(loaded.GovernorStateBlobs(ct).Keys, k => k == Journal.GovernorStandardKeyPrefix + "trade-mission-1");
+        Assert.DoesNotContain(loaded.GovernorStateBlobs(ct).Keys, k => k == Journal.LegacyStandardKeyPrefix + "trade-mission-1");
         Assert.Empty(loaded.LoadTradeMissions(new Store.World(World.Colony, new("load-2"), World.Map), ct).Missions);
     }
 }

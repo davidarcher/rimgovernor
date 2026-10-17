@@ -49,12 +49,12 @@ public sealed record NeedOwner(NeedId Need, GenerationSnapshot Snapshot, Equatab
             return null;
         }
         var held = Store.LoadIn(tx, plan);
-        return !held.Retired && Standard.WorkOpen(held.Progress) ? plan : null;
+        return !held.Retired && WorkProgress.Open(held.Progress) ? plan : null;
     }
 
     void IMethodOwner.BindMethod(StoreTransaction tx, MethodId method, PlanId plan, string reason)
     {
-        Store.InsertPlanOwner(tx, plan, "need");
+        Store.InsertPlanOwner(tx, plan);
         var attempt = tx.Scalar(
             "SELECT COALESCE(MAX(attempt),0) FROM need_methods WHERE colony=$colony AND load_token=$load AND map_id=$map AND need_id=$need AND method_id=$method",
             ("$colony", Snapshot.Colony), ("$load", Snapshot.Load), ("$map", Snapshot.Map), ("$need", Need.Value), ("$method", method)) + 1;

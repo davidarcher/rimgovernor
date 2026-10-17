@@ -14,13 +14,7 @@ internal sealed partial class RoundsStockpilePlanner
             return FieldUnavailable("building_source");
         }
         var zone = step.Zone?.Zone ?? throw new InvalidOperationException("a shelf step names the zone it shelves");
-        // A zone created under the MaintainStockpiles Standard keeps that Standard's shelves (until #3265).
-        StandardId? legacy = null;
-        if (_reviewer.Player.Journal.ZoneClaims(work.State.Snapshot, reading.Projection.Identity.Tick, call).TryGetValue(out var owned))
-        {
-            legacy = owned.FirstOrDefault(z => z.Id == zone)?.Standard;
-        }
-        var (_, index) = ZoneShelves(_reviewer.Player.Journal, work.Owner, legacy, zone, reading.Projection.Facts.CurrentConstruction, call);
+        var (_, index) = ZoneShelves(_reviewer.Player.Journal, work.Owner, zone, reading.Projection.Facts.CurrentConstruction, call);
         if (index >= MaxShelvesPerZone)
         {
             return Refuse(Pol.Cause.RetriesSpent, "maxShelvesPerZone", "");
@@ -106,34 +100,17 @@ internal static partial class BuildingRuntimePackage
 
     /// <summary>
     /// Reads back the zone's shelf plans in index order: the shelves built or in flight, and the next free index.
-    /// A shelf is the admin/stockpiles Need's latest attempt of its MethodId, else, for a zone created under the
-    /// MaintainStockpiles Standard (<paramref name="legacy"/>, until #3265), the Standard's plan of it.
+    /// A shelf is the admin/stockpiles Need's latest attempt of its MethodId.
     /// </summary>
-    internal static (List<Pol.ShelfRecord> Shelves, int Next) ZoneShelves(StoreJournal journal, Sto.NeedOwner need, StandardId? legacy, string zone, Fact<Pol.CurrentConstruction> census, CancellationToken ct)
+    internal static (List<Pol.ShelfRecord> Shelves, int Next) ZoneShelves(StoreJournal journal, Sto.NeedOwner need, string zone, Fact<Pol.CurrentConstruction> census, CancellationToken ct)
     {
         var output = new List<Pol.ShelfRecord>();
         for (var index = 0; index < MaxShelvesPerZone; index++)
         {
             var method = ShelfMethod(zone, index);
-            PlanId id;
-            if (journal.OwnerMethodPlan(need, method, ct) is { } attempt)
+            if (journal.OwnerMethodPlan(need, method, ct) is not { } id)
             {
-                id = attempt;
-            }
-            else
-            {
-                if (legacy is not { } standard)
-                {
-                    return (output, index);
-                }
-                try
-                {
-                    id = journal.LatestMethodPlan(standard, method, ct);
-                }
-                catch (Sto.NotFoundException)
-                {
-                    return (output, index);
-                }
+                return (output, index);
             }
             var plan = journal.LoadPlan(id, ct);
             var record = new Pol.ShelfRecord { Zone = zone };

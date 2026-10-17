@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using JournalStore = RimGovernor.Brain.Store.Store;
 using StoreRounds = RimGovernor.Brain.Store.Rounds;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -13,10 +12,10 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// must stay closed while the later ones are handled. A stage stops the service, takes the slot back, stages its deficit
 /// over the live map (never a reload: the routine goals of the world survive a paired restart, so the journal still
 /// carries the earlier recoveries), serves again with every family composed so far, follows the stage's own journal
-/// watch and audits the native outcome. A recovered goal that is measured in deficit again starts a new Episode
-/// (domain.ReviewStandard). Colony traffic can reopen a goal honestly (a medicine stock drawn down again), so the
-/// property is the issue's: no deficit reopens without recovery. A reopen is recorded and the goal must be recovered
-/// again within reopenTicks and before the stage ends; a goal that is rebound, cancelled or invalidated fails at once.
+/// watch and audits the native outcome. A recovered Need whose progress row comes back is in deficit again. Colony
+/// traffic can reopen a Need honestly (a medicine stock drawn down again), so the property is the issue's: no deficit
+/// reopens without recovery. A reopen is recorded and the Need must be recovered again within reopenTicks and before
+/// the stage ends.
 ///
 ///   medicine -- test/medicine_setup: no medicine, the medical/reserves Need.
 ///   cold     -- routine_sleeping_prepare + routine_temperature_prepare (coldSnap: days have passed, so ordinary cold
@@ -41,38 +40,22 @@ internal static class UpkeepCampaign
     /// <summary>Bounds the wall time a stage waits after its own watch for every earlier goal to be recovered again.</summary>
     private static readonly TimeSpan s_recoveredWait = TimeSpan.FromMinutes(4);
 
-    /// <summary>A goal an earlier stage recovered, pinned by identity and Episode.</summary>
-    internal sealed class ClosedStandard
+    /// <summary>A family Need an earlier stage recovered.</summary>
+    internal sealed record ClosedNeed(string Stage, NeedId Need)
     {
-        internal required string Stage { get; init; }
-
-        internal required ConcernId Need { get; init; }
-
-        internal StandardId Standard { get; set; }
-
-        internal ulong Episode { get; set; }
-
         internal JsonObject ToJson() => new()
         {
             ["stage"] = Stage,
             ["need"] = Need.Value,
-            ["concern"] = Standard.Value,
-            ["epoch"] = Episode,
         };
 
-        internal static ClosedStandard FromJson(JsonObject o) => new()
-        {
-            Stage = o["stage"].AsString(),
-            Need = new ConcernId(o["need"].AsString()),
-            Standard = new StandardId(o["concern"].AsString()),
-            Episode = o["epoch"].AsUInt64() ?? 0,
-        };
+        internal static ClosedNeed FromJson(JsonObject o) => new(o["stage"].AsString(), new NeedId(o["need"].AsString()));
     }
 
-    /// <summary>The paired stage bundle's identities guarded by later stages and their timeline, including any Episodes advanced by the closed tracker.</summary>
+    /// <summary>The paired stage bundle's Needs guarded by later stages and their timeline.</summary>
     private sealed class CampaignState
     {
-        internal List<ClosedStandard> Closed { get; } = [];
+        internal List<ClosedNeed> Closed { get; } = [];
 
         internal JsonArray Timeline { get; set; } = [];
 
@@ -87,7 +70,7 @@ internal static class UpkeepCampaign
         string Name,
         string Fixture,
         IReadOnlyList<string> Families,
-        IReadOnlyList<ConcernId> Needs,
+        IReadOnlyList<NeedId> Needs,
         Func<Harness, JsonObject, Report, CancellationToken, Task<JsonObject>> Prepare,
         Func<ControllerJournal, JsonObject, Report, CancellationToken, Task> Watch,
         Func<Harness, JsonObject, JsonObject, UpkeepCensus, Report, CancellationToken, Task> Verify);
@@ -95,12 +78,12 @@ internal static class UpkeepCampaign
     private static List<CampaignStage> CampaignStages()
     {
         var all = UpkeepSupport.Scenarios();
-        static CampaignStage FromScenario(UpkeepScenario sc, params ConcernId[] needs) =>
+        static CampaignStage FromScenario(UpkeepScenario sc, params NeedId[] needs) =>
             new(sc.Name, sc.Fixture, sc.Families, needs, sc.Prepare, sc.Watch, sc.Verify);
         var stages = new List<CampaignStage>
         {
-            FromScenario(all["medicine"], PolicyFunctions.MedicalReservesNeed.FilingKey),
-            FromScenario(all["cold"], ShelterFamily.Temperature.FilingKey),
+            FromScenario(all["medicine"], PolicyFunctions.MedicalReservesNeed),
+            FromScenario(all["cold"], ShelterFamily.Temperature),
         };
         // Days of play have passed by the last stage; the fixture cools the map with ordinary cold snaps rather than
         // failing on a warm afternoon.
@@ -117,7 +100,7 @@ internal static class UpkeepCampaign
             Name = "upkeep/campaign",
             Scope = "Sustained colony upkeep (issue #99): on one kept " + Baselines.BaselineName + " colony and one durable journal the deficits "
                 + "[" + string.Join(' ', names) + "] are staged in turn over the live map, each recovered by the routine families composed so far and audited natively, "
-                + "and no standard an earlier stage recovered reopens (new Episode), is rebound or is invalidated while the later ones are handled.",
+                + "and no Need an earlier stage recovered stays in deficit again while the later ones are handled.",
             Start = new SaveStart { Name = Baselines.BaselineName },
             Serve = new ServeSpec { Families = CumulativeFamilies(stages, stages.Count), Prefix = UpkeepSupport.Prefix },
             Stages = names,
@@ -156,7 +139,7 @@ internal static class UpkeepCampaign
             {
                 if (row.AsMap() is { } map)
                 {
-                    state.Closed.Add(ClosedStandard.FromJson(map));
+                    state.Closed.Add(ClosedNeed.FromJson(map));
                 }
             }
 
@@ -203,7 +186,7 @@ internal static class UpkeepCampaign
                     stageReport["upkeep_before"] = before.ToJson();
 
                     var service = await s.ServeAsync(s.Spec with { Families = families }, ct).ConfigureAwait(false);
-                    List<ClosedStandard>? recovered = null;
+                    List<ClosedNeed>? recovered = null;
                     Exception? stageError = null;
                     try
                     {
@@ -256,13 +239,11 @@ internal static class UpkeepCampaign
                     };
                     foreach (var c in recovered!)
                     {
-                        row[c.Need.Value] = new JsonObject { ["concern"] = c.Standard.Value, ["epoch"] = c.Episode };
+                        row[c.Need.Value] = "met";
                     }
 
                     state.Timeline.Add(row);
                     report["timeline"] = state.Timeline;
-                    // Freeze the state: the next stage's tracker mutates its epochs while the periodic ring can be
-                    // serializing this checkpoint.
                     Checkpoints.SetState(CampaignStateKey, state.ToJson());
                 }
                 catch (AcceptanceException e) when (!e.Message.StartsWith("stage ", StringComparison.Ordinal))
@@ -272,7 +253,7 @@ internal static class UpkeepCampaign
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        report["closed_standards"] = state.Closed.Count;
+        report["closed_needs"] = state.Closed.Count;
     }
 
     /// <summary>
@@ -285,7 +266,7 @@ internal static class UpkeepCampaign
     /// Drives one stage's service from authority to the stage's recovery while guarding every earlier stage's goal, and
     /// returns the goals this stage recovered.
     /// </summary>
-    private static async Task<List<ClosedStandard>> RunStageAsync(ISession s, ServiceProcess service, CampaignStage st, JsonObject prepared, Report report, List<ClosedStandard> closed, bool rebind, CancellationToken cancellationToken)
+    private static async Task<List<ClosedNeed>> RunStageAsync(ISession s, ServiceProcess service, CampaignStage st, JsonObject prepared, Report report, List<ClosedNeed> closed, bool rebind, CancellationToken cancellationToken)
     {
         var rootPlanId = await service.AcquireAsync(cancellationToken).ConfigureAwait(false);
         report["root_plan"] = rootPlanId;
@@ -293,16 +274,13 @@ internal static class UpkeepCampaign
         using var journal = ControllerJournal.Open(s, service, cancellationToken);
         var (routines, diagnostics) = await service.WaitRoundsAsync(TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
         report["diagnostic_post_acquire"] = new JsonArray([.. diagnostics.Select(d => (JsonNode?)d.DeepClone())]);
-        var review = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
         if (rebind)
         {
             // Loading a paired bundle starts a new world generation. Wait for its review rather than accepting the old
             // journal's last review.
             var load = new LoadId(s.Identity["loadToken"].AsString());
-            review = await journal.WaitReviewAsync(new Wait { Ceiling = TimeSpan.FromSeconds(90), Stall = Wait.StallBudget() }, r => r.Snapshot.Load == load, cancellationToken).ConfigureAwait(false);
-            report["restored_standards"] = ClosedJson(closed);
-            await RebindClosedStandardsAsync(closed, review, journal.Store, cancellationToken).ConfigureAwait(false);
-            report["loaded_standards"] = ClosedJson(closed);
+            _ = await journal.WaitReviewAsync(new Wait { Ceiling = TimeSpan.FromSeconds(90), Stall = Wait.StallBudget() }, r => r.Snapshot.Load == load, cancellationToken).ConfigureAwait(false);
+            report["restored_needs"] = ClosedJson(closed);
         }
 
         report["rounds_review_first"] = routines.DeepClone();
@@ -353,56 +331,25 @@ internal static class UpkeepCampaign
         }
 
         await Rounds.AssertRoundsRunningAsync(service.GetAsync, cancellationToken).ConfigureAwait(false);
-        var recovered = new List<ClosedStandard>();
+        var recovered = new List<ClosedNeed>();
         foreach (var need in st.Needs)
         {
-            var goal = await UpkeepSupport.WaitNeedAsync(journal, need, Finding.Met, cancellationToken).ConfigureAwait(false);
-            recovered.Add(new ClosedStandard { Stage = st.Name, Need = need, Standard = goal.Standard.Id, Episode = goal.Standard.Episode });
+            await UpkeepSupport.WaitNeedAsync(journal, need, Finding.Met, cancellationToken).ConfigureAwait(false);
+            recovered.Add(new ClosedNeed(st.Name, need));
         }
 
         return recovered;
     }
 
-    private static JsonArray ClosedJson(List<ClosedStandard> closed) => new([.. closed.Select(c => (JsonNode?)c.ToJson())]);
+    private static JsonArray ClosedJson(List<ClosedNeed> closed) => new([.. closed.Select(c => (JsonNode?)c.ToJson())]);
 
     /// <summary>
-    /// Only a bundle load may rebind the guards, once at the first live review. Subsequent reviews and every stage of a
-    /// fresh run retain the strict IDs.
+    /// Follows the Needs earlier stages recovered. A Need whose progress row comes back is recorded as a reopen; the
+    /// failure is a Need that stays in deficit past <see cref="ReopenTicks"/>.
     /// </summary>
-    private static async Task RebindClosedStandardsAsync(List<ClosedStandard> closed, StoreRounds review, JournalStore store, CancellationToken cancellationToken)
+    private sealed class ClosedTracker(List<ClosedNeed> closed)
     {
-        var bound = new Dictionary<ConcernId, StandardId>();
-        foreach (var binding in review.Standards)
-        {
-            bound[binding.Concern] = binding.Standard;
-        }
-
-        foreach (var c in closed)
-        {
-            if (!bound.TryGetValue(c.Need, out var id))
-            {
-                throw new AcceptanceException($"restored {c.Need.Value} has no binding in the loaded world's review");
-            }
-
-            var goal = await store.LoadStandardAsync(id, cancellationToken).ConfigureAwait(false);
-            if (goal.Standard.Status == StandardStatus.Voided)
-            {
-                throw new AcceptanceException($"restored {c.Need.Value} is voided in the loaded world");
-            }
-
-            c.Standard = id;
-            c.Episode = goal.Standard.Episode;
-        }
-    }
-
-    /// <summary>
-    /// Follows the goals earlier stages recovered. A goal that enters a new Episode is recorded as a reopen and its
-    /// recorded epoch moves on; the failure is a goal that stays in deficit past <see cref="ReopenTicks"/>, is rebound to
-    /// another goal, leaves the journal or is cancelled or invalidated.
-    /// </summary>
-    private sealed class ClosedTracker(List<ClosedStandard> closed)
-    {
-        private readonly Dictionary<StandardId, long> _deficitSince = [];
+        private readonly Dictionary<NeedId, long> _deficitSince = [];
         private readonly List<JsonObject> _reopens = [];
         private readonly Lock _gate = new();
 
@@ -414,10 +361,10 @@ internal static class UpkeepCampaign
             }
         }
 
-        /// <summary>Reads the journal once and reports which closed goals are in deficit, or fails on a violation.</summary>
-        internal async Task<List<ClosedStandard>> CheckAsync(ControllerJournal journal, CancellationToken cancellationToken)
+        /// <summary>Reads the journal once and reports which closed Needs are in deficit, or fails on a violation.</summary>
+        internal async Task<List<ClosedNeed>> CheckAsync(ControllerJournal journal, CancellationToken cancellationToken)
         {
-            var inDeficit = new List<ClosedStandard>();
+            var inDeficit = new List<ClosedNeed>();
             if (closed.Count == 0)
             {
                 return inDeficit;
@@ -433,67 +380,28 @@ internal static class UpkeepCampaign
                 return inDeficit;
             }
 
-            var bound = new Dictionary<ConcernId, StandardId>();
-            foreach (var binding in review.Standards)
-            {
-                bound[binding.Concern] = binding.Standard;
-            }
-
             foreach (var c in closed)
             {
-                if (bound.TryGetValue(c.Need, out var id) && id != c.Standard)
+                if (review.Revision == 0 || !review.Progress.Any(p => p.Concern == c.Need.FilingKey))
                 {
-                    throw new AcceptanceException($"{c.Need.Value} (recovered in stage {c.Stage} as {c.Standard.Value}) is bound to a new standard {id.Value} in review {review.Revision}");
+                    _deficitSince.Remove(c.Need);
+                    continue;
                 }
 
-                RimGovernor.Brain.Store.StandardState goal;
-                try
+                if (!_deficitSince.TryGetValue(c.Need, out var since))
                 {
-                    goal = await journal.Store.LoadStandardAsync(c.Standard, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception) when (cancellationToken.IsCancellationRequested)
-                {
-                    return [];
-                }
-                catch (RimGovernor.Brain.Store.NotFoundException)
-                {
-                    throw new AcceptanceException($"{c.Need.Value} (recovered in stage {c.Stage} as {c.Standard.Value}) is gone from the journal");
-                }
-
-                if (goal.Standard.Status == StandardStatus.Voided)
-                {
-                    throw new AcceptanceException($"{c.Need.Value} (recovered in stage {c.Stage}) is voided at review {review.Revision}");
-                }
-
-                if (goal.Standard.Episode != c.Episode)
-                {
+                    since = review.Tick.Value;
+                    _deficitSince[c.Need] = since;
                     lock (_gate)
                     {
                         _reopens.Add(new JsonObject
                         {
                             ["need"] = c.Need.Value,
                             ["stage"] = c.Stage,
-                            ["concern"] = c.Standard.Value,
-                            ["epoch_from"] = c.Episode,
-                            ["epoch_to"] = goal.Standard.Episode,
                             ["tick"] = review.Tick.Value,
                             ["review"] = review.Revision,
                         });
                     }
-
-                    c.Episode = goal.Standard.Episode;
-                }
-
-                if (goal.Standard.Finding != Finding.Unmet)
-                {
-                    _deficitSince.Remove(c.Standard);
-                    continue;
-                }
-
-                if (!_deficitSince.TryGetValue(c.Standard, out var since))
-                {
-                    since = review.Tick.Value;
-                    _deficitSince[c.Standard] = since;
                 }
 
                 if (review.Tick.Value - since > ReopenTicks)
@@ -524,7 +432,7 @@ internal static class UpkeepCampaign
                 if (DateTimeOffset.UtcNow > deadline)
                 {
                     var c = inDeficit[0];
-                    throw new AcceptanceException($"{c.Need.Value} (recovered in stage {c.Stage}) reopened at tick {_deficitSince.GetValueOrDefault(c.Standard)} and is still in deficit after {s_recoveredWait}");
+                    throw new AcceptanceException($"{c.Need.Value} (recovered in stage {c.Stage}) reopened at tick {_deficitSince.GetValueOrDefault(c.Need)} and is still in deficit after {s_recoveredWait}");
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);

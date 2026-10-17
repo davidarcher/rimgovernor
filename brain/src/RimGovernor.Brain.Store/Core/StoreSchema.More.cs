@@ -7,7 +7,7 @@ internal static partial class StoreSchema
     [
         ControlPart,
         SubmissionPart,
-        StandardsPart,
+        OwnersPart,
         Store.ClockPart,
         TimelinePart,
         SingletonPart,

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Telemetry.Otlp;
 using Journal = RimGovernor.Brain.Store.Store;
@@ -438,7 +439,7 @@ internal sealed partial class SpeedmatrixRun
                 try
                 {
                     var final = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
-                    report["rounds_review_at_failure"] = new JsonObject { ["revision"] = final.Revision, ["tick"] = final.Tick.Value, ["standards"] = final.Standards.Count };
+                    report["rounds_review_at_failure"] = new JsonObject { ["revision"] = final.Revision, ["tick"] = final.Tick.Value, ["progress"] = final.Progress.Count };
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -677,29 +678,14 @@ internal sealed partial class SpeedmatrixRun
         }
 
         var review = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var binding in review.Standards)
+        foreach (var row in review.Progress)
         {
-            StandardState goal;
-            try
-            {
-                goal = await journal.LoadStandardAsync(binding.Standard, cancellationToken).ConfigureAwait(false);
-            }
-            catch (NotFoundException)
+            if (review.Revision == 0 || new NeedId(row.Concern.Value) is not { IsValid: true } need)
             {
                 continue;
             }
 
-            var methods = new List<Method>(goal.Methods);
-            try
-            {
-                methods.AddRange(await journal.LoadMethodsAsync(binding.Standard, goal.Standard.Episode, cancellationToken).ConfigureAwait(false));
-            }
-            catch (Exception e) when (e is DomainException or NotFoundException)
-            {
-                _ = e;
-            }
-
-            foreach (var method in methods)
+            foreach (var method in journal.LoadNeed(need, review.Snapshot, cancellationToken).Methods)
             {
                 if (seen.Add(method.Plan))
                 {

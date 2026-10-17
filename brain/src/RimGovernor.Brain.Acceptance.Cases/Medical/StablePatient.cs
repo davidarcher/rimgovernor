@@ -84,9 +84,9 @@ internal static class StablePatient
                     var store = await ObservedSession.OpenStoreAsync(s.Config, ct).ConfigureAwait(false);
                     try
                     {
-                        var food = await store.SampleStandardAsync(PolicyFunctions.FoodSupplyNeed.Value, ct).ConfigureAwait(false);
+                        var food = await store.SampleNeedAsync(PolicyFunctions.FoodSupplyNeed.Value, ct).ConfigureAwait(false);
                         report["food_final"] = food;
-                        var medical = await store.SampleStandardAsync(PolicyFunctions.CriticalCensusNeed.Value, ct).ConfigureAwait(false);
+                        var medical = await store.SampleNeedAsync(PolicyFunctions.CriticalCensusNeed.Value, ct).ConfigureAwait(false);
                         report["medical_final"] = medical;
 
                         // Native evidence: a critical medical Need that cannot be served should leave no tend methods

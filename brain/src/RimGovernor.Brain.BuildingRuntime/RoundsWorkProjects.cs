@@ -26,7 +26,7 @@ internal static partial class BuildingRuntimePackage
             }
             foreach (var progress in plan.Progress)
             {
-                if (!Standard.WorkOpen([progress]))
+                if (!WorkProgress.Open([progress]))
                 {
                     continue;
                 }

@@ -70,7 +70,7 @@ public sealed class RoundsSurgeryPlanner
             var plan = p.Journal.LoadPlan(method.Plan, call);
             foreach (var progress in plan.Progress)
             {
-                if (progress.Action.Surgery is { } s && Standard.WorkOpen([progress]))
+                if (progress.Action.Surgery is { } s && WorkProgress.Open([progress]))
                 {
                     inFlight[s.Pawn] = true;
                 }

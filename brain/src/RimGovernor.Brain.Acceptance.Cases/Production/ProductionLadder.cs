@@ -229,8 +229,8 @@ internal static class ProductionLadder
     private static async Task AuditAsync(Harness h, IWatchStore journal, Report report, double baseline, CancellationToken cancellationToken)
     {
         // Resource (#3303) and research (#3263) are the economy family's Needs: their samples, not Standards.
-        report["economy_resource_need"] = await journal.SampleStandardAsync(EconomyFamily.Resource.Value, cancellationToken).ConfigureAwait(false);
-        report["economy_research_need"] = await journal.SampleStandardAsync(EconomyFamily.Research.Value, cancellationToken).ConfigureAwait(false);
+        report["economy_resource_need"] = await journal.SampleNeedAsync(EconomyFamily.Resource.Value, cancellationToken).ConfigureAwait(false);
+        report["economy_research_need"] = await journal.SampleNeedAsync(EconomyFamily.Research.Value, cancellationToken).ConfigureAwait(false);
         report["production_ladder"] = await journal.ProductionLadderAsync(cancellationToken).ConfigureAwait(false);
 
         var live = await h.CallAsync("final-audit", AuditOp, new JsonObject(), cancellationToken).ConfigureAwait(false);

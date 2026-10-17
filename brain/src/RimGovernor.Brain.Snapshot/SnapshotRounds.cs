@@ -42,20 +42,6 @@ public sealed class SnapshotRounds
             ? PolicyFunctions.InspectImmediateRounds(Facts, Latches, Policy)
             : PolicyFunctions.InspectRounds(Facts, Latches, Policy);
 
-    /// <summary>The replayed review's assessment of one goal.</summary>
-    public RoundsAssessment Assessment(ConcernId id)
-    {
-        var needs = Detect();
-        foreach (var a in needs.All())
-        {
-            if (a.Id == id)
-            {
-                return a;
-            }
-        }
-        throw new DomainException("snapshot: review assessed no " + id.Value);
-    }
-
     /// <summary>Drops the planning window's site cells, most of a recording's size: a committed snapshot keeps them only when its test runs a site search.</summary>
     public void TrimCells()
     {

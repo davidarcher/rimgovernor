@@ -249,7 +249,7 @@ public sealed class LayoutFamilyTests
         saved[Journal.GovernorDefenseLayoutKey] = blob.ToJsonString();
 
         using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-defense-layout-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        loaded.RebuildStandards(saved, null, ct);
+        loaded.RebuildOwners(null, ct);
         loaded.RebuildFamilies(saved, ct);
         var record = loaded.LoadDefenseLayout(world, ct);
         Assert.NotNull(record);

@@ -6,8 +6,6 @@ namespace RimGovernor.Brain.Policy;
 
 internal sealed class MilitaryOwner : IStoreOwner
 {
-    public Department Department => Department.Military;
-
     /// <summary>The weapons and apparel zones; none while the plan or the armor split is unread.</summary>
     public IReadOnlyList<Store> Stores(StoreView view)
     {

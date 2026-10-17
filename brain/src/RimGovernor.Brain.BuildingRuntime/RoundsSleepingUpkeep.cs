@@ -275,7 +275,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// <summary>Whether a settled plan has every action ended absent: native refused it, so nothing changed.</summary>
     internal static bool SleepingAssignUnadmitted(IReadOnlyList<Progress> progress)
     {
-        if (progress.Count == 0 || Standard.WorkOpen(progress))
+        if (progress.Count == 0 || WorkProgress.Open(progress))
         {
             return false;
         }

@@ -135,9 +135,6 @@ public sealed record RoundsStatus
     /// <summary>The state store's held census sections with the tick each describes.</summary>
     public IReadOnlyList<SectionStatus> Sections { get; init; } = [];
 
-    /// <summary>The inspections that raised nothing in the last enabled review, with the typed reason.</summary>
-    public IReadOnlyList<NoOpRecord> NoOps { get; init; } = [];
-
     /// <summary>The safe forbidden stacks the last review's safety hold kept forbidden, with reasons.</summary>
     public IReadOnlyList<LootHold> LootHolds { get; init; } = [];
 }

@@ -116,7 +116,7 @@ public sealed partial class RoundsBuildingPlanner
             }
 
             var plan0 = Reviewer.Player.Journal.LoadPlan(prior, call);
-            if (Standard.WorkOpen(plan0.Progress))
+            if (WorkProgress.Open(plan0.Progress))
             {
                 return (new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "dig_plan") }, true);
             }

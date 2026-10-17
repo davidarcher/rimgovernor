@@ -91,7 +91,7 @@ public sealed class PeopleRounds
         {
             return BuildingReasonNoReview;
         }
-        if (work.Owner.Methods.Any(m => Standard.WorkOpen(p.Journal.LoadPlan(m.Plan, call).Progress)))
+        if (work.Owner.Methods.Any(m => WorkProgress.Open(p.Journal.LoadPlan(m.Plan, call).Progress)))
         {
             return BuildingReasonExistingWork;
         }

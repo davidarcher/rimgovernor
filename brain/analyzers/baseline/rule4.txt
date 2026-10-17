@@ -60,7 +60,6 @@ BuildingRuntime/Rounds/RoundsDefenseTiers.cs|RoundsDefenseLayoutPlanner.AdviseBl
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Rounder.ReviewReserve
 BuildingRuntime/Rounds/RoundsIdeoligion.cs|Rounder.ReformChoice
 BuildingRuntime/Rounds/RoundsResourceRunway.cs|Rounder.ResourceSurfaceOreAsync
-BuildingRuntime/RoundsSleeping.cs|RoundsBuildingPlanner.AdmitPreviewsAsync
 BuildingRuntime/RoundsSleepingShellBed.cs|RoundsSleepingUpkeepPlanner.PackShellBedAsync
 BuildingRuntime/RoundsSleepingUpgrade.cs|BuildingRuntimePackage.PieceStuff
 BuildingRuntime/RoundsTradeAcquisition.cs|Rounder.PlanFoodAcquisitionAsync
@@ -100,5 +99,4 @@ Policy/QuestMonument.cs|PolicyFunctions.SelectQuestMonument
 Policy/StoreMedicine.cs|StoreView.MedicineStore
 Snapshot/SnapshotLater.cs|SnapshotPackage.Later
 Store/Core/StoreTransaction.cs|StoreTransaction.Dispose
-Store/Rounds/RoundsDependency.cs|Store.PriorAdmitted
 Telemetry/Otlp/OtlpFileWriter.cs|OtlpFileWriter.MetricLoopAsync

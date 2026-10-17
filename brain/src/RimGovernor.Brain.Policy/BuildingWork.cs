@@ -14,7 +14,7 @@ public static partial class PolicyFunctions
     /// <summary>StandardWorkOpen plus applied buildings still under construction.</summary>
     public static bool PlanWorkOpen(IReadOnlyList<Progress> progress, Fact<CurrentConstruction> census)
     {
-        if (Standard.WorkOpen(progress))
+        if (WorkProgress.Open(progress))
         {
             return true;
         }

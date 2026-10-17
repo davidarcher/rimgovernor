@@ -140,9 +140,9 @@ public sealed partial class Store
         }
         var owner = LoadNeedIn(tx, MilitaryFamily.Combat, current);
         AdmitRoundsSafeguards(tx, owner);
-        if (fightWork ? PlanOpenWork(tx, owner) : StandardOpenWork(tx, owner))
+        if (fightWork ? PlanOpenWork(tx, owner) : CombatOpenWork(tx, owner))
         {
-            throw new OpenMethodException();
+            throw new CombatWorkOpenException();
         }
         BindOwnerMethod(tx, owner, method, "", plan);
         return LoadNeedIn(tx, MilitaryFamily.Combat, current);

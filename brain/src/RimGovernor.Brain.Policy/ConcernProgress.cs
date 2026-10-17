@@ -185,36 +185,6 @@ public sealed record ProgressContract
     public Tick CooldownUntil(Tick now) => new(now.Value + EffectiveCooldown().Value);
 }
 
-/// <summary>
-/// What one review observed about a goal's method, all of it native outcome or the absence of one.
-/// </summary>
-public sealed record ProgressEvidence
-{
-    /// <summary>A native outcome moved the expected observable since the last review (an effect settled, a deficit shrank, work observed).</summary>
-    public bool Advanced { get; init; }
-
-    /// <summary>A method has unsettled work (dispatched, pending or held).</summary>
-    public bool Open { get; init; }
-
-    /// <summary>The open work has been issued to native.</summary>
-    public bool Dispatched { get; init; }
-
-    /// <summary>A dispatched write's outcome is unknown.</summary>
-    public bool Unresolved { get; init; }
-
-    /// <summary>An available pawn is capable of the open work; unknown when the labor census or the work's profile is.</summary>
-    public Fact<bool> WorkerAvailable { get; init; }
-
-    /// <summary>Native holds the open work as ineligible.</summary>
-    public bool NativeIneligible { get; init; }
-
-    /// <summary>A goal that must be served before this method can advance; empty when none.</summary>
-    public ConcernId Prerequisite { get; init; }
-
-    /// <summary>The deficit fraction this review measured.</summary>
-    public Fact<double> Observed { get; init; }
-}
-
 public static partial class PolicyFunctions
 {
     /// <summary>Bounds every cooldown to three game days: a failed situation is retried, never banned.</summary>
@@ -234,131 +204,11 @@ public static partial class PolicyFunctions
     public static ProgressContract AcquisitionProgress(this RoundsPolicy p) =>
         new() { Method = "harvest", Expected = "designation taken and the yield hauled", Deadline = new Tick(p.AcquisitionStallTicks) };
 
-    /// <summary>
-    /// Folds one review's evidence into the goal's record. A new record starts its clock at now. Progress
-    /// resets the deadline; blocked evidence leaves the clock running, so a method blocked past its deadline
-    /// rotates (ExpireConcernProgress). Expired cooldowns are dropped.
-    /// </summary>
-    public static ConcernProgress ReviewConcernProgress(ConcernProgress previous, ConcernId goal, ProgressContract c, ProgressEvidence e, Tick now)
-    {
-        var p = previous with { Concern = goal };
-        // A new goal, a new method or a tick rewind starts the clock; cooldowns are keyed to situations, not
-        // methods, and outlive a method change.
-        var fresh = previous.Concern != goal || previous.Method != c.Method || previous.LastProgress > now;
-        if (fresh)
-        {
-            p = p with { LastProgress = now };
-        }
-        if (previous.Concern != goal || previous.LastProgress > now)
-        {
-            p = p with { Cooldowns = default };
-        }
-        p = p with { Method = c.Method, Expected = c.Expected };
-        var advanced = e.Advanced;
-        if (e.Observed.TryGetValue(out var observed))
-        {
-            if (previous.Observed is { } was && !fresh && observed < was)
-            {
-                advanced = true;
-            }
-            p = p with { Observed = observed };
-        }
-        else
-        {
-            p = p with { Observed = null };
-        }
-        if (advanced)
-        {
-            p = p with { LastProgress = now };
-        }
-        var blocked = BlockedReasonOf(e with { Advanced = advanced });
-        if (blocked == BlockedReason.NoMethod && p.Planner != Cause.None)
-        {
-            blocked = p.PlannerNote().Blocked();
-        }
-        p = p with { Blocked = blocked, Open = e.Open, NextReview = default };
-        if (c.Deadline.Value > 0)
-        {
-            p = p with { NextReview = new Tick(p.LastProgress.Value + c.Deadline.Value) };
-        }
-        return p with { Cooldowns = EquatableArray.From(LiveCooldowns(p.Cooldowns, now)) };
-    }
-
-    internal static BlockedReason BlockedReasonOf(ProgressEvidence e)
-    {
-        if (!e.Prerequisite.IsEmpty)
-        {
-            return BlockedReason.OnPrerequisite(e.Prerequisite);
-        }
-        if (e.Open && e.Unresolved)
-        {
-            return BlockedReason.Reconciling;
-        }
-        if (e.Open && e.NativeIneligible)
-        {
-            return BlockedReason.NativeIneligible;
-        }
-        if (e.Open && e.Dispatched && !e.Advanced)
-        {
-            if (e.WorkerAvailable.TryGetValue(out var available) && !available)
-            {
-                return BlockedReason.NoWorker;
-            }
-        }
-        else if (!e.Open && !e.Advanced)
-        {
-            return BlockedReason.NoMethod;
-        }
-        return default;
-    }
-
     internal static List<ProgressCooldown> LiveCooldowns(IEnumerable<ProgressCooldown> cooldowns, Tick now) =>
         cooldowns.Where(cd => cd.Until > now).ToList();
 
     /// <summary>Joins the parts of a failed situation into one cooldown key.</summary>
     public static string CooldownKey(params string[] parts) => string.Join('/', parts);
-
-    /// <summary>
-    /// Rotates a method whose deadline has passed without progress: the failed situation is keyed out for the
-    /// contract's bounded cooldown and the first alternative not under one becomes the method, with a fresh
-    /// deadline. It reports whether it rotated. A write whose outcome is unknown is never rotated past: the
-    /// action identity is reconciled first (BlockedReconciling). With no free alternative the method stays,
-    /// blocked on cooldown, until one lifts.
-    /// </summary>
-    public static (ConcernProgress Progress, bool Rotated) ExpireConcernProgress(ConcernProgress p, ProgressContract c, Tick now, string situation, IReadOnlyList<ProgressContract> alternatives)
-    {
-        if (p.NextReview.Value == 0 || now < p.NextReview || p.Blocked == BlockedReason.Reconciling)
-        {
-            return (p, false);
-        }
-        var cooldowns = LiveCooldowns(p.Cooldowns, now);
-        cooldowns.Add(new ProgressCooldown(situation, new Tick(now.Value + c.EffectiveCooldown().Value)));
-        p = p with { Cooldowns = EquatableArray.From(cooldowns.OrderBy(cd => cd.Key, StringComparer.Ordinal)) };
-        foreach (var alt in alternatives)
-        {
-            if (alt.Method == c.Method || p.Cooled(alt.Method, now))
-            {
-                continue;
-            }
-            p = p with
-            {
-                Method = alt.Method,
-                Expected = alt.Expected,
-                LastProgress = now,
-                Blocked = default,
-                NextReview = alt.Deadline.Value > 0 ? new Tick(now.Value + alt.Deadline.Value) : default,
-            };
-            return (p, true);
-        }
-        // Alternatives offered and every one cooled: blocked on cooldown. With none offered the planner owns
-        // the rotation and the blocker stands.
-        if (alternatives.Count > 0)
-        {
-            p = p with { Blocked = BlockedReason.Cooldown };
-        }
-        p = p with { LastProgress = now, NextReview = c.Deadline.Value > 0 ? new Tick(now.Value + c.Deadline.Value) : default };
-        return (p, true);
-    }
 
     /// <summary>Keys a situation out until the given tick, bounded by ProgressCooldownMax from now; a key already cooled takes the later bound.</summary>
     public static ConcernProgress AddProgressCooldown(ConcernProgress p, string key, Tick until, Tick now)
@@ -396,19 +246,6 @@ public static partial class PolicyFunctions
         }
     }
 
-    /// <summary>
-    /// The default contract for a Standard's method: the method id as the method, the Standard's deficit as the
-    /// observable, RoundsPolicy.ConcernStallTicks (scaled by colony stage) without progress as the deadline.
-    /// </summary>
-    public static ProgressContract ConcernProgressContract(string method, RoundsPolicy p)
-    {
-        if (method.Length == 0)
-        {
-            method = "assess";
-        }
-        return new ProgressContract { Method = method, Expected = "deficit shrinks or the method's work settles", Deadline = new Tick(p.ConcernStallTicks) };
-    }
-
     /// <summary>Reports a filed note whose cause is in the closed set and whose subject is within the bound Wording folds in; a cleared note has neither.</summary>
     internal static bool ValidPlannerNote(PlannerNote n)
     {
@@ -420,7 +257,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Reports unavailable methods and planner opt-outs.</summary>
-    public static List<ConcernProgress> HoldProgress(IReadOnlyList<ConcernProgress> progress, IReadOnlyDictionary<ConcernId, bool> unavailable)
+    public static List<ConcernProgress> HoldProgress(IReadOnlyList<ConcernProgress> progress)
     {
         var result = new List<ConcernProgress>(progress.Count);
         foreach (var p in progress)
@@ -428,10 +265,6 @@ public static partial class PolicyFunctions
             if (!p.Unmethoded())
             {
                 result.Add(p);
-            }
-            else if (unavailable.GetValueOrDefault(p.Concern))
-            {
-                result.Add(p with { Blocked = BlockedReason.HeldUnavailable });
             }
             else if (p.Planner == Cause.HeldOptIn)
             {

@@ -80,7 +80,7 @@ internal static class ClockRunWork
                 return (true, fight.Open, fight.Open ? new EquatableArray<PawnId>(ImmutableArray.CreateRange(standing.Prey.Select(p => p))) : default);
             }
             var plan = await journal.LoadPlanAsync(method.Plan, ct).ConfigureAwait(false);
-            if (Standard.WorkOpen(plan.Progress))
+            if (WorkProgress.Open(plan.Progress))
             {
                 return (true, false, default);
             }

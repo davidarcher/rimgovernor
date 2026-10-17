@@ -215,7 +215,7 @@ internal static partial class BuildingRuntimePackage
         var output = new HashSet<PawnId>();
         foreach (var progress in plan.Progress)
         {
-            if (!Standard.WorkOpen([progress]))
+            if (!WorkProgress.Open([progress]))
             {
                 continue;
             }

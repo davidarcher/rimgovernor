@@ -9,8 +9,7 @@ namespace RimGovernor.Brain.Store;
 public sealed record BuildingMethodRequest
 {
     /// <summary>
-    /// The owner the method binds to, as loaded: a Standard's revision scopes the commit; a Need commits through
-    /// claim admission (#3279).
+    /// The Need the method binds to, as loaded; it commits through claim admission (#3279).
     /// </summary>
     public required IWorkOwner Owner { get; init; }
 
@@ -49,14 +48,9 @@ public sealed record BuildingMethodDecision(bool Admitted, IWorkOwner Owner, IRe
 /// <summary>
 /// One zone this colony created, by native zone identity: the completed zone_create's kind, crop, cells and
 /// stockpile role key. Role is empty for a legacy role-less claim. <see cref="Owner"/> is the owner's filing key
-/// (decision 20): a Need-linked zone's NeedId.FilingKey, or a Standard-linked zone's Concern (until #3265), whose
-/// Standard is <see cref="Standard"/>.
+/// (decision 20): the owning Need's NeedId.FilingKey.
 /// </summary>
-public sealed record OwnedZone(string Id, ZoneKind Kind, string Crop, EquatableArray<Cell> Cells, string Role, ConcernId Owner, StockpileFilter? Filter, StockpilePriority? Priority)
-{
-    /// <summary>The Standard a Standard-linked zone was created under; null for a Need-linked zone.</summary>
-    public StandardId? Standard { get; init; }
-}
+public sealed record OwnedZone(string Id, ZoneKind Kind, string Crop, EquatableArray<Cell> Cells, string Role, ConcernId Owner, StockpileFilter? Filter, StockpilePriority? Priority);
 
 /// <summary>The last completed autopilot stockpile_patch on one storage target, as of <see cref="Tick"/>.</summary>
 public sealed record AppliedStockpile(string Target, StorageTargetKind Kind, StockpileFilter Filter, StockpilePriority Priority, string Role, Tick Tick);
@@ -98,16 +92,8 @@ public sealed partial class Store
                 IMethodOwner owner;
                 switch (r.Owner)
                 {
-                    case StandardState scoped:
-                        var standard = LoadStandard(tx, scoped.Standard.Id);
-                        if (standard.Revision != scoped.Revision)
-                        {
-                            throw new StaleOwnerException($"{((IMethodOwner)standard).OwnerLabel} revision {standard.Revision}, method scoped to {scoped.Revision}");
-                        }
-                        owner = standard;
-                        break;
-                    case NeedOwner need:
-                        owner = LoadNeedIn(tx, need.Need, need.Snapshot);
+                    case NeedOwner scoped:
+                        owner = LoadNeedIn(tx, scoped.Need, scoped.Snapshot);
                         break;
                     default:
                         throw new DomainException("unsupported work owner");
@@ -171,21 +157,13 @@ public sealed partial class Store
                         return new BuildingMethodDecision(false, (IWorkOwner)owner, decision.Refused);
                     }
                 }
-                IWorkOwner committed;
-                if (owner is StandardState held)
+                var need = (NeedOwner)owner;
+                var claimed = CommitClaimedNeedMethodIn(tx, need.Need, need.Snapshot, r.Method, r.Reason, r.Plan);
+                if (claimed.Outcome != ClaimOutcome.Admitted)
                 {
-                    committed = CommitMethodIn(tx, held.Standard.Id, held.Revision, r.Method, r.Reason, r.Plan);
+                    return new BuildingMethodDecision(false, claimed.Owner, []) { Continued = claimed.Outcome == ClaimOutcome.Continued, Conflict = claimed.Conflict };
                 }
-                else
-                {
-                    var need = (NeedOwner)owner;
-                    var claimed = CommitClaimedNeedMethodIn(tx, need.Need, need.Snapshot, r.Method, r.Reason, r.Plan);
-                    if (claimed.Outcome != ClaimOutcome.Admitted)
-                    {
-                        return new BuildingMethodDecision(false, claimed.Owner, []) { Continued = claimed.Outcome == ClaimOutcome.Continued, Conflict = claimed.Conflict };
-                    }
-                    committed = claimed.Owner;
-                }
+                IWorkOwner committed = claimed.Owner;
                 foreach (var h in decision.Admitted)
                 {
                     var admission = new Admission(h.Snapshot, r.Tick, h.Footprint);
@@ -252,15 +230,6 @@ public sealed partial class Store
 
     private const string ReceiptAccepted = "json_extract(t.payload,'$.Kind')='receipt' AND json_extract(t.payload,'$.Receipt')='accepted'";
 
-    private static string StandardPlanLinks(string actionKind, string extra, string transition, string tail) =>
-        $"""
-            SELECT m.plan_id,m.owner_id FROM plan_methods m JOIN standards g ON g.id=m.owner_id AND m.kind='standard'
-             WHERE json_extract(g.payload,'$.Snapshot.Colony')=$colony
-             AND json_extract(g.payload,'$.Snapshot.Load')=$load AND json_extract(g.payload,'$.Snapshot.Map')=$map
-             AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='{actionKind}'{extra} AND {transition})
-             ORDER BY m.plan_id {tail}
-            """;
-
     /// <summary>The Need-owned plans of the current world holding an <paramref name="actionKind"/> action past <paramref name="transition"/>, with their NeedId.</summary>
     private static string NeedPlanLinks(string actionKind, string transition, string tail) =>
         $"""
@@ -272,8 +241,6 @@ public sealed partial class Store
 
     private static List<(PlanId Plan, string Owner)> OwnedPlanLinks(StoreTransaction tx, string sql, GenerationSnapshot current) =>
         tx.Query(sql, [("$colony", current.Colony), ("$load", current.Load), ("$map", current.Map)], r => (Plan: new PlanId(r.GetString(0)), Owner: r.GetString(1)));
-
-    private static bool InScope(OwnerSummary owner, GenerationSnapshot current) => owner.Snapshot.Colony == current.Colony && owner.Snapshot.Load == current.Load && owner.Snapshot.Map == current.Map;
 
     private static bool CompletedInScope(ProgressView v, GenerationSnapshot current, Tick tick) =>
         v.Effect.TryGetValue(out var effect)
@@ -292,12 +259,7 @@ public sealed partial class Store
     /// </summary>
     internal static Fact<EquatableArray<ConstructionClaim>> ConstructionClaimsIn(StoreTransaction tx, GenerationSnapshot current, Tick tick)
     {
-        var links = OwnedPlanLinks(
-            tx,
-            StandardPlanLinks("building", " AND COALESCE(json_extract(a.body,'$.Payload.ConstructionTarget'),'')=''", ReceiptAccepted, "LIMIT 257"),
-            current
-        );
-        // A Need-owned plan (#3263) claims what it builds as a Standard's does, filed under the Need's key.
+        // A Need-owned plan (#3263) claims what it builds, filed under the Need's key.
         var needs = tx.Query(
             $"""
                 SELECT m.plan_id,m.need_id FROM need_methods m
@@ -307,36 +269,11 @@ public sealed partial class Store
                 """,
             [("$colony", current.Colony), ("$load", current.Load), ("$map", current.Map)],
             r => (Plan: new PlanId(r.GetString(0)), Need: new NeedId(r.GetString(1))));
-        if (links.Count + needs.Count > MaxConstructionClaims)
+        if (needs.Count > MaxConstructionClaims)
         {
             return default;
         }
         var result = new List<ConstructionClaim>();
-        var owners = new Dictionary<string, OwnerSummary>(StringComparer.Ordinal);
-        foreach (var link in links)
-        {
-            if (!owners.TryGetValue(link.Owner, out var g))
-            {
-                g = SummarizeOwner(LoadStandard(tx, new StandardId(link.Owner)));
-                owners[link.Owner] = g;
-            }
-            if (!InScope(g, current))
-            {
-                continue;
-            }
-            foreach (var progress in LoadIn(tx, link.Plan).Progress)
-            {
-                if (progress.Action.Building is not { } building || progress.Action.ConstructionTarget.Length != 0 || !CompletedInScope(progress.View, current, tick))
-                {
-                    continue;
-                }
-                result.Add(new ConstructionClaim { Plan = link.Plan, Action = progress.View.Action, Concern = g.Kind, Building = building });
-                if (result.Count > MaxConstructionClaims)
-                {
-                    return default;
-                }
-            }
-        }
         foreach (var link in needs)
         {
             foreach (var progress in LoadIn(tx, link.Plan).Progress)
@@ -370,12 +307,12 @@ public sealed partial class Store
     /// <summary>
     /// Every completed autopilot zone_create of the current world scope by the native zone identity its receipt
     /// returned; the layout tidy reads a zone's kind and crop from these when it has one. A Need-owned plan's zones
-    /// are filed under the Need's key (decision 20); a Standard's under its Concern, with the Standard, until #3265.
+    /// are filed under the Need's key (decision 20).
     /// </summary>
     internal static Fact<EquatableArray<OwnedZone>> ZoneClaimsIn(StoreTransaction tx, GenerationSnapshot current, Tick tick)
     {
         var result = new List<OwnedZone>();
-        void Add(PlanId plan, ConcernId owner, StandardId? standard)
+        void Add(PlanId plan, ConcernId owner)
         {
             foreach (var progress in LoadIn(tx, plan).Progress)
             {
@@ -386,31 +323,17 @@ public sealed partial class Store
                 }
                 if (v.Stockpiles.TryGetValue(out var placements))
                 {
-                    result.AddRange(placements.Rows.Select(created => new OwnedZone(created.Id, zone.Kind, "", created.Cells, zone.Role, owner, zone.Filter, zone.Priority) { Standard = standard }));
+                    result.AddRange(placements.Rows.Select(created => new OwnedZone(created.Id, zone.Kind, "", created.Cells, zone.Role, owner, zone.Filter, zone.Priority)));
                 }
                 else if (v.Zone.TryGetValue(out var id))
                 {
-                    result.Add(new OwnedZone(id, zone.Kind, zone.Crop, zone.Cells, zone.Role, owner, zone.Filter, zone.Priority) { Standard = standard });
+                    result.Add(new OwnedZone(id, zone.Kind, zone.Crop, zone.Cells, zone.Role, owner, zone.Filter, zone.Priority));
                 }
             }
         }
-        var owners = new Dictionary<string, OwnerSummary>(StringComparer.Ordinal);
-        foreach (var link in OwnedPlanLinks(tx, StandardPlanLinks("zone_create", "", ObservedOrReceipted, ""), current))
-        {
-            if (!owners.TryGetValue(link.Owner, out var g))
-            {
-                g = SummarizeOwner(LoadStandard(tx, new StandardId(link.Owner)));
-                owners[link.Owner] = g;
-            }
-            if (!InScope(g, current))
-            {
-                continue;
-            }
-            Add(link.Plan, g.Kind, new StandardId(link.Owner));
-        }
         foreach (var link in OwnedPlanLinks(tx, NeedPlanLinks("zone_create", ObservedOrReceipted, ""), current))
         {
-            Add(link.Plan, new NeedId(link.Owner).FilingKey, null);
+            Add(link.Plan, new NeedId(link.Owner).FilingKey);
         }
         return Fact.Known(EquatableArray.From(result));
     }
@@ -430,14 +353,13 @@ public sealed partial class Store
 
     /// <summary>
     /// The latest completed autopilot stockpile_patch of the current world scope at or before <paramref name="tick"/>,
-    /// per target id, zones and storage buildings alike, of Need-owned plans and (until #3265) Standard-owned ones.
+    /// per target id, zones and storage buildings alike, of Need-owned plans.
     /// </summary>
     internal static Dictionary<string, AppliedStockpile> StockpilePatchesIn(StoreTransaction tx, GenerationSnapshot current, Tick tick)
     {
         var result = new Dictionary<string, AppliedStockpile>(StringComparer.Ordinal);
         var limit = "LIMIT " + (MaxStockpilePatchPlans + 1);
-        var links = OwnedPlanLinks(tx, StandardPlanLinks("stockpile_patch", "", ObservedOrReceipted, limit), current)
-            .Concat(OwnedPlanLinks(tx, NeedPlanLinks("stockpile_patch", ObservedOrReceipted, limit), current));
+        var links = OwnedPlanLinks(tx, NeedPlanLinks("stockpile_patch", ObservedOrReceipted, limit), current);
         foreach (var (plan, _) in links)
         {
             foreach (var progress in LoadIn(tx, plan).Progress)

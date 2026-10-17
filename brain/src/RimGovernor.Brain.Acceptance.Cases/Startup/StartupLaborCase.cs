@@ -257,7 +257,7 @@ internal static class StartupLaborCase
         foreach (var row in review.Progress)
         {
             var subject = new LaborSubject { World = world, ReviewTick = review.Tick.Value, Concern = row.Concern.Value };
-            if (await OwnerMethodsAsync(st, review, row.Concern, cancellationToken).ConfigureAwait(false) is { } methods)
+            if (OwnerMethods(st, review, row.Concern, cancellationToken) is { } methods)
             {
                 var (method, action, progress, beds) = await OpenWorkAsync(st, methods, cancellationToken).ConfigureAwait(false);
                 subject = subject with { Method = method, Action = action, Progress = progress };
@@ -273,29 +273,11 @@ internal static class StartupLaborCase
         return result;
     }
 
-    /// <summary>
-    /// The open methods of the goal the review binds to <paramref name="need"/>, or of the family Need filed under it
-    /// (a Need's row is keyed by its filing key); null when it binds none or the row is gone.
-    /// </summary>
-    private static async Task<IReadOnlyList<OwnedMethod>?> OwnerMethodsAsync(Journal st, ReviewRecord review, ConcernId need, CancellationToken cancellationToken)
-    {
-        if (!review.StandardFor(need, out var id))
-        {
-            return need.Value.Contains('/', StringComparison.Ordinal) && review.Revision != 0
-                ? [.. st.LoadNeed(new NeedId(need.Value), review.Snapshot, cancellationToken).Methods.Select(m => new OwnedMethod(m.Method, m.Plan))]
-                : null;
-        }
-
-        try
-        {
-            var owner = await st.LoadStandardAsync(id, cancellationToken).ConfigureAwait(false);
-            return owner.Standard.Id.Value.Length == 0 ? null : [.. owner.Methods.Select(m => new OwnedMethod(m.MethodId, m.Plan))];
-        }
-        catch (NotFoundException)
-        {
-            return null;
-        }
-    }
+    /// <summary>The unretired methods of the family Need filed under <paramref name="need"/>; null for another key or before the first review.</summary>
+    private static IReadOnlyList<OwnedMethod>? OwnerMethods(Journal st, ReviewRecord review, ConcernId need, CancellationToken cancellationToken) =>
+        review.Revision != 0 && new NeedId(need.Value) is { IsValid: true } id
+            ? [.. st.LoadNeed(id, review.Snapshot, cancellationToken).Methods.Select(m => new OwnedMethod(m.Method, m.Plan))]
+            : null;
 
     /// <summary>The first open action among methods: its method, action id, the progress view and whether the open rung is the shelter-beds one.</summary>
     private static async Task<(string Method, string Action, LaborProgress? Progress, bool Beds)> OpenWorkAsync(Journal st, IReadOnlyList<OwnedMethod> methods, CancellationToken cancellationToken)

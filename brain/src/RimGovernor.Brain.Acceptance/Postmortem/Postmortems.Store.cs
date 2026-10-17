@@ -132,9 +132,7 @@ public static partial class Postmortems
     }
 
     /// <summary>
-    /// Reads rounds raw: development rows not selected (with the reason, which the goal's own status hides: a goal
-    /// "deficit/open, zero methods" is usually a development refusal, not a planner that offered nothing) and every
-    /// active goal in deficit with its live method count.
+    /// Reads rounds raw: the review's revision and tick, and every Need with a live method and its live method count.
     /// </summary>
     private static DigestSection RoundsSection(SqliteConnection? db, string note)
     {
@@ -173,47 +171,35 @@ public static partial class Postmortems
             s.Note = "rounds: " + e.Message;
         }
 
-        // Standards in deficit that development selected (or never ranked) with no live method: the "zero methods"
-        // symptom the rows above do not explain.
+        // The Needs with live work: a Need in progress that is missing here offered no Method.
         try
         {
             using var command = db.CreateCommand();
-            command.CommandText = "SELECT g.id, g.payload, (SELECT count(*) FROM standard_methods m JOIN plans p ON p.id=m.plan_id WHERE m.standard_id=g.id AND p.retired=0) FROM standards g WHERE g.retired=0";
+            command.CommandText = "SELECT m.need_id, count(*) FROM need_methods m JOIN plans p ON p.id=m.plan_id WHERE p.retired=0 GROUP BY m.need_id ORDER BY m.need_id";
             using var reader = command.ExecuteReader();
             var count = 0;
             while (reader.Read())
             {
-                var id = reader.GetString(0);
-                var methods = reader.GetInt64(2);
-                if (ParsePayload(PayloadText(reader, 1)) is not { } goal)
-                {
-                    continue;
-                }
-
-                if (Field(goal, "Status").AsString() != "open" || Field(goal, "Finding").AsString() != "unmet")
-                {
-                    continue;
-                }
-
                 count++;
                 if (s.Lines.Count >= 2 * MaxLines)
                 {
                     continue;
                 }
 
+                var need = reader.GetString(0);
                 s.Lines.Add(new DigestLine(
-                    string.Create(CultureInfo.InvariantCulture, $"standard {id} deficit/open priority {Int64Of(Field(goal, "Priority"))} episode {Int64Of(Field(goal, "Episode"))}: {methods} live methods"),
-                    "service.sqlite standards#" + id));
+                    string.Create(CultureInfo.InvariantCulture, $"need {need}: {reader.GetInt64(1)} live methods"),
+                    "service.sqlite need_methods#" + need));
             }
 
             if (count == 0 && s.Note.Length == 0)
             {
-                s.Lines.Add(new DigestLine("no selected standard in deficit", "service.sqlite standards"));
+                s.Lines.Add(new DigestLine("no need with a live method", "service.sqlite need_methods"));
             }
         }
         catch (SqliteException e)
         {
-            s.Lines.Add(new DigestLine("standards: " + e.Message, "service.sqlite standards"));
+            s.Lines.Add(new DigestLine("need_methods: " + e.Message, "service.sqlite need_methods"));
         }
 
         return s;
@@ -231,7 +217,7 @@ public static partial class Postmortems
             return s;
         }
 
-        // The C# store keeps every table the Go postmortem read (rounds, standards, standard_methods, plans, transitions,
+        // The C# store keeps every table the Go postmortem read (rounds, plans, transitions,
         // actions), so no table is added for the digest. Its actions carry kind and a JSON body but no definition/pawn
         // columns (the Go store's), so the action line names the kind only; a journal predating the actions table still
         // has the transitions, and the kind is then blank.

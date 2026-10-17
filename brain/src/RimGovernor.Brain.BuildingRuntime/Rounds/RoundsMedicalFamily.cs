@@ -286,7 +286,7 @@ public sealed class MedicalRounds
                 }
                 foreach (var progress in plan.Progress)
                 {
-                    if (!Standard.WorkOpen([progress]))
+                    if (!WorkProgress.Open([progress]))
                     {
                         continue;
                     }
@@ -351,7 +351,7 @@ public sealed class MedicalRounds
         {
             return amputation ?? Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
         }
-        if (work.Owner.Methods.Any(m => IsCareMethod(m.Method) && Standard.WorkOpen(journal.LoadPlan(m.Plan, call).Progress)))
+        if (work.Owner.Methods.Any(m => IsCareMethod(m.Method) && WorkProgress.Open(journal.LoadPlan(m.Plan, call).Progress)))
         {
             return BuildingReasonExistingWork;
         }

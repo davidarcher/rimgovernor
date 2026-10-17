@@ -7,8 +7,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The Storage department.</summary>
 internal sealed class StorageOwner : IStoreOwner
 {
-    public Department Department => Department.Storage;
-
     /// <summary>
     /// The warehouses then the yards, in plan order. The warehouse is Low priority so the workstation
     /// stockpiles draw first; every store of a role shares its key, the zone matching its room by position.

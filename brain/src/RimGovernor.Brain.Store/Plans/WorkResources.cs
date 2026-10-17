@@ -10,14 +10,6 @@ public sealed partial class Store
     private static WorkActionCensus WorkActionsIn(StoreTransaction tx, GenerationSnapshot current, PlanId exclude = default)
     {
         var links = OwnedPlanLinks(tx, """
-            SELECT m.plan_id,m.owner_id FROM plan_methods m
-            JOIN (SELECT id,payload,'standard' AS kind FROM standards UNION ALL SELECT id,payload,'incident' AS kind FROM incidents) g
-            ON g.id=m.owner_id AND g.kind=m.kind
-            WHERE json_extract(g.payload,'$.Snapshot.Colony')=$colony
-              AND json_extract(g.payload,'$.Snapshot.Load')=$load AND json_extract(g.payload,'$.Snapshot.Map')=$map
-              AND EXISTS(SELECT 1 FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.plan_id=m.plan_id
-                  AND (a.kind IN ('building','production_bill') OR a.kind='pawn_activities' AND p.retired=0))
-            UNION ALL
             SELECT n.plan_id,n.need_id FROM need_methods n
             WHERE n.colony=$colony AND n.load_token=$load AND n.map_id=$map
               AND EXISTS(SELECT 1 FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.plan_id=n.plan_id

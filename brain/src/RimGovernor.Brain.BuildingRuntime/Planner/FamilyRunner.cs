@@ -359,7 +359,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
 
     /// <summary>The latest Method bound to the Need that still has open work; empty when none does.</summary>
     private static MethodId OpenMethod(FamilyStep step, NeedId need, CancellationToken call) =>
-        step.Journal.LoadNeed(need, step.World, call).Methods.LastOrDefault(m => Standard.WorkOpen(step.Journal.LoadPlan(m.Plan, call).Progress))?.Method ?? default;
+        step.Journal.LoadNeed(need, step.World, call).Methods.LastOrDefault(m => WorkProgress.Open(step.Journal.LoadPlan(m.Plan, call).Progress))?.Method ?? default;
 
     /// <summary>
     /// Files a hold, or checks the Method's refusal budget, mints the plan, fences and commits one candidate through
@@ -373,7 +373,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             return (Verdict.AwaitingPlan(hold.Subject, hold.Detail), null);
         }
         var owner = step.Journal.LoadNeed(candidate.Need, step.World, call);
-        if (!owner.Methods.Any(m => m.Method == candidate.Method && Standard.WorkOpen(step.Journal.LoadPlan(m.Plan, call).Progress)))
+        if (!owner.Methods.Any(m => m.Method == candidate.Method && WorkProgress.Open(step.Journal.LoadPlan(m.Plan, call).Progress)))
         {
             var (refused, admitted) = BuildingRuntimePackage.AdmitLatestAttempt(step.Journal, owner, candidate.Method, step.World, call);
             if (!admitted)
